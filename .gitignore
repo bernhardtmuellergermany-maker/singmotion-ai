@@ -1,0 +1,42 @@
+# Dependencies and build/test output
+node_modules/
+.next/
+out/
+dist/
+coverage/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Local environment and credentials; the blank configuration template is intentional
+.env*
+!.env.example
+.secrets/
+secrets/
+.aws/
+.ssh/
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+*service-account*.json
+
+# Private database, uploads, generated results, previews and temporary files
+.data/
+uploads/
+generated/
+tmp/
+temp/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.mp3
+*.wav
+*.mp4
+*.webm
+*.mov
+# Fixed, non-user demo fixture required by the demo worker
+!/public/media/demo.mp4
