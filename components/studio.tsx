@@ -286,9 +286,12 @@ export function Studio() {
                     <i
                       key={i}
                       style={{
-                        height:
+                        // Whole-pixel strings serialize identically in SSR and the browser.
+                        height: `${Math.round(
                           5 +
-                          Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.2)) * 29,
+                            Math.abs(Math.sin(i * 1.7) * Math.cos(i * 0.2)) *
+                              29,
+                        )}px`,
                       }}
                     />
                   ))}

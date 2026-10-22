@@ -33,3 +33,11 @@ The Playwright-managed Chromium download was denied by the network allowlist. Th
 - Docker image execution, Railway deployment, public operation, published cloud snapshot, or restoration in a fresh cloud task.
 
 The saved environment draft contains installation and startup instructions. Saving does not publish the environment or deploy the application.
+
+## Empty-waveform hydration fix
+
+The 66 placeholder bars now use rounded whole-pixel CSS strings in both server and client renders. SSR remains enabled for the studio and placeholder; no hydration warning suppression was introduced.
+
+A new browser regression test failed against the original unrounded styles, then passed with the fix on desktop and mobile. It compares the server HTML with hydration, checks the CSS values after client-side navigation, and records hydration diagnostics and page errors. Validation passed: ESLint, strict type checking, all 13 unit/integration tests, all 6 browser tests, and the production build.
+
+A separate development-mode Chromium audit visited `/studio`, `/`, `/projects`, `/artists`, `/billing`, `/settings`, and `/admin` at desktop and mobile widths; it reported no hydration warnings or page errors. The source audit found that the logo already uses integer heights, browser preferences and project dates render after mount, and the footer year is server-only. The interactive audio waveform is already client-loaded after upload; its percentage styles do not participate in the initial server hydration. No changes to these other components were required.
