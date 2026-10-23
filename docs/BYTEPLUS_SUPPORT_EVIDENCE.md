@@ -21,6 +21,62 @@ attachment; no real BytePlus or R2 requests were used to verify this update.
 The previously owner-confirmed account rate remains USD 0.07/second before tax.
 It is still insufficient to compute a verified inclusive worst-case charge.
 
+## Product Team billing update — operator-provided, recorded October 23, 2026
+
+The operator relayed these statements as an official Product Team response.
+The ticket, original response date and account contract were not supplied; this
+is evidence supplied by the operator, not independently verified billing.
+The earlier table above is historical; this update supersedes its unknown meter
+and specified unsuccessful-task categories:
+
+- “USD 0.07 per generated video second before tax.”
+- “No stated minimum billable duration.”
+- “Billing is based on generated video duration, not input audio duration.”
+- “rounded down; however, any fraction less than a full second is counted as 1 second.”
+- “Failed tasks (internal algorithm errors, input download failures, processing timeouts) are not charged.”
+- “Successfully canceled tasks are not charged.”
+- “A 5-second audio input may produce up to 6 seconds of video.”
+- “Support confirms a maximum base charge of USD 0.42 before tax for that 5-second input.”
+
+The rounding sentence is ambiguous. We implement neither floor nor ceil as an
+asserted invoice algorithm. No *stated* minimum does not verify a zero minimum.
+The USD 0.42 bound is **420,000 microUSD before tax for the stated case only**.
+It is not an inclusive spending cap, a general one-second expansion rule, or a
+bound for an MP3 that actually measures 5.04 seconds. No tax rate is assumed.
+No-charge evidence is limited to the listed outcomes and successful cancellation;
+a cancel request, timeout, uncertain submit or local download failure is not
+proof of a no-charge outcome. Reservations remain retained for reconciliation.
+
+### Pricing implementation and next operator steps
+
+All internal pricing/revalidation now uses `planUpperBoundMicroUsd`, requiring
+an explicit reviewed generated-video duration envelope with evidence and an
+input range. Missing/legacy envelopes fail closed. The envelope is included in
+the full immutable contract digest. Only fictional test contracts have one;
+no production envelope or billing contract is installed. In particular, the
+five-second example must never justify an envelope over all input durations.
+The low-level upward quantum arithmetic is a conservative admission calculation
+for explicitly reviewed rules, not documentation of BytePlus invoice rounding.
+
+Keep draft plans unpriced and non-authorizable. Before a future pricing review:
+
+1. Obtain a complete inclusive worst-case account contract: clarify rounding,
+   monetary minimums/fees, applicable taxes and currency rounding. A reviewed
+   inclusive exact-case bound could avoid needing a universal billing formula;
+   the current pre-tax statement cannot. Do not populate unknowns with zero.
+2. Match the **measured encoded** input duration to the documented bound's scope.
+   Obtain coverage for that actual duration, or prepare and measure a new draft;
+   do not round the input down or infer shorter inputs inherit the same bound.
+3. Review output hostnames and public-destination connection protections,
+   dimensions/aspect, codecs, FPS and duration validation. Support's six-second
+   example does not automatically widen output validation for every job.
+4. Review the complete contract and operational cleanup, then obtain separate
+   explicit authorization. Keep all live gates disabled until that later review.
+
+No refunds, automatic retries, pricing CLI bypass, paid calls or settings changes
+are introduced. SQLite atomic reservations, cumulative caps, single-use approval
+and uncertain-submission protection are unchanged.
+
 ## Bounded 13-hour input design
 
 `lib/live/input-policy.ts` defines a fixed **46,800-second (13-hour)** S3 GET lease.
@@ -87,8 +143,9 @@ explicit cleanup or the separately configured lifecycle policy removes them.
 
 ## Remaining gates
 
-- Account-specific minimum duration/charge, rounding, fees, taxes, billing meter,
-  unsuccessful/canceled-task charges and an inclusive per-task upper bound.
+- Account-specific minimum charges, ambiguous rounding, fees, taxes and an
+  inclusive bound covering the measured input; unlisted/uncertain outcomes.
+  Generated-video billing and the listed no-charge outcomes are now evidenced.
 - Exact output hostname allowlist, connection-level public-destination protection,
   codec/FPS and exact dimensions/aspect/duration expectations.
 - Reviewed operator workflow for transitioning an offline plan to a priced
@@ -108,3 +165,12 @@ remaining-lifetime boundaries, upload delays, altered signed object paths,
 partial upload/delete failures, cleanup grace and account/bucket/key isolation.
 The separate non-sensitive connectivity probe retains its short 60-second GET
 URL; it is not the provider input-delivery path and was not run here.
+
+Billing-update validation (October 23, 2026): lint, typecheck, production build
+and all **107 automated tests** passed. Five new billing tests cover generated
+video vs audio duration, exact input scope including MP3 overrun, missing legacy
+bounds, missing tax information, retained unpriced plans, and exact per-job and
+cumulative cost boundaries. Staging authentication/worker checks, disposable
+root-owned volume checks, six desktop/mobile browser tests and two offline
+review browser tests also passed. Provider/storage responses were mocked; no
+real BytePlus or R2 calls, deployments or account settings changes were made.

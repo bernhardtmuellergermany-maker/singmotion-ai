@@ -9,11 +9,11 @@ changes no Railway settings and does not authorize a test.
   `cleanup: deleted`. Private PUT, authenticated GET, temporary GET capability
   and both SHA-256 checks succeeded. This verifies the owner's connectivity
   path, not BytePlus fetching, bucket-policy auditing or a retention rule.
-- Owner-confirmed Business Account rate: **USD 0.07/second before tax**, billed
-  according to actual usage. The equivalent rate is 70,000 microUSD/second.
-  Illustratively, exactly 4 seconds × $0.07 = $0.28 and 5 seconds = $0.35
-  before tax **if no minimum, rounding or other fees apply**. These are base-rate
-  arithmetic examples, not spending limits or payable quotes.
+- Product Team evidence relayed by the owner: **USD 0.07 per generated video
+  second before tax**. A five-second audio input can produce six seconds of
+  video, with a confirmed **USD 0.42 maximum base charge before tax** for that
+  case. This is not an inclusive cap. See the exact statements and limitations
+  in [the billing update](BYTEPLUS_SUPPORT_EVIDENCE.md#product-team-billing-update--operator-provided-recorded-october-23-2026).
 - Re-read the supplied October 15, 2026 `BytePlus API.txt` (source hash in
   [provider verification](PROVIDER_VERIFICATION.md)). It documents 4–300 seconds
   of input audio, queued-task cancellation, a one-hour output URL lifetime and
@@ -22,7 +22,7 @@ changes no Railway settings and does not authorize a test.
   minimum, not evidence of a billing minimum.
 - Access to the BytePlus documentation domain remains blocked by the Cloud
   environment's proxy (CONNECT 403). No additional authoritative billing terms
-  were obtainable here. “Actual usage” does not define the meter or rounding.
+  were obtainable here. The later Product Team response defines the meter, but leaves rounding ambiguous.
 
 ## New operator-provided Support evidence
 
@@ -30,7 +30,7 @@ changes no Railway settings and does not authorize a test.
 private presigned R2/S3 support, required full 12-hour input availability including
 queue time, no automatic input-fetch retry, 720p output up to five minutes and
 one-hour output URL expiry. Pre-call content moderation rejection is not billed;
-no other unsuccessful-task exemption is inferred. Original ticket/date were not
+the later Product Team update additionally covers specified failed tasks and successful cancellation. Original ticket/date were not
 provided and live behavior was not independently tested.
 
 ## Blocking evidence to obtain (no credentials needed)
@@ -38,13 +38,13 @@ provided and live behavior was not independently tested.
 Ask BytePlus support/account documentation for account-specific OmniHuman **2.0**
 terms covering:
 
-1. Minimum billable duration and minimum monetary charge; billed duration basis
-   (uploaded/decoded audio, generated video, or another measure); duration and
-   currency rounding increments and order; fixed fees and applicable tax bounds.
-2. Whether other validation errors, failed/expired tasks, queued cancellation,
-   cancellation races and uncertain submission outcomes are chargeable; maximum
-   charge per submitted task and when account charges settle. Do not infer that
-   failure or cancellation refunds anything.
+1. Clarify ambiguous duration rounding, minimum monetary charges, fees and tax
+   bounds. No stated minimum duration is not verified zero. Obtain an inclusive
+   worst-case bound covering the actual encoded input and generated output.
+2. Clarify unlisted validation errors, cancellation races, uncertain submissions
+   and settlement/reconciliation. Specified internal algorithm, download and
+   processing-timeout failures and successful cancellation are reported uncharged;
+   reservations are not automatically released from local status alone.
 3. Any additional input range/redirect constraints if the current direct GET
    design requires them; operational retention and eventual account validation.
    The input availability requirement itself is now known: at least 12 hours,

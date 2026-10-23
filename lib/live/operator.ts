@@ -3,7 +3,7 @@ import { mkdir, realpath } from "node:fs/promises";
 import {
   assertBytePlusVerified,
   contractDigest,
-  upperBoundMicroUsd,
+  planUpperBoundMicroUsd,
   type VerifiedContract,
 } from "./contract.ts";
 import {
@@ -86,9 +86,9 @@ export class OperatorWorkflow {
     const attempt = await this.validateOwnedMedia(id, owner);
     if (attempt.media.durationSeconds > contract.maxDurationSeconds)
       throw new Error("Contract duration exceeded.");
-    const cost = upperBoundMicroUsd(
+    const cost = planUpperBoundMicroUsd(
       attempt.media.durationSeconds,
-      contract.billing,
+      contract,
     );
     enforceCap(this.config, attempt.media.durationSeconds, cost);
     return this.store.pricePrepared(id, owner, attempt.media, contract);
@@ -100,7 +100,7 @@ export class OperatorWorkflow {
       attempt.contractDigest !== contractDigest(contract) ||
       attempt.contractRevision !== contract.revision ||
       attempt.upperBoundMicroUsd !==
-        upperBoundMicroUsd(attempt.media.durationSeconds, contract.billing)
+        planUpperBoundMicroUsd(attempt.media.durationSeconds, contract)
     )
       throw new Error("Plan does not match the full reviewed contract.");
     return contract;

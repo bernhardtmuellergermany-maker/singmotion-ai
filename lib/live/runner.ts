@@ -5,7 +5,7 @@ import { mkdir, unlink, lstat, chmod } from "node:fs/promises";
 import { enforceCap, type LiveTestConfig } from "./config.ts";
 import {
   contractDigest,
-  upperBoundMicroUsd,
+  planUpperBoundMicroUsd,
   type VerifiedContract,
 } from "./contract.ts";
 import { revalidateMedia } from "./media.ts";
@@ -73,9 +73,9 @@ export class LiveTestRunner {
       throw new Error("Reviewed contract contents changed.");
     if (
       attempt.upperBoundMicroUsd !==
-      upperBoundMicroUsd(
+      planUpperBoundMicroUsd(
         attempt.media.durationSeconds,
-        this.provider.contract.billing,
+        this.provider.contract,
       )
     )
       throw new Error("Reviewed provider cost changed.");

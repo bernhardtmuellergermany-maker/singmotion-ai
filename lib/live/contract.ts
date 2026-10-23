@@ -17,6 +17,14 @@ export interface VerifiedContract {
   // Reviewed task/input availability window including safety margin.
   // Null means unknown: block before uploading inputs or submitting.
   inputFetchWindowSeconds: number | null;
+  // Independently reviewed envelope over this explicit input range. No default
+  // padding: the Product Team five-second example does not establish a rule.
+  generatedDurationBound: {
+    evidence: string;
+    minInputSeconds: number;
+    maxInputSeconds: number;
+    maxAdditionalSeconds: number;
+  } | null;
   billing: BillingRules;
   output: {
     width: number;
@@ -35,7 +43,7 @@ export const bytePlusVerification = Object.freeze({
   contract: null,
   blockers: [
     "Current Common Parameters page review and live account/signature verification (SDK signing is mock-verified)",
-    "Billing minimums, quantum, fees, taxes and failed/canceled-task charges (owner confirms USD 0.07/s before tax)",
+    "Generated-video duration envelope, ambiguous rounding, minimum charges, fees and inclusive taxes (five-second input base bound USD 0.42 only)",
     "Operational validation of 13-hour private input delivery and retention (Support requires full 12-hour availability; no automatic fetch retry)",
     "Output host allowlist, exact dimensions/aspect behavior, codecs and frame rate (Support confirms 720p, up to 5 minutes)",
   ],
@@ -47,6 +55,41 @@ export function assertBytePlusVerified(): never {
   );
 }
 
+/** Pricing must use a reviewed GENERATED video envelope, never raw audio duration. */
+export function planUpperBoundMicroUsd(
+  inputSeconds: number,
+  contract: VerifiedContract,
+): number {
+  const bound = contract.generatedDurationBound;
+  if (
+    !bound ||
+    !bound.evidence?.trim() ||
+    ![
+      inputSeconds,
+      bound.minInputSeconds,
+      bound.maxInputSeconds,
+      bound.maxAdditionalSeconds,
+    ].every(Number.isFinite) ||
+    bound.minInputSeconds < 0 ||
+    bound.maxInputSeconds < bound.minInputSeconds ||
+    bound.maxAdditionalSeconds < 0 ||
+    inputSeconds <= 0 ||
+    inputSeconds < bound.minInputSeconds ||
+    inputSeconds > bound.maxInputSeconds ||
+    inputSeconds > contract.maxDurationSeconds
+  )
+    throw new Error(
+      "Reviewed generated-video duration bound is missing or does not cover this input.",
+    );
+  return upperBoundMicroUsd(
+    inputSeconds + bound.maxAdditionalSeconds,
+    contract.billing,
+  );
+}
+
+/** Arithmetic for an already reviewed video bound and conservative billing rules.
+ * Upward rounding here is an admission bound, not a claim about provider invoices.
+ */
 export function upperBoundMicroUsd(
   durationSeconds: number,
   rules: BillingRules,
@@ -57,7 +100,14 @@ export function upperBoundMicroUsd(
     durationSeconds > 300
   )
     throw new Error("Invalid billable duration.");
-  for (const value of Object.values(rules)) {
+  for (const value of [
+    rules.microUsdPerSecond,
+    rules.minimumBillableMs,
+    rules.billingQuantumMs,
+    rules.minimumChargeMicroUsd,
+    rules.fixedFeeMicroUsd,
+    rules.taxBasisPointsUpperBound,
+  ]) {
     if (!Number.isSafeInteger(value) || value < 0)
       throw new Error(
         "All billing rules must be verified nonnegative integers.",

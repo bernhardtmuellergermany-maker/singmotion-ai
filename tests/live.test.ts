@@ -51,6 +51,12 @@ const contract: VerifiedContract = {
   maxDurationSeconds: 300,
   promptSupported: true,
   inputFetchWindowSeconds: 30, // Fictional test window, not provider evidence.
+  generatedDurationBound: {
+    evidence: "Fictional test-only same-duration envelope; not BytePlus terms",
+    minInputSeconds: 0,
+    maxInputSeconds: 300,
+    maxAdditionalSeconds: 0,
+  },
   billing: {
     microUsdPerSecond: 100_000,
     minimumBillableMs: 1000,

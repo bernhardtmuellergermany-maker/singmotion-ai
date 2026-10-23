@@ -136,3 +136,12 @@ and all eight desktop/mobile browser checks passed. No real provider/R2 requests
 were made. The operator commands use Node 24 strip-compatible TypeScript and
 argument-based subprocess calls; an actual Windows run of this new backend suite
 has not been performed here.
+
+## Generated-video billing review
+
+Pricing now requires an explicit reviewed generated-duration envelope and scope,
+not direct use of encoded audio duration as billable duration. Missing legacy
+envelopes are refused. See [Product Team billing evidence](BYTEPLUS_SUPPORT_EVIDENCE.md).
+The stated five-second-input USD 0.42 maximum is before tax only; it does not
+authorize pricing, general one-second padding or automatic reservation release.
+Existing review commands remain offline and unpriced; all live commands stay blocked.

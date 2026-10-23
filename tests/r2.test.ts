@@ -353,6 +353,13 @@ test("existing runner consumes approval before R2 delivery and submits only the 
     maxDurationSeconds: 10,
     promptSupported: true,
     inputFetchWindowSeconds: 30, // Fictional test window, not provider evidence.
+    generatedDurationBound: {
+      evidence:
+        "Fictional test-only same-duration envelope; not BytePlus terms",
+      minInputSeconds: 0,
+      maxInputSeconds: 300,
+      maxAdditionalSeconds: 0,
+    },
     billing: {
       microUsdPerSecond: 10000,
       minimumBillableMs: 1,

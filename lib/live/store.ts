@@ -1,6 +1,6 @@
 import {
   contractDigest,
-  upperBoundMicroUsd,
+  planUpperBoundMicroUsd,
   type VerifiedContract,
 } from "./contract.ts";
 import { DatabaseSync } from "node:sqlite";
@@ -162,9 +162,9 @@ export class LiveTestStore {
           "Only the exact owned, unreserved prepared plan may be priced.",
         );
       const digest = contractDigest(contract);
-      const cost = upperBoundMicroUsd(
+      const cost = planUpperBoundMicroUsd(
         attempt.media.durationSeconds,
-        contract.billing,
+        contract,
       );
       if (
         attempt.contractRevision !== null ||
