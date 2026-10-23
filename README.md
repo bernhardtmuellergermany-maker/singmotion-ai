@@ -106,7 +106,7 @@ See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact varia
 
 ## BytePlus first-test preparation (still offline)
 
-The direct OmniHuman 2.0 contract could not be verified because the official documentation host is blocked by the Cloud network. No endpoint or 1.5 schema has been substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
+The supplied October 15, 2026 OmniHuman 2.0 document now supports a mock-tested direct protocol adapter. Live transport remains blocked because the attachment omits the full signing procedure, billing rules and input/output delivery details. No 1.5 schema or guessed signing algorithm is substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
 
 ```sh
 npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --confirm-english

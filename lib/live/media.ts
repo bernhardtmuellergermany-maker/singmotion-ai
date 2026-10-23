@@ -1,3 +1,4 @@
+import { validateOmniImage, validateOmniAudio } from "./limits.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { stat, realpath, mkdir, copyFile, unlink } from "node:fs/promises";
@@ -30,6 +31,12 @@ export async function validateReference(filename: string) {
     (meta.pages || 1) !== 1
   )
     throw new Error("Use one still JPEG/PNG reference, at most 4096 × 4096.");
+  validateOmniImage({
+    format: meta.format!,
+    bytes: info.size,
+    width: meta.width,
+    height: meta.height,
+  });
   await decoder.stats();
 }
 async function privateAsset(filename: string, dataDir: string) {
@@ -78,6 +85,11 @@ export async function prepareExistingJob(
       selected.start,
       selected.end,
     );
+    validateOmniAudio({
+      format: "mp3",
+      bytes: (await stat(temp)).size,
+      duration: durationSeconds,
+    });
     audioSha256 = await sha256File(temp);
     audioPath = path.join(directory, `${selected.id}-${audioSha256}.mp3`);
     await copyFile(temp, audioPath, 1).catch(async (error) => {
@@ -150,6 +162,11 @@ export async function revalidateMedia(media: PreparedMedia) {
       "Confirm the composed prompt is English before authorizing a live test.",
     );
   const duration = await validateAudio(media.audioPath, true);
+  validateOmniAudio({
+    format: "mp3",
+    bytes: (await stat(media.audioPath)).size,
+    duration,
+  });
   await validateReference(media.imagePath);
   if (
     Math.abs(duration - media.durationSeconds) > 0.001 ||

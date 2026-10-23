@@ -1,3 +1,8 @@
+import {
+  BytePlusProtocol,
+  DocumentedBytePlusProvider,
+  type InputLease,
+} from "../lib/live/byteplus.ts";
 import { providerRequest } from "../lib/live/timeout.ts";
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
@@ -86,7 +91,7 @@ execFileSync("ffmpeg", [
   audio,
 ]);
 await sharp({
-  create: { width: 64, height: 64, channels: 3, background: "#aaaaaa" },
+  create: { width: 300, height: 300, channels: 3, background: "#aaaaaa" },
 })
   .png()
   .toFile(image);
@@ -746,4 +751,137 @@ test("provider timeout aborts reads/submission without invoking the operation tw
   );
   assert.equal(calls, 1);
   assert.equal(captured?.aborted, true);
+});
+
+test("documented adapter reuses durable lifecycle and downloads a validated MP4 using mocked wire responses", async () => {
+  const { store, attempt } = setup();
+  const requests: string[] = [];
+  const protocol = new BytePlusProtocol(async (request) => {
+    const action = new URL(request.url).searchParams.get("Action")!;
+    requests.push(action);
+    if (requests.length === 2)
+      return { status: 429, body: { code: 50429, data: null } };
+    if (requests.length === 3)
+      return {
+        status: 200,
+        body: { code: 10000, data: { status: "in_queue" } },
+      };
+    return {
+      status: 200,
+      body: {
+        code: 10000,
+        data:
+          action === "CVSync2AsyncSubmitTask"
+            ? { task_id: "documented-task" }
+            : {
+                status: "done",
+                video_url: "https://output.example.test/movie.mp4",
+              },
+      },
+    };
+  });
+  const delivery = {
+    issue: async (input: PreparedMedia): Promise<InputLease> => ({
+      owner: input.owner,
+      audioSha256: input.audioSha256,
+      imageSha256: input.imageSha256,
+      imageUrl: "https://input.example.test/private-image?token=mock",
+      audioUrl: "https://input.example.test/private-audio?token=mock",
+      expiresAt: Date.now() + 60000,
+    }),
+  };
+  const provider = new DocumentedBytePlusProvider(
+    contract,
+    delivery,
+    ["input.example.test"],
+    protocol,
+  );
+  const runner = new LiveTestRunner(
+    store,
+    provider,
+    config,
+    directory,
+    download,
+  );
+  const token = store.authorize(
+    attempt.id,
+    config,
+    secret,
+    confirmationPhrase(attempt),
+  );
+  assert.equal(
+    (await runner.submitOnce(attempt.id, token)).providerJobId,
+    "documented-task",
+  );
+  await assert.rejects(runner.submitOnce(attempt.id, token));
+  await assert.rejects(runner.pollOnce(attempt.id));
+  assert.equal(store.get(attempt.id).providerJobId, "documented-task");
+  assert.equal((await runner.pollOnce(attempt.id)).state, "processing");
+  assert.equal((await runner.pollOnce(attempt.id)).state, "completed");
+  assert.deepEqual(requests, [
+    "CVSync2AsyncSubmitTask",
+    "CVSync2AsyncGetResult",
+    "CVSync2AsyncGetResult",
+    "CVSync2AsyncGetResult",
+  ]);
+  for (const override of [
+    { owner: "other" },
+    { expiresAt: Date.now() - 1 },
+    { imageSha256: "changed" },
+    { audioUrl: "http://input.example.test/audio" },
+    { imageUrl: "https://unapproved.example.test/image" },
+  ]) {
+    const bad = new DocumentedBytePlusProvider(
+      contract,
+      {
+        issue: async (input) => ({
+          ...(await delivery.issue(input)),
+          ...override,
+        }),
+      },
+      ["input.example.test"],
+      protocol,
+    );
+    await assert.rejects(
+      bad.submit(media, "key", new AbortController().signal),
+    );
+  }
+  assert.equal(requests.length, 4);
+  for (const status of ["expired", "not_found", "canceled"]) {
+    const failed = new DocumentedBytePlusProvider(
+      contract,
+      delivery,
+      [],
+      new BytePlusProtocol(async () => ({
+        status: 200,
+        body: { code: 10000, data: { status } },
+      })),
+    );
+    assert.equal(
+      (await failed.poll("id", new AbortController().signal)).state,
+      "failed",
+    );
+  }
+  store.close();
+});
+
+test("expired provider output URL cannot complete a job or trigger resubmission", async (t) => {
+  const { store, attempt } = setup();
+  const fake = fixture();
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async () => new Response("expired", { status: 403 }),
+  );
+  const runner = new LiveTestRunner(store, fake.provider, config, directory);
+  const token = store.authorize(
+    attempt.id,
+    config,
+    secret,
+    confirmationPhrase(attempt),
+  );
+  await runner.submitOnce(attempt.id, token);
+  assert.equal((await runner.pollOnce(attempt.id)).state, "failed");
+  assert.equal(fake.counts().submits, 1);
+  store.close();
 });

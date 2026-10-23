@@ -30,12 +30,10 @@ export const bytePlusVerification = Object.freeze({
   checkedOn: "2026-10-23",
   contract: null,
   blockers: [
-    "Official OmniHuman 2.0 endpoint, model/service identifier and region",
-    "OmniHuman 2.0 authentication, credential scope and signing requirements",
-    "Image/audio transport and exact request fields; English prompt field",
-    "Submission response, polling schema, terminal statuses and output hosts",
-    "Input minimums, billing quantum, minimum charge, taxes and failed-job charges",
-    "Commercial access, usage restrictions and account entitlement",
+    "Complete Common Parameters authentication/signing algorithm and official signature vectors",
+    "Account pricing, billing minimums, quantum, fees, taxes and failed/canceled-task charges",
+    "Private input storage signing implementation and URL validity/fetch requirements",
+    "Output host allowlist and documented output encoding/dimension expectations",
   ],
 });
 
