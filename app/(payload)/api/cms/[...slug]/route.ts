@@ -9,6 +9,11 @@ import {
   REST_OPTIONS,
 } from "@payloadcms/next/routes";
 import { limit } from "@/lib/db";
+import {
+  cmsOriginFailure,
+  cmsLoginDiagnostic,
+  annotateCmsFailure,
+} from "@/cms/request-security";
 type Context = { params: Promise<{ slug?: string[] }> };
 function protect(
   handler: (request: Request, args: Context) => Promise<Response>,
@@ -26,18 +31,29 @@ function protect(
         { error: "Operation unavailable. Contact the administrator." },
         { status: 403 },
       );
-    if (
-      !["GET", "HEAD", "OPTIONS"].includes(request.method) &&
-      request.headers.get("origin") !== process.env.CMS_ORIGIN
-    )
-      return Response.json({ error: "Invalid origin." }, { status: 403 });
+    const originFailure = cmsOriginFailure(
+      request.method,
+      request.headers,
+      process.env.CMS_ORIGIN,
+    );
+    if (originFailure)
+      return annotateCmsFailure(
+        Response.json(
+          { error: "Invalid origin.", code: originFailure },
+          { status: 403 },
+        ),
+        originFailure,
+      );
     if (slug[0] === "staff" && slug[1] === "login") {
       try {
         limit("cms:login:global", 100, 15 * 60 * 1000);
       } catch {
-        return Response.json(
-          { error: "Try again later." },
-          { status: 429, headers: { "Retry-After": "900" } },
+        return annotateCmsFailure(
+          Response.json(
+            { error: "Try again later." },
+            { status: 429, headers: { "Retry-After": "900" } },
+          ),
+          "CMS_RATE_LIMITED",
         );
       }
     }
@@ -66,6 +82,10 @@ function protect(
       });
     }
     const response = await handler(request, args);
+    if (slug[0] === "staff" && slug[1] === "login") {
+      const code = cmsLoginDiagnostic(response.status);
+      if (code) annotateCmsFailure(response, code);
+    }
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("X-Content-Type-Options", "nosniff");
     return response;

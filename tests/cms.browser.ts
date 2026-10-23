@@ -1,10 +1,15 @@
 // Real local HTTP/browser regression. Requires a disposable migrated local PostgreSQL database.
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { spawn, execFileSync } from "node:child_process";
+import { mkdtemp, rm, readFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID, randomBytes } from "node:crypto";
+import {
+  createServer as createHttpsServer,
+  request as httpsRequest,
+} from "node:https";
+import { request as httpRequest } from "node:http";
 import { chromium } from "@playwright/test";
 const database = process.env.CMS_TEST_DATABASE_URL;
 if (!database) throw new Error("CMS_TEST_DATABASE_URL required.");
@@ -15,7 +20,8 @@ if (
 )
   throw new Error("Disposable local test database required.");
 const directory = await mkdtemp(path.join(tmpdir(), "sm-cms-browser-"));
-const origin = "http://127.0.0.1:3198",
+const origin = "https://127.0.0.1:3199",
+  backend = "http://127.0.0.1:3198",
   password = randomBytes(24).toString("hex"),
   stagingPassword = randomBytes(24).toString("hex");
 Object.assign(process.env, {
@@ -23,7 +29,7 @@ Object.assign(process.env, {
   CMS_DATABASE_URL: database,
   PAYLOAD_SECRET: randomBytes(32).toString("hex"),
   CMS_ORIGIN: origin,
-  CMS_LOCAL_TEST: "true",
+  CMS_LOCAL_TEST: "false",
   DATA_DIR: directory,
   STAGING_AUTH_ENABLED: "true",
   STAGING_PASSWORD: stagingPassword,
@@ -33,6 +39,87 @@ Object.assign(process.env, {
   BYTEPLUS_LIVE_TEST_ENABLED: "false",
   BYTEPLUS_FIRST_TEST_ENABLED: "false",
 });
+// Local TLS termination reproduces Railway HTTPS -> HTTP and retains secure cookies.
+execFileSync(
+  "openssl",
+  [
+    "req",
+    "-x509",
+    "-newkey",
+    "rsa:2048",
+    "-nodes",
+    "-days",
+    "1",
+    "-keyout",
+    path.join(directory, "tls.key"),
+    "-out",
+    path.join(directory, "tls.crt"),
+    "-subj",
+    "/CN=127.0.0.1",
+    "-addext",
+    "subjectAltName=IP:127.0.0.1",
+  ],
+  { stdio: "ignore" },
+);
+const gateway = createHttpsServer(
+  {
+    key: await readFile(path.join(directory, "tls.key")),
+    cert: await readFile(path.join(directory, "tls.crt")),
+  },
+  (req, res) => {
+    const upstream = httpRequest(
+      backend + req.url,
+      {
+        method: req.method,
+        headers: {
+          ...req.headers,
+          "x-forwarded-proto": "https",
+          "x-forwarded-host": "127.0.0.1:3199",
+        },
+      },
+      (reply) => {
+        res.writeHead(reply.statusCode!, reply.headers);
+        reply.pipe(res);
+      },
+    );
+    upstream.on("error", () => {
+      res.writeHead(502);
+      res.end();
+    });
+    req.pipe(upstream);
+  },
+);
+await new Promise<void>((resolve) =>
+  gateway.listen(3199, "127.0.0.1", resolve),
+);
+// Self-signed TLS bypass exists only in this loopback-only test helper.
+async function fetch(url: string, init: RequestInit = {}): Promise<Response> {
+  assert.equal(new URL(url).origin, origin);
+  return new Promise((resolve, reject) => {
+    const request = httpsRequest(
+      url,
+      {
+        method: init.method,
+        headers: Object.fromEntries(new Headers(init.headers)),
+        rejectUnauthorized: false,
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (b) => chunks.push(b));
+        res.on("end", () =>
+          resolve(
+            new Response(Buffer.concat(chunks), {
+              status: res.statusCode,
+              headers: res.headers as Record<string, string>,
+            }),
+          ),
+        );
+      },
+    );
+    request.on("error", reject);
+    request.end(init.body);
+  });
+}
 const { getPayload } = await import("payload");
 const { default: config } = await import("../payload.config.ts");
 const payload = await getPayload({ config });
@@ -177,12 +264,83 @@ try {
   });
   const context = await browser.newContext({
     httpCredentials: { username: "staging", password: stagingPassword },
+    ignoreHTTPSErrors: true,
   });
   const page = await context.newPage();
-  await page.goto(origin + "/admin");
+  await page.goto(origin + "/admin/login");
+  // RootLayout does not import Payload's CSS for the application.
+  const styles = await page
+    .locator('link[rel="stylesheet"]')
+    .evaluateAll((nodes) => nodes.map((n) => (n as HTMLLinkElement).href));
+  assert.ok(styles.length > 0, "Payload admin stylesheet must be imported");
+  for (const stylesheet of styles) {
+    assert.equal(
+      (await fetch(stylesheet)).status,
+      401,
+      "Styles remain protected by Basic Auth",
+    );
+    const response = await context.request.get(stylesheet);
+    assert.equal(response.status(), 200);
+    assert.match(response.headers()["content-type"], /text\/css/);
+  }
+  assert.ok(
+    await page.evaluate(() =>
+      getComputedStyle(document.documentElement)
+        .getPropertyValue("--base")
+        .trim(),
+    ),
+    "Payload CSS variables must be applied",
+  );
+  await mkdir("test-results", { recursive: true });
+  await page.screenshot({
+    path: "test-results/cms-login-https.png",
+    fullPage: true,
+  });
+  const unauthenticatedLogin = await fetch(origin + "/api/cms/staff/login", {
+    method: "POST",
+    headers: { origin, "content-type": "application/json" },
+    body: JSON.stringify({ email: admin.email, password }),
+  });
+  assert.equal(unauthenticatedLogin.status, 401);
+  assert.match(
+    unauthenticatedLogin.headers.get("www-authenticate") || "",
+    /^Basic /,
+  );
+  assert.equal(unauthenticatedLogin.headers.get("x-singmotion-cms-code"), null);
+  const rejected = await context.request.post(origin + "/api/cms/staff/login", {
+    headers: { origin: "https://evil.example" },
+    data: { email: admin.email, password },
+  });
+  assert.equal(rejected.status(), 403);
+  assert.equal(
+    rejected.headers()["x-singmotion-cms-code"],
+    "CMS_ORIGIN_REJECTED",
+  );
+  const missing = await fetch(origin + "/api/cms/staff/login", {
+    method: "POST",
+    headers: { authorization: basic, "content-type": "application/json" },
+    body: JSON.stringify({ email: admin.email, password }),
+  });
+  assert.equal(missing.status, 403);
+  assert.equal(
+    missing.headers.get("x-singmotion-cms-code"),
+    "CMS_ORIGIN_MISSING",
+  );
+  const wrong = await context.request.post(origin + "/api/cms/staff/login", {
+    headers: { origin },
+    data: { email: admin.email, password: "deliberately-invalid-password" },
+  });
+  assert.equal(wrong.status(), 401);
+  assert.equal(wrong.headers()["x-singmotion-cms-code"], "CMS_AUTH_REJECTED");
   await page.locator('input[name="email"]').fill(admin.email);
   await page.locator('input[name="password"]').fill(password);
+  const loginResponse = page.waitForResponse(
+    (r) =>
+      r.url().includes("/api/cms/staff/login") &&
+      r.request().method() === "POST",
+  );
   await page.getByRole("button", { name: "Login", exact: true }).click();
+  assert.equal((await loginResponse).status(), 200);
   await page.getByRole("heading", { name: "SingMotion operations" }).waitFor();
   await page.goto(origin + `/admin/collections/pages/${draft.id}`);
   await page.locator('input[name="title"]').fill("Published browser test");
@@ -210,6 +368,7 @@ try {
   const cookies = await context.cookies();
   const cookie = cookies.find((c) => c.name === "payload-token");
   assert.ok(cookie?.httpOnly);
+  assert.ok(cookie?.secure);
   assert.equal(cookie?.sameSite, "Strict");
   await page.goto(origin + "/");
   await page
@@ -241,7 +400,7 @@ try {
     403,
   );
   console.log(
-    "PASS: staging protection, registration denial, CSRF, real Payload browser login, publishing, draft preview, XSS escaping, secure session flags and legacy admin isolation.",
+    "PASS: HTTPS proxy, protected/applied Payload CSS, exact Origin rejection diagnostics, wrong-password rejection, secure-cookie login, staging protection, registration denial, CSRF, real Payload browser login, publishing, draft preview, XSS escaping, secure session flags and legacy admin isolation.",
   );
 } catch (error) {
   console.error(log.slice(-3000));
@@ -249,6 +408,7 @@ try {
 } finally {
   await browser?.close();
   server.kill("SIGTERM");
+  await new Promise<void>((resolve) => gateway.close(() => resolve()));
   await payload.destroy();
   await rm(directory, { recursive: true, force: true });
 }
