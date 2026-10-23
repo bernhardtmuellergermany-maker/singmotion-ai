@@ -9,6 +9,14 @@ import { isIP } from "node:net";
 import { probe } from "../media.ts";
 import type { VerifiedContract } from "./contract.ts";
 
+export interface OutputValidationContract {
+  outputHosts: readonly string[];
+  output: VerifiedContract["output"] & {
+    videoCodec?: string;
+    audioCodec?: string;
+  };
+}
+
 export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
   let url: URL;
   try {
@@ -38,7 +46,7 @@ export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
 export async function validateOutput(
   file: string,
   duration: number,
-  contract: VerifiedContract,
+  contract: OutputValidationContract,
 ) {
   const p = await probe(file);
   const video = p.streams.find((s) => s.codec_type === "video");
@@ -50,6 +58,10 @@ export async function validateOutput(
     !p.format.format_name?.split(",").includes("mp4") ||
     !video ||
     !audio ||
+    (contract.output.videoCodec !== undefined &&
+      video.codec_name !== contract.output.videoCodec) ||
+    (contract.output.audioCodec !== undefined &&
+      audio.codec_name !== contract.output.audioCodec) ||
     video.width !== contract.output.width ||
     video.height !== contract.output.height ||
     !Number.isFinite(length) ||
@@ -101,7 +113,7 @@ export async function downloadValidatedOutput(
   raw: string,
   file: string,
   duration: number,
-  contract: VerifiedContract,
+  contract: OutputValidationContract,
   transport: OutputTransport = privateOutputTransport,
 ) {
   const url = validateOutputUrl(raw, contract.outputHosts);

@@ -1,5 +1,10 @@
 # Direct BytePlus OmniHuman 2.0 — signed protocol, blocked live activation
 
+> Latest update: [clarified base billing, unapproved candidate hostname and
+> operator-only existing-task MP4 retrieval](OUTPUT_RETRIEVAL_REVIEW.md).
+> Rounding is clarified; inclusive taxes and host/media approval remain required.
+> No real provider/R2 requests were made.
+
 Checked 23 October 2026 against the user-supplied **BytePlus API.txt**, titled **OmniHuman 2.0 API Document**, last updated **October 15, 2026 05:29:58**. This is the model-specific source, not a 1.5 API example. The source supplies no original page URL. No real credentials, provider calls, media uploads to external storage, payments, Railway changes or deployments were used.
 
 Source attachment SHA-256: `7e19bfdf0d852b6c050dbe3af2d8e0422c9e082e1f74a349d37f4e85d85a69c2`.

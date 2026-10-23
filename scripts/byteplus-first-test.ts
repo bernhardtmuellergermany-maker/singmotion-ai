@@ -24,6 +24,9 @@ try {
         "--review-file",
         "--write-review",
         "--confirm-live-test",
+        "--output-review-file",
+        "--write-output-review",
+        "--confirm-output",
       ].includes(flag) ||
       values[flag] !== undefined ||
       !args[i + 1] ||
@@ -33,15 +36,30 @@ try {
     values[flag] = args[++i];
   }
   if (
-    !["dry-run", "run", "resume", "cancel", "result", "cleanup"].includes(
-      action,
-    ) ||
+    ![
+      "dry-run",
+      "run",
+      "resume",
+      "cancel",
+      "result",
+      "cleanup",
+      "review-output",
+      "download",
+      "refresh-result",
+    ].includes(action) ||
     !values["--plan"] ||
     !values["--owner"] ||
     (action !== "dry-run" && values["--write-review"]) ||
+    (action === "review-output" && !values["--review-file"]) ||
+    (values["--write-output-review"] && action !== "review-output") ||
+    (action === "download" &&
+      (switches.has("--skip-download") ||
+        !values["--output-review-file"] ||
+        !values["--confirm-output"])) ||
     (action !== "dry-run" &&
       action !== "result" &&
-      (!switches.has("--skip-download") ||
+      action !== "review-output" &&
+      ((action !== "download" && !switches.has("--skip-download")) ||
         !values["--review-file"] ||
         !values["--confirm-live-test"]))
   )
@@ -77,7 +95,7 @@ try {
     },
   };
   let inputHosts: readonly string[] = [];
-  if (action !== "dry-run" && action !== "result") {
+  if (!["dry-run", "result", "review-output"].includes(action)) {
     firstTestConfig(process.env, id); // Before credentials or any network-capable client.
     const { validateFirstTestReview } =
       await import("../lib/live/first-test.ts");
@@ -88,11 +106,14 @@ try {
         values["--confirm-live-test"]
     )
       throw Error();
-    const { createSignedTransport } =
-      await import("../lib/live/signed-transport.ts");
-    const { loadBytePlusCredentials } = await import("../lib/live/signing.ts");
-    loadBytePlusCredentials(); // Fail early, before claiming the one-time slot.
-    transport = createSignedTransport(fetch);
+    if (action !== "download") {
+      const { createSignedTransport } =
+        await import("../lib/live/signed-transport.ts");
+      const { loadBytePlusCredentials } =
+        await import("../lib/live/signing.ts");
+      loadBytePlusCredentials(); // Fail early, before claiming the one-time slot.
+      transport = createSignedTransport(fetch);
+    }
     // Poll/resume/cancel need no R2 credentials, upload client or delivery.
     if (action === "run" || action === "cleanup") {
       const { R2PrivateInputDelivery } = await import("../lib/live/r2.ts");
@@ -117,6 +138,7 @@ try {
           state: workflow.owned(id, owner).state,
           providerJobId: store!.get(id).providerJobId,
           observation: store!.firstTestResult(id),
+          outputPath: store!.get(id).outputPath,
           automaticDownload: false,
         },
         null,
@@ -132,6 +154,89 @@ try {
         { flag: "wx", mode: 0o600 },
       );
     console.log(JSON.stringify(report, null, 2));
+  } else if (action === "review-output") {
+    const { validateFirstTestReview } =
+      await import("../lib/live/first-test.ts");
+    const { outputReviewTemplate, reviewOutput } =
+      await import("../lib/live/first-test-download.ts");
+    const checked = validateFirstTestReview(review, workflow.owned(id, owner));
+    if (checked.digest !== store.get(id).contractDigest) throw Error();
+    if (values["--output-review-file"]) {
+      if ((await stat(values["--output-review-file"])).size > 65536)
+        throw Error();
+      const input = JSON.parse(
+        (await readFile(values["--output-review-file"], "utf8")).replace(
+          /^\uFEFF/,
+          "",
+        ),
+      );
+      const approved = reviewOutput(
+        workflow,
+        id,
+        owner,
+        input,
+        checked.review.generatedVideoMaxSeconds!,
+      );
+      console.log(
+        JSON.stringify(
+          {
+            outputReview: approved.review,
+            confirmationDigest: approved.digest,
+            networkRequests: 0,
+          },
+          null,
+          2,
+        ),
+      );
+    } else {
+      const template = outputReviewTemplate(workflow, id, owner);
+      if (values["--write-output-review"])
+        await writeFile(
+          values["--write-output-review"],
+          JSON.stringify(template, null, 2),
+          { flag: "wx", mode: 0o600 },
+        );
+      console.log(
+        JSON.stringify(
+          {
+            outputReview: template,
+            confirmationDigest: null,
+            networkRequests: 0,
+          },
+          null,
+          2,
+        ),
+      );
+    }
+  } else if (action === "download") {
+    if ((await stat(values["--output-review-file"])).size > 65536)
+      throw Error();
+    const outputReview = JSON.parse(
+      (await readFile(values["--output-review-file"], "utf8")).replace(
+        /^\uFEFF/,
+        "",
+      ),
+    );
+    const { downloadFirstTestResult } =
+      await import("../lib/live/first-test-download.ts");
+    await downloadFirstTestResult(
+      workflow,
+      id,
+      owner,
+      review,
+      values["--confirm-live-test"],
+      outputReview,
+      values["--confirm-output"],
+    );
+    printResult();
+  } else if (action === "refresh-result") {
+    await workflow.refreshResult(
+      id,
+      owner,
+      review,
+      values["--confirm-live-test"],
+    );
+    printResult();
   } else if (action === "result") {
     printResult(); // Local private read only; may print an expired bearer URL.
   } else if (action === "cleanup") {
@@ -173,7 +278,7 @@ try {
       throw Error();
     while (true) {
       const attempt = workflow.owned(id, owner);
-      if (["output_observed", "failed"].includes(attempt.state)) {
+      if (["output_observed", "completed", "failed"].includes(attempt.state)) {
         printResult();
         break;
       }
@@ -184,7 +289,7 @@ try {
         review,
         values["--confirm-live-test"],
       );
-      if (["output_observed", "failed"].includes(result.state)) {
+      if (["output_observed", "completed", "failed"].includes(result.state)) {
         printResult();
         break;
       }

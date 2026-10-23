@@ -72,6 +72,10 @@ export class LiveTestStore {
       CREATE TABLE IF NOT EXISTS live_first_test_results (
         attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL, observed_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS live_output_reviews (
+        attempt_id TEXT NOT NULL, digest TEXT NOT NULL, review_json TEXT NOT NULL,
+        reviewed_at INTEGER NOT NULL, PRIMARY KEY(attempt_id,digest)
+      );
       CREATE TABLE IF NOT EXISTS live_operator_actions (
         attempt_id TEXT NOT NULL, action TEXT NOT NULL, state TEXT NOT NULL,
         PRIMARY KEY(attempt_id, action)
@@ -486,12 +490,28 @@ export class LiveTestStore {
     });
   }
   claimPoll(id: string): string {
+    return this.claimReadLease(id, ["submitted", "processing"]);
+  }
+  claimOutputDownload(id: string): string {
+    return this.claimReadLease(id, ["output_observed", "completed"]);
+  }
+  recordOutputReview(
+    id: string,
+    digest: string,
+    review: unknown,
+    lease: string,
+  ) {
+    this.transaction(() => {
+      this.assertPollLease(id, lease);
+      this.db
+        .prepare("INSERT OR IGNORE INTO live_output_reviews VALUES (?,?,?,?)")
+        .run(id, digest, JSON.stringify(review), Date.now());
+    });
+  }
+  private claimReadLease(id: string, allowed: LiveState[]): string {
     return this.transaction(() => {
       const attempt = this.get(id);
-      if (
-        !["submitted", "processing"].includes(attempt.state) ||
-        !attempt.providerJobId
-      )
+      if (!allowed.includes(attempt.state) || !attempt.providerJobId)
         throw new Error(
           "Only a persisted provider job may be polled; uncertain submissions require manual reconciliation.",
         );
@@ -531,7 +551,7 @@ export class LiveTestStore {
         submitting: ["submitted", "uncertain"],
         submitted: ["processing", "output_observed", "completed", "failed"],
         processing: ["processing", "output_observed", "completed", "failed"],
-        output_observed: [],
+        output_observed: ["output_observed", "completed"],
         completed: [],
         failed: [],
         uncertain: [],

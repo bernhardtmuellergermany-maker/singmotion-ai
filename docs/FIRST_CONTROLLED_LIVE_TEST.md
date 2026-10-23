@@ -5,10 +5,11 @@ provider transport, public app and production contract remain blocked. The new
 `byteplus:first-test` command is a separate local operator entrypoint and is
 never started by a web route, worker, build or deployment. Railway stays unchanged.
 
-The first-test CLI deliberately supports **only `--skip-download`**. It can submit
+The generation `run`/`resume` commands require **`--skip-download`**. They can submit
 one paid task, poll and record its output URL without approving or contacting the
-unknown output host. There is no command-line download bypass or wildcard. A
-future downloader activation requires a separately reviewed contract/host allowlist.
+unknown output host. There is no download bypass or wildcard. A separate operator `review-output` /
+`download` / `refresh-result` workflow now supports retrieval of the same task
+after explicit host/media approval; see [output retrieval](OUTPUT_RETRIEVAL_REVIEW.md).
 
 ## Required review before any paid submission
 
@@ -26,11 +27,11 @@ unpriced and non-authorizable until a human reviews all of:
 - `baseMaxMicroUsd`, `taxMaxMicroUsd`, `feesMaxMicroUsd`: explicit conservative
   account-specific worst-case amounts. Tax/fee zero must be justified, never a
   placeholder. Base must cover at least the stated generated-duration rate;
-  this arithmetic check is not proof of BytePlus's ambiguous rounding rules.
+  the base-only check now uses Support's clarified floor-with-one-second-minimum rule.
 - `inclusiveMaxMicroUsd`: exact sum of these three components, in integer
   microUSD (one USD = 1,000,000 microUSD), within both spending caps.
 - `reviewedBy`, ISO `reviewedAt`, and `evidence`: identify the reviewer and source,
-  including why the inclusive bound covers this exact input and unknown rounding.
+  including why the inclusive bound covers this exact input, taxes and fees.
   Do not put keys or other credentials in the evidence text.
 - `acknowledgment`: exactly `INCLUSIVE_BOUND_FOR_EXACT_INPUT`.
 
@@ -58,6 +59,7 @@ Existing shell environment variables override the env file in Node.
 | `DEMO_MODE` | `true` — public app remains demo-only. |
 | `GENERATIONS_ENABLED` | `false` |
 | `ADMIN_DEMO_ENABLED` | `false` |
+| `BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED` | `false` by default; explicitly `true` only for reviewed existing-result download. |
 | `BYTEPLUS_FIRST_TEST_ENABLED` | `true` only in the deliberately authorized CLI session. Default `false`. |
 | `BYTEPLUS_FIRST_TEST_PLAN_ID` | Exact reviewed plan ID. |
 | `BYTEPLUS_LIVE_TEST_ENABLED` | `true` only in that isolated CLI session. Default `false`. |
@@ -222,11 +224,11 @@ npm.cmd run byteplus:first-test -- cleanup --plan $plan --owner $owner --review-
 
 This mode makes one guarded **discovery** request possible; it does not declare
 the live integration production-ready. A defensible manually reviewed inclusive
-exact-case cost bound is still required. Universal billing rounding/minimum/fees,
+exact-case cost bound is still required. Account-specific minimum/fees/taxes,
 verified output hostnames, codecs/FPS/dimensions/aspect, operational egress and
 real account acceptance remain unverified. No default cost or host is supplied.
-Public download activation must retain the pinned public-IP transport and FFmpeg
-validation rather than trusting the observed hostname automatically.
+The separate operator downloader uses the pinned public-IP transport and FFmpeg
+validation; an observed hostname is never automatically approved. Public live generation remains blocked.
 
 Tests use mocked signed HTTP and R2 responses, deny real socket connections, and
 exercise the actual CLI. They cover dry run, review/gate failures, singleton and

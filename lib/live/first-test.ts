@@ -1,3 +1,4 @@
+import { reportedBaseChargeMicroUsd } from "./contract.ts";
 /** Isolated operator-only discovery workflow. Never imported by web/worker code. */
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
@@ -89,7 +90,7 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
     BigInt(input.taxMaxMicroUsd as number) +
     BigInt(input.feesMaxMicroUsd as number);
   if (
-    Number(input.baseMaxMicroUsd) < Math.ceil(videoMax * 70000) ||
+    Number(input.baseMaxMicroUsd) < reportedBaseChargeMicroUsd(videoMax) ||
     total !== BigInt(input.inclusiveMaxMicroUsd as number) ||
     total <= 0n
   )
@@ -266,6 +267,53 @@ export class FirstTestWorkflow {
     }
     return { attempt, config, ...checked };
   }
+  authorizeExisting(
+    id: string,
+    owner: string,
+    review: unknown,
+    confirmation: string,
+  ) {
+    return this.gate(id, owner, review, confirmation);
+  }
+  async refreshResult(
+    id: string,
+    owner: string,
+    review: unknown,
+    confirmation: string,
+  ) {
+    const { attempt } = this.gate(id, owner, review, confirmation);
+    if (attempt.state !== "output_observed")
+      throw new Error("Only an observed task result may be refreshed.");
+    const lease = this.store.claimOutputDownload(id);
+    try {
+      let sanitized: ReturnType<typeof sanitizeFirstTestResult> | null = null;
+      const protocol = new BytePlusProtocol(async (request, signal) => {
+        const response = await this.transport(request, signal);
+        sanitized = sanitizeFirstTestResult(response.body);
+        return response;
+      });
+      const result = await providerRequest((signal) =>
+        protocol.status(attempt.providerJobId!, signal),
+      );
+      if (result.status !== "done")
+        throw new Error(
+          "Output refresh unavailable; no resubmission is allowed.",
+        );
+      const url = observationUrl(result.outputUrl!);
+      return this.store.transition(id, "output_observed", {}, lease, () =>
+        this.store.recordFirstTestResult(id, {
+          taskId: attempt.providerJobId,
+          sanitizedResult: sanitized,
+          video_url: url.href,
+          observedHostname: url.hostname,
+          hostnameVerified: false,
+          downloaded: false,
+        }),
+      );
+    } finally {
+      this.store.releasePoll(id, lease);
+    }
+  }
   async submit(
     id: string,
     owner: string,
@@ -317,7 +365,8 @@ export class FirstTestWorkflow {
   }
   async poll(id: string, owner: string, review: unknown, confirmation: string) {
     const { attempt } = this.gate(id, owner, review, confirmation);
-    if (["output_observed", "failed"].includes(attempt.state)) return attempt;
+    if (["output_observed", "completed", "failed"].includes(attempt.state))
+      return attempt;
     const lease = this.store.claimPoll(id);
     let sanitized: ReturnType<typeof sanitizeFirstTestResult> | null = null;
     try {

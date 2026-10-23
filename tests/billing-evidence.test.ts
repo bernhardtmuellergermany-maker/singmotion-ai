@@ -178,3 +178,23 @@ test("uncovered plans remain unpriced; expanded video costs exhaust cumulative a
     store.close();
   }
 });
+
+test("Technical Support: floor generated seconds, with one second for positive subsecond output", async () => {
+  const { reportedBaseChargeMicroUsd } =
+    await import("../lib/live/contract.ts");
+  for (const [seconds, charge] of [
+    [0.001, 70000],
+    [0.999, 70000],
+    [1, 70000],
+    [1.999, 70000],
+    [5, 350000],
+    [5.3, 350000],
+    [5.999999, 350000],
+    [6, 420000],
+    [300, 21000000],
+  ])
+    assert.equal(reportedBaseChargeMicroUsd(seconds), charge);
+  for (const invalid of [0, -1, NaN, Infinity, 301])
+    assert.throws(() => reportedBaseChargeMicroUsd(invalid));
+  assert.equal(bytePlusVerification.contract, null); // Base-only evidence cannot establish taxes/inclusive approval.
+});

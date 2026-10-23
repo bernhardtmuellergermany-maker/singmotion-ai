@@ -1,5 +1,10 @@
 # One future paid OmniHuman 2.0 test: readiness review
 
+> Latest update: [clarified base billing, unapproved candidate hostname and
+> operator-only existing-task MP4 retrieval](OUTPUT_RETRIEVAL_REVIEW.md).
+> Rounding is clarified; inclusive taxes and host/media approval remain required.
+> No real provider/R2 requests were made.
+
 > **Operator discovery update:** [First controlled live test](FIRST_CONTROLLED_LIVE_TEST.md)
 > documents a separate, explicitly gated one-plan CLI. It requires a manually
 > reviewed inclusive exact-case bound and records the output URL without download.

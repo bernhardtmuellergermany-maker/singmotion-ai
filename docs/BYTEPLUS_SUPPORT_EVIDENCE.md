@@ -1,5 +1,15 @@
 # OmniHuman 2.0 Support evidence and private input policy
 
+## Latest Technical Support clarification (operator-provided)
+
+Generated video seconds are rounded **down**, with positive durations under one
+second billed as one second (5.3 → 5 seconds). The stated five-second input has a
+six-second output / USD 0.42 pre-tax maximum. Taxes depend on billing country and
+account type; no applicable rate or inclusive bound was supplied. The observed
+host `v16m-default.tiktokcdn.com` may change and is **not approved automatically**.
+See [exact evidence, account-tax investigation and output retrieval](OUTPUT_RETRIEVAL_REVIEW.md).
+This supersedes the older rounding ambiguity below, not the missing tax bound.
+
 ## Source and scope
 
 The operator relayed an official BytePlus Support response in this development

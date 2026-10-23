@@ -43,11 +43,24 @@ export const bytePlusVerification = Object.freeze({
   contract: null,
   blockers: [
     "Current Common Parameters page review and live account/signature verification (SDK signing is mock-verified)",
-    "Generated-video duration envelope, ambiguous rounding, minimum charges, fees and inclusive taxes (five-second input base bound USD 0.42 only)",
+    "Generated-video duration envelope, minimum charges, fees and inclusive taxes (five-second input base bound USD 0.42 only)",
     "Operational validation of 13-hour private input delivery and retention (Support requires full 12-hour availability; no automatic fetch retry)",
     "Output host allowlist, exact dimensions/aspect behavior, codecs and frame rate (Support confirms 720p, up to 5 minutes)",
   ],
 });
+
+/** Operator-relayed Technical Support billing rule. Base only; never an inclusive quote. */
+export function reportedBaseChargeMicroUsd(
+  generatedVideoSeconds: number,
+): number {
+  if (
+    !Number.isFinite(generatedVideoSeconds) ||
+    generatedVideoSeconds <= 0 ||
+    generatedVideoSeconds > 300
+  )
+    throw new Error("Invalid generated-video duration.");
+  return Math.max(1, Math.floor(generatedVideoSeconds)) * 70000;
+}
 
 export function assertBytePlusVerified(): never {
   throw new Error(

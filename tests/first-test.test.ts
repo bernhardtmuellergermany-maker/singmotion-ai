@@ -113,6 +113,7 @@ function fixture(filename = path.join(root, `${randomUUID()}.sqlite`)) {
     polls = 0,
     cancels = 0;
   let mode = "done";
+  let videoUrl = "https://unknown-output.example/video.mp4?capability=mock";
   const transport = createSignedTransport(
     async (input, init) => {
       assert.equal(new URL(String(input)).hostname, "cv.byteplusapi.com");
@@ -150,8 +151,7 @@ function fixture(filename = path.join(root, `${randomUUID()}.sqlite`)) {
           audio_url: "https://input.example/private-secret",
           ...(status === "done"
             ? {
-                video_url:
-                  "https://unknown-output.example/video.mp4?capability=mock",
+                video_url: videoUrl,
               }
             : {}),
         },
@@ -189,6 +189,9 @@ function fixture(filename = path.join(root, `${randomUUID()}.sqlite`)) {
     confirmation,
     make,
     filename,
+    url: (value: string) => {
+      videoUrl = value;
+    },
     mode: (value: string) => {
       mode = value;
     },
@@ -357,6 +360,8 @@ test("CLI supports Windows BOM/spaced paths, dry run, mocked live run and local 
     R2_ACCESS_KEY_ID: "fake-ak",
     R2_SECRET_ACCESS_KEY: "fake-sk",
     FIRST_TEST_MOCK_CALLS: calls,
+    FIRST_TEST_MOCK_OUTPUT_FILE: clip,
+    BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED: "true",
   };
   const cli = (action: string, flags: string[] = []) =>
     spawnSync(
@@ -402,6 +407,47 @@ test("CLI supports Windows BOM/spaced paths, dry run, mocked live run and local 
   assert.equal(log.filter((s) => s === "CVSync2AsyncSubmitTask").length, 1);
   assert.equal(log.filter((s) => s === "PUT").length, 2);
   assert.equal(log.filter((s) => s === "CVSync2AsyncGetResult").length, 1);
+  const approval = outputApproval(f);
+  const outputFile = path.join(root, "output approval.json");
+  await writeFile(outputFile, "\uFEFF" + JSON.stringify(approval.review));
+  const preview = cli("review-output", [
+    "--review-file",
+    file,
+    "--output-review-file",
+    outputFile,
+  ]);
+  assert.equal(preview.status, 0, preview.stderr);
+  assert.equal(JSON.parse(preview.stdout).confirmationDigest, approval.digest);
+  // Existing-result download needs neither BytePlus nor R2 credentials.
+  for (const key of [
+    "BYTEPLUS_ACCESS_KEY_ID",
+    "BYTEPLUS_SECRET_ACCESS_KEY",
+    "R2_ACCESS_KEY_ID",
+    "R2_SECRET_ACCESS_KEY",
+  ])
+    delete (env as Record<string, string | undefined>)[key];
+  const downloadFlags = [
+    "--review-file",
+    file,
+    "--confirm-live-test",
+    f.confirmation,
+    "--output-review-file",
+    outputFile,
+    "--confirm-output",
+    approval.digest,
+  ];
+  const saved = cli("download", downloadFlags);
+  assert.equal(saved.status, 0, saved.stderr);
+  assert.equal(JSON.parse(saved.stdout).state, "completed");
+  assert.ok(JSON.parse(saved.stdout).outputPath.endsWith(".mp4"));
+  const recovered = cli("download", downloadFlags);
+  assert.equal(recovered.status, 0, recovered.stderr);
+  const finalLog = (await readFile(calls, "utf8")).trim().split("\n");
+  assert.equal(
+    finalLog.filter((s) => s === "CVSync2AsyncSubmitTask").length,
+    1,
+  );
+  assert.equal(finalLog.filter((s) => s === "OUTPUT_GET").length, 1);
 });
 
 test("failed tasks retain reservations and insufficient cost caps stop before upload", async () => {
@@ -467,4 +513,306 @@ test("crash after consuming approval cannot be submitted or polled without a tas
     polls: 0,
     cancels: 0,
   });
+});
+
+const {
+  outputReviewTemplate,
+  reviewOutput,
+  downloadFirstTestResult,
+  outputHostnameCandidate,
+} = await import("../lib/live/first-test-download.ts");
+const clip = path.join(root, "short-result.mp4");
+execFileSync("ffmpeg", [
+  "-nostdin",
+  "-v",
+  "error",
+  "-i",
+  "public/media/demo.mp4",
+  "-t",
+  "5.3",
+  "-c",
+  "copy",
+  clip,
+]);
+const resultBytes = await readFile(clip);
+function outputApproval(
+  f: ReturnType<typeof fixture>,
+  hostname = "unknown-output.example",
+) {
+  const review = {
+    ...outputReviewTemplate(f.make(), f.attempt.id, media.owner),
+    hostname,
+    width: 1280,
+    height: 720,
+    fps: 25,
+    minDurationSeconds: 4,
+    maxDurationSeconds: 6,
+    videoCodec: "h264",
+    audioCodec: "aac",
+    reviewedBy: "Fictional reviewer",
+    reviewedAt: "2026-01-01T00:00:00Z",
+    evidence:
+      "Fictional exact hostname ownership and media acceptance policy for mocks",
+    acknowledgment: "APPROVE_EXACT_HOST_AND_MEDIA_POLICY",
+  };
+  return reviewOutput(f.make(), f.attempt.id, media.owner, review, 6);
+}
+async function observedFixture() {
+  const f = fixture();
+  await f.make().submit(f.attempt.id, media.owner, f.review, f.confirmation);
+  await f.make().poll(f.attempt.id, media.owner, f.review, f.confirmation);
+  const env: Record<string, string> = f.env;
+  env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = "true";
+  return f;
+}
+
+test("candidate is unapproved; missing host, unknown output policy, wrong owner and gate cannot download", async () => {
+  const f = await observedFixture(),
+    w = f.make();
+  assert.equal(outputHostnameCandidate.approved, false);
+  assert.equal(outputHostnameCandidate.hostname, "v16m-default.tiktokcdn.com");
+  assert.equal(outputReviewTemplate(w, f.attempt.id, media.owner).hostname, "");
+  const approval = outputApproval(f);
+  for (const patch of [
+    { hostname: "*.tiktokcdn.com" },
+    { hostname: "127.0.0.1" },
+    { fps: null },
+    { maxDurationSeconds: 7 },
+    { acknowledgment: "" },
+  ])
+    assert.throws(() =>
+      reviewOutput(
+        w,
+        f.attempt.id,
+        media.owner,
+        { ...approval.review, ...patch },
+        6,
+      ),
+    );
+  let requests = 0;
+  const transport = async () => {
+    requests++;
+    return new Response(resultBytes);
+  };
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      "other",
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      transport,
+    ),
+  );
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      "bad",
+      transport,
+    ),
+  );
+  const env: Record<string, string> = f.env;
+  env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = "false";
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      transport,
+    ),
+  );
+  assert.equal(requests, 0);
+});
+
+test("expired URL stops safely; resumed download validates private MP4 without any new provider operation", async () => {
+  const f = await observedFixture(),
+    w = f.make(),
+    approval = outputApproval(f);
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      async () => new Response(null, { status: 403 }),
+    ),
+  );
+  assert.equal(f.store.get(f.attempt.id).state, "output_observed");
+  const before = f.counts();
+  const result = await downloadFirstTestResult(
+    w,
+    f.attempt.id,
+    media.owner,
+    f.review,
+    f.confirmation,
+    approval.review,
+    approval.digest,
+    async () => new Response(resultBytes),
+  );
+  assert.equal(result.state, "completed");
+  assert.ok(
+    result.outputPath?.startsWith(path.join(root, "live-output") + path.sep),
+  );
+  assert.equal(f.store.firstTestResult(f.attempt.id)!.result.downloaded, true);
+  const recovered = await downloadFirstTestResult(
+    w,
+    f.attempt.id,
+    media.owner,
+    f.review,
+    f.confirmation,
+    approval.review,
+    approval.digest,
+    async () => {
+      throw Error("Must recover locally");
+    },
+  );
+  assert.equal(recovered.outputPath, result.outputPath);
+  assert.deepEqual(f.counts(), before);
+  assert.equal(f.counts().submits, 1);
+  assert.equal(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.attempt.id)!.reserved_micro_usd,
+    500000,
+  );
+});
+
+test("explicit read-only refresh keeps task ID; changed host needs new exact approval", async () => {
+  const f = await observedFixture(),
+    w = f.make(),
+    approval = outputApproval(f);
+  f.url("https://changed-output.example/video?new=token");
+  await w.refreshResult(f.attempt.id, media.owner, f.review, f.confirmation);
+  assert.equal(
+    f.store.firstTestResult(f.attempt.id)!.result.observedHostname,
+    "changed-output.example",
+  );
+  let requests = 0;
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      async () => {
+        requests++;
+        return new Response(resultBytes);
+      },
+    ),
+    /approved HTTPS/,
+  );
+  assert.equal(requests, 0);
+  assert.equal(f.counts().submits, 1);
+  const updated = outputApproval(f, "changed-output.example");
+  await downloadFirstTestResult(
+    w,
+    f.attempt.id,
+    media.owner,
+    f.review,
+    f.confirmation,
+    updated.review,
+    updated.digest,
+    async () => new Response(resultBytes),
+  );
+  assert.equal(f.counts().submits, 1);
+});
+
+test("crash after rename recovers even with expired URL; invalid media is never committed", async () => {
+  const f = await observedFixture(),
+    w = f.make(),
+    approval = outputApproval(f);
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      async () => new Response("invalid MP4"),
+    ),
+  );
+  assert.equal(f.store.get(f.attempt.id).state, "output_observed");
+  // Simulate a completed rename followed by a process crash before DB commit.
+  const directory = path.join(root, "live-output");
+  await mkdir(directory, { recursive: true });
+  await writeFile(
+    path.join(directory, `${f.attempt.id}.${approval.digest}.mp4`),
+    resultBytes,
+    { mode: 0o600 },
+  );
+  const result = await downloadFirstTestResult(
+    w,
+    f.attempt.id,
+    media.owner,
+    f.review,
+    f.confirmation,
+    approval.review,
+    approval.digest,
+    async () => {
+      throw Error("No network on recovery");
+    },
+  );
+  assert.equal(result.state, "completed");
+  assert.equal(f.store.firstTestResult(f.attempt.id)!.result.downloaded, true);
+});
+
+test("concurrent or stale output lease cannot commit or overwrite an MP4", async (t) => {
+  const f = await observedFixture(),
+    w = f.make(),
+    approval = outputApproval(f);
+  const lock = f.store.claimOutputDownload(f.attempt.id);
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      async () => {
+        throw Error("No transfer while locked");
+      },
+    ),
+    /Another worker/,
+  );
+  f.store.releasePoll(f.attempt.id, lock);
+  const clock = Date.now();
+  await assert.rejects(
+    downloadFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      async () => {
+        t.mock.method(Date, "now", () => clock + 601000);
+        return new Response(resultBytes);
+      },
+    ),
+    /lease expired/,
+  );
+  assert.equal(f.store.get(f.attempt.id).state, "output_observed");
+  assert.equal(f.store.get(f.attempt.id).outputPath, null);
 });

@@ -33,3 +33,39 @@ globalThis.fetch = async (input) => {
     });
   throw Error("Unexpected provider operation");
 };
+
+// Pinned output transport boundary for the actual CLI download integration test.
+import https from "node:https";
+import dns from "node:dns/promises";
+import { readFileSync } from "node:fs";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+import { syncBuiltinESMExports } from "node:module";
+dns.lookup = async (host) => {
+  if (host !== "unknown-output.example") process.exit(99);
+  return [{ address: "93.184.216.34", family: 4 }];
+};
+https.request = (options, callback) => {
+  if (
+    options.hostname !== "93.184.216.34" ||
+    options.servername !== "unknown-output.example" ||
+    options.rejectUnauthorized !== true ||
+    options.agent !== false
+  )
+    process.exit(99);
+  record("OUTPUT_GET");
+  const request = new EventEmitter();
+  request.destroy = () => {};
+  request.end = () =>
+    queueMicrotask(() => {
+      const response = Object.assign(new PassThrough(), {
+        statusCode: 200,
+        headers: {},
+        socket: { authorized: true, remoteAddress: "93.184.216.34" },
+      });
+      callback(response);
+      response.end(readFileSync(process.env.FIRST_TEST_MOCK_OUTPUT_FILE));
+    });
+  return request;
+};
+syncBuiltinESMExports();
