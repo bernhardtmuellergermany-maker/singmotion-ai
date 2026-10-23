@@ -1,3 +1,4 @@
+import { downloadValidatedOutput } from "../lib/live/output.ts";
 import { test, after, beforeEach, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -225,6 +226,16 @@ async function fixture() {
     return new OperatorWorkflow(s, config, root, {
       verifiedContract: () => reviewed,
       provider,
+      download: (url, file, duration, contract) =>
+        downloadValidatedOutput(url, file, duration, contract, (url, signal) =>
+          fetch(url, {
+            signal,
+            redirect: "manual",
+            credentials: "omit",
+            cache: "no-store",
+            headers: { "Accept-Encoding": "identity" },
+          }),
+        ),
       cleanupInputs: (id, signal) => delivery.cleanupExpired(id, signal),
     });
   }

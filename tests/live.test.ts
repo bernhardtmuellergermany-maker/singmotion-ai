@@ -40,7 +40,7 @@ import {
 import {
   validateOutputUrl,
   validateOutput,
-  downloadValidatedOutput,
+  downloadValidatedOutput as realDownloadValidatedOutput,
 } from "../lib/live/output.ts";
 import { validateAudio } from "../lib/media.ts";
 // Fictional fixture terms exercise policy math, NOT BytePlus billing evidence.
@@ -1094,3 +1094,22 @@ test("output rejects inconsistent lengths and encoding and cancels when private 
   assert.equal(canceled, true);
   assert.equal(await fs.readFile(file, "utf8"), "existing-private-data");
 });
+
+function downloadValidatedOutput(
+  ...args: Parameters<typeof realDownloadValidatedOutput>
+) {
+  return realDownloadValidatedOutput(
+    args[0],
+    args[1],
+    args[2],
+    args[3],
+    (url, signal) =>
+      fetch(url, {
+        signal,
+        redirect: "manual",
+        credentials: "omit",
+        cache: "no-store",
+        headers: { "Accept-Encoding": "identity" },
+      }),
+  );
+}

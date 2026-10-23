@@ -111,8 +111,8 @@ change the real prepared draft or any production flag.
 - The code has request deadlines and bounded downloads, not an unattended daemon
   with scheduling/alerts. After a provider read error, invoke only a later poll;
   monitor the one-hour output URL and twelve-hour task lookup lifetimes.
-- Output host verification and connection-level destination protection are still
-  required before real downloads. An injected mock downloader is a test seam,
+- Output host verification is still required before real downloads. The default
+  downloader now uses [pinned public-IP HTTPS](PRIVATE_OUTPUT_DOWNLOADS.md). An injected mock downloader is a test seam,
   not permission to bypass validation; the runner always validates its MP4.
 
 ## Validation and remaining evidence
@@ -124,8 +124,8 @@ replay, crashed submission claims, stale lease fencing and expiry-scoped cleanup
 Existing suites retain media, budget, authentication, R2/signing and staging tests.
 
 Still pending: billing minimum/rounding/unsuccessful-task fees and tax bounds;
-verified output hostnames, exact dimensions/aspect, codecs/FPS and connection-level
-egress safety; current Common Parameters/IAM review; eventual live account acceptance;
+verified output hostnames, exact dimensions/aspect, codecs/FPS and deployment
+egress review (connection pinning is implemented); current Common Parameters/IAM review; eventual live account acceptance;
 operator retention/cleanup ownership and explicit one-test authorization. See
 [Support evidence](BYTEPLUS_SUPPORT_EVIDENCE.md) and [readiness](BYTEPLUS_TEST_READINESS.md).
 

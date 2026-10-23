@@ -89,12 +89,12 @@ MP4 structure, audio/video, duration, dimensions/FPS and FFmpeg decoding must
 validate before completion. Poll promptly to retrieve expiring results; a failed
 or expired download never triggers a new generation.
 
-The output allowlist remains unset. Exact-host checking alone does not pin DNS
-or exclude private addresses after DNS resolution. Before live wiring, review
-approved host ownership and enforce public-destination resolution/egress at the
-connection boundary (including rebinding protection). Do not replace this with
-wildcards or a separate DNS lookup followed by unpinned fetch. Codec guarantees
-also still need contract evidence; decoding is not proof of a vendor codec SLA.
+The output allowlist remains unset. The production downloader now validates all
+DNS answers and pins a fresh authenticated HTTPS connection to a public literal
+IP, retaining the approved hostname for SNI/certificate verification and Host.
+It refuses redirects and peer mismatches. See [private output protection](PRIVATE_OUTPUT_DOWNLOADS.md).
+Exact hostname ownership, media guarantees and deployment egress review remain
+required; mocked connection protection is not live vendor verification.
 
 ## Next operator steps
 

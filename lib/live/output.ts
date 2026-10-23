@@ -1,3 +1,7 @@
+import {
+  privateOutputTransport,
+  type OutputTransport,
+} from "./output-transport.ts";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { open, unlink } from "node:fs/promises";
@@ -6,7 +10,12 @@ import { probe } from "../media.ts";
 import type { VerifiedContract } from "./contract.ts";
 
 export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
-  const url = new URL(raw);
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Provider output URL is invalid.");
+  }
   if (
     url.protocol !== "https:" ||
     url.username ||
@@ -14,6 +23,8 @@ export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
     url.hash ||
     (url.port && url.port !== "443") ||
     isIP(url.hostname) ||
+    url.hostname.includes(":") ||
+    url.hostname.endsWith(".") ||
     !hosts.includes(url.hostname) ||
     !url.hostname.includes(".") ||
     url.hostname.endsWith(".localhost") ||
@@ -91,15 +102,10 @@ export async function downloadValidatedOutput(
   file: string,
   duration: number,
   contract: VerifiedContract,
+  transport: OutputTransport = privateOutputTransport,
 ) {
   const url = validateOutputUrl(raw, contract.outputHosts);
-  const response = await fetch(url, {
-    redirect: "manual",
-    credentials: "omit",
-    cache: "no-store",
-    headers: { "Accept-Encoding": "identity" },
-    signal: AbortSignal.timeout(120_000),
-  });
+  const response = await transport(url, AbortSignal.timeout(120_000));
   if (response.status !== 200 || !response.body) {
     await response.body?.cancel();
     throw new Error("Provider download did not return a complete file.");

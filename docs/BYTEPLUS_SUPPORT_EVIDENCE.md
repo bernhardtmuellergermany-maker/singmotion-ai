@@ -146,8 +146,9 @@ explicit cleanup or the separately configured lifecycle policy removes them.
 - Account-specific minimum charges, ambiguous rounding, fees, taxes and an
   inclusive bound covering the measured input; unlisted/uncertain outcomes.
   Generated-video billing and the listed no-charge outcomes are now evidenced.
-- Exact output hostname allowlist, connection-level public-destination protection,
-  codec/FPS and exact dimensions/aspect/duration expectations.
+- Exact output hostname allowlist, deployment egress review, codec/FPS and exact
+  dimensions/aspect/duration expectations. Connection-level public-IP pinning is
+  now implemented; see [private output protection](PRIVATE_OUTPUT_DOWNLOADS.md).
 - Reviewed operator workflow for transitioning an offline plan to a priced
   approval, current Common Parameters/IAM review and live account acceptance.
 - Operational retention/cleanup ownership and eventual explicitly authorized
