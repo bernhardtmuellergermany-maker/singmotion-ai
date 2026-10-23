@@ -1,3 +1,4 @@
+import { removeOfflinePlans } from "../lib/live/cleanup.ts";
 import { unlink, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { db, dataDir, list } from "../lib/db.ts";
@@ -12,6 +13,11 @@ for (const { owner } of owners) {
     )
   )
     continue;
+  try {
+    removeOfflinePlans(dataDir, owner);
+  } catch {
+    continue;
+  }
   for (const a of list<Asset>("assets", owner))
     await unlink(a.path).catch(() => {});
   for (const table of ["assets", "artists", "jobs", "ledger", "sessions"])

@@ -102,3 +102,15 @@ See `docs/ARCHITECTURE.md`, `docs/PROVIDER_VERIFICATION.md`, and `docs/LAUNCH_CH
 ## Railway-compatible packaging — not deployed
 
 The Dockerfile installs FFmpeg and builds Next.js. The entry point honors Railway's `PORT` and starts web plus worker in one container. A persistent volume at `/app/.data` is required for this **single-replica demo**; configure permissions for the `node` user. Do not horizontally scale SQLite or expose this preview publicly. Docker execution and Railway deployment have not been validated here, and no service was purchased or deployed. Production must migrate durable state to Supabase and private objects to R2 before scaling.
+
+## BytePlus first-test preparation (still offline)
+
+The direct OmniHuman 2.0 contract could not be verified because the official documentation host is blocked by the Cloud network. No endpoint or 1.5 schema has been substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
+
+```sh
+npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --confirm-english
+```
+
+It performs **no network request or paid generation**. The current plan reports an unknown provider cost and cannot be authorized. `.env.byteplus.example` describes separate, disabled operator settings; keep the normal app in demo mode. The internal one-time authorization, spending cap, task-ID persistence, polling and MP4 validation lifecycle has fake-provider tests, but no verified live transport. `npm run byteplus:live-test` always refuses submission in this version.
+
+See [the verification matrix and BytePlus account checklist](docs/PROVIDER_VERIFICATION.md) for the precise evidence still needed. Do not add provider credentials or enable real spending until the model-specific contract and billing rules are confirmed.

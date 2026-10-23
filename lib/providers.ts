@@ -1,3 +1,4 @@
+import { assertBytePlusVerified } from "./live/contract.ts";
 export interface GenerationInput {
   audioUrl: string;
   imageUrl: string;
@@ -17,9 +18,7 @@ export interface VideoProvider {
 export class DisabledBytePlusAdapter implements VideoProvider {
   name = "BytePlus OmniHuman 2.0 (disabled)";
   async create(): Promise<ProviderJob> {
-    throw new Error(
-      "Direct OmniHuman 2.0 API contract is not verified. Live requests are disabled.",
-    );
+    return assertBytePlusVerified();
   }
   async poll(): Promise<ProviderJob> {
     throw new Error("BytePlus polling contract is not verified.");

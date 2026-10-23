@@ -14,6 +14,7 @@ export async function probe(file: string) {
     streams: {
       codec_type: string;
       codec_name: string;
+      avg_frame_rate?: string;
       duration?: string;
       width?: number;
       height?: number;

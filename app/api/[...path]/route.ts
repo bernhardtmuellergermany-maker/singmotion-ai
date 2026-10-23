@@ -1,3 +1,4 @@
+import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
 import { readFile, writeFile, unlink, stat } from "node:fs/promises";
@@ -377,6 +378,7 @@ async function handler(
           "Wait for active generations to finish before deleting data.",
           409,
         );
+      removeOfflinePlans(dataDir, owner);
       for (const a of list<Asset>("assets", owner))
         await unlink(a.path).catch(() => {});
       for (const table of ["assets", "artists", "jobs", "ledger", "sessions"])

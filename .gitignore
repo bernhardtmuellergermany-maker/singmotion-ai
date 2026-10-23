@@ -11,6 +11,7 @@ test-results/
 # Local environment and credentials; the blank configuration template is intentional
 .env*
 !.env.example
+!.env.byteplus.example
 .secrets/
 secrets/
 .aws/

@@ -1,29 +1,69 @@
-# OmniHuman 2.0 integration gate
+# Direct BytePlus OmniHuman 2.0: verification and live-test gate
 
-Status: **not verified, not connected, no paid API requests made**.
+**Checked 23 October 2026. Status: blocked on official 2.0 documentation. No real provider submission, poll, media upload, payment or deployment has been performed.**
 
-The supplied product specification reports observations in the BytePlus console:
+The implementation does **not** claim a working direct API integration. It adds offline media preparation and a tested internal live-job lifecycle behind a disabled provider adapter. No endpoint, request field, model identifier, signing method, or billing minimum has been guessed or copied from OmniHuman 1.5.
 
-- OmniHuman 2.0, USD 0.07/second before tax (provider cost, not customer price).
-- MP4, 720p, 25 FPS.
-- One JPEG/PNG image; up to 30 MB and 4096 × 4096.
-- MP3 audio up to 15 MB and 300 seconds.
-- English prompt support.
+## Official-source investigation
 
-These observations are not a complete official API contract. No authenticated provider documentation or verified OmniHuman **2.0** request/response contract was supplied. Consequently this implementation contains **no guessed endpoint, auth header, signing scheme, model ID, or field mapping**. It does not reuse an OmniHuman 1.5 API. No credential value is needed for the demo.
+| Source                                                                                                                                  | Observed result                                                                        | What this establishes                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [BytePlus documentation portal / ModelArk](https://docs.byteplus.com/en/docs/ModelArk)                                                  | Cloud egress proxy rejected HTTPS CONNECT with HTTP 403 before retrieving the document | No OmniHuman 2.0 documentation could be read at this destination; this is a network restriction, not proof the API does not exist                                                                        |
+| BytePlus product site (`www.byteplus.com`)                                                                                              | Same proxy HTTP 403                                                                    | Product documentation could not be checked from this environment                                                                                                                                         |
+| [Official BytePlus Python SDK README](https://github.com/byteplus-sdk/byteplus-sdk-python/blob/master/README.md) and repository archive | Retrieved through GitHub; inspected source for OmniHuman references                    | General BytePlus SDK documents IAM → Key Management and AK/SK (`BYTEPLUS_ACCESSKEY`, `BYTEPLUS_SECRETKEY`). It does **not** establish that OmniHuman 2.0 uses these credentials, region or signing rules |
+| [Official BytePlus sdk-python repository](https://github.com/byteplus-sdk/sdk-python)                                                   | Retrieved and searched; no OmniHuman 2.0 contract found                                | No usable 2.0 wire schema or billing evidence found in this source                                                                                                                                       |
 
-Before implementing and activating the direct adapter, record the official source URL, API version/date, region, and concrete evidence for each item:
+PyPI project metadata for `byteplus-sdk` and `byteplus` links to those SDK repositories. No third-party or 1.5 example has been promoted to a verified 2.0 contract. The public SDK findings are not a substitute for the model-specific console documentation.
 
-1. Authentication/signing, token lifetime, endpoint region, entitlement and usage restrictions.
-2. Exact 2.0 model identifier, creation schema, optional prompt field and accepted languages.
-3. Input delivery method (signed URLs or upload), accepted MIME/codecs, minimum dimensions/duration, maximum limits, and signed URL validity needs.
-4. Single-image versus explicit multi-image support. The current domain always submits one primary image.
-5. Job creation response, durable provider ID, idempotency support, retry semantics, rate limits, and ambiguous timeout recovery.
-6. Polling/webhooks, authenticating webhook signatures, terminal status mapping, cancellation behavior, and error responses.
-7. Output URL domains/expiry, download authorization, exact media format, copy-to-R2 and media validation requirements.
-8. Billing granularity, minimum chargeable duration, failed-job billing, regional tax/currency, and commercial likeness/music restrictions.
-9. Supported prompt behavior: gentle camera/performance directions are guidance; orbit is not offered until supported and useful. No deterministic choreography or identity promise.
+## Verification matrix
 
-Then use a separately authorized, budget-capped live smoke test. Never automatically resubmit an ambiguous paid request or fall back to fal.ai. Persist the provider request/idempotency record before submitting. Read-only polling can retry with bounded backoff; rendering needs explicit authorization and deduplication.
+| Requirement                                                                                | Verified for direct OmniHuman **2.0**? | Current implementation                                                                                                         |
+| ------------------------------------------------------------------------------------------ | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Exact endpoint, region, model/service identifier, API version                              | No                                     | No endpoint or model string is sent over HTTP                                                                                  |
+| Authentication, required credentials, permissions/signing                                  | No                                     | No BytePlus credential is read or transmitted                                                                                  |
+| Image/audio field names and upload/URL transport                                           | No                                     | Prepare an owned, real trimmed MP3 and one byte-identical original JPEG/PNG locally; do not upload                             |
+| Custom English prompt field                                                                | No                                     | Preserve composed prompt; require explicit English confirmation for a future reviewed plan; no guessed prompt field            |
+| Submit response, task ID field, polling endpoint/status mapping                            | No                                     | Internal normalized lifecycle and durable ID persistence tested with fake providers only                                       |
+| Output URL location, expiry/hosts, retrieval authentication                                | No                                     | Output downloader denies all hosts until a reviewed contract supplies an exact allowlist; no actual provider output downloaded |
+| Minimum/maximum supported clip duration and resolution limits                              | Console observations only              | Existing conservative input validation is reused; not advertised as an officially verified contract                            |
+| Rate, billing quantum, minimum billable duration, minimum charge, tax and failure charging | No                                     | Provider cost is `null`; spending cannot be authorized                                                                         |
+| Usage rights, regional access, commercial availability                                     | No                                     | Must be confirmed with BytePlus before a real test                                                                             |
 
-The fal.ai fallback needs its own official 2.0 contract verification and explicit selection; a common adapter interface does not establish API compatibility.
+The previous specification reports console observations of USD 0.07/second before tax; MP4, 720p, 25 FPS; JPEG/PNG up to 30 MB and 4096 × 4096; MP3 up to 15 MB and 300 seconds; and English prompts. These remain **reported observations**, not newly verified pricing/API facts. In particular, €2.99/10 seconds is an illustrative customer price, never a BytePlus cost estimate.
+
+## What you need in your BytePlus account
+
+No paid generation or new credential is required now. The precise 2.0 account configuration cannot yet be verified. Obtain the following from the **OmniHuman 2.0** model's official API page or BytePlus support:
+
+1. Confirm that your account has **direct OmniHuman 2.0 API entitlement** in a stated region, not just console UI access, OmniHuman 1.5, or a reseller endpoint. Supply the official documentation URL or exported request/response documentation without secrets.
+2. Confirm exact endpoint, service/model/version identifiers, creation and polling examples, statuses, error codes, input upload or signed-URL rules, prompt support and output retrieval. The API must be able to access private media through its documented mechanism; our cookie-protected local asset URLs cannot be sent as externally readable URLs.
+3. Confirm the **actual account-specific price**, currency, minimum billable seconds, rounding quantum, minimum monetary charge, taxes/fees, failed-request charging, and handling of submission timeouts. We need a reviewed inclusive upper bound before any spending cap can work. A displayed per-second rate alone is insufficient.
+4. Confirm the model-specific authentication method and least-privilege permissions. **Only if BytePlus confirms AK/SK for this API**, use a restricted IAM identity and server-side key pair. Otherwise follow the verified 2.0 authentication procedure. Do not paste credentials into chat, source, screenshots or Git; do not use `NEXT_PUBLIC_` variables. Actual provider credential variable names will be added only after authentication is known.
+5. Confirm commercial music/likeness rules, model-access requirements, and available account/project spending controls. Configure a provider-side spending limit if supported, in addition to the local per-job and total test caps.
+
+Once these are supplied, implement the real transport and authenticated private input delivery, add fixtures from official examples, and review the diff. A real test still requires **separate explicit approval**, a server-side operator authorization, and the exact one-time confirmation. No configuration flag alone enables the current adapter.
+
+## What is implemented now
+
+- `npm run byteplus:preflight -- --job <existing-project-id> --owner <owning-session-id> [--confirm-english]`: offline-only, uses ownership-checked source assets, actually trims via FFmpeg, validates MP3 and reference image, saves content-addressed private snapshots and persists a plan in `.data/live-test.sqlite`. It reports a null charge and unresolved blockers. Use a fresh session-owned demo project whose selected segment is within the test-duration cap. Session ID is available from the authenticated `/api/session` response; it is an ownership identifier, not the session-cookie credential.
+- Input snapshots are registered as owned assets so existing account deletion and expiration cleanup remove them. Unsubmitted plan metadata is removed too. Once any test is authorized, deletion requires operator reconciliation instead of silently erasing the spending reservation. No actual live plans can currently be authorized through the shipped CLI.
+- Re-running the same preflight is idempotent. Media, prompt/English confirmation, contract revision and cost are bound to an immutable plan. Decide whether to pass `--confirm-english` on the first preparation; changing a prepared plan requires a new source project or explicit operator cleanup while still unsubmitted. English is a human confirmation, not an unreliable language-detection claim.
+- `LiveTestStore`: atomic per-plan and global cost reservations in integer micro-USD, hashed one-time tokens, exact confirmation phrase, ten-minute approval expiry, single-use submission claim, durable task IDs, polling leases, failure states, and uncertain-submission isolation. Reservations remain consumed even after failures until billing is reconciled; local caps are conservative, not refund promises.
+- `LiveTestRunner`: vendor-independent, tested with a fake provider. It preserves the reviewed English prompt and one selected image, rechecks input hashes, submits once, and resumes **only polling** from a stored provider ID. A crash/timeout in submission must be reconciled manually; no automatic resubmission or fal.ai fallback. Provider calls have a 60-second timeout and abort signal. A future adapter must honor that signal and map official responses into this internal interface.
+- MP4 download protection: HTTPS exact-host allowlist, no credential forwarding, no redirects, 100 MiB streaming limit, timeout, private file writes, FFprobe duration/dimensions/frame-rate/audio checks, MP4 container check, full FFmpeg decode, and completion only after validation. Actual provider allowlist/output expectations remain unset pending verification. Only fixture media and a fake fetch implementation were used in tests.
+- The normal web API and demo worker still run only in demo mode and do not import a live transport. Existing studio behavior and demo credits remain unchanged. The internal test lifecycle is separate from customer projects/credits; it is not a production credit ledger integration.
+
+## Separate live-test configuration
+
+`.env.byteplus.example` is a safe operator-process template. Its local copy `.env.byteplus.local` is ignored by Git. Do not load that operator file into the web server. The customer app stays `DEMO_MODE=true`.
+
+- `BYTEPLUS_LIVE_TEST_ENABLED=false` by default.
+- `BYTEPLUS_LIVE_TEST_OPERATOR_SECRET` blank by default; future authorizations require an independently generated secret of at least 32 characters, supplied to a server-side operator flow, not a browser or command-line argument. It is a SingMotion authorization secret, **not** a BytePlus API key.
+- `BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD=0` and `BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD=0` deny spending by default. One USD equals 1,000,000 micro-USD. The total is cumulative in the shared persistent SQLite store, including uncertain/failed attempts; do not delete the database to reset it. Keep one shared data directory and a single local operator environment. This is not a distributed production quota system.
+- `BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS=10` caps the initial test. A future quote uses the **actual encoded MP3 duration**, including codec padding, not only UI markers. A 10-second selection may encode slightly longer and exceed a strict 10-second cap; shorten the clip before review rather than silently increasing the budget.
+
+`npm run byteplus:live-test` is deliberately disabled before any transport or authorization is invoked. It exits with the unverified-contract error even if all configuration flags are enabled. There is no live authorization HTTP endpoint and no ready-to-run paid command in this branch. The operator authorization/confirmation workflow is implemented and tested at the server-library boundary, pending the verified transport and a separately reviewed operator entry point.
+
+## Remaining launch/test work
+
+Read the official 2.0 documentation, implement its exact transport and private media delivery, verify input minimums/billing/output expectations, connect the reviewed operator entry point, test actual polling recovery and output domains, and obtain explicit paid-test approval. A settings save, generic SDK access or a fake-provider test does not establish provider readiness. Stripe and deployment are outside this change.
