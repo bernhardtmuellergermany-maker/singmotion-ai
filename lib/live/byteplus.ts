@@ -1,5 +1,6 @@
 /** Wire contract from the supplied OmniHuman 2.0 document, updated 2026-10-15.
- * Transport is injected for mocks. No default fetch, credentials, or guessed signer.
+ * Transport is injected; the default remains blocked. The isolated first-test
+ * CLI explicitly wires the existing signer behind operator/spending gates.
  */
 import { type VerifiedContract } from "./contract.ts";
 import {
@@ -181,34 +182,16 @@ export class DocumentedBytePlusProvider implements ReviewedProvider {
     this.protocol = protocol;
   }
   async submit(media: PreparedMedia, _requestKey: string, signal: AbortSignal) {
-    // Runner has already consumed one-time approval, checked ownership snapshots,
-    // hashes, actual media, and reserved the inclusive spending upper bound.
-    if (media.durationSeconds < 4 || media.durationSeconds > 300)
-      throw new BytePlusError();
-    const window = this.contract.inputFetchWindowSeconds;
-    if (window === null || !Number.isSafeInteger(window) || window <= 0)
-      throw new BytePlusError();
-    const lease = await this.delivery.issue(media, signal);
-    if (
-      lease.owner !== media.owner ||
-      lease.audioSha256 !== media.audioSha256 ||
-      lease.imageSha256 !== media.imageSha256 ||
-      !Number.isSafeInteger(lease.expiresAt) ||
-      lease.expiresAt - Date.now() < window * 1000
-    )
-      throw new BytePlusError();
-    assertInputLifetime(lease.expiresAt, window);
-    validateOutputUrl(lease.imageUrl, this.inputHosts);
-    validateOutputUrl(lease.audioUrl, this.inputHosts);
-    return this.protocol.submit(
-      {
-        imageUrl: lease.imageUrl,
-        audioUrl: lease.audioUrl,
-        prompt: media.prompt,
-      },
+    return submitPreparedInputs(
+      media,
+      this.delivery,
+      this.inputHosts,
+      this.contract.inputFetchWindowSeconds,
+      this.protocol,
       signal,
     );
   }
+
   async cancelQueued(id: string, signal: AbortSignal) {
     await this.protocol.cancelQueued(id, signal);
   }
@@ -230,4 +213,42 @@ export class DocumentedBytePlusProvider implements ReviewedProvider {
       throw error; // Read-only retries retain the persisted task ID; never resubmit.
     }
   }
+}
+
+/** Shared immutable private-delivery checks for reviewed and discovery workflows. */
+export async function submitPreparedInputs(
+  media: PreparedMedia,
+  delivery: PrivateInputDelivery,
+  inputHosts: readonly string[],
+  window: number | null,
+  protocol: BytePlusProtocol,
+  signal: AbortSignal,
+) {
+  // Runner has already consumed one-time approval, checked ownership snapshots,
+  // hashes, actual media, and reserved the inclusive spending upper bound.
+  if (media.durationSeconds < 4 || media.durationSeconds > 300)
+    throw new BytePlusError();
+
+  if (window === null || !Number.isSafeInteger(window) || window <= 0)
+    throw new BytePlusError();
+  const lease = await delivery.issue(media, signal);
+  if (
+    lease.owner !== media.owner ||
+    lease.audioSha256 !== media.audioSha256 ||
+    lease.imageSha256 !== media.imageSha256 ||
+    !Number.isSafeInteger(lease.expiresAt) ||
+    lease.expiresAt - Date.now() < window * 1000
+  )
+    throw new BytePlusError();
+  assertInputLifetime(lease.expiresAt, window);
+  validateOutputUrl(lease.imageUrl, inputHosts);
+  validateOutputUrl(lease.audioUrl, inputHosts);
+  return protocol.submit(
+    {
+      imageUrl: lease.imageUrl,
+      audioUrl: lease.audioUrl,
+      prompt: media.prompt,
+    },
+    signal,
+  );
 }

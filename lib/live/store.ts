@@ -16,6 +16,7 @@ export type LiveState =
   | "submitting"
   | "submitted"
   | "processing"
+  | "output_observed"
   | "completed"
   | "failed"
   | "uncertain";
@@ -63,6 +64,13 @@ export class LiveTestStore {
       );
       CREATE TABLE IF NOT EXISTS live_contract_reviews (
         attempt_id TEXT PRIMARY KEY, contract_json TEXT NOT NULL, reviewed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_first_test (
+        slot INTEGER PRIMARY KEY CHECK(slot=1), attempt_id TEXT NOT NULL,
+        digest TEXT NOT NULL, claimed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_first_test_results (
+        attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL, observed_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS live_operator_actions (
         attempt_id TEXT NOT NULL, action TEXT NOT NULL, state TEXT NOT NULL,
@@ -144,6 +152,33 @@ export class LiveTestStore {
     expectedMedia: PreparedMedia,
     contract: VerifiedContract,
   ) {
+    return this.priceReviewedBound(
+      id,
+      owner,
+      expectedMedia,
+      contract.revision,
+      contractDigest(contract),
+      planUpperBoundMicroUsd(expectedMedia.durationSeconds, contract),
+      contract,
+    );
+  }
+  /** Server-only exact-case operator review; does not certify a production contract. */
+  priceReviewedBound(
+    id: string,
+    owner: string,
+    expectedMedia: PreparedMedia,
+    revision: string,
+    digest: string,
+    cost: number,
+    review: unknown,
+  ) {
+    if (
+      !revision ||
+      !/^[a-f0-9]{64}$/.test(digest) ||
+      !Number.isSafeInteger(cost) ||
+      cost <= 0
+    )
+      throw new Error("Invalid reviewed bound.");
     return this.transaction(() => {
       const attempt = this.get(id);
       const row = this.db
@@ -161,17 +196,12 @@ export class LiveTestStore {
         throw new Error(
           "Only the exact owned, unreserved prepared plan may be priced.",
         );
-      const digest = contractDigest(contract);
-      const cost = planUpperBoundMicroUsd(
-        attempt.media.durationSeconds,
-        contract,
-      );
       if (
         attempt.contractRevision !== null ||
         attempt.upperBoundMicroUsd !== null
       ) {
         if (
-          attempt.contractRevision !== contract.revision ||
+          attempt.contractRevision !== revision ||
           attempt.contractDigest !== digest ||
           attempt.upperBoundMicroUsd !== cost
         )
@@ -180,15 +210,52 @@ export class LiveTestStore {
           );
         return attempt;
       }
-      attempt.contractRevision = contract.revision;
+      attempt.contractRevision = revision;
       attempt.contractDigest = digest;
       attempt.upperBoundMicroUsd = cost;
       this.db
         .prepare("INSERT INTO live_contract_reviews VALUES (?,?,?)")
-        .run(id, JSON.stringify(contract), Date.now());
+        .run(id, JSON.stringify(review), Date.now());
       this.save(attempt);
       return attempt;
     });
+  }
+  claimFirstTest(id: string, digest: string) {
+    this.transaction(() => {
+      const row = this.firstTest();
+      if (row && (row.attempt_id !== id || row.digest !== digest))
+        throw new Error(
+          "The single first-test slot is already bound; never reset this ledger.",
+        );
+      if (!row)
+        this.db
+          .prepare("INSERT INTO live_first_test VALUES (1,?,?,?)")
+          .run(id, digest, Date.now());
+    });
+  }
+  firstTest() {
+    return this.db
+      .prepare("SELECT * FROM live_first_test WHERE slot=1")
+      .get() as
+      { attempt_id: string; digest: string; claimed_at: number } | undefined;
+  }
+  firstTestResult(id: string) {
+    const row = this.db
+      .prepare(
+        "SELECT result_json,observed_at FROM live_first_test_results WHERE attempt_id=?",
+      )
+      .get(id) as { result_json: string; observed_at: number } | undefined;
+    return row
+      ? { result: JSON.parse(row.result_json), observedAt: row.observed_at }
+      : null;
+  }
+  recordFirstTestResult(id: string, result: unknown) {
+    // Called inside transition's poll-fenced transaction via its commit callback.
+    this.db
+      .prepare(
+        "INSERT INTO live_first_test_results VALUES (?,?,?) ON CONFLICT(attempt_id) DO UPDATE SET result_json=excluded.result_json,observed_at=excluded.observed_at",
+      )
+      .run(id, JSON.stringify(result), Date.now());
   }
   claimCancellation(id: string, lease: string) {
     this.transaction(() => {
@@ -462,8 +529,9 @@ export class LiveTestStore {
         prepared: [],
         authorized: [],
         submitting: ["submitted", "uncertain"],
-        submitted: ["processing", "completed", "failed"],
-        processing: ["processing", "completed", "failed"],
+        submitted: ["processing", "output_observed", "completed", "failed"],
+        processing: ["processing", "output_observed", "completed", "failed"],
+        output_observed: [],
         completed: [],
         failed: [],
         uncertain: [],

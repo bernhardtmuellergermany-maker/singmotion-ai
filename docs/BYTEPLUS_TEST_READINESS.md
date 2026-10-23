@@ -1,5 +1,11 @@
 # One future paid OmniHuman 2.0 test: readiness review
 
+> **Operator discovery update:** [First controlled live test](FIRST_CONTROLLED_LIVE_TEST.md)
+> documents a separate, explicitly gated one-plan CLI. It requires a manually
+> reviewed inclusive exact-case bound and records the output URL without download.
+> The ordinary production contract/transport and public flow remain blocked.
+> No live request was performed during implementation.
+
 Live generation remains disabled. This review makes no BytePlus or R2 requests,
 changes no Railway settings and does not authorize a test.
 

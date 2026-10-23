@@ -16,7 +16,7 @@ export class BytePlusTransportError extends Error {
 }
 /** Dependency-injected transport, exercised only with mock HTTP clients. No
  * default global fetch: constructing this does not authorize a paid request.
- * Future live wiring must remain behind the runner's one-time spending gate.
+ * The dedicated first-test CLI wires fetch only behind its one-time spending gate.
  */
 export function createSignedTransport(
   http: typeof fetch,
