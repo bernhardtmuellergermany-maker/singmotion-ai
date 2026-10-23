@@ -31,23 +31,46 @@ An additive `live_input_deliveries` table is created by the existing SQLite stor
 
 After both private PUTs succeed, the SDK generates two presigned **GET-only**, object-scoped HTTPS URLs locally. No R2 request is needed for URL signing. The returned `InputLease` carries the exact owner/hashes and an expiry aligned with the signatures. The adapter exposes the exact R2 hostname through `inputHosts` for the existing BytePlus provider's input allowlist. It checks the signed URLs' host, object path, expiry and signature presence before returning them.
 
-Default URL lifetime is **3600 seconds**; an explicit constructor option may choose 60–3600 seconds. This application cap is narrower than R2's documented 1-second to 7-day range. URLs are signed against a timestamp captured before upload, so upload time consumes part of the lease rather than extending it silently. If upload consumes the lease, no URL is returned. The operation observes caller cancellation and has a 60-second upload/signing timeout.
+URL lifetime is now fixed at **46,800 seconds (13 hours)**. The earlier one-hour
+lease was insufficient for the operator-relayed BytePlus Support requirement of
+full 12-hour task availability including queue time. At least **12 hours 15
+minutes** must remain both on lease return and immediately before submission;
+larger reviewed contract windows are honored. Timestamps are captured before
+upload, so elapsed time consumes validity. There is no renewal or TTL environment
+override. The operation retains its 60-second upload/signing timeout.
+See [Support evidence and margin rationale](BYTEPLUS_SUPPORT_EVIDENCE.md).
 
 Presigned URLs are bearer capabilities: anyone who obtains one can download that one object until expiry. They contain a public key identifier and signature, not the Secret Access Key. Never log, display, persist or include them in user-visible errors. Only the provider submission receives them. Staging/session cookies and the staging password are neither attached nor bypassed; existing application routes remain protected. The separate BytePlus output allowlist is **not** widened by allowing an R2 input hostname.
 
-The sufficient lifetime for BytePlus's actual queue/fetch behavior remains unverified. No automatic lease renewal, repeat upload or paid resubmission is performed. Confirm the provider's input-fetch timing before any live test. The reviewed contract now requires `inputFetchWindowSeconds` (queue plus last fetch/retry and safety margin). Unknown/invalid windows block before delivery; insufficient remaining lease lifetime blocks submission. This is an internal policy field, not a BytePlus API parameter. The one-hour cap is not evidence that BytePlus fetches within one hour. See [test readiness](BYTEPLUS_TEST_READINESS.md).
+Support reports general presigned R2/S3 HTTPS support and no automatic input-fetch
+retry. Keep inputs continuously accessible for the whole window. The internal
+`inputFetchWindowSeconds` remains required and cannot weaken the 12h15m policy
+floor. A live account retrieval has not been tested; no new request is authorized.
 
 ## Failure handling and retention
 
 The adapter returns no lease if either upload/signing operation fails. Errors are sanitized; raw SDK errors may contain signed URLs or credentials and are not forwarded. Partial or ambiguous PUTs remain recorded as failed (or uploading if the process crashes). They are not automatically replayed or blindly deleted. The runner conservatively retains its uncertain-submission state and spending reservation on failure.
 
-**URL expiry does not delete the objects.** Objects remain private in the bucket until separately removed or expired by a lifecycle rule. Before enabling a real test, review a retention policy for the dedicated `byteplus-inputs/` prefix. A separately authorized prefix-scoped lifecycle rule (for example, deletion after one day if that meets the confirmed provider fetch window and your retention policy) can clean up successful, partial and crash-orphaned inputs. No lifecycle rule is configured by this change. Do not apply a bucket-wide deletion rule that could affect other media. The durable manifest supports manual object-specific reconciliation; deletion revokes any still-valid GET capability. R2 storage/operation charges are separate from the existing BytePlus generation-spending caps.
+**URL expiry does not delete the objects.** An explicit internal operator method,
+`cleanupExpired(attemptId, signal)`, can delete only the manifest's two bound input
+keys after expiry plus one hour. It validates account, bucket, owner/attempt path
+and approved hashes, never lists objects, and marks cleaned only after both
+acknowledgements. Partial failures preserve the manifest and all spending
+reservations. Legacy manifests without account binding need manual reconciliation.
+It is not wired to any web route, worker, deployment or scheduled cleanup.
+
+Before a real test, review retention and assign cleanup ownership. A separately
+authorized lifecycle rule scoped to `byteplus-inputs/` can provide a backstop;
+keep objects accessible throughout the 13-hour lease and cleanup grace (e.g.
+review a 24-hour-or-longer lifecycle policy). No lifecycle/bucket setting is
+changed here. Storage and operations are separate from BytePlus generation caps.
+See [cleanup details](BYTEPLUS_SUPPORT_EVIDENCE.md#expiry-deletion-and-retention).
 
 ## Integration status and usage
 
 Future reviewed operator wiring can construct `new R2PrivateInputDelivery(store, dataDir)` and pass it plus `delivery.inputHosts` to the existing `DocumentedBytePlusProvider`. Call `close()` when the operator finishes. The adapter is not imported by the web routes/demo worker and is not wired into a runnable paid command. Production BytePlus transport still fails closed before loading credentials or calling HTTP. No environment value alone enables provider submission.
 
-Railway keeps `DEMO_MODE=true`, `GENERATIONS_ENABLED=false`, `ADMIN_DEMO_ENABLED=false`, `BYTEPLUS_LIVE_TEST_ENABLED=false` and its staging authentication/volume configuration. No Railway variables, Cloudflare settings, deployments, payments or real uploads were changed or performed. Billing verification, output-domain/encoding policy, input-fetch timing and live account validation remain required before a separately approved live test.
+Railway keeps `DEMO_MODE=true`, `GENERATIONS_ENABLED=false`, `ADMIN_DEMO_ENABLED=false`, `BYTEPLUS_LIVE_TEST_ENABLED=false` and its staging authentication/volume configuration. No Railway variables, Cloudflare settings, deployments, payments or real uploads were changed or performed. Billing verification, output-domain/encoding policy, operational retention and live account validation remain required before a separately approved live test.
 
 ## Evidence and tests
 

@@ -13,7 +13,7 @@ export interface VerifiedContract {
   documentationUrl: string;
   maxDurationSeconds: number;
   promptSupported: boolean;
-  // Reviewed queue + last input fetch/retry window including safety margin.
+  // Reviewed task/input availability window including safety margin.
   // Null means unknown: block before uploading inputs or submitting.
   inputFetchWindowSeconds: number | null;
   billing: BillingRules;
@@ -35,8 +35,8 @@ export const bytePlusVerification = Object.freeze({
   blockers: [
     "Current Common Parameters page review and live account/signature verification (SDK signing is mock-verified)",
     "Billing minimums, quantum, fees, taxes and failed/canceled-task charges (owner confirms USD 0.07/s before tax)",
-    "BytePlus queue/input-fetch window and R2 retention policy (owner confirms R2 connectivity check passed)",
-    "Output host allowlist and documented output encoding/dimension expectations",
+    "Operational validation of 13-hour private input delivery and retention (Support requires full 12-hour availability; no automatic fetch retry)",
+    "Output host allowlist, exact dimensions/aspect behavior, codecs and frame rate (Support confirms 720p, up to 5 minutes)",
   ],
 });
 

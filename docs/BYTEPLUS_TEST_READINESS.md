@@ -24,6 +24,15 @@ changes no Railway settings and does not authorize a test.
   environment's proxy (CONNECT 403). No additional authoritative billing terms
   were obtainable here. “Actual usage” does not define the meter or rounding.
 
+## New operator-provided Support evidence
+
+[Support evidence and input policy](BYTEPLUS_SUPPORT_EVIDENCE.md) records general
+private presigned R2/S3 support, required full 12-hour input availability including
+queue time, no automatic input-fetch retry, 720p output up to five minutes and
+one-hour output URL expiry. Pre-call content moderation rejection is not billed;
+no other unsuccessful-task exemption is inferred. Original ticket/date were not
+provided and live behavior was not independently tested.
+
 ## Blocking evidence to obtain (no credentials needed)
 
 Ask BytePlus support/account documentation for account-specific OmniHuman **2.0**
@@ -32,18 +41,18 @@ terms covering:
 1. Minimum billable duration and minimum monetary charge; billed duration basis
    (uploaded/decoded audio, generated video, or another measure); duration and
    currency rounding increments and order; fixed fees and applicable tax bounds.
-2. Whether validation errors, failed/expired tasks, queued cancellation,
+2. Whether other validation errors, failed/expired tasks, queued cancellation,
    cancellation races and uncertain submission outcomes are chargeable; maximum
    charge per submitted task and when account charges settle. Do not infer that
    failure or cancellation refunds anything.
-3. Whether signed S3 GET URLs are accepted; maximum queue wait, initial/last
-   input-fetch time, fetch retries/range requests/redirect behavior, and required
-   URL validity. The documented one-hour **output** lifetime says nothing about
-   the necessary **input** lifetime.
+3. Any additional input range/redirect constraints if the current direct GET
+   design requires them; operational retention and eventual account validation.
+   The input availability requirement itself is now known: at least 12 hours,
+   without automatic input-fetch retries.
 4. Exact permitted HTTPS output hostnames and their ownership; whether redirects
-   are required; actual output dimensions, FPS, codecs, duration tolerance and
-   whether polling can refresh an expired output URL. Current 720p/25fps tests
-   are fictional fixtures, not model guarantees.
+   are required; exact dimensions/aspect handling, FPS, codecs, duration tolerance
+   and whether polling can refresh an expired URL. Support confirms 720p, but
+   1280×720/25fps fixture expectations are not a complete model guarantee.
 
 Also finish the documented current Common Parameters/error/IAM review. Live
 account entitlement/signature acceptance can only be verified by a separately
@@ -62,14 +71,13 @@ history. These are application admission limits, not a provider-enforced account
 spending cap. They cover generation only; R2 storage/operations and any other
 charges need separate consideration. Unknown inclusive billing still blocks.
 
-A reviewed `inputFetchWindowSeconds` is now required before input delivery.
-It must cover the confirmed queue/fetch/retry window plus an explicit safety
-margin. The lease must have at least that much time remaining immediately before
-submission. R2 still signs for at most 3600 seconds measured from before upload.
-There is no automatic renewal, reupload or paid resubmission. If the required
-window cannot fit, stop and review the private-delivery design; do not choose an
-arbitrary window merely to pass validation. Define object retention separately:
-URL expiry does not delete objects. No lifecycle setting is changed here.
+A reviewed `inputFetchWindowSeconds` is required before delivery. The policy now
+requires at least 12h15m remaining immediately before submission regardless of a
+smaller contract value. R2 uses a bounded 13-hour GET lease measured from before
+upload, with no automatic renewal, reupload or paid resubmission. The explicit
+cleanup method deletes only the two recorded objects after expiry plus one hour;
+no lifecycle setting or automatic cleanup job is configured. See the
+[design and safety margins](BYTEPLUS_SUPPORT_EVIDENCE.md).
 
 Output downloads require an exact reviewed hostname, HTTPS, no embedded
 credentials, no redirects, status 200, a 100 MiB cap and 120-second transfer
@@ -90,7 +98,7 @@ also still need contract evidence; decoding is not proof of a vendor codec SLA.
 
 ## Next operator steps
 
-1. Obtain the billing, fetch-window and output evidence above; retain the
+1. Obtain the remaining billing and output evidence above; retain the
    non-secret source/version with the reviewed contract. R2 connectivity does
    not need repeating solely for this code change.
 2. Complete a reviewed implementation of the contract, output destination policy

@@ -792,7 +792,7 @@ test("documented adapter reuses durable lifecycle and downloads a validated MP4 
       imageSha256: input.imageSha256,
       imageUrl: "https://input.example.test/private-image?token=mock",
       audioUrl: "https://input.example.test/private-audio?token=mock",
-      expiresAt: Date.now() + 60000,
+      expiresAt: Date.now() + 13 * 60 * 60 * 1000,
     }),
   };
   const provider = new DocumentedBytePlusProvider(
@@ -832,6 +832,7 @@ test("documented adapter reuses durable lifecycle and downloads a validated MP4 
   for (const override of [
     { owner: "other" },
     { expiresAt: Date.now() - 1 },
+    { expiresAt: Date.now() + 12 * 3600 * 1000 },
     { imageSha256: "changed" },
     { audioUrl: "http://input.example.test/audio" },
     { imageUrl: "https://unapproved.example.test/image" },
@@ -920,7 +921,7 @@ test("a signed submission timeout consumes approval once and leaves an uncertain
         audioSha256: input.audioSha256,
         imageUrl: "https://input.example.test/i",
         audioUrl: "https://input.example.test/a",
-        expiresAt: Date.now() + 60000,
+        expiresAt: Date.now() + 13 * 60 * 60 * 1000,
       }),
     },
     ["input.example.test"],

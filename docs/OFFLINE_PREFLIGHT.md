@@ -92,8 +92,10 @@ The UI's illustrative EUR quote is never used as a BytePlus USD cost ceiling.
   unpriced plan to a priced approval is still missing; do not delete ledger
   rows, create duplicate paid attempts or replace the source ID to bypass it.
   The test's separate fictional record is not an operator workaround.
-- Billing minimums, rounding, failed/canceled charges, input queue/fetch lifetime
-  and exact output domains/specifications await BytePlus Support. The confirmed
+- Billing minimums, rounding, failed/canceled charges and exact output domains/
+  specifications still await BytePlus Support. The newly relayed 12-hour input
+  availability requirement is implemented with a bounded 13-hour lease; see
+  [Support evidence](BYTEPLUS_SUPPORT_EVIDENCE.md). The confirmed
   $0.07/s base price is not an inclusive upper bound.
 - Output connection-level destination protection and the isolated authorized
   operator CLI still need completion. R2 connectivity alone does not establish

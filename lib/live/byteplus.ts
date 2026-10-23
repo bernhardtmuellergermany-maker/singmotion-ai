@@ -9,6 +9,7 @@ import {
 import type { ReviewedProvider } from "./runner.ts";
 import type { PreparedMedia } from "./store.ts";
 import { validateOutputUrl } from "./output.ts";
+import { assertInputLifetime } from "./input-policy.ts";
 
 export const omni20 = Object.freeze({
   endpoint: "https://cv.byteplusapi.com/",
@@ -196,6 +197,7 @@ export class DocumentedBytePlusProvider implements ReviewedProvider {
       lease.expiresAt - Date.now() < window * 1000
     )
       throw new BytePlusError();
+    assertInputLifetime(lease.expiresAt, window);
     validateOutputUrl(lease.imageUrl, this.inputHosts);
     validateOutputUrl(lease.audioUrl, this.inputHosts);
     return this.protocol.submit(

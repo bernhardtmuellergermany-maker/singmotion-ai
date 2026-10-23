@@ -1,5 +1,9 @@
 import { LiveTestRunner } from "../lib/live/runner.ts";
 import {
+  inputDeliveryPolicy,
+  assertInputLifetime,
+} from "../lib/live/input-policy.ts";
+import {
   BytePlusProtocol,
   DocumentedBytePlusProvider,
 } from "../lib/live/byteplus.ts";
@@ -106,13 +110,14 @@ interface Recorded {
   headers: Record<string, string>;
   body?: unknown;
 }
-function mockedClient(failAt = 0) {
+function mockedClient(failAt = 0, onRequest?: () => void) {
   const requests: Recorded[] = [];
   const client = new S3Client({
     ...r2ClientConfig(config),
     requestHandler: {
       handle: async (request: Recorded) => {
         requests.push(request);
+        onRequest?.();
         if (requests.length === failAt)
           throw new Error("secret signed URL and credential must be redacted");
         return {
@@ -186,14 +191,15 @@ test("R2 validates server-only configuration and fixes endpoint, auto region and
     `https://${config.accountId}.r2.cloudflarestorage.com`,
   );
   const { store } = plan();
-  assert.throws(
-    () => new R2PrivateInputDelivery(store, root, config, undefined, 3601),
-  );
+  for (const ttl of [60, 3600, 43200, 46801, 604800, NaN])
+    assert.throws(
+      () => new R2PrivateInputDelivery(store, root, config, undefined, ttl),
+    );
 });
 test("approved snapshots upload once, unchanged and private; presigned capabilities permit only exact-object GET", async () => {
   const { store, media, attempt, file } = plan();
   const { client, requests } = mockedClient();
-  const delivery = new R2PrivateInputDelivery(store, root, config, client, 300);
+  const delivery = new R2PrivateInputDelivery(store, root, config, client);
   const lease = await delivery.issue(media, signal());
   assert.equal(requests.length, 2);
   for (const [i, request] of requests.entries()) {
@@ -221,7 +227,7 @@ test("approved snapshots upload once, unchanged and private; presigned capabilit
     const url = new URL(raw);
     assert.equal(url.protocol, "https:");
     assert.equal(url.hostname, delivery.inputHosts[0]);
-    assert.equal(url.searchParams.get("X-Amz-Expires"), "300");
+    assert.equal(url.searchParams.get("X-Amz-Expires"), "46800");
     assert.equal(url.searchParams.get("X-Amz-SignedHeaders"), "host");
     assert.equal(
       url.searchParams.get("X-Amz-Signature"),
@@ -241,7 +247,8 @@ test("approved snapshots upload once, unchanged and private; presigned capabilit
   assert.equal(lease.owner, media.owner);
   assert.equal(lease.audioSha256, media.audioSha256);
   assert.ok(
-    lease.expiresAt > Date.now() && lease.expiresAt <= Date.now() + 300000,
+    lease.expiresAt > Date.now() + 12 * 60 * 60 * 1000 &&
+      lease.expiresAt <= Date.now() + 46800000,
   );
   const record = store.db
     .prepare("SELECT * FROM live_input_deliveries WHERE attempt_id=?")
@@ -399,5 +406,174 @@ test("existing runner consumes approval before R2 delivery and submits only the 
   assert.equal(submissions, 1);
   await assert.rejects(runner.submitOnce(attempt.id, token));
   assert.equal(requests.length, 2);
+  delivery.close();
+});
+
+test("13-hour GET leases cover delayed fetches; cleanup waits until expiry plus grace", async (t) => {
+  const issuedAt = Math.floor(Date.now() / 1000) * 1000;
+  let clock = issuedAt;
+  t.mock.method(Date, "now", () => clock);
+  const { store, media, attempt } = plan();
+  const { client, requests } = mockedClient();
+  const delivery = new R2PrivateInputDelivery(store, root, config, client);
+  const lease = await delivery.issue(media, signal());
+  assert.equal(
+    lease.expiresAt,
+    issuedAt + inputDeliveryPolicy.leaseSeconds * 1000,
+  );
+  assertInputLifetime(lease.expiresAt);
+  for (const raw of [lease.audioUrl, lease.imageUrl]) {
+    const url = new URL(raw);
+    assert.equal(url.searchParams.get("X-Amz-Expires"), "46800");
+    assert.equal(
+      url.searchParams.get("X-Amz-Signature"),
+      signatureFor(url, "GET"),
+    );
+    // A provider fetching at the end of a 12h queue/task window still has time.
+    clock = issuedAt + inputDeliveryPolicy.taskLifetimeSeconds * 1000;
+    assert.ok(clock < lease.expiresAt);
+    // Re-submitting these old URLs now would not cover a fresh 12h task.
+    assert.throws(() => assertInputLifetime(lease.expiresAt));
+  }
+  await assert.rejects(delivery.cleanupExpired(attempt.id, signal()));
+  clock = lease.expiresAt + inputDeliveryPolicy.cleanupGraceSeconds * 1000 - 1;
+  await assert.rejects(delivery.cleanupExpired(attempt.id, signal()));
+  assert.equal(requests.length, 2);
+  clock++;
+  const reservation = store.db
+    .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+    .get(attempt.id);
+  await delivery.cleanupExpired(attempt.id, signal());
+  assert.deepEqual(
+    requests.map((r) => r.method),
+    ["PUT", "PUT", "DELETE", "DELETE"],
+  );
+  assert.deepEqual(
+    requests.slice(2).map((r) => r.path),
+    requests.slice(0, 2).map((r) => r.path),
+  );
+  assert.equal(store.inputDelivery(attempt.id).state, "cleaned");
+  assert.deepEqual(
+    store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(attempt.id),
+    reservation,
+  );
+  await delivery.cleanupExpired(attempt.id, signal());
+  await assert.rejects(delivery.issue(media, signal()));
+  assert.equal(requests.length, 4);
+  delivery.close();
+});
+
+test("input lifetime requires the full support window and rejects an overlong configured window", (t) => {
+  const now = Date.now();
+  t.mock.method(Date, "now", () => now);
+  const minimum = inputDeliveryPolicy.minimumRemainingSeconds * 1000;
+  assert.doesNotThrow(() => assertInputLifetime(now + minimum));
+  for (const expiry of [
+    now - 1,
+    now + 3600000,
+    now + 43200000,
+    now + minimum - 1,
+    NaN,
+  ])
+    assert.throws(() => assertInputLifetime(expiry, 30)); // Small contract values cannot weaken policy.
+  assert.throws(() => assertInputLifetime(now + 46800000, 14 * 3600));
+});
+
+test("upload delays consuming the margin fail without renewing, replaying or submitting", async (t) => {
+  let clock = Math.floor(Date.now() / 1000) * 1000;
+  t.mock.method(Date, "now", () => clock);
+  const { store, media, attempt } = plan();
+  const { client, requests } = mockedClient(0, () => {
+    clock += 30 * 60 * 1000;
+  });
+  const delivery = new R2PrivateInputDelivery(store, root, config, client);
+  await assert.rejects(
+    delivery.issue(media, signal()),
+    /Private R2 input delivery failed/,
+  );
+  assert.equal(store.inputDelivery(attempt.id).state, "failed");
+  await assert.rejects(delivery.issue(media, signal()));
+  assert.equal(requests.length, 2);
+  delivery.close();
+});
+
+for (const failAt of [2, 3, 4]) {
+  test(`cleanup reconciles only recorded expired inputs after failure at request ${failAt}`, async (t) => {
+    let clock = Date.now();
+    t.mock.method(Date, "now", () => clock);
+    const { store, media, attempt } = plan();
+    const { client, requests } = mockedClient(failAt);
+    const delivery = new R2PrivateInputDelivery(store, root, config, client);
+    if (failAt === 2) await assert.rejects(delivery.issue(media, signal()));
+    else await delivery.issue(media, signal());
+    const record = store.inputDelivery(attempt.id);
+    clock =
+      record.manifest.expiresAt +
+      inputDeliveryPolicy.cleanupGraceSeconds * 1000;
+    if (failAt !== 2) {
+      await assert.rejects(
+        delivery.cleanupExpired(attempt.id, signal()),
+        /cleanup refused or incomplete/,
+      );
+      assert.notEqual(store.inputDelivery(attempt.id).state, "cleaned");
+    }
+    await delivery.cleanupExpired(attempt.id, signal()); // Explicit retry of idempotent deletes only.
+    assert.equal(store.inputDelivery(attempt.id).state, "cleaned");
+    for (const request of requests.slice(2)) {
+      assert.equal(request.method, "DELETE");
+      assert.ok(requests.slice(0, 2).some((put) => put.path === request.path));
+    }
+    assert.equal(requests.filter((r) => r.method === "PUT").length, 2);
+    delivery.close();
+  });
+}
+
+test("cleanup refuses wrong account, bucket, foreign keys and legacy manifests without deleting", async (t) => {
+  let clock = Date.now();
+  t.mock.method(Date, "now", () => clock);
+  const { store, media, attempt } = plan();
+  const { client, requests } = mockedClient();
+  const delivery = new R2PrivateInputDelivery(store, root, config, client);
+  await delivery.issue(media, signal());
+  const { manifest } = store.inputDelivery(attempt.id);
+  clock = manifest.expiresAt + inputDeliveryPolicy.cleanupGraceSeconds * 1000;
+  for (const override of [
+    { accountId: "f".repeat(32) },
+    { accountId: undefined },
+    { bucket: "another-bucket" },
+    { audioKey: "customer-objects/keep.mp3" },
+    { imageKey: manifest.audioKey },
+    { expiresAt: null },
+  ]) {
+    store.db
+      .prepare("UPDATE live_input_deliveries SET manifest=? WHERE attempt_id=?")
+      .run(JSON.stringify({ ...manifest, ...override }), attempt.id);
+    await assert.rejects(delivery.cleanupExpired(attempt.id, signal()));
+  }
+  assert.equal(requests.length, 2);
+  delivery.close();
+});
+
+test("SDK signing for a changed object path cannot escape the recorded lease", async () => {
+  const { store, media, attempt } = plan();
+  const { client, requests } = mockedClient();
+  client.middlewareStack.add(
+    (next) => async (args) => {
+      const request = args.request as { method: string; path: string };
+      if (request.method === "GET") request.path += "/changed-object";
+      return next(args);
+    },
+    { step: "build", name: "offlineTamperedPresign" },
+  );
+  const delivery = new R2PrivateInputDelivery(store, root, config, client);
+  await assert.rejects(
+    delivery.issue(media, signal()),
+    /Private R2 input delivery failed/,
+  );
+  assert.equal(store.inputDelivery(attempt.id).state, "failed");
+  assert.equal(requests.length, 2);
+  assert.ok(requests.every((request) => request.method === "PUT"));
   delivery.close();
 });

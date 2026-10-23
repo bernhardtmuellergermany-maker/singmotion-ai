@@ -4,6 +4,7 @@ import {
   S3Client,
   PutObjectCommand,
   GetObjectCommand,
+  DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { createHash, randomUUID } from "node:crypto";
@@ -15,6 +16,7 @@ import type { InputLease, PrivateInputDelivery } from "./byteplus.ts";
 import { LiveTestStore, type PreparedMedia } from "./store.ts";
 import { revalidateMedia } from "./media.ts";
 import { providerRequest } from "./timeout.ts";
+import { inputDeliveryPolicy, assertInputLifetime } from "./input-policy.ts";
 
 const digest = (bytes: Buffer | string) =>
   createHash("sha256").update(bytes).digest("hex");
@@ -71,7 +73,7 @@ export class R2PrivateInputDelivery implements PrivateInputDelivery {
     dataDir: string,
     config = loadR2Config(),
     client?: S3Client,
-    ttlSeconds = 3600,
+    ttlSeconds = inputDeliveryPolicy.leaseSeconds,
   ) {
     // Revalidate even programmatically supplied config; no endpoint override.
     this.config = loadR2Config({
@@ -80,8 +82,8 @@ export class R2PrivateInputDelivery implements PrivateInputDelivery {
       R2_ACCESS_KEY_ID: config.accessKeyId,
       R2_SECRET_ACCESS_KEY: config.secretAccessKey,
     });
-    if (!Number.isInteger(ttlSeconds) || ttlSeconds < 60 || ttlSeconds > 3600)
-      throw new Error("R2 URL lifetime must be 60–3600 seconds.");
+    if (ttlSeconds !== inputDeliveryPolicy.leaseSeconds)
+      throw new Error("R2 input URL lifetime must be exactly 13 hours.");
     this.store = store;
     this.root = path.resolve(dataDir);
     this.ttl = ttlSeconds;
@@ -119,6 +121,7 @@ export class R2PrivateInputDelivery implements PrivateInputDelivery {
       const expiresAt = signingDate.getTime() + this.ttl * 1000;
       callerSignal.throwIfAborted();
       claimed = this.store.claimInputDelivery(media, {
+        accountId: this.config.accountId,
         bucket: this.config.bucket,
         audioKey,
         imageKey,
@@ -155,8 +158,7 @@ export class R2PrivateInputDelivery implements PrivateInputDelivery {
         const audioUrl = await sign(audioKey);
         const imageUrl = await sign(imageKey);
         signal.throwIfAborted();
-        if (expiresAt <= Date.now())
-          throw new Error("Input lease expired before delivery.");
+        assertInputLifetime(expiresAt);
         // Guard SDK/client misconfiguration without returning URLs for another host/object.
         for (const [raw, key] of [
           [audioUrl, audioKey],
@@ -165,6 +167,14 @@ export class R2PrivateInputDelivery implements PrivateInputDelivery {
           const url = new URL(raw);
           if (
             url.origin !== `https://${this.inputHosts[0]}` ||
+            url.username ||
+            url.password ||
+            url.hash ||
+            url.searchParams.get("X-Amz-Date") !==
+              signingDate.toISOString().replace(/[:-]|\.\d{3}/g, "") ||
+            ["X-Amz-Date", "X-Amz-Expires", "X-Amz-Signature"].some(
+              (name) => url.searchParams.getAll(name).length !== 1,
+            ) ||
             decodeURIComponent(url.pathname) !==
               `/${this.config.bucket}/${key}` ||
             url.searchParams.get("X-Amz-Expires") !== String(this.ttl) ||
@@ -188,6 +198,63 @@ export class R2PrivateInputDelivery implements PrivateInputDelivery {
       // Partial/ambiguous uploads are never replayed, exposed or blindly deleted.
       throw new Error(
         "Private R2 input delivery failed; review the durable delivery record before retrying.",
+      );
+    }
+  }
+  /** Explicit operator invocation only, after expiry + grace. Never lists objects,
+   * renews a lease, submits a task, releases spend, or deletes an active input.
+   * Failed/partial/crash uploads use the same durable two-object manifest.
+   */
+  async cleanupExpired(attemptId: string, callerSignal: AbortSignal) {
+    try {
+      callerSignal.throwIfAborted();
+      const attempt = this.store.get(attemptId);
+      const { state, manifest } = this.store.inputDelivery(attemptId);
+      if (
+        manifest.accountId !== this.config.accountId ||
+        manifest.bucket !== this.config.bucket ||
+        !Number.isSafeInteger(manifest.expiresAt) ||
+        manifest.expiresAt <= 0 ||
+        Date.now() <
+          manifest.expiresAt + inputDeliveryPolicy.cleanupGraceSeconds * 1000
+      )
+        throw new Error();
+      const prefix = `byteplus-inputs/v1/${digest(attempt.media.owner)}/${attempt.id}/`;
+      const audioSuffix = `/${attempt.media.audioSha256}.mp3`;
+      const imageSuffixes = ["jpg", "png"].map(
+        (ext) => `/${attempt.media.imageSha256}.${ext}`,
+      );
+      const valid = (key: string, suffixes: string[]) =>
+        typeof key === "string" &&
+        key.startsWith(prefix) &&
+        suffixes.some(
+          (suffix) =>
+            key.endsWith(suffix) &&
+            /^[a-f0-9-]{36}$/.test(key.slice(prefix.length, -suffix.length)),
+        );
+      if (
+        !valid(manifest.audioKey, [audioSuffix]) ||
+        !valid(manifest.imageKey, imageSuffixes) ||
+        manifest.audioKey.slice(0, manifest.audioKey.lastIndexOf("/")) !==
+          manifest.imageKey.slice(0, manifest.imageKey.lastIndexOf("/"))
+      )
+        throw new Error();
+      if (state === "cleaned") return;
+      for (const Key of [manifest.audioKey, manifest.imageKey]) {
+        callerSignal.throwIfAborted();
+        await providerRequest((signal) =>
+          this.client.send(
+            new DeleteObjectCommand({ Bucket: this.config.bucket, Key }),
+            {
+              abortSignal: AbortSignal.any([callerSignal, signal]),
+            },
+          ),
+        );
+      }
+      this.store.markInputDeliveryCleaned(attemptId);
+    } catch {
+      throw new Error(
+        "Private input cleanup refused or incomplete; reconcile only the recorded objects.",
       );
     }
   }

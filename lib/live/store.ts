@@ -243,6 +243,7 @@ export class LiveTestStore {
   claimInputDelivery(
     media: PreparedMedia,
     manifest: {
+      accountId: string;
       bucket: string;
       audioKey: string;
       imageKey: string;
@@ -266,6 +267,31 @@ export class LiveTestStore {
         .run(id, JSON.stringify(manifest), "uploading");
       return id;
     });
+  }
+  inputDelivery(id: string) {
+    const row = this.db
+      .prepare(
+        "SELECT manifest,state FROM live_input_deliveries WHERE attempt_id=?",
+      )
+      .get(id) as { manifest: string; state: string } | undefined;
+    if (!row) throw new Error("Input delivery not found.");
+    return {
+      state: row.state,
+      manifest: JSON.parse(row.manifest) as {
+        accountId: string;
+        bucket: string;
+        audioKey: string;
+        imageKey: string;
+        expiresAt: number;
+      },
+    };
+  }
+  markInputDeliveryCleaned(id: string) {
+    this.db
+      .prepare(
+        "UPDATE live_input_deliveries SET state='cleaned' WHERE attempt_id=?",
+      )
+      .run(id);
   }
   finishInputDelivery(id: string, state: "ready" | "failed") {
     this.db
