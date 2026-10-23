@@ -30,7 +30,7 @@ export const bytePlusVerification = Object.freeze({
   checkedOn: "2026-10-23",
   contract: null,
   blockers: [
-    "Complete Common Parameters authentication/signing algorithm and official signature vectors",
+    "Current Common Parameters page review and live account/signature verification (SDK signing is mock-verified)",
     "Account pricing, billing minimums, quantum, fees, taxes and failed/canceled-task charges",
     "Private input storage signing implementation and URL validity/fetch requirements",
     "Output host allowlist and documented output encoding/dimension expectations",

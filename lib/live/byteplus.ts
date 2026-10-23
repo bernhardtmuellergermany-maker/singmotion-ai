@@ -1,7 +1,11 @@
 /** Wire contract from the supplied OmniHuman 2.0 document, updated 2026-10-15.
  * Transport is injected for mocks. No default fetch, credentials, or guessed signer.
  */
-import { assertBytePlusVerified, type VerifiedContract } from "./contract.ts";
+import { type VerifiedContract } from "./contract.ts";
+import {
+  liveSignedTransport,
+  BytePlusTransportError,
+} from "./signed-transport.ts";
 import type { ReviewedProvider } from "./runner.ts";
 import type { PreparedMedia } from "./store.ts";
 import { validateOutputUrl } from "./output.ts";
@@ -38,7 +42,7 @@ export type Transport = (
   signal: AbortSignal,
 ) => Promise<{ status: number; body: unknown }>;
 /** Every actual request remains denied, even if env flags/credentials are present. */
-export const blockedTransport: Transport = async () => assertBytePlusVerified();
+export const blockedTransport: Transport = liveSignedTransport;
 export class BytePlusError extends Error {
   readonly retryableRead: boolean;
   constructor(retryableRead = false) {
@@ -74,8 +78,11 @@ export class BytePlusProtocol {
     let result;
     try {
       result = await this.transport(wireRequest(action, body), signal);
-    } catch {
-      throw new BytePlusError(true);
+    } catch (error) {
+      throw new BytePlusError(
+        !(error instanceof BytePlusTransportError) ||
+          ["transient", "throttled"].includes(error.kind),
+      );
     }
     const response = object(result.body);
     // Never inspect data or the misleading outer status before code.

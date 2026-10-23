@@ -1,3 +1,4 @@
+import { createSignedTransport } from "../lib/live/signed-transport.ts";
 import {
   BytePlusProtocol,
   DocumentedBytePlusProvider,
@@ -883,5 +884,60 @@ test("expired provider output URL cannot complete a job or trigger resubmission"
   await runner.submitOnce(attempt.id, token);
   assert.equal((await runner.pollOnce(attempt.id)).state, "failed");
   assert.equal(fake.counts().submits, 1);
+  store.close();
+});
+
+test("a signed submission timeout consumes approval once and leaves an uncertain durable attempt", async () => {
+  const { store, attempt } = setup();
+  let calls = 0;
+  const protocol = new BytePlusProtocol(
+    createSignedTransport(
+      async (_url, options) => {
+        calls++;
+        return new Promise<Response>((_resolve, reject) =>
+          options!.signal!.addEventListener(
+            "abort",
+            () => reject(new Error("mock timeout")),
+            { once: true },
+          ),
+        );
+      },
+      () => ({ accessKeyId: "fixture-ak", secretAccessKey: "fixture-sk" }),
+      () => new Date("2026-10-15T05:29:58Z"),
+      10,
+    ),
+  );
+  const provider = new DocumentedBytePlusProvider(
+    contract,
+    {
+      issue: async (input) => ({
+        owner: input.owner,
+        imageSha256: input.imageSha256,
+        audioSha256: input.audioSha256,
+        imageUrl: "https://input.example.test/i",
+        audioUrl: "https://input.example.test/a",
+        expiresAt: Date.now() + 60000,
+      }),
+    },
+    ["input.example.test"],
+    protocol,
+  );
+  const runner = new LiveTestRunner(
+    store,
+    provider,
+    config,
+    directory,
+    download,
+  );
+  const token = store.authorize(
+    attempt.id,
+    config,
+    secret,
+    confirmationPhrase(attempt),
+  );
+  assert.equal((await runner.submitOnce(attempt.id, token)).state, "uncertain");
+  await assert.rejects(runner.submitOnce(attempt.id, token));
+  assert.equal(calls, 1);
+  assert.equal(store.get(attempt.id).failureCode, "SUBMISSION_OUTCOME_UNKNOWN");
   store.close();
 });

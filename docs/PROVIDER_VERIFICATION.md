@@ -1,4 +1,4 @@
-# Direct BytePlus OmniHuman 2.0 — documented protocol, blocked live transport
+# Direct BytePlus OmniHuman 2.0 — signed protocol, blocked live activation
 
 Checked 23 October 2026 against the user-supplied **BytePlus API.txt**, titled **OmniHuman 2.0 API Document**, last updated **October 15, 2026 05:29:58**. This is the model-specific source, not a 1.5 API example. The source supplies no original page URL. No real credentials, provider calls, media uploads to external storage, payments, Railway changes or deployments were used.
 
@@ -6,7 +6,7 @@ Source attachment SHA-256: `7e19bfdf0d852b6c050dbe3af2d8e0422c9e082e1f74a349d37f
 
 ## Implemented and mock-tested
 
-`lib/live/byteplus.ts` adds the documented protocol to the existing `lib/live/` lifecycle without replacing it. `DocumentedBytePlusProvider` implements the existing `ReviewedProvider` interface. Its default transport is blocked; only tests inject a mock transport. There is no default `fetch`, credential reader, incomplete signer, new public route or public authorization endpoint.
+`lib/live/byteplus.ts` adds the documented protocol to the existing `lib/live/` lifecycle without replacing it. `DocumentedBytePlusProvider` implements the existing `ReviewedProvider` interface. Its production transport remains blocked. The new server-side signer and dependency-injected signed HTTP transport are tested with mock HTTP only; no new public route or authorization endpoint is added. See the signing evidence below.
 
 | Item              | Documented behavior implemented                                                                                                                                                                                                                                                           |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -34,7 +34,7 @@ The existing application/preflight remains a narrower supported subset: one stil
 
 ## Critical missing documentation — live calls remain blocked
 
-1. **Complete signing:** the model page gives the Authorization header shape `HMAC-SHA256 Credential={AccessKeyId}/{ShortDate}/{Region}/{Service}/request, SignedHeaders={SignedHeaders}, Signature={Signature}`. It does **not** define canonical URI/query encoding, header normalization/selection, timestamp headers/format, payload hash, string-to-sign, signing-key derivation, clock skew or official signature test vectors. Supply the linked **Common Parameters → Authentication Parameters → in header** and **HTTP Request Sample** (or the linked official SDK signing implementation/examples). No AWS-style algorithm or key prefix has been guessed.
+1. **Documentation access/live verification:** signing is now implemented and verified against a pinned official BytePlus SDK revision (below). The linked signing and Common Parameters web pages are blocked by the Cloud egress proxy with HTTP 403. Supply exports of those pages to check any current clock-skew, temporary-token and common-error requirements not established by the SDK. No real signature/account validation was performed.
 2. **Billing:** the attachment contains no price, minimum billable duration, rounding quantum, minimum charge, tax, fees, or failed/canceled/timeout-task charging rules. The four-second input minimum is **not** a billing minimum. The earlier reported USD 0.07/s is not a verified account quote. Obtain account-specific terms and a conservative inclusive upper bound before authorization. No charge estimate is currently produced.
 3. **Input delivery:** URL fields are documented, but allowed origins, redirects, fetch timing/retries, maximum queue delay and required URL lifetime are not. `PrivateInputDelivery` is an interface, not a deployed storage implementation. Its adapter checks owner/hash binding, HTTPS exact-host allowlisting and expiry before submission; it cannot prove that an arbitrary URL represents a private signed object. A reviewed private object-storage implementation must upload the approved snapshots and issue short-lived, object-scoped GET capabilities, with cleanup/revocation and sufficient lifetime. No upload is made publicly readable, and no staging/session gate is bypassed. Do not pass a Basic-auth or cookie-protected application asset URL, and never send the staging password to BytePlus.
 4. **Output constraints:** actual output domains, resolution, frame rate, codec/duration guarantees and whether re-polling refreshes an expired URL are absent. Keep the existing downloader's host allowlist closed and its contract unset until verified. Existing 720p/25 FPS fixture validation is not new evidence of a model guarantee. Do not wildcard-allow arbitrary provider URL hosts.
@@ -46,23 +46,23 @@ The existing application/preflight remains a narrower supported subset: one stil
 
 Use the existing `.env.byteplus.example` for a **separate server-side operator process**, never the Railway web process. Keep real values only in ignored local configuration or a secret manager. No AK/SK is needed for tests.
 
-| Variable                                  | Safe default / purpose                                                                                      |
-| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `DEMO_MODE`                               | `true`; a future reviewed isolated operator process would require `false`, while the web app remains `true` |
-| `DATA_DIR`                                | Same persistent private store holding owned media and spending reservations                                 |
-| `BYTEPLUS_LIVE_TEST_ENABLED`              | `false`                                                                                                     |
-| `BYTEPLUS_LIVE_TEST_OPERATOR_SECRET`      | Empty; future independent operator authorization secret, at least 32 random characters                      |
-| `BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD`    | `0`; future explicitly approved inclusive per-job cap                                                       |
-| `BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD`  | `0`; cumulative reservation cap, including uncertain/failed attempts                                        |
-| `BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS` | `10`; choose one excerpt at least 4 seconds and below this cap after MP3 encoding                           |
-| `BYTEPLUS_ACCESS_KEY_ID`                  | Reserved server-side AK configuration name; blank, not read by any transport yet                            |
-| `BYTEPLUS_SECRET_ACCESS_KEY`              | Reserved server-side SK configuration name; blank, not read by any transport yet                            |
+| Variable                                  | Safe default / purpose                                                                                                                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `DEMO_MODE`                               | `true`; a future reviewed isolated operator process would require `false`, while the web app remains `true`                            |
+| `DATA_DIR`                                | Same persistent private store holding owned media and spending reservations                                                            |
+| `BYTEPLUS_LIVE_TEST_ENABLED`              | `false`                                                                                                                                |
+| `BYTEPLUS_LIVE_TEST_OPERATOR_SECRET`      | Empty; future independent operator authorization secret, at least 32 random characters                                                 |
+| `BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD`    | `0`; future explicitly approved inclusive per-job cap                                                                                  |
+| `BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD`  | `0`; cumulative reservation cap, including uncertain/failed attempts                                                                   |
+| `BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS` | `10`; choose one excerpt at least 4 seconds and below this cap after MP3 encoding                                                      |
+| `BYTEPLUS_ACCESS_KEY_ID`                  | Server-side AK; blank by default; loaded only by an explicitly constructed signed transport, never by the blocked production transport |
+| `BYTEPLUS_SECRET_ACCESS_KEY`              | Server-side SK; blank by default; same restrictions as AK                                                                              |
 
-These credential names are application choices, not claims about SDK environment conventions. There is no complete runnable live-test configuration yet: input-storage settings and a verified signing transport cannot be invented from this attachment. Model endpoint/scope constants are fixed in source; no endpoint override is exposed. Railway keeps `DEMO_MODE=true`, `GENERATIONS_ENABLED=false`, `ADMIN_DEMO_ENABLED=false`, `BYTEPLUS_LIVE_TEST_ENABLED=false` and all staging authentication settings unchanged.
+These credential names are application choices, not claims about SDK environment conventions. There is no complete runnable live-test configuration yet: private input-storage configuration and billing/output rules still require verified documentation and implementation. Model endpoint/scope constants are fixed in source; no endpoint override is exposed. Railway keeps `DEMO_MODE=true`, `GENERATIONS_ENABLED=false`, `ADMIN_DEMO_ENABLED=false`, `BYTEPLUS_LIVE_TEST_ENABLED=false` and all staging authentication settings unchanged.
 
 Safe future procedure (not executable or authorized in this change):
 
-1. Obtain the missing signing, billing, URL-delivery and output documents. Implement/review those adapters with official signature fixtures and mocked storage. Keep the live gate closed until all checks pass.
+1. Review the signing evidence and obtain the missing Common Parameters, billing, URL-delivery and output documents. Complete the storage/output/billing adapters with mocked tests. Keep the live gate closed until all checks pass.
 2. Prepare an existing owned project's chosen image and trimmed excerpt using `npm run byteplus:preflight -- --job <id> --owner <owner-id> --confirm-english`. This remains offline. Review immutable hashes, measured duration and exact composed prompt.
 3. Calculate a verified inclusive duration-based upper bound. Set both caps to no more than the separately approved amount; one USD is 1,000,000 micro-USD. Do not delete the persistent spending database to reset reservations.
 4. Obtain explicit approval for that one plan. The future operator command must authenticate server-side and require the existing exact confirmation phrase `AUTHORIZE ONE PAID BYTEPLUS TEST <plan-id> UP TO <amount> MICROUSD`. It consumes the short-lived one-time token once and atomically reserves spend before submission.
@@ -75,4 +75,24 @@ All BytePlus protocol responses, input URL leases and provider output HTTP respo
 
 This change implements the documented model protocol, **not a completed or live-verified paid integration**. Missing prerequisites are deliberately visible rather than replaced with guessed behavior.
 
-Validation for this branch: lint, typecheck, all 39 automated tests, production build, production staging security checks and all six desktop/mobile Playwright tests passed. Provider traffic was mocked; staging checks used isolated local storage. No live signature or account validation was performed.
+Validation for this branch: lint, typecheck, all 49 automated tests, production build, production staging security checks, root-owned Docker volume startup checks and all six desktop/mobile Playwright tests passed. Provider traffic was mocked; staging checks used isolated local storage. No live signature or account validation was performed.
+
+## Signing implementation and evidence
+
+The provided [signature calculation page](https://docs.byteplus.com/en/docs/byteplus-platform/reference-how-to-calculate-a-signature) and attempted Common Parameters page could not be retrieved (egress proxy HTTP 403). This is an access limitation, not evidence that those pages are invalid. The supplied October 15 model document establishes the scope, endpoint, JSON body fields and Authorization header structure. Full algorithm evidence comes from the **official BytePlus SDK**, pinned to commit `eddcf2bf0bfb5dd6d8bb52dc9c09b9efc21b0715`:
+
+- [SignerV4.py](https://github.com/byteplus-sdk/byteplus-sdk-python/blob/eddcf2bf0bfb5dd6d8bb52dc9c09b9efc21b0715/byteplus_sdk/auth/SignerV4.py): canonical request, headers, UTC timestamp, credential scope, raw-SK HMAC derivation and Authorization.
+- [Util.py](https://github.com/byteplus-sdk/byteplus-sdk-python/blob/eddcf2bf0bfb5dd6d8bb52dc9c09b9efc21b0715/byteplus_sdk/util/Util.py): SHA-256, UTF-8 HMAC, URI/query normalization and lowercase hex encoding.
+- [MetaData.py](https://github.com/byteplus-sdk/byteplus-sdk-python/blob/eddcf2bf0bfb5dd6d8bb52dc9c09b9efc21b0715/byteplus_sdk/auth/MetaData.py): signing metadata.
+
+`lib/live/signing.ts` signs the exact serialized UTF-8 body sent over HTTP. It uses root path `/`, sorted encoded Action/Version query fields, and sorted lowercase `content-type;host;x-content-sha256;x-date`. Header values are fixed/validated, so no arbitrary whitespace normalization is assumed. Canonical headers end with a newline, followed by the signed-header list and payload hash. The UTC timestamp is `YYYYMMDDTHHMMSSZ`; milliseconds are omitted. Scope is `YYYYMMDD/ap-singapore-1/cv/request`. Signing key derivation is HMAC(raw SK, date), then region, service, `request`, with **no AWS4 prefix**. The canonical-request hash is signed with that derived key. Timestamp and keys are supplied per request; there is no signature cache or automatic clock-adjustment retry.
+
+The signer intentionally supports only the three documented CV JSON POST actions on the fixed HTTPS endpoint, not arbitrary paths, headers, API versions, domains, duplicate query fields or temporary security tokens. This prevents credentials being signed for a configurable/untrusted destination. AK/SK are loaded from `BYTEPLUS_ACCESS_KEY_ID` and `BYTEPLUS_SECRET_ACCESS_KEY` on the server; no NEXT_PUBLIC variables, browser transport or secret logging is used. Do not log the signed request/Authorization header, fixture-equivalent real inputs or raw errors.
+
+`tests/fixtures/byteplus-signatures.json` contains three deterministic **SDK-derived vectors**, not vendor-published test vectors or live responses. The keys are fictional. They include a Unicode submit body, poll and cancel, exact expected headers, pinned SDK commit and source SHA-256 hashes. `generate-byteplus-vectors.py` regenerates them offline from the three locally downloaded pinned SDK files, executing unchanged class methods with a fixed clock; unrelated SDK imports are omitted. The normal test suite reads the saved JSON and needs neither Python nor network access. Signing results match the official SDK byte for byte.
+
+`lib/live/signed-transport.ts` composes the signer with an explicitly injected HTTP dependency. Tests inject mocks; the production `liveSignedTransport` still refuses before reading credentials or invoking HTTP. This preserves the hard verification gate, one-time authorization and spending reservations until private delivery, output policy and billing are finished. No web/demo worker has been wired to the injectable transport.
+
+The transport sends the exact signed body once, refuses redirects and cookie forwarding, caps response reads at 1 MiB, cancels stalled bodies, and applies a 60-second timeout plus caller abort. HTTP 401/403 are non-retryable authentication failures; 429 and transport/unknown 5xx failures permit only later read retries. Documented business error codes retain their policy even on HTTP 500 (e.g. 50510 is not retried). Provider messages and raw network errors are replaced with safe error classes. No automatic request retry, token refresh, redirect following or clock correction occurs. Any submission failure remains conservatively uncertain in the existing durable runner and consumes the one-time approval; it is never silently replayed. Cancellation still requires a queued task and does not imply a refund.
+
+The branch includes current main's staging authentication and privileged-volume-initialization fixes. The signer is ready for reviewed server-side transport use, but the overall live integration is **not production-ready or enabled**. No paid API or real provider HTTP request was sent.
