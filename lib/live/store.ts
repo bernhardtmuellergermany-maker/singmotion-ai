@@ -51,6 +51,9 @@ export class LiveTestStore {
         reserved_micro_usd INTEGER NOT NULL DEFAULT 0,
         token_hash TEXT, expires_at INTEGER, consumed INTEGER NOT NULL DEFAULT 0,
         poll_token TEXT, poll_lease_until INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS live_input_deliveries (
+        attempt_id TEXT PRIMARY KEY, manifest TEXT NOT NULL, state TEXT NOT NULL
       );`);
   }
   close() {
@@ -198,6 +201,62 @@ export class LiveTestStore {
       this.save(attempt);
       return attempt;
     });
+  }
+  assertInputDeliveryAllowed(media: PreparedMedia): string {
+    const row = this.db
+      .prepare(
+        "SELECT id,consumed,reserved_micro_usd FROM live_attempts WHERE source_job_id=?",
+      )
+      .get(media.sourceJobId) as
+      { id: string; consumed: number; reserved_micro_usd: number } | undefined;
+    if (!row)
+      throw new Error("Private input delivery requires a claimed approval.");
+    const attempt = this.get(row.id);
+    if (
+      attempt.state !== "submitting" ||
+      row.consumed !== 1 ||
+      row.reserved_micro_usd <= 0 ||
+      !attempt.contractRevision ||
+      JSON.stringify(attempt.media) !== JSON.stringify(media)
+    )
+      throw new Error(
+        "Private input delivery requires the exact approved media.",
+      );
+    return attempt.id;
+  }
+  claimInputDelivery(
+    media: PreparedMedia,
+    manifest: {
+      bucket: string;
+      audioKey: string;
+      imageKey: string;
+      expiresAt: number;
+    },
+  ) {
+    return this.transaction(() => {
+      const id = this.assertInputDeliveryAllowed(media);
+      if (
+        this.db
+          .prepare(
+            "SELECT attempt_id FROM live_input_deliveries WHERE attempt_id=?",
+          )
+          .get(id)
+      )
+        throw new Error(
+          "Input delivery already claimed; reconcile instead of uploading again.",
+        );
+      this.db
+        .prepare("INSERT INTO live_input_deliveries VALUES (?,?,?)")
+        .run(id, JSON.stringify(manifest), "uploading");
+      return id;
+    });
+  }
+  finishInputDelivery(id: string, state: "ready" | "failed") {
+    this.db
+      .prepare(
+        "UPDATE live_input_deliveries SET state=? WHERE attempt_id=? AND state='uploading'",
+      )
+      .run(state, id);
   }
   removeUnsubmittedOwnerPlans(owner: string) {
     this.transaction(() => {

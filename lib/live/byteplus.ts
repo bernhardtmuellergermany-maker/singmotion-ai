@@ -158,7 +158,7 @@ export interface InputLease {
 }
 /** Must be backed by private object storage with scoped, expiring GET capabilities.
  * No application asset route is exempted from staging/session authentication.
- * Storage provisioning/signing is deliberately not invented from a model API page.
+ * Implemented by the R2 adapter using Cloudflare-documented S3 private delivery.
  */
 export interface PrivateInputDelivery {
   issue(media: PreparedMedia, signal: AbortSignal): Promise<InputLease>;

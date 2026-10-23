@@ -86,17 +86,17 @@ For local development only, configure `ADMIN_DEMO_ENABLED=true` and a strong, in
 
 ## Architecture and integrations
 
-| Area                                   | v0.1 state                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------------- |
-| Next.js / strict TypeScript / Tailwind | Implemented; shared responsive components, server pages and focused client editors |
-| Local private uploads / FFmpeg         | Working; separate worker and validated trimmed MP3                                 |
-| Jobs / credits                         | Durable local SQLite demo; reservations and restorations are atomic                |
-| Supabase PostgreSQL / auth             | Versioned migrations and interfaces; **not connected or applied**                  |
-| Cloudflare R2                          | Private storage interface and access contract; **not connected**                   |
-| BytePlus direct OmniHuman 2.0          | Explicitly disabled adapter; full API contract remains unverified                  |
-| fal.ai OmniHuman 2.0                   | Disabled optional adapter; no automatic fallback                                   |
-| Stripe                                 | Disabled checkout/webhook interface; **no live payments**                          |
-| Legal pages                            | Clearly labeled review placeholders; operator/support details not invented         |
+| Area                                   | v0.1 state                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| Next.js / strict TypeScript / Tailwind | Implemented; shared responsive components, server pages and focused client editors  |
+| Local private uploads / FFmpeg         | Working; separate worker and validated trimmed MP3                                  |
+| Jobs / credits                         | Durable local SQLite demo; reservations and restorations are atomic                 |
+| Supabase PostgreSQL / auth             | Versioned migrations and interfaces; **not connected or applied**                   |
+| Cloudflare R2                          | Private provider-input uploads and signed GETs; **mock-tested, not live-connected** |
+| BytePlus direct OmniHuman 2.0          | Explicitly disabled adapter; full API contract remains unverified                   |
+| fal.ai OmniHuman 2.0                   | Disabled optional adapter; no automatic fallback                                    |
+| Stripe                                 | Disabled checkout/webhook interface; **no live payments**                           |
+| Legal pages                            | Clearly labeled review placeholders; operator/support details not invented          |
 
 See `docs/ARCHITECTURE.md`, `docs/PROVIDER_VERIFICATION.md`, and `docs/LAUNCH_CHECKLIST.md`.
 
@@ -106,7 +106,7 @@ See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact varia
 
 ## BytePlus first-test preparation (still offline)
 
-The supplied October 15, 2026 OmniHuman 2.0 document now supports a mock-tested direct protocol adapter. HMAC signing is now verified against the official BytePlus SDK with deterministic fixtures. Live transport remains blocked pending billing, private input delivery and output restrictions. No 1.5 schema or guessed signing algorithm is substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
+The supplied October 15, 2026 OmniHuman 2.0 document now supports a mock-tested direct protocol adapter. HMAC signing is now verified against the official BytePlus SDK with deterministic fixtures. [Private R2 input delivery](docs/R2_PRIVATE_INPUTS.md) is implemented and mock-tested. Live transport remains blocked pending billing, live input-delivery validation and output restrictions. No 1.5 schema or guessed signing algorithm is substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
 
 ```sh
 npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --confirm-english

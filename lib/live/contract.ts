@@ -32,7 +32,7 @@ export const bytePlusVerification = Object.freeze({
   blockers: [
     "Current Common Parameters page review and live account/signature verification (SDK signing is mock-verified)",
     "Account pricing, billing minimums, quantum, fees, taxes and failed/canceled-task charges",
-    "Private input storage signing implementation and URL validity/fetch requirements",
+    "R2 live delivery/retention validation and BytePlus URL validity/fetch requirements",
     "Output host allowlist and documented output encoding/dimension expectations",
   ],
 });
