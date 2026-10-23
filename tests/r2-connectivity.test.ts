@@ -136,6 +136,13 @@ for (const failure of [
         failure === "uncertain" ? "upload-uncertain" : "not-needed",
       );
     }
+    if (failure === "signed403")
+      assert.deepEqual(result.failure, {
+        category: "access-denied",
+        httpStatus: 403,
+      });
+    if (failure === "delete")
+      assert.deepEqual(result.cleanupFailure, { category: "unknown" });
     assert.equal(result.ok, failure === "none");
     client.destroy();
   });
@@ -210,4 +217,115 @@ test("operator cancellation still cleans up a confirmed upload with a fresh sign
   assert.equal(result.cleanup, "deleted");
   assert.equal(deleted, true);
   client.destroy();
+});
+
+// Exercise actual SDK serialization, signing and XML error parsing without sockets.
+for (const [status, code, category] of [
+  [403, "SignatureDoesNotMatch", "authentication"],
+  [403, "AccessDenied", "access-denied"],
+  [400, "InvalidArgument", "request-parameters"],
+  [501, "NotImplemented", "request-parameters"],
+  [400, "BadDigest", "checksum"],
+  [403, "RequestTimeTooSkewed", "clock"],
+  [404, "NoSuchBucket", "bucket-or-object-not-found"],
+  [412, "PreconditionFailed", "conditional-write-conflict"],
+] as const) {
+  test(`wire PUT diagnostics: ${code}`, async () => {
+    const { Readable } = await import("node:stream");
+    const { createHash } = await import("node:crypto");
+    let calls = 0;
+    const client = new S3Client({
+      ...r2ClientConfig(loadR2Config(env)),
+      requestHandler: {
+        async handle(request: {
+          method: string;
+          hostname: string;
+          path: string;
+          headers: Record<string, string>;
+          body: Uint8Array;
+        }) {
+          calls++;
+          assert.equal(request.method, "PUT");
+          assert.equal(
+            request.hostname,
+            `${env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+          );
+          assert.match(
+            request.path,
+            /^\/singmotion-ai-private\/connectivity-tests\/[a-f0-9]{64}\.txt$/,
+          );
+          const bytes = Buffer.from(request.body);
+          assert.equal(
+            request.headers["content-md5"],
+            createHash("md5").update(bytes).digest("base64"),
+          );
+          assert.equal(
+            request.headers["x-amz-content-sha256"],
+            createHash("sha256").update(bytes).digest("hex"),
+          );
+          assert.equal(request.headers["if-none-match"], "*");
+          assert.equal(request.headers["cache-control"], "private, no-store");
+          assert.equal(Number(request.headers["content-length"]), bytes.length);
+          assert.match(
+            request.headers.authorization,
+            /\/auto\/s3\/aws4_request/,
+          );
+          for (const name of Object.keys(request.headers))
+            assert.doesNotMatch(
+              name,
+              /^(x-amz-checksum-|x-amz-sdk-checksum|x-amz-acl|x-amz-trailer|content-encoding)/,
+            );
+          return {
+            response: {
+              statusCode: status,
+              headers: { "content-type": "application/xml" },
+              body: Readable.from([
+                `<Error><Code>${code}</Code><Message>LEAK_SECRET https://private.invalid/?X-Amz-Signature=secret</Message></Error>`,
+              ]),
+            },
+          };
+        },
+      },
+    });
+    try {
+      const result = await checkR2Connectivity(env, {
+        client,
+        http: async () => {
+          throw Error("Unexpected GET");
+        },
+      });
+      assert.equal(calls, 1); // No retry and no deletion after a rejected PUT.
+      assert.deepEqual(result.failure, { category, httpStatus: status });
+      assert.equal(result.stage, "upload");
+      assert.equal(result.ok, false);
+      assert.doesNotMatch(
+        JSON.stringify(result),
+        /LEAK_SECRET|fake-ak|fake-sk|X-Amz|private.invalid/,
+      );
+    } finally {
+      client.destroy();
+    }
+  });
+}
+
+test("diagnostics allowlist rejects raw error text and distinguishes transport failures", async () => {
+  const { r2Failure } = await import("../lib/live/r2-diagnostics.ts");
+  for (const code of ["ENOTFOUND", "ECONNRESET", "CERT_HAS_EXPIRED"])
+    assert.deepEqual(r2Failure({ cause: { code }, message: "secret" }), {
+      category: "network",
+    });
+  assert.deepEqual(r2Failure({ name: "TimeoutError" }), {
+    category: "timeout",
+  });
+  assert.deepEqual(r2Failure({ name: "AbortError" }), { category: "aborted" });
+  for (const status of ["403", NaN, Infinity, 403.5, 999])
+    assert.deepEqual(
+      r2Failure({
+        name: "secret",
+        code: "secret",
+        $metadata: { httpStatusCode: status },
+      }),
+      { category: "unknown" },
+    );
+  assert.deepEqual(r2Failure(null), { category: "unknown" });
 });

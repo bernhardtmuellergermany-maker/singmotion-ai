@@ -76,3 +76,58 @@ Ctrl+C/SIGTERM requests cancellation and allows cleanup of a confirmed upload wi
 No Railway changes, deployments, real R2 requests or BytePlus operations were performed while implementing this check. All automated connectivity tests use mocked S3/HTTP responses and fictional credentials.
 
 Validation for this change: lint, typecheck and all 68 automated tests passed, including 13 connectivity-check scenarios. No live connectivity check was executed.
+
+## Diagnosing a rejected upload (without sharing secrets)
+
+Failures now include `failure.category` and, when an HTTP response exists,
+`failure.httpStatus`. Cleanup failures have a separate `cleanupFailure` field.
+Raw exceptions, messages, response bodies, headers, credentials and signed URLs
+are never included. A missing status means no usable HTTP status was received;
+it does not prove the credentials are incorrect.
+
+| Category                              | Meaning / next manual check                                                                                                                                          |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `authentication`                      | R2 reported an invalid key/signature/token or HTTP 401. Check that the S3 key pair belongs to the configured account, without sharing it.                            |
+| `clock`                               | R2 reported an expired request or clock skew. Synchronize the Windows clock.                                                                                         |
+| `access-denied`                       | AccessDenied or otherwise unclassified HTTP 403. Check account, bucket and scope. A generic 403 cannot distinguish permission problems from authentication failures. |
+| `request-parameters`                  | R2 reported unsupported/invalid parameters or HTTP 501. Report only category, stage and status for investigation.                                                    |
+| `checksum`                            | R2 reported an invalid digest.                                                                                                                                       |
+| `network` / `timeout`                 | Known DNS, connection, TLS or timeout error. Check connectivity, proxy and certificate trust; do not disable TLS validation.                                         |
+| `bucket-or-object-not-found`          | HTTP 404; verify the configured account and bucket (or object during readback).                                                                                      |
+| `conditional-write-conflict`          | HTTP 412; the conditional PUT was rejected. No deletion is attempted.                                                                                                |
+| `throttled` / `service`               | Rate limiting or server failure. The script does not retry automatically.                                                                                            |
+| `bad-request` / `unknown` / `aborted` | Insufficient safe detail, malformed request, or cancellation. Do not paste raw SDK errors or enable verbose HTTP logging.                                            |
+
+The previous `upload` + `not-needed` result could represent HTTP 401, 403, 404
+or 412. It cannot identify the root cause. Key lengths and token activation
+alone cannot establish that the request reached the intended account or that
+its signature was accepted.
+
+The actual SDK PUT is regression-tested through an in-memory HTTP handler:
+HTTPS account endpoint, path-style bucket/key, region `auto`, S3 SigV4,
+`If-None-Match: *`, correct `Content-MD5`, SHA-256 payload hash, fixed content
+length and `Cache-Control: private, no-store`. It sends no ACL, optional CRC
+checksum headers, checksum trailer or streaming content encoding.
+`requestChecksumCalculation` and `responseChecksumValidation` remain
+`WHEN_REQUIRED`; `maxAttempts` remains 1. These options are explicit rather
+than inherited from a machine's AWS configuration.
+
+Cloudflare's [S3 compatibility table](https://developers.cloudflare.com/r2/api/s3/api/)
+lists both conditional PUT (`If-None-Match`) and `Content-MD5` as supported.
+Neither header was removed: conditional creation prevents overwriting an
+existing object. EEUR is a storage location hint; it does not change the signing
+region `auto` or imply the separate EU-jurisdiction endpoint. No real R2 request
+was made to validate the owner's account; the root cause remains unconfirmed
+until a manual rerun returns the sanitized status/category.
+
+After pulling this branch and setting the process-only environment variables
+using the masked-input PowerShell procedure above, retry exactly:
+
+```powershell
+npm.cmd run r2:check -- --confirm-r2-connectivity-test
+```
+
+The earlier procedure removes environment variables in `finally`; enter them
+again using that procedure if necessary. Keep cleanup unchanged: delete only
+this run's confirmed upload, never list objects, and reconcile only the reported
+random test key when an upload outcome is uncertain.

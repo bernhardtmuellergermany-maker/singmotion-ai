@@ -8,7 +8,9 @@ export async function providerRequest<T>(
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       controller.abort();
-      reject(new Error("Provider request timed out."));
+      const error = new Error("Provider request timed out.");
+      error.name = "TimeoutError";
+      reject(error);
     }, timeoutMs);
   });
   try {

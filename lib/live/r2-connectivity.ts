@@ -8,6 +8,7 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { randomBytes, createHash } from "node:crypto";
 import { loadR2Config, r2ClientConfig } from "./r2-config.ts";
 import { providerRequest } from "./timeout.ts";
+import { r2Failure, type R2Failure } from "./r2-diagnostics.ts";
 
 export interface CheckResult {
   ok: boolean;
@@ -16,6 +17,8 @@ export interface CheckResult {
   // This random, non-sensitive test key is safe to print for manual reconciliation.
   testKey?: string;
   diagnostic: string;
+  failure?: R2Failure;
+  cleanupFailure?: R2Failure;
 }
 const sha256 = (bytes: Uint8Array) =>
   createHash("sha256").update(bytes).digest("hex");
@@ -130,7 +133,7 @@ export async function checkR2Connectivity(
       });
       if (response.status !== 200 || !response.body) {
         await response.body?.cancel();
-        throw new Error();
+        throw { $metadata: { httpStatusCode: response.status } };
       }
       if (
         sha256(await boundedRead(response.body, requestSignal(signal))) !==
@@ -142,7 +145,8 @@ export async function checkR2Connectivity(
     result.ok = true;
     result.diagnostic =
       "Bucket object read/write access and temporary signed GET verified; both SHA-256 checks matched.";
-  } catch {
+  } catch (error) {
+    result.failure = r2Failure(error);
     result.diagnostic = {
       configuration: "Invalid R2 configuration.",
       upload:
@@ -165,7 +169,8 @@ export async function checkR2Connectivity(
           timeout,
         );
         result.cleanup = "deleted";
-      } catch {
+      } catch (error) {
+        result.cleanupFailure = r2Failure(error);
         result.ok = false;
         result.cleanup = "failed";
         result.diagnostic +=
