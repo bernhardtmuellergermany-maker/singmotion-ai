@@ -124,3 +124,8 @@ Validation for this change: `npm run lint`, `npm run typecheck` and `npm test`
 passed (80 automated tests). New regression coverage checks lowered cumulative
 caps, unknown/insufficient input leases, output length/encoding rejection and
 safe cancellation when private-file creation fails.
+
+A network-blocked [offline preflight rehearsal](OFFLINE_PREFLIGHT.md) now checks
+real media preparation, CLI output, snapshot hashes and fictional approval guards.
+It also documents missing draft-export, operator lookup and unpriced-plan review
+steps; passing it does not unblock paid submission.

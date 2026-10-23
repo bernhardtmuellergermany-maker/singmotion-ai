@@ -33,6 +33,11 @@ try {
           planId: attempt.id,
           status: attempt.state,
           preparedMp3Seconds: media.durationSeconds,
+          review: {
+            audioSha256: media.audioSha256,
+            imageSha256: media.imageSha256,
+            composedPrompt: media.prompt,
+          },
           promptLanguageConfirmed: media.promptLanguageConfirmed,
           verifiedProviderContract: false,
           estimatedProviderCharge: null,

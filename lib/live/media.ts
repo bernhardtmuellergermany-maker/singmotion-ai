@@ -90,6 +90,10 @@ export async function prepareExistingJob(
       bytes: (await stat(temp)).size,
       duration: durationSeconds,
     });
+    if (durationSeconds > Math.min(300, maxSeconds))
+      throw new Error(
+        "Encoded MP3 exceeds the live-test duration limit; select a shorter excerpt.",
+      );
     audioSha256 = await sha256File(temp);
     audioPath = path.join(directory, `${selected.id}-${audioSha256}.mp3`);
     await copyFile(temp, audioPath, 1).catch(async (error) => {
@@ -114,6 +118,10 @@ export async function prepareExistingJob(
     )
       throw error;
   });
+  // Validate the copied bytes too: the source may have changed during preparation.
+  if ((await sha256File(reference)) !== imageSha256)
+    throw new Error("Reference changed while creating the immutable snapshot.");
+  await validateReference(reference);
   for (const snapshot of [
     {
       ...source,
