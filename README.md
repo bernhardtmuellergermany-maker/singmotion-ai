@@ -58,6 +58,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run test:staging
 # Install a browser when needed, or use a system Chromium below.
 npx playwright install chromium
 npm run test:e2e
@@ -75,7 +76,7 @@ npm run build
 node --env-file-if-exists=.env.local scripts/serve.mjs
 ```
 
-This starts the Next production server plus the demo worker. Use only in a trusted local environment; it binds all interfaces for Railway compatibility. For loopback-only validation use `npx next start --hostname 127.0.0.1 -p 3000` and a separate worker. Processes are not retained in cloud snapshots and must be restarted.
+This starts the Next production server plus the demo worker. Production defaults to password protection; configure the variables in [the staging guide](docs/RAILWAY_STAGING.md) first. Use only in a trusted local environment; it binds all interfaces for Railway compatibility. For loopback-only validation use `npx next start --hostname 127.0.0.1 -p 3000` and a separate worker. Processes are not retained in cloud snapshots and must be restarted.
 
 ## Private admin scaffold
 
@@ -99,9 +100,9 @@ For local development only, configure `ADMIN_DEMO_ENABLED=true` and a strong, in
 
 See `docs/ARCHITECTURE.md`, `docs/PROVIDER_VERIFICATION.md`, and `docs/LAUNCH_CHECKLIST.md`.
 
-## Railway-compatible packaging — not deployed
+## Private Railway staging
 
-The Dockerfile installs FFmpeg and builds Next.js. The entry point honors Railway's `PORT` and starts web plus worker in one container. A persistent volume at `/app/.data` is required for this **single-replica demo**; configure permissions for the `node` user. Do not horizontally scale SQLite or expose this preview publicly. Docker execution and Railway deployment have not been validated here, and no service was purchased or deployed. Production must migrate durable state to Supabase and private objects to R2 before scaling.
+See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact variables, password setup, volume permissions and acceptance checks. The Docker launcher starts Next and the demo worker as UID 1000 after validating configuration and persistent-storage access. Staging requires authentication on pages, APIs and media; generation and admin access remain disabled. Railway configuration and release are manual steps, not performed by this repository change.
 
 ## BytePlus first-test preparation (still offline)
 

@@ -33,6 +33,8 @@ export default defineConfig({
       PORT: "3100",
       NODE_ENV: "production",
       DEMO_MODE: "true",
+      STAGING_AUTH_ENABLED: "false",
+      GENERATIONS_ENABLED: "true",
       DATA_DIR: `/tmp/singmotion-e2e-${Date.now()}`,
     },
   },

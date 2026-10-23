@@ -1,3 +1,4 @@
+import { stagingDenial, stagingEnabled } from "@/lib/staging";
 import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
@@ -98,6 +99,8 @@ async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
+  const denied = stagingDenial(req.headers.get("authorization"));
+  if (denied) return denied;
   try {
     demoOnly();
     const parts = (await params).path;
@@ -124,7 +127,7 @@ async function handler(
       });
       response.cookies.set("sm_session", created.token, {
         httpOnly: true,
-        secure: req.nextUrl.protocol === "https:",
+        secure: stagingEnabled() || req.nextUrl.protocol === "https:",
         sameSite: "strict",
         path: "/",
         maxAge: 30 * 86400,
