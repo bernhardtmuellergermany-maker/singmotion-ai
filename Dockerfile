@@ -10,7 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certi
 WORKDIR /app
 ENV NODE_ENV=production DEMO_MODE=true GENERATIONS_ENABLED=false ADMIN_DEMO_ENABLED=false BYTEPLUS_LIVE_TEST_ENABLED=false STAGING_AUTH_ENABLED=true DATA_DIR=/app/.data
 COPY --from=builder --chown=node:node /app /app
-RUN mkdir -p /app/.data && chown node:node /app/.data
-USER node
+# Only this root-owned initializer executes before dropping privileges.
+COPY --chmod=0444 scripts/container-entrypoint.mjs /usr/local/lib/singmotion-entrypoint.mjs
+RUN mkdir -p /app/.data && chown node:node /app/.data && chown root:root /app
+USER root
 EXPOSE 3000
-CMD ["node", "scripts/serve.mjs"]
+ENTRYPOINT ["node", "/usr/local/lib/singmotion-entrypoint.mjs"]

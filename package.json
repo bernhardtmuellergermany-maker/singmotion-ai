@@ -20,7 +20,8 @@
     "smoke": "node --env-file-if-exists=.env.local scripts/smoke.mjs",
     "byteplus:preflight": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-preflight.ts",
     "byteplus:live-test": "node --env-file-if-exists=.env.byteplus.local --experimental-strip-types scripts/byteplus-live-test.ts",
-    "test:staging": "node scripts/test-staging.mjs"
+    "test:staging": "node scripts/test-staging.mjs",
+    "test:volume": "node scripts/test-volume.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
