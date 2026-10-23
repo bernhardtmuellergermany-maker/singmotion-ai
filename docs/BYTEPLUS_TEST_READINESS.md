@@ -138,3 +138,9 @@ real media preparation, CLI output, snapshot hashes and fictional approval guard
 [Draft export and offline image review](OFFLINE_OPERATOR_DRAFT.md) now work without
 creating a generation job. Transitioning an unpriced plan to a verified priced
 approval remains blocked; passing offline tests does not unblock paid submission.
+
+The [backend operator lifecycle](BACKEND_OPERATOR_WORKFLOW.md) now implements
+same-plan verified-contract pricing and full mock orchestration, including
+cancellation and crash recovery. A local read-only `byteplus:operator review`
+command is available. Production pricing/approval/submission commands still fail
+closed; no environment or contract-file input enables them.

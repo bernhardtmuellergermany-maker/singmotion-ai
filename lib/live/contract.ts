@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 /** Internal integration contract, NOT BytePlus HTTP field names or a wire schema. */
 export interface BillingRules {
   microUsdPerSecond: number;
@@ -79,4 +80,18 @@ export function upperBoundMicroUsd(
   if (total > BigInt(Number.MAX_SAFE_INTEGER))
     throw new Error("Cost exceeds safe arithmetic limits.");
   return Number(total);
+}
+
+/** Stable full-contract binding; a reused revision cannot silently change terms. */
+export function contractDigest(contract: VerifiedContract): string {
+  const canonical = (v: unknown): string => {
+    if (Array.isArray(v)) return `[${v.map(canonical).join(",")}]`;
+    if (v && typeof v === "object")
+      return `{${Object.entries(v)
+        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+        .map(([k, value]) => `${JSON.stringify(k)}:${canonical(value)}`)
+        .join(",")}}`;
+    return JSON.stringify(v);
+  };
+  return createHash("sha256").update(canonical(contract)).digest("hex");
 }

@@ -1,8 +1,13 @@
 import { providerRequest } from "./timeout.ts";
 import path from "node:path";
-import { mkdir, unlink } from "node:fs/promises";
+import { renameSync } from "node:fs";
+import { mkdir, unlink, lstat, chmod } from "node:fs/promises";
 import { enforceCap, type LiveTestConfig } from "./config.ts";
-import { upperBoundMicroUsd, type VerifiedContract } from "./contract.ts";
+import {
+  contractDigest,
+  upperBoundMicroUsd,
+  type VerifiedContract,
+} from "./contract.ts";
 import { revalidateMedia } from "./media.ts";
 import { downloadValidatedOutput, validateOutput } from "./output.ts";
 import { type Attempt, type PreparedMedia, LiveTestStore } from "./store.ts";
@@ -15,6 +20,7 @@ export interface ReviewedProvider {
     requestKey: string,
     signal: AbortSignal,
   ): Promise<{ jobId: string }>;
+  cancelQueued?(jobId: string, signal: AbortSignal): Promise<void>;
   poll(
     jobId: string,
     signal: AbortSignal,
@@ -61,6 +67,11 @@ export class LiveTestRunner {
         "The reviewed contract does not support this duration or composed prompt.",
       );
     if (
+      attempt.contractDigest &&
+      attempt.contractDigest !== contractDigest(this.provider.contract)
+    )
+      throw new Error("Reviewed contract contents changed.");
+    if (
       attempt.upperBoundMicroUsd !==
       upperBoundMicroUsd(
         attempt.media.durationSeconds,
@@ -95,61 +106,102 @@ export class LiveTestRunner {
     const attempt = this.store.get(id);
     this.assertEnabled(attempt);
     const lease = this.store.claimPoll(id);
+    const output = path.join(this.outputDirectory, `${attempt.id}.mp4`);
+    const partial = path.join(
+      this.outputDirectory,
+      `${attempt.id}.${lease}.partial.mp4`,
+    );
+    const finish = (
+      state: "processing" | "completed" | "failed",
+      patch: Parameters<LiveTestStore["transition"]>[2] = {},
+      commit?: () => void,
+    ) => this.store.transition(id, state, patch, lease, commit);
     try {
-      // A failed read leaves the provider ID intact. Future invocations only poll.
+      await mkdir(this.outputDirectory, { recursive: true, mode: 0o700 });
+      // Recover a validated final file BEFORE provider polling: its URL/task may
+      // have expired after a crash between atomic rename and SQLite commit.
+      let recovered = false;
+      try {
+        const info = await lstat(output);
+        if (info.isFile() && !info.isSymbolicLink()) {
+          await validateOutput(
+            output,
+            attempt.media.durationSeconds,
+            this.provider.contract,
+          );
+          recovered = true;
+        }
+      } catch {
+        /* Missing/invalid output does not justify a new submission. */
+      }
+      if (recovered) return finish("completed", { outputPath: output });
       const result = await providerRequest((signal) =>
         this.provider.poll(attempt.providerJobId!, signal),
       );
       if (!["pending", "completed", "failed"].includes(result.state))
         throw new Error("Unexpected normalized provider status.");
       if (result.state === "failed")
-        return this.store.transition(id, "failed", {
-          failureCode: "PROVIDER_JOB_FAILED",
-        });
-      if (result.state === "pending")
-        return this.store.transition(id, "processing");
+        return finish("failed", { failureCode: "PROVIDER_JOB_FAILED" });
+      if (result.state === "pending") return finish("processing");
       if (!result.outputUrl)
-        return this.store.transition(id, "failed", {
-          failureCode: "MISSING_OUTPUT",
-        });
-      await mkdir(this.outputDirectory, { recursive: true, mode: 0o700 });
-      const output = path.join(this.outputDirectory, `${attempt.id}.mp4`);
+        return finish("failed", { failureCode: "MISSING_OUTPUT" });
       try {
-        // Recover a crash after a fully validated download without resubmitting.
+        await this.download(
+          result.outputUrl,
+          partial,
+          attempt.media.durationSeconds,
+          this.provider.contract,
+        );
+        const info = await lstat(partial);
+        if (!info.isFile() || info.isSymbolicLink()) throw new Error();
+        await chmod(partial, 0o600);
+      } catch {
+        return finish("failed", {
+          failureCode: "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED",
+        });
+      }
+      try {
         await validateOutput(
-          output,
+          partial,
           attempt.media.durationSeconds,
           this.provider.contract,
         );
       } catch {
-        await unlink(output).catch(() => {});
-        try {
-          await this.download(
-            result.outputUrl,
-            output,
-            attempt.media.durationSeconds,
-            this.provider.contract,
-          );
-        } catch {
-          return this.store.transition(id, "failed", {
-            failureCode: "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED",
-          });
-        }
+        return finish("failed", { failureCode: "INVALID_OUTPUT" });
       }
-      // Validation is mandatory even with an injected downloader in tests.
+      return finish("completed", { outputPath: output }, () =>
+        renameSync(partial, output),
+      );
+    } finally {
+      await unlink(partial).catch(() => {});
+      this.store.releasePoll(id, lease);
+    }
+  }
+  async cancelOnce(id: string) {
+    const attempt = this.store.get(id);
+    this.assertEnabled(attempt);
+    if (!this.provider.cancelQueued)
+      throw new Error("Provider cancellation is not available.");
+    const lease = this.store.claimPoll(id);
+    try {
+      this.store.claimCancellation(id, lease); // Durable before any provider call.
       try {
-        await validateOutput(
-          output,
-          attempt.media.durationSeconds,
-          this.provider.contract,
+        await providerRequest((signal) =>
+          this.provider.cancelQueued!(attempt.providerJobId!, signal),
         );
       } catch {
-        await unlink(output).catch(() => {});
-        return this.store.transition(id, "failed", {
-          failureCode: "INVALID_OUTPUT",
-        });
+        this.store.finishCancellation(id, "uncertain");
+        throw new Error(
+          "Cancellation outcome unknown; poll the persisted task, never repeat cancellation automatically.",
+        );
       }
-      return this.store.transition(id, "completed", { outputPath: output });
+      this.store.finishCancellation(id, "done");
+      return this.store.transition(
+        id,
+        "failed",
+        { failureCode: "PROVIDER_TASK_CANCELED" },
+        lease,
+      );
     } finally {
       this.store.releasePoll(id, lease);
     }

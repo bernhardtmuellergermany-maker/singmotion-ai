@@ -23,7 +23,9 @@
     "test:staging": "node scripts/test-staging.mjs",
     "test:volume": "node scripts/test-volume.mjs",
     "r2:check": "node --experimental-strip-types scripts/r2-connectivity.ts",
-    "test:byteplus:offline": "node --experimental-strip-types --test tests/preflight-offline.test.ts"
+    "test:byteplus:offline": "node --experimental-strip-types --test tests/preflight-offline.test.ts",
+    "byteplus:operator": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-operator.ts",
+    "test:byteplus:backend": "node --experimental-strip-types --test tests/operator.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",

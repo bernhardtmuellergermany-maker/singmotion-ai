@@ -86,9 +86,10 @@ The UI's illustrative EUR quote is never used as a BytePlus USD cost ceiling.
   the same local DATA_DIR; it does not retrieve Railway-only uploads.
 - Local preparation stores an immutable, unpriced plan. Re-running with changed
   prompt confirmation, inputs or contract is intentionally rejected. Decide the
-  English confirmation before creating the plan. A reviewed transition from an
-  unpriced plan to a priced approval is still missing; do not delete ledger
-  rows, create duplicate paid attempts or replace the source ID to bypass it.
+  English confirmation before creating the plan. The internal same-plan pricing
+  transition is now mock-tested, but its production verifier remains blocked;
+  do not delete ledger rows, create duplicate paid attempts or replace the source
+  ID to bypass it. See [operator lifecycle](BACKEND_OPERATOR_WORKFLOW.md).
   The test's separate fictional record is not an operator workaround.
 - Billing minimums, rounding, failed/canceled charges and exact output domains/
   specifications still await BytePlus Support. The newly relayed 12-hour input

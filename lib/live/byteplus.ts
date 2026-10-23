@@ -209,6 +209,9 @@ export class DocumentedBytePlusProvider implements ReviewedProvider {
       signal,
     );
   }
+  async cancelQueued(id: string, signal: AbortSignal) {
+    await this.protocol.cancelQueued(id, signal);
+  }
   async poll(id: string, signal: AbortSignal) {
     try {
       const result = await this.protocol.status(id, signal);

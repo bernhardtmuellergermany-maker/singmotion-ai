@@ -121,8 +121,9 @@ this nor repeated preparation can authorize generation.
 The plan has `contractRevision=null`, `upperBoundMicroUsd=null`, no provider ID,
 no reservation and no approval token. Even explicit mock-enabled authorization
 refuses unknown billing. Do not edit SQLite to attach a rate or delete reserved
-records. A reviewed transition to a priced, one-time-approved plan still requires
-verified account billing and separate implementation/review.
+records. The internal same-plan transition is now implemented and mock-tested
+in `OperatorWorkflow`; production use still requires verified account billing
+and separately reviewed CLI/provider wiring.
 
 ## Offline checks and remaining gates
 
@@ -154,3 +155,9 @@ approved live operator command remain blocked. Support's 12-hour input requireme
 is handled by the existing 13-hour private R2 design, but this workflow never
 constructs or invokes that adapter. No Railway setting, deployment or real payment
 is changed. See [readiness](BYTEPLUS_TEST_READINESS.md).
+
+The [backend operator lifecycle](BACKEND_OPERATOR_WORKFLOW.md) now implements
+same-plan verified-contract pricing and full mock orchestration, including
+cancellation and crash recovery. A local read-only `byteplus:operator review`
+command is available. Production pricing/approval/submission commands still fail
+closed; no environment or contract-file input enables them.

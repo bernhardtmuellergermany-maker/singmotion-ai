@@ -1,3 +1,8 @@
+import {
+  contractDigest,
+  upperBoundMicroUsd,
+  type VerifiedContract,
+} from "./contract.ts";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import {
@@ -30,6 +35,7 @@ export interface Attempt {
   media: PreparedMedia;
   contractRevision: string | null;
   upperBoundMicroUsd: number | null;
+  contractDigest?: string;
   state: LiveState;
   providerJobId: string | null;
   outputPath: string | null;
@@ -54,6 +60,13 @@ export class LiveTestStore {
       );
       CREATE TABLE IF NOT EXISTS live_input_deliveries (
         attempt_id TEXT PRIMARY KEY, manifest TEXT NOT NULL, state TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_contract_reviews (
+        attempt_id TEXT PRIMARY KEY, contract_json TEXT NOT NULL, reviewed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_operator_actions (
+        attempt_id TEXT NOT NULL, action TEXT NOT NULL, state TEXT NOT NULL,
+        PRIMARY KEY(attempt_id, action)
       );`);
   }
   close() {
@@ -123,6 +136,91 @@ export class LiveTestStore {
         .run(attempt.id, media.sourceJobId, JSON.stringify(attempt));
       return attempt;
     });
+  }
+  /** Trusted reviewed-contract caller only. No environment/file-based verifier. */
+  pricePrepared(
+    id: string,
+    owner: string,
+    expectedMedia: PreparedMedia,
+    contract: VerifiedContract,
+  ) {
+    return this.transaction(() => {
+      const attempt = this.get(id);
+      const row = this.db
+        .prepare(
+          "SELECT consumed,reserved_micro_usd FROM live_attempts WHERE id=?",
+        )
+        .get(id)!;
+      if (
+        attempt.media.owner !== owner ||
+        JSON.stringify(attempt.media) !== JSON.stringify(expectedMedia) ||
+        attempt.state !== "prepared" ||
+        row.consumed ||
+        row.reserved_micro_usd !== 0
+      )
+        throw new Error(
+          "Only the exact owned, unreserved prepared plan may be priced.",
+        );
+      const digest = contractDigest(contract);
+      const cost = upperBoundMicroUsd(
+        attempt.media.durationSeconds,
+        contract.billing,
+      );
+      if (
+        attempt.contractRevision !== null ||
+        attempt.upperBoundMicroUsd !== null
+      ) {
+        if (
+          attempt.contractRevision !== contract.revision ||
+          attempt.contractDigest !== digest ||
+          attempt.upperBoundMicroUsd !== cost
+        )
+          throw new Error(
+            "Priced contract is immutable; changed terms require review.",
+          );
+        return attempt;
+      }
+      attempt.contractRevision = contract.revision;
+      attempt.contractDigest = digest;
+      attempt.upperBoundMicroUsd = cost;
+      this.db
+        .prepare("INSERT INTO live_contract_reviews VALUES (?,?,?)")
+        .run(id, JSON.stringify(contract), Date.now());
+      this.save(attempt);
+      return attempt;
+    });
+  }
+  claimCancellation(id: string, lease: string) {
+    this.transaction(() => {
+      this.assertPollLease(id, lease);
+      this.db
+        .prepare(
+          "INSERT INTO live_operator_actions VALUES (?,'cancel','claimed')",
+        )
+        .run(id);
+    });
+  }
+  finishCancellation(id: string, state: "done" | "uncertain") {
+    this.db
+      .prepare(
+        "UPDATE live_operator_actions SET state=? WHERE attempt_id=? AND action='cancel'",
+      )
+      .run(state, id);
+  }
+  assertPollLease(id: string, token: string) {
+    const row = this.db
+      .prepare(
+        "SELECT poll_token,poll_lease_until FROM live_attempts WHERE id=?",
+      )
+      .get(id);
+    if (
+      !row ||
+      row.poll_token !== token ||
+      Number(row.poll_lease_until) <= Date.now()
+    )
+      throw new Error(
+        "Poll lease expired or replaced; stale worker cannot commit.",
+      );
   }
   authorize(
     id: string,
@@ -354,9 +452,12 @@ export class LiveTestStore {
     patch: Partial<
       Pick<Attempt, "providerJobId" | "outputPath" | "failureCode">
     > = {},
+    pollToken?: string,
+    commitFile?: () => void,
   ) {
     return this.transaction(() => {
       const attempt = this.get(id);
+      if (pollToken !== undefined) this.assertPollLease(id, pollToken);
       const allowed: Record<LiveState, LiveState[]> = {
         prepared: [],
         authorized: [],
@@ -380,6 +481,7 @@ export class LiveTestStore {
         throw new Error("Missing provider job ID.");
       if (state === "completed" && !patch.outputPath)
         throw new Error("A validated private output is required.");
+      commitFile?.(); // Synchronous atomic rename under the lease-check transaction.
       Object.assign(attempt, patch, { state });
       this.save(attempt);
       return attempt;
