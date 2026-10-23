@@ -667,3 +667,49 @@ body {
   line-height: 1.6;
   color: #e0deef;
 }
+
+/* Home alone overlays the shared header; Studio navigation keeps its geometry. */
+.home-site > .site-header {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: transparent;
+  border: 0;
+}
+.home-site > .site-header .brand {
+  color: white;
+}
+.home-site > .site-header .brand-ai {
+  color: #eeedf8;
+}
+.home-site > .site-header .brand-mark i {
+  background: #8872ff;
+}
+.home-site .site-header-actions nav {
+  gap: 12px;
+}
+.home-site .home-signin {
+  background: transparent;
+  border: 1px solid #bdb5d4;
+  color: white;
+}
+.home-site .site-header-actions .primary {
+  background: #6550d5;
+  color: white;
+}
+.home-site .cinematic-hero {
+  min-height: 100svh;
+  padding-top: calc(var(--header-height) + 60px);
+}
+@media (max-width: 600px) {
+  .home-site .site-header-actions nav {
+    gap: 6px;
+  }
+  .home-site .site-header-actions .button {
+    padding: 8px;
+    font-size: 11px;
+  }
+  .home-site .cinematic-hero {
+    padding-top: calc(var(--header-height) + 34px);
+  }
+}

@@ -55,7 +55,7 @@ test("homepage clearly labels availability, stays responsive and passes accessib
     page.getByText("Live AI rendering is not enabled", { exact: false }),
   ).toBeVisible();
   await expect(page.locator("video")).toHaveCount(0);
-  await expect(page.locator(".site-header a")).toHaveCount(2);
+  await expect(page.locator(".site-header a")).toHaveCount(3);
   await expect(
     page
       .getByRole("navigation", { name: "Website navigation" })

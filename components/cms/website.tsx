@@ -56,7 +56,15 @@ export async function Website({
       <SiteHeader
         actions={
           <nav aria-label="Website navigation">
-            <Link className="button subtle" href={studioLink.url}>
+            {isHome && (
+              <Link className="button home-signin" href="/signin">
+                Sign in
+              </Link>
+            )}
+            <Link
+              className={isHome ? "button primary" : "button subtle"}
+              href={studioLink.url}
+            >
               {studioLink.label}
             </Link>
           </nav>

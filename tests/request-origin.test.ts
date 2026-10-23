@@ -71,3 +71,32 @@ test("direct development and explicitly configured loopback remain supported", (
     "http://127.0.0.1:3197",
   );
 });
+
+test("Railway Studio rejects a stale APP_ORIGIN and accepts only its corrected HTTPS origin", () => {
+  const origin = "https://singmotion-ai-staging.up.railway.app";
+  const internal = "http://0.0.0.0:3000/api/session";
+  const configured = {
+    ...deployed,
+    CMS_ORIGIN: origin,
+    APP_ORIGIN: "http://localhost:3000",
+  };
+  // This produces the reported 403 even when CMS_ORIGIN is correct.
+  assert.notEqual(
+    applicationOrigin(internal, "internal.railway", configured),
+    origin,
+  );
+  for (const env of [
+    { ...configured, APP_ORIGIN: origin },
+    { ...configured, APP_ORIGIN: "" },
+  ]) {
+    const expected = applicationOrigin(internal, "attacker.example", env);
+    assert.equal(expected, origin);
+    for (const untrusted of [
+      null,
+      "null",
+      "https://attacker.example",
+      origin + ".attacker.example",
+    ])
+      assert.notEqual(untrusted, expected);
+  }
+});

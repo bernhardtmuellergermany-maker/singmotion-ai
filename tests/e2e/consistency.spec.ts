@@ -52,15 +52,15 @@ for (const width of [1440, 1024, 768, 390, 360]) {
       await expect(page.locator("main")).toBeVisible();
       if (route === "/") {
         const hero = await page.locator(".cinematic-hero").boundingBox();
-        const header = await page.locator(".site-header").boundingBox();
         expect(hero!.x).toBe(0);
         expect(hero!.width).toBe(width);
-        expect(hero!.y).toBe(header!.y + header!.height);
+        expect(hero!.y).toBe(0);
+        expect(hero!.height).toBeGreaterThanOrEqual(1000);
         await expect(page.locator(".concert-artwork img")).toHaveCSS(
           "border-radius",
           "0px",
         );
-        await expect(page.locator(".site-header a")).toHaveCount(2);
+        await expect(page.locator(".site-header a")).toHaveCount(3);
       }
       await page.screenshot({
         path: `${output}/${route === "/" ? "home" : route.slice(1)}-${width}.png`,
