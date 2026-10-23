@@ -66,3 +66,7 @@ npm.cmd run test:cms:browser
 ```
 
 Use disposable local credentials only. Payload background timers require the integration runner's `--test-force-exit`; database teardown is awaited before completion. The browser suite exercises real Payload login/publish/preview over local HTTP with Basic Auth; local-only insecure cookie mode is not a Railway configuration.
+
+## Lost super-admin password
+
+Use the [server-only recovery procedure](CMS_ADMIN_RECOVERY.md). In the existing staging application container: `CMS_RECOVERY_ENABLED=true npm run cms:recover-admin`. It prompts without echo, requires explicit confirmation, preserves the existing account and revokes its sessions. It does not enable public reset email or registration.

@@ -65,6 +65,146 @@ test("Payload PostgreSQL authentication, roles, publishing, versions, uploads an
     });
     const ed = { ...editor, collection: "staff" as const },
       su = { ...support, collection: "staff" as const };
+    await t.test(
+      "server recovery preserves account, revokes every session and clears lockout",
+      async () => {
+        const { recoverAdmin, recoveryConfirmation } =
+          await import("../cms/recover-admin.ts");
+        const first = await payload.login({
+          collection: "staff",
+          data: { email: admin.email, password },
+        });
+        const second = await payload.login({
+          collection: "staff",
+          data: { email: admin.email, password },
+        });
+        const headers = (token: string) =>
+          new Headers({ authorization: `JWT ${token}` });
+        assert.ok(
+          (await payload.auth({ headers: headers(first.token!) })).user,
+        );
+        const count = (await payload.count({ collection: "staff" })).totalDocs;
+        await assert.rejects(
+          recoverAdmin(payload, admin.email, "x".repeat(24), "NO"),
+        );
+        await assert.rejects(
+          recoverAdmin(payload, admin.email, "short", recoveryConfirmation),
+        );
+        await assert.rejects(
+          recoverAdmin(
+            payload,
+            editor.email,
+            "x".repeat(24),
+            recoveryConfirmation,
+          ),
+        );
+        await assert.rejects(
+          recoverAdmin(
+            payload,
+            `missing-${suffix}@example.test`,
+            "x".repeat(24),
+            recoveryConfirmation,
+          ),
+        );
+        assert.ok(
+          (await payload.auth({ headers: headers(first.token!) })).user,
+        );
+        const hooks =
+          payload.collections["audit-events"].config.hooks.beforeChange;
+        const failAudit: (typeof hooks)[number] = ({ data }) => {
+          if (data.action === "password-recovery")
+            throw new Error("Injected audit failure");
+          return data;
+        };
+        hooks.push(failAudit);
+        try {
+          await assert.rejects(
+            recoverAdmin(
+              payload,
+              admin.email,
+              "aborted-recovery-password-123456",
+              recoveryConfirmation,
+            ),
+          );
+        } finally {
+          hooks.splice(hooks.indexOf(failAudit), 1);
+        }
+        assert.ok(
+          (await payload.auth({ headers: headers(first.token!) })).user,
+        );
+        assert.ok(
+          (
+            await payload.login({
+              collection: "staff",
+              data: { email: admin.email, password },
+            })
+          ).token,
+        );
+        for (let i = 0; i < 5; i++)
+          await assert.rejects(
+            payload.login({
+              collection: "staff",
+              data: { email: admin.email, password: "wrong" },
+            }),
+          );
+        const replacement = "replacement-password-only-for-local-tests";
+        await recoverAdmin(
+          payload,
+          admin.email,
+          replacement,
+          recoveryConfirmation,
+        );
+        assert.equal(
+          (await payload.count({ collection: "staff" })).totalDocs,
+          count,
+        );
+        const same = await payload.findByID({
+          collection: "staff",
+          id: admin.id,
+          showHiddenFields: true,
+        });
+        assert.equal(same.role, "super-admin");
+        assert.equal(same.email, admin.email);
+        assert.equal(same.sessions?.length || 0, 0);
+        assert.equal(
+          (await payload.auth({ headers: headers(first.token!) })).user,
+          null,
+        );
+        assert.equal(
+          (await payload.auth({ headers: headers(second.token!) })).user,
+          null,
+        );
+        await assert.rejects(
+          payload.login({
+            collection: "staff",
+            data: { email: admin.email, password },
+          }),
+        );
+        assert.ok(
+          (
+            await payload.login({
+              collection: "staff",
+              data: { email: admin.email, password: replacement },
+            })
+          ).token,
+        );
+        const events = await payload.find({
+          collection: "audit-events",
+          where: { action: { equals: "password-recovery" } },
+        });
+        assert.ok(
+          events.docs.some((event) => event.record === String(admin.id)),
+        );
+        assert.ok(!JSON.stringify(events.docs).includes(replacement));
+        // Restore this disposable fixture through the same supported recovery API.
+        await recoverAdmin(
+          payload,
+          admin.email,
+          password,
+          recoveryConfirmation,
+        );
+      },
+    );
     await t.test("authentication and persisted account lockout", async () => {
       const login = await payload.login({
         collection: "staff",
