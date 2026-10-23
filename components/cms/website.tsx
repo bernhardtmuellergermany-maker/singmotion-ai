@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, LockKeyhole } from "lucide-react";
-import { PerformanceStudy } from "./performance-study";
+
 import { Brand } from "../brand";
 import { navigation } from "../../cms/content";
 import { safeLink } from "../../cms/policy";
@@ -22,17 +22,55 @@ export async function Website({
     page.blocks?.[1]?.blockType === "cta"
       ? page.blocks[1]
       : null;
-  const defaultHeader = [
+  // An existing Image block immediately following Hero (or its secondary CTA)
+  // supplies CMS-owned artwork. No schema/data rewrite is needed.
+  const artworkIndex = secondary ? 2 : 1;
+  const artworkBlock =
+    isHome &&
+    page.blocks?.[0]?.blockType === "hero" &&
+    page.blocks?.[artworkIndex]?.blockType === "image"
+      ? page.blocks[artworkIndex]
+      : null;
+  const artwork =
+    artworkBlock && typeof artworkBlock.image === "object"
+      ? artworkBlock.image
+      : null;
+  const firstCards = page.blocks?.findIndex((b) => b.blockType === "cards");
+  const headerLinks = nav?.header?.links || [];
+  const studioLink = headerLinks.find((item) => item.url === "/studio") || {
+    label: "Open studio",
+    url: "/studio",
+  };
+  // Informational header links are retained in the footer, including custom URLs.
+  const infoLinks = headerLinks.filter((item) => item.url !== "/studio");
+  const defaults = [
     { label: "How it works", url: "/#how" },
-    { label: "Possibilities", url: "/#possibilities" },
-    { label: "Help", url: "/help" },
-  ];
-  const defaultFooter = ["privacy", "terms", "legal", "rights", "contact"].map(
-    (p) => ({
+    ...[
+      "faq",
+      "help",
+      "contact",
+      "pricing",
+      "about",
+      "privacy",
+      "terms",
+      "legal",
+      "rights",
+    ].map((p) => ({
       label:
-        p === "legal" ? "Legal notice" : p.charAt(0).toUpperCase() + p.slice(1),
+        p === "faq"
+          ? "FAQ"
+          : p === "legal"
+            ? "Legal notice"
+            : p.charAt(0).toUpperCase() + p.slice(1),
       url: `/${p}`,
-    }),
+    })),
+  ];
+  const footerLinks = [
+    ...infoLinks,
+    ...(nav?.footer?.links || []),
+    ...defaults,
+  ].filter(
+    (item, i, all) => all.findIndex((other) => other.url === item.url) === i,
   );
   const links = (items: unknown) =>
     Array.isArray(items)
@@ -52,11 +90,10 @@ export async function Website({
       <header className="marketing-header">
         <Brand />
         <nav aria-label="Website navigation">
-          {links(nav?.header?.links?.length ? nav.header.links : defaultHeader)}
+          <Link className="button subtle" href={studioLink.url}>
+            {studioLink.label}
+          </Link>
         </nav>
-        <Link className="button subtle" href="/studio">
-          Open studio
-        </Link>
       </header>
       <main>
         {isHome && (
@@ -75,7 +112,8 @@ export async function Website({
           </section>
         )}
         {page.blocks?.map((b, i) => {
-          if (secondary && i === 1) return null;
+          if ((secondary && i === 1) || (artworkBlock && i === artworkIndex))
+            return null;
           switch (b.blockType) {
             case "hero":
               return (
@@ -105,20 +143,35 @@ export async function Website({
                       </p>
                     )}
                   </div>
-                  <PerformanceStudy />
+                  <figure className="concert-artwork">
+                    <img
+                      src={
+                        artwork?.filename
+                          ? `/api/cms/cms-assets/file/${encodeURIComponent(artwork.filename)}`
+                          : "/artwork/singmotion-concert-concept.png"
+                      }
+                      alt={
+                        artwork?.alt ||
+                        "Concept artwork: singer in purple and blue stage lighting with music and artist cards."
+                      }
+                      width={1672}
+                      height={941}
+                      fetchPriority="high"
+                    />
+                    <figcaption>
+                      {artworkBlock?.caption && (
+                        <span>{artworkBlock.caption} · </span>
+                      )}
+                      Concept artwork · Not a generated SingMotion result
+                    </figcaption>
+                  </figure>
                 </section>
               );
             case "cards":
               return (
                 <section
-                  className="how-section"
-                  id={
-                    isHome && i === 2
-                      ? "how"
-                      : isHome && i === 3
-                        ? "possibilities"
-                        : undefined
-                  }
+                  className={`how-section ${isHome && i === firstCards ? "compact-how" : ""}`}
+                  id={isHome && i === firstCards ? "how" : undefined}
                   key={i}
                 >
                   <h2>{b.heading}</h2>
@@ -171,9 +224,7 @@ export async function Website({
       </main>
       <footer>
         <Brand />
-        <div>
-          {links(nav?.footer?.links?.length ? nav.footer.links : defaultFooter)}
-        </div>
+        <div>{links(footerLinks)}</div>
         <small>{nav?.copyright || "SingMotion AI · Development preview"}</small>
       </footer>
     </div>

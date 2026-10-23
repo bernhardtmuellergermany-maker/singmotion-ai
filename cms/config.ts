@@ -224,11 +224,19 @@ const collections: CollectionConfig[] = [
           },
           {
             slug: "image",
+            labels: {
+              singular: "Image / homepage hero artwork",
+              plural: "Images",
+            },
             fields: [
               {
                 name: "image",
                 type: "upload",
                 relationTo: "cms-assets",
+                admin: {
+                  description:
+                    "On Home, place this Image block immediately after Hero (or its secondary CTA) to replace hero artwork. Public marketing assets only; never upload customer media.",
+                },
                 required: true,
               },
               text("caption"),

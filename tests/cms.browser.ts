@@ -25,6 +25,7 @@ const origin = "https://127.0.0.1:3199",
   password = randomBytes(24).toString("hex"),
   stagingPassword = randomBytes(24).toString("hex");
 Object.assign(process.env, {
+  APP_ORIGIN: "", // Regression: CMS_ORIGIN supplies the trusted HTTPS origin.
   CMS_ENABLED: "true",
   CMS_DATABASE_URL: database,
   PAYLOAD_SECRET: randomBytes(32).toString("hex"),
@@ -156,6 +157,23 @@ await payload.delete({
   collection: "pages",
   where: { slug: { equals: "home" } },
 });
+await payload.updateGlobal({
+  slug: "site-navigation",
+  data: {
+    header: {
+      links: [
+        { label: "Go to studio", url: "/studio" },
+        { label: "Contact the team", url: "/contact" },
+      ],
+    },
+    footer: { links: [{ label: "Questions", url: "/faq" }] },
+  },
+});
+const heroAsset = await payload.create({
+  collection: "cms-assets",
+  data: { alt: "Published concert artwork" },
+  filePath: path.resolve("public/artwork/singmotion-concert-concept.png"),
+});
 await payload.create({
   collection: "pages",
   data: {
@@ -175,6 +193,11 @@ await payload.create({
         heading: "Learn",
         buttonLabel: "Meet our team",
         url: "/about",
+      },
+      {
+        blockType: "image",
+        image: heroAsset.id,
+        caption: "Editor supplied artwork",
       },
       {
         blockType: "cards",
@@ -267,6 +290,24 @@ try {
     ignoreHTTPSErrors: true,
   });
   const page = await context.newPage();
+  // Studio session/quote must work behind TLS termination without APP_ORIGIN.
+  await page.goto(origin + "/studio");
+  await page.getByText("€12.50", { exact: true }).waitFor();
+  assert.equal(
+    await page
+      .getByText("Request origin is not allowed.", { exact: true })
+      .count(),
+    0,
+  );
+  const csrf = await context.request.post(origin + "/api/session", {
+    headers: { origin: "https://evil.example" },
+  });
+  assert.equal(csrf.status(), 403);
+  const missingStudioOrigin = await fetch(origin + "/api/session", {
+    method: "POST",
+    headers: { authorization: basic },
+  });
+  assert.equal(missingStudioOrigin.status, 403);
   await page.goto(origin + "/admin/login");
   // RootLayout does not import Payload's CSS for the application.
   const styles = await page
@@ -359,7 +400,7 @@ try {
   // Authenticated CMS staff does not become the owner of private customer files.
   assert.equal(
     (await context.request.get(origin + "/api/admin")).status(),
-    401,
+    403, // The Studio visit created a customer session, never an admin session.
   );
   assert.equal(
     (await context.request.get(origin + "/not-a-supported-page")).status(),
@@ -389,6 +430,48 @@ try {
   await page.getByText("Editable card copy", { exact: true }).waitFor();
   assert.equal(
     await page
+      .locator(".marketing-header")
+      .getByRole("link", { name: "Go to studio" })
+      .getAttribute("href"),
+    "/studio",
+  );
+  assert.equal(
+    await page
+      .locator(".marketing-header")
+      .getByRole("link", { name: "Contact the team" })
+      .count(),
+    0,
+  );
+  assert.equal(
+    await page
+      .locator("footer")
+      .getByRole("link", { name: "Contact the team" })
+      .getAttribute("href"),
+    "/contact",
+  );
+  assert.equal(
+    await page
+      .locator("footer")
+      .getByRole("link", { name: "Questions" })
+      .getAttribute("href"),
+    "/faq",
+  );
+
+  const heroImage = page.getByRole("img", {
+    name: "Published concert artwork",
+  });
+  assert.match(
+    (await heroImage.getAttribute("src")) || "",
+    /^\/api\/cms\/cms-assets\/file\//,
+  );
+  assert.ok(
+    await heroImage.evaluate(
+      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
+    ),
+  );
+  assert.equal(await page.locator(".concert-artwork").count(), 1);
+  assert.equal(
+    await page
       .getByRole("heading", { name: "Make your artist sing.", exact: true })
       .count(),
     0,
@@ -400,7 +483,7 @@ try {
     403,
   );
   console.log(
-    "PASS: HTTPS proxy, protected/applied Payload CSS, exact Origin rejection diagnostics, wrong-password rejection, secure-cookie login, staging protection, registration denial, CSRF, real Payload browser login, publishing, draft preview, XSS escaping, secure session flags and legacy admin isolation.",
+    "PASS: CMS hero asset and editable navigation, Studio HTTPS origin fallback/CSRF, HTTPS proxy, protected/applied Payload CSS, exact Origin rejection diagnostics, wrong-password rejection, secure-cookie login, staging protection, registration denial, CSRF, real Payload browser login, publishing, draft preview, XSS escaping, secure session flags and legacy admin isolation.",
   );
 } catch (error) {
   console.error(log.slice(-3000));

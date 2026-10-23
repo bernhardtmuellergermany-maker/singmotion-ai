@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  ArrowLeft,
   AudioLines,
   Check,
   ChevronDown,
@@ -57,7 +56,6 @@ export function Studio() {
   const [draft, setDraft] = useState<Draft>(initial),
     [ready, setReady] = useState(false),
     [sessionOwner, setSessionOwner] = useState(""),
-    [step, setStep] = useState(1),
     [showArtists, setShowArtists] = useState(false),
     [busy, setBusy] = useState(false),
     [uploading, setUploading] = useState(false),
@@ -200,46 +198,9 @@ export function Studio() {
       setBusy(false);
     }
   }
-  const canNext =
-    step === 1 ? !!song && validSegment : step === 2 ? !!imageId : true;
   return (
-    <div className="studio-page" id="content">
-      <div className="page-heading studio-heading">
-        <div>
-          <span className="eyebrow">THE STUDIO</span>
-          <h1>
-            Make it yours<span className="heading-dot">.</span>
-          </h1>
-          <p>Your music. Your artist. A little direction.</p>
-        </div>
-        <span className="studio-mode">Demo workspace · no live AI renders</span>
-      </div>
-      <nav className="mobile-steps" aria-label="Creation steps">
-        {["Music", "Artist", "Create"].map((label, i) => (
-          <button
-            key={label}
-            aria-current={step === i + 1 ? "step" : undefined}
-            onClick={() => {
-              setStep(i + 1);
-              if (window.matchMedia("(min-width: 901px)").matches)
-                document
-                  .getElementById(`studio-step-${i + 1}`)
-                  ?.scrollIntoView({
-                    block: "start",
-                    behavior: window.matchMedia(
-                      "(prefers-reduced-motion: reduce)",
-                    ).matches
-                      ? "instant"
-                      : "smooth",
-                  });
-            }}
-            className={step === i + 1 ? "current" : step > i + 1 ? "done" : ""}
-          >
-            <span>{step > i + 1 ? <Check size={14} /> : i + 1}</span>
-            {label}
-          </button>
-        ))}
-      </nav>
+    <div className="studio-page continuous-studio" id="content">
+      <h1 className="sr-only">Create your music video</h1>
       {error && (
         <div role="alert" className="error">
           {error}
@@ -247,10 +208,7 @@ export function Studio() {
       )}
       <div className="studio-grid">
         <div className="editor">
-          <section
-            id="studio-step-1"
-            className={`editor-section mobile-step ${step === 1 ? "visible" : ""}`}
-          >
+          <section id="studio-step-1" className="editor-section">
             <div className="step-title">
               <span className="step-number">1</span>
               <h2>Upload your song</h2>
@@ -277,6 +235,18 @@ export function Studio() {
                     {(song.bytes / 1024 / 1024).toFixed(1)} MB
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="icon-button remove-song"
+                  aria-label="Remove song from draft"
+                  disabled={uploading}
+                  onClick={() => {
+                    update({ song: null, start: 0, end: 10 });
+                    if (fileInput.current) fileInput.current.value = "";
+                  }}
+                >
+                  <X size={18} />
+                </button>
                 <button
                   className="button outline small"
                   disabled={uploading}
@@ -358,10 +328,7 @@ export function Studio() {
               </p>
             )}
           </section>
-          <section
-            id="studio-step-2"
-            className={`editor-section mobile-step ${step === 2 ? "visible" : ""}`}
-          >
+          <section id="studio-step-2" className="editor-section">
             <div className="step-title">
               <span className="step-number">2</span>
               <h2>Choose your artist</h2>
@@ -404,35 +371,15 @@ export function Studio() {
               best.
             </p>
           </section>
-          <section
-            id="studio-step-3"
-            className={`editor-section mobile-step ${step === 3 ? "visible" : ""}`}
-          >
+          <section id="studio-step-3" className="editor-section">
             <div className="step-title">
               <span className="step-number">3</span>
-              <h2>Shape the performance</h2>
+              <h2>Performance &amp; camera</h2>
             </div>
-            <fieldset className="performance-presets">
-              <legend>Performance</legend>
-              {performances.map((p) => (
-                <label key={p} className={performance === p ? "selected" : ""}>
-                  <input
-                    type="radio"
-                    name="performance"
-                    value={p}
-                    checked={performance === p}
-                    onChange={() => {
-                      update({ performance: p });
-                      if (p === "Custom") setAdvanced(true);
-                    }}
-                  />
-                  {p}
-                </label>
-              ))}
-            </fieldset>
-            <p className="field-note">
-              Choose a starting point. Performance directions are guidance, not
-              guaranteed controls.
+            <p className="direction-defaults">
+              {customPrompt.trim()
+                ? "Custom performance direction"
+                : `${performance} performance · ${camera}`}
             </p>
             <button
               className="advanced-toggle"
@@ -448,6 +395,27 @@ export function Studio() {
               className="custom-prompt"
               hidden={!advanced}
             >
+              <fieldset className="performance-presets">
+                <legend>Performance</legend>
+                {performances.map((p) => (
+                  <label
+                    key={p}
+                    className={performance === p ? "selected" : ""}
+                  >
+                    <input
+                      type="radio"
+                      name="performance"
+                      value={p}
+                      checked={performance === p}
+                      onChange={() => {
+                        update({ performance: p });
+                        if (p === "Custom") setAdvanced(true);
+                      }}
+                    />
+                    {p}
+                  </label>
+                ))}
+              </fieldset>
               <label className="camera-field">
                 Camera direction
                 <div className="select-wrap">
@@ -492,7 +460,7 @@ export function Studio() {
             </div>
           </section>
         </div>
-        <div className={`preview-column ${step === 3 ? "mobile-review" : ""}`}>
+        <div className="preview-column mobile-review">
           <div className="generation-summary">
             <div className="summary-heading">
               <span className="eyebrow">YOUR SELECTION</span>
@@ -574,22 +542,6 @@ export function Studio() {
             </p>
           </div>
         </div>
-      </div>
-      <div className="mobile-step-actions">
-        {step > 1 && (
-          <button className="button outline" onClick={() => setStep(step - 1)}>
-            <ArrowLeft size={16} /> Back
-          </button>
-        )}
-        {step < 3 && (
-          <button
-            className="button primary"
-            disabled={!canNext}
-            onClick={() => setStep(step + 1)}
-          >
-            Continue <ArrowRight size={16} />
-          </button>
-        )}
       </div>
       <dialog
         ref={dialog}

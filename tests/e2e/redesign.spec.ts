@@ -55,6 +55,18 @@ test("homepage clearly labels availability, stays responsive and passes accessib
     page.getByText("Live AI rendering is not enabled", { exact: false }),
   ).toBeVisible();
   await expect(page.locator("video")).toHaveCount(0);
+  await expect(page.locator(".marketing-header a")).toHaveCount(2);
+  await expect(
+    page
+      .getByRole("navigation", { name: "Website navigation" })
+      .getByRole("link", { name: "Open studio" }),
+  ).toBeVisible();
+  await expect(page.locator(".concert-artwork img")).toBeVisible();
+  await expect(
+    page.getByText("Concept artwork · Not a generated SingMotion result", {
+      exact: true,
+    }),
+  ).toBeVisible();
   await expect(
     page.getByText("Future feature · not available.", { exact: false }),
   ).toHaveCount(2);
@@ -76,7 +88,17 @@ test("studio has a compact three-step flow with precise mouse/touch trimming and
 }, info) => {
   await page.goto("/studio");
   await expect(page.getByText("€12.50")).toBeVisible();
-  await expect(page.locator(".preview-empty, .preview-frame")).toHaveCount(0);
+  await expect(
+    page.locator(
+      ".preview-empty, .preview-frame, .mobile-steps, .studio-heading",
+    ),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "Performance & camera" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Choose your artist", exact: true }),
+  ).toBeVisible();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: path.join(screenshots, `after-studio-${info.project.name}.png`),
@@ -119,8 +141,6 @@ test("studio has a compact three-step flow with precise mouse/touch trimming and
     Number(await page.getByLabel("Start seconds").inputValue()),
   ).toBeCloseTo(2, 1);
   await page.getByLabel("Start seconds").fill("1.25");
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Who’s taking the stage?" }).click();
   await page.getByRole("button", { name: "Add artist", exact: true }).click();
   await page.getByLabel("Artist name").fill("Reference study");
@@ -136,18 +156,28 @@ test("studio has a compact three-step flow with precise mouse/touch trimming and
       path: path.join(screenshots, "after-studio-artist-mobile.png"),
       fullPage: true,
     });
-    await page.getByRole("button", { name: "Continue" }).click();
   }
   await expect(page.getByLabel("Custom Performance Prompt")).toBeHidden();
   await expect(page.getByLabel("Camera direction")).toBeHidden();
-  await page.getByRole("radio", { name: "Natural", exact: true }).check();
-  await page.getByRole("radio", { name: "Natural", exact: true }).focus();
+  await expect(
+    page.getByRole("radio", { name: "Natural", exact: true }),
+  ).toBeHidden();
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
     path: path.join(screenshots, `after-studio-ready-${info.project.name}.png`),
     fullPage: true,
   });
+  if (info.project.name === "mobile") {
+    await page.screenshot({
+      path: path.join(screenshots, "studio-mobile-editor.png"),
+    });
+    await page.locator(".generation-summary").scrollIntoViewIfNeeded();
+    await page.screenshot({
+      path: path.join(screenshots, "studio-mobile-summary.png"),
+    });
+  }
   await accessible(page);
+  await page.getByRole("button", { name: "Advanced settings" }).click();
   await page.getByRole("radio", { name: "Custom", exact: true }).check();
   await expect(
     page.getByRole("button", { name: "Advanced settings" }),
@@ -166,4 +196,14 @@ test("studio has a compact three-step flow with precise mouse/touch trimming and
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBe(width);
   }
+  await page.getByRole("button", { name: "Remove song from draft" }).click();
+  await expect(
+    page.getByRole("button", { name: "Drop your song here", exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Generate demo video" }),
+  ).toBeDisabled();
+  await expect(page.locator(".artist-selection img")).toBeVisible();
+  await page.getByLabel("Upload song").setInputFiles(song);
+  await expect(page.getByLabel("Start seconds")).toHaveValue("0");
 });

@@ -29,16 +29,16 @@ export const homePage: Page = {
       heading: "One image. Your music. A new performance.",
       items: [
         {
-          heading: "Bring your music",
-          body: "Upload your song and find its best moment. Trim the exact section you want to bring to life.",
+          heading: "Upload your song",
+          body: "Choose an MP3 or WAV and select the exact section you want.",
         },
         {
           heading: "Choose your artist",
-          body: "Start with a single portrait you have permission to use. Your saved artists are always close at hand.",
+          body: "Upload your singer image or select a saved artist.",
         },
         {
-          heading: "Give it direction",
-          body: "Choose a performance style, review your selection and explore the clearly labeled demo.",
+          heading: "Create your video",
+          body: "Prepare your music and image for a singing performance. Explore the simulated demo while live rendering is disabled.",
         },
       ],
     },

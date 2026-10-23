@@ -198,6 +198,9 @@ export interface Page {
             blockType: 'cards';
           }
         | {
+            /**
+             * On Home, place this Image block immediately after Hero (or its secondary CTA) to replace hero artwork. Public marketing assets only; never upload customer media.
+             */
             image: number | CmsAsset;
             caption?: string | null;
             id?: string | null;

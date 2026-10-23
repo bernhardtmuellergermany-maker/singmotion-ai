@@ -1,3 +1,4 @@
+import path from "node:path";
 import { homePage } from "../cms/home-page.ts";
 import { getPayload } from "payload";
 import config from "../payload.config.ts";
@@ -44,7 +45,21 @@ try {
         body: "SingMotion is a private demonstration. Live AI generation, payments and customer accounts are not enabled. Review all business and legal information before publishing.",
       },
     ];
-    if (slug === "home") blocks = homePage.blocks;
+    if (slug === "home") {
+      const artwork = await payload.create({
+        collection: "cms-assets",
+        data: {
+          alt: "Concept artwork: a singer with music and artist cards in purple and blue stage lighting.",
+        },
+        filePath: path.resolve("public/artwork/singmotion-concert-concept.png"),
+      });
+      blocks = [...(homePage.blocks || [])];
+      blocks.splice(2, 0, {
+        blockType: "image",
+        image: artwork.id,
+        caption: "SingMotion creative concept",
+      });
+    }
     await payload.create({
       collection: "pages",
       draft: true,
@@ -64,11 +79,7 @@ try {
       slug: "site-navigation",
       data: {
         header: {
-          links: [
-            { label: "Pricing", url: "/pricing" },
-            { label: "FAQ", url: "/faq" },
-            { label: "About", url: "/about" },
-          ],
+          links: [{ label: "Open studio", url: "/studio" }],
         },
         footer: {
           links: ["privacy", "terms", "legal", "rights", "contact"].map(

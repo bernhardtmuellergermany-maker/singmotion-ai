@@ -53,8 +53,6 @@ test("complete private demo workflow, persistent artist and project, preview and
     )
     .toBeGreaterThanOrEqual(2);
   await page.getByRole("button", { name: "Preview selection" }).click();
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Who’s taking the stage?" }).click();
   await page.getByRole("button", { name: "Add artist", exact: true }).click();
   await page.getByLabel("Artist name").fill("Test Artist");
@@ -63,8 +61,6 @@ test("complete private demo workflow, persistent artist and project, preview and
   await expect(
     page.getByText("Test Artist", { exact: true }).first(),
   ).toBeVisible();
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Advanced settings" }).click();
   await page
     .getByLabel("Custom Performance Prompt")

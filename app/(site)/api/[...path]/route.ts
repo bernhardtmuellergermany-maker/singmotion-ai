@@ -1,3 +1,4 @@
+import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
 import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
@@ -47,10 +48,12 @@ const json = (v: unknown, status = 200) =>
     },
   });
 function requireOrigin(req: NextRequest) {
-  // Next may use its bind address in nextUrl; compare the actual request host.
-  const expected =
-    process.env.APP_ORIGIN ||
-    `${req.nextUrl.protocol}//${req.headers.get("host")}`;
+  const expected = applicationOrigin(req.url, req.headers.get("host"));
+  if (!expected)
+    throw new AppError(
+      "Application origin is not configured. Contact the administrator.",
+      503,
+    );
   if (req.headers.get("origin") !== expected)
     throw new AppError("Request origin is not allowed.", 403);
 }

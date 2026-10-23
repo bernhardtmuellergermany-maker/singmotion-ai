@@ -4,7 +4,7 @@ import { parseStudioDraft } from "../../lib/studio-draft";
 
 test("restored Studio draft exports locally without posting a job or leaking asset paths", async ({
   page,
-}, info) => {
+}) => {
   const owner = "offline-owner";
   const draft = {
     song: {
@@ -56,10 +56,6 @@ test("restored Studio draft exports locally without posting a job or leaking ass
     draft,
   );
   await page.goto("/studio");
-  if (info.project.name === "mobile") {
-    await page.getByRole("button", { name: "Continue" }).click();
-    await page.getByRole("button", { name: "Continue" }).click();
-  }
   const button = page.getByRole("button", {
     name: "Export draft for offline review",
   });

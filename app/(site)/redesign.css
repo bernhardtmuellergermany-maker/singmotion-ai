@@ -1412,3 +1412,202 @@ summary:focus-visible {
 .mobile-nav a {
   color: #64687d;
 }
+
+/* Compact, continuous editor and replaceable concert artwork. */
+.premium-site .marketing-header {
+  justify-content: space-between;
+}
+.premium-site .marketing-header nav {
+  display: flex;
+  margin-left: auto;
+}
+.premium-site .hero {
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 36px;
+  padding: 40px 0 42px;
+}
+.premium-site .hero h1 {
+  font-size: clamp(44px, 4.5vw, 66px);
+}
+.concert-artwork {
+  margin: 0;
+  min-width: 0;
+}
+.concert-artwork img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 18px;
+  box-shadow: 0 18px 44px #19103820;
+}
+.concert-artwork figcaption {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #626579;
+  margin-top: 12px;
+}
+.premium-site .compact-how {
+  padding: 32px 0 40px;
+}
+.premium-site .compact-how h2 {
+  font-size: 25px;
+  margin-bottom: 18px;
+}
+.premium-site .compact-how .feature-grid {
+  margin-top: 18px;
+}
+.premium-site .compact-how article {
+  padding: 22px;
+}
+.premium-site .compact-how .card-index {
+  margin-bottom: 14px;
+}
+.focused-shell .app-main {
+  max-width: 1440px;
+  padding: 26px 32px 48px;
+}
+.continuous-studio .studio-grid {
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 24px;
+}
+.continuous-studio .editor-section {
+  padding: 24px;
+  margin-bottom: 18px;
+}
+.continuous-studio .step-title {
+  margin-bottom: 18px;
+}
+.continuous-studio .upload-zone {
+  min-height: 185px;
+  padding: 24px;
+}
+.continuous-studio .direction-defaults {
+  color: #51556d;
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.continuous-studio .advanced-toggle {
+  margin-top: 10px;
+}
+.continuous-studio .performance-presets {
+  margin-bottom: 20px;
+}
+.continuous-studio .remove-song {
+  flex: 0 0 44px;
+  min-width: 44px;
+  min-height: 44px;
+}
+.continuous-studio .preview-column {
+  display: block;
+}
+.continuous-studio .generation-summary {
+  padding: 24px;
+}
+@media (min-width: 1200px) {
+  .focused-shell {
+    grid-template-columns: 250px minmax(0, 1fr) auto;
+    grid-template-rows: 80px 1fr;
+    position: relative;
+  }
+  .focused-shell .app-header {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: 0 32px;
+  }
+  .focused-shell .sidebar {
+    grid-column: 2;
+    grid-row: 1;
+    z-index: 1;
+    align-self: center;
+    justify-self: start;
+    padding: 0;
+    background: transparent;
+    border: 0;
+  }
+  .focused-shell .sidebar .nav-link {
+    padding: 10px 12px;
+  }
+  .focused-shell .app-main {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 900px) {
+  .premium-site .hero {
+    grid-template-columns: 1fr;
+    gap: 26px;
+    padding: 28px 0;
+  }
+  .concert-artwork {
+    max-width: 680px;
+    width: 100%;
+    margin: 0 auto;
+  }
+  .focused-shell .app-main {
+    padding: 20px 20px 96px;
+  }
+  .continuous-studio .studio-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .continuous-studio .editor-section {
+    display: block;
+    padding: 22px;
+  }
+  .continuous-studio .step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .continuous-studio .preview-column {
+    display: block;
+    position: static;
+  }
+  .continuous-studio .generation-summary {
+    position: static;
+    margin-top: 0;
+  }
+}
+@media (max-width: 480px) {
+  .premium-site .hero h1 {
+    font-size: 46px;
+  }
+  .premium-site .hero-copy > p {
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .premium-site .hero .hero-trust {
+    font-size: 12px;
+  }
+  .premium-site .compact-how article {
+    padding: 18px;
+  }
+  .focused-shell .app-main {
+    padding: 16px 12px 96px;
+  }
+  .continuous-studio .editor-section {
+    padding: 18px 14px;
+  }
+  .continuous-studio .step-title h2 {
+    font-size: 18px;
+  }
+  .continuous-studio .step-number {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+  }
+  .continuous-studio .file-card {
+    gap: 8px;
+    padding: 12px 8px;
+  }
+  .continuous-studio .file-card > svg {
+    display: none;
+  }
+  .continuous-studio .file-card .button {
+    padding: 10px;
+  }
+  .continuous-studio .generation-summary {
+    padding: 20px;
+  }
+}
