@@ -21,7 +21,8 @@
     "byteplus:preflight": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-preflight.ts",
     "byteplus:live-test": "node --env-file-if-exists=.env.byteplus.local --experimental-strip-types scripts/byteplus-live-test.ts",
     "test:staging": "node scripts/test-staging.mjs",
-    "test:volume": "node scripts/test-volume.mjs"
+    "test:volume": "node scripts/test-volume.mjs",
+    "r2:check": "node --experimental-strip-types scripts/r2-connectivity.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",

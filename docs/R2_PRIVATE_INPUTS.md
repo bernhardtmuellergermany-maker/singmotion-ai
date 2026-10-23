@@ -60,3 +60,7 @@ Official Cloudflare pages were blocked by the Cloud egress proxy, so their offic
 Tests use fictional credentials and the real SDK serializer/signer with a mocked HTTP handler—no R2 network requests. They check exact uploaded bytes and headers, private object naming, independently recomputed GET signatures, rejection of PUT/object-path tampering, cross-owner/changed/unapproved inputs, cancellation before upload, partial failures, durable replay prevention, concurrent claims and the existing runner/provider integration. Normal staging, volume startup and desktop/mobile checks verify preservation of existing behavior.
 
 Validation: lint, typecheck, all 55 automated tests, production build, staging security checks, root-owned volume startup checks and all six desktop/mobile browser tests passed. No real R2 or BytePlus HTTP requests were made.
+
+## Optional manual connectivity check
+
+See [R2 connectivity check for Windows PowerShell](R2_CONNECTIVITY_CHECK.md). The isolated `npm run r2:check -- --confirm-r2-connectivity-test` command checks one tiny non-sensitive object in `connectivity-tests/` and cleans up only that confirmed-created object. It does not use approved customer snapshots or invoke BytePlus. Running it locally is an explicit network operation; implementation and automated tests use mocks only.
