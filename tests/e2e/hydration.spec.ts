@@ -44,7 +44,10 @@ test("empty waveform preserves identical pixel styles through hydration and clie
 
   // A client-only navigation must create the same CSS values, rather than merely
   // leaving server attributes untouched after a hydration mismatch.
-  await page.getByRole("link", { name: "SingMotion AI", exact: true }).click();
+  await page
+    .getByRole("banner")
+    .getByRole("link", { name: "SingMotion AI", exact: true })
+    .click();
   await page.getByRole("link", { name: "Create your music video" }).click();
   await expect(
     page.getByRole("button", { name: "Drop your song here" }),

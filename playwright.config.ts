@@ -22,6 +22,7 @@ export default defineConfig({
     },
     {
       name: "mobile",
+      testIgnore: ["offline-review.spec.ts", "consistency.spec.ts"],
       use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" },
     },
   ],

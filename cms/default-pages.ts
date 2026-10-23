@@ -2,6 +2,52 @@ export const legacyPages: Record<
   string,
   { title: string; intro: string; sections: [string, string][] }
 > = {
+  pricing: {
+    title: "Illustrative pricing",
+    intro: "Explore the demo before live generation becomes available.",
+    sections: [
+      [
+        "Demo credits",
+        "Studio estimates use simulated demo credits. No payment is collected. Review the selected duration and estimate in Studio before creating a demo.",
+      ],
+      [
+        "Live pricing",
+        "Live AI generation and payments are not enabled. Production pricing will be published after provider billing and business requirements have been verified.",
+      ],
+    ],
+  },
+  faq: {
+    title: "Frequently asked questions",
+    intro: "What you can do in the SingMotion demo.",
+    sections: [
+      [
+        "Can I use my own music and artist image?",
+        "Upload MP3 or WAV audio, select an excerpt with the waveform editor, and choose a saved artist or upload a reference image. Only use content you own or have permission to use.",
+      ],
+      [
+        "Does the demo animate my artist?",
+        "The demo result is a fixed labeled sample video. It does not animate your image or use your song. Live AI rendering remains disabled.",
+      ],
+      [
+        "Where can I find upload guidance?",
+        "Help & Tips explains supported uploads, precise trimming and performance direction. Your projects and artists remain available in your private demo session.",
+      ],
+    ],
+  },
+  about: {
+    title: "A studio in the making.",
+    intro: "Your music. Your artist. Your performance.",
+    sections: [
+      [
+        "Made for the music you make",
+        "SingMotion brings audio selection, artist references and performance direction into one workspace. Our focus is expressive motion, natural stage presence and the emotion in your music.",
+      ],
+      [
+        "Current availability",
+        "SingMotion is a private demonstration. Live AI generation, payments and customer accounts are not enabled.",
+      ],
+    ],
+  },
   help: {
     title: "A good performance starts here.",
     intro: "A few small choices can make a big difference.",

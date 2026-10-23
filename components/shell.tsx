@@ -2,17 +2,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  House,
-  FolderOpen,
-  Star,
-  CreditCard,
-  Settings,
-  CircleHelp,
-  UserRound,
-  ArrowUpRight,
-} from "lucide-react";
-import { Brand } from "./brand";
+import { House, FolderOpen, Star, CreditCard, UserRound } from "lucide-react";
+import { SiteHeader } from "./site-header";
+import { SiteFooter } from "./site-footer";
 import { api, ensureSession } from "@/lib/client";
 import { money } from "@/lib/domain";
 const links = [
@@ -41,78 +33,42 @@ export function Shell({ children }: { children: React.ReactNode }) {
     };
   }, []);
   return (
-    <div
-      className={`app-shell ${pathname === "/studio" ? "focused-shell" : ""}`}
-    >
-      <header className="app-header">
-        <Brand />
-        <div className="header-right">
-          <span className="demo-badge">Demo workspace</span>
-          <Link href="/billing" className="credit-label">
-            Demo credits{" "}
-            <strong>{balance === null ? "—" : money(balance)}</strong>
-          </Link>
-          <Link
-            href="/settings"
-            className="avatar"
-            aria-label="Account settings"
-          >
-            <UserRound size={21} />
-          </Link>
-        </div>
-      </header>
-      <aside className="sidebar">
-        <nav aria-label="Main navigation">
-          {links.map(([href, label, Icon]) => (
+    <div className="unified-app">
+      <SiteHeader
+        navigation={
+          <nav className="app-navigation" aria-label="Main navigation">
+            {links.map(([href, label, Icon]) => (
+              <Link
+                href={href}
+                key={href}
+                aria-current={pathname.startsWith(href) ? "page" : undefined}
+                className={pathname.startsWith(href) ? "active" : ""}
+              >
+                <Icon size={19} />
+                <span>{label}</span>
+              </Link>
+            ))}
+          </nav>
+        }
+        actions={
+          <>
+            <span className="demo-badge header-demo">Demo workspace</span>
+            <Link href="/billing" className="header-credits">
+              <span>Demo credits</span>
+              <strong>{balance === null ? "—" : money(balance)}</strong>
+            </Link>
             <Link
-              href={href}
-              key={href}
-              className={
-                pathname.startsWith(href) ? "nav-link active" : "nav-link"
-              }
+              href="/settings"
+              className="header-profile"
+              aria-label="Account settings"
             >
-              <Icon size={20} />
-              <span>{label}</span>
+              <UserRound size={22} />
             </Link>
-          ))}
-        </nav>
-        <div className="sidebar-bottom">
-          <div className="sidebar-note">
-            <span className="eyebrow">A LITTLE INSPIRATION</span>
-            <p>
-              Your music.
-              <br />
-              Your artist.
-              <br />
-              Your performance.
-            </p>
-            <Link href="/help">
-              Make something yours <ArrowUpRight size={14} />
-            </Link>
-          </div>
-          <Link href="/settings" className="nav-link">
-            <Settings size={19} />
-            <span>Settings</span>
-          </Link>
-          <Link href="/help" className="nav-link">
-            <CircleHelp size={19} />
-            <span>Help & Tips</span>
-          </Link>
-        </div>
-      </aside>
+          </>
+        }
+      />
       <main className="app-main">{children}</main>
-      <nav className="mobile-nav" aria-label="Mobile navigation">
-        {links.map(([href, label, Icon]) => (
-          <Link
-            href={href}
-            key={href}
-            className={pathname.startsWith(href) ? "active" : ""}
-          >
-            <Icon size={20} />
-            <span>{label.replace("My ", "")}</span>
-          </Link>
-        ))}
-      </nav>
+      <SiteFooter />
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ArrowRight, ArrowUpRight, LockKeyhole } from "lucide-react";
 
-import { Brand } from "../brand";
+import { SiteHeader } from "../site-header";
+import { SiteFooter, defaultFooterLinks } from "../site-footer";
 import { navigation } from "../../cms/content";
 import { safeLink } from "../../cms/policy";
 // Deliberately no raw HTML, arbitrary CSS, scripts, or remote image URLs.
@@ -43,65 +44,25 @@ export async function Website({
   };
   // Informational header links are retained in the footer, including custom URLs.
   const infoLinks = headerLinks.filter((item) => item.url !== "/studio");
-  const defaults = [
-    { label: "How it works", url: "/#how" },
-    ...[
-      "faq",
-      "help",
-      "contact",
-      "pricing",
-      "about",
-      "privacy",
-      "terms",
-      "legal",
-      "rights",
-    ].map((p) => ({
-      label:
-        p === "faq"
-          ? "FAQ"
-          : p === "legal"
-            ? "Legal notice"
-            : p.charAt(0).toUpperCase() + p.slice(1),
-      url: `/${p}`,
-    })),
-  ];
   const footerLinks = [
     ...infoLinks,
     ...(nav?.footer?.links || []),
-    ...defaults,
+    ...defaultFooterLinks,
   ].filter(
     (item, i, all) => all.findIndex((other) => other.url === item.url) === i,
   );
-  const links = (items: unknown) =>
-    Array.isArray(items)
-      ? items.map((item: { label: string; url: string }, i: number) =>
-          safeLink(item.url) ? (
-            <Link key={i} href={item.url}>
-              {item.label}
-            </Link>
-          ) : null,
-        )
-      : null;
   return (
-    <div
-      className={`marketing premium-site ${isHome ? "home-site" : ""}`}
-      id="content"
-    >
-      <header className="marketing-header">
-        <Brand />
-        <nav aria-label="Website navigation">
-          <Link className="button subtle" href={studioLink.url}>
-            {studioLink.label}
-          </Link>
-        </nav>
-      </header>
-      <main>
-        {isHome && (
-          <div className="availability-note">
-            <span className="status-dot" /> Private demo available{" "}
-            <span>·</span> Live AI rendering is not enabled
-          </div>
-        )}
+    <div className={`marketing premium-site ${isHome ? "home-site" : ""}`}>
+      <SiteHeader
+        actions={
+          <nav aria-label="Website navigation">
+            <Link className="button subtle" href={studioLink.url}>
+              {studioLink.label}
+            </Link>
+          </nav>
+        }
+      />
+      <main id="content">
         {preview && <p role="status">Private draft preview — not published.</p>}
         {!page.blocks?.length && (
           <section className="hero">
@@ -117,7 +78,14 @@ export async function Website({
           switch (b.blockType) {
             case "hero":
               return (
-                <section className="hero" key={i}>
+                <section
+                  className={
+                    isHome && i === 0
+                      ? "hero cinematic-hero"
+                      : "hero content-hero"
+                  }
+                  key={i}
+                >
                   <div className="hero-copy">
                     <span className="eyebrow">{b.eyebrow}</span>
                     <h1>{b.heading}</h1>
@@ -137,34 +105,42 @@ export async function Website({
                       )}
                     </div>
                     {isHome && (
+                      <p className="hero-availability">
+                        Private demo available · Live AI rendering is not
+                        enabled
+                      </p>
+                    )}
+                    {isHome && (
                       <p className="hero-trust">
                         <LockKeyhole size={14} /> Private uploads. No payment
                         required for the demo.
                       </p>
                     )}
                   </div>
-                  <figure className="concert-artwork">
-                    <img
-                      src={
-                        artwork?.filename
-                          ? `/api/cms/cms-assets/file/${encodeURIComponent(artwork.filename)}`
-                          : "/artwork/singmotion-concert-concept.png"
-                      }
-                      alt={
-                        artwork?.alt ||
-                        "Concept artwork: singer in purple and blue stage lighting with music and artist cards."
-                      }
-                      width={1672}
-                      height={941}
-                      fetchPriority="high"
-                    />
-                    <figcaption>
-                      {artworkBlock?.caption && (
-                        <span>{artworkBlock.caption} · </span>
-                      )}
-                      Concept artwork · Not a generated SingMotion result
-                    </figcaption>
-                  </figure>
+                  {isHome && i === 0 && (
+                    <figure className="concert-artwork">
+                      <img
+                        src={
+                          artwork?.filename
+                            ? `/api/cms/cms-assets/file/${encodeURIComponent(artwork.filename)}`
+                            : "/artwork/singmotion-concert-concept.png"
+                        }
+                        alt={
+                          artwork?.alt ||
+                          "Concept artwork: singer in purple and blue stage lighting with music and artist cards."
+                        }
+                        width={1672}
+                        height={941}
+                        fetchPriority="high"
+                      />
+                      <figcaption>
+                        {artworkBlock?.caption && (
+                          <span>{artworkBlock.caption} · </span>
+                        )}
+                        Concept artwork · Not a generated SingMotion result
+                      </figcaption>
+                    </figure>
+                  )}
                 </section>
               );
             case "cards":
@@ -222,11 +198,7 @@ export async function Website({
           }
         })}
       </main>
-      <footer>
-        <Brand />
-        <div>{links(footerLinks)}</div>
-        <small>{nav?.copyright || "SingMotion AI · Development preview"}</small>
-      </footer>
+      <SiteFooter links={footerLinks} copyright={nav?.copyright || undefined} />
     </div>
   );
 }
