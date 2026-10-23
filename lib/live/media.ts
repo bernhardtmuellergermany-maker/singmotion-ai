@@ -1,4 +1,8 @@
-import { validateOmniImage, validateOmniAudio } from "./limits.ts";
+import {
+  validateOmniImage,
+  validateOmniAudio,
+  validateEncodedDuration,
+} from "./limits.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import { stat, realpath, mkdir, copyFile, unlink } from "node:fs/promises";
@@ -90,10 +94,7 @@ export async function prepareExistingJob(
       bytes: (await stat(temp)).size,
       duration: durationSeconds,
     });
-    if (durationSeconds > Math.min(300, maxSeconds))
-      throw new Error(
-        "Encoded MP3 exceeds the live-test duration limit; select a shorter excerpt.",
-      );
+    validateEncodedDuration(durationSeconds, maxSeconds);
     audioSha256 = await sha256File(temp);
     audioPath = path.join(directory, `${selected.id}-${audioSha256}.mp3`);
     await copyFile(temp, audioPath, 1).catch(async (error) => {

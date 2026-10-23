@@ -103,3 +103,27 @@ The UI's illustrative EUR quote is never used as a BytePlus USD cost ceiling.
 See [paid-test readiness](BYTEPLUS_TEST_READINESS.md) for the evidence needed
 before any future authorization. This offline rehearsal neither grants that
 authorization nor changes Railway, R2, billing or deployment settings.
+
+## Cross-platform MP3 duration regression
+
+The earlier offline test incorrectly assumed every 5-second selection would
+produce an MP3 measured above 5 seconds. MP3 frame granularity, encoder delay/
+padding metadata and FFmpeg/ffprobe builds can affect reported duration. A
+successful preparation at a 5-second cap is valid when the measured encoded
+duration is at or below 5; it does not indicate that the cap was bypassed.
+
+The real FFmpeg test now compares the outcome with independently probed duration,
+without assuming a positive padding amount or skipping any OS. The shared guard
+used by preflight has deterministic below-cap, exact-cap and above-cap tests,
+including 5.000001 seconds against a 5-second cap. There is no rounding, epsilon
+or additional allowance in cap enforcement. The existing 0.2-second trim-fidelity
+check is separate from this strict spending/duration guard.
+
+The cumulative mock-cost test also no longer assumes padding rounds a nominal
+5-second clip up to 6 billable seconds. Its cap is derived from the actual mock
+reservation, and in-memory ledger tests exercise both 5 and 5.04 seconds on every
+platform. All billing terms in these tests are fictional.
+
+Validation is run in the Cloud Linux environment; an actual Windows run is not
+available here. After pulling the branch, retry `npm.cmd run test:byteplus:offline`
+with Node 24 and FFmpeg/ffprobe available on PATH. No credentials are needed.

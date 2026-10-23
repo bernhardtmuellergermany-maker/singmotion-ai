@@ -27,6 +27,7 @@ import { prepareExistingJob, revalidateMedia } from "../lib/live/media.ts";
 import { LiveTestStore, confirmationPhrase } from "../lib/live/store.ts";
 import { liveTestConfig } from "../lib/live/config.ts";
 import { upperBoundMicroUsd } from "../lib/live/contract.ts";
+import { validateEncodedDuration } from "../lib/live/limits.ts";
 
 test("offline studio selection to real preflight CLI, immutable snapshots and mock approval", async (t) => {
   let networkAttempts = 0;
@@ -135,7 +136,7 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
       "mp3",
     );
     assert.equal(prepared.durationSeconds, Number(encoded.format.duration));
-    assert.ok(prepared.durationSeconds >= 5 && prepared.durationSeconds < 5.2);
+    assert.ok(Math.abs(prepared.durationSeconds - selection) <= 0.2);
     for (const [file, hash] of [
       [prepared.audioPath, prepared.audioSha256],
       [prepared.imagePath, prepared.imageSha256],
@@ -159,8 +160,17 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
       prepareExistingJob(job.id, "another-owner", 6),
       /not found/,
     );
-    // Requested 5 s fits, encoded MP3 padding does not. No temp clip may remain.
-    await assert.rejects(prepareExistingJob(job.id, owner, 5), /Encoded MP3/);
+    // FFmpeg builds may report exactly the selection, padding, or a slightly
+    // shorter duration. Assert the strict policy against independently probed
+    // output, not against an assumed padding amount. No OS-specific skip.
+    const measured = Number(encoded.format.duration);
+    if (measured > 5)
+      await assert.rejects(prepareExistingJob(job.id, owner, 5), /Encoded MP3/);
+    else {
+      const withinCap = await prepareExistingJob(job.id, owner, 5);
+      assert.equal(withinCap.durationSeconds, measured);
+      assert.ok(withinCap.durationSeconds <= 5);
+    }
     assert.equal(
       (await readdir(path.join(root, "media"))).some((name) =>
         name.startsWith("clip-"),
@@ -301,7 +311,7 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
       () =>
         ledger!.authorize(
           second.id,
-          mockConfig,
+          { ...mockConfig, maxTotalMicroUsd: cost * 2 - 1 },
           mockConfig.operatorSecret,
           confirmationPhrase(second),
         ),
@@ -332,3 +342,78 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
     await rm(root, { recursive: true, force: true });
   }
 });
+
+// Fixed measurements cover both sides of the cap on every OS, independently of
+// libmp3lame delay/padding and ffprobe duration-reporting differences.
+test("encoded-duration guard is strict below, at and above the cap", () => {
+  for (const duration of [4, 4.999999, 5])
+    assert.doesNotThrow(() => validateEncodedDuration(duration, 5));
+  for (const duration of [5.000001, 5.04, 5.2, NaN, Infinity, 0, -1])
+    assert.throws(() => validateEncodedDuration(duration, 5), /Encoded MP3/);
+  assert.doesNotThrow(() => validateEncodedDuration(300, 500));
+  assert.throws(() => validateEncodedDuration(300.000001, 500), /Encoded MP3/);
+  for (const cap of [NaN, Infinity, 0, -1])
+    assert.throws(() => validateEncodedDuration(5, cap), /Invalid/);
+});
+
+for (const duration of [5, 5.04]) {
+  test(`mock cumulative reservations reject a second approval at measured ${duration}s`, () => {
+    const store = new LiveTestStore(":memory:");
+    try {
+      const cost = upperBoundMicroUsd(duration, {
+        microUsdPerSecond: 100_000,
+        minimumBillableMs: 1000,
+        billingQuantumMs: 1000,
+        minimumChargeMicroUsd: 0,
+        fixedFeeMicroUsd: 0,
+        taxBasisPointsUpperBound: 0,
+      });
+      const config = {
+        ...liveTestConfig({}),
+        demoMode: false,
+        enabled: true,
+        operatorSecret: "fictional-offline-operator-secret-123456",
+        maxJobMicroUsd: cost,
+        maxTotalMicroUsd: cost * 2 - 1,
+      };
+      const prepare = () =>
+        store.prepare(
+          {
+            sourceJobId: randomUUID(),
+            owner: "fictional-owner",
+            audioPath: "unused.mp3",
+            imagePath: "unused.png",
+            audioSha256: "0".repeat(64),
+            imageSha256: "1".repeat(64),
+            durationSeconds: duration,
+            prompt: "Sing naturally.",
+            promptLanguageConfirmed: true,
+          },
+          "fictional-billing-only",
+          cost,
+        );
+      const first = prepare(),
+        second = prepare();
+      store.authorize(
+        first.id,
+        config,
+        config.operatorSecret,
+        confirmationPhrase(first),
+      );
+      assert.throws(
+        () =>
+          store.authorize(
+            second.id,
+            config,
+            config.operatorSecret,
+            confirmationPhrase(second),
+          ),
+        /Total live-test spending cap/,
+      );
+      assert.equal(store.get(first.id).state, "authorized");
+      assert.equal(store.get(second.id).state, "prepared");
+    } finally {
+      store.close();
+    }
+  });
+}

@@ -41,3 +41,19 @@ export function validateOmniAudio(info: {
   )
     throw new Error("Audio exceeds documented OmniHuman 2.0 audio limits.");
 }
+
+/** Apply the operator cap to the measured encoded duration, never the selection
+ * or a rounded display value. Encoder padding is not guaranteed on every build.
+ */
+export function validateEncodedDuration(duration: number, maxSeconds: number) {
+  if (!Number.isFinite(maxSeconds) || maxSeconds <= 0)
+    throw new Error("Invalid live-test duration limit.");
+  if (
+    !Number.isFinite(duration) ||
+    duration <= 0 ||
+    duration > Math.min(300, maxSeconds)
+  )
+    throw new Error(
+      "Encoded MP3 exceeds the live-test duration limit; select a shorter excerpt.",
+    );
+}
