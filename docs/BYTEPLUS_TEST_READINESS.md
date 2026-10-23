@@ -1,0 +1,126 @@
+# One future paid OmniHuman 2.0 test: readiness review
+
+Live generation remains disabled. This review makes no BytePlus or R2 requests,
+changes no Railway settings and does not authorize a test.
+
+## Evidence and limits
+
+- Owner-confirmed R2 connectivity result: `ok: true`, `stage: complete`,
+  `cleanup: deleted`. Private PUT, authenticated GET, temporary GET capability
+  and both SHA-256 checks succeeded. This verifies the owner's connectivity
+  path, not BytePlus fetching, bucket-policy auditing or a retention rule.
+- Owner-confirmed Business Account rate: **USD 0.07/second before tax**, billed
+  according to actual usage. The equivalent rate is 70,000 microUSD/second.
+  Illustratively, exactly 4 seconds × $0.07 = $0.28 and 5 seconds = $0.35
+  before tax **if no minimum, rounding or other fees apply**. These are base-rate
+  arithmetic examples, not spending limits or payable quotes.
+- Re-read the supplied October 15, 2026 `BytePlus API.txt` (source hash in
+  [provider verification](PROVIDER_VERIFICATION.md)). It documents 4–300 seconds
+  of input audio, queued-task cancellation, a one-hour output URL lifetime and
+  possible task lookup expiry after 12 hours. It contains no billing rules;
+  “Pricing” appears as footer navigation, not terms. Four seconds is an input
+  minimum, not evidence of a billing minimum.
+- Access to the BytePlus documentation domain remains blocked by the Cloud
+  environment's proxy (CONNECT 403). No additional authoritative billing terms
+  were obtainable here. “Actual usage” does not define the meter or rounding.
+
+## Blocking evidence to obtain (no credentials needed)
+
+Ask BytePlus support/account documentation for account-specific OmniHuman **2.0**
+terms covering:
+
+1. Minimum billable duration and minimum monetary charge; billed duration basis
+   (uploaded/decoded audio, generated video, or another measure); duration and
+   currency rounding increments and order; fixed fees and applicable tax bounds.
+2. Whether validation errors, failed/expired tasks, queued cancellation,
+   cancellation races and uncertain submission outcomes are chargeable; maximum
+   charge per submitted task and when account charges settle. Do not infer that
+   failure or cancellation refunds anything.
+3. Whether signed S3 GET URLs are accepted; maximum queue wait, initial/last
+   input-fetch time, fetch retries/range requests/redirect behavior, and required
+   URL validity. The documented one-hour **output** lifetime says nothing about
+   the necessary **input** lifetime.
+4. Exact permitted HTTPS output hostnames and their ownership; whether redirects
+   are required; actual output dimensions, FPS, codecs, duration tolerance and
+   whether polling can refresh an expired output URL. Current 720p/25fps tests
+   are fictional fixtures, not model guarantees.
+
+Also finish the documented current Common Parameters/error/IAM review. Live
+account entitlement/signature acceptance can only be verified by a separately
+approved future request; deterministic signing already matches the pinned
+BytePlus SDK.
+
+## Safeguards and remaining implementation work
+
+The existing SQLite ledger reserves an inclusive worst-case amount atomically
+on approval. It retains reservations for success, failure, cancellation and
+uncertain outcomes; no automatic refund or resubmission exists. Submission now
+rechecks the current per-job and cumulative limits inside the transaction that
+consumes the token, so lowering a cap after approval blocks the request.
+Keep one durable ledger across runs/processes: recreating it would lose spending
+history. These are application admission limits, not a provider-enforced account
+spending cap. They cover generation only; R2 storage/operations and any other
+charges need separate consideration. Unknown inclusive billing still blocks.
+
+A reviewed `inputFetchWindowSeconds` is now required before input delivery.
+It must cover the confirmed queue/fetch/retry window plus an explicit safety
+margin. The lease must have at least that much time remaining immediately before
+submission. R2 still signs for at most 3600 seconds measured from before upload.
+There is no automatic renewal, reupload or paid resubmission. If the required
+window cannot fit, stop and review the private-delivery design; do not choose an
+arbitrary window merely to pass validation. Define object retention separately:
+URL expiry does not delete objects. No lifecycle setting is changed here.
+
+Output downloads require an exact reviewed hostname, HTTPS, no embedded
+credentials, no redirects, status 200, a 100 MiB cap and 120-second transfer
+signal. Cookies are explicitly omitted and caching disabled. Downloads request
+identity encoding, reject malformed/oversized lengths and encoded responses,
+verify declared length, and cancel the body if exclusive private-file creation
+fails. Partial/invalid files are removed; an existing file is never overwritten.
+MP4 structure, audio/video, duration, dimensions/FPS and FFmpeg decoding must
+validate before completion. Poll promptly to retrieve expiring results; a failed
+or expired download never triggers a new generation.
+
+The output allowlist remains unset. Exact-host checking alone does not pin DNS
+or exclude private addresses after DNS resolution. Before live wiring, review
+approved host ownership and enforce public-destination resolution/egress at the
+connection boundary (including rebinding protection). Do not replace this with
+wildcards or a separate DNS lookup followed by unpinned fetch. Codec guarantees
+also still need contract evidence; decoding is not proof of a vendor codec SLA.
+
+## Next operator steps
+
+1. Obtain the billing, fetch-window and output evidence above; retain the
+   non-secret source/version with the reviewed contract. R2 connectivity does
+   not need repeating solely for this code change.
+2. Complete a reviewed implementation of the contract, output destination policy
+   and isolated operator CLI. `assertBytePlusVerified()` and the production
+   transport remain hard-blocked; environment variables alone cannot unlock
+   them. The current CLI intentionally cannot submit a paid task.
+3. Keep Railway `DEMO_MODE=true`, `GENERATIONS_ENABLED=false`,
+   `ADMIN_DEMO_ENABLED=false`, `BYTEPLUS_LIVE_TEST_ENABLED=false`.
+   Use only a separate operator process for a future authorized test.
+4. Prepare one owned artist snapshot and one measured encoded MP3 excerpt of
+   at least 4 seconds, comfortably below the duration cap. Review the exact
+   English prompt, hashes, measured duration, confirmed billing revision and
+   inclusive cost ceiling. MP3 padding counts toward measured duration.
+5. Only after a new explicit authorization, use the server-only variables in
+   `.env.byteplus.example` and `docs/R2_PRIVATE_INPUTS.md` plus the same durable
+   `DATA_DIR`. Set reviewed positive `BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD`,
+   `BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD` and
+   `BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS`. Do not use $0.28 as an assumed cap.
+   Protect `BYTEPLUS_LIVE_TEST_OPERATOR_SECRET`; AK/SK remain server-side.
+6. The completed future CLI must display the plan and require the existing exact
+   `AUTHORIZE ONE PAID BYTEPLUS TEST <id> UP TO <amount> MICROUSD` confirmation.
+   Reserve once, submit once, persist the provider task ID, then poll that ID and
+   promptly download/validate. Reconcile ambiguous submissions manually; never
+   replay the token or reset the ledger. Review actual charges before further
+   authorization and return the isolated operator process to disabled settings.
+
+All new verification uses mocked HTTP and fictional terms; no real paid request
+has been made. The integration is not yet ready to authorize a paid submission.
+
+Validation for this change: `npm run lint`, `npm run typecheck` and `npm test`
+passed (80 automated tests). New regression coverage checks lowered cumulative
+caps, unknown/insufficient input leases, output length/encoding rejection and
+safe cancellation when private-file creation fails.

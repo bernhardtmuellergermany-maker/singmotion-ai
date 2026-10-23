@@ -172,7 +172,7 @@ export class LiveTestStore {
       return token;
     });
   }
-  claimSubmission(id: string, token: string): Attempt {
+  claimSubmission(id: string, token: string, config: LiveTestConfig): Attempt {
     return this.transaction(() => {
       const row = this.db
         .prepare(
@@ -192,6 +192,22 @@ export class LiveTestStore {
         throw new Error(
           "Approval expired, invalid or already consumed; never resubmit automatically.",
         );
+      if (config.demoMode || !config.enabled)
+        throw new Error("Paid provider access is disabled.");
+      enforceCap(
+        config,
+        attempt.media.durationSeconds,
+        attempt.upperBoundMicroUsd,
+      );
+      const total = (
+        this.db
+          .prepare(
+            "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
+          )
+          .get() as { total: number }
+      ).total;
+      if (!Number.isSafeInteger(total) || total > config.maxTotalMicroUsd)
+        throw new Error("Total live-test spending cap exceeded.");
       this.db
         .prepare(
           "UPDATE live_attempts SET consumed=1,token_hash=NULL WHERE id=?",

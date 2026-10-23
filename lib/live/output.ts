@@ -95,6 +95,9 @@ export async function downloadValidatedOutput(
   const url = validateOutputUrl(raw, contract.outputHosts);
   const response = await fetch(url, {
     redirect: "manual",
+    credentials: "omit",
+    cache: "no-store",
+    headers: { "Accept-Encoding": "identity" },
     signal: AbortSignal.timeout(120_000),
   });
   if (response.status !== 200 || !response.body) {
@@ -102,12 +105,27 @@ export async function downloadValidatedOutput(
     throw new Error("Provider download did not return a complete file.");
   }
   const maxBytes = 100 * 1024 * 1024;
-  const advertised = Number(response.headers.get("content-length"));
-  if (Number.isFinite(advertised) && advertised > maxBytes) {
+  const lengthHeader = response.headers.get("content-length");
+  const advertised = lengthHeader === null ? null : Number(lengthHeader);
+  const encoding = response.headers.get("content-encoding");
+  if (
+    (encoding !== null && encoding !== "identity") ||
+    (advertised !== null &&
+      (!/^\d+$/.test(lengthHeader!) ||
+        !Number.isSafeInteger(advertised) ||
+        advertised <= 0 ||
+        advertised > maxBytes))
+  ) {
     await response.body.cancel();
-    throw new Error("Provider output is too large.");
+    throw new Error("Provider output length/encoding is invalid or too large.");
   }
-  const handle = await open(file, "wx", 0o600);
+  let handle;
+  try {
+    handle = await open(file, "wx", 0o600);
+  } catch {
+    await response.body.cancel().catch(() => {});
+    throw new Error("Cannot create private provider output file.");
+  }
   const reader = response.body.getReader();
   let success = false;
   try {
@@ -119,6 +137,8 @@ export async function downloadValidatedOutput(
       if (bytes > maxBytes) throw new Error("Provider output is too large.");
       await handle.writeFile(chunk);
     }
+    if (advertised !== null && bytes !== advertised)
+      throw new Error("Provider output length did not match.");
     await handle.close();
     await validateOutput(file, duration, contract);
     success = true;

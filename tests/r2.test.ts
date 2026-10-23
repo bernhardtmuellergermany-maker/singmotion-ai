@@ -94,7 +94,8 @@ function plan(state = "submitting", changes: Partial<PreparedMedia> = {}) {
       authorization.operatorSecret,
       confirmationPhrase(attempt),
     );
-    if (state === "submitting") store.claimSubmission(attempt.id, token);
+    if (state === "submitting")
+      store.claimSubmission(attempt.id, token, authorization);
   }
   return { store, media, attempt, file };
 }
@@ -344,6 +345,7 @@ test("existing runner consumes approval before R2 delivery and submits only the 
     documentationUrl: "https://example.test/fictional",
     maxDurationSeconds: 10,
     promptSupported: true,
+    inputFetchWindowSeconds: 30, // Fictional test window, not provider evidence.
     billing: {
       microUsdPerSecond: 10000,
       minimumBillableMs: 1,

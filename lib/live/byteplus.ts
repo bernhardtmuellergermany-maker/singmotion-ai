@@ -184,13 +184,16 @@ export class DocumentedBytePlusProvider implements ReviewedProvider {
     // hashes, actual media, and reserved the inclusive spending upper bound.
     if (media.durationSeconds < 4 || media.durationSeconds > 300)
       throw new BytePlusError();
+    const window = this.contract.inputFetchWindowSeconds;
+    if (window === null || !Number.isSafeInteger(window) || window <= 0)
+      throw new BytePlusError();
     const lease = await this.delivery.issue(media, signal);
     if (
       lease.owner !== media.owner ||
       lease.audioSha256 !== media.audioSha256 ||
       lease.imageSha256 !== media.imageSha256 ||
       !Number.isSafeInteger(lease.expiresAt) ||
-      lease.expiresAt <= Date.now()
+      lease.expiresAt - Date.now() < window * 1000
     )
       throw new BytePlusError();
     validateOutputUrl(lease.imageUrl, this.inputHosts);

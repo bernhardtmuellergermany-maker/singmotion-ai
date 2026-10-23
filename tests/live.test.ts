@@ -50,6 +50,7 @@ const contract: VerifiedContract = {
   documentationUrl: "https://example.test/fictional-contract",
   maxDurationSeconds: 300,
   promptSupported: true,
+  inputFetchWindowSeconds: 30, // Fictional test window, not provider evidence.
   billing: {
     microUsdPerSecond: 100_000,
     minimumBillableMs: 1000,
@@ -225,7 +226,10 @@ test("operator authorization, deliberate confirmation, expiry and unknown prices
     store.db
       .prepare("UPDATE live_attempts SET expires_at=0 WHERE id=?")
       .run(attempt.id);
-    assert.throws(() => store.claimSubmission(attempt.id, token), /expired/);
+    assert.throws(
+      () => store.claimSubmission(attempt.id, token, config),
+      /expired/,
+    );
   } finally {
     store.close();
   }
@@ -423,8 +427,8 @@ test("poll claims exclude competing workers and crashed submissions cannot be re
       secret,
       confirmationPhrase(attempt),
     );
-    store.claimSubmission(attempt.id, token);
-    assert.throws(() => store.claimSubmission(attempt.id, token));
+    store.claimSubmission(attempt.id, token, config);
+    assert.throws(() => store.claimSubmission(attempt.id, token, config));
     assert.throws(() => store.claimPoll(attempt.id));
     store.transition(attempt.id, "submitted", { providerJobId: "id" });
     const lease = store.claimPoll(attempt.id);
@@ -940,4 +944,146 @@ test("a signed submission timeout consumes approval once and leaves an uncertain
   assert.equal(calls, 1);
   assert.equal(store.get(attempt.id).failureCode, "SUBMISSION_OUTCOME_UNKNOWN");
   store.close();
+});
+
+test("lowered cumulative cap blocks an authorized submission without consuming approval", async () => {
+  const { store, attempt } = setup();
+  const f = fixture();
+  try {
+    const token = store.authorize(
+      attempt.id,
+      config,
+      secret,
+      confirmationPhrase(attempt),
+    );
+    const runner = new LiveTestRunner(
+      store,
+      f.provider,
+      { ...config, maxTotalMicroUsd: attempt.upperBoundMicroUsd! - 1 },
+      directory,
+      download,
+    );
+    await assert.rejects(
+      runner.submitOnce(attempt.id, token),
+      /Total live-test spending cap/,
+    );
+    assert.equal(store.get(attempt.id).state, "authorized");
+    assert.equal(f.counts().submits, 0);
+  } finally {
+    store.close();
+  }
+});
+
+test("unknown fetch windows block delivery and short remaining leases block submission", async () => {
+  let deliveries = 0,
+    submissions = 0;
+  const protocol = new BytePlusProtocol(async () => {
+    submissions++;
+    return { status: 200, body: { code: 10000, data: { task_id: "mock" } } };
+  });
+  const delivery = {
+    issue: async (input: PreparedMedia): Promise<InputLease> => {
+      deliveries++;
+      return {
+        owner: input.owner,
+        audioSha256: input.audioSha256,
+        imageSha256: input.imageSha256,
+        imageUrl: "https://input.example.test/i",
+        audioUrl: "https://input.example.test/a",
+        expiresAt: Date.now() + 1000,
+      };
+    },
+  };
+  for (const window of [null, 0, NaN, 1.5]) {
+    const provider = new DocumentedBytePlusProvider(
+      { ...contract, inputFetchWindowSeconds: window },
+      delivery,
+      ["input.example.test"],
+      protocol,
+    );
+    await assert.rejects(
+      provider.submit(media, "mock", new AbortController().signal),
+    );
+  }
+  assert.equal(deliveries, 0);
+  const provider = new DocumentedBytePlusProvider(
+    contract,
+    delivery,
+    ["input.example.test"],
+    protocol,
+  );
+  await assert.rejects(
+    provider.submit(media, "mock", new AbortController().signal),
+  );
+  assert.equal(deliveries, 1);
+  assert.equal(submissions, 0);
+});
+
+test("output rejects inconsistent lengths and encoding and cancels when private file creation fails", async (t) => {
+  const fs = await import("node:fs/promises");
+  const bytes = await fs.readFile("public/media/demo.mp4");
+  const file = path.join(directory, "output-boundaries.mp4");
+  let response = new Response(bytes, {
+    headers: { "content-length": String(bytes.length + 1) },
+  });
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (_url: unknown, init: RequestInit) => {
+      assert.equal(init.credentials, "omit");
+      assert.equal(init.cache, "no-store");
+      assert.equal(
+        new Headers(init.headers).get("Accept-Encoding"),
+        "identity",
+      );
+      return response;
+    },
+  );
+  await assert.rejects(
+    downloadValidatedOutput(
+      "https://output.example.test/v",
+      file,
+      10,
+      contract,
+    ),
+    /length did not match/,
+  );
+  await assert.rejects(fs.stat(file));
+  for (const headers of [
+    { "content-length": "-1" },
+    { "content-length": "abc" },
+    { "content-encoding": "gzip" },
+  ] as Record<string, string>[]) {
+    response = new Response(bytes, { headers });
+    await assert.rejects(
+      downloadValidatedOutput(
+        "https://output.example.test/v",
+        file,
+        10,
+        contract,
+      ),
+      /length\/encoding/,
+    );
+    assert.equal(response.bodyUsed, true);
+  }
+  await fs.writeFile(file, "existing-private-data");
+  let canceled = false;
+  response = new Response(
+    new ReadableStream({
+      cancel() {
+        canceled = true;
+      },
+    }),
+  );
+  await assert.rejects(
+    downloadValidatedOutput(
+      "https://output.example.test/v",
+      file,
+      10,
+      contract,
+    ),
+    /Cannot create/,
+  );
+  assert.equal(canceled, true);
+  assert.equal(await fs.readFile(file, "utf8"), "existing-private-data");
 });

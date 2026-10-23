@@ -73,7 +73,7 @@ export class LiveTestRunner {
     const attempt = this.store.get(id);
     this.assertEnabled(attempt);
     await revalidateMedia(attempt.media);
-    this.store.claimSubmission(id, oneTimeToken);
+    this.store.claimSubmission(id, oneTimeToken, this.config);
     try {
       // Exactly one invocation. Even a timeout may have incurred a charge.
       const result = await providerRequest((signal) =>

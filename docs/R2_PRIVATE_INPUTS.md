@@ -15,7 +15,7 @@ Set these only in the separate operator process's server-side secret environment
 
 These are S3 credentials generated for the bucket-scoped Object Read & Write token, not an API bearer token. The adapter has no credential-chain fallback to AWS metadata, shared credentials files or `NEXT_PUBLIC_*` values. It constructs `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com`, uses `region: auto`, forces path-style bucket URLs and disables automatic retries/region redirects. **EEUR is the bucket's placement location, not an S3 signing region.** This implementation targets the standard account endpoint; it does not assume an EU-jurisdiction endpoint from an EEUR placement hint.
 
-Keep public bucket access, `r2.dev` access and public custom-domain delivery disabled. Do not add public-read ACLs or public bucket policies. R2 does not support S3 object ACLs; the adapter sends none and contains no bucket-policy, ACL, CORS, lifecycle, create-bucket or public-access mutation. Server-to-server BytePlus retrieval does not require opening browser CORS. Actual token scope, bucket privacy and account location have not been verified by a real API call.
+Keep public bucket access, `r2.dev` access and public custom-domain delivery disabled. Do not add public-read ACLs or public bucket policies. R2 does not support S3 object ACLs; the adapter sends none and contains no bucket-policy, ACL, CORS, lifecycle, create-bucket or public-access mutation. Server-to-server BytePlus retrieval does not require opening browser CORS. The owner reports a successful manual connectivity check (`ok: true`, `stage: complete`, `cleanup: deleted`) with authenticated and presigned downloads and both SHA-256 checks. No account settings were inspected or changed by this implementation; the check does not audit all bucket policies or BytePlus access.
 
 ## Approval, immutable content and ownership
 
@@ -35,7 +35,7 @@ Default URL lifetime is **3600 seconds**; an explicit constructor option may cho
 
 Presigned URLs are bearer capabilities: anyone who obtains one can download that one object until expiry. They contain a public key identifier and signature, not the Secret Access Key. Never log, display, persist or include them in user-visible errors. Only the provider submission receives them. Staging/session cookies and the staging password are neither attached nor bypassed; existing application routes remain protected. The separate BytePlus output allowlist is **not** widened by allowing an R2 input hostname.
 
-The sufficient lifetime for BytePlus's actual queue/fetch behavior remains unverified. No automatic lease renewal, repeat upload or paid resubmission is performed. Confirm the provider's input-fetch timing before any live test.
+The sufficient lifetime for BytePlus's actual queue/fetch behavior remains unverified. No automatic lease renewal, repeat upload or paid resubmission is performed. Confirm the provider's input-fetch timing before any live test. The reviewed contract now requires `inputFetchWindowSeconds` (queue plus last fetch/retry and safety margin). Unknown/invalid windows block before delivery; insufficient remaining lease lifetime blocks submission. This is an internal policy field, not a BytePlus API parameter. The one-hour cap is not evidence that BytePlus fetches within one hour. See [test readiness](BYTEPLUS_TEST_READINESS.md).
 
 ## Failure handling and retention
 
