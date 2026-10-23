@@ -102,7 +102,7 @@ See `docs/ARCHITECTURE.md`, `docs/PROVIDER_VERIFICATION.md`, and `docs/LAUNCH_CH
 
 ## Private Railway staging
 
-See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact variables, password setup, volume permissions and acceptance checks. The Docker launcher starts Next and the demo worker as UID 1000 after validating configuration and persistent-storage access. Staging requires authentication on pages, APIs and media; generation and admin access remain disabled. Railway configuration and release are manual steps, not performed by this repository change.
+See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact variables, password setup, volume permissions and acceptance checks. A brief privileged Docker initializer repairs the mounted volume, then permanently drops to UID/GID 1000 before the launcher validates configuration and starts Next and the demo worker. Staging requires authentication on pages, APIs and media; generation and admin access remain disabled. Railway configuration and release are manual steps, not performed by this repository change.
 
 ## BytePlus first-test preparation (still offline)
 

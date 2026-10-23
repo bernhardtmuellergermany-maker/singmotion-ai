@@ -3,6 +3,11 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { validateStaging } from "../lib/staging.ts";
 
+if (process.getuid?.() === 0) {
+  throw new Error(
+    "Refusing to run the web server or worker as root; use the container entrypoint.",
+  );
+}
 validateStaging();
 const directory = path.resolve(process.env.DATA_DIR || ".data");
 try {
