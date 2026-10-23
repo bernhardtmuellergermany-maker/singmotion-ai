@@ -1,3 +1,4 @@
+import { ReviewValidationError } from "../lib/live/review-diagnostics.ts";
 // Manual operator entrypoint only. Never invoked by web, worker, build or deployment.
 import path from "node:path";
 import { readFile, stat, realpath, chmod, writeFile } from "node:fs/promises";
@@ -81,10 +82,33 @@ try {
     owner = values["--owner"];
   let review: unknown;
   if (values["--review-file"]) {
-    if ((await stat(values["--review-file"])).size > 65536) throw Error();
-    review = JSON.parse(
-      (await readFile(values["--review-file"], "utf8")).replace(/^\uFEFF/, ""),
-    );
+    let text: string;
+    try {
+      if ((await stat(values["--review-file"])).size > 65536)
+        throw new ReviewValidationError([
+          { field: "reviewFile", message: "File must not exceed 65536 bytes." },
+        ]);
+      text = await readFile(values["--review-file"], "utf8");
+    } catch (error) {
+      if (error instanceof ReviewValidationError) throw error;
+      throw new ReviewValidationError([
+        {
+          field: "reviewFile",
+          message:
+            "Cannot read the review file; check that it exists and is readable.",
+        },
+      ]);
+    }
+    try {
+      review = JSON.parse(text.replace(/^\uFEFF/, ""));
+    } catch {
+      throw new ReviewValidationError([
+        {
+          field: "reviewFile",
+          message: "Must contain valid JSON (UTF-8, optional BOM).",
+        },
+      ]);
+    }
   }
   let transport: import("../lib/live/byteplus.ts").Transport = async () => {
     throw Error("Offline only");
@@ -303,11 +327,21 @@ try {
       await delay(15000); // Read-only polling, never submit retry or automatic cancel.
     }
   }
-} catch {
-  // No raw provider, filesystem, credential or signed-input diagnostics.
-  console.error(
-    "First-test command stopped. Check arguments, gates, exact review/digest and private plan. Use result to inspect durable state; resume only a persisted task. Never rerun or reset an uncertain submission. No automatic retry was performed.",
-  );
+} catch (error) {
+  if (action === "dry-run" && error instanceof ReviewValidationError) {
+    console.error(
+      JSON.stringify(
+        { error: "OFFLINE_REVIEW_INVALID", issues: error.issues },
+        null,
+        2,
+      ),
+    );
+  } else {
+    // No raw provider, filesystem, credential or signed-input diagnostics.
+    console.error(
+      "First-test command stopped. Check arguments, gates, exact review/digest and private plan. Use result to inspect durable state; resume only a persisted task. Never rerun or reset an uncertain submission. No automatic retry was performed.",
+    );
+  }
   process.exitCode = 1;
 } finally {
   delivery?.client.destroy();

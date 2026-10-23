@@ -816,3 +816,166 @@ test("concurrent or stale output lease cannot commit or overwrite an MP4", async
   assert.equal(f.store.get(f.attempt.id).state, "output_observed");
   assert.equal(f.store.get(f.attempt.id).outputPath, null);
 });
+
+test("review diagnostics aggregate missing/invalid fields without echoing private values", async () => {
+  const { ReviewValidationError } =
+    await import("../lib/live/review-diagnostics.ts");
+  const f = fixture();
+  assert.throws(
+    () =>
+      validateFirstTestReview(firstTestReviewTemplate(f.attempt), f.attempt),
+    (error) => {
+      assert.ok(error instanceof ReviewValidationError);
+      assert.deepEqual(
+        error.issues.map((issue) => issue.field).sort(),
+        [
+          "generatedVideoMaxSeconds",
+          "baseMaxMicroUsd",
+          "taxMaxMicroUsd",
+          "feesMaxMicroUsd",
+          "inclusiveMaxMicroUsd",
+          "reviewedBy",
+          "reviewedAt",
+          "evidence",
+          "acknowledgment",
+        ].sort(),
+      );
+      return true;
+    },
+  );
+  const privateValue = "https://private.invalid/object?signature=DO_NOT_PRINT";
+  const bad = {
+    ...f.review,
+    owner: privateValue,
+    taxMaxMicroUsd: "secret-key-value",
+    feesMaxMicroUsd: -1,
+    generatedVideoMaxSeconds: 7,
+    reviewedBy: " ",
+    reviewedAt: "2999-01-01",
+    evidence: "x".repeat(4001),
+    acknowledgment: "no",
+    [privateValue]: "private value",
+  };
+  delete (bad as Partial<typeof bad>).imageSha256;
+  assert.throws(
+    () => validateFirstTestReview(bad, f.attempt),
+    (error) => {
+      assert.ok(error instanceof ReviewValidationError);
+      for (const field of [
+        "owner",
+        "taxMaxMicroUsd",
+        "feesMaxMicroUsd",
+        "generatedVideoMaxSeconds",
+        "reviewedBy",
+        "reviewedAt",
+        "evidence",
+        "acknowledgment",
+        "imageSha256",
+        "review",
+      ])
+        assert.ok(
+          error.issues.some((issue) => issue.field === field),
+          field,
+        );
+      const diagnostic = JSON.stringify(error.issues);
+      for (const secret of [
+        privateValue,
+        "secret-key-value",
+        media.owner,
+        media.audioSha256,
+        media.prompt,
+      ])
+        assert.ok(!diagnostic.includes(secret));
+      return true;
+    },
+  );
+  assert.throws(
+    () =>
+      validateFirstTestReview(
+        { ...f.review, baseMaxMicroUsd: 1, inclusiveMaxMicroUsd: 2 },
+        f.attempt,
+      ),
+    (error) => {
+      assert.ok(error instanceof ReviewValidationError);
+      assert.ok(
+        error.issues.some((issue) => issue.field === "baseMaxMicroUsd"),
+      );
+      assert.ok(
+        error.issues.some((issue) => issue.field === "inclusiveMaxMicroUsd"),
+      );
+      return true;
+    },
+  );
+});
+
+test("offline CLI emits sanitized field diagnostics for incomplete, malformed and unreadable review files", async () => {
+  const f = fixture(path.join(root, "live-test.sqlite"));
+  const file = path.join(root, "diagnostics review.json");
+  const cli = (action = "dry-run") =>
+    spawnSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "--import",
+        "./tests/fixtures/offline-network-guard.mjs",
+        "scripts/byteplus-first-test.ts",
+        action,
+        "--plan",
+        f.attempt.id,
+        "--owner",
+        media.owner,
+        "--review-file",
+        file,
+      ],
+      {
+        env: {
+          ...process.env,
+          DATA_DIR: root,
+          BYTEPLUS_SECRET_ACCESS_KEY: "NEVER_PRINT_ENV_SECRET",
+        },
+        encoding: "utf8",
+        timeout: 30000,
+      },
+    );
+  const before = f.store.get(f.attempt.id);
+  await writeFile(
+    file,
+    "\uFEFF" + JSON.stringify(firstTestReviewTemplate(f.attempt)),
+  );
+  const incomplete = cli();
+  assert.equal(incomplete.status, 1);
+  assert.equal(incomplete.stdout, "");
+  assert.match(incomplete.stderr, /OFFLINE_REVIEW_INVALID/);
+  for (const field of [
+    "taxMaxMicroUsd",
+    "feesMaxMicroUsd",
+    "reviewedBy",
+    "evidence",
+    "acknowledgment",
+  ])
+    assert.match(incomplete.stderr, new RegExp(`"field": "${field}"`));
+  await writeFile(
+    file,
+    '{"evidence":"https://private.invalid/?signature=NEVER_PRINT_PARSE_SECRET", broken',
+  );
+  const malformed = cli();
+  assert.equal(malformed.status, 1);
+  assert.match(malformed.stderr, /valid JSON/);
+  assert.doesNotMatch(malformed.stderr, /NEVER_PRINT|private\.invalid/);
+  await rm(file);
+  const missing = cli();
+  assert.equal(missing.status, 1);
+  assert.match(missing.stderr, /Cannot read the review file/);
+  assert.ok(!missing.stderr.includes(file));
+  await writeFile(file, "x".repeat(65537));
+  assert.match(cli().stderr, /65536 bytes/);
+  await writeFile(file, JSON.stringify(f.review));
+  const valid = cli();
+  assert.equal(valid.status, 0, valid.stderr);
+  assert.equal(JSON.parse(valid.stdout).confirmationDigest, f.confirmation);
+  const live = cli("run");
+  assert.equal(live.status, 1);
+  assert.doesNotMatch(live.stderr, /OFFLINE_REVIEW_INVALID|NEVER_PRINT/);
+  assert.match(live.stderr, /First-test command stopped/);
+  assert.deepEqual(f.store.get(f.attempt.id), before); // No pricing, reservation or mutation.
+});

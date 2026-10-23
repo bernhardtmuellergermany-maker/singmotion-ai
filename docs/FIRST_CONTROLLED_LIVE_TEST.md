@@ -246,3 +246,30 @@ socket connections denied.
 Spending reservations cover the reviewed BytePlus generation bound. R2 storage
 and request charges remain separately accounted for; the script does not claim
 a provider-enforced account budget or configure a storage lifecycle policy.
+
+## Offline review validation diagnostics
+
+An incomplete `byteplus:first-test dry-run --review-file ...` exits with status 1
+and writes `OFFLINE_REVIEW_INVALID` JSON to stderr. Its `issues` array names each
+missing or invalid required field and gives a fixed explanation. For example:
+
+```json
+{
+  "error": "OFFLINE_REVIEW_INVALID",
+  "issues": [
+    { "field": "taxMaxMicroUsd", "message": "Required; supply an explicitly reviewed value." },
+    { "field": "reviewedBy", "message": "Required; supply an explicitly reviewed value." }
+  ]
+}
+```
+
+Checks include plan bindings, numeric bounds, cost arithmetic, review provenance,
+dates and acknowledgment. Dependent arithmetic is checked only once its operands
+are valid. Unknown fields are reported without echoing their names. Malformed,
+unreadable or oversized review files receive a static `reviewFile` diagnostic;
+parser excerpts, file paths, submitted values, URLs and credentials are omitted.
+
+These diagnostics are restricted to offline dry-run errors. Other command
+failures retain their generic safe message. Validation does not fill any review
+fields, price a plan, reserve spending or enable submission. Fix only the named
+fields using justified reviewed facts, then rerun the same dry-run command.

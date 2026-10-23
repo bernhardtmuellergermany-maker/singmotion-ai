@@ -1,3 +1,7 @@
+import {
+  ReviewValidationError,
+  type ReviewIssue,
+} from "./review-diagnostics.ts";
 import { reportedBaseChargeMicroUsd } from "./contract.ts";
 /** Isolated operator-only discovery workflow. Never imported by web/worker code. */
 import { createHash } from "node:crypto";
@@ -45,11 +49,27 @@ export function firstTestReviewTemplate(attempt: Attempt) {
 export type FirstTestReview = ReturnType<typeof firstTestReviewTemplate>;
 export function validateFirstTestReview(value: unknown, attempt: Attempt) {
   if (!value || typeof value !== "object" || Array.isArray(value))
-    throw new Error("Missing exact-case cost review.");
+    throw new ReviewValidationError([
+      { field: "review", message: "Must be a JSON object." },
+    ]);
   const template = firstTestReviewTemplate(attempt);
   const input = value as Record<string, unknown>;
-  if (Object.keys(input).sort().join() !== Object.keys(template).sort().join())
-    throw new Error("Unexpected cost review fields.");
+  const issues = new Map<ReviewIssue["field"], ReviewIssue>();
+  const invalid = (field: ReviewIssue["field"], message: string) => {
+    if (!issues.has(field)) issues.set(field, { field, message });
+  };
+  for (const field of Object.keys(template) as (keyof FirstTestReview)[])
+    if (
+      !Object.hasOwn(input, field) ||
+      input[field] === null ||
+      input[field] === ""
+    )
+      invalid(field, "Required; supply an explicitly reviewed value.");
+  if (Object.keys(input).some((key) => !Object.hasOwn(template, key)))
+    invalid(
+      "review",
+      "Unexpected fields are not allowed; use only the template fields.",
+    );
   for (const key of [
     "kind",
     "planId",
@@ -60,56 +80,88 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
     "encodedAudioSeconds",
   ] as const)
     if (input[key] !== template[key])
-      throw new Error("Cost review does not match the exact prepared plan.");
-  if (attempt.media.durationSeconds < 4 || attempt.media.durationSeconds > 5)
-    throw new Error(
-      "First test requires measured encoded audio between four and five seconds.",
+      invalid(key, "Must match the existing prepared plan exactly.");
+  if (
+    !Number.isFinite(attempt.media.durationSeconds) ||
+    attempt.media.durationSeconds < 4 ||
+    attempt.media.durationSeconds > 5
+  )
+    invalid(
+      "encodedAudioSeconds",
+      "Prepared audio must measure between four and five seconds; prepare a new plan rather than editing this field.",
     );
-  for (const key of [
+  const money = [
     "baseMaxMicroUsd",
     "taxMaxMicroUsd",
     "feesMaxMicroUsd",
     "inclusiveMaxMicroUsd",
-  ])
+  ] as const;
+  for (const key of money)
     if (!Number.isSafeInteger(input[key]) || Number(input[key]) < 0)
-      throw new Error(
-        "Every inclusive cost component must be explicitly reviewed; no defaults.",
+      invalid(
+        key,
+        "Must be an explicitly reviewed nonnegative safe integer in microUSD; no default is supplied.",
       );
-  const videoMax = Number(input.generatedVideoMaxSeconds);
-  if (
-    typeof input.generatedVideoMaxSeconds !== "number" ||
-    !Number.isFinite(videoMax) ||
-    videoMax < attempt.media.durationSeconds ||
-    videoMax > 6
-  )
-    throw new Error(
-      "Review a generated-video bound covering this exact input, at most six seconds.",
+  const videoMax = input.generatedVideoMaxSeconds;
+  const validVideo =
+    typeof videoMax === "number" &&
+    Number.isFinite(videoMax) &&
+    videoMax >= attempt.media.durationSeconds &&
+    videoMax <= 6;
+  if (!validVideo)
+    invalid(
+      "generatedVideoMaxSeconds",
+      "Must be a finite number covering the exact prepared input duration and no greater than six seconds.",
     );
-  const total =
-    BigInt(input.baseMaxMicroUsd as number) +
-    BigInt(input.taxMaxMicroUsd as number) +
-    BigInt(input.feesMaxMicroUsd as number);
   if (
-    Number(input.baseMaxMicroUsd) < reportedBaseChargeMicroUsd(videoMax) ||
-    total !== BigInt(input.inclusiveMaxMicroUsd as number) ||
-    total <= 0n
+    validVideo &&
+    !issues.has("baseMaxMicroUsd") &&
+    Number(input.baseMaxMicroUsd) < reportedBaseChargeMicroUsd(videoMax)
   )
-    throw new Error(
-      "Inclusive bound must cover reviewed base, taxes and fees without arithmetic overflow.",
+    invalid(
+      "baseMaxMicroUsd",
+      "Must cover the reported base charge for the reviewed generated-video bound.",
     );
-  for (const key of ["reviewedBy", "reviewedAt", "evidence"])
+  if (
+    money.every(
+      (key) => Number.isSafeInteger(input[key]) && Number(input[key]) >= 0,
+    )
+  ) {
+    const total =
+      BigInt(input.baseMaxMicroUsd as number) +
+      BigInt(input.taxMaxMicroUsd as number) +
+      BigInt(input.feesMaxMicroUsd as number);
+    if (total <= 0n || total !== BigInt(input.inclusiveMaxMicroUsd as number))
+      invalid(
+        "inclusiveMaxMicroUsd",
+        "Must be positive and equal baseMaxMicroUsd + taxMaxMicroUsd + feesMaxMicroUsd without overflow.",
+      );
+  }
+  for (const key of ["reviewedBy", "reviewedAt", "evidence"] as const)
     if (
       typeof input[key] !== "string" ||
       !input[key].trim() ||
       input[key].length > 4000
     )
-      throw new Error("Review provenance is required.");
+      invalid(
+        key,
+        "Must be nonblank text of at most 4000 characters; supply reviewed information, not a placeholder.",
+      );
   if (
-    !Number.isFinite(Date.parse(input.reviewedAt as string)) ||
-    Date.parse(input.reviewedAt as string) > Date.now() ||
-    input.acknowledgment !== "INCLUSIVE_BOUND_FOR_EXACT_INPUT"
+    !issues.has("reviewedAt") &&
+    (!Number.isFinite(Date.parse(input.reviewedAt as string)) ||
+      Date.parse(input.reviewedAt as string) > Date.now())
   )
-    throw new Error("Explicit dated inclusive-bound review is required.");
+    invalid(
+      "reviewedAt",
+      "Must be a valid review date that is not in the future.",
+    );
+  if (input.acknowledgment !== "INCLUSIVE_BOUND_FOR_EXACT_INPUT")
+    invalid(
+      "acknowledgment",
+      "Must explicitly equal INCLUSIVE_BOUND_FOR_EXACT_INPUT after review.",
+    );
+  if (issues.size) throw new ReviewValidationError([...issues.values()]);
   // Fixed field order: equivalent JSON formatting does not invalidate confirmation.
   const review = Object.fromEntries(
     Object.keys(template).map((key) => [key, input[key]]),
