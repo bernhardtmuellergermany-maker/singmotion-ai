@@ -46,6 +46,7 @@ try {
       "cleanup",
       "review-output",
       "download",
+      "retrieve",
       "refresh-result",
     ].includes(action) ||
     !values["--plan"] ||
@@ -53,14 +54,15 @@ try {
     (action !== "dry-run" && values["--write-review"]) ||
     (action === "review-output" && !values["--review-file"]) ||
     (values["--write-output-review"] && action !== "review-output") ||
-    (action === "download" &&
+    (["download", "retrieve"].includes(action) &&
       (switches.has("--skip-download") ||
         !values["--output-review-file"] ||
         !values["--confirm-output"])) ||
     (action !== "dry-run" &&
       action !== "result" &&
       action !== "review-output" &&
-      ((action !== "download" && !switches.has("--skip-download")) ||
+      ((!["download", "retrieve"].includes(action) &&
+        !switches.has("--skip-download")) ||
         !values["--review-file"] ||
         !values["--confirm-live-test"]))
   )
@@ -130,7 +132,13 @@ try {
         values["--confirm-live-test"]
     )
       throw Error();
-    if (action !== "download") {
+    if (
+      action !== "download" &&
+      !(
+        action === "retrieve" &&
+        ["output_observed", "completed"].includes(attempt.state)
+      )
+    ) {
       const { createSignedTransport } =
         await import("../lib/live/signed-transport.ts");
       const { loadBytePlusCredentials } =
@@ -232,7 +240,7 @@ try {
         ),
       );
     }
-  } else if (action === "download") {
+  } else if (["download", "retrieve"].includes(action)) {
     if ((await stat(values["--output-review-file"])).size > 65536)
       throw Error();
     const outputReview = JSON.parse(
@@ -241,9 +249,11 @@ try {
         "",
       ),
     );
-    const { downloadFirstTestResult } =
+    const { downloadFirstTestResult, retrieveFirstTestResult } =
       await import("../lib/live/first-test-download.ts");
-    await downloadFirstTestResult(
+    await (
+      action === "retrieve" ? retrieveFirstTestResult : downloadFirstTestResult
+    )(
       workflow,
       id,
       owner,

@@ -188,3 +188,16 @@ boundaries, retained reservations, no second submit, expired URLs, changed hosts
 invalid MP4, local crash recovery and concurrent/stale lease fencing. No real
 BytePlus/R2 requests or deployments occurred. Windows BOM/spaced paths are covered;
 no native Windows execution was available in this session.
+
+## Same-task retrieval while queued
+
+An output review can now be prepared once the original provider task ID has been persisted (`submitted` or `processing`), before the output URL is returned. Hostname and media fields still require explicit evidence and approval; the reported hostname is not automatically approved. Do not run two polling commands concurrently. After reviewing, stop the original polling process and use the same task-bound command below. A lease interrupted during a request may need to expire before recovery.
+
+```powershell
+$env:BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = 'true'
+npm.cmd run byteplus:first-test -- retrieve --plan $plan --owner $owner --review-file $reviewFile --confirm-live-test $confirmation --output-review-file $outputReviewFile --confirm-output $outputConfirmation
+```
+
+`retrieve` validates both existing approvals before polling. It only reads the saved task ID, then immediately downloads through the pinned-IP transport and validates/stores the MP4. It cannot submit or upload inputs. Pending tasks require the existing BytePlus credentials; already-observed/completed results need no provider credentials or R2 adapter. Repeating it after completion validates/reuses the private saved MP4. Errors stop, preserve task/spending state, and never trigger paid resubmission. A changed hostname needs a new review.
+
+Prepare approvals and verify FFmpeg, writable private storage and network access before the task completes. Keep the operator machine awake. The roughly one-hour validity starts at the provider, not when the operator notices the URL; polling recovery and refresh-result cannot guarantee an extension. Account-specific inclusive tax/fee bounds, explicit hostname approval and a reviewed media policy remain prerequisites. No real provider/download request was made during implementation.

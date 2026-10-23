@@ -25,9 +25,13 @@ export function outputReviewTemplate(
   const attempt = workflow.owned(id, owner);
   if (
     !attempt.providerJobId ||
-    !["output_observed", "completed"].includes(attempt.state)
+    !["submitted", "processing", "output_observed", "completed"].includes(
+      attempt.state,
+    )
   )
-    throw new Error("A persisted observed result is required.");
+    throw new Error(
+      "A persisted provider task is required; uncertain submissions cannot be prepared for retrieval.",
+    );
   return {
     kind: "first-test-output-review-v1",
     planId: id,
@@ -254,4 +258,63 @@ export async function downloadFirstTestResult(
     if (partial) await unlink(partial).catch(() => {});
     store.releasePoll(id, lease);
   }
+}
+
+/** Poll the existing task then download promptly under already confirmed output
+ * approval. No submission/upload dependency and no retry on read/transfer errors.
+ */
+export async function retrieveFirstTestResult(
+  workflow: FirstTestWorkflow,
+  id: string,
+  owner: string,
+  costReview: unknown,
+  costConfirmation: string,
+  outputReview: unknown,
+  outputConfirmation: string,
+  dependencies: {
+    transport?: OutputTransport;
+    wait?: () => Promise<void>;
+  } = {},
+) {
+  if (workflow.env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED !== "true")
+    throw new Error("Operator download gate is disabled.");
+  const checked = workflow.authorizeExisting(
+    id,
+    owner,
+    costReview,
+    costConfirmation,
+  );
+  const approved = reviewOutput(
+    workflow,
+    id,
+    owner,
+    outputReview,
+    checked.review.generatedVideoMaxSeconds!,
+  );
+  if (approved.digest !== outputConfirmation)
+    throw new Error("Output confirmation does not match.");
+  const slot = workflow.store.firstTest()!;
+  while (
+    ["submitted", "processing"].includes(workflow.owned(id, owner).state)
+  ) {
+    if (Date.now() >= slot.claimed_at + 12 * 3600000)
+      throw new Error(
+        "Task polling lifetime exceeded; reconcile without resubmitting.",
+      );
+    const result = await workflow.poll(id, owner, costReview, costConfirmation);
+    if (["submitted", "processing"].includes(result.state)) {
+      if (dependencies.wait) await dependencies.wait();
+      else await new Promise((resolve) => setTimeout(resolve, 15000));
+    }
+  }
+  return downloadFirstTestResult(
+    workflow,
+    id,
+    owner,
+    costReview,
+    costConfirmation,
+    outputReview,
+    outputConfirmation,
+    dependencies.transport,
+  );
 }

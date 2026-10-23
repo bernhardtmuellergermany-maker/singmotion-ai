@@ -979,3 +979,169 @@ test("offline CLI emits sanitized field diagnostics for incomplete, malformed an
   assert.match(live.stderr, /First-test command stopped/);
   assert.deepEqual(f.store.get(f.attempt.id), before); // No pricing, reservation or mutation.
 });
+
+test("output review during queue enables prompt same-task retrieval without a second submit", async () => {
+  const { retrieveFirstTestResult } =
+    await import("../lib/live/first-test-download.ts");
+  const f = fixture(),
+    w = f.make();
+  assert.throws(() => outputReviewTemplate(w, f.attempt.id, media.owner));
+  await w.submit(f.attempt.id, media.owner, f.review, f.confirmation);
+  const approval = outputApproval(f); // Still submitted, before a video URL exists.
+  const env: Record<string, string> = f.env;
+  env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = "true";
+  let waits = 0,
+    downloads = 0;
+  f.mode("pending");
+  const result = await retrieveFirstTestResult(
+    w,
+    f.attempt.id,
+    media.owner,
+    f.review,
+    f.confirmation,
+    approval.review,
+    approval.digest,
+    {
+      wait: async () => {
+        waits++;
+        f.mode("done");
+      },
+      transport: async () => {
+        downloads++;
+        return new Response(resultBytes);
+      },
+    },
+  );
+  assert.equal(result.state, "completed");
+  assert.equal(waits, 1);
+  assert.equal(downloads, 1);
+  assert.deepEqual(f.counts(), {
+    uploads: 1,
+    submits: 1,
+    polls: 2,
+    cancels: 0,
+  });
+});
+
+test("retrieve requires output approval before polling and stops on changed host or read failure", async () => {
+  const { retrieveFirstTestResult } =
+    await import("../lib/live/first-test-download.ts");
+  const f = fixture(),
+    w = f.make();
+  await w.submit(f.attempt.id, media.owner, f.review, f.confirmation);
+  const approval = outputApproval(f);
+  const env: Record<string, string> = f.env;
+  env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = "true";
+  let transfers = 0;
+  const dependencies = {
+    transport: async () => {
+      transfers++;
+      return new Response(resultBytes);
+    },
+  };
+  await assert.rejects(
+    retrieveFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      "wrong",
+      dependencies,
+    ),
+  );
+  assert.equal(f.counts().polls, 0);
+  f.mode("poll-error");
+  await assert.rejects(
+    retrieveFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      dependencies,
+    ),
+  );
+  assert.equal(f.counts().polls, 1);
+  f.mode("done");
+  f.url("https://changed-output.example/v");
+  await assert.rejects(
+    retrieveFirstTestResult(
+      w,
+      f.attempt.id,
+      media.owner,
+      f.review,
+      f.confirmation,
+      approval.review,
+      approval.digest,
+      dependencies,
+    ),
+    /approved HTTPS/,
+  );
+  assert.equal(transfers, 0);
+  assert.equal(f.counts().submits, 1);
+  assert.equal(f.store.get(f.attempt.id).state, "output_observed");
+});
+
+test("actual retrieve CLI polls saved task and saves validated MP4 without R2 credentials or submit", async () => {
+  const directory = path.join(root, "retrieve cli");
+  await mkdir(directory);
+  const f = fixture(path.join(directory, "live-test.sqlite"));
+  await f.make().submit(f.attempt.id, media.owner, f.review, f.confirmation);
+  const approval = outputApproval(f),
+    costFile = path.join(directory, "cost.json"),
+    outputFile = path.join(directory, "output.json"),
+    calls = path.join(directory, "calls.jsonl");
+  await writeFile(costFile, JSON.stringify(f.review));
+  await writeFile(outputFile, JSON.stringify(approval.review));
+  const env = {
+    ...process.env,
+    ...f.env,
+    DATA_DIR: directory,
+    BYTEPLUS_ACCESS_KEY_ID: "fake",
+    BYTEPLUS_SECRET_ACCESS_KEY: "fake",
+    BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED: "true",
+    FIRST_TEST_MOCK_CALLS: calls,
+    FIRST_TEST_MOCK_OUTPUT_FILE: clip,
+    R2_ACCOUNT_ID: "",
+    R2_BUCKET: "",
+    R2_ACCESS_KEY_ID: "",
+    R2_SECRET_ACCESS_KEY: "",
+  };
+  const command = () =>
+    spawnSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "--import",
+        "./tests/fixtures/first-test-network-mock.mjs",
+        "scripts/byteplus-first-test.ts",
+        "retrieve",
+        "--plan",
+        f.attempt.id,
+        "--owner",
+        media.owner,
+        "--review-file",
+        costFile,
+        "--confirm-live-test",
+        f.confirmation,
+        "--output-review-file",
+        outputFile,
+        "--confirm-output",
+        approval.digest,
+      ],
+      { env, encoding: "utf8", timeout: 30000 },
+    );
+  const result = command();
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(JSON.parse(result.stdout).state, "completed");
+  assert.equal(command().status, 0); // Completed file is recovered locally.
+  assert.deepEqual((await readFile(calls, "utf8")).trim().split("\n"), [
+    "CVSync2AsyncGetResult",
+    "OUTPUT_GET",
+  ]);
+  assert.equal(f.counts().submits, 1);
+});
