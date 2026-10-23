@@ -1,3 +1,5 @@
+import { stagingDenial, stagingEnabled } from "@/lib/staging";
+import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
 import { readFile, writeFile, unlink, stat } from "node:fs/promises";
@@ -97,6 +99,8 @@ async function handler(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
+  const denied = stagingDenial(req.headers.get("authorization"));
+  if (denied) return denied;
   try {
     demoOnly();
     const parts = (await params).path;
@@ -123,7 +127,7 @@ async function handler(
       });
       response.cookies.set("sm_session", created.token, {
         httpOnly: true,
-        secure: req.nextUrl.protocol === "https:",
+        secure: stagingEnabled() || req.nextUrl.protocol === "https:",
         sameSite: "strict",
         path: "/",
         maxAge: 30 * 86400,
@@ -377,6 +381,7 @@ async function handler(
           "Wait for active generations to finish before deleting data.",
           409,
         );
+      removeOfflinePlans(dataDir, owner);
       for (const a of list<Asset>("assets", owner))
         await unlink(a.path).catch(() => {});
       for (const table of ["assets", "artists", "jobs", "ledger", "sessions"])

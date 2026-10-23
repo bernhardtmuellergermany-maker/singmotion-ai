@@ -24,6 +24,10 @@ process.on("SIGINT", () => {
 console.log("SingMotion demo worker ready. Paid providers are disabled.");
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
+  if (process.env.GENERATIONS_ENABLED === "false") {
+    await new Promise((resolve) => setTimeout(resolve, 750));
+    continue;
+  }
   // Only reclaim a lease after the maximum FFmpeg execution time has elapsed.
   const abandoned = db
     .prepare("SELECT id FROM jobs WHERE status='processing'")

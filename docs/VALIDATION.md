@@ -33,3 +33,19 @@ The Playwright-managed Chromium download was denied by the network allowlist. Th
 - Docker image execution, Railway deployment, public operation, published cloud snapshot, or restoration in a fresh cloud task.
 
 The saved environment draft contains installation and startup instructions. Saving does not publish the environment or deploy the application.
+
+## Empty-waveform hydration fix
+
+The 66 placeholder bars now use rounded whole-pixel CSS strings in both server and client renders. SSR remains enabled for the studio and placeholder; no hydration warning suppression was introduced.
+
+A new browser regression test failed against the original unrounded styles, then passed with the fix on desktop and mobile. It compares the server HTML with hydration, checks the CSS values after client-side navigation, and records hydration diagnostics and page errors. Validation passed: ESLint, strict type checking, all 13 unit/integration tests, all 6 browser tests, and the production build.
+
+A separate development-mode Chromium audit visited `/studio`, `/`, `/projects`, `/artists`, `/billing`, `/settings`, and `/admin` at desktop and mobile widths; it reported no hydration warnings or page errors. The source audit found that the logo already uses integer heights, browser preferences and project dates render after mount, and the footer year is server-only. The interactive audio waveform is already client-loaded after upload; its percentage styles do not participate in the initial server hydration. No changes to these other components were required.
+
+## BytePlus offline preparation — 23 October 2026
+
+Passed lint, strict type checking, production build, all **28 unit/integration tests**, and all **6 desktop/mobile browser tests**. The 15 added tests cover default demo isolation, fail-closed unverified contracts, operator secrets, exact confirmation and token expiry, inclusive cost bounds, cross-connection total caps, immutable/idempotent plans, persisted provider IDs and single submission, uncertain outcomes, polling recovery/leases, media hashes and English confirmation, unsupported prompts/stale costs, output URL constraints, streamed download/redirect/size checks, full MP4 decode validation, offline CLI preparation with real FFmpeg, account cleanup, and request timeouts.
+
+All provider responses and billing terms in these tests are **fictional fixtures**. The downloader test replaces `fetch`; no output was downloaded from BytePlus. The preflight CLI was executed against owned synthetic assets. The live-test command was tested with enable flags set and still refused submission. No paid request, actual provider poll, credential provisioning, migration to production storage, deployment or Stripe activation occurred.
+
+Official documentation retrieval was blocked by the environment's egress proxy (HTTP 403). Public BytePlus SDK sources were inspected but did not verify an OmniHuman 2.0 contract. Endpoint/authentication/schema, input delivery, actual price/minimum charges and output hosts remain unverified; the adapter is still disabled. See `docs/PROVIDER_VERIFICATION.md` for the evidence and account checklist.

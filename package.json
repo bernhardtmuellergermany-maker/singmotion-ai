@@ -17,7 +17,10 @@
     "cleanup": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/cleanup.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "smoke": "node --env-file-if-exists=.env.local scripts/smoke.mjs"
+    "smoke": "node --env-file-if-exists=.env.local scripts/smoke.mjs",
+    "byteplus:preflight": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-preflight.ts",
+    "byteplus:live-test": "node --env-file-if-exists=.env.byteplus.local --experimental-strip-types scripts/byteplus-live-test.ts",
+    "test:staging": "node scripts/test-staging.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

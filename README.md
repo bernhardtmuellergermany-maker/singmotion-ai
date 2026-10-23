@@ -58,6 +58,7 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run test:staging
 # Install a browser when needed, or use a system Chromium below.
 npx playwright install chromium
 npm run test:e2e
@@ -75,7 +76,7 @@ npm run build
 node --env-file-if-exists=.env.local scripts/serve.mjs
 ```
 
-This starts the Next production server plus the demo worker. Use only in a trusted local environment; it binds all interfaces for Railway compatibility. For loopback-only validation use `npx next start --hostname 127.0.0.1 -p 3000` and a separate worker. Processes are not retained in cloud snapshots and must be restarted.
+This starts the Next production server plus the demo worker. Production defaults to password protection; configure the variables in [the staging guide](docs/RAILWAY_STAGING.md) first. Use only in a trusted local environment; it binds all interfaces for Railway compatibility. For loopback-only validation use `npx next start --hostname 127.0.0.1 -p 3000` and a separate worker. Processes are not retained in cloud snapshots and must be restarted.
 
 ## Private admin scaffold
 
@@ -99,6 +100,18 @@ For local development only, configure `ADMIN_DEMO_ENABLED=true` and a strong, in
 
 See `docs/ARCHITECTURE.md`, `docs/PROVIDER_VERIFICATION.md`, and `docs/LAUNCH_CHECKLIST.md`.
 
-## Railway-compatible packaging — not deployed
+## Private Railway staging
 
-The Dockerfile installs FFmpeg and builds Next.js. The entry point honors Railway's `PORT` and starts web plus worker in one container. A persistent volume at `/app/.data` is required for this **single-replica demo**; configure permissions for the `node` user. Do not horizontally scale SQLite or expose this preview publicly. Docker execution and Railway deployment have not been validated here, and no service was purchased or deployed. Production must migrate durable state to Supabase and private objects to R2 before scaling.
+See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact variables, password setup, volume permissions and acceptance checks. The Docker launcher starts Next and the demo worker as UID 1000 after validating configuration and persistent-storage access. Staging requires authentication on pages, APIs and media; generation and admin access remain disabled. Railway configuration and release are manual steps, not performed by this repository change.
+
+## BytePlus first-test preparation (still offline)
+
+The direct OmniHuman 2.0 contract could not be verified because the official documentation host is blocked by the Cloud network. No endpoint or 1.5 schema has been substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
+
+```sh
+npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --confirm-english
+```
+
+It performs **no network request or paid generation**. The current plan reports an unknown provider cost and cannot be authorized. `.env.byteplus.example` describes separate, disabled operator settings; keep the normal app in demo mode. The internal one-time authorization, spending cap, task-ID persistence, polling and MP4 validation lifecycle has fake-provider tests, but no verified live transport. `npm run byteplus:live-test` always refuses submission in this version.
+
+See [the verification matrix and BytePlus account checklist](docs/PROVIDER_VERIFICATION.md) for the precise evidence still needed. Do not add provider credentials or enable real spending until the model-specific contract and billing rules are confirmed.
