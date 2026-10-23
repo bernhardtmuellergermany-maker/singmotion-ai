@@ -135,5 +135,6 @@ safe cancellation when private-file creation fails.
 
 A network-blocked [offline preflight rehearsal](OFFLINE_PREFLIGHT.md) now checks
 real media preparation, CLI output, snapshot hashes and fictional approval guards.
-It also documents missing draft-export, operator lookup and unpriced-plan review
-steps; passing it does not unblock paid submission.
+[Draft export and offline image review](OFFLINE_OPERATOR_DRAFT.md) now work without
+creating a generation job. Transitioning an unpriced plan to a verified priced
+approval remains blocked; passing offline tests does not unblock paid submission.

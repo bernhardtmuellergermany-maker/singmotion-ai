@@ -80,12 +80,10 @@ The UI's illustrative EUR quote is never used as a BytePlus USD cost ceiling.
 
 ## Missing operator steps / unchanged blockers
 
-- There is no operator project/owner lookup or full approval-review screen.
-  Preflight currently takes IDs from an existing privately administered project.
-  With Railway `GENERATIONS_ENABLED=false`, creating a new job through the
-  generation route is blocked. Do not change that flag for this rehearsal.
-  A future separately reviewed draft-only export/preparation flow would be
-  needed to prepare a new studio draft without enqueuing generation.
+- Studio now offers a browser-local draft export and the CLI accepts `--draft`.
+  See [offline operator draft workflow](OFFLINE_OPERATOR_DRAFT.md) for exact
+  PowerShell commands, private image review and no-job preparation. This needs
+  the same local DATA_DIR; it does not retrieve Railway-only uploads.
 - Local preparation stores an immutable, unpriced plan. Re-running with changed
   prompt confirmation, inputs or contract is intentionally rejected. Decide the
   English confirmation before creating the plan. A reviewed transition from an

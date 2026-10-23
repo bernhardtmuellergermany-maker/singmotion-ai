@@ -41,3 +41,7 @@ temp/
 *.mov
 # Fixed, non-user demo fixture required by the demo worker
 !/public/media/demo.mp4
+
+# Private offline operator exports/reports (also stored under ignored DATA_DIR)
+singmotion-draft*.json
+operator-reviews/

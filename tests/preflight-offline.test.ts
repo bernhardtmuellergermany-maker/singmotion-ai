@@ -23,7 +23,13 @@ import {
   type Job,
 } from "../lib/domain.ts";
 import { validateAudio, probe } from "../lib/media.ts";
-import { prepareExistingJob, revalidateMedia } from "../lib/live/media.ts";
+import {
+  prepareExistingJob,
+  prepareStudioDraft,
+  revalidateMedia,
+} from "../lib/live/media.ts";
+import { parseStudioDraft } from "../lib/studio-draft.ts";
+import { readDraftFile, writeOfflineReview } from "../lib/live/review.ts";
 import { LiveTestStore, confirmationPhrase } from "../lib/live/store.ts";
 import { liveTestConfig } from "../lib/live/config.ts";
 import { upperBoundMicroUsd } from "../lib/live/contract.ts";
@@ -38,7 +44,7 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
   t.mock.method(globalThis, "fetch", deny);
   t.mock.method(net.Socket.prototype, "connect", deny);
   t.mock.method(tls, "connect", deny);
-  const root = await mkdtemp(path.join(tmpdir(), "singmotion-offline-"));
+  const root = await mkdtemp(path.join(tmpdir(), "singmotion offline-"));
   process.env.DATA_DIR = root;
   process.env.DEMO_MODE = "true";
   const storage = await import("../lib/db.ts");
@@ -184,6 +190,8 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
       DEMO_MODE: "true",
       BYTEPLUS_LIVE_TEST_ENABLED: "false",
       BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS: "6",
+      GENERATIONS_ENABLED: "false",
+      ADMIN_DEMO_ENABLED: "false",
     };
     // Never pass developer credentials into the offline subprocess.
     for (const name of Object.keys(childEnv))
@@ -233,6 +241,106 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
       ...prepared,
       promptLanguageConfirmed: true,
     });
+    // Export the browser draft, not a generation job; exercise the real CLI with
+    // Windows-style BOM and spaces/Unicode in filenames. No HTTP transport used.
+    const exported = parseStudioDraft({
+      version: 1,
+      owner,
+      songId,
+      imageId,
+      start: 2,
+      end: 7,
+      performance: "Natural",
+      camera: "Slow Push-In",
+      customPrompt: "Sing softly. </pre><script>alert('private')</script>",
+    });
+    const draftFile = path.join(root, "Studio draft ü.json");
+    await writeFile(draftFile, "\uFEFF" + JSON.stringify(exported), "utf8");
+    const countJobs = () =>
+      storage.db.prepare("SELECT COUNT(*) AS n FROM jobs").get()!.n;
+    const countLedger = () =>
+      storage.db.prepare("SELECT COUNT(*) AS n FROM ledger").get()!.n;
+    const beforeJobs = countJobs(),
+      beforeLedger = countLedger();
+    const draftArgs = [
+      ...baseArgs,
+      "scripts/byteplus-preflight.ts",
+      "--draft",
+      draftFile,
+      "--owner",
+      owner,
+      "--confirm-english",
+    ];
+    const runDraft = () =>
+      JSON.parse(
+        execFileSync(process.execPath, draftArgs, {
+          env: childEnv,
+          encoding: "utf8",
+        }),
+      );
+    const draftPlan = runDraft();
+    assert.deepEqual(runDraft(), draftPlan);
+    assert.equal(countJobs(), beforeJobs);
+    assert.equal(countLedger(), beforeLedger);
+    assert.equal(draftPlan.paidSubmissionEnabled, false);
+    assert.equal(draftPlan.estimatedProviderCharge, null);
+    const review = await readFile(draftPlan.reviewFile, "utf8");
+    assert.match(review, /data:image\/png;base64,/);
+    assert.match(review, /Content-Security-Policy/);
+    assert.match(review, /&lt;script&gt;/);
+    assert.doesNotMatch(review, /<script|https?:\/\/|file:\/\//i);
+    assert.ok(review.includes(draftPlan.review.audioSha256));
+    assert.ok(review.includes(draftPlan.review.imageSha256));
+    assert.ok(review.includes(`${draftPlan.preparedMp3Seconds} seconds`));
+    const oversized = path.join(root, "oversized draft.json");
+    await writeFile(oversized, "x".repeat(32769));
+    await assert.rejects(readDraftFile(oversized), /32 KiB/);
+    const draftAttempt = ledger.get(draftPlan.planId);
+    assert.equal(draftAttempt.contractRevision, null);
+    assert.equal(draftAttempt.upperBoundMicroUsd, null);
+    assert.equal(draftAttempt.providerJobId, null);
+    await revalidateMedia(draftAttempt.media);
+    await assert.rejects(
+      writeOfflineReview({ ...draftAttempt, upperBoundMicroUsd: 1 }, root),
+      /unpriced/,
+    );
+    await writeFile(
+      draftPlan.reviewFile,
+      "Existing private review must not be overwritten.",
+    );
+    await assert.rejects(
+      writeOfflineReview(draftAttempt, root),
+      /different contents/,
+    );
+    assert.equal(
+      await readFile(draftPlan.reviewFile, "utf8"),
+      "Existing private review must not be overwritten.",
+    );
+    await assert.rejects(
+      prepareStudioDraft(exported, "other-owner", 6),
+      /owner/,
+    );
+    const otherOwner = storage.createSession().owner;
+    const foreignId = randomUUID();
+    storage.putAsset({
+      ...storage.asset(imageId, owner),
+      id: foreignId,
+      owner: otherOwner,
+    });
+    await assert.rejects(
+      prepareStudioDraft({ ...exported, imageId: foreignId }, owner, 6),
+      /not found/,
+    );
+    await assert.rejects(
+      prepareStudioDraft({ ...exported, end: 4 }, owner, 6),
+      /audio limits/,
+    );
+    const rejected = spawnSync(
+      process.execPath,
+      [...draftArgs, "--job", job.id],
+      { env: childEnv, encoding: "utf8" },
+    );
+    assert.equal(rejected.status, 1);
     const defaults = liveTestConfig({});
     assert.throws(
       () =>
@@ -259,6 +367,16 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
           mockConfig,
           mockConfig.operatorSecret,
           confirmationPhrase(persisted),
+        ),
+      /unknown billing/,
+    );
+    assert.throws(
+      () =>
+        ledger!.authorize(
+          draftPlan.planId,
+          mockConfig,
+          mockConfig.operatorSecret,
+          confirmationPhrase(draftAttempt),
         ),
       /unknown billing/,
     );
@@ -417,3 +535,31 @@ for (const duration of [5, 5.04]) {
     }
   });
 }
+
+test("Studio export schema rejects paths, prices, missing media, invalid selection and presets", () => {
+  const draft = {
+    version: 1,
+    owner: "owner",
+    songId: "song",
+    imageId: "image",
+    start: 0,
+    end: 5,
+    performance: "Natural",
+    camera: "Static Close-Up",
+    customPrompt: "",
+  };
+  assert.deepEqual(parseStudioDraft(draft), draft);
+  for (const patch of [
+    { owner: "../owner" },
+    { imageId: "" },
+    { songId: "C:\\secret.mp3" },
+    { price: 1 },
+    { audioPath: "/private" },
+    { version: 2 },
+    { start: -1 },
+    { end: Infinity },
+    { performance: "unknown" },
+    { customPrompt: "x".repeat(1501) },
+  ])
+    assert.throws(() => parseStudioDraft({ ...draft, ...patch }));
+});

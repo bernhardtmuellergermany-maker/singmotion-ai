@@ -18,6 +18,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { api, ensureSession, upload } from "@/lib/client";
+import { parseStudioDraft } from "@/lib/studio-draft";
 import {
   money,
   time,
@@ -57,6 +58,7 @@ const initial: Draft = {
 export function Studio() {
   const [draft, setDraft] = useState<Draft>(initial),
     [ready, setReady] = useState(false),
+    [sessionOwner, setSessionOwner] = useState(""),
     [step, setStep] = useState(1),
     [showArtists, setShowArtists] = useState(false),
     [busy, setBusy] = useState(false),
@@ -85,7 +87,8 @@ export function Studio() {
   }
   useEffect(() => {
     ensureSession()
-      .then(() => {
+      .then((session) => {
+        setSessionOwner((session as { owner: string }).owner);
         try {
           const saved = localStorage.getItem("singmotion-studio");
           if (saved) setDraft({ ...initial, ...JSON.parse(saved) });
@@ -140,6 +143,36 @@ export function Studio() {
       setError((e as Error).message);
     } finally {
       setUploading(false);
+    }
+  }
+  function exportDraft() {
+    if (!song) return;
+    try {
+      const exported = parseStudioDraft({
+        version: 1,
+        owner: sessionOwner,
+        songId: song.id,
+        imageId,
+        start,
+        end,
+        performance,
+        camera,
+        customPrompt,
+      });
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(exported, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "singmotion-draft.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setError((e as Error).message);
     }
   }
   async function generate() {
@@ -546,6 +579,22 @@ export function Studio() {
             >
               {busy ? "Preparing your project…" : "Generate demo video"}
               <ArrowRight size={19} />
+            </button>
+            <button
+              className="button outline"
+              type="button"
+              disabled={
+                !ready ||
+                !sessionOwner ||
+                uploading ||
+                !song ||
+                !imageId ||
+                !validSegment ||
+                !prompt
+              }
+              onClick={exportDraft}
+            >
+              Export draft for offline review
             </button>
             <p className="demo-disclaimer">
               <ShieldCheck size={13} /> Simulated render. A fixed sample, not a

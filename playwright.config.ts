@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
+  testIgnore: "offline-review.spec.ts", // Separate config keeps generation disabled for operator export tests.
   fullyParallel: false,
   workers: 1,
   timeout: 45000,

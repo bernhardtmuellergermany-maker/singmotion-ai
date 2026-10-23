@@ -9,7 +9,8 @@ import { stat, realpath, mkdir, copyFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { trimAudio, validateAudio } from "../media.ts";
-import { IMAGE_LIMIT } from "../domain.ts";
+import { IMAGE_LIMIT, composePrompt } from "../domain.ts";
+import { parseStudioDraft } from "../studio-draft.ts";
 import type { PreparedMedia } from "./store.ts";
 
 export async function sha256File(filename: string): Promise<string> {
@@ -56,8 +57,46 @@ export async function prepareExistingJob(
   owner: string,
   maxSeconds = 10,
 ): Promise<PreparedMedia> {
-  const { asset, job, dataDir, putAsset } = await import("../db.ts");
-  const selected = job(jobId, owner);
+  const { job } = await import("../db.ts");
+  return prepareOwnedSelection(job(jobId, owner), owner, maxSeconds);
+}
+/** A draft is a local selection, not a queued job. Resolve all assets by owner. */
+export async function prepareStudioDraft(
+  value: unknown,
+  owner: string,
+  maxSeconds = 10,
+): Promise<PreparedMedia> {
+  const draft = parseStudioDraft(value);
+  if (draft.owner !== owner)
+    throw new Error("Draft owner does not match the operator selection.");
+  const id = `draft-${createHash("sha256").update(JSON.stringify(draft)).digest("hex").slice(0, 32)}`;
+  return prepareOwnedSelection(
+    {
+      ...draft,
+      id,
+      prompt: composePrompt(
+        draft.performance,
+        draft.camera,
+        draft.customPrompt,
+      ),
+    },
+    owner,
+    maxSeconds,
+  );
+}
+async function prepareOwnedSelection(
+  selected: {
+    id: string;
+    songId: string;
+    imageId: string;
+    start: number;
+    end: number;
+    prompt: string;
+  },
+  owner: string,
+  maxSeconds: number,
+): Promise<PreparedMedia> {
+  const { asset, dataDir, putAsset } = await import("../db.ts");
   if (
     !Number.isFinite(maxSeconds) ||
     maxSeconds <= 0 ||
