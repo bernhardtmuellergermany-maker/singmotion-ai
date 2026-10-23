@@ -64,6 +64,39 @@ const draft = await payload.create({
     ],
   },
 });
+// Existing published CMS blocks must retain their editable content in the redesign.
+await payload.delete({
+  collection: "pages",
+  where: { slug: { equals: "home" } },
+});
+await payload.create({
+  collection: "pages",
+  data: {
+    slug: "home",
+    title: "CMS home",
+    _status: "published",
+    blocks: [
+      {
+        blockType: "hero",
+        heading: "A published artist story",
+        body: "Editable introduction",
+        buttonLabel: "Start creating",
+        url: "/studio",
+      },
+      {
+        blockType: "cta",
+        heading: "Learn",
+        buttonLabel: "Meet our team",
+        url: "/about",
+      },
+      {
+        blockType: "cards",
+        heading: "Published cards",
+        items: [{ heading: "Your music", body: "Editable card copy" }],
+      },
+    ],
+  },
+});
 const server = spawn(
   process.execPath,
   [
@@ -178,6 +211,29 @@ try {
   const cookie = cookies.find((c) => c.name === "payload-token");
   assert.ok(cookie?.httpOnly);
   assert.equal(cookie?.sameSite, "Strict");
+  await page.goto(origin + "/");
+  await page
+    .getByRole("heading", { name: "A published artist story", exact: true })
+    .waitFor();
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Start creating", exact: true })
+      .getAttribute("href"),
+    "/studio",
+  );
+  assert.equal(
+    await page
+      .getByRole("link", { name: "Meet our team", exact: true })
+      .getAttribute("href"),
+    "/about",
+  );
+  await page.getByText("Editable card copy", { exact: true }).waitFor();
+  assert.equal(
+    await page
+      .getByRole("heading", { name: "Make your artist sing.", exact: true })
+      .count(),
+    0,
+  );
   await page.goto(origin + "/admin/logout");
   await page.locator('input[name="email"]').waitFor();
   assert.equal(

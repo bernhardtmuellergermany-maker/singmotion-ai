@@ -1,3 +1,4 @@
+import { homePage } from "../cms/home-page.ts";
 import { getPayload } from "payload";
 import config from "../payload.config.ts";
 import { legacyPages } from "../cms/default-pages.ts";
@@ -43,47 +44,15 @@ try {
         body: "SingMotion is a private demonstration. Live AI generation, payments and customer accounts are not enabled. Review all business and legal information before publishing.",
       },
     ];
-    if (slug === "home")
-      blocks = [
-        {
-          blockType: "hero",
-          eyebrow: "A NEW STAGE FOR YOUR MUSIC",
-          heading: title,
-          body: "Turn the song in your head into a performance you can see. Bring your own music, choose your artist, and make the moment yours.",
-          buttonLabel: "Explore the studio",
-          url: "/studio",
-        },
-        {
-          blockType: "cards",
-          heading: "A little direction. A lot of possibility.",
-          items: [
-            {
-              heading: "Bring your music",
-              body: "Upload an MP3 or WAV and find the part that deserves its own moment.",
-            },
-            {
-              heading: "Meet your artist",
-              body: "Add your own reference image. Save your artist and come back to them for the next song.",
-            },
-            {
-              heading: "Shape the performance",
-              body: "Choose an emotion, set a camera direction, and review every detail before you create.",
-            },
-          ],
-        },
-        {
-          blockType: "section",
-          heading: "A studio in the making.",
-          body: "Prices and balances are simulated in this version. No payments. No live AI renders.",
-        },
-      ];
+    if (slug === "home") blocks = homePage.blocks;
     await payload.create({
       collection: "pages",
       draft: true,
       data: {
         slug: slug as Page["slug"],
-        title,
-        description: old?.intro || title,
+        title: slug === "home" ? homePage.title : title,
+        description:
+          slug === "home" ? homePage.description : old?.intro || title,
         blocks,
         _status: "draft",
       },

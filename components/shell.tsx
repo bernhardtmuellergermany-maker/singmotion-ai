@@ -41,7 +41,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
     };
   }, []);
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell ${pathname === "/studio" ? "focused-shell" : ""}`}
+    >
       <header className="app-header">
         <Brand />
         <div className="header-right">

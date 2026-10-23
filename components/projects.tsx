@@ -161,7 +161,7 @@ export function Project({ id }: { id: string }) {
         </p>
       )}
       {job ? (
-        <div className="result-layout">
+        <div className="result-layout polished-result">
           <div>
             {job.status === "completed" && job.outputId ? (
               <>
@@ -231,12 +231,7 @@ export function Project({ id }: { id: string }) {
                     <Check size={17} /> Uploads validated
                   </p>
                   <p>
-                    {job.status === "processing" ? (
-                      <Check size={17} />
-                    ) : (
-                      <Circle size={17} />
-                    )}{" "}
-                    Trimming the selected audio
+                    <Circle size={17} /> Trimming the selected audio
                   </p>
                   <p>
                     <Circle size={17} /> Preparing the fixed demo sample

@@ -10,9 +10,7 @@ import {
   ChevronDown,
   Clock,
   ImagePlus,
-  Lightbulb,
   Music2,
-  Upload,
   X,
   ShieldCheck,
   SlidersHorizontal,
@@ -70,7 +68,8 @@ export function Studio() {
   const router = useRouter(),
     fileInput = useRef<HTMLInputElement>(null),
     requestKey = useRef<string | null>(null),
-    dialog = useRef<HTMLDialogElement>(null);
+    dialog = useRef<HTMLDialogElement>(null),
+    artistTrigger = useRef<HTMLButtonElement>(null);
   const {
     song,
     imageId,
@@ -118,7 +117,10 @@ export function Studio() {
   }, [start, end, ready]);
   useEffect(() => {
     if (showArtists) dialog.current?.showModal();
-    else dialog.current?.close();
+    else if (dialog.current?.open) {
+      dialog.current.close();
+      artistTrigger.current?.focus();
+    }
   }, [showArtists]);
   let prompt = "";
   try {
@@ -206,26 +208,38 @@ export function Studio() {
         <div>
           <span className="eyebrow">THE STUDIO</span>
           <h1>
-            Create your
-            <br className="desktop-break" /> singing video
-            <span className="heading-dot">.</span>
+            Make it yours<span className="heading-dot">.</span>
           </h1>
-          <p>Your song. A familiar face. A whole new way to be heard.</p>
+          <p>Your music. Your artist. A little direction.</p>
         </div>
-        <span className="studio-version">WORKSPACE / 01</span>
+        <span className="studio-mode">Demo workspace · no live AI renders</span>
       </div>
-      <div className="mobile-steps" aria-label={`Step ${step} of 3`}>
-        {["Your song", "Your artist", "Your direction"].map((label, i) => (
+      <nav className="mobile-steps" aria-label="Creation steps">
+        {["Music", "Artist", "Create"].map((label, i) => (
           <button
             key={label}
-            onClick={() => setStep(i + 1)}
+            aria-current={step === i + 1 ? "step" : undefined}
+            onClick={() => {
+              setStep(i + 1);
+              if (window.matchMedia("(min-width: 901px)").matches)
+                document
+                  .getElementById(`studio-step-${i + 1}`)
+                  ?.scrollIntoView({
+                    block: "start",
+                    behavior: window.matchMedia(
+                      "(prefers-reduced-motion: reduce)",
+                    ).matches
+                      ? "instant"
+                      : "smooth",
+                  });
+            }}
             className={step === i + 1 ? "current" : step > i + 1 ? "done" : ""}
           >
-            <span>{step > i + 1 ? <Check size={12} /> : i + 1}</span>
+            <span>{step > i + 1 ? <Check size={14} /> : i + 1}</span>
             {label}
           </button>
         ))}
-      </div>
+      </nav>
       {error && (
         <div role="alert" className="error">
           {error}
@@ -234,6 +248,7 @@ export function Studio() {
       <div className="studio-grid">
         <div className="editor">
           <section
+            id="studio-step-1"
             className={`editor-section mobile-step ${step === 1 ? "visible" : ""}`}
           >
             <div className="step-title">
@@ -301,7 +316,11 @@ export function Studio() {
             )}
             <div className="section-subtitle">
               <span>Select your audio section</span>
-              <span className="micro-label">START SMALL. DREAM BIG.</span>
+              <span className="micro-label">
+                {song
+                  ? `${Math.max(0, end - start).toFixed(2)}s selected`
+                  : "Find your best moment"}
+              </span>
             </div>
             {song ? (
               <Waveform
@@ -340,6 +359,7 @@ export function Studio() {
             )}
           </section>
           <section
+            id="studio-step-2"
             className={`editor-section mobile-step ${step === 2 ? "visible" : ""}`}
           >
             <div className="step-title">
@@ -356,6 +376,7 @@ export function Studio() {
                 </div>
                 <button
                   className="button outline small"
+                  ref={artistTrigger}
                   onClick={() => setShowArtists(true)}
                 >
                   Change
@@ -365,6 +386,7 @@ export function Studio() {
               <button
                 className="choose-artist"
                 disabled={!ready}
+                ref={artistTrigger}
                 onClick={() => setShowArtists(true)}
               >
                 <div className="artist-placeholder">
@@ -383,29 +405,51 @@ export function Studio() {
             </p>
           </section>
           <section
+            id="studio-step-3"
             className={`editor-section mobile-step ${step === 3 ? "visible" : ""}`}
           >
             <div className="step-title">
               <span className="step-number">3</span>
-              <h2>Performance & camera</h2>
+              <h2>Shape the performance</h2>
             </div>
-            <div className="select-row">
-              <label>
-                Performance
-                <div className="select-wrap">
-                  <select
-                    value={performance}
-                    onChange={(e) => update({ performance: e.target.value })}
-                  >
-                    {performances.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-              </label>
-              <label>
-                Camera
+            <fieldset className="performance-presets">
+              <legend>Performance</legend>
+              {performances.map((p) => (
+                <label key={p} className={performance === p ? "selected" : ""}>
+                  <input
+                    type="radio"
+                    name="performance"
+                    value={p}
+                    checked={performance === p}
+                    onChange={() => {
+                      update({ performance: p });
+                      if (p === "Custom") setAdvanced(true);
+                    }}
+                  />
+                  {p}
+                </label>
+              ))}
+            </fieldset>
+            <p className="field-note">
+              Choose a starting point. Performance directions are guidance, not
+              guaranteed controls.
+            </p>
+            <button
+              className="advanced-toggle"
+              onClick={() => setAdvanced(!advanced)}
+              aria-expanded={advanced}
+              aria-controls="studio-advanced"
+            >
+              <SlidersHorizontal size={16} /> Advanced settings{" "}
+              <ChevronDown size={15} />
+            </button>
+            <div
+              id="studio-advanced"
+              className="custom-prompt"
+              hidden={!advanced}
+            >
+              <label className="camera-field">
+                Camera direction
                 <div className="select-wrap">
                   <select
                     value={camera}
@@ -418,20 +462,6 @@ export function Studio() {
                   <ChevronDown size={14} />
                 </div>
               </label>
-            </div>
-            <p className="field-note">
-              Creative guidance, not guaranteed controls. Static and gentle
-              movements are safer starting points.
-            </p>
-            <button
-              className="advanced-toggle"
-              onClick={() => setAdvanced(!advanced)}
-              aria-expanded={advanced}
-            >
-              <SlidersHorizontal size={16} /> Advanced settings{" "}
-              <ChevronDown size={15} />
-            </button>
-            <div className={`custom-prompt ${advanced ? "expanded" : ""}`}>
               <label htmlFor="custom-prompt">
                 Custom Performance Prompt <span>Optional</span>
               </label>
@@ -453,80 +483,19 @@ export function Studio() {
                   keep.
                 </p>
               )}
+              <details className="prompt-preview">
+                <summary>
+                  View composed prompt <ChevronDown size={14} />
+                </summary>
+                <p>{prompt || "Add a custom prompt to continue."}</p>
+              </details>
             </div>
-            <details className="prompt-preview">
-              <summary>
-                View composed prompt <ChevronDown size={14} />
-              </summary>
-              <p>{prompt || "Add a custom prompt to continue."}</p>
-            </details>
           </section>
         </div>
         <div className={`preview-column ${step === 3 ? "mobile-review" : ""}`}>
-          <div className="preview-frame">
-            {imageId ? (
-              <img
-                className="reference-preview"
-                src={`/api/assets/${imageId}`}
-                alt={`${artistName} — selected reference, not a generated video`}
-              />
-            ) : (
-              <div className="preview-empty">
-                <div className="preview-halo" />
-                <div className="preview-portrait">
-                  <ImagePlus size={37} strokeWidth={1} />
-                </div>
-                <h3>
-                  A new stage.
-                  <br />
-                  For your sound.
-                </h3>
-                <p>Your artist preview will appear here.</p>
-                <button
-                  className="button frosted"
-                  disabled={!ready}
-                  onClick={() => setShowArtists(true)}
-                >
-                  <Upload size={15} /> Add your artist
-                </button>
-              </div>
-            )}
-            <div className="preview-top">
-              <span>
-                <span className="status-dot" />
-                {imageId ? "ARTIST REFERENCE" : "YOUR PERFORMANCE"}
-              </span>
-              <span>720p</span>
-            </div>
-            <div className="preview-caption">
-              <span>
-                <span className="outline-play">▷</span>
-                {imageId
-                  ? "Reference image preview"
-                  : "The next chapter of your music"}
-              </span>
-              <span>{imageId ? "Not a generated video" : "Made by you."}</span>
-            </div>
-          </div>
-          <details className="tips-card" open>
-            <summary>
-              <Lightbulb size={23} />
-              <strong>Small details. Better performances.</strong>
-              <ChevronDown size={16} />
-            </summary>
-            <p>
-              Use a sharp image with an unobstructed face and clear lead vocals.
-              Start with 5–10 seconds and a static camera.
-            </p>
-            <p className="extra-tip">
-              Strong head rotations may alter facial details. Dynamic cameras
-              can reduce background consistency. Directions and identity are
-              never guaranteed.
-            </p>
-          </details>
           <div className="generation-summary">
             <div className="summary-heading">
-              <span className="eyebrow">YOUR NEXT PERFORMANCE</span>
+              <span className="eyebrow">YOUR SELECTION</span>
               <span className="demo-badge">Demo</span>
             </div>
             <div className="summary-main">
@@ -536,13 +505,16 @@ export function Studio() {
                   <strong>
                     {(end - start).toFixed(2).replace(/\.00$/, "")} seconds
                   </strong>
-                  <small>720p · 25 FPS · MP4</small>
+                  <small>Requested audio excerpt · MP4 demo</small>
                 </span>
               </div>
               <strong className="total-price">
                 {price === null ? "—" : money(price)}
               </strong>
             </div>
+            <p className="summary-cost-note">
+              Simulated credits only. No charge.
+            </p>
             <details className="why-price">
               <summary>Why this price?</summary>
               <p>
@@ -581,7 +553,7 @@ export function Studio() {
               <ArrowRight size={19} />
             </button>
             <button
-              className="button outline"
+              className="text-button export-draft"
               type="button"
               disabled={
                 !ready ||
@@ -624,6 +596,7 @@ export function Studio() {
         onCancel={() => setShowArtists(false)}
         onClose={() => setShowArtists(false)}
         className="artist-dialog"
+        aria-label="Choose your artist"
       >
         <div className="dialog-heading">
           <div>

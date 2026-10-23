@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./redesign.css";
 export const metadata: Metadata = {
   title: {
     default: "SingMotion AI — Your music. Your performance.",

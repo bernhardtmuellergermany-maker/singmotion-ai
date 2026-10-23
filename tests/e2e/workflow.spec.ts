@@ -65,8 +65,7 @@ test("complete private demo workflow, persistent artist and project, preview and
   ).toBeVisible();
   if (info.project.name === "mobile")
     await page.getByRole("button", { name: "Continue" }).click();
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Advanced settings" }).click();
+  await page.getByRole("button", { name: "Advanced settings" }).click();
   await page
     .getByLabel("Custom Performance Prompt")
     .fill("Sing softly. Keep the camera static and the background stable.");
@@ -128,7 +127,7 @@ test("complete private demo workflow, persistent artist and project, preview and
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Delete all my demo data" }).click();
   await expect(page).toHaveURL("/");
-  await page.getByRole("link", { name: "Explore the studio" }).click();
+  await page.getByRole("link", { name: "Create your music video" }).click();
   await expect(page.getByText("€12.50")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Drop your song here" }),
