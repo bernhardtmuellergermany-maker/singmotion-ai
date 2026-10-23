@@ -1,7 +1,4 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { Brand } from "@/components/brand";
-const pages: Record<
+export const legacyPages: Record<
   string,
   { title: string; intro: string; sections: [string, string][] }
 > = {
@@ -138,40 +135,3 @@ const pages: Record<
     ],
   },
 };
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ info: string }>;
-}) {
-  const p = pages[(await params).info];
-  if (!p) notFound();
-  return (
-    <div className="info-page" id="content">
-      <header>
-        <Brand />
-        <Link href="/studio" className="button subtle">
-          Open studio
-        </Link>
-      </header>
-      <span className="eyebrow">SINGMOTION AI</span>
-      <h1>{p.title}</h1>
-      <p>{p.intro}</p>
-      {p.sections.map(([h, t]) => (
-        <section className="content-card" key={h}>
-          <h2>{h}</h2>
-          <p>{t}</p>
-        </section>
-      ))}
-      <Link
-        href="/signup"
-        className="button outline"
-        style={{ marginRight: 12 }}
-      >
-        Sign up information
-      </Link>
-      <Link href="/studio" className="button primary">
-        Explore the demo studio →
-      </Link>
-    </div>
-  );
-}

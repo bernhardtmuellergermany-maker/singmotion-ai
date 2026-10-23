@@ -6,7 +6,7 @@ A responsive Next.js studio for a **local, private demonstration** of a singing-
 
 ## Run locally
 
-Requirements: **Node.js 24**, npm, `ffmpeg` and `ffprobe` on `PATH`. No paid keys, database account, GPU, or hosted service is needed.
+Requirements: **Node.js 24.22.1 or newer within 24.x**, npm, `ffmpeg` and `ffprobe` on `PATH`. No paid keys, database account, GPU, or hosted service is needed.
 
 ```sh
 cd /workspace/singmotion-ai # or your existing checkout
@@ -115,3 +115,7 @@ npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --c
 It performs **no network request or paid generation**. The current plan reports an unknown provider cost and cannot be authorized. `.env.byteplus.example` describes separate, disabled operator settings; keep the normal app in demo mode. The internal one-time authorization, spending cap, task-ID persistence, polling and MP4 validation lifecycle has fake-provider tests, but no verified live transport. `npm run byteplus:live-test` always refuses submission in this version.
 
 See [the verification matrix and BytePlus account checklist](docs/PROVIDER_VERIFICATION.md) for the precise evidence still needed. Do not add provider credentials or enable real spending until the model-specific contract and billing rules are confirmed.
+
+## Payload administration
+
+Payload CMS is implemented but disabled by default. See [Payload admin setup](docs/PAYLOAD_ADMIN.md) for dedicated PostgreSQL migrations, secure first-admin provisioning, editable pages, supported roles, disconnected business functions, and the manual Railway deployment/rollback procedure. Never deploy or enable paid services just to test CMS.

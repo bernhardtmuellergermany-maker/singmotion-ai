@@ -48,3 +48,6 @@ operator-reviews/
 
 # Blank first-test template only; actual operator settings remain ignored.
 !.env.first-test.example
+
+# Blank CMS configuration only; populated local environment files remain ignored.
+!.env.cms.example

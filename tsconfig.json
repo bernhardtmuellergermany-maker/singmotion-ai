@@ -14,8 +14,15 @@
     "jsx": "react-jsx",
     "incremental": true,
     "allowImportingTsExtensions": true,
-    "plugins": [{ "name": "next" }],
-    "paths": { "@/*": ["./*"] }
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./*"],
+      "@payload-config": ["./payload.config.ts"]
+    }
   },
   "include": [
     "next-env.d.ts",

@@ -1,3 +1,5 @@
+import { publishedPage } from "@/cms/content";
+import { Website } from "@/components/cms/website";
 export const dynamic = "force-dynamic";
 import Link from "next/link";
 import {
@@ -10,7 +12,13 @@ import {
 } from "lucide-react";
 import { Brand } from "@/components/brand";
 import { money, quote } from "@/lib/domain";
-export default function Home() {
+export async function generateMetadata() {
+  const page = await publishedPage("home");
+  return page ? { title: page.title, description: page.description } : {};
+}
+export default async function Home() {
+  const page = await publishedPage("home");
+  if (page) return <Website page={page} />;
   return (
     <div className="marketing" id="content">
       <header className="marketing-header">
