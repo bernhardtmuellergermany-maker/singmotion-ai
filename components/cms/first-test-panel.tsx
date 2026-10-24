@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 type Review = Record<string, string | number | null>;
 type Plan = {
   id: string;
@@ -91,10 +91,19 @@ export function FirstTestPanel() {
     [error, setError] = useState(""),
     [phrase, setPhrase] = useState("");
   const [downloadApproval, setDownloadApproval] = useState(false);
+  const [prepared, setPrepared] = useState("");
+  const feedback = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (error || prepared) {
+      feedback.current?.focus();
+      feedback.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [error, prepared]);
   const plan = report.plan;
   async function request(body?: Record<string, unknown> | FormData) {
     setBusy(true);
     setError("");
+    setPrepared("");
     try {
       const response = await fetch(endpoint, {
         method: body ? "POST" : "GET",
@@ -108,22 +117,42 @@ export function FirstTestPanel() {
             }
           : {}),
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => {
+        throw new Error(
+          `Server returned an unreadable response (HTTP ${response.status}). Refresh saved status before retrying. Your selected files are retained.`,
+        );
+      });
       if (!response.ok)
         throw new Error(
           [
-            data.error,
-            ...(data.issues || []).map(
+            data?.error || `Request failed (HTTP ${response.status}).`,
+            ...(Array.isArray(data?.issues) ? data.issues : []).map(
               (i: { field: string; message: string }) =>
                 `${i.field}: ${i.message}`,
             ),
           ].join("\n"),
+        );
+      if (
+        !data ||
+        !Object.hasOwn(data, "plan") ||
+        (body && !data.plan) ||
+        (data.plan &&
+          (typeof data.plan.id !== "string" ||
+            typeof data.plan.state !== "string" ||
+            !data.plan.costReview))
+      )
+        throw new Error(
+          `Server did not return a saved plan/status (HTTP ${response.status}). Refresh saved status before retrying. Your selected files and previous plan are retained.`,
         );
       setReport(data);
       setCost(data.plan?.costReview || {});
       setOutput(data.plan?.outputReview || {});
       setPhrase("");
       setDownloadApproval(false);
+      if (body instanceof FormData)
+        setPrepared(
+          `Prepared offline. Saved plan ${data.plan.id}. No paid request was made.`,
+        );
     } catch (e) {
       setError(
         e instanceof Error
@@ -192,11 +221,6 @@ export function FirstTestPanel() {
         requires a reviewed inclusive cost bound and separate server
         authorization. Public generation stays disabled.
       </p>
-      {error && (
-        <p role="alert" style={{ whiteSpace: "pre-wrap" }}>
-          {error}
-        </p>
-      )}
       {report.blocker && <p role="status">{report.blocker}</p>}
       <button type="button" disabled={busy} onClick={() => request()}>
         Refresh saved status
@@ -243,6 +267,16 @@ export function FirstTestPanel() {
             <button disabled={busy}>Prepare offline — no paid request</button>
           </form>
         </details>
+      )}
+      {(error || prepared) && (
+        <p
+          ref={feedback}
+          tabIndex={-1}
+          role={error ? "alert" : "status"}
+          style={{ whiteSpace: "pre-wrap" }}
+        >
+          {error || prepared}
+        </p>
       )}
       {plan && (
         <>
