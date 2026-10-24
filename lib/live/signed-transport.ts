@@ -9,9 +9,11 @@ import type { Transport } from "./byteplus.ts";
 
 export class BytePlusTransportError extends Error {
   readonly kind: "authentication" | "throttled" | "transient" | "protocol";
-  constructor(kind: BytePlusTransportError["kind"]) {
+  readonly httpStatus?: number;
+  constructor(kind: BytePlusTransportError["kind"], httpStatus?: number) {
     super(`BytePlus transport ${kind} failure.`);
     this.kind = kind;
+    this.httpStatus = httpStatus;
   }
 }
 /** Dependency-injected transport, exercised only with mock HTTP clients. No
@@ -46,11 +48,11 @@ export function createSignedTransport(
         });
         if (response.status === 401 || response.status === 403) {
           await response.body?.cancel();
-          throw new BytePlusTransportError("authentication");
+          throw new BytePlusTransportError("authentication", response.status);
         }
         if (response.status === 429) {
           await response.body?.cancel();
-          throw new BytePlusTransportError("throttled");
+          throw new BytePlusTransportError("throttled", response.status);
         }
         // Limit read size before parsing. Never expose provider messages/URLs.
         if (!response.body) throw new BytePlusTransportError("protocol");

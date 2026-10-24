@@ -1,3 +1,5 @@
+import { PollError } from "../lib/live/poll-error.ts";
+import { BytePlusTransportError } from "../lib/live/signed-transport.ts";
 import { validateOutput } from "../lib/live/output.ts";
 import { validateFirstTestReview } from "../lib/live/first-test.ts";
 import { AppError } from "../lib/domain.ts";
@@ -108,6 +110,22 @@ async function fixture(t: TestContext) {
       if (action === "CVCancelTask")
         return { status: 200, body: { code: 10000, data: {} } };
       if (mode === "read-error") throw Error("SECRET");
+      if (mode === "auth-error")
+        throw new BytePlusTransportError("authentication", 403);
+      if (mode === "throttled")
+        throw new BytePlusTransportError("throttled", 429);
+      if (mode === "provider-error")
+        return {
+          status: 500,
+          body: { code: 50510, message: "SECRET private URL" },
+        };
+      if (mode === "unsupported")
+        return {
+          status: 200,
+          body: { code: 10000, data: { status: "SECRET" } },
+        };
+      if (mode === "missing-url")
+        return { status: 200, body: { code: 10000, data: { status: "done" } } };
       return {
         status: 200,
         body: {
@@ -708,4 +726,63 @@ test("discovery acceptance rejects non-720p media and over-bound duration", asyn
     }),
     /failed duration/,
   );
+});
+
+test("poll diagnostics preserve task and budget through provider errors, lease contention and late recovery", async (t) => {
+  const f = await fixture(t);
+  await f.service.execute("start", f.id, f.digest, "", f.phrase);
+  const slot = f.store.firstTest();
+  const reservation = f.store.db
+    .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+    .get(f.id);
+  for (const [mode, code] of [
+    ["auth-error", "TRANSPORT_AUTHENTICATION"],
+    ["throttled", "TRANSPORT_THROTTLED"],
+    ["provider-error", "PROVIDER_REJECTED"],
+    ["unsupported", "UNSUPPORTED_TASK_STATUS"],
+    ["missing-url", "COMPLETED_WITHOUT_VIDEO_URL"],
+    ["read-error", "TRANSPORT_TRANSIENT"],
+  ]) {
+    f.mode(mode);
+    await assert.rejects(
+      f.make().execute("poll", f.id, f.digest, "", ""),
+      (error: unknown) => {
+        assert.ok(error instanceof PollError);
+        assert.equal(error.code, code);
+        assert.ok(!error.message.includes("SECRET"));
+        if (mode === "provider-error") {
+          assert.equal(error.providerCode, 50510);
+          assert.equal(error.httpStatus, 500);
+        }
+        if (mode === "auth-error") assert.equal(error.httpStatus, 403);
+        return true;
+      },
+    );
+    assert.equal(f.store.get(f.id).providerJobId, "mock-task");
+    assert.deepEqual(f.store.firstTest(), slot);
+    assert.deepEqual(
+      f.store.db
+        .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+        .get(f.id),
+      reservation,
+    );
+  }
+  const lease = f.store.claimPoll(f.id);
+  await assert.rejects(
+    f.service.execute("poll", f.id, f.digest, "", ""),
+    (e: unknown) => e instanceof PollError && e.code === "POLL_BUSY",
+  );
+  f.store.releasePoll(f.id, lease);
+  f.store.db
+    .prepare("UPDATE live_first_test SET claimed_at=?")
+    .run(Date.now() - 13 * 3600000);
+  f.mode("done");
+  const done = await f.make().execute("poll", f.id, f.digest, "", "");
+  assert.equal(done.plan!.state, "output_observed");
+  const result = await f
+    .make()
+    .execute("download", f.id, f.digest, done.plan!.outputDigest!, "");
+  assert.equal(result.plan!.state, "completed");
+  assert.equal(f.counts().submits, 1);
+  assert.equal(f.counts().uploads, 1);
 });

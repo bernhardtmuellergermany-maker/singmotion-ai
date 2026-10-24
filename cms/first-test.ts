@@ -1,3 +1,4 @@
+import { PollError, pollError } from "../lib/live/poll-error.ts";
 import { loadBytePlusCredentials } from "../lib/live/signing.ts";
 import { loadR2Config } from "../lib/live/r2-config.ts";
 import {
@@ -528,24 +529,36 @@ export class AdminFirstTest {
         (discovery ? status.discoveryBlockers : status.startBlockers) || [];
       if (blockers.length) throw new AdminTestError(blockers.join("\n"));
     }
-    const env = adminTestEnvironment(this.env, id);
-    enforceCap(
-      firstTestConfig(env, id),
-      attempt.media.durationSeconds,
-      cost.cost,
-    );
+    let env: Env;
+    try {
+      env = adminTestEnvironment(this.env, id);
+      enforceCap(
+        firstTestConfig(env, id),
+        attempt.media.durationSeconds,
+        cost.cost,
+      );
+    } catch (error) {
+      if (action === "poll") throw new PollError("POLL_GATES");
+      throw error;
+    }
     let delivery = noDelivery,
       hosts: readonly string[] = [],
       transport = offline;
     let r2: import("../lib/live/r2.ts").R2PrivateInputDelivery | undefined;
     // Authorize before constructing network clients. The actual call repeats all gates.
-    if (action !== "start")
-      this.workflow(env).authorizeExisting(
-        id,
-        this.owner,
-        saved.cost,
-        confirmation,
-      );
+    if (action !== "start") {
+      try {
+        this.workflow(env).authorizeExisting(
+          id,
+          this.owner,
+          saved.cost,
+          confirmation,
+        );
+      } catch (error) {
+        if (action === "poll") throw pollError(error);
+        throw error;
+      }
+    }
     try {
       if (["start", "poll", "cancel", "refresh"].includes(action)) {
         if (this.deps.transport) transport = this.deps.transport;
@@ -554,7 +567,13 @@ export class AdminFirstTest {
             await import("../lib/live/signed-transport.ts");
           const { loadBytePlusCredentials } =
             await import("../lib/live/signing.ts");
-          loadBytePlusCredentials();
+          try {
+            loadBytePlusCredentials();
+          } catch (error) {
+            if (action === "poll")
+              throw new PollError("TRANSPORT_AUTHENTICATION");
+            throw error;
+          }
           transport = createSignedTransport(fetch);
         }
       }
@@ -573,11 +592,8 @@ export class AdminFirstTest {
       if (action === "start")
         await workflow.submit(id, this.owner, saved.cost, confirmation);
       else if (action === "poll") {
-        const slot = this.store.firstTest();
-        if (!slot || Date.now() >= slot.claimed_at + 12 * 3600000)
-          throw new AdminTestError(
-            "Task lifetime exceeded; reconcile without resubmitting.",
-          );
+        // A read of the durable task may recover an output even after its advertised
+        // processing lifetime. Never extend input leases or submit another task.
         await workflow.poll(id, this.owner, saved.cost, confirmation);
       } else if (action === "cancel")
         await workflow.cancel(id, this.owner, saved.cost, confirmation);
@@ -597,7 +613,10 @@ export class AdminFirstTest {
       else if (action === "cleanup" && r2)
         await r2.cleanupExpired(id, AbortSignal.timeout(60000));
       else throw new AdminTestError("Unsupported action.");
-      return this.status(id);
+      return await this.status(id);
+    } catch (error) {
+      if (action === "poll") throw pollError(error);
+      throw error;
     } finally {
       r2?.close();
     }

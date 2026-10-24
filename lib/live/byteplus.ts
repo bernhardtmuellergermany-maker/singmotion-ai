@@ -47,11 +47,22 @@ export type Transport = (
 export const blockedTransport: Transport = liveSignedTransport;
 export class BytePlusError extends Error {
   readonly retryableRead: boolean;
-  constructor(retryableRead = false) {
+  readonly diagnostic: {
+    code: string;
+    httpStatus?: number;
+    providerCode?: number;
+  };
+  constructor(
+    retryableRead = false,
+    diagnostic: BytePlusError["diagnostic"] = {
+      code: "INVALID_PROVIDER_RESPONSE",
+    },
+  ) {
     super(
       "BytePlus request failed; no automatic submission retry is permitted.",
     );
     this.retryableRead = retryableRead;
+    this.diagnostic = diagnostic;
   }
 }
 function object(value: unknown): Record<string, unknown> {
@@ -84,6 +95,15 @@ export class BytePlusProtocol {
       throw new BytePlusError(
         !(error instanceof BytePlusTransportError) ||
           ["transient", "throttled"].includes(error.kind),
+        {
+          code:
+            error instanceof BytePlusTransportError
+              ? `TRANSPORT_${error.kind.toUpperCase()}`
+              : "TRANSPORT_TRANSIENT",
+          ...(error instanceof BytePlusTransportError
+            ? { httpStatus: error.httpStatus }
+            : {}),
+        },
       );
     }
     const response = object(result.body);
@@ -91,6 +111,13 @@ export class BytePlusProtocol {
     if (result.status !== 200 || response.code !== 10000) {
       throw new BytePlusError(
         [50429, 50430, 50500, 50501].includes(Number(response.code)),
+        {
+          code: "PROVIDER_REJECTED",
+          httpStatus: result.status,
+          ...(Number.isSafeInteger(response.code)
+            ? { providerCode: response.code as number }
+            : {}),
+        },
       );
     }
     return response;
@@ -129,12 +156,13 @@ export class BytePlusProtocol {
       "expired",
       "canceled",
     ];
-    if (!states.includes(data.status)) throw new BytePlusError();
+    if (!states.includes(data.status))
+      throw new BytePlusError(false, { code: "UNSUPPORTED_TASK_STATUS" });
     if (
       data.status === "done" &&
       (typeof data.video_url !== "string" || !data.video_url)
     )
-      throw new BytePlusError();
+      throw new BytePlusError(false, { code: "COMPLETED_WITHOUT_VIDEO_URL" });
     return {
       status: data.status as TaskStatus,
       ...(data.status === "done"

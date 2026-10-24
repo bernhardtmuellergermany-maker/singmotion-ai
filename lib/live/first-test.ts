@@ -1,3 +1,4 @@
+import { pollError } from "./poll-error.ts";
 import {
   ReviewValidationError,
   type ReviewIssue,
@@ -447,7 +448,12 @@ export class FirstTestWorkflow {
     const { attempt } = this.gate(id, owner, review, confirmation);
     if (["output_observed", "completed", "failed"].includes(attempt.state))
       return attempt;
-    const lease = this.store.claimPoll(id);
+    let lease: string;
+    try {
+      lease = this.store.claimPoll(id);
+    } catch (error) {
+      throw pollError(error);
+    }
     let sanitized: ReturnType<typeof sanitizeFirstTestResult> | null = null;
     try {
       const protocol = new BytePlusProtocol(async (request, signal) => {
@@ -477,7 +483,7 @@ export class FirstTestWorkflow {
             downloaded: false,
           }),
       );
-    } catch {
+    } catch (error) {
       // Read failure never means task failure/refund. Persist only safe evidence;
       // keep the same task ID and allow an explicitly resumed read.
       if (sanitized)
@@ -488,9 +494,7 @@ export class FirstTestWorkflow {
             readFailed: true,
           }),
         );
-      throw new Error(
-        "First-test polling stopped; resume the persisted task without resubmitting.",
-      );
+      throw pollError(error);
     } finally {
       this.store.releasePoll(id, lease);
     }

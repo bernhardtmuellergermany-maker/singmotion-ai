@@ -1,3 +1,4 @@
+import { PollError } from "@/lib/live/poll-error";
 import { PreparationError, preparationError } from "@/cms/preparation-error";
 import { getPayload } from "payload";
 import config from "@payload-config";
@@ -251,6 +252,17 @@ async function handle(request: NextRequest) {
       ),
     );
   } catch (error) {
+    if (error instanceof PollError) {
+      console.warn("first-test:poll rejected", {
+        code: error.code,
+        httpStatus: error.httpStatus,
+        providerCode: error.providerCode,
+      });
+      return json(
+        { error: error.message, code: error.code },
+        error.code === "POLL_BUSY" ? 409 : 400,
+      );
+    }
     // Only static category codes are logged, never raw errors or private inputs.
     const preparing =
       request.method === "POST" &&
