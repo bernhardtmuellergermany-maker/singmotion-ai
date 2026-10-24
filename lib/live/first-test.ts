@@ -3,7 +3,7 @@ import {
   type ReviewIssue,
 } from "./review-diagnostics.ts";
 import { reportedBaseChargeMicroUsd } from "./contract.ts";
-/** Isolated operator-only discovery workflow. Never imported by web/worker code. */
+/** Isolated operator-only workflow: CLI or authenticated, explicitly gated Payload adapter; never the public worker. */
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
 import path from "node:path";
@@ -187,7 +187,7 @@ export function firstTestConfig(
     throw new Error(
       "First-test gates require an exact plan and a disabled public demo-only application.",
     );
-  // Local CLI permission only. Never mutate process.env or the public app config.
+  // Isolated operator permission only. Never mutate process.env or public app config.
   const config = liveTestConfig({ ...env, DEMO_MODE: "false" });
   if (config.maxDurationSeconds < 4 || config.maxDurationSeconds > 5)
     throw new Error("First-test duration cap must be four or five seconds.");

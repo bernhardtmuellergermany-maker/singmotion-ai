@@ -1,3 +1,4 @@
+import { FirstTestPanel } from "./first-test-panel";
 import type { AdminViewServerProps } from "payload";
 import { hasRole } from "../../cms/policy";
 export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
@@ -25,10 +26,12 @@ export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
         border: "1px solid var(--theme-elevation-150)",
       }}
     >
+      {hasRole(user, ["super-admin"]) && <FirstTestPanel />}
       <h2>SingMotion operations</h2>
       <p>
-        Demo mode. Public paid generation, Stripe and browser-based BytePlus
-        submissions remain disabled.
+        Demo mode. Public paid generation and Stripe remain disabled. The
+        separate Super Admin first-test panel requires explicit server and cost
+        authorization.
       </p>
       <p>
         Active anonymous demo workspaces: {count}. These are not registered
@@ -49,10 +52,10 @@ export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
         invented financial balances.
       </p>
       <p>
-        The private BytePlus operator ledger is intentionally not exposed
-        through this dashboard. Reviewed spending and output-host approvals
-        remain required in the existing operator workflow. No CMS action can
-        submit, cancel or retry a provider task.
+        The Super Admin test panel exposes only that administrator’s private
+        test plan, never customer media or another operator’s plan. Spending and
+        output-host approvals remain required. Uncertain tasks cannot be
+        resubmitted.
       </p>
       <p>
         Private customer files are not available here. CMS assets are separate

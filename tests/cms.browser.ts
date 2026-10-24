@@ -383,6 +383,141 @@ try {
   await page.getByRole("button", { name: "Login", exact: true }).click();
   assert.equal((await loginResponse).status(), 200);
   await page.getByRole("heading", { name: "SingMotion operations" }).waitFor();
+  // Admin-only first-test browser flow stays entirely offline with gates disabled.
+  const adminTest = origin + "/api/admin/first-test";
+  assert.equal((await fetch(adminTest)).status, 401);
+  assert.equal(
+    (await fetch(adminTest, { headers: { authorization: basic } })).status,
+    403,
+  );
+  assert.equal(
+    (
+      await context.request.post(adminTest, {
+        headers: { origin: "https://evil.example" },
+        data: { action: "start" },
+      })
+    ).status(),
+    403,
+  );
+  const panel = page.getByRole("region", { name: "OmniHuman first test" });
+  await panel.waitFor();
+  const testAudio = path.join(directory, "admin-test.mp3");
+  execFileSync("ffmpeg", [
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=duration=4.5",
+    "-c:a",
+    "libmp3lame",
+    testAudio,
+  ]);
+  await panel
+    .locator('input[name="image"]')
+    .setInputFiles("public/artwork/singmotion-concert-concept.png");
+  await panel.locator('input[name="audio"]').setInputFiles(testAudio);
+  await panel.locator('input[name="rights"]').check();
+  await panel.locator('input[name="english"]').check();
+  await panel
+    .getByRole("button", { name: "Prepare offline — no paid request" })
+    .click();
+  await panel.getByText("Unpriced — start blocked", { exact: false }).waitFor();
+  assert.equal(
+    await panel
+      .getByRole("button", { name: "Start ONE paid generation" })
+      .isDisabled(),
+    true,
+  );
+  await panel.getByRole("img").evaluate((image: HTMLImageElement) => {
+    if (image.complete && image.naturalWidth > 0) return;
+    return new Promise<void>((resolve, reject) => {
+      image.onload = () => resolve();
+      image.onerror = () => reject(new Error("Private image failed to load"));
+    });
+  });
+  const privateImage = await panel.getByRole("img").getAttribute("src");
+  assert.ok(privateImage?.startsWith("/api/admin/first-test?"));
+  assert.equal(
+    (await fetch(origin + privateImage!, { headers: { authorization: basic } }))
+      .status,
+    403,
+  );
+  assert.equal(
+    (
+      await context.request.get(origin + privateImage!, { headers: { origin } })
+    ).status(),
+    200,
+  );
+  const state = await (
+    await context.request.get(adminTest, { headers: { origin } })
+  ).json();
+  assert.equal(state.plan.state, "prepared");
+  assert.equal(state.plan.costDigest, null);
+  assert.ok(!JSON.stringify(state).includes(directory));
+  assert.equal(
+    (
+      await context.request.post(adminTest, {
+        headers: { origin },
+        data: {
+          action: "start",
+          plan: state.plan.id,
+          confirmation: "forged",
+          phrase: "forged",
+        },
+      })
+    ).status(),
+    400,
+  );
+  for (const role of ["editor", "support", "super-admin"] as const) {
+    const other = await payload.create({
+      collection: "staff",
+      overrideAccess: false,
+      user: { ...admin, collection: "staff" },
+      data: {
+        email: role + "-" + randomUUID() + "@example.test",
+        password,
+        role,
+      },
+    });
+    const isolated = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      httpCredentials: { username: "staging", password: stagingPassword },
+    });
+    try {
+      assert.equal(
+        (
+          await isolated.request.post(origin + "/api/cms/staff/login", {
+            headers: { origin },
+            data: { email: other.email, password },
+          })
+        ).status(),
+        200,
+      );
+      const response = await isolated.request.get(adminTest, {
+        headers: { origin },
+      });
+      if (role === "super-admin") {
+        assert.equal(response.status(), 200);
+        assert.equal((await response.json()).plan, null);
+      } else assert.equal(response.status(), 403);
+      assert.notEqual(
+        (
+          await isolated.request.get(origin + privateImage!, {
+            headers: { origin },
+          })
+        ).status(),
+        200,
+      );
+    } finally {
+      await isolated.close();
+    }
+  }
+  await page.screenshot({
+    path: "test-results/cms-first-test-offline.png",
+    fullPage: true,
+  });
+
   await page.goto(origin + `/admin/collections/pages/${draft.id}`);
   await page.locator('input[name="title"]').fill("Published browser test");
   await page.getByRole("button", { name: /publish changes/i }).click();
