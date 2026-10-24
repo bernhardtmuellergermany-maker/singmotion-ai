@@ -1,3 +1,8 @@
+import {
+  PreparationError,
+  preparationError,
+  type PreparationStage,
+} from "./preparation-error.ts";
 /** Server-only adapter for the existing one-task ledger; no public generation path. */
 import { createHash } from "node:crypto";
 import { copyFile, mkdir, mkdtemp, writeFile, rm } from "node:fs/promises";
@@ -158,9 +163,11 @@ export class AdminFirstTest {
         "Confirm rights and English direction; use a JPEG/PNG up to 5 MB and a 4–5 second MP3 under 15 MB.",
       );
     const mediaRoot = path.join(this.root, "media");
-    await mkdir(mediaRoot, { recursive: true, mode: 0o700 });
-    const temp = await mkdtemp(path.join(mediaRoot, "admin-upload-"));
+    let stage: PreparationStage = "storage";
+    let temp: string | undefined;
     try {
+      await mkdir(mediaRoot, { recursive: true, mode: 0o700 });
+      temp = await mkdtemp(path.join(mediaRoot, "admin-upload-"));
       const imageTemp = path.join(temp, "image"),
         audioTemp = path.join(temp, "audio");
       await writeFile(imageTemp, Buffer.from(await image.arrayBuffer()), {
@@ -171,10 +178,20 @@ export class AdminFirstTest {
         flag: "wx",
         mode: 0o600,
       });
+      stage = "image";
       await validateReference(imageTemp);
+      stage = "audio";
       const duration = await validateAudio(audioTemp, true);
-      validateOmniAudio({ format: "mp3", bytes: audio.size, duration });
-      validateEncodedDuration(duration, 5);
+      try {
+        validateOmniAudio({ format: "mp3", bytes: audio.size, duration });
+        validateEncodedDuration(duration, 5);
+      } catch {
+        throw new PreparationError(
+          "audio-duration",
+          `Encoded MP3 duration limit: measured ${duration.toFixed(6)} seconds; required 4–5 seconds including encoder padding. Select a shorter excerpt if over 5 seconds.`,
+        );
+      }
+      stage = "snapshot";
       const imageSha256 = await sha256File(imageTemp),
         audioSha256 = await sha256File(audioTemp);
       const imagePath = path.join(
@@ -212,10 +229,13 @@ export class AdminFirstTest {
         promptLanguageConfirmed: true,
       };
       await revalidateMedia(media);
+      stage = "plan";
       const attempt = this.store.prepare(media, null, null);
-      return this.status(attempt.id);
+      return await this.status(attempt.id);
+    } catch (error) {
+      throw preparationError(error, stage);
     } finally {
-      await rm(temp, { recursive: true, force: true });
+      if (temp) await rm(temp, { recursive: true, force: true });
     }
   }
   async status(id?: string) {

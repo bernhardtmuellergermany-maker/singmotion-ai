@@ -1,3 +1,4 @@
+import { AppError } from "../lib/domain.ts";
 import { test, beforeEach, after, type TestContext } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
@@ -12,6 +13,10 @@ import {
   adminTestOwner,
   adminTestEnvironment,
 } from "../cms/first-test.ts";
+import {
+  PreparationError,
+  preparationError,
+} from "../cms/preparation-error.ts";
 import { retainedInputPaths } from "../lib/live/cleanup.ts";
 import { LiveTestStore } from "../lib/live/store.ts";
 import { validateStaging } from "../lib/staging.ts";
@@ -357,6 +362,10 @@ test("invalid image, actual encoded duration and unconfirmed uploads fail withou
       true,
       true,
     ),
+    (error: unknown) =>
+      error instanceof PreparationError &&
+      error.code === "prepare-image" &&
+      /300–4096/.test(error.message),
   );
   await assert.rejects(
     f.service.upload(
@@ -387,7 +396,15 @@ test("invalid image, actual encoded duration and unconfirmed uploads fail withou
       true,
       true,
     ),
-    /duration limit/,
+    (error: unknown) =>
+      error instanceof PreparationError &&
+      error.code === "audio-duration" &&
+      /measured 5\./.test(error.message),
+  );
+  assert.equal(f.store.get(f.id).state, "prepared");
+  assert.equal(
+    (await readFile(f.store.get(f.id).media.audioPath)).length,
+    audioBytes.length,
   );
   assert.equal(f.counts().submits, 0);
 });
@@ -398,4 +415,64 @@ test("demo cleanup retains immutable unpriced administrator inputs", async (t) =
   const paths = retainedInputPaths(f.dir);
   assert.ok(paths.includes(media.imagePath));
   assert.ok(paths.includes(media.audioPath));
+});
+
+test("preparation diagnostics distinguish server setup and never expose raw errors", () => {
+  assert.equal(
+    preparationError(new AppError("private error", 429), "plan").code,
+    "prepare-rate-limit",
+  );
+  for (const [code, stage, expected] of [
+    ["ENOENT", "audio", "ffprobe-unavailable"],
+    ["EACCES", "storage", "storage-permission"],
+    ["ENOSPC", "storage", "storage-full"],
+    ["ERR_SQLITE_ERROR", "plan", "database-busy"],
+    ["UNKNOWN", "multipart", "prepare-multipart"],
+  ] as const) {
+    const raw = Object.assign(
+      new Error("SECRET /private/path https://private.test/?signature=SECRET"),
+      { code, errcode: 5, path: "ffprobe" },
+    );
+    const safe = preparationError(raw, stage);
+    assert.equal(safe.code, expected);
+    assert.ok(!safe.message.includes("SECRET"));
+    assert.ok(!safe.message.includes("/private/path"));
+    assert.ok(!safe.message.includes("signature="));
+  }
+});
+
+test("invalid MP3 and missing ffprobe surface safe preparation diagnostics without changing an existing plan", async (t) => {
+  const f = await fixture(t);
+  const saved = f.store.get(f.id);
+  const upload = (bytes: Uint8Array) =>
+    f.service.upload(
+      new File([new Uint8Array(imageBytes)], "singer.png"),
+      new File([new Uint8Array(bytes)], "clip.mp3"),
+      "",
+      true,
+      true,
+    );
+  await assert.rejects(
+    upload(Buffer.from("not audio")),
+    (error: unknown) =>
+      error instanceof PreparationError &&
+      error.code === "prepare-audio" &&
+      !error.message.includes(f.dir),
+  );
+  const originalPath = process.env.PATH;
+  try {
+    process.env.PATH = path.join(f.dir, "no-executables");
+    await assert.rejects(
+      upload(audioBytes),
+      (error: unknown) =>
+        error instanceof PreparationError &&
+        error.code === "ffprobe-unavailable",
+    );
+  } finally {
+    process.env.PATH = originalPath;
+  }
+  assert.deepEqual(f.store.get(f.id), saved);
+  assert.deepEqual(await readFile(saved.media.audioPath), audioBytes);
+  assert.equal(f.counts().uploads, 0);
+  assert.equal(f.counts().submits, 0);
 });

@@ -1,3 +1,4 @@
+import { PreparationError, preparationError } from "@/cms/preparation-error";
 import { getPayload } from "payload";
 import config from "@payload-config";
 import { NextRequest } from "next/server";
@@ -161,7 +162,11 @@ async function handle(request: NextRequest) {
         method: "POST",
         headers: request.headers,
         body: await bounded(request, 20_100_000),
-      }).formData();
+      })
+        .formData()
+        .catch((error) => {
+          throw preparationError(error, "multipart");
+        });
       const image = form.get("image"),
         audio = form.get("audio");
       if (!(image instanceof File) || !(audio instanceof File))
@@ -239,6 +244,23 @@ async function handle(request: NextRequest) {
       ),
     );
   } catch (error) {
+    // Only static category codes are logged, never raw errors or private inputs.
+    const preparing =
+      request.method === "POST" &&
+      request.headers.get("content-type")?.startsWith("multipart/form-data;");
+    if (
+      error instanceof PreparationError ||
+      (preparing &&
+        !(error instanceof AdminTestError) &&
+        !(error instanceof ReviewValidationError))
+    ) {
+      const safe = preparationError(error, "plan");
+      console.warn("first-test:prepare rejected", safe.code);
+      return json(
+        { error: safe.message, code: safe.code },
+        safe.code === "prepare-rate-limit" ? 429 : 400,
+      );
+    }
     // Never serialize provider errors, paths, credentials, presigned URLs or raw bodies.
     if (error instanceof ReviewValidationError)
       return json(
