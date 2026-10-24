@@ -21,13 +21,19 @@ export function outputReviewTemplate(
   workflow: FirstTestWorkflow,
   id: string,
   owner: string,
+  preparedCostDigest?: string,
 ) {
   const attempt = workflow.owned(id, owner);
+  const preparing =
+    attempt.state === "prepared" &&
+    !attempt.providerJobId &&
+    /^[a-f0-9]{64}$/.test(preparedCostDigest || "");
   if (
-    !attempt.providerJobId ||
-    !["submitted", "processing", "output_observed", "completed"].includes(
-      attempt.state,
-    )
+    !preparing &&
+    (!attempt.providerJobId ||
+      !["submitted", "processing", "output_observed", "completed"].includes(
+        attempt.state,
+      ))
   )
     throw new Error(
       "A persisted provider task is required; uncertain submissions cannot be prepared for retrieval.",
@@ -36,7 +42,7 @@ export function outputReviewTemplate(
     kind: "first-test-output-review-v1",
     planId: id,
     taskId: attempt.providerJobId,
-    costReviewDigest: attempt.contractDigest,
+    costReviewDigest: preparing ? preparedCostDigest! : attempt.contractDigest,
     hostname: "",
     width: null as number | null,
     height: null as number | null,
@@ -57,8 +63,14 @@ export function reviewOutput(
   owner: string,
   value: unknown,
   generatedMax: number,
+  preparedCostDigest?: string,
 ) {
-  const template = outputReviewTemplate(workflow, id, owner);
+  const template = outputReviewTemplate(
+    workflow,
+    id,
+    owner,
+    preparedCostDigest,
+  );
   if (!value || typeof value !== "object" || Array.isArray(value))
     throw new Error("Output approval is missing.");
   const input = value as Record<string, unknown>;

@@ -17,7 +17,7 @@ export function preparationError(
   if (error instanceof AppError && error.status === 429)
     return new PreparationError(
       "prepare-rate-limit",
-      "Preparation request limit reached. Uploads are limited to 4 per administrator and 8 total per hour. Wait for the limit to expire; do not reset storage or repeat submissions.",
+      "Request rate limit reached. Wait for the short request window to expire; do not reset storage or repeat paid submissions.",
     );
   const code = (error as NodeJS.ErrnoException | null)?.code;
   if (["EACCES", "EPERM", "EROFS"].includes(String(code)))

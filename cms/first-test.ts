@@ -1,3 +1,5 @@
+import { loadBytePlusCredentials } from "../lib/live/signing.ts";
+import { loadR2Config } from "../lib/live/r2-config.ts";
 import {
   PreparationError,
   preparationError,
@@ -266,39 +268,163 @@ export class AdminFirstTest {
     const report = await this.workflow().dryRun(id, this.owner, saved.cost);
     let output = saved.output,
       outputDigest: string | null = null;
+    const preparedDigest =
+      attempt.state === "prepared"
+        ? report.confirmationDigest || undefined
+        : undefined;
+    const startBlockers: string[] = [];
+    if (!report.confirmationDigest)
+      startBlockers.push(
+        "Save a verified inclusive cost review, including tax/fees and evidence for this exact input.",
+      );
     if (
-      attempt.providerJobId &&
-      ["submitted", "processing", "output_observed", "completed"].includes(
-        attempt.state,
-      )
+      report.confirmationDigest &&
+      (attempt.state === "prepared" ||
+        (attempt.providerJobId &&
+          ["submitted", "processing", "output_observed", "completed"].includes(
+            attempt.state,
+          )))
     ) {
+      // Bind the pre-approved policy to the one persisted task after submit/restart.
+      if (
+        output &&
+        output.taskId === null &&
+        attempt.providerJobId &&
+        output.costReviewDigest === attempt.contractDigest
+      )
+        output = { ...output, taskId: attempt.providerJobId };
       if (!output)
-        output = outputReviewTemplate(this.workflow(), id, this.owner);
-      else
-        outputDigest = reviewOutput(
+        output = outputReviewTemplate(
           this.workflow(),
           id,
           this.owner,
-          output,
-          report.review.generatedVideoMaxSeconds!,
-        ).digest;
-    }
-    const observed = this.store.firstTestResult(id)?.result;
-    let blocker: string | null = null;
-    try {
-      const scoped = adminTestEnvironment(this.env, id);
-      if (report.inclusiveMaxMicroUsd !== null)
-        enforceCap(
-          firstTestConfig(scoped, id),
-          attempt.media.durationSeconds,
-          report.inclusiveMaxMicroUsd,
+          preparedDigest,
         );
-      if (slot && slot.attempt_id !== id)
-        throw new Error("One-test slot already claimed");
-    } catch {
-      blocker =
-        "Server authorization is disabled or incomplete: exact plan ID, secret, duration and spending caps must be configured.";
+      else {
+        try {
+          outputDigest = reviewOutput(
+            this.workflow(),
+            id,
+            this.owner,
+            output,
+            report.review.generatedVideoMaxSeconds!,
+            preparedDigest,
+          ).digest;
+        } catch {
+          startBlockers.push(
+            "Output approval is invalid or belongs to a different cost review; review and save it again.",
+          );
+          output = outputReviewTemplate(
+            this.workflow(),
+            id,
+            this.owner,
+            preparedDigest,
+          );
+        }
+      }
     }
+    if (!outputDigest)
+      startBlockers.push(
+        "Approve an exact output hostname and bounded MP4 media policy before starting. Candidate hostnames are not approvals.",
+      );
+    const serverBlockers: string[] = [];
+    for (const [key, value] of Object.entries({
+      DEMO_MODE: "true",
+      GENERATIONS_ENABLED: "false",
+      ADMIN_DEMO_ENABLED: "false",
+      BYTEPLUS_LIVE_TEST_ENABLED: "false",
+      BYTEPLUS_ADMIN_TEST_ENABLED: "true",
+      BYTEPLUS_FIRST_TEST_ENABLED: "true",
+    }))
+      if (this.env[key] !== value)
+        serverBlockers.push(`${key} must be ${value}.`);
+    if (this.env.BYTEPLUS_FIRST_TEST_PLAN_ID !== id)
+      serverBlockers.push(
+        "BYTEPLUS_FIRST_TEST_PLAN_ID must match the displayed plan ID.",
+      );
+    if ((this.env.BYTEPLUS_LIVE_TEST_OPERATOR_SECRET || "").length < 32)
+      serverBlockers.push(
+        "BYTEPLUS_LIVE_TEST_OPERATOR_SECRET requires at least 32 characters.",
+      );
+    const maxDuration = Number(
+      this.env.BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS,
+    );
+    if (
+      !Number.isInteger(maxDuration) ||
+      maxDuration < 4 ||
+      maxDuration > 5 ||
+      report.encodedAudioSeconds > maxDuration
+    )
+      serverBlockers.push(
+        "BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS must be 4 or 5 and cover the measured clip.",
+      );
+    for (const key of [
+      "BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD",
+      "BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD",
+    ]) {
+      const cap = Number(this.env[key]);
+      if (
+        !Number.isSafeInteger(cap) ||
+        cap <= 0 ||
+        (report.inclusiveMaxMicroUsd !== null &&
+          cap < report.inclusiveMaxMicroUsd)
+      )
+        serverBlockers.push(
+          `${key} must be a positive integer covering the reviewed inclusive bound.`,
+        );
+    }
+    try {
+      validateStaging(this.env);
+    } catch {
+      serverBlockers.push(
+        "Staging protection requires a valid STAGING_PASSWORD and demo-only configuration.",
+      );
+    }
+    const blocker = serverBlockers.length ? serverBlockers.join("\n") : null;
+    startBlockers.push(...serverBlockers);
+    if (this.env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED !== "true")
+      startBlockers.push(
+        "BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED must be true for the approved private download.",
+      );
+    if (!this.deps.transport) {
+      try {
+        loadBytePlusCredentials(this.env);
+      } catch {
+        startBlockers.push(
+          "BYTEPLUS_ACCESS_KEY_ID / BYTEPLUS_SECRET_ACCESS_KEY are missing or invalid.",
+        );
+      }
+    }
+    if (!this.deps.delivery) {
+      try {
+        loadR2Config(this.env);
+      } catch {
+        startBlockers.push(
+          "R2_ACCOUNT_ID / R2_BUCKET / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY are missing or invalid.",
+        );
+      }
+    }
+    if (slot)
+      startBlockers.push(
+        "The one-test slot is already claimed. Resume the existing task; never submit another.",
+      );
+    const reserved = (
+      this.store.db
+        .prepare(
+          "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
+        )
+        .get() as { total: number }
+    ).total;
+    if (
+      !slot &&
+      report.inclusiveMaxMicroUsd !== null &&
+      reserved + report.inclusiveMaxMicroUsd >
+        Number(this.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD)
+    )
+      startBlockers.push(
+        "Remaining cumulative spending budget does not cover this plan.",
+      );
+    const observed = this.store.firstTestResult(id)?.result;
     return {
       plan: {
         id,
@@ -315,6 +441,7 @@ export class AdminFirstTest {
         completed: attempt.state === "completed",
       },
       blocker,
+      startBlockers,
     };
   }
   async saveReview(id: string, kind: "cost" | "output", value: unknown) {
@@ -336,6 +463,7 @@ export class AdminFirstTest {
         this.owner,
         value,
         cost.review.generatedVideoMaxSeconds!,
+        attempt.state === "prepared" ? cost.digest : undefined,
       );
       this.store.db
         .prepare("UPDATE live_admin_reviews SET output_json=? WHERE plan_id=?")
@@ -363,6 +491,10 @@ export class AdminFirstTest {
         `AUTHORIZE ONE PAID BYTEPLUS TEST ${id} UP TO ${cost.cost} MICROUSD`
     )
       throw new AdminTestError("Type the exact one-test cost approval phrase.");
+    if (action === "start") {
+      const blockers = (await this.status(id)).startBlockers || [];
+      if (blockers.length) throw new AdminTestError(blockers.join("\n"));
+    }
     const env = adminTestEnvironment(this.env, id);
     enforceCap(
       firstTestConfig(env, id),
@@ -425,7 +557,7 @@ export class AdminFirstTest {
           this.owner,
           saved.cost,
           confirmation,
-          saved.output,
+          (await this.status(id)).plan!.outputReview,
           outputConfirmation,
           this.deps.output,
         );

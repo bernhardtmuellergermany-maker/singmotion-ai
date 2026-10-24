@@ -171,6 +171,21 @@ async function fixture(t: TestContext) {
   };
   const approved = await service.saveReview(id, "cost", cost),
     digest = approved.plan!.costDigest!;
+  await service.saveReview(id, "output", {
+    ...approved.plan!.outputReview!,
+    hostname: "output.example",
+    width: 1280,
+    height: 720,
+    fps: 25,
+    minDurationSeconds: 4,
+    maxDurationSeconds: 6,
+    videoCodec: "h264",
+    audioCodec: "aac",
+    reviewedBy: "Mock reviewer",
+    reviewedAt: "2026-01-01T00:00:00Z",
+    evidence: "Mock-only host/media approval, not real evidence.",
+    acknowledgment: "APPROVE_EXACT_HOST_AND_MEDIA_POLICY",
+  });
   const phrase = `AUTHORIZE ONE PAID BYTEPLUS TEST ${id} UP TO 500000 MICROUSD`;
   return {
     service,
@@ -302,7 +317,8 @@ test("one task persists across requests, requires output approval and saves vali
   await assert.rejects(
     f.service.saveReview(f.id, "output", { ...output, hostname: "127.0.0.1" }),
   );
-  const approved = await f.service.saveReview(f.id, "output", output);
+  // Reuse the pre-submit policy after a fresh service instance/restart; no new approval or task.
+  const approved = observed;
   const completed = await f
     .make()
     .execute("download", f.id, f.digest, approved.plan!.outputDigest!, "");
@@ -475,4 +491,82 @@ test("invalid MP3 and missing ffprobe surface safe preparation diagnostics witho
   assert.deepEqual(await readFile(saved.media.audioPath), audioBytes);
   assert.equal(f.counts().uploads, 0);
   assert.equal(f.counts().submits, 0);
+});
+
+test("paid admin start requires pre-approved output policy, download gate and remaining budget", async (t) => {
+  const f = await fixture(t);
+  const approved = await f.service.status(f.id);
+  assert.deepEqual(approved.startBlockers, []);
+  f.env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = "false";
+  await assert.rejects(
+    f.service.execute("start", f.id, f.digest, "", f.phrase),
+    /DOWNLOAD_ENABLED/,
+  );
+  f.env.BYTEPLUS_FIRST_TEST_DOWNLOAD_ENABLED = "true";
+  f.store.db
+    .prepare("UPDATE live_admin_reviews SET output_json=NULL WHERE plan_id=?")
+    .run(f.id);
+  await assert.rejects(
+    f.service.execute("start", f.id, f.digest, "", f.phrase),
+    /output hostname/,
+  );
+  assert.equal(f.counts().submits, 0);
+  assert.equal(f.counts().uploads, 0);
+  assert.equal(f.store.firstTest(), undefined);
+});
+test("readiness names missing settings without returning secrets and invalidates policy when cost changes", async (t) => {
+  const f = await fixture(t);
+  delete f.env.BYTEPLUS_FIRST_TEST_PLAN_ID;
+  f.env.BYTEPLUS_LIVE_TEST_OPERATOR_SECRET = "secret-too-short";
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "1";
+  const report = await f.service.status(f.id);
+  assert.ok(
+    report.startBlockers!.some((x) =>
+      x.includes("BYTEPLUS_FIRST_TEST_PLAN_ID"),
+    ),
+  );
+  assert.ok(
+    report.startBlockers!.some((x) =>
+      x.includes("BYTEPLUS_LIVE_TEST_OPERATOR_SECRET"),
+    ),
+  );
+  assert.ok(
+    report.startBlockers!.some((x) =>
+      x.includes("BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD"),
+    ),
+  );
+  assert.ok(!JSON.stringify(report).includes("secret-too-short"));
+  const changed = await f.service.saveReview(f.id, "cost", {
+    ...f.cost,
+    evidence: "Different mock evidence",
+  });
+  assert.equal(changed.plan!.outputDigest, null);
+});
+
+test("repeated offline preparation reuses the existing owned plan and media", async (t) => {
+  const f = await fixture(t);
+  for (let i = 0; i < 6; i++) {
+    const same = await f.service.upload(
+      new File([new Uint8Array(imageBytes)], "singer.png"),
+      new File([audioBytes], "clip.mp3"),
+      "Sing gently.",
+      true,
+      true,
+    );
+    assert.equal(same.plan!.id, f.id);
+    assert.equal(same.plan!.costDigest, f.digest);
+    assert.ok(same.plan!.outputDigest);
+  }
+  assert.equal(f.counts().submits, 0);
+  const route = await readFile(
+    "app/(payload)/api/admin/first-test/route.ts",
+    "utf8",
+  );
+  assert.ok(
+    route.indexOf("adminTestOwner(user") < route.indexOf("if (multipart)"),
+  );
+  assert.ok(!route.includes("cms:first-test:upload:"));
+  assert.ok(route.includes("60, 60000"));
+  const publicApi = await readFile("app/(site)/api/[...path]/route.ts", "utf8");
+  assert.ok(publicApi.includes("limit(`${owner}:upload`, 15)"));
 });

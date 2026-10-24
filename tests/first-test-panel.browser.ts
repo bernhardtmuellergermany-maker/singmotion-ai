@@ -31,7 +31,14 @@ try {
   };
   let reply: { status: number; body: string; contentType: string } = {
     status: 200,
-    body: JSON.stringify({ plan, blocker: "Live test disabled" }),
+    body: JSON.stringify({
+      plan,
+      blocker: "Live test disabled",
+      startBlockers: [
+        "BYTEPLUS_FIRST_TEST_PLAN_ID must match the displayed plan ID.",
+        "Approve an exact output hostname before starting.",
+      ],
+    }),
     contentType: "application/json",
   };
   let posts = 0;
@@ -76,6 +83,16 @@ try {
     await page.getByRole("heading", { name: "Plan existing-plan" }).count(),
     1,
   );
+  await page
+    .getByText("Requirements blocking a paid start", { exact: true })
+    .waitFor();
+  await page
+    .getByText(
+      "BYTEPLUS_FIRST_TEST_PLAN_ID must match the displayed plan ID.",
+      { exact: true },
+    )
+    .waitFor();
+
   assert.equal(
     await page
       .getByRole("button", { name: "Start ONE paid generation" })

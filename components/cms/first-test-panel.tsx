@@ -15,7 +15,11 @@ type Plan = {
   observedHostname: string | null;
   completed: boolean;
 };
-type Report = { plan: Plan | null; blocker: string | null };
+type Report = {
+  plan: Plan | null;
+  blocker: string | null;
+  startBlockers?: string[];
+};
 const endpoint = "/api/admin/first-test";
 const bindings = new Set([
   "kind",
@@ -221,7 +225,21 @@ export function FirstTestPanel() {
         requires a reviewed inclusive cost bound and separate server
         authorization. Public generation stays disabled.
       </p>
-      {report.blocker && <p role="status">{report.blocker}</p>}
+      {report.blocker && (
+        <p role="status" style={{ whiteSpace: "pre-wrap" }}>
+          {report.blocker}
+        </p>
+      )}
+      {!!report.startBlockers?.length && (
+        <details open>
+          <summary>Requirements blocking a paid start</summary>
+          <ul>
+            {report.startBlockers.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </details>
+      )}
       <button type="button" disabled={busy} onClick={() => request()}>
         Refresh saved status
       </button>
@@ -341,7 +359,13 @@ export function FirstTestPanel() {
           </p>
           {plan.state === "prepared" && (
             <fieldset
-              disabled={busy || !plan.costDigest || Boolean(report.blocker)}
+              disabled={
+                busy ||
+                !plan.costDigest ||
+                !plan.outputDigest ||
+                Boolean(report.blocker) ||
+                Boolean(report.startBlockers?.length)
+              }
             >
               <p>To authorize exactly one paid task, type:</p>
               <code style={{ overflowWrap: "anywhere" }}>{approval}</code>
@@ -391,7 +415,9 @@ export function FirstTestPanel() {
           )}
           {plan.outputReview && (
             <details open={plan.state === "output_observed"}>
-              <summary>3. Approve output and save MP4</summary>
+              <summary>
+                3. Approve output policy before start / save MP4
+              </summary>
               <p>
                 Observed hostname: {plan.observedHostname || "Not yet returned"}
                 . This is evidence only, not approval. URLs expire after about

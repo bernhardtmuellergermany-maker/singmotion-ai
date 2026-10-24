@@ -156,8 +156,8 @@ async function handle(request: NextRequest) {
       .get("content-type")
       ?.startsWith("multipart/form-data;");
     if (multipart) {
-      limit(`cms:first-test:upload:${owner}`, 4, 3600000);
-      limit("cms:first-test:upload:global", 8, 3600000);
+      // adminTestOwner above admits authenticated Super Admins only.
+      // Keep request/body limits; ordinary customer upload limits are unchanged.
       const form = await new Request(request.url, {
         method: "POST",
         headers: request.headers,
