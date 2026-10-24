@@ -28,7 +28,7 @@ import {
   sha256File,
   revalidateMedia,
 } from "../lib/live/media.ts";
-import { validateAudio } from "../lib/media.ts";
+import { validateAudio, probe } from "../lib/media.ts";
 import {
   validateOmniAudio,
   validateEncodedDuration,
@@ -327,6 +327,11 @@ export class AdminFirstTest {
       startBlockers.push(
         "Approve an exact output hostname and bounded MP4 media policy before starting. Candidate hostnames are not approvals.",
       );
+    const outputBlockers = startBlockers.filter(
+      (item) =>
+        item.startsWith("Output approval") ||
+        item.startsWith("Approve an exact output"),
+    );
     const serverBlockers: string[] = [];
     for (const [key, value] of Object.entries({
       DEMO_MODE: "true",
@@ -425,6 +430,20 @@ export class AdminFirstTest {
         "Remaining cumulative spending budget does not cover this plan.",
       );
     const observed = this.store.firstTestResult(id)?.result;
+    let validatedMedia = null;
+    if (attempt.state === "completed" && attempt.outputPath) {
+      const measured = await probe(attempt.outputPath);
+      const video = measured.streams.find((s) => s.codec_type === "video");
+      const audio = measured.streams.find((s) => s.codec_type === "audio");
+      validatedMedia = {
+        width: video?.width,
+        height: video?.height,
+        frameRate: video?.avg_frame_rate,
+        videoCodec: video?.codec_name,
+        audioCodec: audio?.codec_name,
+        seconds: Number(measured.format.duration),
+      };
+    }
     return {
       plan: {
         id,
@@ -439,9 +458,13 @@ export class AdminFirstTest {
         outputDigest,
         observedHostname: observed?.observedHostname || null,
         completed: attempt.state === "completed",
+        validatedMedia,
       },
       blocker,
       startBlockers,
+      discoveryBlockers: startBlockers.filter(
+        (item) => !outputBlockers.includes(item),
+      ),
     };
   }
   async saveReview(id: string, kind: "cost" | "output", value: unknown) {
@@ -457,14 +480,21 @@ export class AdminFirstTest {
         .run(id, JSON.stringify(checked.review));
     } else {
       const cost = validateFirstTestReview(this.reviews(id).cost, attempt);
-      const checked = reviewOutput(
-        this.workflow(),
-        id,
-        this.owner,
-        value,
-        cost.review.generatedVideoMaxSeconds!,
-        attempt.state === "prepared" ? cost.digest : undefined,
-      );
+      let checked;
+      try {
+        checked = reviewOutput(
+          this.workflow(),
+          id,
+          this.owner,
+          value,
+          cost.review.generatedVideoMaxSeconds!,
+          attempt.state === "prepared" ? cost.digest : undefined,
+        );
+      } catch {
+        throw new AdminTestError(
+          "Output review rejected. Confirm the exact DNS hostname (no URL/IP/wildcard), evidence, and media policy. For discovery use unset dimensions/codecs/FPS, minimum 1 second and a maximum within the approved cost duration; otherwise supply valid exact metadata. No download was made.",
+        );
+      }
       this.store.db
         .prepare("UPDATE live_admin_reviews SET output_json=? WHERE plan_id=?")
         .run(JSON.stringify(checked.review), id);
@@ -477,6 +507,7 @@ export class AdminFirstTest {
     confirmation: string,
     outputConfirmation: string,
     phrase: string,
+    discovery = false,
   ) {
     const attempt = this.owned(id),
       saved = this.reviews(id);
@@ -488,11 +519,13 @@ export class AdminFirstTest {
     if (
       action === "start" &&
       phrase !==
-        `AUTHORIZE ONE PAID BYTEPLUS TEST ${id} UP TO ${cost.cost} MICROUSD`
+        `AUTHORIZE ONE PAID BYTEPLUS TEST ${id} UP TO ${cost.cost} MICROUSD${discovery ? " DISCOVER OUTPUT ONLY" : ""}`
     )
       throw new AdminTestError("Type the exact one-test cost approval phrase.");
     if (action === "start") {
-      const blockers = (await this.status(id)).startBlockers || [];
+      const status = await this.status(id);
+      const blockers =
+        (discovery ? status.discoveryBlockers : status.startBlockers) || [];
       if (blockers.length) throw new AdminTestError(blockers.join("\n"));
     }
     const env = adminTestEnvironment(this.env, id);

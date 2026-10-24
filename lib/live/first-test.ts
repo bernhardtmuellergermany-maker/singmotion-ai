@@ -54,6 +54,14 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
     ]);
   const template = firstTestReviewTemplate(attempt);
   const input = value as Record<string, unknown>;
+  // Aggregate approval is a reviewed upper bound, not a claimed tax/fee breakdown.
+  const aggregate =
+    input.acknowledgment === "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT";
+  const components = [
+    "baseMaxMicroUsd",
+    "taxMaxMicroUsd",
+    "feesMaxMicroUsd",
+  ] as const;
   const issues = new Map<ReviewIssue["field"], ReviewIssue>();
   const invalid = (field: ReviewIssue["field"], message: string) => {
     if (!issues.has(field)) issues.set(field, { field, message });
@@ -61,8 +69,9 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
   for (const field of Object.keys(template) as (keyof FirstTestReview)[])
     if (
       !Object.hasOwn(input, field) ||
-      input[field] === null ||
-      input[field] === ""
+      ((!aggregate ||
+        !components.includes(field as (typeof components)[number])) &&
+        (input[field] === null || input[field] === ""))
     )
       invalid(field, "Required; supply an explicitly reviewed value.");
   if (Object.keys(input).some((key) => !Object.hasOwn(template, key)))
@@ -96,7 +105,14 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
     "feesMaxMicroUsd",
     "inclusiveMaxMicroUsd",
   ] as const;
-  for (const key of money)
+  if (aggregate)
+    for (const key of components)
+      if (input[key] !== null)
+        invalid(
+          key,
+          "Leave the unverified breakdown null in total-bound mode.",
+        );
+  for (const key of aggregate ? (["inclusiveMaxMicroUsd"] as const) : money)
     if (!Number.isSafeInteger(input[key]) || Number(input[key]) < 0)
       invalid(
         key,
@@ -114,6 +130,7 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
       "Must be a finite number covering the exact prepared input duration and no greater than six seconds.",
     );
   if (
+    !aggregate &&
     validVideo &&
     !issues.has("baseMaxMicroUsd") &&
     Number(input.baseMaxMicroUsd) < reportedBaseChargeMicroUsd(videoMax)
@@ -123,6 +140,17 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
       "Must cover the reported base charge for the reviewed generated-video bound.",
     );
   if (
+    aggregate &&
+    validVideo &&
+    (!Number.isSafeInteger(input.inclusiveMaxMicroUsd) ||
+      Number(input.inclusiveMaxMicroUsd) < reportedBaseChargeMicroUsd(videoMax))
+  )
+    invalid(
+      "inclusiveMaxMicroUsd",
+      "Inclusive total must cover the reported base charge for the reviewed video bound and all account-specific charges.",
+    );
+  if (
+    !aggregate &&
     money.every(
       (key) => Number.isSafeInteger(input[key]) && Number(input[key]) >= 0,
     )
@@ -156,7 +184,7 @@ export function validateFirstTestReview(value: unknown, attempt: Attempt) {
       "reviewedAt",
       "Must be a valid review date that is not in the future.",
     );
-  if (input.acknowledgment !== "INCLUSIVE_BOUND_FOR_EXACT_INPUT")
+  if (!aggregate && input.acknowledgment !== "INCLUSIVE_BOUND_FOR_EXACT_INPUT")
     invalid(
       "acknowledgment",
       "Must explicitly equal INCLUSIVE_BOUND_FOR_EXACT_INPUT after review.",

@@ -62,7 +62,7 @@ export async function Website({
               </Link>
             )}
             <Link
-              className={isHome ? "button primary" : "button subtle"}
+              className={isHome ? "button home-signin" : "button subtle"}
               href={studioLink.url}
             >
               {studioLink.label}

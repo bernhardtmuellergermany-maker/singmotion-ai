@@ -14,11 +14,13 @@ type Plan = {
   outputDigest: string | null;
   observedHostname: string | null;
   completed: boolean;
+  validatedMedia?: Record<string, string | number> | null;
 };
 type Report = {
   plan: Plan | null;
   blocker: string | null;
   startBlockers?: string[];
+  discoveryBlockers?: string[];
 };
 const endpoint = "/api/admin/first-test";
 const bindings = new Set([
@@ -31,6 +33,9 @@ const bindings = new Set([
   "encodedAudioSeconds",
   "taskId",
   "costReviewDigest",
+  "reviewedBy",
+  "reviewedAt",
+  "acknowledgment",
 ]);
 function ReviewFields({
   value,
@@ -42,7 +47,32 @@ function ReviewFields({
   return (
     <>
       {Object.entries(value)
-        .filter(([key]) => !bindings.has(key))
+        .filter(
+          ([key]) =>
+            !bindings.has(key) &&
+            !(
+              value.kind === "first-test-output-discovery-v1" &&
+              [
+                "width",
+                "height",
+                "fps",
+                "videoCodec",
+                "audioCodec",
+                "minDurationSeconds",
+                "maxDurationSeconds",
+              ].includes(key)
+            ) &&
+            !(
+              value.acknowledgment ===
+                "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT" &&
+              [
+                "baseMaxMicroUsd",
+                "taxMaxMicroUsd",
+                "feesMaxMicroUsd",
+                "inclusiveMaxMicroUsd",
+              ].includes(key)
+            ),
+        )
         .map(([key, current]) => (
           <label key={key} style={{ display: "block", margin: "12px 0" }}>
             {key}
@@ -103,24 +133,36 @@ export function FirstTestPanel() {
       feedback.current?.scrollIntoView({ block: "nearest" });
     }
   }, [error, prepared]);
+  const [discovery, setDiscovery] = useState(false);
+  const blockers = discovery
+    ? (report.discoveryBlockers ?? report.startBlockers)
+    : report.startBlockers;
   const plan = report.plan;
-  async function request(body?: Record<string, unknown> | FormData) {
+  async function request(
+    body?: Record<string, unknown> | FormData,
+    existingPlan?: string,
+  ) {
     setBusy(true);
     setError("");
     setPrepared("");
     try {
-      const response = await fetch(endpoint, {
-        method: body ? "POST" : "GET",
-        ...(body
-          ? {
-              body: body instanceof FormData ? body : JSON.stringify(body),
-              headers:
-                body instanceof FormData
-                  ? {}
-                  : { "Content-Type": "application/json" },
-            }
-          : {}),
-      });
+      const response = await fetch(
+        existingPlan
+          ? `${endpoint}?plan=${encodeURIComponent(existingPlan)}`
+          : endpoint,
+        {
+          method: body ? "POST" : "GET",
+          ...(body
+            ? {
+                body: body instanceof FormData ? body : JSON.stringify(body),
+                headers:
+                  body instanceof FormData
+                    ? {}
+                    : { "Content-Type": "application/json" },
+              }
+            : {}),
+        },
+      );
       const data = await response.json().catch(() => {
         throw new Error(
           `Server returned an unreadable response (HTTP ${response.status}). Refresh saved status before retrying. Your selected files are retained.`,
@@ -204,11 +246,12 @@ export function FirstTestPanel() {
       confirmation: plan!.costDigest,
       outputConfirmation: plan!.outputDigest,
       phrase,
+      discovery,
     });
   const media = (kind: string) =>
     `${endpoint}?plan=${encodeURIComponent(plan!.id)}&media=${kind}`;
   const approval = plan
-    ? `AUTHORIZE ONE PAID BYTEPLUS TEST ${plan.id} UP TO ${plan.costReview.inclusiveMaxMicroUsd} MICROUSD`
+    ? `AUTHORIZE ONE PAID BYTEPLUS TEST ${plan.id} UP TO ${plan.costReview.inclusiveMaxMicroUsd} MICROUSD${discovery ? " DISCOVER OUTPUT ONLY" : ""}`
     : "";
   return (
     <section
@@ -230,11 +273,11 @@ export function FirstTestPanel() {
           {report.blocker}
         </p>
       )}
-      {!!report.startBlockers?.length && (
+      {!!blockers?.length && (
         <details open>
           <summary>Requirements blocking a paid start</summary>
           <ul>
-            {report.startBlockers.map((item) => (
+            {blockers.map((item) => (
               <li key={item}>{item}</li>
             ))}
           </ul>
@@ -243,6 +286,28 @@ export function FirstTestPanel() {
       <button type="button" disabled={busy} onClick={() => request()}>
         Refresh saved status
       </button>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          const id = String(
+            new FormData(e.currentTarget).get("existingPlan") || "",
+          ).trim();
+          if (id) void request(undefined, id);
+        }}
+      >
+        <label>
+          Existing prepared plan ID{" "}
+          <input
+            name="existingPlan"
+            aria-label="Existing prepared plan ID"
+            required
+            pattern="[a-zA-Z0-9_-]{1,100}"
+          />
+        </label>
+        <button type="submit" disabled={busy}>
+          Load owned plan — no upload
+        </button>
+      </form>
       {(!plan || plan.state === "prepared") && (
         <details open={!plan}>
           <summary>1. Upload private test inputs</summary>
@@ -330,12 +395,71 @@ export function FirstTestPanel() {
           <details open={plan.state === "prepared"}>
             <summary>2. Review inclusive cost</summary>
             <p>
-              No amounts or evidence are inferred. Document the exact clip’s
-              generated-duration bound, base cost, taxes and fees. reviewedAt
-              must be ISO UTC. acknowledgment must be
-              INCLUSIVE_BOUND_FOR_EXACT_INPUT.
+              Provider rate: USD 0.07 per generated video second before tax.
+              Illustrative base estimate: USD 0.28–0.42 for a 4–6 second
+              generated video. This is not a quote or an inclusive maximum for
+              this clip. Tax, fees and EUR/USD conversion remain unverified.
+            </p>
+            <p>
+              A EUR 50 budget is permission to spend, not evidence of provider
+              charges or a USD exchange rate. Evidence must support the
+              generated-duration bound and an inclusive USD maximum within your
+              authorized budget. Reviewer and review time are recorded from your
+              authenticated session.
             </p>
             <fieldset disabled={busy || plan.state !== "prepared"}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={
+                    cost.acknowledgment ===
+                    "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT"
+                  }
+                  onChange={(e) =>
+                    setCost({
+                      ...cost,
+                      acknowledgment: e.target.checked
+                        ? "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT"
+                        : "",
+                      baseMaxMicroUsd: null,
+                      taxMaxMicroUsd: null,
+                      feesMaxMicroUsd: null,
+                    })
+                  }
+                />{" "}
+                Use one evidence-backed inclusive USD maximum; leave unverified
+                tax/fee amounts unknown.
+              </label>
+              {cost.acknowledgment ===
+                "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT" && (
+                <label style={{ display: "block" }}>
+                  Inclusive maximum (USD, not EUR)
+                  <input
+                    aria-label="Inclusive maximum USD"
+                    type="text"
+                    inputMode="decimal"
+                    key={`${plan.id}:${plan.costDigest}`}
+                    defaultValue={
+                      cost.inclusiveMaxMicroUsd == null
+                        ? ""
+                        : Number(cost.inclusiveMaxMicroUsd) / 1000000
+                    }
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (!v) setCost({ ...cost, inclusiveMaxMicroUsd: null });
+                      else if (/^\d+(\.\d{0,6})?$/.test(v)) {
+                        const [whole, fraction = ""] = v.split(".");
+                        setCost({
+                          ...cost,
+                          inclusiveMaxMicroUsd: Number(
+                            whole + fraction.padEnd(6, "0"),
+                          ),
+                        });
+                      } else setCost({ ...cost, inclusiveMaxMicroUsd: null });
+                    }}
+                  />
+                </label>
+              )}
               <ReviewFields value={cost} setValue={setCost} />
               <button
                 type="button"
@@ -343,11 +467,18 @@ export function FirstTestPanel() {
                   request({
                     action: "cost-review",
                     plan: plan.id,
-                    review: cost,
+                    review: {
+                      ...cost,
+                      acknowledgment:
+                        cost.acknowledgment ===
+                        "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT"
+                          ? cost.acknowledgment
+                          : "INCLUSIVE_BOUND_FOR_EXACT_INPUT",
+                    },
                   })
                 }
               >
-                Validate and save cost review — offline
+                Approve evidence-backed cost review — offline
               </button>
             </fieldset>
           </details>
@@ -358,24 +489,45 @@ export function FirstTestPanel() {
               : "Unpriced — start blocked"}
           </p>
           {plan.state === "prepared" && (
+            <label>
+              <input
+                type="checkbox"
+                checked={discovery}
+                onChange={(e) => {
+                  setDiscovery(e.target.checked);
+                  setPhrase("");
+                }}
+              />{" "}
+              First-test discovery: submit and poll this one task without
+              pre-approved output metadata. No provider video is fetched until I
+              separately approve its exact host and a bounded media policy.
+            </label>
+          )}
+          {plan.state === "prepared" && (
             <fieldset
               disabled={
                 busy ||
                 !plan.costDigest ||
-                !plan.outputDigest ||
+                (!discovery && !plan.outputDigest) ||
                 Boolean(report.blocker) ||
-                Boolean(report.startBlockers?.length)
+                Boolean(blockers?.length)
               }
             >
-              <p>To authorize exactly one paid task, type:</p>
-              <code style={{ overflowWrap: "anywhere" }}>{approval}</code>
-              <br />
-              <input
-                aria-label="One paid task confirmation"
-                value={phrase}
-                onChange={(e) => setPhrase(e.target.value)}
-                style={{ width: "100%" }}
-              />
+              <label>
+                <input
+                  type="checkbox"
+                  aria-label="One paid task confirmation"
+                  checked={phrase === approval}
+                  onChange={(e) => setPhrase(e.target.checked ? approval : "")}
+                />{" "}
+                I authorize exactly ONE paid task for plan {plan.id}, up to USD{" "}
+                {Number(plan.costReview.inclusiveMaxMicroUsd) / 1000000}{" "}
+                inclusive, using the saved cost approval and{" "}
+                {discovery
+                  ? "discovery-only mode; download remains separately gated"
+                  : "saved output approval"}
+                .
+              </label>
               <button
                 type="button"
                 disabled={phrase !== approval}
@@ -422,17 +574,52 @@ export function FirstTestPanel() {
                 Observed hostname: {plan.observedHostname || "Not yet returned"}
                 . This is evidence only, not approval. URLs expire after about
                 one hour. Review the exact hostname and bounded dimensions, FPS,
-                duration and codecs; use acknowledgment
-                APPROVE_EXACT_HOST_AND_MEDIA_POLICY.
+                duration and codecs. Support confirms 720p; exact dimensions,
+                frame rate and codecs are not verified and are not auto-filled.
+                The reported v16m-default.tiktokcdn.com remains a candidate
+                until explicitly approved with evidence. Reviewer and time are
+                recorded automatically.
               </p>
               <fieldset disabled={busy}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={output.kind === "first-test-output-discovery-v1"}
+                    onChange={(e) =>
+                      setOutput({
+                        ...output,
+                        kind: e.target.checked
+                          ? "first-test-output-discovery-v1"
+                          : "first-test-output-review-v1",
+                        width: null,
+                        height: null,
+                        fps: null,
+                        videoCodec: "",
+                        audioCodec: "",
+                        minDurationSeconds: e.target.checked ? 1 : null,
+                        maxDurationSeconds: e.target.checked
+                          ? plan.costReview.generatedVideoMaxSeconds
+                          : null,
+                      })
+                    }
+                  />{" "}
+                  Discover actual metadata under a strict acceptance policy:
+                  720p (short side), dimensions ≤4096, 0–120 fps, H.264/HEVC
+                  video + AAC audio, 1 second through the approved duration
+                  bound. These are acceptance rules, not claims about unverified
+                  provider metadata. The exact host still requires explicit
+                  review.
+                </label>
                 <ReviewFields value={output} setValue={setOutput} />
                 <button
                   onClick={() =>
                     request({
                       action: "output-review",
                       plan: plan.id,
-                      review: output,
+                      review: {
+                        ...output,
+                        acknowledgment: "APPROVE_EXACT_HOST_AND_MEDIA_POLICY",
+                      },
                     })
                   }
                 >
@@ -473,6 +660,11 @@ export function FirstTestPanel() {
           )}
           {plan.completed && (
             <>
+              {plan.validatedMedia && (
+                <p>
+                  Validated MP4 metadata: {JSON.stringify(plan.validatedMedia)}
+                </p>
+              )}
               <video
                 controls
                 preload="metadata"

@@ -42,6 +42,7 @@ try {
     contentType: "application/json",
   };
   let posts = 0;
+  let costBody: Record<string, unknown> | null = null;
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname === "/")
@@ -52,6 +53,13 @@ try {
     if (url.pathname === "/api/admin/first-test" && !url.search) {
       if (route.request().method() === "POST") {
         posts++;
+        if (
+          route
+            .request()
+            .headers()
+            ["content-type"]?.includes("application/json")
+        )
+          costBody = route.request().postDataJSON();
         return route.fulfill(reply);
       }
       return route.fulfill({ json: { plan: null, blocker: null } });
@@ -99,6 +107,31 @@ try {
       .isDisabled(),
     true,
   );
+  await page
+    .getByRole("checkbox", {
+      name: "Use one evidence-backed inclusive USD maximum",
+      exact: false,
+    })
+    .check();
+  await page.getByLabel("Inclusive maximum USD", { exact: true }).fill("0.42");
+  await page
+    .getByRole("button", {
+      name: "Approve evidence-backed cost review — offline",
+    })
+    .click();
+  await page.getByRole("button", { name: "Refresh saved status" }).waitFor();
+  await page.waitForFunction(
+    () =>
+      !Array.from(document.querySelectorAll("button")).find(
+        (b) => b.textContent === "Refresh saved status",
+      )?.disabled,
+  );
+  const review = (costBody as unknown as { review: Record<string, unknown> })
+    .review;
+  assert.equal(review.inclusiveMaxMicroUsd, 420000);
+  assert.equal(review.taxMaxMicroUsd, null);
+  assert.equal(review.feesMaxMicroUsd, null);
+  assert.equal(review.acknowledgment, "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT");
   for (const bad of [
     {
       status: 200,
@@ -162,7 +195,7 @@ try {
       .getByText("1. Upload private test inputs", { exact: true })
       .click();
   }
-  assert.equal(posts, 6);
+  assert.equal(posts, 7);
   console.log(
     "PASS: saved plan feedback, malformed success, server errors, non-JSON errors, retained files/plan and disabled paid start.",
   );

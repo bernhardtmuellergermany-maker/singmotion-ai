@@ -76,8 +76,9 @@ export function reviewOutput(
   const input = value as Record<string, unknown>;
   if (Object.keys(input).sort().join() !== Object.keys(template).sort().join())
     throw new Error("Unexpected output review fields.");
+  const discover = input.kind === "first-test-output-discovery-v1";
   for (const key of ["kind", "planId", "taskId", "costReviewDigest"] as const)
-    if (input[key] !== template[key])
+    if (!(key === "kind" && discover) && input[key] !== template[key])
       throw new Error(
         "Output review does not match the persisted task/cost approval.",
       );
@@ -88,7 +89,20 @@ export function reviewOutput(
   )
     throw new Error("An exact reviewed DNS hostname is required.");
   validateOutputUrl(`https://${input.hostname}/`, [input.hostname]);
-  for (const key of ["width", "height"])
+  if (discover && input.minDurationSeconds !== 1)
+    throw new Error(
+      "Discovery requires a one-second minimum acceptance duration.",
+    );
+  if (
+    discover &&
+    (input.width !== null ||
+      input.height !== null ||
+      input.fps !== null ||
+      input.videoCodec !== "" ||
+      input.audioCodec !== "")
+  )
+    throw new Error("Discovery policy must leave unknown metadata unset.");
+  for (const key of discover ? [] : ["width", "height"])
     if (
       !Number.isSafeInteger(input[key]) ||
       Number(input[key]) < 1 ||
@@ -96,10 +110,11 @@ export function reviewOutput(
     )
       throw new Error("Review bounded output dimensions.");
   if (
-    typeof input.fps !== "number" ||
-    !Number.isFinite(input.fps) ||
-    input.fps <= 0 ||
-    input.fps > 120 ||
+    (!discover &&
+      (typeof input.fps !== "number" ||
+        !Number.isFinite(input.fps) ||
+        input.fps <= 0 ||
+        input.fps > 120)) ||
     typeof input.minDurationSeconds !== "number" ||
     !Number.isFinite(input.minDurationSeconds) ||
     input.minDurationSeconds <= 0 ||
@@ -107,8 +122,9 @@ export function reviewOutput(
     !Number.isFinite(input.maxDurationSeconds) ||
     input.maxDurationSeconds < input.minDurationSeconds ||
     input.maxDurationSeconds > generatedMax ||
-    !["h264", "hevc"].includes(String(input.videoCodec)) ||
-    input.audioCodec !== "aac"
+    (!discover &&
+      (!["h264", "hevc"].includes(String(input.videoCodec)) ||
+        input.audioCodec !== "aac"))
   )
     throw new Error("Review bounded duration, FPS and supported MP4 codecs.");
   for (const key of ["reviewedBy", "reviewedAt", "evidence"])
@@ -131,14 +147,15 @@ export function reviewOutput(
     (review.minDurationSeconds! + review.maxDurationSeconds!) / 2;
   const contract: OutputValidationContract = {
     outputHosts: [review.hostname],
+    discover720p: discover,
     output: {
       width: review.width!,
       height: review.height!,
       fps: review.fps!,
       durationToleranceSeconds:
         (review.maxDurationSeconds! - review.minDurationSeconds!) / 2,
-      videoCodec: review.videoCodec,
-      audioCodec: review.audioCodec,
+      videoCodec: discover ? undefined : review.videoCodec,
+      audioCodec: discover ? undefined : review.audioCodec,
     },
   };
   return {

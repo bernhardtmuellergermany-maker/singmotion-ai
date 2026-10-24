@@ -693,9 +693,11 @@ body {
   border: 1px solid #bdb5d4;
   color: white;
 }
-.home-site .site-header-actions .primary {
-  background: #6550d5;
-  color: white;
+.home-site .site-header-actions .button {
+  min-height: 36px;
+  padding: 8px 14px;
+  font-size: 13px;
+  box-shadow: none;
 }
 .home-site .cinematic-hero {
   min-height: 100svh;

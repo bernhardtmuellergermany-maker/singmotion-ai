@@ -1,3 +1,5 @@
+import { validateOutput } from "../lib/live/output.ts";
+import { validateFirstTestReview } from "../lib/live/first-test.ts";
 import { AppError } from "../lib/domain.ts";
 import { test, beforeEach, after, type TestContext } from "node:test";
 import assert from "node:assert/strict";
@@ -569,4 +571,141 @@ test("repeated offline preparation reuses the existing owned plan and media", as
   assert.ok(route.includes("60, 60000"));
   const publicApi = await readFile("app/(site)/api/[...path]/route.ts", "utf8");
   assert.ok(publicApi.includes("limit(`${owner}:upload`, 15)"));
+});
+
+test("aggregate inclusive review keeps unknown breakdown null, binds evidence and enforces caps", async (t) => {
+  const f = await fixture(t);
+  const old = (await f.service.status(f.id)).plan!.outputReview!;
+  const total = {
+    ...f.cost,
+    baseMaxMicroUsd: null,
+    taxMaxMicroUsd: null,
+    feesMaxMicroUsd: null,
+    acknowledgment: "INCLUSIVE_TOTAL_BOUND_FOR_EXACT_INPUT",
+  };
+  const attempt = f.store.get(f.id);
+  for (const invalid of [
+    { ...total, inclusiveMaxMicroUsd: 419999 },
+    { ...total, inclusiveMaxMicroUsd: 0 },
+    { ...total, evidence: "" },
+    { ...total, generatedVideoMaxSeconds: null },
+    { ...total, taxMaxMicroUsd: 0 },
+    { ...total, inclusiveMaxMicroUsd: Number.MAX_SAFE_INTEGER + 1 },
+    { ...total, planId: "different-plan" },
+  ])
+    assert.throws(() => validateFirstTestReview(invalid, attempt));
+  const saved = await f.service.saveReview(f.id, "cost", total);
+  assert.equal(saved.plan!.costReview.taxMaxMicroUsd, null);
+  assert.equal(saved.plan!.costReview.feesMaxMicroUsd, null);
+  assert.equal(saved.plan!.costReview.inclusiveMaxMicroUsd, 500000);
+  assert.equal(saved.plan!.outputDigest, null);
+  await f.service.saveReview(f.id, "output", {
+    ...old,
+    costReviewDigest: saved.plan!.costDigest,
+  });
+  f.env.BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD = "499999";
+  await assert.rejects(
+    f.service.execute("start", f.id, saved.plan!.costDigest!, "", f.phrase),
+  );
+  assert.equal(f.counts().submits, 0);
+  f.env.BYTEPLUS_LIVE_TEST_MAX_JOB_MICRO_USD = "500000";
+  await f.service.execute("start", f.id, saved.plan!.costDigest!, "", f.phrase);
+  await assert.rejects(
+    f.service.execute("start", f.id, saved.plan!.costDigest!, "", f.phrase),
+  );
+  assert.equal(f.counts().submits, 1);
+});
+
+test("explicit discovery submits once without metadata, then requires exact host approval and validates private MP4", async (t) => {
+  const f = await fixture(t);
+  f.store.db
+    .prepare("UPDATE live_admin_reviews SET output_json=NULL WHERE plan_id=?")
+    .run(f.id);
+  await assert.rejects(
+    f.service.execute("start", f.id, f.digest, "", f.phrase),
+  );
+  await assert.rejects(
+    f.service.execute("start", f.id, f.digest, "", f.phrase, true),
+  );
+  assert.equal(f.counts().submits, 0);
+  await f.service.execute(
+    "start",
+    f.id,
+    f.digest,
+    "",
+    f.phrase + " DISCOVER OUTPUT ONLY",
+    true,
+  );
+  const observed = await f.make().execute("poll", f.id, f.digest, "", "");
+  await assert.rejects(f.service.execute("download", f.id, f.digest, "", ""));
+  assert.equal(f.counts().downloads, 0);
+  const policy = {
+    ...observed.plan!.outputReview!,
+    kind: "first-test-output-discovery-v1",
+    hostname: "output.example",
+    minDurationSeconds: 1,
+    maxDurationSeconds: 6,
+    reviewedBy: "Mock reviewer",
+    reviewedAt: "2026-01-01T00:00:00Z",
+    evidence:
+      "Mock-only exact host approval and bounded 720p discovery acceptance policy.",
+    acknowledgment: "APPROVE_EXACT_HOST_AND_MEDIA_POLICY",
+  };
+  await assert.rejects(
+    f.service.saveReview(f.id, "output", { ...policy, hostname: "127.0.0.1" }),
+  );
+  await assert.rejects(
+    f.service.saveReview(f.id, "output", { ...policy, maxDurationSeconds: 7 }),
+  );
+  const approved = await f.service.saveReview(f.id, "output", policy);
+  const result = await f
+    .make()
+    .execute("download", f.id, f.digest, approved.plan!.outputDigest!, "");
+  assert.equal(result.plan!.state, "completed");
+  assert.equal(result.plan!.validatedMedia!.height, 720);
+  assert.equal(result.plan!.validatedMedia!.videoCodec, "h264");
+  assert.deepEqual(f.counts(), { submits: 1, uploads: 1, downloads: 1 });
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      f.id,
+      f.digest,
+      "",
+      f.phrase + " DISCOVER OUTPUT ONLY",
+      true,
+    ),
+  );
+});
+
+test("discovery acceptance rejects non-720p media and over-bound duration", async (t) => {
+  const f = await fixture(t);
+  const wrong = path.join(f.dir, "small.mp4");
+  execFileSync("ffmpeg", [
+    "-v",
+    "error",
+    "-i",
+    video,
+    "-t",
+    "1",
+    "-vf",
+    "scale=320:180",
+    "-c:v",
+    "libx264",
+    "-c:a",
+    "aac",
+    wrong,
+  ]);
+  const policy = {
+    outputHosts: ["output.example"],
+    discover720p: true,
+    output: { width: 0, height: 0, fps: 0, durationToleranceSeconds: 2.5 },
+  };
+  await assert.rejects(validateOutput(wrong, 3.5, policy), /failed duration/);
+  await assert.rejects(
+    validateOutput(video, 1, {
+      ...policy,
+      output: { ...policy.output, durationToleranceSeconds: 0.1 },
+    }),
+    /failed duration/,
+  );
 });

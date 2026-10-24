@@ -230,7 +230,13 @@ async function handle(request: NextRequest) {
         await service.saveReview(
           plan,
           action === "cost-review" ? "cost" : "output",
-          review,
+          review && typeof review === "object" && !Array.isArray(review)
+            ? {
+                ...review,
+                reviewedBy: owner,
+                reviewedAt: new Date().toISOString(),
+              }
+            : review,
         ),
       );
     if (action === "start") limit(`cms:first-test:start:${owner}`, 3, 3600000);
@@ -241,6 +247,7 @@ async function handle(request: NextRequest) {
         confirmation,
         outputConfirmation,
         phrase,
+        body.discovery === true,
       ),
     );
   } catch (error) {

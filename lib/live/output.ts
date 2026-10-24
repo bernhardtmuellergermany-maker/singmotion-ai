@@ -11,6 +11,8 @@ import type { VerifiedContract } from "./contract.ts";
 
 export interface OutputValidationContract {
   outputHosts: readonly string[];
+  /** Explicit operator-approved acceptance bounds; never inferred provider metadata. */
+  discover720p?: boolean;
   output: VerifiedContract["output"] & {
     videoCodec?: string;
     audioCodec?: string;
@@ -62,12 +64,21 @@ export async function validateOutput(
       video.codec_name !== contract.output.videoCodec) ||
     (contract.output.audioCodec !== undefined &&
       audio.codec_name !== contract.output.audioCodec) ||
-    video.width !== contract.output.width ||
-    video.height !== contract.output.height ||
+    (contract.discover720p
+      ? !Number.isInteger(video.width) ||
+        !Number.isInteger(video.height) ||
+        Math.min(video.width!, video.height!) !== 720 ||
+        Math.max(video.width!, video.height!) > 4096 ||
+        !["h264", "hevc"].includes(video.codec_name) ||
+        audio.codec_name !== "aac"
+      : video.width !== contract.output.width ||
+        video.height !== contract.output.height) ||
     !Number.isFinite(length) ||
     Math.abs(length - duration) > contract.output.durationToleranceSeconds ||
     !Number.isFinite(actualFps) ||
-    Math.abs(actualFps - contract.output.fps) > 0.01
+    (contract.discover720p
+      ? actualFps <= 0 || actualFps > 120
+      : Math.abs(actualFps - contract.output.fps) > 0.01)
   )
     throw new Error(
       "Provider MP4 failed duration, dimensions, audio or frame-rate validation.",
