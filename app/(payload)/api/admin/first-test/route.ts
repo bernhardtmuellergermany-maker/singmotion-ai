@@ -1,3 +1,8 @@
+import {
+  fetchFxReference,
+  FxReferenceError,
+  planningReview,
+} from "@/lib/live/fx-reference";
 import { SecondTestError } from "@/lib/live/second-test";
 import { PollError } from "@/lib/live/poll-error";
 import { PreparationError, preparationError } from "@/cms/preparation-error";
@@ -208,6 +213,8 @@ async function handle(request: NextRequest) {
       ![
         "cost-review",
         "second-review",
+        "fx-reference",
+        "second-planning-review",
         "output-review",
         "start",
         "poll",
@@ -229,6 +236,18 @@ async function handle(request: NextRequest) {
         record: plan,
       },
     });
+    if (action === "fx-reference")
+      return json({
+        ...(await service.status(plan)),
+        fxReference: await fetchFxReference(),
+      });
+    if (action === "second-planning-review")
+      return json(
+        await service.saveSecondBudget(
+          plan,
+          planningReview(await fetchFxReference(), body.acknowledgment),
+        ),
+      );
     if (action === "second-review")
       return json(await service.saveSecondBudget(plan, review));
     if (action === "cost-review" || action === "output-review")
@@ -257,6 +276,11 @@ async function handle(request: NextRequest) {
       ),
     );
   } catch (error) {
+    if (error instanceof FxReferenceError)
+      return json(
+        { error: error.message, code: "FX_REFERENCE_UNAVAILABLE" },
+        502,
+      );
     if (error instanceof SecondTestError)
       return json({ error: error.message, code: "SECOND_BUDGET_BLOCKED" }, 400);
     if (error instanceof PollError) {

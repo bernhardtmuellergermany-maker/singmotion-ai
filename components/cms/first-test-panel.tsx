@@ -27,6 +27,8 @@ type Report = {
     capMicroUsd: number | null;
     reservedMicroUsd: number | null;
     unreservedMicroUsd: number | null;
+    pendingPlanMicroUsd?: number | null;
+    combinedIfStartedMicroUsd?: number | null;
     actualPreviousChargeMicroUsd: null;
     eurBudgetVerified: boolean;
   };
@@ -152,6 +154,12 @@ function currencyFields(value?: Review | null): Review {
   };
 }
 export function FirstTestPanel() {
+  const [fx, setFx] = useState<{
+    source: string;
+    asOf: string;
+    usdPerEur: string;
+    eurPerUsdPpm: number;
+  } | null>(null);
   const [newSecond, setNewSecond] = useState(false);
   const [currency, setCurrency] = useState<Review>(currencyFields());
   const [report, setReport] = useState<Report>({ plan: null, blocker: null });
@@ -227,6 +235,7 @@ export function FirstTestPanel() {
           `Server did not return a saved plan/status (HTTP ${response.status}). Refresh saved status before retrying. Your selected files and previous plan are retained.`,
         );
       setReport(data);
+      if (data.fxReference) setFx(data.fxReference);
       setCurrency(currencyFields(data.secondReview));
       setCost(data.plan?.costReview || {});
       setOutput(data.plan?.outputReview || {});
@@ -570,45 +579,114 @@ export function FirstTestPanel() {
             <details open>
               <summary>EUR 50 total-budget authorization for test #2</summary>
               <p>
-                The first task remains fully reserved. Provide evidence of a
-                conservative EUR-per-USD upper bound covering settlement, not
-                just a spot quote. Rate uses millionths (1,000,000 = EUR 1 per
-                USD); FX fee upper bound uses microEUR (1,000,000 = EUR 1). Fees
-                must be explicitly reviewed, never assumed zero. validUntil is
-                ISO UTC, no more than seven days ahead.
+                Both tests count: existing reservations USD{" "}
+                {report.budget?.reservedMicroUsd == null
+                  ? "unknown"
+                  : report.budget.reservedMicroUsd / 1000000}{" "}
+                + this pending ceiling USD{" "}
+                {report.budget?.pendingPlanMicroUsd == null
+                  ? "unknown"
+                  : report.budget.pendingPlanMicroUsd / 1000000}{" "}
+                = USD{" "}
+                {report.budget?.combinedIfStartedMicroUsd == null
+                  ? "unknown"
+                  : report.budget.combinedIfStartedMicroUsd / 1000000}
+                . These are application reservations, not verified provider
+                charges. Actual taxes/fees and first-task billing remain
+                unknown.
               </p>
-              <fieldset
-                disabled={busy || plan.state !== "prepared" || !plan.costDigest}
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  request({ action: "fx-reference", plan: plan.id })
+                }
               >
-                <ReviewFields value={currency} setValue={setCurrency} />
-                <button
-                  type="button"
-                  onClick={() =>
-                    request({
-                      action: "second-review",
-                      plan: plan.id,
-                      review: {
-                        ...currency,
-                        acknowledgment:
-                          "AUTHORIZE_SECOND_WITH_FULL_FIRST_RESERVATION",
-                      },
-                    })
-                  }
-                >
-                  Approve second-test total budget — no paid request
-                </button>
-              </fieldset>
+                Check dated ECB reference — no paid request
+              </button>
+              {fx && (
+                <p>
+                  Reference date {fx.asOf}: EUR 1 = USD {fx.usdPerEur}.{" "}
+                  <a href={fx.source} target="_blank" rel="noreferrer">
+                    Verify ECB source
+                  </a>
+                  . This is not a settlement-rate or fee guarantee; no tax/fee
+                  upper bound is inferred.
+                </p>
+              )}
+              <p>
+                Simple planning allowance: twice the dated ECB EUR/USD rate plus
+                EUR 10 reserved for conversion/payment fees. These are
+                conservative assumptions, not verified fee guarantees. Actual
+                taxes/fees and first-task billing remain unknown. This does not
+                replace the separate provider-cost approval or change either
+                reservation.
+              </p>
+              <button
+                type="button"
+                disabled={busy || plan.state !== "prepared" || !plan.costDigest}
+                onClick={() =>
+                  request({
+                    action: "second-planning-review",
+                    plan: plan.id,
+                    acknowledgment:
+                      "ACCEPT_FX_PLANNING_ASSUMPTIONS_NOT_A_FEE_GUARANTEE",
+                  })
+                }
+              >
+                Accept planning assumptions and reserve within EUR 50 — no paid
+                request
+              </button>
               <p>
                 {report.currencyBudget
-                  ? `Proven combined USD ceiling: ${report.currencyBudget.usdCapMicro / 1000000}; first reservation retained: ${report.currencyBudget.firstReservedMicroUsd / 1000000}; unreserved EUR allowance: ${report.currencyBudget.remainingMicroEur / 1000000}; usable remaining USD after BOTH caps: ${report.currencyBudget.effectiveRemainingMicroUsd === null ? "unknown" : report.currencyBudget.effectiveRemainingMicroUsd / 1000000}. These are reserved worst-case allowances, not settled balances.`
-                  : "Remaining EUR-backed allowance is unverified: second start is blocked until the evidence-backed review passes."}
+                  ? "Budget authorization saved. Use the separate final one-time paid confirmation only after reviewing all remaining blockers."
+                  : "No budget authorization saved. Acceptance fetches a fresh ECB reference; unavailable or stale rates fail closed."}
+              </p>
+              <details>
+                <summary>
+                  Advanced: documented settlement-rate and fee bounds
+                </summary>
+                <p>
+                  Rate in millionths of EUR/USD (1,000,000 = EUR 1 per USD);
+                  fees in microEUR (1,000,000 = EUR 1). No zero fees or guessed
+                  margin are filled. Evidence must cover settlement;
+                  authorization expiry is ISO UTC, at most seven days.
+                </p>
+                <fieldset
+                  disabled={
+                    busy || plan.state !== "prepared" || !plan.costDigest
+                  }
+                >
+                  <ReviewFields value={currency} setValue={setCurrency} />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      request({
+                        action: "second-review",
+                        plan: plan.id,
+                        review: {
+                          ...currency,
+                          acknowledgment:
+                            "AUTHORIZE_SECOND_WITH_FULL_FIRST_RESERVATION",
+                        },
+                      })
+                    }
+                  >
+                    Approve second-test total budget — no paid request
+                  </button>
+                </fieldset>
+              </details>
+              <p>
+                {report.currencyBudget
+                  ? `Authorized combined USD ceiling: ${report.currencyBudget.usdCapMicro / 1000000}; first reservation retained: ${report.currencyBudget.firstReservedMicroUsd / 1000000}; unreserved EUR allowance: ${report.currencyBudget.remainingMicroEur / 1000000}; usable remaining USD after BOTH caps: ${report.currencyBudget.effectiveRemainingMicroUsd === null ? "unknown" : report.currencyBudget.effectiveRemainingMicroUsd / 1000000}. These are application allowances, not guaranteed invoice bounds or settled balances.`
+                  : "Second start is blocked until a budget authorization passes."}
               </p>
             </details>
           )}
           <p>
             Reviewed maximum:{" "}
             {plan.costDigest
-              ? `USD ${Number(plan.costReview.inclusiveMaxMicroUsd) / 1000000} inclusive`
+              ? `USD ${Number(plan.costReview.inclusiveMaxMicroUsd) / 1000000} approved application ceiling — not a guaranteed inclusive provider charge`
               : "Unpriced — start blocked"}
           </p>
           {plan.state === "prepared" && (

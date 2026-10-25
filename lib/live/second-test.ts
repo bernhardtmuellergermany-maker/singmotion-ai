@@ -5,6 +5,7 @@ export const isSecondTest = (attempt: Attempt) =>
   attempt.media.sourceJobId.startsWith("admin-second-");
 export class SecondTestError extends Error {}
 export type SecondReview = {
+  budgetBasis?: "planning-allowance";
   planId: string;
   owner: string;
   costDigest: string;
@@ -132,7 +133,7 @@ export function secondBudget(
     BigInt(review.eurPerUsdUpperPpm);
   if (prospective > ceiling)
     throw new SecondTestError(
-      "Insufficient proven EUR-50 total budget after retaining all existing reservations and FX fees. Do not reduce the first reservation or increase the EUR ceiling.",
+      "Insufficient authorized EUR-50 total budget after retaining all existing reservations and FX fees. Do not reduce the first reservation or increase the EUR ceiling.",
     );
   const cap =
     ceiling > BigInt(Number.MAX_SAFE_INTEGER)

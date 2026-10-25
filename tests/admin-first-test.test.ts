@@ -1071,3 +1071,27 @@ test("second test fails closed on FX evidence, total budget, expiry, plan bindin
   assert.equal(f.counts().submits, 1);
   assert.equal(f.store.secondTest(), undefined);
 });
+
+test("explicit planning allowance preserves first reservation and independent USD ceiling", async (t) => {
+  const { parseFxReference, planningReview, planningAcknowledgment } =
+    await import("../lib/live/fx-reference.ts");
+  const f = await fixture(t);
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "1000000";
+  await f.service.execute("start", f.id, f.digest, "", f.phrase);
+  const second = await prepareSecond(f);
+  const before = f.store.firstTest();
+  const date = new Date().toISOString().slice(0, 10);
+  const review = planningReview(
+    parseFxReference(
+      `<Cube time='${date}'><Cube currency='USD' rate='1.1'/></Cube>`,
+    ),
+    planningAcknowledgment,
+  );
+  const status = await f.service.saveSecondBudget(second.id, review);
+  assert.equal(status.secondReview!.budgetBasis, "planning-allowance");
+  assert.equal(status.currencyBudget!.effectiveRemainingMicroUsd, 500000);
+  assert.equal(status.currencyBudget!.firstReservedMicroUsd, 500000);
+  assert.deepEqual(f.store.firstTest(), before);
+  assert.equal(f.store.secondTest(), undefined);
+  assert.equal(f.counts().submits, 1);
+});

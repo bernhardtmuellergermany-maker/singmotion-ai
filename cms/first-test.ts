@@ -532,6 +532,13 @@ export class AdminFirstTest {
         validCap && validReserved
           ? Math.max(0, configuredCap - reserved)
           : null,
+      pendingPlanMicroUsd:
+        attempt.state === "prepared" ? report.inclusiveMaxMicroUsd : 0,
+      combinedIfStartedMicroUsd:
+        validReserved && report.inclusiveMaxMicroUsd !== null
+          ? reserved +
+            (attempt.state === "prepared" ? report.inclusiveMaxMicroUsd : 0)
+          : null,
       actualPreviousChargeMicroUsd: null,
       eurBudgetVerified: false,
     };
@@ -649,6 +656,10 @@ export class AdminFirstTest {
         .get(first.attempt_id) as { reserved_micro_usd: number }
     ).reserved_micro_usd;
     saveSecondReview(this.store, id, {
+      budgetBasis:
+        input.budgetBasis === "planning-allowance"
+          ? "planning-allowance"
+          : undefined,
       planId: id,
       owner: this.owner,
       costDigest: cost.digest,

@@ -241,18 +241,38 @@ try {
     await page.getByLabel("fxFeesMaxMicroEur", { exact: true }).inputValue(),
     "",
   );
+  await page
+    .getByRole("button", {
+      name: "Accept planning assumptions and reserve within EUR 50 — no paid request",
+      exact: true,
+    })
+    .click();
+  await page.waitForFunction(
+    () =>
+      !Array.from(document.querySelectorAll("button")).find(
+        (b) => b.textContent === "Refresh saved status",
+      )?.disabled,
+  );
+  assert.equal(costBody!.action, "second-planning-review");
+  assert.equal(
+    (costBody as unknown as { acknowledgment: string }).acknowledgment,
+    "ACCEPT_FX_PLANNING_ASSUMPTIONS_NOT_A_FEE_GUARANTEE",
+  );
+  await page
+    .getByText("Advanced: documented settlement-rate and fee bounds", {
+      exact: true,
+    })
+    .click();
   await page.getByLabel("eurPerUsdUpperPpm", { exact: true }).fill("1000000");
   await page.getByLabel("fxFeesMaxMicroEur", { exact: true }).fill("10000");
   await page
     .getByLabel("validUntil", { exact: true })
     .fill(new Date(Date.now() + 86400000).toISOString());
-  const currencySection = page
-    .locator("details")
-    .filter({
-      has: page.getByText("EUR 50 total-budget authorization for test #2", {
-        exact: true,
-      }),
-    });
+  const currencySection = page.locator("details").filter({
+    has: page.getByText("EUR 50 total-budget authorization for test #2", {
+      exact: true,
+    }),
+  });
   await currencySection
     .getByLabel("evidence", { exact: true })
     .fill("Mock-only currency/fee upper-bound evidence.");
