@@ -21,6 +21,15 @@ type Report = {
   blocker: string | null;
   startBlockers?: string[];
   discoveryBlockers?: string[];
+  budget?: {
+    currency: "USD";
+    capMicroUsd: number | null;
+    reservedMicroUsd: number | null;
+    unreservedMicroUsd: number | null;
+    actualPreviousChargeMicroUsd: null;
+    eurBudgetVerified: boolean;
+  };
+  reconciliationRequired?: boolean;
 };
 const endpoint = "/api/admin/first-test";
 const bindings = new Set([
@@ -268,6 +277,43 @@ export function FirstTestPanel() {
         requires a reviewed inclusive cost bound and separate server
         authorization. Public generation stays disabled.
       </p>
+      {report.budget && (
+        <section aria-label="Test spending reservations">
+          <h3>Cumulative test budget (USD)</h3>
+          <p>
+            Configured cap:{" "}
+            {report.budget.capMicroUsd === null
+              ? "Not configured/invalid"
+              : `USD ${report.budget.capMicroUsd / 1000000}`}{" "}
+            · Reserved:{" "}
+            {report.budget.reservedMicroUsd === null
+              ? "Unavailable"
+              : `USD ${report.budget.reservedMicroUsd / 1000000}`}{" "}
+            · Unreserved cap:{" "}
+            {report.budget.unreservedMicroUsd === null
+              ? "Unknown"
+              : `USD ${report.budget.unreservedMicroUsd / 1000000}`}
+          </p>
+          <p>
+            These are application spending reservations, not settled BytePlus
+            charges or an account balance. EUR 50 is a total budget, not a
+            verified USD conversion. No failed-task refund or zero charge is
+            assumed.
+          </p>
+          {report.reconciliationRequired && (
+            <p role="status">
+              Second test is blocked. Obtain BytePlus confirmation of the
+              previous task’s final state and final inclusive charges (or a
+              confirmed zero charge/refund), with dated support/billing
+              references and currency. HTTP 500 / 50510 is not reconciliation.
+              Keep the existing task, slot and reservation; do not prepare a
+              replacement or increase caps to work around the block. Separate
+              second-test authorization is not implemented until that evidence
+              is verified.
+            </p>
+          )}
+        </section>
+      )}
       {report.blocker && (
         <p role="status" style={{ whiteSpace: "pre-wrap" }}>
           {report.blocker}

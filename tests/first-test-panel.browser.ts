@@ -34,6 +34,15 @@ try {
     body: JSON.stringify({
       plan,
       blocker: "Live test disabled",
+      reconciliationRequired: true,
+      budget: {
+        currency: "USD",
+        capMicroUsd: 1000000,
+        reservedMicroUsd: 500000,
+        unreservedMicroUsd: 500000,
+        actualPreviousChargeMicroUsd: null,
+        eurBudgetVerified: false,
+      },
       startBlockers: [
         "BYTEPLUS_FIRST_TEST_PLAN_ID must match the displayed plan ID.",
         "Approve an exact output hostname before starting.",
@@ -90,6 +99,16 @@ try {
   assert.equal(
     await page.getByRole("heading", { name: "Plan existing-plan" }).count(),
     1,
+  );
+  await page
+    .getByRole("region", { name: "Test spending reservations" })
+    .waitFor();
+  assert.ok(
+    (
+      await page
+        .getByRole("region", { name: "Test spending reservations" })
+        .innerText()
+    ).includes("HTTP 500 / 50510 is not reconciliation"),
   );
   await page
     .getByText("Requirements blocking a paid start", { exact: true })

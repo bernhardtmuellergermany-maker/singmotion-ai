@@ -786,3 +786,30 @@ test("poll diagnostics preserve task and budget through provider errors, lease c
   assert.equal(f.counts().submits, 1);
   assert.equal(f.counts().uploads, 1);
 });
+
+test("previous task errors retain full reservation and show second-test reconciliation and budget blockers", async (t) => {
+  const f = await fixture(t);
+  await f.service.execute("start", f.id, f.digest, "", f.phrase);
+  const slot = f.store.firstTest();
+  f.mode("provider-error");
+  await assert.rejects(f.service.execute("poll", f.id, f.digest, "", ""));
+  const status = await f.service.status(f.id);
+  assert.equal(status.reconciliationRequired, true);
+  assert.equal(status.budget!.reservedMicroUsd, 500000);
+  assert.equal(
+    status.budget!.unreservedMicroUsd,
+    Number(f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD) - 500000,
+  );
+  assert.equal(status.budget!.actualPreviousChargeMicroUsd, null);
+  assert.equal(status.budget!.eurBudgetVerified, false);
+  assert.ok(
+    status.startBlockers!.some((item) => item.includes("Second test blocked")),
+  );
+  await assert.rejects(
+    f.service.execute("start", f.id, f.digest, "", f.phrase),
+  );
+  assert.deepEqual(f.store.firstTest(), slot);
+  assert.equal(f.counts().submits, 1);
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "not-a-cap";
+  assert.equal((await f.service.status(f.id)).budget!.unreservedMicroUsd, null);
+});

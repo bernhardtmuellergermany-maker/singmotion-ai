@@ -412,7 +412,7 @@ export class AdminFirstTest {
     }
     if (slot)
       startBlockers.push(
-        "The one-test slot is already claimed. Resume the existing task; never submit another.",
+        "Second test blocked: confirm the previous task’s final state and inclusive billing with BytePlus, then obtain separate authorization. The original one-test slot must not be reset.",
       );
     const reserved = (
       this.store.db
@@ -430,6 +430,22 @@ export class AdminFirstTest {
       startBlockers.push(
         "Remaining cumulative spending budget does not cover this plan.",
       );
+    const configuredCap = Number(
+      this.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD,
+    );
+    const validCap = Number.isSafeInteger(configuredCap) && configuredCap > 0;
+    const validReserved = Number.isSafeInteger(reserved) && reserved >= 0;
+    const budget = {
+      currency: "USD" as const,
+      capMicroUsd: validCap ? configuredCap : null,
+      reservedMicroUsd: validReserved ? reserved : null,
+      unreservedMicroUsd:
+        validCap && validReserved
+          ? Math.max(0, configuredCap - reserved)
+          : null,
+      actualPreviousChargeMicroUsd: null,
+      eurBudgetVerified: false,
+    };
     const observed = this.store.firstTestResult(id)?.result;
     let validatedMedia = null;
     if (attempt.state === "completed" && attempt.outputPath) {
@@ -462,6 +478,8 @@ export class AdminFirstTest {
         validatedMedia,
       },
       blocker,
+      budget,
+      reconciliationRequired: Boolean(slot),
       startBlockers,
       discoveryBlockers: startBlockers.filter(
         (item) => !outputBlockers.includes(item),
