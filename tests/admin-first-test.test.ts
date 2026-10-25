@@ -104,7 +104,12 @@ async function fixture(t: TestContext) {
         if (mode === "uncertain") throw Error("SECRET");
         return {
           status: 200,
-          body: { code: 10000, data: { task_id: "mock-task" } },
+          body: {
+            code: 10000,
+            data: {
+              task_id: submits === 1 ? "mock-task" : `mock-task-${submits}`,
+            },
+          },
         };
       }
       if (action === "CVCancelTask")
@@ -803,7 +808,9 @@ test("previous task errors retain full reservation and show second-test reconcil
   assert.equal(status.budget!.actualPreviousChargeMicroUsd, null);
   assert.equal(status.budget!.eurBudgetVerified, false);
   assert.ok(
-    status.startBlockers!.some((item) => item.includes("Second test blocked")),
+    status.startBlockers!.some((item) =>
+      item.includes("First slot is already claimed"),
+    ),
   );
   await assert.rejects(
     f.service.execute("start", f.id, f.digest, "", f.phrase),
@@ -812,4 +819,255 @@ test("previous task errors retain full reservation and show second-test reconcil
   assert.equal(f.counts().submits, 1);
   f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "not-a-cap";
   assert.equal((await f.service.status(f.id)).budget!.unreservedMicroUsd, null);
+});
+
+async function prepareSecond(f: Awaited<ReturnType<typeof fixture>>) {
+  const clip = path.join(f.dir, "second.mp3");
+  execFileSync("ffmpeg", [
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=880:duration=4.2",
+    "-c:a",
+    "libmp3lame",
+    clip,
+  ]);
+  const image = await sharp({
+    create: { width: 512, height: 512, channels: 3, background: "blue" },
+  })
+    .png()
+    .toBuffer();
+  const prepared = await f.service.upload(
+    new File([new Uint8Array(image)], "second.png"),
+    new File([await readFile(clip)], "second.mp3"),
+    "Sing gently.",
+    true,
+    true,
+    true,
+  );
+  const id = prepared.plan!.id;
+  f.env.BYTEPLUS_SECOND_TEST_ENABLED = "true";
+  f.env.BYTEPLUS_SECOND_TEST_PLAN_ID = id;
+  const cost = {
+    ...f.cost,
+    ...prepared.plan!.costReview,
+    generatedVideoMaxSeconds: 6,
+    baseMaxMicroUsd: 420000,
+    taxMaxMicroUsd: 80000,
+    feesMaxMicroUsd: 0,
+    inclusiveMaxMicroUsd: 500000,
+    reviewedBy: f.cost.reviewedBy,
+    reviewedAt: f.cost.reviewedAt,
+    evidence: f.cost.evidence,
+    acknowledgment: f.cost.acknowledgment,
+  };
+  const approved = await f.service.saveReview(id, "cost", cost);
+  const currency = {
+    eurPerUsdUpperPpm: 1000000,
+    fxFeesMaxMicroEur: 0,
+    evidence:
+      "FICTIONAL TEST ONLY: reviewed settlement conversion and explicit zero FX fee bound; not real proof.",
+    validUntil: new Date(Date.now() + 86400000).toISOString(),
+    acknowledgment: "AUTHORIZE_SECOND_WITH_FULL_FIRST_RESERVATION",
+  };
+  return {
+    id,
+    digest: approved.plan!.costDigest!,
+    cost,
+    currency,
+    phrase: `AUTHORIZE SECOND PAID BYTEPLUS TEST ${id} UP TO 500000 MICROUSD DISCOVER OUTPUT ONLY`,
+  };
+}
+test("separate second slot preserves unresolved first reservation and supports polling/private MP4 without third submission", async (t) => {
+  const f = await fixture(t);
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "1000000";
+  await f.service.execute("start", f.id, f.digest, "", f.phrase);
+  f.mode("provider-error");
+  await assert.rejects(f.service.execute("poll", f.id, f.digest, "", ""));
+  const first = f.store.firstTest(),
+    previous = f.store.get(f.id),
+    result = f.store.firstTestResult(f.id);
+  const second = await prepareSecond(f);
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+  );
+  assert.equal(f.counts().submits, 1);
+  await f.service.saveSecondBudget(second.id, second.currency);
+  f.mode("done");
+  await Promise.allSettled([
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+    f
+      .make()
+      .execute("start", second.id, second.digest, "", second.phrase, true),
+  ]);
+  assert.equal(f.counts().submits, 2);
+  assert.equal(f.store.secondTest()!.attempt_id, second.id);
+  assert.deepEqual(f.store.firstTest(), first);
+  assert.deepEqual(f.store.get(f.id), previous);
+  assert.deepEqual(f.store.firstTestResult(f.id), result);
+  assert.equal(f.store.get(second.id).providerJobId, "mock-task-2");
+  assert.equal(
+    (
+      f.store.db
+        .prepare("SELECT SUM(reserved_micro_usd) AS n FROM live_attempts")
+        .get() as { n: number }
+    ).n,
+    1000000,
+  );
+  const observed = await f
+    .make()
+    .execute("poll", second.id, second.digest, "", "");
+  const approved = await f.service.saveReview(second.id, "output", {
+    ...observed.plan!.outputReview!,
+    kind: "first-test-output-discovery-v1",
+    hostname: "output.example",
+    minDurationSeconds: 1,
+    maxDurationSeconds: 6,
+    reviewedBy: "Mock",
+    reviewedAt: "2026-01-01T00:00:00Z",
+    evidence: "Mock host acceptance policy",
+    acknowledgment: "APPROVE_EXACT_HOST_AND_MEDIA_POLICY",
+  });
+  const completed = await f
+    .make()
+    .execute(
+      "download",
+      second.id,
+      second.digest,
+      approved.plan!.outputDigest!,
+      "",
+    );
+  assert.equal(completed.plan!.state, "completed");
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+  );
+  await assert.rejects(f.service.saveSecondBudget(second.id, second.currency));
+  await assert.rejects(
+    f.service.upload(
+      new File([new Uint8Array(imageBytes)], "third.png"),
+      new File([audioBytes], "third.mp3"),
+      "",
+      true,
+      true,
+      true,
+    ),
+  );
+  assert.equal(f.counts().submits, 2);
+});
+test("second test fails closed on FX evidence, total budget, expiry, plan binding and reduced first reservation", async (t) => {
+  const f = await fixture(t);
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "1000000";
+  await f.service.execute("start", f.id, f.digest, "", f.phrase);
+  const second = await prepareSecond(f);
+  for (const bad of [
+    { ...second.currency, evidence: "" },
+    { ...second.currency, eurPerUsdUpperPpm: null },
+    { ...second.currency, fxFeesMaxMicroEur: null },
+    { ...second.currency, eurPerUsdUpperPpm: 50000001 },
+    { ...second.currency, validUntil: "2000-01-01T00:00:00Z" },
+  ])
+    await assert.rejects(f.service.saveSecondBudget(second.id, bad));
+  await assert.rejects(
+    f.service.saveSecondBudget(second.id, {
+      ...second.currency,
+      eurPerUsdUpperPpm: 50000000,
+      fxFeesMaxMicroEur: 1,
+    }),
+  );
+  const exact = await f.service.saveSecondBudget(second.id, {
+    ...second.currency,
+    eurPerUsdUpperPpm: 50000000,
+  });
+  assert.equal(exact.currencyBudget!.effectiveRemainingMicroUsd, 500000);
+  const clock = t.mock.method(
+    Date,
+    "now",
+    () => Date.parse(second.currency.validUntil) + 1,
+  );
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+    /unexpired/,
+  );
+  clock.mock.restore();
+  await f.service.saveSecondBudget(second.id, second.currency);
+  f.env.BYTEPLUS_SECOND_TEST_ENABLED = "false";
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+  );
+  f.env.BYTEPLUS_SECOND_TEST_ENABLED = "true";
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "999999";
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+  );
+  f.env.BYTEPLUS_LIVE_TEST_MAX_TOTAL_MICRO_USD = "1000000";
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase.replace("SECOND", "ONE"),
+      true,
+    ),
+  );
+  // Corruption simulation in the disposable fixture only: a lowered row must not establish a cheaper first task.
+  f.store.db
+    .prepare("UPDATE live_attempts SET reserved_micro_usd=1 WHERE id=?")
+    .run(f.id);
+  await assert.rejects(
+    f.service.execute(
+      "start",
+      second.id,
+      second.digest,
+      "",
+      second.phrase,
+      true,
+    ),
+  );
+  assert.equal(f.counts().submits, 1);
+  assert.equal(f.store.secondTest(), undefined);
 });

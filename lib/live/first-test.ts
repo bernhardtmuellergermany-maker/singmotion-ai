@@ -1,3 +1,4 @@
+import { claimSecondTest, isSecondTest } from "./second-test.ts";
 import { pollError } from "./poll-error.ts";
 import {
   ReviewValidationError,
@@ -336,7 +337,7 @@ export class FirstTestWorkflow {
       );
     enforceCap(config, attempt.media.durationSeconds, checked.cost);
     if (requireBinding) {
-      const slot = this.store.firstTest();
+      const slot = this.store.testSlot(id);
       if (
         !slot ||
         slot.attempt_id !== id ||
@@ -407,7 +408,25 @@ export class FirstTestWorkflow {
       throw new Error(
         "Never repeat first-test submission; resume a persisted task or reconcile uncertainty.",
       );
-    this.store.claimFirstTest(id, checked.digest); // Global singleton, shared across processes/plans.
+    if (isSecondTest(checked.attempt)) {
+      if (
+        this.env.BYTEPLUS_SECOND_TEST_ENABLED !== "true" ||
+        this.env.BYTEPLUS_SECOND_TEST_PLAN_ID !== id
+      )
+        throw new Error(
+          "Separate second-test server authorization is required.",
+        );
+      const budget = claimSecondTest(
+        this.store,
+        id,
+        checked.digest,
+        checked.cost,
+      );
+      checked.config.maxTotalMicroUsd = Math.min(
+        checked.config.maxTotalMicroUsd,
+        budget.usdCapMicro,
+      );
+    } else this.store.claimFirstTest(id, checked.digest); // Original singleton is never reset.
     const priced = this.store.priceReviewedBound(
       id,
       owner,

@@ -52,7 +52,7 @@ export class LiveTestStore {
   readonly db: DatabaseSync;
   constructor(filename: string) {
     this.db = new DatabaseSync(filename);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+    this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS live_attempts (
         id TEXT PRIMARY KEY, source_job_id TEXT NOT NULL UNIQUE, data TEXT NOT NULL,
         reserved_micro_usd INTEGER NOT NULL DEFAULT 0,
@@ -68,6 +68,13 @@ export class LiveTestStore {
       CREATE TABLE IF NOT EXISTS live_first_test (
         slot INTEGER PRIMARY KEY CHECK(slot=1), attempt_id TEXT NOT NULL,
         digest TEXT NOT NULL, claimed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_second_test (
+        slot INTEGER PRIMARY KEY CHECK(slot=2), attempt_id TEXT NOT NULL UNIQUE,
+        digest TEXT NOT NULL, claimed_at INTEGER NOT NULL, authorization_digest TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_second_authorizations (
+        attempt_id TEXT PRIMARY KEY, review_json TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS live_first_test_results (
         attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL, observed_at INTEGER NOT NULL
@@ -242,6 +249,24 @@ export class LiveTestStore {
       .prepare("SELECT * FROM live_first_test WHERE slot=1")
       .get() as
       { attempt_id: string; digest: string; claimed_at: number } | undefined;
+  }
+  secondTest() {
+    return this.db
+      .prepare("SELECT * FROM live_second_test WHERE slot=2")
+      .get() as
+      | {
+          attempt_id: string;
+          digest: string;
+          claimed_at: number;
+          authorization_digest: string;
+        }
+      | undefined;
+  }
+  testSlot(id: string) {
+    const first = this.firstTest();
+    if (first?.attempt_id === id) return first;
+    const second = this.secondTest();
+    return second?.attempt_id === id ? second : undefined;
   }
   firstTestResult(id: string) {
     const row = this.db

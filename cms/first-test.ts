@@ -1,3 +1,10 @@
+import {
+  isSecondTest,
+  secondBudget,
+  secondReview,
+  saveSecondReview,
+  SecondTestError,
+} from "../lib/live/second-test.ts";
 import { PollError, pollError } from "../lib/live/poll-error.ts";
 import { loadBytePlusCredentials } from "../lib/live/signing.ts";
 import { loadR2Config } from "../lib/live/r2-config.ts";
@@ -62,7 +69,7 @@ export function adminTestOwner(
     throw new AdminTestError("Invalid administrator identity.");
   return `cms-staff-${id}`;
 }
-export function adminTestEnvironment(env: Env, id: string) {
+export function adminTestEnvironment(env: Env, id: string, second = false) {
   validateStaging(env); // Do not change staging's existing public/CLI restrictions.
   if (env.BYTEPLUS_ADMIN_TEST_ENABLED !== "true")
     throw new AdminTestError(
@@ -70,7 +77,20 @@ export function adminTestEnvironment(env: Env, id: string) {
     );
   // Explicit, isolated delegation to the existing workflow, not process.env mutation.
   // Exact plan ID, operator secret, duration and both budget caps remain mandatory.
-  const scoped = { ...env, BYTEPLUS_LIVE_TEST_ENABLED: "true" };
+  if (
+    second &&
+    (env.BYTEPLUS_SECOND_TEST_ENABLED !== "true" ||
+      env.BYTEPLUS_SECOND_TEST_PLAN_ID !== id ||
+      env.BYTEPLUS_FIRST_TEST_PLAN_ID === id)
+  )
+    throw new AdminTestError(
+      "BYTEPLUS_SECOND_TEST_ENABLED=true and a distinct exact BYTEPLUS_SECOND_TEST_PLAN_ID are required.",
+    );
+  const scoped = {
+    ...env,
+    BYTEPLUS_LIVE_TEST_ENABLED: "true",
+    ...(second ? { BYTEPLUS_FIRST_TEST_PLAN_ID: id } : {}),
+  };
   firstTestConfig(scoped, id);
   return scoped;
 }
@@ -148,8 +168,20 @@ export class AdminFirstTest {
     customPrompt: string,
     rights: boolean,
     english: boolean,
+    second = false,
   ) {
-    if (this.store.firstTest())
+    if (second) {
+      const first = this.store.firstTest();
+      if (
+        !first ||
+        this.store.secondTest() ||
+        this.owned(first.attempt_id).providerJobId === null
+      )
+        throw new AdminTestError(
+          "An owned first task is required; a second claimed slot cannot be reused.",
+        );
+    }
+    if (!second && this.store.firstTest())
       throw new AdminTestError(
         "The one-test slot is already claimed. Resume the existing task; do not create another.",
       );
@@ -197,6 +229,16 @@ export class AdminFirstTest {
       stage = "snapshot";
       const imageSha256 = await sha256File(imageTemp),
         audioSha256 = await sha256File(audioTemp);
+      if (second) {
+        const first = this.owned(this.store.firstTest()!.attempt_id);
+        if (
+          first.media.imageSha256 === imageSha256 ||
+          first.media.audioSha256 === audioSha256
+        )
+          throw new AdminTestError(
+            "Test #2 requires a new image and a new audio excerpt; original media remains unchanged.",
+          );
+      }
       const imagePath = path.join(
         mediaRoot,
         `admin-${hash(this.owner)}-${imageSha256}.reference`,
@@ -221,7 +263,7 @@ export class AdminFirstTest {
       }
       const prompt = composePrompt("Natural", "Static Close-Up", customPrompt);
       const media = {
-        sourceJobId: `admin-${hash(this.owner + imageSha256 + audioSha256 + prompt)}`,
+        sourceJobId: `admin-${second ? "second-" : ""}${hash(this.owner + imageSha256 + audioSha256 + prompt)}`,
         owner: this.owner,
         audioPath,
         imagePath,
@@ -236,13 +278,14 @@ export class AdminFirstTest {
       const attempt = this.store.prepare(media, null, null);
       return await this.status(attempt.id);
     } catch (error) {
+      if (error instanceof AdminTestError) throw error;
       throw preparationError(error, stage);
     } finally {
       if (temp) await rm(temp, { recursive: true, force: true });
     }
   }
   async status(id?: string) {
-    const slot = this.store.firstTest();
+    let slot = this.store.secondTest() || this.store.firstTest();
     if (
       !id &&
       slot &&
@@ -266,6 +309,8 @@ export class AdminFirstTest {
     }
     const attempt = this.owned(id),
       saved = this.reviews(id);
+    const second = isSecondTest(attempt);
+    slot = second ? this.store.secondTest() : this.store.firstTest();
     const report = await this.workflow().dryRun(id, this.owner, saved.cost);
     let output = saved.output,
       outputDigest: string | null = null;
@@ -344,14 +389,56 @@ export class AdminFirstTest {
     }))
       if (this.env[key] !== value)
         serverBlockers.push(`${key} must be ${value}.`);
-    if (this.env.BYTEPLUS_FIRST_TEST_PLAN_ID !== id)
+    if (
+      (second
+        ? this.env.BYTEPLUS_SECOND_TEST_PLAN_ID
+        : this.env.BYTEPLUS_FIRST_TEST_PLAN_ID) !== id
+    )
       serverBlockers.push(
-        "BYTEPLUS_FIRST_TEST_PLAN_ID must match the displayed plan ID.",
+        `${second ? "BYTEPLUS_SECOND_TEST_PLAN_ID" : "BYTEPLUS_FIRST_TEST_PLAN_ID"} must match the displayed plan ID.`,
       );
     if ((this.env.BYTEPLUS_LIVE_TEST_OPERATOR_SECRET || "").length < 32)
       serverBlockers.push(
         "BYTEPLUS_LIVE_TEST_OPERATOR_SECRET requires at least 32 characters.",
       );
+    if (
+      second &&
+      (this.env.BYTEPLUS_SECOND_TEST_ENABLED !== "true" ||
+        this.env.BYTEPLUS_FIRST_TEST_PLAN_ID === id)
+    )
+      serverBlockers.push(
+        "Enable BYTEPLUS_SECOND_TEST_ENABLED for the distinct second plan; keep the original FIRST_TEST_PLAN_ID unchanged.",
+      );
+    if (
+      second &&
+      this.env.BYTEPLUS_FIRST_TEST_PLAN_ID !==
+        this.store.firstTest()?.attempt_id
+    )
+      serverBlockers.push(
+        "Keep BYTEPLUS_FIRST_TEST_PLAN_ID bound to the original first plan; only SECOND_TEST_PLAN_ID identifies the new plan.",
+      );
+    let currencyBudget = null;
+    if (
+      second &&
+      report.confirmationDigest &&
+      report.inclusiveMaxMicroUsd !== null
+    ) {
+      try {
+        currencyBudget = secondBudget(
+          this.store,
+          id,
+          report.confirmationDigest,
+          report.inclusiveMaxMicroUsd,
+        );
+      } catch (error) {
+        if (attempt.state === "prepared")
+          startBlockers.push(
+            error instanceof SecondTestError
+              ? error.message
+              : "Second-test currency review is unavailable.",
+          );
+      }
+    }
     const maxDuration = Number(
       this.env.BYTEPLUS_LIVE_TEST_MAX_DURATION_SECONDS,
     );
@@ -412,7 +499,9 @@ export class AdminFirstTest {
     }
     if (slot)
       startBlockers.push(
-        "Second test blocked: confirm the previous task’s final state and inclusive billing with BytePlus, then obtain separate authorization. The original one-test slot must not be reset.",
+        second
+          ? "The second-test slot is already claimed. Resume its existing task; no third submission is authorized."
+          : "First slot is already claimed. A second test needs a separate plan, currency/budget review and one-time authorization; the full first reservation is retained.",
       );
     const reserved = (
       this.store.db
@@ -464,6 +553,7 @@ export class AdminFirstTest {
     return {
       plan: {
         id,
+        testNumber: second ? 2 : 1,
         state: attempt.state,
         taskId: attempt.providerJobId,
         failureCode: attempt.failureCode,
@@ -479,7 +569,29 @@ export class AdminFirstTest {
       },
       blocker,
       budget,
-      reconciliationRequired: Boolean(slot),
+      reconciliationRequired: Boolean(this.store.firstTest()),
+      secondTestAvailable: Boolean(
+        this.store.firstTest() &&
+        !this.store.secondTest() &&
+        Boolean(
+          this.store.get(this.store.firstTest()!.attempt_id).providerJobId,
+        ) &&
+        this.store.get(this.store.firstTest()!.attempt_id).media.owner ===
+          this.owner,
+      ),
+      secondReview: second ? (secondReview(this.store, id) ?? null) : null,
+      currencyBudget: currencyBudget
+        ? {
+            ...currencyBudget,
+            effectiveRemainingMicroUsd: validCap
+              ? Math.max(
+                  0,
+                  Math.min(configuredCap, currencyBudget.usdCapMicro) -
+                    currencyBudget.reservedMicroUsd,
+                )
+              : null,
+          }
+        : null,
       startBlockers,
       discoveryBlockers: startBlockers.filter(
         (item) => !outputBlockers.includes(item),
@@ -520,6 +632,40 @@ export class AdminFirstTest {
     }
     return this.status(id);
   }
+  async saveSecondBudget(id: string, value: unknown) {
+    const attempt = this.owned(id),
+      first = this.store.firstTest();
+    if (!first || !isSecondTest(attempt))
+      throw new AdminTestError("Load a new owned second-test plan first.");
+    const original = this.owned(first.attempt_id);
+    const cost = validateFirstTestReview(this.reviews(id).cost, attempt);
+    const input =
+      value && typeof value === "object" && !Array.isArray(value)
+        ? (value as Record<string, unknown>)
+        : {};
+    const reservation = (
+      this.store.db
+        .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+        .get(first.attempt_id) as { reserved_micro_usd: number }
+    ).reserved_micro_usd;
+    saveSecondReview(this.store, id, {
+      planId: id,
+      owner: this.owner,
+      costDigest: cost.digest,
+      inclusiveMicroUsd: cost.cost,
+      firstPlanId: first.attempt_id,
+      firstTaskId: original.providerJobId!,
+      firstReservedMicroUsd: reservation,
+      eurPerUsdUpperPpm: input.eurPerUsdUpperPpm as number,
+      fxFeesMaxMicroEur: input.fxFeesMaxMicroEur as number,
+      evidence: input.evidence as string,
+      validUntil: input.validUntil as string,
+      reviewedBy: this.owner,
+      reviewedAt: new Date().toISOString(),
+      acknowledgment: input.acknowledgment as string,
+    });
+    return this.status(id);
+  }
   async execute(
     action: string,
     id: string,
@@ -538,7 +684,7 @@ export class AdminFirstTest {
     if (
       action === "start" &&
       phrase !==
-        `AUTHORIZE ONE PAID BYTEPLUS TEST ${id} UP TO ${cost.cost} MICROUSD${discovery ? " DISCOVER OUTPUT ONLY" : ""}`
+        `AUTHORIZE ${isSecondTest(attempt) ? "SECOND" : "ONE"} PAID BYTEPLUS TEST ${id} UP TO ${cost.cost} MICROUSD${discovery ? " DISCOVER OUTPUT ONLY" : ""}`
     )
       throw new AdminTestError("Type the exact one-test cost approval phrase.");
     if (action === "start") {
@@ -549,7 +695,7 @@ export class AdminFirstTest {
     }
     let env: Env;
     try {
-      env = adminTestEnvironment(this.env, id);
+      env = adminTestEnvironment(this.env, id, isSecondTest(attempt));
       enforceCap(
         firstTestConfig(env, id),
         attempt.media.durationSeconds,

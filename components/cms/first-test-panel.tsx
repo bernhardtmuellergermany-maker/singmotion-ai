@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 type Review = Record<string, string | number | null>;
 type Plan = {
   id: string;
+  testNumber?: number;
   state: string;
   taskId: string | null;
   failureCode: string | null;
@@ -30,6 +31,16 @@ type Report = {
     eurBudgetVerified: boolean;
   };
   reconciliationRequired?: boolean;
+  secondTestAvailable?: boolean;
+  secondReview?: Review | null;
+  currencyBudget?: {
+    usdCapMicro: number;
+    remainingMicroUsd: number;
+    remainingMicroEur: number;
+    effectiveRemainingMicroUsd: number | null;
+    firstReservedMicroUsd: number;
+    reservedMicroUsd: number;
+  } | null;
 };
 const endpoint = "/api/admin/first-test";
 const bindings = new Set([
@@ -102,7 +113,13 @@ function ReviewFields({
                   typeof current === "number" ||
                   key.endsWith("MicroUsd") ||
                   key.endsWith("Seconds") ||
-                  ["width", "height", "fps"].includes(key)
+                  [
+                    "width",
+                    "height",
+                    "fps",
+                    "eurPerUsdUpperPpm",
+                    "fxFeesMaxMicroEur",
+                  ].includes(key)
                     ? "number"
                     : "text"
                 }
@@ -126,7 +143,17 @@ function ReviewFields({
     </>
   );
 }
+function currencyFields(value?: Review | null): Review {
+  return {
+    eurPerUsdUpperPpm: value?.eurPerUsdUpperPpm ?? null,
+    fxFeesMaxMicroEur: value?.fxFeesMaxMicroEur ?? null,
+    validUntil: value?.validUntil ?? "",
+    evidence: value?.evidence ?? "",
+  };
+}
 export function FirstTestPanel() {
+  const [newSecond, setNewSecond] = useState(false);
+  const [currency, setCurrency] = useState<Review>(currencyFields());
   const [report, setReport] = useState<Report>({ plan: null, blocker: null });
   const [cost, setCost] = useState<Review>({}),
     [output, setOutput] = useState<Review>({});
@@ -200,6 +227,7 @@ export function FirstTestPanel() {
           `Server did not return a saved plan/status (HTTP ${response.status}). Refresh saved status before retrying. Your selected files and previous plan are retained.`,
         );
       setReport(data);
+      setCurrency(currencyFields(data.secondReview));
       setCost(data.plan?.costReview || {});
       setOutput(data.plan?.outputReview || {});
       setPhrase("");
@@ -227,6 +255,7 @@ export function FirstTestPanel() {
       })
       .then((data) => {
         setReport(data);
+        setCurrency(currencyFields(data.secondReview));
         setCost(data.plan?.costReview || {});
         setOutput(data.plan?.outputReview || {});
       })
@@ -246,6 +275,7 @@ export function FirstTestPanel() {
     const form = new FormData(e.currentTarget);
     form.set("rights", form.has("rights") ? "true" : "false");
     form.set("english", form.has("english") ? "true" : "false");
+    form.set("testNumber", newSecond ? "2" : "1");
     await request(form);
   }
   const action = (name: string) =>
@@ -260,7 +290,7 @@ export function FirstTestPanel() {
   const media = (kind: string) =>
     `${endpoint}?plan=${encodeURIComponent(plan!.id)}&media=${kind}`;
   const approval = plan
-    ? `AUTHORIZE ONE PAID BYTEPLUS TEST ${plan.id} UP TO ${plan.costReview.inclusiveMaxMicroUsd} MICROUSD${discovery ? " DISCOVER OUTPUT ONLY" : ""}`
+    ? `AUTHORIZE ${plan.testNumber === 2 ? "SECOND" : "ONE"} PAID BYTEPLUS TEST ${plan.id} UP TO ${plan.costReview.inclusiveMaxMicroUsd} MICROUSD${discovery ? " DISCOVER OUTPUT ONLY" : ""}`
     : "";
   return (
     <section
@@ -302,14 +332,11 @@ export function FirstTestPanel() {
           </p>
           {report.reconciliationRequired && (
             <p role="status">
-              Second test is blocked. Obtain BytePlus confirmation of the
-              previous task’s final state and final inclusive charges (or a
-              confirmed zero charge/refund), with dated support/billing
-              references and currency. HTTP 500 / 50510 is not reconciliation.
-              Keep the existing task, slot and reservation; do not prepare a
-              replacement or increase caps to work around the block. Separate
-              second-test authorization is not implemented until that evidence
-              is verified.
+              The previous task’s final billing remains unverified. Its full
+              reservation is counted, including after HTTP 500 / 50510. A
+              separate second test requires a new plan, reviewed EUR-50
+              currency/fee bound, explicit server authorization and final
+              confirmation. Neither original slot nor reservation is reset.
             </p>
           )}
         </section>
@@ -354,8 +381,19 @@ export function FirstTestPanel() {
           Load owned plan — no upload
         </button>
       </form>
-      {(!plan || plan.state === "prepared") && (
-        <details open={!plan}>
+      {report.secondTestAvailable && (
+        <label>
+          <input
+            type="checkbox"
+            checked={newSecond}
+            onChange={(e) => setNewSecond(e.target.checked)}
+          />{" "}
+          Prepare separately authorized test #2 with a NEW image and NEW 4–5
+          second MP3; retain the first task and full reservation.
+        </label>
+      )}
+      {(!plan || plan.state === "prepared" || report.secondTestAvailable) && (
+        <details open={!plan || newSecond}>
           <summary>1. Upload private test inputs</summary>
           <form onSubmit={upload}>
             <label>
@@ -528,6 +566,45 @@ export function FirstTestPanel() {
               </button>
             </fieldset>
           </details>
+          {plan.testNumber === 2 && (
+            <details open>
+              <summary>EUR 50 total-budget authorization for test #2</summary>
+              <p>
+                The first task remains fully reserved. Provide evidence of a
+                conservative EUR-per-USD upper bound covering settlement, not
+                just a spot quote. Rate uses millionths (1,000,000 = EUR 1 per
+                USD); FX fee upper bound uses microEUR (1,000,000 = EUR 1). Fees
+                must be explicitly reviewed, never assumed zero. validUntil is
+                ISO UTC, no more than seven days ahead.
+              </p>
+              <fieldset
+                disabled={busy || plan.state !== "prepared" || !plan.costDigest}
+              >
+                <ReviewFields value={currency} setValue={setCurrency} />
+                <button
+                  type="button"
+                  onClick={() =>
+                    request({
+                      action: "second-review",
+                      plan: plan.id,
+                      review: {
+                        ...currency,
+                        acknowledgment:
+                          "AUTHORIZE_SECOND_WITH_FULL_FIRST_RESERVATION",
+                      },
+                    })
+                  }
+                >
+                  Approve second-test total budget — no paid request
+                </button>
+              </fieldset>
+              <p>
+                {report.currencyBudget
+                  ? `Proven combined USD ceiling: ${report.currencyBudget.usdCapMicro / 1000000}; first reservation retained: ${report.currencyBudget.firstReservedMicroUsd / 1000000}; unreserved EUR allowance: ${report.currencyBudget.remainingMicroEur / 1000000}; usable remaining USD after BOTH caps: ${report.currencyBudget.effectiveRemainingMicroUsd === null ? "unknown" : report.currencyBudget.effectiveRemainingMicroUsd / 1000000}. These are reserved worst-case allowances, not settled balances.`
+                  : "Remaining EUR-backed allowance is unverified: second start is blocked until the evidence-backed review passes."}
+              </p>
+            </details>
+          )}
           <p>
             Reviewed maximum:{" "}
             {plan.costDigest
@@ -566,7 +643,8 @@ export function FirstTestPanel() {
                   checked={phrase === approval}
                   onChange={(e) => setPhrase(e.target.checked ? approval : "")}
                 />{" "}
-                I authorize exactly ONE paid task for plan {plan.id}, up to USD{" "}
+                I authorize exactly one paid task (test #{plan.testNumber || 1})
+                for plan {plan.id}, up to USD{" "}
                 {Number(plan.costReview.inclusiveMaxMicroUsd) / 1000000}{" "}
                 inclusive, using the saved cost approval and{" "}
                 {discovery

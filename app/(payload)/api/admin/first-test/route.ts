@@ -1,3 +1,4 @@
+import { SecondTestError } from "@/lib/live/second-test";
 import { PollError } from "@/lib/live/poll-error";
 import { PreparationError, preparationError } from "@/cms/preparation-error";
 import { getPayload } from "payload";
@@ -189,6 +190,7 @@ async function handle(request: NextRequest) {
           String(form.get("prompt") || ""),
           form.get("rights") === "true",
           form.get("english") === "true",
+          form.get("testNumber") === "2",
         ),
       );
     }
@@ -205,6 +207,7 @@ async function handle(request: NextRequest) {
       typeof plan !== "string" ||
       ![
         "cost-review",
+        "second-review",
         "output-review",
         "start",
         "poll",
@@ -226,6 +229,8 @@ async function handle(request: NextRequest) {
         record: plan,
       },
     });
+    if (action === "second-review")
+      return json(await service.saveSecondBudget(plan, review));
     if (action === "cost-review" || action === "output-review")
       return json(
         await service.saveReview(
@@ -252,6 +257,8 @@ async function handle(request: NextRequest) {
       ),
     );
   } catch (error) {
+    if (error instanceof SecondTestError)
+      return json({ error: error.message, code: "SECOND_BUDGET_BLOCKED" }, 400);
     if (error instanceof PollError) {
       console.warn("first-test:poll rejected", {
         code: error.code,

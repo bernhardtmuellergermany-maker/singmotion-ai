@@ -322,7 +322,7 @@ export async function retrieveFirstTestResult(
   );
   if (approved.digest !== outputConfirmation)
     throw new Error("Output confirmation does not match.");
-  const slot = workflow.store.firstTest()!;
+  const slot = workflow.store.testSlot(id)!;
   while (
     ["submitted", "processing"].includes(workflow.owned(id, owner).state)
   ) {

@@ -50,6 +50,7 @@ try {
     }),
     contentType: "application/json",
   };
+  let statusReply: object = { plan: null, blocker: null };
   let posts = 0;
   let costBody: Record<string, unknown> | null = null;
   await page.route("**/*", async (route) => {
@@ -71,7 +72,7 @@ try {
           costBody = route.request().postDataJSON();
         return route.fulfill(reply);
       }
-      return route.fulfill({ json: { plan: null, blocker: null } });
+      return route.fulfill({ json: statusReply });
     }
     return route.abort();
   });
@@ -108,7 +109,7 @@ try {
       await page
         .getByRole("region", { name: "Test spending reservations" })
         .innerText()
-    ).includes("HTTP 500 / 50510 is not reconciliation"),
+    ).includes("including after HTTP 500 / 50510"),
   );
   await page
     .getByText("Requirements blocking a paid start", { exact: true })
@@ -215,6 +216,75 @@ try {
       .click();
   }
   assert.equal(posts, 7);
+  statusReply = {
+    plan: { ...plan, testNumber: 2, costDigest: "mock-cost" },
+    blocker: null,
+    startBlockers: ["Save second budget evidence"],
+    secondTestAvailable: true,
+  };
+  reply = {
+    status: 200,
+    body: JSON.stringify(statusReply),
+    contentType: "application/json",
+  };
+  await page
+    .getByRole("button", { name: "Refresh saved status", exact: true })
+    .click();
+  await page
+    .getByText("EUR 50 total-budget authorization for test #2", { exact: true })
+    .waitFor();
+  assert.equal(
+    await page.getByLabel("eurPerUsdUpperPpm", { exact: true }).inputValue(),
+    "",
+  );
+  assert.equal(
+    await page.getByLabel("fxFeesMaxMicroEur", { exact: true }).inputValue(),
+    "",
+  );
+  await page.getByLabel("eurPerUsdUpperPpm", { exact: true }).fill("1000000");
+  await page.getByLabel("fxFeesMaxMicroEur", { exact: true }).fill("10000");
+  await page
+    .getByLabel("validUntil", { exact: true })
+    .fill(new Date(Date.now() + 86400000).toISOString());
+  const currencySection = page
+    .locator("details")
+    .filter({
+      has: page.getByText("EUR 50 total-budget authorization for test #2", {
+        exact: true,
+      }),
+    });
+  await currencySection
+    .getByLabel("evidence", { exact: true })
+    .fill("Mock-only currency/fee upper-bound evidence.");
+  await page
+    .getByRole("button", {
+      name: "Approve second-test total budget — no paid request",
+      exact: true,
+    })
+    .click();
+  await page.waitForFunction(
+    () =>
+      !Array.from(document.querySelectorAll("button")).find(
+        (b) => b.textContent === "Refresh saved status",
+      )?.disabled,
+  );
+  assert.equal(costBody!.action, "second-review");
+  const secondReview = (
+    costBody as unknown as { review: Record<string, unknown> }
+  ).review;
+  assert.equal(secondReview.eurPerUsdUpperPpm, 1000000);
+  assert.equal(secondReview.fxFeesMaxMicroEur, 10000);
+  assert.equal(
+    secondReview.acknowledgment,
+    "AUTHORIZE_SECOND_WITH_FULL_FIRST_RESERVATION",
+  );
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Start ONE paid generation", exact: true })
+      .isDisabled(),
+    true,
+  );
+
   console.log(
     "PASS: saved plan feedback, malformed success, server errors, non-JSON errors, retained files/plan and disabled paid start.",
   );
