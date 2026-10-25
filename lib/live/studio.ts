@@ -201,7 +201,7 @@ export class StudioWorkflow {
   private hasPrivateException(id: string, owner: string) {
     return !!this.store.db
       .prepare(
-        "SELECT 1 FROM live_private_exceptions WHERE attempt_id=? AND owner=? AND task_id=? AND task_id='176942047'",
+        "SELECT 1 FROM live_private_exceptions WHERE attempt_id=? AND owner=? AND task_id=? AND (task_id='176942047' OR attempt_id IN (SELECT attempt_id FROM live_first_test UNION SELECT attempt_id FROM live_second_test))",
       )
       .get(id, owner, this.store.get(id).providerJobId);
   }
@@ -244,7 +244,111 @@ export class StudioWorkflow {
       );
     return this.view(id, owner);
   }
-  async freshTest(owner: string) {
+  acknowledgeOperatorRisk(
+    id: string,
+    owner: string,
+    actor: string,
+    confirmation: unknown,
+  ) {
+    const a = this.store.get(id);
+    if (
+      !actor ||
+      !this.store.testSlot(id) ||
+      !a.providerJobId ||
+      !["submitted", "processing", "uncertain", "output_observed"].includes(
+        a.state,
+      ) ||
+      confirmation !== `ACCEPT OVERLAPPING BILLING ${id} ${a.providerJobId}`
+    )
+      throw new StudioLiveError(
+        "RISK_CONFIRMATION_REQUIRED",
+        "Confirm this exact historical operator task and its unresolved billing exposure.",
+      );
+    this.store.db
+      .prepare(
+        "INSERT OR IGNORE INTO live_private_exceptions (attempt_id,task_id,owner,actor,evidence,created_at) VALUES (?,?,?,?,?,?)",
+      )
+      .run(
+        id,
+        a.providerJobId,
+        owner,
+        actor,
+        JSON.stringify({
+          workflow: "operator",
+          state: a.state,
+          reservedCeilingMicroUsd: a.upperBoundMicroUsd,
+          acknowledgment:
+            "Outcome unverified; possible overlapping generation and billing. Full reservation retained within EUR 50.",
+        }),
+        Date.now(),
+      );
+  }
+  private reconcileRetainedOperatorEvidence(id: string, actor: string) {
+    if (!this.store.testSlot(id)) return;
+    const a = this.store.get(id),
+      saved = this.store.firstTestResult(id);
+    const result = saved?.result;
+    if (
+      !a.providerJobId ||
+      !["submitted", "processing"].includes(a.state) ||
+      result?.taskId !== a.providerJobId ||
+      result?.readFailed !== true ||
+      result?.sanitizedResult?.code !== 50510
+    )
+      return;
+    // Evidence originates in the first-test poll lease, not a browser request.
+    // Keep the original response record; append an audit inside the transition.
+    const lease = this.store.db
+      .prepare("SELECT poll_lease_until FROM live_attempts WHERE id=?")
+      .get(id) as { poll_lease_until: number };
+    if (lease.poll_lease_until > Date.now()) return;
+    this.store.transition(
+      id,
+      "failed",
+      { failureCode: "CONTENT_PREFILTER_REJECTED" },
+      undefined,
+      () => {
+        if (
+          JSON.stringify(this.store.firstTestResult(id)) !==
+          JSON.stringify(saved)
+        )
+          throw new StudioLiveError(
+            "EVIDENCE_CHANGED",
+            "Provider evidence changed during reconciliation. Retry Start fresh test.",
+            409,
+          );
+        const current = this.store.db
+          .prepare("SELECT poll_lease_until FROM live_attempts WHERE id=?")
+          .get(id) as { poll_lease_until: number };
+        if (current.poll_lease_until > Date.now())
+          throw new StudioLiveError(
+            "POLL_IN_PROGRESS",
+            "Operator recovery is in progress. Retry Start fresh test.",
+            409,
+          );
+        this.store.db
+          .prepare(
+            "INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'retained-operator-rejection',?,?,?)",
+          )
+          .run(
+            id,
+            actor,
+            JSON.stringify({
+              taskId: a.providerJobId,
+              code: 50510,
+              responseSha256: createHash("sha256")
+                .update(JSON.stringify(result))
+                .digest("hex"),
+              observedAt: saved!.observedAt,
+              semantics:
+                "Operator-provided BytePlus Support: 50510 Content Pre-filter rejection, task will not be generated.",
+            }),
+            Date.now(),
+          );
+      },
+    );
+  }
+  async freshTest(owner: string, staffActor?: string) {
     // Inspect the entire ledger, including hidden projects and operator slots.
     // Only owning Studio tasks can be polled through this session.
     const active = () =>
@@ -253,6 +357,9 @@ export class StudioWorkflow {
           "SELECT id FROM live_attempts WHERE json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain')",
         )
         .all() as { id: string }[];
+    if (staffActor)
+      for (const { id } of active())
+        this.reconcileRetainedOperatorEvidence(id, staffActor);
     for (const { id } of active().slice(0, 20)) {
       const owned = this.store.db
         .prepare(
@@ -267,7 +374,15 @@ export class StudioWorkflow {
       )
         await this.poll(id, owner); // Read/recover only: never authorize or submit.
     }
-    const blockers = active()
+    const blockers: {
+      projectId: string | null;
+      message: string;
+      taskId?: string | null;
+      state?: string;
+      workflow?: string;
+      attemptId?: string;
+      canAcknowledge?: boolean;
+    }[] = active()
       .filter(({ id }) => !this.hasPrivateException(id, owner))
       .map(({ id }) => {
         const owned = this.store.db
@@ -275,13 +390,40 @@ export class StudioWorkflow {
             "SELECT 1 FROM live_studio_projects WHERE attempt_id=? AND owner=?",
           )
           .get(id, owner);
-        if (!owned || this.store.get(id).media.owner !== owner)
+        const a = this.store.get(id);
+        const workflow = this.store.testSlot(id)
+          ? "operator"
+          : a.media.sourceJobId.startsWith("studio-")
+            ? "Studio"
+            : "private";
+        const metadata = staffActor
+          ? {
+              taskId: a.providerJobId,
+              state: a.state,
+              workflow,
+              attemptId: id,
+              canAcknowledge:
+                workflow === "operator" &&
+                !!a.providerJobId &&
+                [
+                  "submitted",
+                  "processing",
+                  "uncertain",
+                  "output_observed",
+                ].includes(a.state),
+            }
+          : {};
+        if (!owned || a.media.owner !== owner)
           return {
+            ...metadata,
             projectId: null,
             message:
-              "Another private or operator task has an unresolved outcome. Its owner must recover or reconcile it; its lock and reservation remain.",
+              staffActor && workflow === "operator"
+                ? "Retained evidence does not establish terminal rejection. Explicitly acknowledge this operator task's possible overlapping generation and billing to continue private Studio testing; its full reservation remains."
+                : "Another private or operator task has an unresolved outcome. Its owner must recover or reconcile it; its lock and reservation remain.",
           };
         return {
+          ...metadata,
           projectId: id,
           message:
             this.view(id, owner).stage +

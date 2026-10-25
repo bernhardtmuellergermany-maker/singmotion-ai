@@ -180,6 +180,52 @@ try {
     );
     assert.equal(await recovery.getAttribute("href"), "/projects/live_blocked");
     assert.equal(posts.filter((p) => p.action === "submit").length, 1);
+    await page.route("**/api/studio-live", async (route) => {
+      const body = route.request().postDataJSON();
+      posts.push(body);
+      return route.fulfill({
+        json:
+          body.action === "acknowledge-operator-risk"
+            ? { ready: true, exceptionExposure: true, blockers: [] }
+            : {
+                ready: false,
+                blockers: [
+                  {
+                    projectId: null,
+                    attemptId: "operator-plan",
+                    taskId: "1660608639",
+                    workflow: "operator",
+                    state: "processing",
+                    canAcknowledge: true,
+                    message:
+                      "Retained evidence does not establish terminal rejection.",
+                  },
+                ],
+              },
+      });
+    });
+    await page
+      .getByRole("button", { name: "Start fresh test", exact: true })
+      .click();
+    await page
+      .getByText("operator task 1660608639 · processing.", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", {
+        name: "Acknowledge operator-task risk — permit private testing",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("link", {
+        name: "Open Studio to select inputs and explicitly approve a new test",
+      })
+      .waitFor();
+    assert.equal(
+      posts.at(-1)?.confirmation,
+      "ACCEPT OVERLAPPING BILLING operator-plan 1660608639",
+    );
+    assert.equal(posts.filter((p) => p.action === "submit").length, 1);
     await page.close();
   }
   console.log(

@@ -152,3 +152,34 @@ Studio cost review also discloses unresolved overlapping exposure. No new suppor
 ticket is required for the generic 50510 explanation. No paid action occurs
 during acknowledgment or readiness checks. Existing response/history/media
 records remain untouched; no old task is resubmitted.
+
+### Historical operator blockers in Start fresh test
+
+The authenticated, allowlisted Super Admin now sees each blocking task's provider
+ID (or “ID not assigned”), saved state and Studio/operator workflow. Only this
+minimal operational metadata crosses ownership boundaries; private inputs,
+prompts, output URLs and credentials do not.
+
+Before reporting blockers, the staff-only readiness check examines retained
+first/second-test poll results. A registered operator slot, matching durable
+task ID, `readFailed: true` and numeric `sanitizedResult.code: 50510` establish
+rejection under the operator-provided BytePlus Support semantics. An atomic
+transition records the response hash, timestamp, reviewer and semantic basis,
+retaining the original response, slot and full reservation. Active poll leases
+and changed evidence prevent reconciliation. No new network request is needed
+to evaluate this saved evidence.
+
+If historical task 1660608639 lacks matching evidence, its blocker offers
+**Acknowledge operator-task risk — permit private testing**. Confirm the displayed
+task and overlapping generation/billing risk. The state is not falsely changed
+to failed. The exception binds the registered historical operator slot, exact
+task, authenticated reviewer and current Studio session. It admits private
+Studio testing only, never a new first/second operator submission. All old
+reservations remain counted against the EUR 50 and USD ceilings; one additional
+non-exempt generation maximum and explicit per-generation approval still apply.
+
+Click **Start fresh test** in My Projects; if necessary acknowledge the displayed
+operator blocker, then **Open Studio** and review a new test. No further support
+ticket is required for the generic 50510 semantics. Changing the provider filter
+does not itself establish an old task's outcome. This development change does
+not inspect or modify Railway data and does not deploy.

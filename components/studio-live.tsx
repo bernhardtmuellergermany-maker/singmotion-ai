@@ -146,8 +146,8 @@ export function StudioLiveControl({
           )}
           {plan.overlapExposure && (
             <p role="alert">
-              Task 176942047 has an acknowledged private-test exception, not a
-              verified terminal outcome. Overlapping generation and billing
+              A historical task has an acknowledged private-test exception, not
+              a verified terminal outcome. Overlapping generation and billing
               remain possible; its full reservation is included in your
               cumulative budget.
             </p>
@@ -270,7 +270,47 @@ function FreshTest() {
           ) : (
             result.blockers.map((b, i) => (
               <p key={i}>
+                {b.workflow && (
+                  <strong>
+                    {b.workflow} task {b.taskId || "ID not assigned"} ·{" "}
+                    {b.state}.{" "}
+                  </strong>
+                )}
                 {b.message}{" "}
+                {b.canAcknowledge && (
+                  <button
+                    className="button outline"
+                    disabled={busy}
+                    onClick={async () => {
+                      if (
+                        !window.confirm(
+                          `Accept possible overlapping generation and billing for operator task ${b.taskId}? Its state and full reservation remain unchanged within EUR 50. No task will be submitted.`,
+                        )
+                      )
+                        return;
+                      setBusy(true);
+                      setError("");
+                      try {
+                        setResult(
+                          await api("studio-live", {
+                            method: "POST",
+                            body: JSON.stringify({
+                              action: "acknowledge-operator-risk",
+                              id: b.attemptId,
+                              confirmation: `ACCEPT OVERLAPPING BILLING ${b.attemptId} ${b.taskId}`,
+                            }),
+                          }),
+                        );
+                      } catch (e) {
+                        setError((e as Error).message);
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Acknowledge operator-task risk — permit private testing
+                  </button>
+                )}
                 {b.projectId && (
                   <Link href={`/projects/live_${b.projectId}`}>
                     Recover / reconcile previous task

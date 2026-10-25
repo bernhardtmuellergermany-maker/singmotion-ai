@@ -963,3 +963,112 @@ test("private exception cannot apply to another provider task", async () => {
     /Explicitly/,
   );
 });
+
+async function historicalOperator() {
+  const f = await fixture("1660608639");
+  await f.submit();
+  f.store.db
+    .prepare(
+      "INSERT INTO live_first_test (slot,attempt_id,digest,claimed_at) VALUES (1,?,?,?)",
+    )
+    .run(f.plan.id, f.plan.digest!, Date.now());
+  f.store.db
+    .prepare("DELETE FROM live_studio_projects WHERE attempt_id=?")
+    .run(f.plan.id);
+  return f;
+}
+
+test("Super Admin sees exact historical operator blocker and retained 50510 evidence reconciles atomically", async () => {
+  const f = await historicalOperator();
+  const old = f.store.get(f.plan.id);
+  const before = f.store.db
+    .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+    .get(f.plan.id);
+  const blocked = await f.service.freshTest(owner, "super-admin");
+  assert.equal(blocked.blockers[0].taskId, "1660608639");
+  assert.equal(blocked.blockers[0].state, old.state);
+  assert.equal(blocked.blockers[0].workflow, "operator");
+  assert.equal(blocked.blockers[0].canAcknowledge, true);
+  assert.equal(
+    (await f.service.freshTest("other")).blockers[0].taskId,
+    undefined,
+  );
+  const result = {
+    taskId: "1660608639",
+    readFailed: true,
+    sanitizedResult: { code: 50510 },
+  };
+  f.store.recordFirstTestResult(f.plan.id, result);
+  const lease = f.store.claimPoll(f.plan.id);
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
+  f.store.releasePoll(f.plan.id, lease);
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, true);
+  assert.equal(f.store.get(f.plan.id).state, "failed");
+  assert.deepEqual(f.store.firstTestResult(f.plan.id)!.result, result);
+  assert.deepEqual(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.plan.id),
+    before,
+  );
+  assert.equal(
+    f.store.db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM live_studio_actions WHERE action='retained-operator-rejection'",
+      )
+      .get()!.n,
+    1,
+  );
+  assert.equal(f.counts().submits, 1);
+});
+
+test("mismatched operator evidence stays unresolved; exact explicit exception enables only private Studio admission", async () => {
+  const f = await historicalOperator();
+  f.store.recordFirstTestResult(f.plan.id, {
+    taskId: "wrong",
+    readFailed: true,
+    sanitizedResult: { code: 50510 },
+  });
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
+  const prior = f.store.get(f.plan.id);
+  const phrase = `ACCEPT OVERLAPPING BILLING ${f.plan.id} 1660608639`;
+  assert.throws(
+    () => f.service.acknowledgeOperatorRisk(f.plan.id, owner, "", phrase),
+    /Confirm/,
+  );
+  assert.throws(
+    () =>
+      f.service.acknowledgeOperatorRisk(
+        f.plan.id,
+        owner,
+        "super-admin",
+        "wrong",
+      ),
+    /Confirm/,
+  );
+  f.service.acknowledgeOperatorRisk(f.plan.id, owner, "super-admin", phrase);
+  assert.deepEqual(f.store.get(f.plan.id), prior);
+  const ready = await f.service.freshTest(owner, "super-admin");
+  assert.equal(ready.ready, true);
+  assert.equal(ready.exceptionExposure, true);
+  assert.equal(
+    (await f.service.freshTest("other", "super-admin")).ready,
+    false,
+  );
+  const next = await f.service.prepare(
+    { ...f.selection, customPrompt: "A separately reviewed test" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await f.service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 2);
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
+});

@@ -178,7 +178,7 @@ async function handler(req: NextRequest) {
         ),
       );
     if (body.action === "fresh-test")
-      return json(await service.freshTest(owner));
+      return json(await service.freshTest(owner, String(user!.id)));
     if (typeof body.id !== "string")
       throw new StudioLiveError(
         "PROJECT_REQUIRED",
@@ -205,6 +205,15 @@ async function handler(req: NextRequest) {
           body.confirmation,
         ),
       );
+    }
+    if (body.action === "acknowledge-operator-risk") {
+      service.acknowledgeOperatorRisk(
+        body.id,
+        owner,
+        String(user!.id),
+        body.confirmation,
+      );
+      return json(await service.freshTest(owner, String(user!.id)));
     }
     if (body.action === "acknowledge-private-risk")
       return json(

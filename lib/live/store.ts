@@ -328,7 +328,7 @@ export class LiveTestStore {
     const active = this.db
       .prepare(
         `SELECT id FROM live_attempts WHERE id<>? AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') AND (?=1 OR source_job_id LIKE 'studio-%')
-          AND NOT (?=1 AND EXISTS (SELECT 1 FROM live_private_exceptions e WHERE e.attempt_id=live_attempts.id AND e.task_id=json_extract(live_attempts.data,'$.providerJobId') AND e.owner=? AND e.task_id='176942047')) LIMIT 1`,
+          AND NOT (?=1 AND EXISTS (SELECT 1 FROM live_private_exceptions e WHERE e.attempt_id=live_attempts.id AND e.task_id=json_extract(live_attempts.data,'$.providerJobId') AND e.owner=? AND (e.task_id='176942047' OR e.attempt_id IN (SELECT attempt_id FROM live_first_test UNION SELECT attempt_id FROM live_second_test)))) LIMIT 1`,
       )
       .get(attempt.id, studio ? 1 : 0, studio ? 1 : 0, attempt.media.owner);
     if (active) throw new Error("ONE_ACTIVE_GENERATION");
