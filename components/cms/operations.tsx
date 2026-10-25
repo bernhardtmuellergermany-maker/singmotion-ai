@@ -1,3 +1,4 @@
+import { StudioActivation } from "./studio-activation";
 import { FirstTestPanel } from "./first-test-panel";
 import type { AdminViewServerProps } from "payload";
 import { hasRole } from "../../cms/policy";
@@ -26,7 +27,12 @@ export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
         border: "1px solid var(--theme-elevation-150)",
       }}
     >
-      {hasRole(user, ["super-admin"]) && <FirstTestPanel />}
+      {hasRole(user, ["super-admin"]) && (
+        <>
+          <StudioActivation />
+          <FirstTestPanel />
+        </>
+      )}
       <h2>SingMotion operations</h2>
       <p>
         Demo mode. Public paid generation and Stripe remain disabled. The

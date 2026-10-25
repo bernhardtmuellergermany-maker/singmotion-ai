@@ -82,6 +82,7 @@ try {
     "/cms-preview/home",
     "/api/session",
     "/api/studio-live",
+    "/api/admin/studio-activation",
     "/api/studio-live?id=unknown&video=1",
     "/api/assets/example",
     "/media/demo.mp4",

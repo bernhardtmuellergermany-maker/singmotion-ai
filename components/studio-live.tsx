@@ -130,6 +130,14 @@ export function StudioLiveControl({
             tax/fees. Actual billing uses generated video seconds.
           </p>
           <p>
+            {plan.planningUpliftMicroUsd != null && (
+              <>
+                Provisional planning estimate with 19% uplift:{" "}
+                {usd(plan.planningUpliftMicroUsd)}. This is NOT verified
+                BytePlus tax and does not establish an inclusive charge.
+                <br />
+              </>
+            )}
             Reviewed reservation ceiling:{" "}
             {plan.ceilingMicroUsd === null
               ? "Unavailable"

@@ -1,3 +1,4 @@
+import { recoveryHealth } from "./studio-activation.ts";
 /** Explicit pilot construction only; importing this module opens no DB or network. */
 import { stat } from "node:fs/promises";
 import path from "node:path";
@@ -32,7 +33,11 @@ export async function studioReadiness(
   const heartbeat = await stat(path.join(root, "worker-heartbeat")).catch(
     () => null,
   );
-  if (!heartbeat || Date.now() - heartbeat.mtimeMs > 180000)
+  if (
+    !heartbeat ||
+    Date.now() - heartbeat.mtimeMs > 180000 ||
+    !(await recoveryHealth(root)).healthy
+  )
     throw new StudioLiveError(
       "WORKER_OFFLINE",
       "The recovery worker is offline. No paid task was submitted.",

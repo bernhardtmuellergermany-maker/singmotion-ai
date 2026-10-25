@@ -74,6 +74,8 @@ export async function validateOutput(
       : video.width !== contract.output.width ||
         video.height !== contract.output.height) ||
     !Number.isFinite(length) ||
+    (contract.output.maxDurationSeconds !== undefined &&
+      length > contract.output.maxDurationSeconds) ||
     Math.abs(length - duration) > contract.output.durationToleranceSeconds ||
     !Number.isFinite(actualFps) ||
     (contract.discover720p

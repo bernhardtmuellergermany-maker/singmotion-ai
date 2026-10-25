@@ -2,11 +2,11 @@ import { createHash } from "node:crypto";
 /** Internal integration contract, NOT BytePlus HTTP field names or a wire schema. */
 export interface BillingRules {
   microUsdPerSecond: number;
-  minimumBillableMs: number;
-  billingQuantumMs: number;
-  minimumChargeMicroUsd: number;
-  fixedFeeMicroUsd: number;
-  taxBasisPointsUpperBound: number;
+  minimumBillableMs: number | null;
+  billingQuantumMs: number | null;
+  minimumChargeMicroUsd: number | null;
+  fixedFeeMicroUsd: number | null;
+  taxBasisPointsUpperBound: number | null;
 }
 export interface VerifiedContract {
   revision: string;
@@ -26,11 +26,19 @@ export interface VerifiedContract {
     maxAdditionalSeconds: number;
   } | null;
   billing: BillingRules;
+  /** Pilot-only aggregate admission bound; planning uplift is NOT a tax rule. */
+  pilotAdmission?: {
+    inclusiveMaxMicroUsd: number;
+    evidence: string;
+    planningUpliftBasisPoints: 1900;
+    maxGeneratedSeconds: number;
+  };
   output: {
     width: number;
     height: number;
     fps: number;
     durationToleranceSeconds: number;
+    maxDurationSeconds?: number;
   };
   outputHosts: readonly string[];
 }
@@ -94,6 +102,31 @@ export function planUpperBoundMicroUsd(
     throw new Error(
       "Reviewed generated-video duration bound is missing or does not cover this input.",
     );
+  if (contract.pilotAdmission) {
+    const p = contract.pilotAdmission;
+    if (
+      !Number.isSafeInteger(p.inclusiveMaxMicroUsd) ||
+      p.inclusiveMaxMicroUsd <
+        Math.ceil(p.maxGeneratedSeconds * 70000 * 1.19) ||
+      p.planningUpliftBasisPoints !== 1900 ||
+      !p.evidence?.trim() ||
+      p.maxGeneratedSeconds !== 6 ||
+      bound.maxInputSeconds > 5 ||
+      bound.minInputSeconds < 4 ||
+      contract.billing.microUsdPerSecond !== 70000 ||
+      [
+        contract.billing.minimumBillableMs,
+        contract.billing.billingQuantumMs,
+        contract.billing.minimumChargeMicroUsd,
+        contract.billing.fixedFeeMicroUsd,
+        contract.billing.taxBasisPointsUpperBound,
+      ].some((v) => v !== null)
+    )
+      throw new Error(
+        "Pilot needs a separately reviewed inclusive ceiling; planning uplift is not verified tax.",
+      );
+    return p.inclusiveMaxMicroUsd;
+  }
   return upperBoundMicroUsd(
     inputSeconds + bound.maxAdditionalSeconds,
     contract.billing,
@@ -121,24 +154,26 @@ export function upperBoundMicroUsd(
     rules.fixedFeeMicroUsd,
     rules.taxBasisPointsUpperBound,
   ]) {
-    if (!Number.isSafeInteger(value) || value < 0)
+    if (value === null || !Number.isSafeInteger(value) || value < 0)
       throw new Error(
         "All billing rules must be verified nonnegative integers.",
       );
   }
-  if (rules.billingQuantumMs < 1 || rules.microUsdPerSecond < 1)
+  const verified = rules as { [K in keyof BillingRules]: number };
+  if (verified.billingQuantumMs < 1 || rules.microUsdPerSecond < 1)
     throw new Error("Billing quantum and rate must be positive.");
   const requestedMs = Math.ceil(durationSeconds * 1000);
-  const quantum = BigInt(rules.billingQuantumMs);
-  const durationMs = BigInt(Math.max(requestedMs, rules.minimumBillableMs));
+  const quantum = BigInt(verified.billingQuantumMs);
+  const durationMs = BigInt(Math.max(requestedMs, verified.minimumBillableMs));
   const billedMs = ((durationMs + quantum - 1n) / quantum) * quantum;
-  const usage = (billedMs * BigInt(rules.microUsdPerSecond) + 999n) / 1000n;
+  const usage = (billedMs * BigInt(verified.microUsdPerSecond) + 999n) / 1000n;
   const subtotal =
-    (usage > BigInt(rules.minimumChargeMicroUsd)
+    (usage > BigInt(verified.minimumChargeMicroUsd)
       ? usage
-      : BigInt(rules.minimumChargeMicroUsd)) + BigInt(rules.fixedFeeMicroUsd);
+      : BigInt(verified.minimumChargeMicroUsd)) +
+    BigInt(verified.fixedFeeMicroUsd);
   const total =
-    (subtotal * (10000n + BigInt(rules.taxBasisPointsUpperBound)) + 9999n) /
+    (subtotal * (10000n + BigInt(verified.taxBasisPointsUpperBound)) + 9999n) /
     10000n;
   if (total > BigInt(Number.MAX_SAFE_INTEGER))
     throw new Error("Cost exceeds safe arithmetic limits.");

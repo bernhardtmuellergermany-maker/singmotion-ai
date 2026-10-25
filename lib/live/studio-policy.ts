@@ -71,6 +71,8 @@ export function validateStudioPolicy(
       b.minInputSeconds < 4 ||
       b.maxInputSeconds > c.maxDurationSeconds ||
       b.maxInputSeconds + b.maxAdditionalSeconds > 300 ||
+      (c.pilotAdmission &&
+        c.output.maxDurationSeconds !== c.pilotAdmission.maxGeneratedSeconds) ||
       c.billing.microUsdPerSecond !== 70000
     )
       throw Error();

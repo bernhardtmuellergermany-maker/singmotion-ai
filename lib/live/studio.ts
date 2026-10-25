@@ -27,6 +27,7 @@ export interface StudioProject {
   artistName: string;
   selection: StudioDraftExport;
   estimatedBaseMicroUsd: number;
+  planningUpliftMicroUsd: number | null;
   ceilingMicroUsd: number | null;
   digest: string | null;
   stage: string;
@@ -105,6 +106,10 @@ export class StudioWorkflow {
       artistName: row.artist_name,
       selection: JSON.parse(row.selection_json),
       estimatedBaseMicroUsd: Math.ceil(a.media.durationSeconds * 70000),
+      planningUpliftMicroUsd: JSON.parse(row.policy_json).contract
+        .pilotAdmission
+        ? Math.ceil(a.media.durationSeconds * 70000 * 1.19)
+        : null,
       ceilingMicroUsd: a.upperBoundMicroUsd,
       digest: a.contractDigest || null,
       stage: row.diagnostic || stages[a.state] || a.state,

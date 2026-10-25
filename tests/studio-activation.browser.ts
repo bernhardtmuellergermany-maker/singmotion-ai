@@ -1,0 +1,118 @@
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+import { chromium } from "@playwright/test";
+const b = await build({
+  stdin: {
+    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {StudioActivation} from './components/cms/studio-activation';createRoot(document.getElementById('root')).render(<StudioActivation/>);`,
+    resolveDir: process.cwd(),
+    loader: "tsx",
+  },
+  bundle: true,
+  write: false,
+  platform: "browser",
+  jsx: "automatic",
+});
+const browser = await chromium.launch({
+  executablePath:
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || "/usr/bin/chromium",
+  args: ["--no-sandbox"],
+});
+try {
+  const page = await browser.newPage();
+  let writes = 0,
+    body: Record<string, unknown> | undefined;
+  await page.route("**/*", (r) => {
+    const u = new URL(r.request().url());
+    if (u.pathname === "/")
+      return r.fulfill({
+        contentType: "text/html",
+        body: '<div id="root"></div><script src="/bundle.js"></script>',
+      });
+    if (u.pathname === "/bundle.js")
+      return r.fulfill({
+        contentType: "application/javascript",
+        body: b.outputFiles[0].text,
+      });
+    if (u.pathname === "/api/admin/studio-activation") {
+      if (r.request().method() === "POST") {
+        writes++;
+        body = r.request().postDataJSON();
+        return r.fulfill({ json: { saved: true, expiresAt: "2099-01-01" } });
+      }
+      return r.fulfill({
+        json: {
+          staffId: "17",
+          allowlisted: false,
+          recoveryEnabled: true,
+          health: { healthy: true, status: "ready" },
+          evidence: {
+            reservedMicroUsd: 840000,
+            digest: "mock-digest",
+            hostname: "cdn.example.test",
+            inputSeconds: 4.872,
+            outputSeconds: 5,
+            sha256: "a".repeat(64),
+            output: {
+              width: 1280,
+              height: 720,
+              fps: 25,
+              videoCodec: "h264",
+              audioCodec: "aac",
+            },
+          },
+          blocker: null,
+        },
+      });
+    }
+    return r.abort();
+  });
+  await page.goto("http://activation.test/");
+  await page
+    .getByText("Studio pilot activation — offline only", { exact: true })
+    .click();
+  await page
+    .getByRole("button", {
+      name: "Inspect successful task / my staff ID / recovery health",
+      exact: true,
+    })
+    .click();
+  const save = page.getByRole("button", {
+    name: "Save private Studio policy — no paid request",
+    exact: true,
+  });
+  await save.waitFor();
+  assert.equal(await save.isDisabled(), true);
+  assert.equal(writes, 0);
+  assert.match(
+    await page.locator("body").innerText(),
+    /NOT verified BytePlus tax/,
+  );
+  await page
+    .getByLabel("Separate reviewed inclusive ceiling (USD)", { exact: true })
+    .fill("1.00");
+  await page
+    .getByLabel(
+      "Basis for the inclusive ceiling and short-clip acceptance range; do not invent tax/fee evidence",
+      { exact: true },
+    )
+    .fill(
+      "Mock independently reviewed inclusive admission bound for this range.",
+    );
+  assert.equal(await save.isDisabled(), true);
+  await page.getByRole("checkbox").check();
+  await save.click();
+  await page.getByRole("status").waitFor();
+  assert.equal(writes, 1);
+  assert.equal(body!.ceilingMicroUsd, 1000000);
+  assert.equal(body!.digest, "mock-digest");
+  assert.equal(
+    body!.confirmation,
+    "APPROVE_SHORT_STUDIO_POLICY_WITH_PROVISIONAL_UPLIFT",
+  );
+  assert.ok(!("staffId" in body!));
+  console.log(
+    "PASS: explicit offline inspection and separate bound confirmation; no automatic submission or identity override.",
+  );
+} finally {
+  await browser.close();
+}
