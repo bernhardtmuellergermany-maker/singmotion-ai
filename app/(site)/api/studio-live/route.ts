@@ -114,7 +114,8 @@ async function handler(req: NextRequest) {
           },
         );
       }
-      if (id) return json(service.view(id, owner));
+      if (id)
+        return json(await service.withCurrentBudget(service.view(id, owner)));
       const blockers: string[] = [];
       try {
         studioGate(studioConfig());
@@ -127,7 +128,16 @@ async function handler(req: NextRequest) {
             : "Server policy unavailable.",
         );
       }
+      let budget = null;
+      try {
+        budget = await service.currentBudget();
+      } catch {
+        blockers.push(
+          "EUR 50 total-budget conversion/fee review is missing or expired; existing reservations remain counted.",
+        );
+      }
       return json({
+        budget,
         pilot: true,
         available: blockers.length === 0,
         projects: service.list(owner),
@@ -164,6 +174,7 @@ async function handler(req: NextRequest) {
           body.artistName,
           body.consent,
           body.english,
+          body.repeatOf,
         ),
       );
     if (typeof body.id !== "string")

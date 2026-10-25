@@ -72,6 +72,11 @@ try {
         posts.push(body);
         return route.fulfill({
           json: {
+            budget: {
+              remainingMicroUsd: 1000000,
+              remainingMicroEur: 48000000,
+              basis: "reviewed-bound",
+            },
             id: "plan",
             state: "prepared",
             durationSeconds: 4.728,

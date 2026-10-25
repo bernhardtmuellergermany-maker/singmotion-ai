@@ -75,6 +75,14 @@ beforeEach((context) => {
   t.mock.method(tls, "connect", deny);
 });
 const policy: StudioPolicy = {
+  eurBudget: {
+    eurPerUsdUpperPpm: 1000000,
+    fxFeesMaxMicroEur: 1000000,
+    evidence: "Mock reviewed currency and fee bounds",
+    reviewedBy: "Mock",
+    reviewedAt: new Date().toISOString(),
+    validUntil: new Date(Date.now() + 86400000).toISOString(),
+  },
   reviewedBy: "Mock reviewer",
   reviewedAt: "2026-01-01T00:00:00Z",
   expiresAt: "2099-01-01T00:00:00Z",
@@ -118,7 +126,7 @@ const config = {
   operatorSecret: "mock-operator-secret-at-least-32-characters",
   maxJobMicroUsd: 1000000,
   maxTotalMicroUsd: 2000000,
-  maxDurationSeconds: 300,
+  maxDurationSeconds: 60,
 };
 async function fixture() {
   const store = new LiveTestStore(path.join(root, randomUUID() + ".sqlite"));
@@ -433,5 +441,267 @@ test("public diagnostics classify budget and media constraints without private e
     !studioDiagnostic(
       new Error("secret AK https://private.test/?signed=secret /private/path"),
     ).message.includes("secret"),
+  );
+});
+
+test("atomic single-active guard covers different plans and uncertain outcomes", async () => {
+  const f = await fixture();
+  const second = await f.service.prepare(
+    { ...f.selection, customPrompt: "Another explicit mock selection." },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  const startSecond = () =>
+    f.service.submit(
+      second.id,
+      owner,
+      second.digest,
+      second.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${second.id} ${second.digest} ${second.ceilingMicroUsd}`,
+    );
+  const results = await Promise.allSettled([f.submit(), startSecond()]);
+  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+  assert.equal(f.counts().submits, 1);
+  assert.match(
+    String(
+      (results.find((r) => r.status === "rejected") as PromiseRejectedResult)
+        .reason,
+    ),
+    /ONE_ACTIVE_GENERATION/,
+  );
+  const active = [f.plan, second].find(
+    (p) => f.store.get(p.id).state === "submitted",
+  )!;
+  f.store.db
+    .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+    .run(
+      JSON.stringify({ ...f.store.get(active.id), state: "uncertain" }),
+      active.id,
+    );
+  const other = active.id === f.plan.id ? startSecond : f.submit;
+  await assert.rejects(other(), /ONE_ACTIVE_GENERATION/);
+  assert.equal(f.counts().submits, 1);
+});
+test("explicit sequential repeats have no task-count limit and keep all reservations", async () => {
+  const f = await fixture();
+  f.setMode("complete");
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    f.service.dependencies,
+  );
+  let plan = f.plan;
+  for (let i = 0; i < 3; i++) {
+    await service.submit(
+      plan.id,
+      owner,
+      plan.digest,
+      plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`,
+    );
+    await service.poll(plan.id, owner);
+    assert.equal(f.store.get(plan.id).state, "completed");
+    const previous = plan;
+    plan = await service.prepare(
+      f.selection,
+      owner,
+      "Singer",
+      true,
+      true,
+      previous.id,
+    );
+    assert.notEqual(plan.id, previous.id);
+    assert.equal(
+      (
+        await service.prepare(
+          f.selection,
+          owner,
+          "Singer",
+          true,
+          true,
+          previous.id,
+        )
+      ).id,
+      plan.id,
+    );
+  }
+  assert.equal(f.counts().submits, 3);
+  assert.equal(
+    (
+      f.store.db
+        .prepare("SELECT SUM(reserved_micro_usd) AS n FROM live_attempts")
+        .get() as { n: number }
+    ).n,
+    3 * f.plan.ceilingMicroUsd!,
+  );
+  assert.equal(
+    plan.budget!.remainingMicroEur,
+    49000000 - 3 * f.plan.ceilingMicroUsd!,
+  );
+});
+test("reviewed duration bands select measured duration without extrapolation", async () => {
+  const { selectStudioPolicy } = await import("../lib/live/studio-policy.ts");
+  const short = structuredClone(policy);
+  short.contract.maxDurationSeconds = 5;
+  short.contract.generatedDurationBound!.maxInputSeconds = 5;
+  const long = structuredClone(policy);
+  long.contract.maxDurationSeconds = 60;
+  long.contract.generatedDurationBound = {
+    minInputSeconds: 5,
+    maxInputSeconds: 60,
+    maxAdditionalSeconds: 2,
+    evidence: "Mock explicit range envelope, not BytePlus evidence",
+  };
+  long.contract.pilotAdmission = {
+    inclusiveMaxMicroUsd: 6000000,
+    maxGeneratedSeconds: 62,
+    planningUpliftBasisPoints: 1900,
+    durationEvidence: "Mock reviewed 5–60s duration-dependent bound",
+    evidence: "Mock separate inclusive fees/charge ceiling",
+  };
+  long.contract.billing = {
+    microUsdPerSecond: 70000,
+    minimumBillableMs: null,
+    billingQuantumMs: null,
+    minimumChargeMicroUsd: null,
+    fixedFeeMicroUsd: null,
+    taxBasisPointsUpperBound: null,
+  };
+  long.contract.output.maxDurationSeconds = 62;
+  long.contract.output.transfer = {
+    maxBytes: 128 * 1024 * 1024,
+    timeoutMs: 150000,
+    evidence: "Mock output-size/transfer acceptance evidence",
+  };
+  assert.throws(() => selectStudioPolicy(short, 30), /No reviewed/);
+  const bundle = { ...short, durationBands: [long] };
+  validateStudioPolicy(bundle);
+  assert.equal(
+    selectStudioPolicy(bundle, 4.872).contract.maxDurationSeconds,
+    5,
+  );
+  assert.equal(
+    selectStudioPolicy(bundle, 60).contract.pilotAdmission!
+      .inclusiveMaxMicroUsd,
+    6000000,
+  );
+  assert.throws(() => selectStudioPolicy(bundle, 60.001), /No reviewed/);
+  const bad = structuredClone(bundle);
+  delete bad.durationBands[0].contract.pilotAdmission!.durationEvidence;
+  assert.throws(() => validateStudioPolicy(bad));
+  const expired = structuredClone(bundle);
+  expired.durationBands[0].expiresAt = "2000-01-01";
+  assert.throws(() => validateStudioPolicy(expired));
+});
+
+test("EUR ceiling cannot be enlarged by USD config and a Studio task blocks legacy approvals", async () => {
+  const f = await fixture();
+  const proof = policy.eurBudget!;
+  const previous = f.store.prepare(
+    { ...f.store.get(f.plan.id).media, sourceJobId: "prior-reservation" },
+    "prior",
+    48500000,
+  );
+  f.store.db
+    .prepare("UPDATE live_attempts SET reserved_micro_usd=? WHERE id=?")
+    .run(48500000, previous.id);
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    f.service.dependencies,
+  );
+  await assert.rejects(
+    service.submit(
+      f.plan.id,
+      owner,
+      f.plan.digest,
+      f.plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${f.plan.id} ${f.plan.digest} ${f.plan.ceilingMicroUsd}`,
+    ),
+    /Total live-test spending cap/,
+  );
+  assert.equal(f.counts().submits, 0);
+  const g = await fixture();
+  await g.submit();
+  const legacy = g.store.prepare(
+    { ...g.store.get(g.plan.id).media, sourceJobId: "legacy-operator" },
+    "legacy",
+    100000,
+  );
+  await assert.rejects(
+    async () =>
+      g.store.authorize(
+        legacy.id,
+        { ...config, eurBudget: proof },
+        config.operatorSecret,
+        `AUTHORIZE ONE PAID BYTEPLUS TEST ${legacy.id} UP TO 100000 MICROUSD`,
+      ),
+    /ONE_ACTIVE_GENERATION/,
+  );
+});
+
+test("longer WAV selection uses actual encoded MP3 duration and never submits during review", async () => {
+  const f = await fixture(),
+    audio = path.join(root, "media", randomUUID() + ".wav");
+  execFileSync("ffmpeg", [
+    "-nostdin",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:duration=61",
+    audio,
+  ]);
+  const id = randomUUID();
+  db.putAsset({
+    id,
+    owner,
+    kind: "audio",
+    path: audio,
+    mime: "audio/wav",
+    name: "long.wav",
+    bytes: (await stat(audio)).size,
+    duration: 61,
+    width: null,
+    height: null,
+    created: Date.now(),
+  });
+  const long = structuredClone(policy);
+  long.contract.maxDurationSeconds = 60;
+  long.contract.generatedDurationBound = {
+    minInputSeconds: 4,
+    maxInputSeconds: 60,
+    maxAdditionalSeconds: 2,
+    evidence: "Mock reviewed generated-duration envelope",
+  };
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxJobMicroUsd: 10000000 },
+    { ...f.service.dependencies, policy: async () => long },
+  );
+  const plan = await service.prepare(
+    { ...f.selection, songId: id, end: 59.8 },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  assert.ok(plan.durationSeconds >= 59.8 && plan.durationSeconds <= 60);
+  assert.ok(plan.ceilingMicroUsd! > 4000000);
+  assert.equal(f.counts().submits, 0);
+  await assert.rejects(
+    service.prepare(
+      { ...f.selection, songId: id, end: 60.1 },
+      owner,
+      "Singer",
+      true,
+      true,
+    ),
   );
 });

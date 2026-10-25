@@ -1,3 +1,5 @@
+import { euroBudget, type EuroBudget } from "./studio-budget.ts";
+import { reservedUsd, secondReview } from "./second-test.ts";
 /** Studio projects use the SAME reservation ledger; operator slots are never touched. */
 import { createHash } from "node:crypto";
 import path from "node:path";
@@ -14,6 +16,7 @@ import {
   StudioLiveError,
   studioGate,
   validateStudioPolicy,
+  selectStudioPolicy,
   type StudioPolicy,
 } from "./studio-policy.ts";
 import { pollError } from "./poll-error.ts";
@@ -32,6 +35,8 @@ export interface StudioProject {
   digest: string | null;
   stage: string;
   outputReady: boolean;
+  budget: ReturnType<typeof euroBudget> | null;
+  budgetBlocker: string | null;
 }
 interface StudioDependencies {
   ready?: () => Promise<void>;
@@ -79,6 +84,40 @@ export class StudioWorkflow {
       );
     return row;
   }
+  private budgetReview(policy: StudioPolicy): EuroBudget | undefined {
+    const slot = this.store.secondTest();
+    return (
+      policy.eurBudget ??
+      (slot ? secondReview(this.store, slot.attempt_id) : undefined)
+    );
+  }
+  budget(policy: StudioPolicy) {
+    return euroBudget(
+      this.budgetReview(policy),
+      reservedUsd(this.store),
+      this.config.maxTotalMicroUsd,
+    );
+  }
+  async currentBudget() {
+    return this.budget(validateStudioPolicy(await this.dependencies.policy()));
+  }
+  async withCurrentBudget(project: StudioProject): Promise<StudioProject> {
+    try {
+      return {
+        ...project,
+        budget: await this.currentBudget(),
+        budgetBlocker: null,
+      };
+    } catch {
+      return {
+        ...project,
+        budget: null,
+        budgetBlocker:
+          "EUR 50 conversion/fee or policy review is missing or expired. Existing task recovery remains available.",
+      };
+    }
+  }
+
   view(id: string, owner: string): StudioProject {
     const row = this.row(id, owner),
       a = this.store.get(id);
@@ -96,7 +135,17 @@ export class StudioWorkflow {
       failed:
         "Provider reported a terminal failure; reservation retained pending billing reconciliation.",
     };
+    let budget: ReturnType<typeof euroBudget> | null = null,
+      budgetBlocker: string | null = null;
+    try {
+      budget = this.budget(JSON.parse(row.policy_json));
+    } catch {
+      budgetBlocker =
+        "EUR 50 conversion/fee review is missing or expired. No paid submission until reviewed.";
+    }
     return {
+      budget,
+      budgetBlocker,
       id: a.id,
       state: a.state,
       createdAt: a.createdAt,
@@ -131,6 +180,7 @@ export class StudioWorkflow {
     artistName: unknown,
     consent: unknown,
     english: unknown,
+    repeatOf?: unknown,
   ) {
     studioGate(this.config);
     if (consent !== true || english !== true)
@@ -139,12 +189,36 @@ export class StudioWorkflow {
         "Confirm media rights and that the composed prompt is English.",
       );
     const selection = parseStudioDraft(value);
-    if (selection.owner !== owner || selection.end - selection.start < 4)
+    if (
+      selection.owner !== owner ||
+      selection.end - selection.start < 4 ||
+      selection.end - selection.start > 60
+    )
       throw new StudioLiveError(
         "SELECTION_INVALID",
         "Select your own image/audio and an excerpt of at least 4 seconds.",
       );
-    const source = `studio-${createHash("sha256").update(JSON.stringify(selection)).digest("hex")}`;
+    let source = `studio-${createHash("sha256").update(JSON.stringify(selection)).digest("hex")}`;
+    if (repeatOf !== undefined) {
+      if (typeof repeatOf !== "string")
+        throw new StudioLiveError(
+          "INVALID_REPEAT",
+          "Choose a completed or terminal failed owned project.",
+          409,
+        );
+      const prior = this.row(repeatOf, owner),
+        attempt = this.store.get(repeatOf);
+      if (
+        !["completed", "failed"].includes(attempt.state) ||
+        prior.selection_json !== JSON.stringify(selection)
+      )
+        throw new StudioLiveError(
+          "INVALID_REPEAT",
+          "Only an explicitly selected terminal project with the same inputs may be reviewed as another test. Uncertain jobs must be reconciled.",
+          409,
+        );
+      source += `-repeat-${repeatOf}`;
+    }
     const old = this.store.db
       .prepare("SELECT id FROM live_attempts WHERE source_job_id=?")
       .get(source) as { id: string } | undefined;
@@ -155,17 +229,15 @@ export class StudioWorkflow {
         await this.operator(
           validateStudioPolicy(JSON.parse(row.policy_json)),
         ).price(a.id, owner);
-      return this.view(old.id, owner);
+      return this.withCurrentBudget(this.view(old.id, owner));
     }
-    const policy = validateStudioPolicy(await this.dependencies.policy());
+    const rootPolicy = validateStudioPolicy(await this.dependencies.policy());
     const media = await prepareStudioDraft(
       selection,
       owner,
-      Math.min(
-        this.config.maxDurationSeconds,
-        policy.contract.maxDurationSeconds,
-      ),
+      Math.min(this.config.maxDurationSeconds, 60),
     );
+    const policy = selectStudioPolicy(rootPolicy, media.durationSeconds);
     media.sourceJobId = source;
     media.promptLanguageConfirmed = true;
     const a = this.store.prepare(media, null, null);
@@ -181,7 +253,7 @@ export class StudioWorkflow {
         typeof artistName === "string" ? artistName.slice(0, 80) : "My artist",
       );
     await this.operator(policy).price(a.id, owner);
-    return this.view(a.id, owner);
+    return this.withCurrentBudget(this.view(a.id, owner));
   }
   private operator(policy: StudioPolicy, recovery = false) {
     const config = recovery
@@ -192,7 +264,7 @@ export class StudioWorkflow {
           maxJobMicroUsd: Number.MAX_SAFE_INTEGER,
           maxTotalMicroUsd: Number.MAX_SAFE_INTEGER,
         }
-      : this.config;
+      : { ...this.config, eurBudget: this.budgetReview(policy) };
     return new OperatorWorkflow(this.store, config, this.root, {
       verifiedContract: () => policy.contract,
       provider: this.dependencies.provider(policy),
@@ -210,9 +282,13 @@ export class StudioWorkflow {
     const row = this.row(id, owner),
       a = this.store.get(id);
     studioGate(this.config);
-    if (a.state !== "prepared") return this.view(id, owner); // Durable idempotency: never authorize or submit again.
+    if (a.state !== "prepared")
+      return this.withCurrentBudget(this.view(id, owner)); // Durable idempotency: never authorize or submit again.
     const policy = validateStudioPolicy(JSON.parse(row.policy_json)),
-      current = validateStudioPolicy(await this.dependencies.policy());
+      current = selectStudioPolicy(
+        validateStudioPolicy(await this.dependencies.policy()),
+        a.media.durationSeconds,
+      );
     if (
       contractDigest(current.contract) !== contractDigest(policy.contract) ||
       digest !== a.contractDigest ||
@@ -226,7 +302,7 @@ export class StudioWorkflow {
         409,
       );
     await this.dependencies.ready?.();
-    const workflow = this.operator(policy);
+    const workflow = this.operator({ ...policy, eurBudget: current.eurBudget });
     const token = await workflow.approve(
       id,
       owner,
@@ -239,13 +315,13 @@ export class StudioWorkflow {
       )
       .run(Date.now(), id);
     await workflow.submit(id, owner, token, this.config.operatorSecret);
-    return this.view(id, owner);
+    return this.withCurrentBudget(this.view(id, owner));
   }
   async poll(id: string, owner: string) {
     const row = this.row(id, owner),
       a = this.store.get(id);
     if (!["submitted", "processing"].includes(a.state))
-      return this.view(id, owner);
+      return this.withCurrentBudget(this.view(id, owner));
     // Recovery may continue after new submissions are disabled or policy expires.
     // This path never calls authorize/submit or changes reservation caps.
     const policy = validateStudioPolicy(JSON.parse(row.policy_json), false);
@@ -274,7 +350,7 @@ export class StudioWorkflow {
         )
         .run(safe.message, id);
     }
-    return this.view(id, owner);
+    return this.withCurrentBudget(this.view(id, owner));
   }
   async output(id: string, owner: string) {
     this.row(id, owner);

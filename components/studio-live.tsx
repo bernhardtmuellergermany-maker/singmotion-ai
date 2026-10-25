@@ -46,7 +46,7 @@ export function StudioLiveControl({
       ? reviewedPlan
       : null;
   if (!pilot) return null;
-  async function prepare() {
+  async function prepare(repeatOf?: string) {
     setBusy(true);
     setError("");
     try {
@@ -58,6 +58,7 @@ export function StudioLiveControl({
           artistName,
           consent,
           english,
+          ...(repeatOf ? { repeatOf } : {}),
         }),
       });
       setPlan(result);
@@ -93,7 +94,10 @@ export function StudioLiveControl({
   return (
     <section aria-label="Real video pilot" className="prompt-preview">
       <h3>OmniHuman 2.0 · administrator pilot</h3>
-      <p>Real provider charges. No customer credit or payment integration.</p>
+      <p>
+        Real provider charges. Choose 4–60 seconds within the reviewed duration
+        bands. No customer credit or payment integration.
+      </p>
       {blockers.map((b) => (
         <p role="status" key={b}>
           {b}
@@ -110,7 +114,14 @@ export function StudioLiveControl({
       <button
         className="button outline"
         disabled={
-          !available || busy || disabled || !selection || !consent || !english
+          !available ||
+          busy ||
+          disabled ||
+          !selection ||
+          selection.end - selection.start < 4 ||
+          selection.end - selection.start > 60 ||
+          !consent ||
+          !english
         }
         onClick={() => void prepare()}
       >
@@ -123,6 +134,26 @@ export function StudioLiveControl({
       )}
       {plan && (
         <>
+          {plan.budget && (
+            <p>
+              EUR 50 total authorization · remaining EUR{" "}
+              {(plan.budget.remainingMicroEur / 1000000).toFixed(2)} under{" "}
+              {plan.budget.basis} conversion terms. All prior reservations
+              retained. Remaining cumulative USD allowance:{" "}
+              {usd(plan.budget.remainingMicroUsd)}. This is not a settled
+              balance or bank-fee guarantee.
+            </p>
+          )}
+          {plan.budgetBlocker && <p role="alert">{plan.budgetBlocker}</p>}
+          {["completed", "failed"].includes(plan.state) && (
+            <button
+              className="button outline"
+              disabled={busy || disabled || !consent || !english}
+              onClick={() => void prepare(plan.id)}
+            >
+              Review another test of this selection — no paid request
+            </button>
+          )}
           <p>Measured MP3: {plan.durationSeconds.toFixed(3)}s</p>
           <p>{plan.prompt}</p>
           <p>
@@ -165,6 +196,9 @@ export function StudioLiveControl({
                   !english ||
                   disabled ||
                   !plan.digest ||
+                  !plan.budget ||
+                  (plan.budget?.remainingMicroUsd ?? 0) <
+                    (plan.ceilingMicroUsd ?? 0) ||
                   plan.ceilingMicroUsd === null ||
                   JSON.stringify(plan.selection) !== selectionKey
                 }

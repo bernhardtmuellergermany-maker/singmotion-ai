@@ -121,6 +121,22 @@ export async function validateOutput(
     { timeout: 120_000, maxBuffer: 1024 * 1024 },
   );
 }
+/** Explicit reviewed transfer bounds; keep total work below the durable ten-minute lease. */
+export function outputTransferLimits(contract: OutputValidationContract) {
+  const limits = contract.output.transfer;
+  if (!limits) return { maxBytes: 100 * 1024 * 1024, timeoutMs: 120000 };
+  if (
+    !limits.evidence?.trim() ||
+    !Number.isSafeInteger(limits.maxBytes) ||
+    limits.maxBytes < 1 ||
+    limits.maxBytes > 256 * 1024 * 1024 ||
+    !Number.isSafeInteger(limits.timeoutMs) ||
+    limits.timeoutMs < 1000 ||
+    limits.timeoutMs > 180000
+  )
+    throw new Error("Invalid reviewed output transfer limits.");
+  return limits;
+}
 /** No credentials are forwarded to output hosts and redirects are never followed. */
 export async function downloadValidatedOutput(
   raw: string,
@@ -130,12 +146,13 @@ export async function downloadValidatedOutput(
   transport: OutputTransport = privateOutputTransport,
 ) {
   const url = validateOutputUrl(raw, contract.outputHosts);
-  const response = await transport(url, AbortSignal.timeout(120_000));
+  const limits = outputTransferLimits(contract);
+  const response = await transport(url, AbortSignal.timeout(limits.timeoutMs));
   if (response.status !== 200 || !response.body) {
     await response.body?.cancel();
     throw new Error("Provider download did not return a complete file.");
   }
-  const maxBytes = 100 * 1024 * 1024;
+  const maxBytes = limits.maxBytes;
   const lengthHeader = response.headers.get("content-length");
   const advertised = lengthHeader === null ? null : Number(lengthHeader);
   const encoding = response.headers.get("content-encoding");

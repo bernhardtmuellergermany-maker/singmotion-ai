@@ -1,3 +1,4 @@
+import type { EuroBudget } from "./studio-budget.ts";
 /** Server-reviewed pilot policy. Never accepts billing/output policy from browsers. */
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -6,7 +7,7 @@ import {
   planUpperBoundMicroUsd,
   type VerifiedContract,
 } from "./contract.ts";
-import { validateOutputUrl } from "./output.ts";
+import { validateOutputUrl, outputTransferLimits } from "./output.ts";
 import { inputDeliveryPolicy } from "./input-policy.ts";
 import type { LiveTestConfig } from "./config.ts";
 export class StudioLiveError extends Error {
@@ -19,6 +20,8 @@ export class StudioLiveError extends Error {
   }
 }
 export interface StudioPolicy {
+  eurBudget?: EuroBudget;
+  durationBands?: StudioPolicy[];
   reviewedBy: string;
   reviewedAt: string;
   expiresAt: string;
@@ -103,6 +106,29 @@ export function validateStudioPolicy(
       c.output.durationToleranceSeconds > b.maxAdditionalSeconds
     )
       throw Error();
+    outputTransferLimits(c);
+    if (
+      b.maxInputSeconds > 5 &&
+      c.pilotAdmission &&
+      (!c.pilotAdmission.durationEvidence?.trim() || !c.output.transfer)
+    )
+      throw Error();
+    if (p.durationBands) {
+      if (!Array.isArray(p.durationBands) || p.durationBands.length > 20)
+        throw Error();
+      const ranges = [
+        p,
+        ...p.durationBands.map((band) => {
+          if (band.durationBands) throw Error();
+          return validateStudioPolicy(band, checkExpiry);
+        }),
+      ]
+        .map((band) => band.contract.generatedDurationBound!)
+        .sort((a, b) => a.minInputSeconds - b.minInputSeconds);
+      for (let i = 1; i < ranges.length; i++)
+        if (ranges[i].minInputSeconds < ranges[i - 1].maxInputSeconds)
+          throw Error();
+    }
     // Force a JSON-safe immutable policy snapshot before digesting/pricing.
     contractDigest(c);
     return p;
@@ -113,6 +139,27 @@ export function validateStudioPolicy(
       503,
     );
   }
+}
+export function selectStudioPolicy(root: StudioPolicy, seconds: number) {
+  const policies = [root, ...(root.durationBands || [])]
+    .filter((p) => {
+      const b = p.contract.generatedDurationBound!;
+      return seconds >= b.minInputSeconds && seconds <= b.maxInputSeconds;
+    })
+    .sort(
+      (a, b) =>
+        a.contract.generatedDurationBound!.maxInputSeconds -
+        b.contract.generatedDurationBound!.maxInputSeconds,
+    );
+  if (!policies.length)
+    throw new StudioLiveError(
+      "DURATION_NOT_REVIEWED",
+      "No reviewed inclusive cost and media policy covers this encoded duration. No extrapolation from the five-second test is allowed.",
+      409,
+    );
+  const { durationBands: _bands, ...selected } = policies[0];
+  void _bands;
+  return { ...selected, eurBudget: root.eurBudget };
 }
 export async function loadStudioPolicy(root: string) {
   try {
@@ -151,7 +198,7 @@ export function studioGate(config: LiveTestConfig) {
     config.maxJobMicroUsd <= 0 ||
     config.maxTotalMicroUsd <= 0 ||
     config.maxDurationSeconds < 4 ||
-    config.maxDurationSeconds > 300
+    config.maxDurationSeconds > 60
   )
     throw new StudioLiveError(
       "STUDIO_DISABLED",
@@ -165,6 +212,16 @@ export function studioDiagnostic(error: unknown): StudioLiveError {
   if (error instanceof StudioLiveError) return error;
   const message = error instanceof Error ? error.message : "";
   const known: Record<string, [string, string, number]> = {
+    ONE_ACTIVE_GENERATION: [
+      "ONE_ACTIVE_GENERATION",
+      "One generation is already active or uncertain. Recover/reconcile that task before another approval; its reservation is retained.",
+      409,
+    ],
+    EUR50_REVIEW_REQUIRED: [
+      "EUR50_REVIEW_REQUIRED",
+      "Renew the dated EUR/USD and fee review for the existing EUR 50 total budget. Missing/expired conversion bounds cannot enable another paid test.",
+      409,
+    ],
     "Total live-test spending cap exceeded.": [
       "TOTAL_BUDGET_EXCEEDED",
       "The cumulative USD cap is insufficient after retaining every existing reservation, including operator tests. Review the budget; do not reset the ledger.",

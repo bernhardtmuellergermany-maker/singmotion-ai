@@ -1,0 +1,47 @@
+{
+  "reviewedBy": "",
+  "reviewedAt": "",
+  "expiresAt": "",
+  "billingEvidence": "",
+  "outputEvidence": "",
+  "contract": {
+    "revision": "",
+    "model": "OmniHuman 2.0",
+    "documentationUrl": "",
+    "maxDurationSeconds": 60,
+    "promptSupported": true,
+    "inputFetchWindowSeconds": 44100,
+    "generatedDurationBound": {
+      "minInputSeconds": 5,
+      "maxInputSeconds": 60,
+      "maxAdditionalSeconds": null,
+      "evidence": ""
+    },
+    "billing": {
+      "microUsdPerSecond": 70000,
+      "minimumBillableMs": null,
+      "billingQuantumMs": null,
+      "minimumChargeMicroUsd": null,
+      "fixedFeeMicroUsd": null,
+      "taxBasisPointsUpperBound": null
+    },
+    "pilotAdmission": {
+      "inclusiveMaxMicroUsd": null,
+      "planningUpliftBasisPoints": 1900,
+      "maxGeneratedSeconds": null,
+      "durationEvidence": "",
+      "evidence": ""
+    },
+    "output": {
+      "width": null,
+      "height": null,
+      "fps": null,
+      "videoCodec": "",
+      "audioCodec": "",
+      "durationToleranceSeconds": null,
+      "maxDurationSeconds": null,
+      "transfer": { "maxBytes": null, "timeoutMs": null, "evidence": "" }
+    },
+    "outputHosts": []
+  }
+}

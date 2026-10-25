@@ -28,6 +28,7 @@ export interface VerifiedContract {
   billing: BillingRules;
   /** Pilot-only aggregate admission bound; planning uplift is NOT a tax rule. */
   pilotAdmission?: {
+    durationEvidence?: string;
     inclusiveMaxMicroUsd: number;
     evidence: string;
     planningUpliftBasisPoints: 1900;
@@ -39,6 +40,7 @@ export interface VerifiedContract {
     fps: number;
     durationToleranceSeconds: number;
     maxDurationSeconds?: number;
+    transfer?: { maxBytes: number; timeoutMs: number; evidence: string };
   };
   outputHosts: readonly string[];
 }
@@ -110,8 +112,14 @@ export function planUpperBoundMicroUsd(
         Math.ceil(p.maxGeneratedSeconds * 70000 * 1.19) ||
       p.planningUpliftBasisPoints !== 1900 ||
       !p.evidence?.trim() ||
-      p.maxGeneratedSeconds !== 6 ||
-      bound.maxInputSeconds > 5 ||
+      (!p.durationEvidence &&
+        (p.maxGeneratedSeconds !== 6 || bound.maxInputSeconds > 5)) ||
+      (p.durationEvidence !== undefined &&
+        (!p.durationEvidence.trim() ||
+          !Number.isFinite(p.maxGeneratedSeconds) ||
+          p.maxGeneratedSeconds < bound.maxInputSeconds ||
+          p.maxGeneratedSeconds > 300 ||
+          bound.maxInputSeconds > 60)) ||
       bound.minInputSeconds < 4 ||
       contract.billing.microUsdPerSecond !== 70000 ||
       [

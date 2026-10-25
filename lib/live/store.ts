@@ -1,3 +1,4 @@
+import { euroBudget } from "./studio-budget.ts";
 import {
   contractDigest,
   planUpperBoundMicroUsd,
@@ -318,6 +319,27 @@ export class LiveTestStore {
         "Poll lease expired or replaced; stale worker cannot commit.",
       );
   }
+  private studioGuard(attempt: Attempt, config: LiveTestConfig) {
+    const studio = attempt.media.sourceJobId.startsWith("studio-");
+    const active = this.db
+      .prepare(
+        `SELECT id FROM live_attempts WHERE id<>? AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') AND (?=1 OR source_job_id LIKE 'studio-%') LIMIT 1`,
+      )
+      .get(attempt.id, studio ? 1 : 0);
+    if (active) throw new Error("ONE_ACTIVE_GENERATION");
+    if (!studio) return config.maxTotalMicroUsd;
+    const reserved = Number(
+      (
+        this.db
+          .prepare(
+            "SELECT COALESCE(SUM(reserved_micro_usd),0) AS n FROM live_attempts",
+          )
+          .get() as { n: number }
+      ).n,
+    );
+    return euroBudget(config.eurBudget, reserved, config.maxTotalMicroUsd)
+      .usdCapMicro;
+  }
   authorize(
     id: string,
     config: LiveTestConfig,
@@ -327,6 +349,7 @@ export class LiveTestStore {
     authorizeOperator(config, secret);
     return this.transaction(() => {
       const attempt = this.get(id);
+      const cumulativeCap = this.studioGuard(attempt, config);
       enforceCap(
         config,
         attempt.media.durationSeconds,
@@ -348,7 +371,10 @@ export class LiveTestStore {
           )
           .get() as { total: number }
       ).total;
-      if (total + attempt.upperBoundMicroUsd! > config.maxTotalMicroUsd)
+      if (
+        !Number.isSafeInteger(total) ||
+        total + attempt.upperBoundMicroUsd! > cumulativeCap
+      )
         throw new Error("Total live-test spending cap exceeded.");
       const token = randomBytes(32).toString("hex");
       this.db
@@ -400,7 +426,8 @@ export class LiveTestStore {
           )
           .get() as { total: number }
       ).total;
-      if (!Number.isSafeInteger(total) || total > config.maxTotalMicroUsd)
+      const cumulativeCap = this.studioGuard(attempt, config);
+      if (!Number.isSafeInteger(total) || total > cumulativeCap)
         throw new Error("Total live-test spending cap exceeded.");
       this.db
         .prepare(
