@@ -66,7 +66,7 @@ async function handler(req: NextRequest) {
         401,
       );
     const owner = auth.owner;
-    limit(`${owner}:studio-live`, req.method === "POST" ? 10 : 60, 60000);
+    limit(`${owner}:studio-live`, req.method === "POST" ? 30 : 180, 60000);
     runtime = studioRuntime(await openStudioStore(dataDir), dataDir);
     const service = runtime.service;
     if (req.method === "GET") {
