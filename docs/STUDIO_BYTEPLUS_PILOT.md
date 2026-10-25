@@ -97,3 +97,21 @@ confirmation. It never deletes files, ledger entries, provider IDs, evidence,
 or reservations. Active/uncertain projects keep their lock and recovery worker.
 Save the project URL before hiding it: the owning session can still open that
 URL to poll, reconcile, play or download. Demo-project behavior is unchanged.
+
+### Start fresh test
+
+My Projects now offers **Delete project** on each private live project and
+**Start fresh test**, even when every live project has been hidden. Deletion
+removes the card after the server confirms the hide; deletion from details
+returns to My Projects. It never releases a generation lock.
+
+**Start fresh test** performs status/recovery reads on owned pending Studio
+tasks, including hidden ones, without submitting a paid request. A verified
+terminal response allows the existing lifecycle to release the active lock;
+full reservations remain. Uncertain submissions, status-read errors, foreign
+tasks and unresolved operator slots remain blockers. The result links owned
+blocked projects to their existing evidence-backed reconciliation screen.
+A clear check offers a Studio link, not a paid submission. A racing request
+cannot bypass the existing transactional one-active-task and budget checks.
+Select the new inputs, review their measured duration/cost and explicitly
+confirm each generation. No public generation or payment settings change.

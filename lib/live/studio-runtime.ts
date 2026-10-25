@@ -1,3 +1,4 @@
+import { PollError } from "./poll-error.ts";
 import { recoveryHealth } from "./studio-activation.ts";
 /** Explicit pilot construction only; importing this module opens no DB or network. */
 import { stat } from "node:fs/promises";
@@ -79,7 +80,9 @@ export function studioRuntime(
             return { state: "completed" as const, outputUrl: result.outputUrl };
           if (result.status === "in_queue" || result.status === "generating")
             return { state: "pending" as const };
-          return { state: "failed" as const };
+          if (result.status === "canceled") return { state: "failed" as const };
+          // Missing/expired status records are not proof of the task's final outcome.
+          throw new PollError("TASK_OUTCOME_UNVERIFIED");
         },
       };
     },

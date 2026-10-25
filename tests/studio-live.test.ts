@@ -806,3 +806,42 @@ test("terminal reconciliation requires exact verified evidence and fences poll r
   assert.equal(f.service.list(owner).length, 0);
   assert.deepEqual(reserved(), before);
 });
+
+test("fresh test checks hidden tasks, retains 50510 lock and releases only verified terminal outcomes", async () => {
+  const f = await fixture();
+  await f.submit();
+  f.service.hide(f.plan.id, owner, "staff", `HIDE ${f.plan.id}`);
+  const reservation = () =>
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.plan.id);
+  const before = reservation();
+  f.setMode("error");
+  const blocked = await f.service.freshTest(owner);
+  assert.equal(blocked.ready, false);
+  assert.equal(blocked.blockers[0].projectId, f.plan.id);
+  assert.match(blocked.blockers[0].message, /50510/);
+  assert.deepEqual(reservation(), before);
+  f.setMode("failed");
+  const ready = await f.service.freshTest(owner);
+  assert.equal(ready.ready, true);
+  assert.equal(f.store.get(f.plan.id).state, "failed");
+  assert.deepEqual(reservation(), before);
+  assert.equal(f.service.list(owner).length, 0);
+  assert.equal(f.counts().submits, 1);
+});
+
+test("fresh test never polls foreign or uncertain tasks or exposes their IDs", async () => {
+  const f = await fixture();
+  f.setMode("uncertain");
+  await f.submit();
+  const count = f.counts();
+  const result = await f.service.freshTest(owner);
+  assert.equal(result.ready, false);
+  assert.equal(result.blockers[0].projectId, f.plan.id);
+  const foreign = await f.service.freshTest("another-owner");
+  assert.equal(foreign.ready, false);
+  assert.equal(foreign.blockers[0].projectId, null);
+  assert.ok(!JSON.stringify(foreign).includes(f.plan.id));
+  assert.deepEqual(f.counts(), count);
+});

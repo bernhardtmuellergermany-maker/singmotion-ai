@@ -17,6 +17,8 @@ const explanations: Record<string, string> = {
     "BytePlus returned an undocumented task status. Task remains recoverable; verify the provider status specification before changing parsing.",
   COMPLETED_WITHOUT_VIDEO_URL:
     "BytePlus reported completion without a documented video_url. Retry the same task read; do not generate again.",
+  TASK_OUTCOME_UNVERIFIED:
+    "Provider task status is missing or expired. Its final outcome is unverified; retain the lock and reservation until provider evidence is reconciled.",
   POLL_BUSY:
     "Another status read holds the lease. Wait up to ten minutes after an interrupted read, then resume this same task.",
   TASK_BINDING:

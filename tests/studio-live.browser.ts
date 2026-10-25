@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import { chromium } from "@playwright/test";
 const bundle = await build({
   stdin: {
-    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {StudioLiveControl} from './components/studio-live';createRoot(document.getElementById('root')).render(<StudioLiveControl selection={{version:1,owner:'owner',songId:'song',imageId:'image',start:0,end:4.7,performance:'Natural',camera:'Static Close-Up',customPrompt:''}} artistName="Singer" consent={true} disabled={false}/>);`,
+    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {StudioLiveControl,LiveProjects} from './components/studio-live';createRoot(document.getElementById('root')).render(location.search ? <LiveProjects/> : <StudioLiveControl selection={{version:1,owner:'owner',songId:'song',imageId:'image',start:0,end:4.7,performance:'Natural',camera:'Static Close-Up',customPrompt:''}} artistName="Singer" consent={true} disabled={false}/>);`,
     resolveDir: process.cwd(),
     loader: "tsx",
   },
@@ -122,6 +122,64 @@ try {
       posts[1].confirmation,
       "CONFIRM PAID STUDIO plan mock-digest 420000",
     );
+    let hidden = false;
+    await page.route("**/api/studio-live", async (route) => {
+      if (route.request().method() === "GET")
+        return route.fulfill({
+          json: {
+            pilot: true,
+            projects: hidden
+              ? []
+              : [
+                  {
+                    id: "blocked",
+                    state: "uncertain",
+                    artistName: "Test singer",
+                    durationSeconds: 4.7,
+                    ceilingMicroUsd: 420000,
+                    imageId: "image",
+                  },
+                ],
+          },
+        });
+      const body = route.request().postDataJSON();
+      posts.push(body);
+      if (body.action === "hide") {
+        hidden = true;
+        return route.fulfill({ json: { hidden: true } });
+      }
+      return route.fulfill({
+        json: {
+          ready: false,
+          blockers: [
+            {
+              projectId: "blocked",
+              message: "Outcome unverified. Reservation retained.",
+            },
+          ],
+        },
+      });
+    });
+    page.on("dialog", (dialog) => void dialog.accept());
+    await page.goto("http://studio.test/?projects");
+    await page
+      .getByRole("button", { name: "Delete project", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Start fresh test", exact: true })
+      .click();
+    const recovery = page.getByRole("link", {
+      name: "Recover / reconcile previous task",
+    });
+    await recovery.waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Delete project", exact: true })
+        .count(),
+      0,
+    );
+    assert.equal(await recovery.getAttribute("href"), "/projects/live_blocked");
+    assert.equal(posts.filter((p) => p.action === "submit").length, 1);
     await page.close();
   }
   console.log(

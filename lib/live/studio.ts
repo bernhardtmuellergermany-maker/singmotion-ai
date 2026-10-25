@@ -189,6 +189,66 @@ export class StudioWorkflow {
         .all(owner) as { attempt_id: string }[]
     ).map((r) => this.view(r.attempt_id, owner));
   }
+  async freshTest(owner: string) {
+    // Inspect the entire ledger, including hidden projects and operator slots.
+    // Only owning Studio tasks can be polled through this session.
+    const active = () =>
+      this.store.db
+        .prepare(
+          "SELECT id FROM live_attempts WHERE json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain')",
+        )
+        .all() as { id: string }[];
+    for (const { id } of active().slice(0, 20)) {
+      const owned = this.store.db
+        .prepare(
+          "SELECT 1 FROM live_studio_projects WHERE attempt_id=? AND owner=?",
+        )
+        .get(id, owner);
+      const a = this.store.get(id);
+      if (
+        owned &&
+        a.media.owner === owner &&
+        ["submitted", "processing"].includes(a.state)
+      )
+        await this.poll(id, owner); // Read/recover only: never authorize or submit.
+    }
+    const blockers = active().map(({ id }) => {
+      const owned = this.store.db
+        .prepare(
+          "SELECT 1 FROM live_studio_projects WHERE attempt_id=? AND owner=?",
+        )
+        .get(id, owner);
+      if (!owned || this.store.get(id).media.owner !== owner)
+        return {
+          projectId: null,
+          message:
+            "Another private or operator task has an unresolved outcome. Its owner must recover or reconcile it; its lock and reservation remain.",
+        };
+      return {
+        projectId: id,
+        message:
+          this.view(id, owner).stage +
+          " No new paid test until this task is terminal. Open its recovery page; if BytePlus confirms a terminal outcome, use evidence-backed reconciliation.",
+      };
+    });
+    let budget: ReturnType<typeof euroBudget> | null = null;
+    try {
+      budget = await this.currentBudget();
+    } catch {
+      blockers.push({
+        projectId: null,
+        message:
+          "The EUR 50 budget policy is missing or expired. Renew its review; existing reservations remain counted.",
+      });
+    }
+    if (budget && budget.remainingMicroUsd <= 0)
+      blockers.push({
+        projectId: null,
+        message:
+          "No reviewed spending budget remains. Historical reservations cannot be reset.",
+      });
+    return { ready: blockers.length === 0, blockers, budget };
+  }
   hide(id: string, owner: string, actor: string, confirmation: unknown) {
     this.row(id, owner);
     if (confirmation !== `HIDE ${id}`)

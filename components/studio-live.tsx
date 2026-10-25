@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
-import type { StudioProject } from "@/lib/live/studio";
+import type { StudioWorkflow, StudioProject } from "@/lib/live/studio";
 const usd = (micro: number) => `USD ${(micro / 1000000).toFixed(2)}`;
 export function StudioLiveControl({
   selection,
@@ -213,7 +213,68 @@ export function StudioLiveControl({
     </section>
   );
 }
+function FreshTest() {
+  const [result, setResult] = useState<Awaited<
+    ReturnType<StudioWorkflow["freshTest"]>
+  > | null>(null);
+  const [busy, setBusy] = useState(false),
+    [error, setError] = useState("");
+  return (
+    <div>
+      <button
+        className="button outline"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError("");
+          setResult(null);
+          try {
+            await ensureSession();
+            setResult(
+              await api("studio-live", {
+                method: "POST",
+                body: JSON.stringify({ action: "fresh-test" }),
+              }),
+            );
+          } catch (e) {
+            setError((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "Checking previous tasks…" : "Start fresh test"}
+      </button>
+      {error && <p role="alert">{error}</p>}
+      {result && (
+        <div role="status">
+          {result.ready ? (
+            <p>
+              Previous tasks are terminal. Reservations remain counted.{" "}
+              <Link href="/studio">
+                Open Studio to select inputs and explicitly approve a new test
+              </Link>
+              . Spending and active-task checks run again before submission.
+            </p>
+          ) : (
+            result.blockers.map((b, i) => (
+              <p key={i}>
+                {b.message}{" "}
+                {b.projectId && (
+                  <Link href={`/projects/live_${b.projectId}`}>
+                    Recover / reconcile previous task
+                  </Link>
+                )}
+              </p>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 export function LiveProject({ id }: { id: string }) {
+  const router = useRouter();
   const [project, setProject] = useState<StudioProject | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -257,12 +318,12 @@ export function LiveProject({ id }: { id: string }) {
     setBusy(true);
     setError("");
     try {
-      setProject(
-        await api<StudioProject>("studio-live", {
-          method: "POST",
-          body: JSON.stringify({ action, id, ...extra }),
-        }),
-      );
+      const updated = await api<StudioProject>("studio-live", {
+        method: "POST",
+        body: JSON.stringify({ action, id, ...extra }),
+      });
+      setProject(updated);
+      if (action === "hide") router.push("/projects");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -422,6 +483,7 @@ export function LiveProject({ id }: { id: string }) {
                   </form>
                 </details>
               )}
+            <FreshTest />
             <Link href="/studio">Back to Studio</Link>
           </div>
         </div>
@@ -431,38 +493,79 @@ export function LiveProject({ id }: { id: string }) {
 }
 export function LiveProjects() {
   const [projects, setProjects] = useState<StudioProject[]>([]);
+  const [pilot, setPilot] = useState(false),
+    [error, setError] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
     void ensureSession()
-      .then(() => api<{ projects: StudioProject[] }>("studio-live"))
-      .then((r) => setProjects(r.projects || []))
+      .then(() =>
+        api<{ projects: StudioProject[]; pilot?: boolean }>("studio-live"),
+      )
+      .then((r) => {
+        setProjects(r.projects || []);
+        setPilot(!!r.pilot);
+      })
       .catch(() => {});
   }, []);
-  if (!projects.length) return null;
+  if (!pilot) return null;
   return (
     <section aria-label="OmniHuman projects" className="project-grid">
+      <FreshTest />
+      {error && <p role="alert">{error}</p>}
       {projects.map((p) => (
-        <Link
-          key={p.id}
-          href={`/projects/live_${p.id}`}
-          className="project-card"
-        >
-          <div className="project-cover">
-            <img
-              src={`/api/assets/${p.imageId}`}
-              alt={`${p.artistName} reference`}
-            />
-            <span className="job-badge">{p.state}</span>
-          </div>
-          <div className="project-info">
-            <h3>{p.artistName}</h3>
-            <p>OmniHuman 2.0 · {p.durationSeconds.toFixed(2)}s</p>
-            <p>
-              {p.ceilingMicroUsd === null
-                ? "Unpriced"
-                : `${usd(p.ceilingMicroUsd)} reserved ceiling`}
-            </p>
-          </div>
-        </Link>
+        <div key={p.id}>
+          <Link href={`/projects/live_${p.id}`} className="project-card">
+            <div className="project-cover">
+              <img
+                src={`/api/assets/${p.imageId}`}
+                alt={`${p.artistName} reference`}
+              />
+              <span className="job-badge">{p.state}</span>
+            </div>
+            <div className="project-info">
+              <h3>{p.artistName}</h3>
+              <p>OmniHuman 2.0 · {p.durationSeconds.toFixed(2)}s</p>
+              <p>
+                {p.ceilingMicroUsd === null
+                  ? "Unpriced"
+                  : `${usd(p.ceilingMicroUsd)} reserved ceiling`}
+              </p>
+            </div>
+          </Link>
+          <button
+            className="button outline"
+            disabled={busy !== null}
+            onClick={async () => {
+              if (
+                !window.confirm(
+                  "Delete project from My Projects? Task history, files, reservations and unresolved locks are retained.",
+                )
+              )
+                return;
+              setBusy(p.id);
+              setError("");
+              try {
+                await api("studio-live", {
+                  method: "POST",
+                  body: JSON.stringify({
+                    action: "hide",
+                    id: p.id,
+                    confirmation: `HIDE ${p.id}`,
+                  }),
+                });
+                setProjects((items) =>
+                  items.filter((item) => item.id !== p.id),
+                );
+              } catch (e) {
+                setError((e as Error).message);
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            Delete project
+          </button>
+        </div>
       ))}
     </section>
   );

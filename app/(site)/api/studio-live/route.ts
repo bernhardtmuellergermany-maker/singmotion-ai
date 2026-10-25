@@ -177,6 +177,8 @@ async function handler(req: NextRequest) {
           body.repeatOf,
         ),
       );
+    if (body.action === "fresh-test")
+      return json(await service.freshTest(owner));
     if (typeof body.id !== "string")
       throw new StudioLiveError(
         "PROJECT_REQUIRED",
