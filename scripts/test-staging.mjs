@@ -81,6 +81,8 @@ try {
     "/api/cms/cms-assets/file/example.webp",
     "/cms-preview/home",
     "/api/session",
+    "/api/studio-live",
+    "/api/studio-live?id=unknown&video=1",
     "/api/assets/example",
     "/media/demo.mp4",
     "/favicon.ico",

@@ -22,6 +22,7 @@ import type { downloadValidatedOutput } from "./output.ts";
  * evidence/providers; this class does not construct a network transport.
  */
 interface OperatorDependencies {
+  recoverableOutput?: boolean;
   verifiedContract?: () => VerifiedContract;
   provider?: ReviewedProvider;
   download?: typeof downloadValidatedOutput;
@@ -130,6 +131,7 @@ export class OperatorWorkflow {
       this.config,
       output,
       this.dependencies.download,
+      this.dependencies.recoverableOutput,
     );
   }
   async submit(id: string, owner: string, token: string, secret: string) {

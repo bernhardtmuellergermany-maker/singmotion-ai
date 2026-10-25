@@ -119,3 +119,5 @@ See [the verification matrix and BytePlus account checklist](docs/PROVIDER_VERIF
 ## Payload administration
 
 Payload CMS is implemented but disabled by default. See [Payload admin setup](docs/PAYLOAD_ADMIN.md) for dedicated PostgreSQL migrations, secure first-admin provisioning, editable pages, supported roles, disconnected business functions, and the manual Railway deployment/rollback procedure. Never deploy or enable paid services just to test CMS.
+
+Studio OmniHuman administrator pilot (disabled by default): [readiness, policy review and staged rollout](docs/STUDIO_BYTEPLUS_PILOT.md). Existing operator-test records are preserved; this does not enable customer payments or public live generation.

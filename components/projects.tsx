@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { LiveProjects, LiveProject } from "./studio-live";
 import { useEffect, useState } from "react";
 import {
   Download,
@@ -40,6 +41,7 @@ export function Projects() {
           {error}
         </p>
       )}
+      <LiveProjects />
       {loading ? (
         <p className="quiet">Loading your projects…</p>
       ) : jobs.length ? (
@@ -93,6 +95,13 @@ export function Projects() {
   );
 }
 export function Project({ id }: { id: string }) {
+  return id.startsWith("live_") ? (
+    <LiveProject id={id.slice(5)} />
+  ) : (
+    <DemoProject id={id} />
+  );
+}
+function DemoProject({ id }: { id: string }) {
   const [job, setJob] = useState<Job | null>(null),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);

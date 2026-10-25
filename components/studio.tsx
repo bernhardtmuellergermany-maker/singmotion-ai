@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import { StudioLiveControl } from "./studio-live";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -536,6 +537,28 @@ export function Studio() {
             >
               Export draft for offline review
             </button>
+            <StudioLiveControl
+              selection={
+                song && sessionOwner && imageId
+                  ? {
+                      version: 1,
+                      owner: sessionOwner,
+                      songId: song.id,
+                      imageId,
+                      start,
+                      end,
+                      performance,
+                      camera,
+                      customPrompt,
+                    }
+                  : null
+              }
+              artistName={artistName}
+              consent={consent}
+              disabled={
+                busy || uploading || !validSegment || end - start < 4 || !prompt
+              }
+            />
             <p className="demo-disclaimer">
               <ShieldCheck size={13} /> Simulated render. A fixed sample, not a
               video of your uploads.

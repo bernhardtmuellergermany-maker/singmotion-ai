@@ -32,18 +32,21 @@ export class LiveTestRunner {
   readonly config: LiveTestConfig;
   readonly outputDirectory: string;
   readonly download: typeof downloadValidatedOutput;
+  readonly recoverableOutput: boolean;
   constructor(
     store: LiveTestStore,
     provider: ReviewedProvider,
     config: LiveTestConfig,
     outputDirectory: string,
     download = downloadValidatedOutput,
+    recoverableOutput = false,
   ) {
     this.store = store;
     this.provider = provider;
     this.config = config;
     this.outputDirectory = outputDirectory;
     this.download = download;
+    this.recoverableOutput = recoverableOutput;
   }
   private assertEnabled(attempt: Attempt) {
     if (this.config.demoMode || !this.config.enabled)
@@ -134,10 +137,17 @@ export class LiveTestRunner {
       } catch {
         /* Missing/invalid output does not justify a new submission. */
       }
-      if (recovered) return finish("completed", { outputPath: output });
-      const result = await providerRequest((signal) =>
-        this.provider.poll(attempt.providerJobId!, signal),
-      );
+      if (recovered)
+        return finish("completed", { outputPath: output, failureCode: null });
+      const cached = this.recoverableOutput
+        ? this.store.firstTestResult(id)
+        : null;
+      const result =
+        cached && Date.now() - cached.observedAt < 50 * 60000
+          ? (cached.result as { state: "completed"; outputUrl: string })
+          : await providerRequest((signal) =>
+              this.provider.poll(attempt.providerJobId!, signal),
+            );
       if (!["pending", "completed", "failed"].includes(result.state))
         throw new Error("Unexpected normalized provider status.");
       if (result.state === "failed")
@@ -145,6 +155,13 @@ export class LiveTestRunner {
       if (result.state === "pending") return finish("processing");
       if (!result.outputUrl)
         return finish("failed", { failureCode: "MISSING_OUTPUT" });
+      if (
+        this.recoverableOutput &&
+        (!cached || Date.now() - cached.observedAt >= 50 * 60000)
+      )
+        finish("processing", {}, () =>
+          this.store.recordFirstTestResult(id, result),
+        );
       try {
         await this.download(
           result.outputUrl,
@@ -156,7 +173,7 @@ export class LiveTestRunner {
         if (!info.isFile() || info.isSymbolicLink()) throw new Error();
         await chmod(partial, 0o600);
       } catch {
-        return finish("failed", {
+        return finish(this.recoverableOutput ? "processing" : "failed", {
           failureCode: "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED",
         });
       }
@@ -167,10 +184,14 @@ export class LiveTestRunner {
           this.provider.contract,
         );
       } catch {
-        return finish("failed", { failureCode: "INVALID_OUTPUT" });
+        return finish(this.recoverableOutput ? "processing" : "failed", {
+          failureCode: "INVALID_OUTPUT",
+        });
       }
-      return finish("completed", { outputPath: output }, () =>
-        renameSync(partial, output),
+      return finish(
+        "completed",
+        { outputPath: output, failureCode: null },
+        () => renameSync(partial, output),
       );
     } finally {
       await unlink(partial).catch(() => {});
