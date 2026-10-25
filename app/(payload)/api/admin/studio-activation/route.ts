@@ -9,6 +9,12 @@ import {
   prepareActivationPolicy,
   recoveryHealth,
 } from "@/lib/live/studio-activation";
+import {
+  inspectDurationPolicy,
+  durationReview,
+  saveDurationBand,
+} from "@/lib/live/studio-duration-admin";
+import { studioConfig } from "@/lib/live/studio-policy";
 import { StudioLiveError } from "@/lib/live/studio-policy";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,6 +42,22 @@ async function handler(req: NextRequest) {
   }
   try {
     limit(`studio-activation:${owner}`, 10, 60000);
+    if (req.method === "GET" && req.nextUrl.searchParams.has("duration")) {
+      const { digest, policy } = await inspectDurationPolicy(dataDir);
+      const caps = studioConfig();
+      return json({
+        digest,
+        bands: (policy.durationBands || []).map(durationReview),
+        shortRange: policy.contract.generatedDurationBound,
+        shortExpiresAt: policy.expiresAt,
+        limits: {
+          enabled: caps.enabled,
+          maxDurationSeconds: caps.maxDurationSeconds,
+          maxJobMicroUsd: caps.maxJobMicroUsd,
+          maxTotalMicroUsd: caps.maxTotalMicroUsd,
+        },
+      });
+    }
     if (req.method === "GET") {
       const health = await recoveryHealth(dataDir);
       let evidence = null,
@@ -70,7 +92,7 @@ async function handler(req: NextRequest) {
         const p = await reader.read();
         if (p.done) break;
         size += p.value.length;
-        if (size > 16384)
+        if (size > 32768)
           throw new StudioLiveError("BODY_LIMIT", "Review too large.", 413);
         chunks.push(p.value);
       }
@@ -83,11 +105,19 @@ async function handler(req: NextRequest) {
       overrideAccess: true,
       data: {
         actor: String(user!.id),
-        action: "studio:prepare-policy-offline",
+        action:
+          input.action === "save-duration-band"
+            ? "studio:review-duration-band"
+            : "studio:prepare-policy-offline",
         resource: "private-studio-policy",
-        record: "2062100414",
+        record:
+          input.action === "save-duration-band"
+            ? "duration-policy"
+            : "2062100414",
       },
     });
+    if (input.action === "save-duration-band")
+      return json(await saveDurationBand(dataDir, owner, input));
     return json(await prepareActivationPolicy(dataDir, owner, input));
   } catch (e) {
     if (e instanceof StudioLiveError)

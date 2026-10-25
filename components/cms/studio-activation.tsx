@@ -1,4 +1,5 @@
 "use client";
+import { StudioDurationEditor } from "./studio-duration-editor";
 import { useState } from "react";
 interface Status {
   staffId: string;
@@ -152,6 +153,7 @@ export function StudioActivation() {
           )}
         </>
       )}
+      <StudioDurationEditor />
     </details>
   );
 }

@@ -110,6 +110,70 @@ try {
     "APPROVE_SHORT_STUDIO_POLICY_WITH_PROVISIONAL_UPLIFT",
   );
   assert.ok(!("staffId" in body!));
+  let durationBody: Record<string, unknown> | undefined;
+  await page.route("**/api/admin/studio-activation*", (route) => {
+    if (route.request().method() === "POST") {
+      durationBody = route.request().postDataJSON();
+      return route.fulfill({ json: { saved: true } });
+    }
+    return route.fulfill({
+      json: {
+        digest: "duration-digest",
+        bands: [],
+        shortRange: { minInputSeconds: 4, maxInputSeconds: 5 },
+        shortExpiresAt: new Date(Date.now() + 86400000).toISOString(),
+        limits: {
+          enabled: true,
+          maxDurationSeconds: 5,
+          maxJobMicroUsd: 1000000,
+          maxTotalMicroUsd: 2000000,
+        },
+      },
+    });
+  });
+  await page
+    .getByRole("button", { name: "Load duration bands", exact: true })
+    .click();
+  const section = page.getByRole("region", { name: "Video duration & budget" });
+  await section
+    .getByText("Server duration cap is below this band.", { exact: false })
+    .waitFor();
+  const bandSave = section.getByRole("button", {
+    name: "Save reviewed duration band — no paid request",
+    exact: true,
+  });
+  assert.equal(await bandSave.isDisabled(), true);
+  assert.equal(
+    await section
+      .getByLabel("Reviewed maximum generated video (seconds)", { exact: true })
+      .inputValue(),
+    "",
+  );
+  await section
+    .getByLabel("Reviewed maximum generated video (seconds)", { exact: true })
+    .fill("16");
+  await section
+    .getByLabel("Separate inclusive spending ceiling (USD)", { exact: true })
+    .fill("2");
+  await section
+    .getByLabel("Reviewed duration evidence covering the entire band", {
+      exact: true,
+    })
+    .fill("Mock reviewed range evidence only.");
+  await section.getByRole("checkbox").check();
+  await bandSave.click();
+  await section.getByRole("status").waitFor();
+  assert.equal(durationBody!.action, "save-duration-band");
+  assert.equal(durationBody!.digest, "duration-digest");
+  assert.equal(
+    (durationBody!.review as Record<string, unknown>).maxGeneratedSeconds,
+    16,
+  );
+  assert.equal(
+    (durationBody!.review as Record<string, unknown>).billingEvidence,
+    "",
+  );
+  assert.ok(!("reviewedBy" in durationBody!));
   console.log(
     "PASS: explicit offline inspection and separate bound confirmation; no automatic submission or identity override.",
   );

@@ -201,3 +201,121 @@ test("recovery loop emits health without submitting or touching completed operat
     else process.env.BYTEPLUS_STUDIO_RECOVERY_ENABLED = env;
   }
 });
+
+test("admin duration bands require explicit independent review and preserve short policy, budget and history", async () => {
+  const { inspectDurationPolicy, saveDurationBand } =
+    await import("../lib/live/studio-duration-admin.ts");
+  const { selectStudioPolicy } = await import("../lib/live/studio-policy.ts");
+  const dir = await mkdtemp(path.join(tmpdir(), "duration policy "));
+  try {
+    const original = JSON.parse(
+      await readFile(path.join(root, "studio-live-policy.json"), "utf8"),
+    );
+    original.eurBudget = {
+      evidence: "existing private FX review, preserved verbatim",
+    };
+    await writeFile(
+      path.join(dir, "studio-live-policy.json"),
+      JSON.stringify(original),
+    );
+    const initial = await inspectDurationPolicy(dir);
+    const review = {
+      minInputSeconds: 5,
+      maxInputSeconds: 15,
+      maxGeneratedSeconds: 16,
+      ceilingUsd: 2,
+      billingEvidence:
+        "MOCK ONLY: independently reviewed inclusive bound covering all fees.",
+      durationEvidence:
+        "MOCK ONLY: verified entire input range and maximum generated duration.",
+      outputEvidence:
+        "MOCK ONLY: exact host and h264/aac 720p FPS acceptance review.",
+      transferEvidence:
+        "MOCK ONLY: independently reviewed download byte and timeout caps.",
+      maxBytes: 30 * 1024 * 1024,
+      timeoutSeconds: 120,
+      hosts: original.contract.outputHosts.join("\n"),
+      width: original.contract.output.width,
+      height: original.contract.output.height,
+      fps: original.contract.output.fps,
+      videoCodec: "h264",
+      audioCodec: "aac",
+      toleranceSeconds: 2,
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    };
+    const input = {
+      digest: initial.digest,
+      index: 0,
+      review,
+      confirmation: "APPROVE_REVIEWED_DURATION_BAND",
+    };
+    for (const [field, bad, explanation] of [
+      ["durationEvidence", "", /durationEvidence/],
+      ["billingEvidence", "", /billingEvidence/],
+      ["ceilingUsd", 1, /ceilingUsd/],
+      ["maxGeneratedSeconds", 6, /maxGeneratedSeconds/],
+      ["maxBytes", 300 * 1024 * 1024, /maxBytes/],
+      ["timeoutSeconds", 181, /timeoutSeconds/],
+      ["hosts", "*.example.test", /Host\/media/],
+      ["hosts", "127.0.0.1", /Host\/media/],
+      ["videoCodec", "unknown", /codecs/],
+    ] as const)
+      await assert.rejects(
+        saveDurationBand(dir, owner, {
+          ...input,
+          review: { ...review, [field]: bad },
+        }),
+        explanation,
+      );
+    await assert.rejects(
+      saveDurationBand(dir, owner, { ...input, confirmation: "" }),
+      /approval/,
+    );
+    assert.deepEqual((await inspectDurationPolicy(dir)).policy, original);
+    const record = store.get(a.id),
+      video = await readFile(file);
+    await saveDurationBand(dir, owner, input);
+    const saved = await inspectDurationPolicy(dir);
+    const { durationBands, ...unchanged } = saved.policy;
+    assert.deepEqual(unchanged, original);
+    assert.equal(durationBands!.length, 1);
+    assert.equal(
+      selectStudioPolicy(saved.policy, 5).contract.maxDurationSeconds,
+      5,
+    );
+    assert.equal(
+      planUpperBoundMicroUsd(15, selectStudioPolicy(saved.policy, 15).contract),
+      2000000,
+    );
+    assert.equal(
+      durationBands![0].contract.billing.taxBasisPointsUpperBound,
+      null,
+    );
+    assert.throws(() => selectStudioPolicy(saved.policy, 15.01), /No reviewed/);
+    await assert.rejects(saveDurationBand(dir, owner, input), /Policy changed/);
+    await assert.rejects(
+      saveDurationBand(dir, owner, {
+        ...input,
+        digest: saved.digest,
+        index: 1,
+        review: {
+          ...review,
+          minInputSeconds: 10,
+          maxInputSeconds: 20,
+          maxGeneratedSeconds: 21,
+        },
+      }),
+      /Bands overlap/,
+    );
+    const results = await Promise.allSettled(
+      [1, 2].map(() =>
+        saveDurationBand(dir, owner, { ...input, digest: saved.digest }),
+      ),
+    );
+    assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
+    assert.deepEqual(store.get(a.id), record);
+    assert.deepEqual(await readFile(file), video);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -183,3 +183,54 @@ operator blocker, then **Open Studio** and review a new test. No further support
 ticket is required for the generic 50510 semantics. Changing the provider filter
 does not itself establish an old task's outcome. This development change does
 not inspect or modify Railway data and does not deploy.
+
+### Review a 5–15-second band in Payload (no console / JSON editing)
+
+Open the existing OmniHuman admin panel → **Studio pilot activation — offline
+only** → **Video duration & budget** → **Load duration bands**. Choose **Add new
+band (5–15 seconds)** or an existing additional band. The original 4–5-second
+policy is never edited by this form; at the shared 5-second boundary it remains
+the preferred policy. All saved plans retain their original policy snapshots.
+
+Enter and explicitly approve:
+
+- The entire measured encoded input range and independently evidenced maximum
+  generated duration. The five-second-to-six-second example does not prove a
+  fifteen-second envelope. A 15-second selection can encode slightly longer;
+  the actual MP3 duration must fit the reviewed range.
+- A separate conservative inclusive USD ceiling and reviewed billing basis
+  covering applicable taxes/fees. USD 0.07 per generated second is a base
+  estimate. For exactly 15 generated seconds it is USD 1.05; the provisional
+  19% planning amount is USD 1.2495, **not verified tax or an inclusive bound**.
+  Existing admission rules require the evidenced ceiling to cover at least
+  the planning amount for the reviewed generated maximum.
+- Exact approved public HTTPS output hostnames (no wildcard, URL path or IP),
+  reviewed output/media evidence, 720p dimensions, measured/approved FPS,
+  h264 or hevc video, aac audio, and acceptable duration deviation.
+- Reviewed download/file-size evidence and explicit limits: at most 256 MiB
+  and 180 seconds; these remain bounded by the existing private downloader.
+- Review expiry within seven days and explicit Super Admin confirmation.
+
+Save rejects missing evidence, unsupported media/hosts, overlapping bands,
+expired existing reviews and stale edits. The whole existing root policy,
+including the EUR 50 conversion review, is preserved. A private revision history
+file records the reviewer, timestamp, prior policy and next digest; writes use
+an exclusive lock and atomic replacement. A crash during editing may leave
+`.studio-duration-review.lock`; an operator must verify no edit is running before
+removing that lock. No application process automatically breaks an uncertain lock.
+
+Saving the band does **not** enable or enlarge server gates. The page displays
+existing server caps and alerts if the selected band exceeds them. Before a
+15-second test can run, these existing settings must already permit it:
+`BYTEPLUS_STUDIO_ENABLED=true`, intended Super Admin allowlisted, healthy recovery
+worker, `BYTEPLUS_STUDIO_MAX_DURATION_SECONDS>=15` (actual encoded MP3 must fit),
+`BYTEPLUS_STUDIO_MAX_JOB_MICRO_USD` covering the reviewed inclusive ceiling, and
+`BYTEPLUS_STUDIO_MAX_TOTAL_MICRO_USD` plus a current EUR 50 FX/fee review leaving
+enough room after **all** historical reservations. Any existing task lock must
+be resolved through the existing recovery/acknowledgment workflow. Public
+generation and Stripe remain disabled. Changing server variables is a separate
+authorized operation, not performed by this editor.
+
+No longer-duration evidence or inclusive charge is supplied by this change.
+Without those reviews and sufficient existing server caps, saving or submitting
+a 15-second test remains blocked. No paid call occurs during inspection or saving.
