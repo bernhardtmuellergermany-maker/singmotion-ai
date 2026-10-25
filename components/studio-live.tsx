@@ -253,6 +253,22 @@ export function LiveProject({ id }: { id: string }) {
       setBusy(false);
     }
   }
+  async function action(action: string, extra: Record<string, unknown>) {
+    setBusy(true);
+    setError("");
+    try {
+      setProject(
+        await api<StudioProject>("studio-live", {
+          method: "POST",
+          body: JSON.stringify({ action, id, ...extra }),
+        }),
+      );
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <div id="content">
       <div className="page-heading">
@@ -319,6 +335,93 @@ export function LiveProject({ id }: { id: string }) {
                 : usd(project.ceilingMicroUsd)}
               ; actual invoice not yet reconciled.
             </p>
+            <p>Provider task: {project.providerJobId || "Not assigned"}</p>
+            {project.hidden ? (
+              <p>
+                Hidden from My Projects. This saved link still provides
+                recovery; locks and reservations are unchanged.
+              </p>
+            ) : (
+              <button
+                className="button outline"
+                disabled={busy}
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Delete project from My Projects? Files, billing records and active task locks are retained. Save this page link for recovery.",
+                    )
+                  )
+                    void action("hide", { confirmation: `HIDE ${id}` });
+                }}
+              >
+                Delete project
+              </button>
+            )}
+            {project.providerJobId &&
+              ["submitted", "processing"].includes(project.state) && (
+                <details>
+                  <summary>
+                    Super Admin: reconcile a confirmed terminal task
+                  </summary>
+                  <p>
+                    50510 alone does not prove this task ended. Verify and
+                    retain a BytePlus support response explicitly confirming
+                    this task is terminal. Reservations remain fully counted.
+                  </p>
+                  <form
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      const fields = new FormData(event.currentTarget);
+                      if (
+                        !window.confirm(
+                          "Record verified provider evidence and release only this task's active-generation lock? Its full reservation remains.",
+                        )
+                      )
+                        return;
+                      void action("reconcile", {
+                        evidence: {
+                          taskId: project.providerJobId,
+                          outcome: fields.get("outcome"),
+                          reference: fields.get("reference"),
+                          sha256: fields.get("sha256"),
+                          verified: fields.get("verified") === "on",
+                          confirmation: `RECONCILE ${id} ${project.providerJobId}`,
+                        },
+                      });
+                    }}
+                  >
+                    <label>
+                      Provider-confirmed outcome
+                      <select name="outcome" required>
+                        <option value="rejected">Rejected</option>
+                        <option value="failed">Failed</option>
+                        <option value="canceled">Canceled</option>
+                      </select>
+                    </label>
+                    <label>
+                      Support case / evidence reference (no secrets)
+                      <input
+                        name="reference"
+                        required
+                        minLength={8}
+                        maxLength={200}
+                      />
+                    </label>
+                    <label>
+                      SHA-256 of retained provider response
+                      <input name="sha256" required pattern="[a-f0-9]{64}" />
+                    </label>
+                    <label>
+                      <input type="checkbox" name="verified" required />I
+                      verified this evidence explicitly confirms the displayed
+                      task is terminal; an HTTP error alone is insufficient.
+                    </label>
+                    <button className="button outline" disabled={busy}>
+                      Record terminal reconciliation
+                    </button>
+                  </form>
+                </details>
+              )}
             <Link href="/studio">Back to Studio</Link>
           </div>
         </div>

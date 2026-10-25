@@ -705,3 +705,104 @@ test("longer WAV selection uses actual encoded MP3 duration and never submits du
     ),
   );
 });
+
+test("hidden active projects retain reservations, ownership and recovery", async () => {
+  const f = await fixture();
+  await f.submit();
+  const before = f.store.get(f.plan.id);
+  assert.throws(
+    () => f.service.hide(f.plan.id, "other", "staff", `HIDE ${f.plan.id}`),
+    /not found/,
+  );
+  assert.throws(() => f.service.hide(f.plan.id, owner, "staff", ""), /Confirm/);
+  f.service.hide(f.plan.id, owner, "staff", `HIDE ${f.plan.id}`);
+  f.service.hide(f.plan.id, owner, "staff", `HIDE ${f.plan.id}`);
+  assert.equal(f.service.list(owner).length, 0);
+  assert.equal(f.service.view(f.plan.id, owner).hidden, true);
+  assert.deepEqual(f.store.get(f.plan.id), before);
+  const next = await f.service.prepare(
+    { ...f.selection, customPrompt: "Another explicitly reviewed draft" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await assert.rejects(
+    f.service.submit(
+      next.id,
+      owner,
+      next.digest,
+      next.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
+    ),
+    /active|reconcil/i,
+  );
+
+  assert.equal(
+    f.store.db.prepare("SELECT COUNT(*) AS n FROM live_studio_actions").get()!
+      .n,
+    1,
+  );
+  f.setMode("error");
+  await f.service.poll(f.plan.id, owner);
+  assert.ok(["submitted", "processing"].includes(f.store.get(f.plan.id).state));
+  assert.equal(f.counts().submits, 1);
+});
+
+test("terminal reconciliation requires exact verified evidence and fences poll races without refund", async () => {
+  const f = await fixture();
+  await f.submit();
+  const id = f.plan.id,
+    taskId = f.store.get(id).providerJobId;
+  const reserved = () =>
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(id);
+  const before = reserved();
+  const evidence = {
+    taskId,
+    outcome: "rejected",
+    reference: "support-case-123",
+    sha256: "a".repeat(64),
+    verified: true,
+    confirmation: `RECONCILE ${id} ${taskId}`,
+  };
+  assert.throws(
+    () => f.service.reconcile(id, "other", "staff", evidence),
+    /not found/,
+  );
+  for (const invalid of [
+    null,
+    { ...evidence, verified: false },
+    { ...evidence, taskId: "wrong" },
+    { ...evidence, sha256: "" },
+  ])
+    assert.throws(
+      () => f.service.reconcile(id, owner, "staff", invalid),
+      /Verify provider evidence/,
+    );
+  const lease = f.store.claimPoll(id);
+  assert.throws(
+    () => f.service.reconcile(id, owner, "staff", evidence),
+    /poll is in progress/,
+  );
+  assert.equal(
+    f.store.db.prepare("SELECT COUNT(*) AS n FROM live_studio_actions").get()!
+      .n,
+    0,
+  );
+  f.store.releasePoll(id, lease);
+  f.service.reconcile(id, owner, "staff", evidence);
+  assert.equal(f.store.get(id).state, "failed");
+  assert.equal(f.store.get(id).providerJobId, taskId);
+  assert.deepEqual(reserved(), before);
+  assert.throws(
+    () => f.store.transition(id, "processing"),
+    /Cannot transition/,
+  );
+  await f.service.poll(id, owner);
+  assert.equal(f.counts().submits, 1);
+  f.service.hide(id, owner, "staff", `HIDE ${id}`);
+  assert.equal(f.service.list(owner).length, 0);
+  assert.deepEqual(reserved(), before);
+});

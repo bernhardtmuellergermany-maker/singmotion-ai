@@ -204,6 +204,14 @@ async function handler(req: NextRequest) {
         ),
       );
     }
+    if (body.action === "hide")
+      return json(
+        service.hide(body.id, owner, String(user!.id), body.confirmation),
+      );
+    if (body.action === "reconcile")
+      return json(
+        service.reconcile(body.id, owner, String(user!.id), body.evidence),
+      );
     if (body.action === "poll") return json(await service.poll(body.id, owner));
     throw new StudioLiveError("ACTION_INVALID", "Unsupported Studio action.");
   } catch (e) {

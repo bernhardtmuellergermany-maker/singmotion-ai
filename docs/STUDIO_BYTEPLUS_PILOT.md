@@ -25,18 +25,18 @@ My Projects includes the owned live projects. Status and MP4 routes require stag
 
 ### Exact environment variables
 
-| Variable | Required value/purpose |
-| --- | --- |
-| `BYTEPLUS_STUDIO_ENABLED` | Defaults false. Only `true` permits new pilot approvals/submissions. |
-| `BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS` | Comma-separated Payload staff IDs, no automatic/admin wildcard. Super Admin role also required. |
-| `BYTEPLUS_STUDIO_OPERATOR_SECRET` | Independent random server secret, at least 32 characters; never sent to browser. |
-| `BYTEPLUS_STUDIO_MAX_DURATION_SECONDS` | Integer 4–300; also restricted by actual encoded duration and reviewed policy input range. |
-| `BYTEPLUS_STUDIO_MAX_JOB_MICRO_USD` | Positive reviewed per-job ceiling, integer microUSD. No default allowance. |
-| `BYTEPLUS_STUDIO_MAX_TOTAL_MICRO_USD` | Positive cumulative ceiling over **all** reservations in the existing ledger. No default allowance. |
-| `BYTEPLUS_STUDIO_RECOVERY_ENABLED` | Defaults false. `true` enables recovery-only polling in the existing `npm run worker`; it cannot submit. |
-| `BYTEPLUS_ACCESS_KEY_ID`, `BYTEPLUS_SECRET_ACCESS_KEY` | Existing server-side BytePlus credentials. |
-| `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Existing private R2 configuration; 13-hour signed GET leases remain unchanged. |
-| `DATA_DIR` | Existing `/app/.data` persistent volume. Never point at a fresh ledger to avoid caps. |
+| Variable                                                                 | Required value/purpose                                                                                   |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `BYTEPLUS_STUDIO_ENABLED`                                                | Defaults false. Only `true` permits new pilot approvals/submissions.                                     |
+| `BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS`                                      | Comma-separated Payload staff IDs, no automatic/admin wildcard. Super Admin role also required.          |
+| `BYTEPLUS_STUDIO_OPERATOR_SECRET`                                        | Independent random server secret, at least 32 characters; never sent to browser.                         |
+| `BYTEPLUS_STUDIO_MAX_DURATION_SECONDS`                                   | Integer 4–300; also restricted by actual encoded duration and reviewed policy input range.               |
+| `BYTEPLUS_STUDIO_MAX_JOB_MICRO_USD`                                      | Positive reviewed per-job ceiling, integer microUSD. No default allowance.                               |
+| `BYTEPLUS_STUDIO_MAX_TOTAL_MICRO_USD`                                    | Positive cumulative ceiling over **all** reservations in the existing ledger. No default allowance.      |
+| `BYTEPLUS_STUDIO_RECOVERY_ENABLED`                                       | Defaults false. `true` enables recovery-only polling in the existing `npm run worker`; it cannot submit. |
+| `BYTEPLUS_ACCESS_KEY_ID`, `BYTEPLUS_SECRET_ACCESS_KEY`                   | Existing server-side BytePlus credentials.                                                               |
+| `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` | Existing private R2 configuration; 13-hour signed GET leases remain unchanged.                           |
+| `DATA_DIR`                                                               | Existing `/app/.data` persistent volume. Never point at a fresh ledger to avoid caps.                    |
 
 The recovery worker is part of the existing worker process; deployment startup is unchanged. It checks every 30 seconds, serially handles up to 20 eligible pilot tasks, and automatically reads for at most 13 hours after approval. Monitor worker health and pending results because provider URLs expire after roughly one hour. Browser GETs read saved state only. POST recovery, background polling and download have durable leases; a crashed lease may require waiting ten minutes. Network errors remain sanitized and never trigger resubmission. Successful URLs are stored privately for retry; validated MP4 files can be recovered after a rename/SQLite-commit interruption. Failed downloads retain the same task and reservation. Provider read errors such as 50510 are not proof of task failure or zero billing.
 
@@ -64,3 +64,36 @@ In Railway, preserve all current BytePlus/R2 credentials and staging flags. Add 
 The recovery loop writes a private `studio-recovery-health.json` heartbeat. The panel must show **recovery enabled / healthy true**; missing, stale (>180s), future or error heartbeats block new Studio submissions. This reports loop health, not a guarantee of provider availability. Once the policy, staff allowlist, credentials, worker and caps are reviewed, explicitly enable `BYTEPLUS_STUDIO_ENABLED=true` in a separately authorized configuration release. Keep `DEMO_MODE=true`, `GENERATIONS_ENABLED=false`, `ADMIN_DEMO_ENABLED=false`, `BYTEPLUS_LIVE_TEST_ENABLED=false`, public generation and Stripe disabled. In the same browser, open Studio, select a short clip whose actual encoded duration is ≤5 seconds, review its cost, and separately confirm **Generate ONE real video**. Saving the policy or enabling the flag never starts a generation.
 
 For repeated private tests and independently reviewed 4–60s bands, see [Flexible Studio tests](STUDIO_FLEXIBLE_TESTS.md). The fixed EUR 50 authorization and atomic one-active-generation guard now additionally constrain new Studio approvals; old reservations and recovery paths are preserved. Existing short policies do not automatically authorize longer clips.
+
+### Reconcile a blocked task without erasing its reservation
+
+The operator-supplied October 15 OmniHuman document describes HTTP 500 / 50510
+as “Algovproxy Risk Error / Content Pre-filter failed / Not needed” (retry).
+It does **not** establish that a GetResult error is a final task status.
+Do not infer terminal state or zero billing from that status-read error.
+
+For project `live_93475956-5359-422e-a182-6dd557a1af30`, obtain a BytePlus
+support response explicitly identifying the saved provider task ID and confirming
+a terminal rejected, failed or canceled outcome. This change does not inspect or
+modify the staging database, and does not release that project's lock automatically.
+
+Open the saved project while signed into the allowlisted Payload Super Admin
+and the owning Studio session. Expand **Super Admin: reconcile a confirmed terminal
+task**. Retain the provider response in the operator's private evidence archive;
+enter its support-case reference and SHA-256, select the confirmed outcome,
+attest that the evidence was verified and confirm. No evidence URL is fetched.
+The server records the authenticated reviewer, task binding, evidence hash,
+reference and timestamp atomically with the terminal transition. An active poll
+lease blocks reconciliation; retry after the poll finishes. This is a human
+evidence-verification workflow, not automated verification of support documents.
+Unknown submissions without an assigned task ID remain blocked.
+
+Only the active-generation lock is released. All reservations remain counted,
+including unresolved first/second operator tests; there is no refund or budget
+reset. A new paid test still requires independent approval and available budget.
+
+**Delete project** on a live Studio project hides it from My Projects after
+confirmation. It never deletes files, ledger entries, provider IDs, evidence,
+or reservations. Active/uncertain projects keep their lock and recovery worker.
+Save the project URL before hiding it: the owning session can still open that
+URL to poll, reconcile, play or download. Demo-project behavior is unchanged.

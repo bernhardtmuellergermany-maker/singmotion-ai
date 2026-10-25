@@ -22,6 +22,8 @@ import {
 import { pollError } from "./poll-error.ts";
 export interface StudioProject {
   id: string;
+  hidden: boolean;
+  providerJobId: string | null;
   state: Attempt["state"];
   createdAt: number;
   durationSeconds: number;
@@ -62,6 +64,10 @@ export class StudioWorkflow {
     store.db.exec(
       `CREATE TABLE IF NOT EXISTS live_studio_projects (attempt_id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection_json TEXT NOT NULL, policy_json TEXT NOT NULL, artist_name TEXT NOT NULL, diagnostic TEXT, started_at INTEGER);`,
     );
+    store.db.exec(`CREATE TABLE IF NOT EXISTS live_studio_actions (
+      id INTEGER PRIMARY KEY, attempt_id TEXT NOT NULL, action TEXT NOT NULL,
+      actor TEXT NOT NULL, evidence TEXT NOT NULL, created_at INTEGER NOT NULL
+    );`);
   }
   private row(id: string, owner: string) {
     const row = this.store.db
@@ -147,6 +153,12 @@ export class StudioWorkflow {
       budget,
       budgetBlocker,
       id: a.id,
+      providerJobId: a.providerJobId || null,
+      hidden: !!this.store.db
+        .prepare(
+          "SELECT 1 FROM live_studio_actions WHERE attempt_id=? AND action='hide'",
+        )
+        .get(id),
       state: a.state,
       createdAt: a.createdAt,
       durationSeconds: a.media.durationSeconds,
@@ -161,7 +173,10 @@ export class StudioWorkflow {
         : null,
       ceilingMicroUsd: a.upperBoundMicroUsd,
       digest: a.contractDigest || null,
-      stage: row.diagnostic || stages[a.state] || a.state,
+      stage:
+        a.state === "failed"
+          ? stages.failed
+          : row.diagnostic || stages[a.state] || a.state,
       outputReady: a.state === "completed" && !!a.outputPath,
     };
   }
@@ -169,10 +184,85 @@ export class StudioWorkflow {
     return (
       this.store.db
         .prepare(
-          "SELECT attempt_id FROM live_studio_projects WHERE owner=? ORDER BY rowid DESC",
+          "SELECT attempt_id FROM live_studio_projects WHERE owner=? AND attempt_id NOT IN (SELECT attempt_id FROM live_studio_actions WHERE action='hide') ORDER BY rowid DESC",
         )
         .all(owner) as { attempt_id: string }[]
     ).map((r) => this.view(r.attempt_id, owner));
+  }
+  hide(id: string, owner: string, actor: string, confirmation: unknown) {
+    this.row(id, owner);
+    if (confirmation !== `HIDE ${id}`)
+      throw new StudioLiveError(
+        "CONFIRMATION_REQUIRED",
+        "Confirm hiding this exact project.",
+      );
+    if (!this.view(id, owner).hidden)
+      this.store.db
+        .prepare(
+          "INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'hide',?,'{}',?)",
+        )
+        .run(id, actor, Date.now());
+    return this.view(id, owner);
+  }
+  reconcile(id: string, owner: string, actor: string, evidence: unknown) {
+    this.row(id, owner);
+    const e = evidence as Record<string, unknown> | null;
+    const a = this.store.get(id);
+    if (
+      !e ||
+      !a.providerJobId ||
+      e.taskId !== a.providerJobId ||
+      !["rejected", "failed", "canceled"].includes(String(e.outcome)) ||
+      typeof e.reference !== "string" ||
+      !/^[A-Za-z0-9][A-Za-z0-9 ._/#:-]{7,199}$/.test(e.reference) ||
+      typeof e.sha256 !== "string" ||
+      !/^[a-f0-9]{64}$/.test(e.sha256) ||
+      e.verified !== true ||
+      e.confirmation !== `RECONCILE ${id} ${a.providerJobId}`
+    )
+      throw new StudioLiveError(
+        "EVIDENCE_REQUIRED",
+        "Verify provider evidence for this exact task: terminal outcome, support reference, SHA-256 of the retained response and explicit confirmation. A 50510 status-read error alone is insufficient.",
+      );
+    if (!["submitted", "processing"].includes(a.state))
+      throw new StudioLiveError(
+        "RECONCILIATION_STATE",
+        "Only an accepted task awaiting a final outcome can be reconciled here.",
+        409,
+      );
+    this.store.transition(
+      id,
+      "failed",
+      { failureCode: "STAFF_VERIFIED_TERMINAL" },
+      undefined,
+      () => {
+        const lease = this.store.db
+          .prepare("SELECT poll_lease_until FROM live_attempts WHERE id=?")
+          .get(id) as { poll_lease_until: number };
+        if (lease.poll_lease_until > Date.now())
+          throw new StudioLiveError(
+            "POLL_IN_PROGRESS",
+            "A recovery poll is in progress. Wait for its lease to finish before reconciling.",
+            409,
+          );
+        this.store.db
+          .prepare(
+            "INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'terminal-reconciliation',?,?,?)",
+          )
+          .run(
+            id,
+            actor,
+            JSON.stringify({
+              taskId: e.taskId,
+              outcome: e.outcome,
+              reference: e.reference,
+              sha256: e.sha256,
+            }),
+            Date.now(),
+          );
+      },
+    );
+    return this.view(id, owner);
   }
   async prepare(
     value: unknown,
