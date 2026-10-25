@@ -19,10 +19,13 @@ import {
   selectStudioPolicy,
   type StudioPolicy,
 } from "./studio-policy.ts";
+import { BytePlusError } from "./byteplus.ts";
 import { pollError } from "./poll-error.ts";
 export interface StudioProject {
   id: string;
   hidden: boolean;
+  privateException: boolean;
+  overlapExposure: boolean;
   providerJobId: string | null;
   state: Attempt["state"];
   createdAt: number;
@@ -154,6 +157,12 @@ export class StudioWorkflow {
       budgetBlocker,
       id: a.id,
       providerJobId: a.providerJobId || null,
+      privateException: this.hasPrivateException(id, owner),
+      overlapExposure: !!this.store.db
+        .prepare(
+          "SELECT 1 FROM live_private_exceptions e JOIN live_attempts a ON a.id=e.attempt_id WHERE e.owner=? AND json_extract(a.data,'$.state') NOT IN ('completed','failed')",
+        )
+        .get(owner),
       hidden: !!this.store.db
         .prepare(
           "SELECT 1 FROM live_studio_actions WHERE attempt_id=? AND action='hide'",
@@ -189,6 +198,52 @@ export class StudioWorkflow {
         .all(owner) as { attempt_id: string }[]
     ).map((r) => this.view(r.attempt_id, owner));
   }
+  private hasPrivateException(id: string, owner: string) {
+    return !!this.store.db
+      .prepare(
+        "SELECT 1 FROM live_private_exceptions WHERE attempt_id=? AND owner=? AND task_id=? AND task_id='176942047'",
+      )
+      .get(id, owner, this.store.get(id).providerJobId);
+  }
+  acknowledgePrivateRisk(
+    id: string,
+    owner: string,
+    actor: string,
+    confirmation: unknown,
+  ) {
+    const row = this.row(id, owner),
+      a = this.store.get(id);
+    if (
+      a.providerJobId !== "176942047" ||
+      !["submitted", "processing", "uncertain"].includes(a.state) ||
+      confirmation !== `ACCEPT OVERLAPPING BILLING ${id} 176942047`
+    )
+      throw new StudioLiveError(
+        "RISK_CONFIRMATION_REQUIRED",
+        "Explicitly acknowledge the unresolved outcome and overlapping billing for task 176942047. This exception cannot apply to another task.",
+      );
+    this.store.db
+      .prepare(
+        "INSERT OR IGNORE INTO live_private_exceptions (attempt_id,task_id,owner,actor,evidence,created_at) VALUES (?,?,?,?,?,?)",
+      )
+      .run(
+        id,
+        a.providerJobId,
+        owner,
+        actor,
+        JSON.stringify({
+          state: a.state,
+          diagnostic: row.diagnostic,
+          reservedCeilingMicroUsd: a.upperBoundMicroUsd,
+          acknowledgment:
+            "Unverified outcome retained; possible concurrent generation and overlapping billing. Full reservation retained within EUR 50.",
+          supportEvidence:
+            "Operator-reported BytePlus Technical Support: 50510 Content Pre-filter rejection, no generation. Filter disabled by operator; not proof of this task outcome.",
+        }),
+        Date.now(),
+      );
+    return this.view(id, owner);
+  }
   async freshTest(owner: string) {
     // Inspect the entire ledger, including hidden projects and operator slots.
     // Only owning Studio tasks can be polled through this session.
@@ -212,25 +267,27 @@ export class StudioWorkflow {
       )
         await this.poll(id, owner); // Read/recover only: never authorize or submit.
     }
-    const blockers = active().map(({ id }) => {
-      const owned = this.store.db
-        .prepare(
-          "SELECT 1 FROM live_studio_projects WHERE attempt_id=? AND owner=?",
-        )
-        .get(id, owner);
-      if (!owned || this.store.get(id).media.owner !== owner)
+    const blockers = active()
+      .filter(({ id }) => !this.hasPrivateException(id, owner))
+      .map(({ id }) => {
+        const owned = this.store.db
+          .prepare(
+            "SELECT 1 FROM live_studio_projects WHERE attempt_id=? AND owner=?",
+          )
+          .get(id, owner);
+        if (!owned || this.store.get(id).media.owner !== owner)
+          return {
+            projectId: null,
+            message:
+              "Another private or operator task has an unresolved outcome. Its owner must recover or reconcile it; its lock and reservation remain.",
+          };
         return {
-          projectId: null,
+          projectId: id,
           message:
-            "Another private or operator task has an unresolved outcome. Its owner must recover or reconcile it; its lock and reservation remain.",
+            this.view(id, owner).stage +
+            " No new paid test until this task is terminal. Open its recovery page; if BytePlus confirms a terminal outcome, use evidence-backed reconciliation.",
         };
-      return {
-        projectId: id,
-        message:
-          this.view(id, owner).stage +
-          " No new paid test until this task is terminal. Open its recovery page; if BytePlus confirms a terminal outcome, use evidence-backed reconciliation.",
-      };
-    });
+      });
     let budget: ReturnType<typeof euroBudget> | null = null;
     try {
       budget = await this.currentBudget();
@@ -247,7 +304,14 @@ export class StudioWorkflow {
         message:
           "No reviewed spending budget remains. Historical reservations cannot be reset.",
       });
-    return { ready: blockers.length === 0, blockers, budget };
+    return {
+      ready: blockers.length === 0,
+      blockers,
+      budget,
+      exceptionExposure: active().some(({ id }) =>
+        this.hasPrivateException(id, owner),
+      ),
+    };
   }
   hide(id: string, owner: string, actor: string, confirmation: unknown) {
     this.row(id, owner);
@@ -494,6 +558,45 @@ export class StudioWorkflow {
         );
     } catch (e) {
       const safe = pollError(e);
+      if (
+        e instanceof BytePlusError &&
+        e.rejection?.taskId === a.providerJobId &&
+        e.rejection.code === 50510 &&
+        e.rejection.httpStatus === 500
+      ) {
+        // Only structured task-bound protocol evidence, never a diagnostic string.
+        this.store.transition(
+          id,
+          "failed",
+          { failureCode: "CONTENT_PREFILTER_REJECTED" },
+          undefined,
+          () => {
+            const lease = this.store.db
+              .prepare("SELECT poll_lease_until FROM live_attempts WHERE id=?")
+              .get(id) as { poll_lease_until: number };
+            if (lease.poll_lease_until > Date.now())
+              throw new StudioLiveError(
+                "POLL_IN_PROGRESS",
+                "Recovery is in progress; retry this same task.",
+                409,
+              );
+            this.store.db
+              .prepare(
+                "INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'provider-terminal-rejection','provider',?,?)",
+              )
+              .run(
+                id,
+                JSON.stringify({
+                  ...e.rejection,
+                  priorDiagnostic: row.diagnostic,
+                  semantics:
+                    "Operator-provided BytePlus Technical Support confirms 50510 pre-filter rejection: task will not be generated.",
+                }),
+                Date.now(),
+              );
+          },
+        );
+      }
       this.store.db
         .prepare(
           "UPDATE live_studio_projects SET diagnostic=? WHERE attempt_id=?",

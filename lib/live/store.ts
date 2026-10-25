@@ -60,6 +60,10 @@ export class LiveTestStore {
         token_hash TEXT, expires_at INTEGER, consumed INTEGER NOT NULL DEFAULT 0,
         poll_token TEXT, poll_lease_until INTEGER NOT NULL DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS live_private_exceptions (
+        attempt_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, owner TEXT NOT NULL,
+        actor TEXT NOT NULL, evidence TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS live_input_deliveries (
         attempt_id TEXT PRIMARY KEY, manifest TEXT NOT NULL, state TEXT NOT NULL
       );
@@ -323,9 +327,10 @@ export class LiveTestStore {
     const studio = attempt.media.sourceJobId.startsWith("studio-");
     const active = this.db
       .prepare(
-        `SELECT id FROM live_attempts WHERE id<>? AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') AND (?=1 OR source_job_id LIKE 'studio-%') LIMIT 1`,
+        `SELECT id FROM live_attempts WHERE id<>? AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') AND (?=1 OR source_job_id LIKE 'studio-%')
+          AND NOT (?=1 AND EXISTS (SELECT 1 FROM live_private_exceptions e WHERE e.attempt_id=live_attempts.id AND e.task_id=json_extract(live_attempts.data,'$.providerJobId') AND e.owner=? AND e.task_id='176942047')) LIMIT 1`,
       )
-      .get(attempt.id, studio ? 1 : 0);
+      .get(attempt.id, studio ? 1 : 0, studio ? 1 : 0, attempt.media.owner);
     if (active) throw new Error("ONE_ACTIVE_GENERATION");
     if (!studio) return config.maxTotalMicroUsd;
     const reserved = Number(

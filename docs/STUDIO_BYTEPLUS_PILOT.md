@@ -115,3 +115,40 @@ A clear check offers a Studio link, not a paid submission. A racing request
 cannot bypass the existing transactional one-active-task and budget checks.
 Select the new inputs, review their measured duration/cost and explicitly
 confirm each generation. No public generation or payment settings change.
+
+### Task 176942047: pre-filter recovery and explicit private exception
+
+Operator-provided BytePlus Technical Support evidence: 50510 means Content
+Pre-filter rejection and the task will not be generated. The operator reports
+disabling the optional filter. This is semantic evidence, not proof that a
+particular saved task returned that response; changing the console does not
+change an old task's outcome.
+
+Start fresh test / Resume status uses a task-bound GetResult response. An
+HTTP 500 / integer code 50510 from that protocol call now establishes rejection.
+The code atomically records its task ID, response hash, safe HTTP/provider codes,
+support semantics and prior diagnostic with the terminal transition. Reservations
+are not released. No raw provider message, signed URL or credential is logged.
+A competing poll lease prevents this transition until recovery can run safely.
+
+Historical diagnostics alone are not automatically promoted to terminal evidence.
+The old implementation retained sanitized diagnostics, not a full task-bound
+response, and this development workspace cannot inspect Railway's actual ledger.
+
+For this one task only, an owning allowlisted Super Admin can open its project
+(via Start fresh test's recovery link even if hidden), click **Acknowledge
+unresolved-task risk — permit private testing**, and confirm the possible
+overlapping generation/billing exposure. The old task remains unresolved, its
+full reservation remains counted, and the audit records actor, timestamp, state,
+diagnostic and acknowledgment. This exception is bound to the exact attempt,
+owner and provider task 176942047. It cannot exempt another task or legacy
+operator submissions. Only one additional non-exempt generation may be active.
+A failed/canceled new task does not replenish the budget.
+
+Then click **Start fresh test** → **Open Studio**, prepare new inputs, review the
+ceiling and explicitly approve each new generation. All EUR 50/cumulative USD,
+duration, policy, ownership and server authorization gates still apply. The
+Studio cost review also discloses unresolved overlapping exposure. No new support
+ticket is required for the generic 50510 explanation. No paid action occurs
+during acknowledgment or readiness checks. Existing response/history/media
+records remain untouched; no old task is resubmitted.

@@ -144,6 +144,14 @@ export function StudioLiveControl({
               balance or bank-fee guarantee.
             </p>
           )}
+          {plan.overlapExposure && (
+            <p role="alert">
+              Task 176942047 has an acknowledged private-test exception, not a
+              verified terminal outcome. Overlapping generation and billing
+              remain possible; its full reservation is included in your
+              cumulative budget.
+            </p>
+          )}
           {plan.budgetBlocker && <p role="alert">{plan.budgetBlocker}</p>}
           {["completed", "failed"].includes(plan.state) && (
             <button
@@ -250,7 +258,10 @@ function FreshTest() {
         <div role="status">
           {result.ready ? (
             <p>
-              Previous tasks are terminal. Reservations remain counted.{" "}
+              {result.exceptionExposure
+                ? "Private-test exception acknowledged. The old task is still unresolved; overlapping generation and billing remain possible."
+                : "No unresolved task blocks this check."}{" "}
+              Reservations remain counted.{" "}
               <Link href="/studio">
                 Open Studio to select inputs and explicitly approve a new test
               </Link>
@@ -483,6 +494,42 @@ export function LiveProject({ id }: { id: string }) {
                   </form>
                 </details>
               )}
+            {project.providerJobId === "176942047" &&
+              ["submitted", "processing", "uncertain"].includes(
+                project.state,
+              ) &&
+              (project.privateException ? (
+                <p role="status">
+                  Private-test exception recorded. Old task outcome remains
+                  unverified; its full reservation and possible overlapping
+                  billing remain.
+                </p>
+              ) : (
+                <div>
+                  <p>
+                    For task 176942047 only: if the retained response cannot
+                    establish terminal rejection, a Super Admin may accept
+                    possible overlapping generation and billing. This does not
+                    mark the task terminal or refund its reservation.
+                  </p>
+                  <button
+                    className="button outline"
+                    disabled={busy}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          "I accept possible overlapping generation and billing for unresolved task 176942047. Preserve its full reservation within EUR 50. Permit separately approved private tests without claiming this task is terminal?",
+                        )
+                      )
+                        void action("acknowledge-private-risk", {
+                          confirmation: `ACCEPT OVERLAPPING BILLING ${id} 176942047`,
+                        });
+                    }}
+                  >
+                    Acknowledge unresolved-task risk — permit private testing
+                  </button>
+                </div>
+              ))}
             <FreshTest />
             <Link href="/studio">Back to Studio</Link>
           </div>

@@ -18,7 +18,7 @@ import {
 } from "../lib/live/studio-policy.ts";
 import { LiveTestStore } from "../lib/live/store.ts";
 import { downloadValidatedOutput } from "../lib/live/output.ts";
-import { BytePlusError } from "../lib/live/byteplus.ts";
+import { BytePlusError, BytePlusProtocol } from "../lib/live/byteplus.ts";
 import type { StudioDraftExport } from "../lib/studio-draft.ts";
 const root = await mkdtemp(path.join(tmpdir(), "studio live mock "));
 process.env.DATA_DIR = root;
@@ -128,7 +128,7 @@ const config = {
   maxTotalMicroUsd: 2000000,
   maxDurationSeconds: 60,
 };
-async function fixture() {
+async function fixture(taskId = "mock-task") {
   const store = new LiveTestStore(path.join(root, randomUUID() + ".sqlite"));
   stores.push(store);
   let submits = 0,
@@ -143,10 +143,17 @@ async function fixture() {
         submit: async () => {
           submits++;
           if (mode === "uncertain") throw Error("private upstream secret");
-          return { jobId: "mock-task" };
+          return { jobId: taskId };
         },
         poll: async () => {
           polls++;
+          if (mode === "proven-rejection") {
+            const protocol = new BytePlusProtocol(async () => ({
+              status: 500,
+              body: { code: 50510, message: "Content Pre-filter failed" },
+            }));
+            await protocol.status(taskId, AbortSignal.timeout(1000));
+          }
           if (mode === "error")
             throw new BytePlusError(false, {
               code: "PROVIDER_REJECTED",
@@ -844,4 +851,115 @@ test("fresh test never polls foreign or uncertain tasks or exposes their IDs", a
   assert.equal(foreign.blockers[0].projectId, null);
   assert.ok(!JSON.stringify(foreign).includes(f.plan.id));
   assert.deepEqual(f.counts(), count);
+});
+
+test("task-bound 50510 protocol evidence atomically rejects without releasing reservation", async () => {
+  const f = await fixture("176942047");
+  await f.submit();
+  f.setMode("proven-rejection");
+  const before = f.store.db
+    .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+    .get(f.plan.id);
+  const result = await f.service.freshTest(owner);
+  assert.equal(result.ready, true);
+  assert.equal(f.store.get(f.plan.id).state, "failed");
+  assert.equal(
+    f.store.get(f.plan.id).failureCode,
+    "CONTENT_PREFILTER_REJECTED",
+  );
+  assert.deepEqual(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.plan.id),
+    before,
+  );
+  const audit = f.store.db
+    .prepare(
+      "SELECT evidence FROM live_studio_actions WHERE attempt_id=? AND action='provider-terminal-rejection'",
+    )
+    .get(f.plan.id)!;
+  const evidence = JSON.parse(String(audit.evidence));
+  assert.equal(evidence.taskId, "176942047");
+  assert.match(evidence.responseSha256, /^[a-f0-9]{64}$/);
+  assert.equal(f.counts().submits, 1);
+});
+
+test("explicit exception preserves uncertainty and permits only one additional active owned Studio task", async () => {
+  const f = await fixture("176942047");
+  await f.submit();
+  f.setMode("error");
+  await f.service.poll(f.plan.id, owner);
+  const before = f.store.get(f.plan.id);
+  const phrase = `ACCEPT OVERLAPPING BILLING ${f.plan.id} 176942047`;
+  assert.throws(
+    () => f.service.acknowledgePrivateRisk(f.plan.id, "other", "staff", phrase),
+    /not found/,
+  );
+  assert.throws(
+    () => f.service.acknowledgePrivateRisk(f.plan.id, owner, "staff", ""),
+    /Explicitly/,
+  );
+  f.service.acknowledgePrivateRisk(f.plan.id, owner, "staff", phrase);
+  f.service.acknowledgePrivateRisk(f.plan.id, owner, "staff", phrase);
+  assert.deepEqual(f.store.get(f.plan.id), before);
+  assert.equal(
+    f.store.db
+      .prepare("SELECT COUNT(*) AS n FROM live_private_exceptions")
+      .get()!.n,
+    1,
+  );
+  const readiness = await f.service.freshTest(owner);
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.exceptionExposure, true);
+  assert.equal((await f.service.freshTest("other")).ready, false);
+  const next = await f.service.prepare(
+    { ...f.selection, customPrompt: "New reviewed inputs" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  f.setMode("pending");
+  await f.service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 2);
+  assert.equal((await f.service.freshTest(owner)).ready, false);
+  const third = await f.service.prepare(
+    { ...f.selection, customPrompt: "Third selection" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await assert.rejects(
+    f.service.submit(
+      third.id,
+      owner,
+      third.digest,
+      third.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${third.id} ${third.digest} ${third.ceilingMicroUsd}`,
+    ),
+    /ONE_ACTIVE|cap|budget/i,
+  );
+  assert.equal(f.counts().submits, 2);
+});
+
+test("private exception cannot apply to another provider task", async () => {
+  const f = await fixture();
+  await f.submit();
+  assert.throws(
+    () =>
+      f.service.acknowledgePrivateRisk(
+        f.plan.id,
+        owner,
+        "staff",
+        `ACCEPT OVERLAPPING BILLING ${f.plan.id} 176942047`,
+      ),
+    /Explicitly/,
+  );
 });

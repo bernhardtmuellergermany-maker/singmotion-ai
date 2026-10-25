@@ -206,6 +206,15 @@ async function handler(req: NextRequest) {
         ),
       );
     }
+    if (body.action === "acknowledge-private-risk")
+      return json(
+        service.acknowledgePrivateRisk(
+          body.id,
+          owner,
+          String(user!.id),
+          body.confirmation,
+        ),
+      );
     if (body.action === "hide")
       return json(
         service.hide(body.id, owner, String(user!.id), body.confirmation),

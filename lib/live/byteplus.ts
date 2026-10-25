@@ -2,6 +2,7 @@
  * Transport is injected; the default remains blocked. The isolated first-test
  * CLI explicitly wires the existing signer behind operator/spending gates.
  */
+import { createHash } from "node:crypto";
 import { type VerifiedContract } from "./contract.ts";
 import {
   liveSignedTransport,
@@ -47,6 +48,12 @@ export type Transport = (
 export const blockedTransport: Transport = liveSignedTransport;
 export class BytePlusError extends Error {
   readonly retryableRead: boolean;
+  rejection?: {
+    taskId: string;
+    code: number;
+    httpStatus: number;
+    responseSha256: string;
+  };
   readonly diagnostic: {
     code: string;
     httpStatus?: number;
@@ -109,7 +116,7 @@ export class BytePlusProtocol {
     const response = object(result.body);
     // Never inspect data or the misleading outer status before code.
     if (result.status !== 200 || response.code !== 10000) {
-      throw new BytePlusError(
+      const error = new BytePlusError(
         [50429, 50430, 50500, 50501].includes(Number(response.code)),
         {
           code: "PROVIDER_REJECTED",
@@ -119,6 +126,21 @@ export class BytePlusProtocol {
             : {}),
         },
       );
+      if (
+        action === "CVSync2AsyncGetResult" &&
+        response.code === 50510 &&
+        result.status === 500 &&
+        typeof body.task_id === "string"
+      )
+        error.rejection = {
+          taskId: body.task_id,
+          code: 50510,
+          httpStatus: 500,
+          responseSha256: createHash("sha256")
+            .update(JSON.stringify(result.body))
+            .digest("hex"),
+        };
+      throw error;
     }
     return response;
   }
