@@ -9,6 +9,10 @@ import {
 } from "./studio-policy.ts";
 
 export interface DurationBandReview {
+  reviewMode?: "evidence" | "experimental";
+  experimental?: NonNullable<
+    StudioPolicy["contract"]["pilotAdmission"]
+  >["experimental"];
   minInputSeconds: number;
   maxInputSeconds: number;
   maxGeneratedSeconds: number;
@@ -54,6 +58,8 @@ export function durationReview(band: StudioPolicy): DurationBandReview {
     b = c.generatedDurationBound!,
     p = c.pilotAdmission;
   return {
+    reviewMode: p?.experimental ? "experimental" : "evidence",
+    experimental: p?.experimental,
     minInputSeconds: b.minInputSeconds,
     maxInputSeconds: b.maxInputSeconds,
     maxGeneratedSeconds:
@@ -83,6 +89,46 @@ export function reviewedDurationBand(
   if (!value || typeof value !== "object")
     invalid("Duration review is required.");
   const r = value as DurationBandReview;
+  if (
+    r.reviewMode !== undefined &&
+    !["evidence", "experimental"].includes(r.reviewMode)
+  )
+    invalid("Choose evidence-backed or experimental planning review.");
+  const experimental = r.reviewMode === "experimental";
+  if (
+    experimental &&
+    (r.experimental?.kind !== "operator-planning-v1" ||
+      r.experimental.unknownDurationAccepted !== true ||
+      r.experimental.unknownFeesAccepted !== true ||
+      r.experimental.unknownMediaAccepted !== true ||
+      typeof r.experimental.hostEvidence !== "string" ||
+      r.experimental.hostEvidence.trim().length < 20 ||
+      r.experimental.hostEvidence.length > 4000)
+  )
+    invalid(
+      "Experimental mode requires separate acknowledgment of unknown generated duration, fees and media properties, plus actual exact-host approval evidence.",
+    );
+  if (
+    !experimental &&
+    (r.experimental ||
+      [
+        r.billingEvidence,
+        r.durationEvidence,
+        r.outputEvidence,
+        r.transferEvidence,
+      ].some(
+        (text) =>
+          typeof text === "string" &&
+          text.startsWith("OPERATOR PLANNING ASSUMPTION"),
+      ))
+  )
+    invalid(
+      "Experimental assumptions cannot be relabeled as provider evidence. Replace them with an independently reviewed evidence-based policy.",
+    );
+  const planning = (text: string) =>
+    experimental
+      ? `OPERATOR PLANNING ASSUMPTION — NOT A PROVIDER GUARANTEE: ${text.replace(/^OPERATOR PLANNING ASSUMPTION — NOT A PROVIDER GUARANTEE: /, "")}`
+      : text;
   const number = (
     key: keyof DurationBandReview,
     min: number,
@@ -103,7 +149,7 @@ export function reviewedDurationBand(
     return v as number;
   };
   const min = number("minInputSeconds", 5, 60),
-    max = number("maxInputSeconds", min, 60);
+    max = number("maxInputSeconds", min, experimental ? 15 : 60);
   const generated = number("maxGeneratedSeconds", max, 300);
   const ceiling = number("ceilingUsd", 0.000001, 10000);
   const micro = Math.round(ceiling * 1000000);
@@ -111,7 +157,7 @@ export function reviewedDurationBand(
     invalid("ceilingUsd: use at most six decimal places.");
   if (micro < Math.ceil(generated * 70000 * 1.19))
     invalid(
-      "ceilingUsd: the separately evidenced inclusive ceiling must cover at least the existing 19% planning allowance. That allowance is NOT verified tax or sufficient billing evidence.",
+      "ceilingUsd: the finite reservation must cover at least the existing 19% planning allowance. The allowance is NOT verified tax or a guaranteed provider charge.",
     );
   for (const key of [
     "billingEvidence",
@@ -125,7 +171,7 @@ export function reviewedDurationBand(
       r[key].length > 4000
     )
       invalid(
-        `${key}: provide 20–4000 characters of reviewed, applicable evidence; do not extrapolate the five-second result.`,
+        `${key}: provide 20–4000 characters of ${experimental ? "conservative operator planning assumptions" : "reviewed, applicable evidence"}; do not present the five-second result as a longer-duration guarantee.`,
       );
   const maxBytes = number("maxBytes", 1, 256 * 1024 * 1024, true);
   const timeoutMs = number("timeoutSeconds", 1, 180, true) * 1000;
@@ -144,6 +190,13 @@ export function reviewedDurationBand(
       "hosts: enter approved exact HTTPS hostnames, without paths or wildcards.",
     );
   const hosts = r.hosts.split(/[\s,]+/).filter(Boolean);
+  if (
+    experimental &&
+    hosts.some((host) => !base.contract.outputHosts.includes(host))
+  )
+    invalid(
+      "Experimental mode can only reuse exact hosts already approved in the preserved short policy. It cannot assume a new output host is safe.",
+    );
   const now = Date.now(),
     expiry = Date.parse(r.expiresAt);
   if (!Number.isFinite(expiry) || expiry <= now || expiry > now + 7 * 86400000)
@@ -152,8 +205,8 @@ export function reviewedDurationBand(
     reviewedBy: actor,
     reviewedAt: new Date(now).toISOString(),
     expiresAt: new Date(expiry).toISOString(),
-    billingEvidence: r.billingEvidence,
-    outputEvidence: r.outputEvidence,
+    billingEvidence: planning(r.billingEvidence),
+    outputEvidence: planning(r.outputEvidence),
     contract: {
       ...base.contract,
       revision: `studio-band-${randomUUID()}`,
@@ -162,7 +215,7 @@ export function reviewedDurationBand(
         minInputSeconds: min,
         maxInputSeconds: max,
         maxAdditionalSeconds: generated - min,
-        evidence: r.durationEvidence,
+        evidence: planning(r.durationEvidence),
       },
       billing: {
         microUsdPerSecond: 70000,
@@ -173,11 +226,12 @@ export function reviewedDurationBand(
         taxBasisPointsUpperBound: null,
       },
       pilotAdmission: {
+        ...(experimental ? { experimental: r.experimental } : {}),
         maxGeneratedSeconds: generated,
         inclusiveMaxMicroUsd: micro,
         planningUpliftBasisPoints: 1900,
-        evidence: r.billingEvidence,
-        durationEvidence: r.durationEvidence,
+        evidence: planning(r.billingEvidence),
+        durationEvidence: planning(r.durationEvidence),
       },
       outputHosts: hosts,
       output: {
@@ -188,7 +242,11 @@ export function reviewedDurationBand(
         audioCodec: "aac",
         durationToleranceSeconds: tolerance,
         maxDurationSeconds: generated,
-        transfer: { maxBytes, timeoutMs, evidence: r.transferEvidence },
+        transfer: {
+          maxBytes,
+          timeoutMs,
+          evidence: planning(r.transferEvidence),
+        },
       },
     },
   };
@@ -210,7 +268,16 @@ export async function saveDurationBand(
     confirmation?: unknown;
   },
 ) {
-  if (input.confirmation !== "APPROVE_REVIEWED_DURATION_BAND" || !actor)
+  const experimental =
+    (input.review as DurationBandReview | undefined)?.reviewMode ===
+    "experimental";
+  if (
+    input.confirmation !==
+      (experimental
+        ? "APPROVE_EXPERIMENTAL_PLANNING_BAND"
+        : "APPROVE_REVIEWED_DURATION_BAND") ||
+    !actor
+  )
     invalid(
       "Explicit Super Admin approval of the duration, inclusive ceiling and output policy is required.",
     );

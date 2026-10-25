@@ -174,6 +174,57 @@ try {
     "",
   );
   assert.ok(!("reviewedBy" in durationBody!));
+  await section
+    .getByLabel("Review basis", { exact: true })
+    .selectOption("experimental");
+  await section
+    .getByLabel(
+      "Finite per-video planning reservation (USD; not a guaranteed inclusive charge)",
+      { exact: true },
+    )
+    .fill("3");
+  assert.equal(await bandSave.isDisabled(), true);
+  await section
+    .getByLabel(
+      "Generated duration is unknown; the entered cap is only a validation/planning assumption.",
+      { exact: true },
+    )
+    .check();
+  await section
+    .getByLabel(
+      "Fees and taxes are unknown; the finite reservation is not a guaranteed inclusive provider charge.",
+      { exact: true },
+    )
+    .check();
+  assert.equal(await bandSave.isDisabled(), true);
+  await section
+    .getByLabel(
+      "Media properties are unknown; mismatched codecs, FPS, dimensions or oversized output will fail validation.",
+      { exact: true },
+    )
+    .check();
+  await section
+    .getByLabel(
+      "I approve these labeled planning assumptions, finite reservation and strict output acceptance limits for private exploratory testing only.",
+      { exact: true },
+    )
+    .check();
+  await bandSave.click();
+  await page.waitForFunction(
+    () =>
+      !!document.querySelector(
+        '[aria-label="Video duration & budget"] [role="status"]',
+      ),
+  );
+  assert.equal(
+    durationBody!.confirmation,
+    "APPROVE_EXPERIMENTAL_PLANNING_BAND",
+  );
+  const experimental = (durationBody!.review as Record<string, unknown>)
+    .experimental as Record<string, unknown>;
+  assert.equal(experimental.unknownDurationAccepted, true);
+  assert.equal(experimental.unknownFeesAccepted, true);
+  assert.equal(experimental.unknownMediaAccepted, true);
   console.log(
     "PASS: explicit offline inspection and separate bound confirmation; no automatic submission or identity override.",
   );

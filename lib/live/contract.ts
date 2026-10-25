@@ -28,6 +28,13 @@ export interface VerifiedContract {
   billing: BillingRules;
   /** Pilot-only aggregate admission bound; planning uplift is NOT a tax rule. */
   pilotAdmission?: {
+    experimental?: {
+      kind: "operator-planning-v1";
+      unknownDurationAccepted: true;
+      unknownFeesAccepted: true;
+      unknownMediaAccepted: true;
+      hostEvidence: string;
+    };
     durationEvidence?: string;
     inclusiveMaxMicroUsd: number;
     evidence: string;
@@ -106,6 +113,21 @@ export function planUpperBoundMicroUsd(
     );
   if (contract.pilotAdmission) {
     const p = contract.pilotAdmission;
+    if (
+      p.experimental &&
+      (p.experimental.kind !== "operator-planning-v1" ||
+        p.experimental.unknownDurationAccepted !== true ||
+        p.experimental.unknownFeesAccepted !== true ||
+        p.experimental.unknownMediaAccepted !== true ||
+        typeof p.experimental.hostEvidence !== "string" ||
+        p.experimental.hostEvidence.trim().length < 20 ||
+        bound.maxInputSeconds > 15)
+    )
+      throw new Error(
+        "Experimental planning requires separate duration, fees and media acknowledgments and approved-host evidence.",
+      );
+    // Legacy inclusiveMaxMicroUsd is the finite ledger reservation in experimental
+    // mode, NOT a provider-enforced charge bound or a guarantee about unknown fees.
     if (
       !Number.isSafeInteger(p.inclusiveMaxMicroUsd) ||
       p.inclusiveMaxMicroUsd <

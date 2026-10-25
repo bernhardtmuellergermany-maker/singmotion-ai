@@ -1072,3 +1072,103 @@ test("mismatched operator evidence stays unresolved; exact explicit exception en
   assert.equal(f.counts().submits, 2);
   assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
 });
+
+test("experimental Studio needs distinct paid confirmation and retains finite cumulative reservations", async () => {
+  const { reviewedDurationBand } =
+    await import("../lib/live/studio-duration-admin.ts");
+  const f = await fixture();
+  const p = reviewedDurationBand(
+    {
+      reviewMode: "experimental",
+      experimental: {
+        kind: "operator-planning-v1",
+        unknownDurationAccepted: true,
+        unknownFeesAccepted: true,
+        unknownMediaAccepted: true,
+        hostEvidence: "MOCK exact host approval; not a newly assumed hostname.",
+      },
+      minInputSeconds: 5,
+      maxInputSeconds: 15,
+      maxGeneratedSeconds: 16,
+      ceilingUsd: 1.5,
+      billingEvidence:
+        "Operator planning reservation; actual fees are unknown.",
+      durationEvidence: "Operator validation cap; actual duration is unknown.",
+      outputEvidence:
+        "Operator media acceptance limits; actual media is unknown.",
+      transferEvidence:
+        "Operator transfer limits; oversized outputs are rejected.",
+      maxBytes: 10000000,
+      timeoutSeconds: 120,
+      hosts: "output.example.test",
+      width: 1280,
+      height: 720,
+      fps: 25,
+      videoCodec: "h264",
+      audioCodec: "aac",
+      toleranceSeconds: 2,
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    },
+    "staff",
+    policy,
+  );
+  p.eurBudget = policy.eurBudget;
+  let submits = 0;
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxJobMicroUsd: 2000000 },
+    {
+      policy: async () => p,
+      provider: () => ({
+        contract: p.contract,
+        submit: async () => {
+          submits++;
+          return { jobId: "experimental-mock" };
+        },
+        poll: async () => ({ state: "failed" as const }),
+      }),
+    },
+  );
+  const plan = await service.prepare(
+    { ...f.selection, customPrompt: "Experimental review" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  const phrase = `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`;
+  assert.equal(plan.experimental, true);
+  await assert.rejects(
+    service.submit(plan.id, owner, plan.digest, plan.ceilingMicroUsd, phrase),
+    /Confirm/,
+  );
+  assert.equal(submits, 0);
+  await service.submit(
+    plan.id,
+    owner,
+    plan.digest,
+    plan.ceilingMicroUsd,
+    phrase + " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA",
+  );
+  await service.poll(plan.id, owner);
+  const next = await service.prepare(
+    { ...f.selection, customPrompt: "Another experimental review" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await assert.rejects(
+    service.submit(
+      next.id,
+      owner,
+      next.digest,
+      next.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd} ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA`,
+    ),
+    /cap|budget/i,
+  );
+  assert.equal(submits, 1);
+  assert.equal(service.budget(p).reservedMicroUsd, 1500000);
+});

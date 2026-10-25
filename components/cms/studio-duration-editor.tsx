@@ -21,7 +21,10 @@ const textFields = {
   transferEvidence: "Reviewed file-size and download-limit evidence",
   hosts: "Approved exact output hostnames (one per line; no wildcards)",
 };
-type Fields = Record<keyof DurationBandReview, string>;
+type Fields = Record<
+  Exclude<keyof DurationBandReview, "reviewMode" | "experimental">,
+  string
+>;
 const blank = (): Fields => ({
   minInputSeconds: "5",
   maxInputSeconds: "15",
@@ -58,12 +61,16 @@ export function StudioDurationEditor() {
   const [loaded, setLoaded] = useState<Loaded | null>(null),
     [fields, setFields] = useState(blank),
     [index, setIndex] = useState(0),
+    [experimental, setExperimental] = useState(false),
+    [acks, setAcks] = useState({ duration: false, fees: false, media: false }),
+    [hostEvidence, setHostEvidence] = useState(""),
     [confirmed, setConfirmed] = useState(false),
     [busy, setBusy] = useState(false),
     [message, setMessage] = useState("");
   const change = (key: keyof Fields, value: string) => {
     setFields((old) => ({ ...old, [key]: value }));
     setConfirmed(false);
+    setAcks({ duration: false, fees: false, media: false });
   };
   async function load() {
     const response = await fetch("/api/admin/studio-activation?duration=1");
@@ -73,6 +80,9 @@ export function StudioDurationEditor() {
     setLoaded(data);
     setIndex(data.bands.length);
     setFields(blank());
+    setExperimental(false);
+    setHostEvidence("");
+    setAcks({ duration: false, fees: false, media: false });
     setConfirmed(false);
   }
   async function run(save: boolean) {
@@ -81,7 +91,21 @@ export function StudioDurationEditor() {
     try {
       if (!save) await load();
       else {
-        const review: Record<string, unknown> = { ...fields };
+        const review: Record<string, unknown> = {
+          ...fields,
+          reviewMode: experimental ? "experimental" : "evidence",
+          ...(experimental
+            ? {
+                experimental: {
+                  kind: "operator-planning-v1",
+                  unknownDurationAccepted: acks.duration,
+                  unknownFeesAccepted: acks.fees,
+                  unknownMediaAccepted: acks.media,
+                  hostEvidence,
+                },
+              }
+            : {}),
+        };
         for (const key of Object.keys(numeric))
           review[key] = fields[key as keyof Fields].trim()
             ? Number(fields[key as keyof Fields])
@@ -94,7 +118,11 @@ export function StudioDurationEditor() {
             digest: loaded?.digest,
             index,
             review,
-            confirmation: confirmed ? "APPROVE_REVIEWED_DURATION_BAND" : "",
+            confirmation: confirmed
+              ? experimental
+                ? "APPROVE_EXPERIMENTAL_PLANNING_BAND"
+                : "APPROVE_REVIEWED_DURATION_BAND"
+              : "",
           }),
         });
         const data = await response.json();
@@ -159,14 +187,20 @@ export function StudioDurationEditor() {
               onChange={(e) => {
                 const next = Number(e.target.value);
                 setIndex(next);
+                setExperimental(
+                  loaded.bands[next]?.reviewMode === "experimental",
+                );
+                setHostEvidence(
+                  loaded.bands[next]?.experimental?.hostEvidence || "",
+                );
+                setAcks({ duration: false, fees: false, media: false });
                 setConfirmed(false);
                 setFields(
                   loaded.bands[next]
                     ? (Object.fromEntries(
-                        Object.entries(loaded.bands[next]).map(([k, v]) => [
-                          k,
-                          String(v),
-                        ]),
+                        Object.entries(loaded.bands[next])
+                          .filter(([k]) => k in blank())
+                          .map(([k, v]) => [k, String(v)]),
                       ) as Fields)
                     : blank(),
                 );
@@ -182,9 +216,52 @@ export function StudioDurationEditor() {
               </option>
             </select>
           </label>
+          <label>
+            Review basis
+            <select
+              aria-label="Review basis"
+              value={experimental ? "experimental" : "evidence"}
+              onChange={(e) => {
+                setExperimental(e.target.value === "experimental");
+                setConfirmed(false);
+                setAcks({ duration: false, fees: false, media: false });
+              }}
+            >
+              <option value="evidence">Evidence-backed review</option>
+              <option value="experimental">
+                Experimental — operator planning assumptions (up to 15s)
+              </option>
+            </select>
+          </label>
+          {experimental && (
+            <div>
+              <p role="alert">
+                Experimental only. These are operator assumptions, not provider
+                guarantees. Finite ledger reservations limit admissions under
+                the EUR 50 budget, but cannot guarantee the provider invoice or
+                tax/fees. Output outside the approved limits is rejected; this
+                does not undo a charge.
+              </p>
+              <label>
+                Existing exact-host approval evidence (facts, not assumptions)
+                <textarea
+                  value={hostEvidence}
+                  maxLength={4000}
+                  onChange={(e) => {
+                    setHostEvidence(e.target.value);
+                    setConfirmed(false);
+                  }}
+                />
+              </label>
+            </div>
+          )}
           {Object.entries(numeric).map(([key, label]) => (
             <label key={key}>
-              {label}
+              {experimental && key === "ceilingUsd"
+                ? "Finite per-video planning reservation (USD; not a guaranteed inclusive charge)"
+                : experimental && key === "maxGeneratedSeconds"
+                  ? "Generated-duration validation cap (seconds; assumed, not guaranteed)"
+                  : label}
               <input
                 type="number"
                 step="any"
@@ -195,7 +272,9 @@ export function StudioDurationEditor() {
           ))}
           {Object.entries(textFields).map(([key, label]) => (
             <label key={key}>
-              {label}
+              {experimental && key !== "hosts"
+                ? `Operator planning assumptions — ${key.replace("Evidence", "")} (not provider evidence)`
+                : label}
               <textarea
                 maxLength={4000}
                 value={fields[key as keyof Fields]}
@@ -240,17 +319,46 @@ export function StudioDurationEditor() {
             . Neither this estimate nor the provisional uplift is verified
             BytePlus tax or a guaranteed inclusive charge.
           </p>
+          {experimental && (
+            <fieldset>
+              <legend>Separate experimental risk acknowledgments</legend>
+              {(["duration", "fees", "media"] as const).map((key) => (
+                <label key={key}>
+                  <input
+                    type="checkbox"
+                    checked={acks[key]}
+                    onChange={(e) => {
+                      setAcks((old) => ({ ...old, [key]: e.target.checked }));
+                      setConfirmed(false);
+                    }}
+                  />
+                  {key === "duration"
+                    ? "Generated duration is unknown; the entered cap is only a validation/planning assumption."
+                    : key === "fees"
+                      ? "Fees and taxes are unknown; the finite reservation is not a guaranteed inclusive provider charge."
+                      : "Media properties are unknown; mismatched codecs, FPS, dimensions or oversized output will fail validation."}
+                </label>
+              ))}
+            </fieldset>
+          )}
           <label>
             <input
               type="checkbox"
               checked={confirmed}
               onChange={(e) => setConfirmed(e.target.checked)}
             />
-            I reviewed the evidence for this entire duration range, inclusive
-            spending ceiling and exact output policy. I am not extrapolating the
-            five-second example or treating 19% as verified tax.
+            {experimental
+              ? "I approve these labeled planning assumptions, finite reservation and strict output acceptance limits for private exploratory testing only."
+              : "I reviewed the evidence for this entire duration range, inclusive spending ceiling and exact output policy. I am not extrapolating the five-second example or treating 19% as verified tax."}
           </label>
-          <button disabled={busy || !confirmed} onClick={() => void run(true)}>
+          <button
+            disabled={
+              busy ||
+              !confirmed ||
+              (experimental && (!acks.duration || !acks.fees || !acks.media))
+            }
+            onClick={() => void run(true)}
+          >
             Save reviewed duration band — no paid request
           </button>
         </>

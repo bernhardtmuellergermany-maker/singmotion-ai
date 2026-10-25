@@ -24,6 +24,7 @@ import { pollError } from "./poll-error.ts";
 export interface StudioProject {
   id: string;
   hidden: boolean;
+  experimental: boolean;
   privateException: boolean;
   overlapExposure: boolean;
   providerJobId: string | null;
@@ -168,6 +169,8 @@ export class StudioWorkflow {
           "SELECT 1 FROM live_studio_actions WHERE attempt_id=? AND action='hide'",
         )
         .get(id),
+      experimental: !!JSON.parse(row.policy_json).contract.pilotAdmission
+        ?.experimental,
       state: a.state,
       createdAt: a.createdAt,
       durationSeconds: a.media.durationSeconds,
@@ -650,7 +653,7 @@ export class StudioWorkflow {
       digest !== a.contractDigest ||
       ceiling !== a.upperBoundMicroUsd ||
       confirmation !==
-        `CONFIRM PAID STUDIO ${id} ${a.contractDigest} ${a.upperBoundMicroUsd}`
+        `CONFIRM PAID STUDIO ${id} ${a.contractDigest} ${a.upperBoundMicroUsd}${policy.contract.pilotAdmission?.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`
     )
       throw new StudioLiveError(
         "APPROVAL_CHANGED",

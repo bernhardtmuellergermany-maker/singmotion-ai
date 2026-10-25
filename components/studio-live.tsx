@@ -81,7 +81,7 @@ export function StudioLiveControl({
           id: plan.id,
           digest: plan.digest,
           ceilingMicroUsd: plan.ceilingMicroUsd,
-          confirmation: `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`,
+          confirmation: `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}${plan.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
         }),
       });
       router.push(`/projects/live_${plan.id}`);
@@ -177,7 +177,9 @@ export function StudioLiveControl({
                 <br />
               </>
             )}
-            Reviewed reservation ceiling:{" "}
+            {plan.experimental
+              ? "Experimental planning reservation (not a guaranteed charge): "
+              : "Reviewed reservation ceiling: "}
             {plan.ceilingMicroUsd === null
               ? "Unavailable"
               : usd(plan.ceilingMicroUsd)}
@@ -192,8 +194,9 @@ export function StudioLiveControl({
                   checked={confirmed}
                   onChange={(e) => setConfirmed(e.target.checked)}
                 />
-                I explicitly approve one paid generation of this exact reviewed
-                selection up to this ceiling.
+                {plan.experimental
+                  ? "I explicitly approve one experimental paid generation and this finite budget reservation. Generated duration, fees and media properties are unknown; actual provider charges are not guaranteed by the reservation. Out-of-bounds output will be rejected without refund or automatic retry."
+                  : "I explicitly approve one paid generation of this exact reviewed selection up to this ceiling."}
               </label>
               <button
                 className="button primary"
@@ -447,6 +450,14 @@ export function LiveProject({ id }: { id: string }) {
                 : usd(project.ceilingMicroUsd)}
               ; actual invoice not yet reconciled.
             </p>
+            {project.experimental && (
+              <p role="alert">
+                Experimental planning policy: duration, fees and media
+                properties are unknown. The reservation is not a guaranteed
+                inclusive charge. Strict output validation and no automatic paid
+                retries still apply.
+              </p>
+            )}
             <p>Provider task: {project.providerJobId || "Not assigned"}</p>
             {project.hidden ? (
               <p>

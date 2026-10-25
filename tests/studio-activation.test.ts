@@ -319,3 +319,162 @@ test("admin duration bands require explicit independent review and preserve shor
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("experimental planning is labeled, separately acknowledged and never relaxes output safety", async () => {
+  const {
+    reviewedDurationBand,
+    saveDurationBand,
+    inspectDurationPolicy,
+    durationReview,
+  } = await import("../lib/live/studio-duration-admin.ts");
+  const { validateOutput, downloadValidatedOutput } =
+    await import("../lib/live/output.ts");
+  const base = JSON.parse(
+    await readFile(path.join(root, "studio-live-policy.json"), "utf8"),
+  );
+  const review = {
+    reviewMode: "experimental",
+    experimental: {
+      kind: "operator-planning-v1",
+      unknownDurationAccepted: true,
+      unknownFeesAccepted: true,
+      unknownMediaAccepted: true,
+      hostEvidence:
+        "MOCK retained exact-host approval from successful private test.",
+    },
+    minInputSeconds: 5,
+    maxInputSeconds: 15,
+    maxGeneratedSeconds: 20,
+    ceilingUsd: 3,
+    billingEvidence:
+      "Operator assumes a conservative reservation; fees remain unknown.",
+    durationEvidence:
+      "Operator selects a validation cap; generated duration is unknown.",
+    outputEvidence:
+      "Operator selects h264/aac 720p acceptance limits; properties unknown.",
+    transferEvidence:
+      "Operator assumes bounded transfer resources; oversized files rejected.",
+    maxBytes: 30 * 1024 * 1024,
+    timeoutSeconds: 120,
+    hosts: base.contract.outputHosts.join("\n"),
+    width: base.contract.output.width,
+    height: base.contract.output.height,
+    fps: base.contract.output.fps,
+    videoCodec: "h264",
+    audioCodec: "aac",
+    toleranceSeconds: 2,
+    expiresAt: new Date(Date.now() + 86400000).toISOString(),
+  };
+  for (const key of [
+    "unknownDurationAccepted",
+    "unknownFeesAccepted",
+    "unknownMediaAccepted",
+  ] as const)
+    assert.throws(
+      () =>
+        reviewedDurationBand(
+          { ...review, experimental: { ...review.experimental, [key]: false } },
+          owner,
+          base,
+        ),
+      /separate acknowledgment/,
+    );
+  assert.throws(
+    () =>
+      reviewedDurationBand(
+        { ...review, hosts: "new-host.example.test" },
+        owner,
+        base,
+      ),
+    /already approved/,
+  );
+  assert.throws(
+    () => reviewedDurationBand({ ...review, maxInputSeconds: 16 }, owner, base),
+    /maxInputSeconds/,
+  );
+  assert.throws(
+    () =>
+      reviewedDurationBand({ ...review, ceilingUsd: Infinity }, owner, base),
+    /ceilingUsd/,
+  );
+  const band = reviewedDurationBand(review, owner, base);
+  assert.match(band.billingEvidence, /OPERATOR PLANNING ASSUMPTION/);
+  assert.equal(band.contract.billing.taxBasisPointsUpperBound, null);
+  assert.equal(planUpperBoundMicroUsd(15, band.contract), 3000000);
+  assert.equal(durationReview(band).reviewMode, "experimental");
+  const bad = structuredClone(band);
+  (
+    bad.contract.pilotAdmission!.experimental as unknown as {
+      unknownFeesAccepted: boolean;
+    }
+  ).unknownFeesAccepted = false;
+  assert.throws(() => validateStudioPolicy(bad));
+  await assert.rejects(
+    validateOutput(file, 5, {
+      ...band.contract,
+      output: { ...band.contract.output, maxDurationSeconds: 4 },
+    }),
+    /validation/,
+  );
+  await assert.rejects(
+    validateOutput(file, 5, {
+      ...band.contract,
+      output: { ...band.contract.output, fps: 99 },
+    }),
+    /validation/,
+  );
+  await assert.rejects(
+    downloadValidatedOutput(
+      `https://${base.contract.outputHosts[0]}/video`,
+      path.join(root, "oversized.mp4"),
+      5,
+      {
+        ...band.contract,
+        output: {
+          ...band.contract.output,
+          transfer: {
+            maxBytes: 8,
+            timeoutMs: 1000,
+            evidence: "mock transfer cap",
+          },
+        },
+      },
+      async () =>
+        new Response(Buffer.alloc(9), { headers: { "content-length": "9" } }),
+    ),
+    /length|size|large/,
+  );
+  const dir = await mkdtemp(path.join(tmpdir(), "experimental policy "));
+  try {
+    await writeFile(
+      path.join(dir, "studio-live-policy.json"),
+      JSON.stringify(base),
+    );
+    const { digest } = await inspectDurationPolicy(dir);
+    await assert.rejects(
+      saveDurationBand(dir, owner, {
+        digest,
+        index: 0,
+        review,
+        confirmation: "APPROVE_REVIEWED_DURATION_BAND",
+      }),
+      /approval/,
+    );
+    await saveDurationBand(dir, owner, {
+      digest,
+      index: 0,
+      review,
+      confirmation: "APPROVE_EXPERIMENTAL_PLANNING_BAND",
+    });
+    const { durationBands, ...unchanged } = (await inspectDurationPolicy(dir))
+      .policy;
+    assert.deepEqual(unchanged, base);
+    assert.equal(
+      durationBands![0].contract.pilotAdmission!.experimental!
+        .unknownFeesAccepted,
+      true,
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

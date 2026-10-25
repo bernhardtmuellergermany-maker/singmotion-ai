@@ -234,3 +234,46 @@ authorized operation, not performed by this editor.
 No longer-duration evidence or inclusive charge is supplied by this change.
 Without those reviews and sufficient existing server caps, saving or submitting
 a 15-second test remains blocked. No paid call occurs during inspection or saving.
+
+### Experimental 15-second planning review (private Super Admin only)
+
+In **Video duration & budget**, load bands and select **Review basis →
+Experimental — operator planning assumptions (up to 15s)**. Enter conservative
+finite input/output acceptance limits, USD reservation, transfer limits and
+separate planning rationales for duration, fees, media and transfer. They are
+persisted with an explicit “OPERATOR PLANNING ASSUMPTION — NOT A PROVIDER
+GUARANTEE” label and a digest-bound experimental marker. No provider duration,
+codec/FPS, tax or fee guarantee is inferred.
+
+Supply actual approval evidence for exact output hosts. Experimental mode may
+only reuse hosts already approved in the preserved short policy; a new hostname
+cannot be approved by assumption. Check the three separate unknown-duration,
+unknown-fees/taxes and unknown-media acknowledgments, then confirm the review.
+Editing numeric/text limits resets risk acknowledgment and final approval.
+
+The generated-duration maximum, codec, dimensions, FPS, duration deviation, byte
+cap and timeout are acceptance/planning limits. The private pinned-IP downloader
+and FFmpeg validator still reject out-of-bounds output. Rejection does not undo
+provider billing and never triggers automatic paid resubmission.
+
+The finite USD amount is a **ledger reservation/admission cap**, not a guaranteed
+inclusive invoice bound. The legacy internal field `inclusiveMaxMicroUsd` holds
+this reservation for compatibility; the experimental marker explicitly changes
+its meaning. The same per-job/server caps, cumulative USD cap, EUR 50 budget
+calculation, all historical reservations and one non-exempt active generation
+limit remain enforced. Unknown external charges cannot be capped by merely
+rejecting a downloaded MP4; a guaranteed real invoice ceiling would require
+provider/account-enforced limits or verified billing terms. The UI discloses
+this limitation, including on each explicit paid confirmation.
+
+USD 0.07/generated second and the provisional 19% planning uplift remain estimates;
+19% is never saved as verified tax. Every experimental paid test requires a
+distinct confirmation bound to that plan, policy digest and finite reservation,
+including acceptance of unknown duration, fees and media. A normal evidence-mode
+confirmation is rejected for an experimental plan.
+
+Existing 4–5-second policy, its billing semantics and all prior projects remain
+unchanged. Server enablement, duration/spending caps, healthy recovery and staff
+allowlisting remain separate gates. No assumptions are preapproved or numeric
+limits auto-filled beyond the draft 5–15 input range. No provider/R2 call occurs
+while inspecting or saving this review.
