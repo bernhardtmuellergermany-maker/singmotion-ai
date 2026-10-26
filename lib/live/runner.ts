@@ -13,6 +13,32 @@ import { revalidateMedia } from "./media.ts";
 import { downloadValidatedOutput, validateOutput } from "./output.ts";
 import { type Attempt, type PreparedMedia, LiveTestStore } from "./store.ts";
 
+/** Fixed, non-sensitive download diagnostics. Never persist raw errors, URLs or headers. */
+export function outputFailureCode(error: unknown): string {
+  if (!(error instanceof Error)) return "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED";
+  const message = error.message;
+  if (message === "Provider output URL is invalid." ||
+      message === "Provider output URL is not an approved HTTPS download destination.")
+    return "OUTPUT_HOST_REJECTED";
+  if (message === "Provider output DNS resolution failed or timed out.")
+    return "OUTPUT_DNS_FAILED";
+  if (message === "Provider output connection failed or timed out." ||
+      error.name === "TimeoutError" || error.name === "AbortError")
+    return "OUTPUT_CONNECTION_FAILED";
+  if (message === "Provider output HTTP status rejected." ||
+      message === "Provider download did not return a complete file.")
+    return "OUTPUT_HTTP_REJECTED";
+  if (message.includes("too large") || message.includes("length/encoding") ||
+      message === "Provider output length did not match.")
+    return "OUTPUT_SIZE_REJECTED";
+  if (message === "Provider MP4 failed duration, dimensions, audio or frame-rate validation." ||
+      message === "Output is not a supported MP4 container.")
+    return "OUTPUT_MP4_VALIDATION_FAILED";
+  if (message === "Cannot create private provider output file.")
+    return "OUTPUT_STORAGE_FAILED";
+  return "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED";
+}
+
 /** Internal normalized interface. No OmniHuman HTTP parameter mapping is implied. */
 export interface ReviewedProvider {
   contract: VerifiedContract;
@@ -180,9 +206,9 @@ export class LiveTestRunner {
         const info = await lstat(partial);
         if (!info.isFile() || info.isSymbolicLink()) throw new Error();
         await chmod(partial, 0o600);
-      } catch {
+      } catch (error) {
         return finish(this.recoverableOutput ? "processing" : "failed", {
-          failureCode: "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED",
+          failureCode: outputFailureCode(error),
         });
       }
       try {
