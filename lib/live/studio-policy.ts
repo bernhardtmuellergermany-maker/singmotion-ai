@@ -205,7 +205,7 @@ export function studioGate(config: LiveTestConfig) {
   )
     throw new StudioLiveError(
       "STUDIO_DISABLED",
-      "Studio pilot requires explicit server enablement, a server secret, duration limit and both spending caps.",
+      "Studio pilot requires explicit server enablement, a server secret and a valid duration limit. The EUR 50 reviewed budget remains mandatory.",
       503,
     );
 }
@@ -227,12 +227,12 @@ export function studioDiagnostic(error: unknown): StudioLiveError {
     ],
     "Total live-test spending cap exceeded.": [
       "TOTAL_BUDGET_EXCEEDED",
-      "The cumulative USD cap is insufficient after retaining every existing reservation, including operator tests. Review the budget; do not reset the ledger.",
+      "The EUR 50 budget cannot cover the next reviewed video ceiling after retaining every existing reservation, including operator tests. Review the budget; do not reset the ledger.",
       409,
     ],
     "Live-test spending cap exceeded or unset.": [
       "JOB_BUDGET_EXCEEDED",
-      "This reviewed ceiling exceeds the server per-job cap, or a spending cap is unset.",
+      "The reviewed video ceiling is not admissible under the active authorization. Studio has no separate USD per-job cap; review the EUR 50 budget and the video cost evidence.",
       409,
     ],
     "Encoded MP3 exceeds the live-test duration limit; select a shorter excerpt.":
