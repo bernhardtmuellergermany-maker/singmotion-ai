@@ -16,6 +16,7 @@ import {
   downloadValidatedOutput,
   validateOutputUrl,
 } from "../lib/live/output.ts";
+import { outputFailureCode } from "../lib/live/runner.ts";
 import type { VerifiedContract } from "../lib/live/contract.ts";
 
 const url = new URL("https://approved.example.test/video?secret=never-log");
@@ -313,5 +314,23 @@ test("synchronous connection setup errors and invalid URL details are sanitized"
   assert.throws(
     () => validateOutputUrl("invalid secret URL", []),
     /^Error: Provider output URL is invalid\.$/,
+  );
+});
+
+test("download failure categories contain no URL or provider details", () => {
+  const cases: [string, string][] = [
+    ["Provider output URL is not an approved HTTPS download destination.", "OUTPUT_HOST_REJECTED"],
+    ["Provider output DNS resolution failed or timed out.", "OUTPUT_DNS_FAILED"],
+    ["Provider output connection failed or timed out.", "OUTPUT_CONNECTION_FAILED"],
+    ["Provider output HTTP status rejected; redirects are forbidden.", "OUTPUT_HTTP_REJECTED"],
+    ["Provider output length/encoding is invalid or too large.", "OUTPUT_SIZE_REJECTED"],
+    ["Provider MP4 failed duration, dimensions, audio or frame-rate validation.", "OUTPUT_MP4_VALIDATION_FAILED"],
+    ["Cannot create private provider output file.", "OUTPUT_STORAGE_FAILED"],
+  ];
+  for (const [reason, code] of cases)
+    assert.equal(outputFailureCode(new Error(reason)), code);
+  assert.equal(
+    outputFailureCode(new Error("secret signed URL https://host/path?token=private")),
+    "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED",
   );
 });
