@@ -17,6 +17,8 @@ import { type Attempt, type PreparedMedia, LiveTestStore } from "./store.ts";
 export function outputFailureCode(error: unknown): string {
   if (!(error instanceof Error)) return "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED";
   const message = error.message;
+  const detailCodes = new Set(["OUTPUT_FORMAT_INVALID", "OUTPUT_STREAM_MISSING", "OUTPUT_CODEC_MISMATCH", "OUTPUT_DIMENSIONS_MISMATCH", "OUTPUT_DURATION_MISMATCH", "OUTPUT_FRAMERATE_MISMATCH"]);
+  if (detailCodes.has(message)) return message;
   if (message === "Provider output URL is invalid." ||
       message === "Provider output URL is not an approved HTTPS download destination.")
     return "OUTPUT_HOST_REJECTED";
