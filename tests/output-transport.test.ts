@@ -15,6 +15,7 @@ import {
 import {
   downloadValidatedOutput,
   validateOutputUrl,
+  outputDimensionDiagnostic,
 } from "../lib/live/output.ts";
 import { outputFailureCode } from "../lib/live/runner.ts";
 import type { VerifiedContract } from "../lib/live/contract.ts";
@@ -334,4 +335,15 @@ test("download failure categories contain no URL or provider details", () => {
     outputFailureCode(new Error("secret signed URL https://host/path?token=private")),
     "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED",
   );
+});
+
+test("resolution diagnostics preserve only bounded numeric dimensions", () => {
+  const mismatch = outputDimensionDiagnostic(1280, 720, 720, 1280, false);
+  assert.equal(mismatch, "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_1280x720_EXPECTED_720x1280");
+  assert.equal(outputFailureCode(new Error(mismatch)), mismatch);
+  const discover = outputDimensionDiagnostic(1080, 1920, 720, 1280, true);
+  assert.equal(outputFailureCode(new Error(discover)), discover);
+  assert.equal(outputDimensionDiagnostic(-1, 720, 720, 1280, false), "OUTPUT_DIMENSIONS_MISMATCH");
+  assert.equal(outputFailureCode(new Error("OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_99999x720_EXPECTED_720x1280")), "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED");
+  assert.equal(outputFailureCode(new Error(mismatch + " https://secret.test?token=private")), "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED");
 });
