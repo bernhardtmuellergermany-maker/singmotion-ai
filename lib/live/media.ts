@@ -113,6 +113,7 @@ async function prepareOwnedSelection(
     );
   const sourcePath = await privateAsset(source.path, dataDir),
     imagePath = await privateAsset(image.path, dataDir);
+  const sourceSha256 = await sha256File(sourcePath);
   await validateReference(imagePath);
   const directory = path.join(dataDir, "media");
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -188,7 +189,10 @@ async function prepareOwnedSelection(
       });
     }
   }
+  if ((await sha256File(sourcePath)) !== sourceSha256)
+    throw new Error("Original recording changed during preparation.");
   return {
+    recording: { songId: selected.songId, sourceSha256 },
     sourceJobId: selected.id,
     owner,
     audioPath,

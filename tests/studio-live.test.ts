@@ -1584,3 +1584,80 @@ test("Studio budget renewal replaces expired currency review while retaining gen
     8640000,
   );
 });
+
+test("independent new recording reaches private cost review despite unresolved legacy rejection, without paid submission", async () => {
+  const { reviewIndependentRecording, independentRecordingConfirmation } =
+    await import("../lib/live/recording-rejections.ts");
+  const f = await fixture();
+  const legacy = f.store.prepare(
+    {
+      ...f.store.get(f.plan.id).media,
+      recording: undefined,
+      sourceJobId: "unknown-legacy-recording",
+      audioSha256: "f".repeat(64),
+    },
+    null,
+    null,
+  );
+  f.store.db
+    .prepare("UPDATE live_attempts SET data=?,reserved_micro_usd=? WHERE id=?")
+    .run(
+      JSON.stringify({
+        ...legacy,
+        state: "failed",
+        providerJobId: "old-rejected-task",
+        failureCode: "CONTENT_PREFILTER_REJECTED",
+        createdAt: Date.now() - 3600000,
+      }),
+      8640000,
+      legacy.id,
+    );
+  const before = f.store.db
+    .prepare("SELECT * FROM live_attempts WHERE id=?")
+    .get(legacy.id);
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    f.service.dependencies,
+  );
+  const selected = {
+    ...f.selection,
+    start: 0,
+    end: 4.5,
+    customPrompt: "New independent recording review",
+  };
+  process.env.AUDIO_TEMPO_ENABLED = "true";
+  try {
+    await assert.rejects(
+      service.prepare(selected, owner, "Singer", true, true),
+      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
+    );
+    await reviewIndependentRecording(
+      root,
+      f.store,
+      selected,
+      owner,
+      "staff",
+      "OFFLINE MOCK evidence: original master/session creation record demonstrates this new recording was independently made, not derived from any rejected recording.",
+      independentRecordingConfirmation,
+    );
+    const plan = await service.prepare(selected, owner, "Singer", true, true);
+    assert.equal(plan.state, "prepared");
+    assert.ok(plan.ceilingMicroUsd! > 0);
+    assert.ok(f.store.get(plan.id).media.tempo);
+    assert.ok(f.store.get(plan.id).media.recording?.sourceSha256);
+    assert.equal(f.counts().submits, 0);
+    assert.equal(plan.budget!.reservedMicroUsd, 8640000);
+    assert.deepEqual(
+      f.store.db
+        .prepare("SELECT * FROM live_attempts WHERE id=?")
+        .get(legacy.id),
+      before,
+    );
+    const replay = await service.prepare(selected, owner, "Singer", true, true);
+    assert.equal(replay.id, plan.id);
+  } finally {
+    delete process.env.AUDIO_TEMPO_ENABLED;
+  }
+});

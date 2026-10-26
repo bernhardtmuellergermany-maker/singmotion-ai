@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioWorkflow, StudioProject } from "@/lib/live/studio";
+import { StudioRecordingReview } from "./studio-recording-review";
 import { StudioBudgetReview } from "./studio-budget";
 import type { offerStudioBudget } from "@/lib/live/studio-budget-review";
 const usd = (micro: number) => `USD ${(micro / 1000000).toFixed(2)}`;
@@ -29,6 +30,7 @@ export function StudioLiveControl({
     [blockers, setBlockers] = useState<string[]>([]),
     [reviewedPlan, setPlan] = useState<StudioProject | null>(null),
     [error, setError] = useState(""),
+    [recordingNotice, setRecordingNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [english, setEnglish] = useState(false),
     [confirmed, setConfirmed] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export function StudioLiveControl({
     setPlan(null);
     setBusy(true);
     setError("");
+    setRecordingNotice("");
     try {
       const result = await api<StudioProject>("studio-live", {
         method: "POST",
@@ -160,6 +163,21 @@ export function StudioLiveControl({
         <p role="alert" className="error">
           {error}
         </p>
+      )}
+      {recordingNotice && <p role="status">{recordingNotice}</p>}
+      {selection && error.includes("[TEMPO_IDENTITY_REVIEW_REQUIRED]") && (
+        <StudioRecordingReview
+          key={selectionKey}
+          selection={selection}
+          consent={consent}
+          termsVersion={termsVersion}
+          onSaved={(message) => {
+            setError("");
+            setRecordingNotice(message);
+            setPlan(null);
+            setConfirmed(null);
+          }}
+        />
       )}
       {plan && (
         <>

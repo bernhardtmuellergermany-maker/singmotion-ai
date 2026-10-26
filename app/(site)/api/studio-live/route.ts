@@ -1,3 +1,4 @@
+import { reviewIndependentRecording } from "@/lib/live/recording-rejections";
 import {
   offerStudioBudget,
   authorizeStudioBudget,
@@ -205,6 +206,20 @@ async function handler(req: NextRequest) {
           body.acknowledgment,
         ),
       );
+    if (body.action === "tempo-recording-review") {
+      requireRights(body.consent, body.termsVersion);
+      return json(
+        await reviewIndependentRecording(
+          dataDir,
+          service.store,
+          parseStudioDraft(body.selection),
+          owner,
+          String(user!.id),
+          body.evidence,
+          body.confirmation,
+        ),
+      );
+    }
     if (body.action === "rights-status") {
       const selection = parseStudioDraft(body.selection);
       if (selection.owner !== owner)

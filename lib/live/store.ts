@@ -23,6 +23,8 @@ export type LiveState =
   | "failed"
   | "uncertain";
 export interface PreparedMedia {
+  /** Recorded from the owned original at preparation; never inferred for legacy rows. */
+  recording?: { songId: string; sourceSha256: string };
   tempo?: import("./tempo.ts").TempoMetadata;
   sourceJobId: string;
   owner: string;

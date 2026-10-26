@@ -1,3 +1,4 @@
+import { checkRecordingRejections } from "./recording-rejections.ts";
 /** Local-only, pitch-preserving processing. Authorization is NOT moderation clearance. */
 import { AppError } from "../domain.ts";
 import { execFile } from "node:child_process";
@@ -32,71 +33,12 @@ async function privateFile(root: string, file: string) {
     throw new AppError("Tempo input must remain private.");
   return actual;
 }
-async function rejectedRecording(
-  store: LiveTestStore,
-  songId: string,
-  hash: string,
-  clipHash?: string,
-) {
-  const rows = store.db.prepare("SELECT data FROM live_attempts").all() as {
-    data: string;
-  }[];
-  for (const row of rows) {
-    const a = JSON.parse(row.data);
-    const selection = store.db
-      .prepare(
-        "SELECT selection_json FROM live_studio_projects WHERE attempt_id=?",
-      )
-      .get(a.id) as { selection_json: string } | undefined;
-    let same =
-      a.media?.tempo?.sourceSha256 === hash ||
-      a.media?.audioSha256 === hash ||
-      a.media?.audioSha256 === clipHash ||
-      (selection && JSON.parse(selection.selection_json).songId === songId);
-    const result = store.firstTestResult(a.id)?.result;
-    const rejected =
-      a.state === "failed" ||
-      a.failureCode?.includes("REJECT") ||
-      a.failureCode?.includes("PREFILTER") ||
-      result?.sanitizedResult?.code === 50510;
-    if (rejected && selection && !same) {
-      const { asset } = await import("../db.ts");
-      try {
-        const old = asset(
-          JSON.parse(selection.selection_json).songId,
-          a.media.owner,
-        );
-        same = (await sha256File(old.path)) === hash;
-      } catch {
-        throw new AppError(
-          "Tempo blocked: prior rejection recording provenance is unavailable for safe comparison.",
-        );
-      }
-    }
-    if (rejected && !selection && !a.media?.tempo?.sourceSha256 && !same)
-      throw new AppError(
-        "Tempo blocked: legacy rejected task has no full-recording provenance. Resolve provenance before tempo authorization; no moderation workaround.",
-      );
-    if (
-      same &&
-      (a.state === "failed" ||
-        a.failureCode?.includes("REJECT") ||
-        a.failureCode?.includes("PREFILTER"))
-    )
-      throw new AppError(
-        "Tempo processing is blocked for a recording with a previous provider failure/rejection. It cannot be used as a moderation retry.",
-      );
-    if (same && result?.sanitizedResult?.code === 50510)
-      throw new AppError(
-        "Tempo processing is blocked for a previously rejected recording.",
-      );
-  }
-}
 export async function tempoAuthorization(
   root: string,
   store: LiveTestStore,
   selection: StudioDraftExport,
   owner: string,
+  clipHash?: string,
 ) {
   if (process.env.AUDIO_TEMPO_ENABLED !== "true") return null;
   // The operator enables the standard workflow under their existing provider
@@ -109,7 +51,14 @@ export async function tempoAuthorization(
     image = asset(selection.imageId, owner);
   const sourceSha256 = await sha256File(await privateFile(root, source.path));
   const imageSha256 = await sha256File(await privateFile(root, image.path));
-  await rejectedRecording(store, selection.songId, sourceSha256);
+  await checkRecordingRejections(
+    root,
+    store,
+    selection.songId,
+    owner,
+    sourceSha256,
+    clipHash,
+  );
   return {
     sourceSha256,
     digest: createHash("sha256")
@@ -235,9 +184,11 @@ export async function checkTempoSubmission(
     throw new AppError(
       "Tempo review changed or processing is disabled; prepare a fresh cost review. No submission.",
     );
-  await rejectedRecording(
+  await checkRecordingRejections(
+    root,
     store,
     media.tempo.songId,
+    media.owner,
     media.tempo.sourceSha256,
     media.tempo.originalSha256,
   );

@@ -418,6 +418,81 @@ try {
     Boolean((window as unknown as { __route: string }).__route),
   );
   assert.equal(approvals, 2);
+  let identityReviewed = false;
+  const identityPosts: Record<string, unknown>[] = [];
+  await page.route("**/api/studio-live", async (route) => {
+    if (route.request().method() === "GET")
+      return route.fulfill({
+        json: { pilot: true, available: true, blockers: [] },
+      });
+    const body = route.request().postDataJSON();
+    identityPosts.push(body);
+    if (body.action === "tempo-recording-review") {
+      assert.equal(
+        body.confirmation,
+        "INDEPENDENT_NEW_RECORDING_NOT_A_REJECTION_RETRY",
+      );
+      assert.ok(body.evidence.length >= 40);
+      identityReviewed = true;
+      return route.fulfill({
+        json: {
+          message:
+            "Assessment saved. Review video cost again; no generation started.",
+        },
+      });
+    }
+    assert.equal(body.action, "prepare");
+    if (!identityReviewed)
+      return route.fulfill({
+        status: 400,
+        json: {
+          error:
+            "[TEMPO_IDENTITY_REVIEW_REQUIRED] Legacy recording identity is unresolved; review evidence for the new independent upload.",
+        },
+      });
+    return route.fulfill({
+      json: {
+        id: "independent-plan",
+        state: "prepared",
+        durationSeconds: 5.2,
+        prompt: "Sing",
+        selection: body.selection,
+        digest: "new-digest",
+        ceilingMicroUsd: 500000,
+        estimatedBaseMicroUsd: 364000,
+      },
+    });
+  });
+  await page.goto("http://studio.test/");
+  await page.getByLabel("The composed prompt is English.").check();
+  await reviewButton.click();
+  const evidence = page.getByLabel("Independent recording evidence reference", {
+    exact: true,
+  });
+  await evidence.waitFor();
+  const saveEvidence = page.getByRole("button", {
+    name: "Save independent-recording assessment — no generation",
+    exact: true,
+  });
+  assert.equal(await saveEvidence.isDisabled(), true);
+  await evidence.fill(
+    "OFFLINE MOCK master/session record dated after the old task; verified new independent recording with no derivation from rejected material.",
+  );
+  await page.getByLabel(/I reviewed the referenced source evidence/).check();
+  await saveEvidence.click();
+  await page
+    .getByText(
+      "Assessment saved. Review video cost again; no generation started.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(identityPosts.length, 2);
+  await reviewButton.click();
+  await page.getByRole("link", { name: "Saved private project" }).waitFor();
+  assert.equal(
+    identityPosts.some((p) => p.action === "submit"),
+    false,
+  );
   await page.close();
   console.log(
     "PASS: desktop/mobile pilot review and separate explicit paid confirmation; mock HTTP only.",

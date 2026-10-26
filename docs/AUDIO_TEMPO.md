@@ -60,8 +60,33 @@ flag or do not submit that content. Normal BytePlus moderation stays in place.
 
 Never use this as a copyright-filter workaround. Known failures/rejections of
 the recording block tempo processing, including reuploads matched by full-file
-hash. A legacy rejection without resolvable recording provenance also blocks
-tempo conservatively. Do not reset/delete history to bypass this check.
+hash. Different retained full-source hashes can establish a byte-level non-match;
+source IDs are compared with their owner. Exact rejected clips are checked again
+after trimming and before paid submission. New plans record full-source identity
+at preparation, including plans prepared without tempo processing.
+
+A legacy rejection without resolvable recording provenance is **unknown**, not a
+match to every recording. Studio displays `TEMPO_IDENTITY_REVIEW_REQUIRED` and a
+Super Admin independent-recording evidence form. For a newly uploaded recording,
+reference the original recording/session or master, creation date and verifiable
+basis for independence, then explicitly confirm you reviewed that evidence.
+Upload date, filename, hash difference or a generic acknowledgment alone is not
+proof. The server requires an upload after the historical tasks and stores the
+assessment against its owner, source ID, exact full-source hash and retained
+legacy evidence. This is a staff evidence assessment, not automatic verification
+of its truth, reconstructed historical provenance or extra provider permission.
+If you cannot substantiate independence, do not approve the assessment or submit
+a modified recording. Rights confirmation remains separately mandatory.
+
+After saving the assessment, click **Review real video cost — no paid request**
+again. No generation or retry starts automatically. Known source/clip matches
+always block, even with an assessment. Changed bytes, another upload ID or newly
+retained rejection evidence require a new applicable review. Missing historical
+files remain unknown; nothing is fabricated, deleted or backfilled into old jobs.
+Existing reservations, task IDs and rejection records stay unchanged. Evidence is
+appended to private `live_recording_independence_reviews` audit records. Matching
+is based on reliable retained identifiers/hashes, not semantic/acoustic recognition;
+re-encoding or renaming rejected material is never an authorized workaround.
 Disabling a provider filter does not erase a rejection or grant permission.
 Checks run during preparation and again before Studio submission.
 
@@ -128,7 +153,8 @@ No restart is necessary. Completed or definitively failed tasks release only the
 active-generation lock: every reservation and task ID remains. Uncertain outcomes
 still block; reconcile the existing task through the established staff workflow.
 A failed/rejected recording cannot be retried through tempo processing. Use a
-separate permitted recording; unresolved legacy provenance still fails closed.
+separate permitted recording. Unresolved legacy identity requires the scoped
+evidence review above; it is never silently treated as a non-match.
 
 Offline integration coverage includes four independent plans: success, success,
 terminal rejection, then a different recording; fresh workflow instances recover

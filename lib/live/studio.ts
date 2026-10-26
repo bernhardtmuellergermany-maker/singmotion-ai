@@ -626,6 +626,14 @@ export class StudioWorkflow {
     if (old) {
       const row = this.row(old.id, owner),
         a = this.store.get(old.id);
+      if (tempo)
+        await tempoAuthorization(
+          this.root,
+          this.store,
+          selection,
+          owner,
+          a.media.tempo?.originalSha256 ?? a.media.audioSha256,
+        );
       // Match the current band to the actual immutable encoded duration, not the
       // requested waveform span. Never reprice or mutate a saved review.
       const current = selectStudioPolicy(rootPolicy, a.media.durationSeconds);
@@ -644,6 +652,21 @@ export class StudioWorkflow {
         owner,
         Math.min(this.config.maxDurationSeconds, 60),
       );
+    }
+    // Check exact trimmed bytes against legacy rejected clips before any tempo change.
+    if (tempo) {
+      const checked = await tempoAuthorization(
+        this.root,
+        this.store,
+        selection,
+        owner,
+        media.tempo?.originalSha256 ?? media.audioSha256,
+      );
+      if (checked?.digest !== tempo.digest)
+        throw new StudioLiveError(
+          "RECORDING_CHANGED",
+          "Recording changed during preparation. Review the current upload again; no paid request was made.",
+        );
     }
     if (tempo && !media.tempo)
       media = await slowExcerpt(
