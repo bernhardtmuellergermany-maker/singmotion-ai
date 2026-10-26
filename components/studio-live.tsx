@@ -24,7 +24,7 @@ export function StudioLiveControl({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [english, setEnglish] = useState(false),
-    [confirmed, setConfirmed] = useState(false);
+    [confirmed, setConfirmed] = useState<string | null>(null);
   const router = useRouter();
   useEffect(() => {
     void ensureSession()
@@ -45,8 +45,12 @@ export function StudioLiveControl({
     reviewedPlan && JSON.stringify(reviewedPlan.selection) === selectionKey
       ? reviewedPlan
       : null;
+  const approvalKey = plan ? `${plan.id}:${plan.digest}:${selectionKey}` : null;
+  const isConfirmed = approvalKey !== null && confirmed === approvalKey;
   if (!pilot) return null;
   async function prepare(repeatOf?: string) {
+    setConfirmed(null);
+    setPlan(null);
     setBusy(true);
     setError("");
     try {
@@ -62,7 +66,7 @@ export function StudioLiveControl({
         }),
       });
       setPlan(result);
-      setConfirmed(false);
+      setConfirmed(null);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -70,7 +74,7 @@ export function StudioLiveControl({
     }
   }
   async function submit() {
-    if (!plan || !confirmed) return;
+    if (!plan || !isConfirmed) return;
     setBusy(true);
     setError("");
     try {
@@ -86,6 +90,8 @@ export function StudioLiveControl({
       });
       router.push(`/projects/live_${plan.id}`);
     } catch (e) {
+      setConfirmed(null);
+      setPlan(null);
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -162,6 +168,11 @@ export function StudioLiveControl({
               Review another test of this selection — no paid request
             </button>
           )}
+          <p role="status">{plan.stage}</p>
+          <p>
+            Review {plan.id} · policy digest{" "}
+            {plan.digest?.slice(0, 12) || "unpriced"}
+          </p>
           <p>Measured MP3: {plan.durationSeconds.toFixed(3)}s</p>
           <p>{plan.prompt}</p>
           <p>
@@ -191,8 +202,10 @@ export function StudioLiveControl({
               <label className="consent">
                 <input
                   type="checkbox"
-                  checked={confirmed}
-                  onChange={(e) => setConfirmed(e.target.checked)}
+                  checked={isConfirmed}
+                  onChange={(e) =>
+                    setConfirmed(e.target.checked ? approvalKey : null)
+                  }
                 />
                 {plan.experimental
                   ? "I explicitly approve one experimental paid generation and this finite budget reservation. Generated duration, fees and media properties are unknown; actual provider charges are not guaranteed by the reservation. Out-of-bounds output will be rejected without refund or automatic retry."
@@ -202,7 +215,7 @@ export function StudioLiveControl({
                 className="button primary"
                 disabled={
                   busy ||
-                  !confirmed ||
+                  !isConfirmed ||
                   !consent ||
                   !english ||
                   disabled ||

@@ -277,3 +277,30 @@ unchanged. Server enablement, duration/spending caps, healthy recovery and staff
 allowlisting remain separate gates. No assumptions are preapproved or numeric
 limits auto-filled beyond the draft 5–15 input range. No provider/R2 call occurs
 while inspecting or saving this review.
+
+### Refreshing a changed Studio cost review
+
+Preparation previously deduplicated only by media selection, returning an old
+policy snapshot forever. Approval correctly rejected that stale snapshot against
+the newly saved band, creating a review loop. Preparation now checks the current
+band using the immutable MP3's actual encoded duration. A changed contract or
+review metadata produces a distinct, idempotent, **unapproved** project review.
+The old project, snapshots, policy and reservations remain intact.
+
+Already authorized/submitted/uncertain/terminal attempts are never replaced by
+this refresh. They are shown for recovery or the existing explicit repeat flow.
+A new review cannot reuse old approval: the exact new project, contract digest,
+ceiling and experimental confirmation are still required. Changes to EUR budget
+review alone do not rewrite per-video terms; cumulative checks still use the
+current budget and every historical reservation.
+
+After a 409 approval rejection, Studio clears the stale displayed plan and
+confirmation. Click **Review real video cost — no paid request** again; inspect
+the returned review ID, digest, encoded duration and reservation, then explicitly
+confirm. Errors distinguish current-policy changes, stale client digests, changed
+ceilings and missing experimental acknowledgment. If an old browser bundle sends
+the wrong experimental confirmation, reload Studio before reviewing again.
+
+No live Railway project/ledger was available during this fix. Regression coverage
+uses real local FFmpeg trimming around a 12.384-second selection, mocked provider
+calls, changed experimental 5–15 bands and renewed review metadata.

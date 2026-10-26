@@ -21,6 +21,19 @@ import {
 } from "./studio-policy.ts";
 import { BytePlusError } from "./byteplus.ts";
 import { pollError } from "./poll-error.ts";
+const policyReviewKey = (p: StudioPolicy) =>
+  createHash("sha256")
+    .update(
+      JSON.stringify([
+        contractDigest(p.contract),
+        p.reviewedBy,
+        p.reviewedAt,
+        p.expiresAt,
+        p.billingEvidence,
+        p.outputEvidence,
+      ]),
+    )
+    .digest("hex");
 export interface StudioProject {
   id: string;
   hidden: boolean;
@@ -578,25 +591,63 @@ export class StudioWorkflow {
         );
       source += `-repeat-${repeatOf}`;
     }
+    const originalSource = source;
+    const findStarted = () =>
+      this.store.db
+        .prepare(
+          "SELECT id FROM live_attempts WHERE (source_job_id=? OR source_job_id LIKE ?) AND json_extract(data,'$.state')<>'prepared' ORDER BY rowid DESC LIMIT 1",
+        )
+        .get(originalSource, originalSource + "-review-%") as
+        { id: string } | undefined;
+    const started = findStarted();
+    if (started) {
+      this.row(started.id, owner);
+      return this.withCurrentBudget(this.view(started.id, owner));
+    }
     const old = this.store.db
       .prepare("SELECT id FROM live_attempts WHERE source_job_id=?")
       .get(source) as { id: string } | undefined;
-    if (old) {
-      const row = this.row(old.id, owner);
-      const a = this.store.get(old.id);
-      if (a.state === "prepared" && a.upperBoundMicroUsd === null)
-        await this.operator(
-          validateStudioPolicy(JSON.parse(row.policy_json)),
-        ).price(a.id, owner);
-      return this.withCurrentBudget(this.view(old.id, owner));
-    }
     const rootPolicy = validateStudioPolicy(await this.dependencies.policy());
-    const media = await prepareStudioDraft(
-      selection,
-      owner,
-      Math.min(this.config.maxDurationSeconds, 60),
-    );
+    let media;
+    let refreshed = false;
+    if (old) {
+      const row = this.row(old.id, owner),
+        a = this.store.get(old.id);
+      // Match the current band to the actual immutable encoded duration, not the
+      // requested waveform span. Never reprice or mutate a saved review.
+      const current = selectStudioPolicy(rootPolicy, a.media.durationSeconds);
+      const currentDigest = policyReviewKey(current);
+      if (policyReviewKey(JSON.parse(row.policy_json)) === currentDigest) {
+        if (a.upperBoundMicroUsd === null)
+          await this.operator(current).price(a.id, owner);
+        return this.withCurrentBudget(this.view(a.id, owner));
+      }
+      source += `-review-${currentDigest}`;
+      refreshed = true;
+      media = { ...a.media };
+    } else {
+      media = await prepareStudioDraft(
+        selection,
+        owner,
+        Math.min(this.config.maxDurationSeconds, 60),
+      );
+    }
     const policy = selectStudioPolicy(rootPolicy, media.durationSeconds);
+    // Recheck after asynchronous preparation: a concurrent approval must win.
+    const nowStarted = findStarted();
+    if (nowStarted) {
+      this.row(nowStarted.id, owner);
+      return this.withCurrentBudget(this.view(nowStarted.id, owner));
+    }
+    const existing = this.store.db
+      .prepare("SELECT id FROM live_attempts WHERE source_job_id=?")
+      .get(source) as { id: string } | undefined;
+    if (existing) {
+      this.row(existing.id, owner);
+      if (this.store.get(existing.id).upperBoundMicroUsd === null)
+        await this.operator(policy).price(existing.id, owner);
+      return this.withCurrentBudget(this.view(existing.id, owner));
+    }
     media.sourceJobId = source;
     media.promptLanguageConfirmed = true;
     const a = this.store.prepare(media, null, null);
@@ -612,7 +663,14 @@ export class StudioWorkflow {
         typeof artistName === "string" ? artistName.slice(0, 80) : "My artist",
       );
     await this.operator(policy).price(a.id, owner);
-    return this.withCurrentBudget(this.view(a.id, owner));
+    const result = await this.withCurrentBudget(this.view(a.id, owner));
+    return refreshed
+      ? {
+          ...result,
+          stage:
+            "Policy changed: this is a NEW unapproved review using the current duration band. Previous projects and reservations are preserved. Review the new ceiling and confirm explicitly.",
+        }
+      : result;
   }
   private operator(policy: StudioPolicy, recovery = false) {
     const config = recovery
@@ -643,21 +701,43 @@ export class StudioWorkflow {
     studioGate(this.config);
     if (a.state !== "prepared")
       return this.withCurrentBudget(this.view(id, owner)); // Durable idempotency: never authorize or submit again.
-    const policy = validateStudioPolicy(JSON.parse(row.policy_json)),
+    const policy = validateStudioPolicy(JSON.parse(row.policy_json), false),
       current = selectStudioPolicy(
         validateStudioPolicy(await this.dependencies.policy()),
         a.media.durationSeconds,
       );
+    const currentDigest = contractDigest(current.contract),
+      savedDigest = contractDigest(policy.contract);
     if (
-      contractDigest(current.contract) !== contractDigest(policy.contract) ||
-      digest !== a.contractDigest ||
-      ceiling !== a.upperBoundMicroUsd ||
-      confirmation !==
-        `CONFIRM PAID STUDIO ${id} ${a.contractDigest} ${a.upperBoundMicroUsd}${policy.contract.pilotAdmission?.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`
+      currentDigest !== savedDigest ||
+      policyReviewKey(current) !== policyReviewKey(policy)
     )
       throw new StudioLiveError(
-        "APPROVAL_CHANGED",
-        "Confirm this exact project, policy and spending ceiling. Changed terms require review.",
+        "POLICY_CHANGED",
+        `Saved review ${policyReviewKey(policy).slice(0, 12)} differs from current review ${policyReviewKey(current).slice(0, 12)} for the ${a.media.durationSeconds.toFixed(3)}s encoded MP3. Click Review real video cost again to create a new unapproved review. No paid request was made.`,
+        409,
+      );
+    if (digest !== a.contractDigest)
+      throw new StudioLiveError(
+        "REVIEW_DIGEST_CHANGED",
+        "The displayed project digest is stale. Click Review real video cost again and explicitly approve the returned review.",
+        409,
+      );
+    if (ceiling !== a.upperBoundMicroUsd)
+      throw new StudioLiveError(
+        "REVIEW_CEILING_CHANGED",
+        "The displayed spending ceiling differs from the saved review. Click Review real video cost again; no reservation or paid request was made.",
+        409,
+      );
+    if (
+      confirmation !==
+      `CONFIRM PAID STUDIO ${id} ${a.contractDigest} ${a.upperBoundMicroUsd}${policy.contract.pilotAdmission?.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`
+    )
+      throw new StudioLiveError(
+        "EXPLICIT_CONFIRMATION_REQUIRED",
+        policy.contract.pilotAdmission?.experimental
+          ? "Confirm the experimental review, including unknown duration, fees and media risks. If this repeats, reload Studio to load the current approval form, then review again. No paid request was made."
+          : "Confirm this exact reviewed project and spending ceiling before submitting. No paid request was made.",
         409,
       );
     await this.dependencies.ready?.();

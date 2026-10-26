@@ -269,7 +269,7 @@ test("real WAV trim, immutable owned image/MP3, prompts, review and duplicate pr
   );
   await assert.rejects(
     f.service.submit(f.plan.id, owner, f.plan.digest, 1, "wrong"),
-    /Confirm/,
+    /spending ceiling differs/,
   );
   await Promise.allSettled([f.submit(), f.submit()]);
   assert.equal(f.counts().submits, 1);
@@ -398,7 +398,7 @@ test("policy changes and tampered immutable media block submission before any pr
       f.plan.ceilingMicroUsd,
       `CONFIRM PAID STUDIO ${f.plan.id} ${f.plan.digest} ${f.plan.ceilingMicroUsd}`,
     ),
-    /Changed terms/,
+    /Click Review real video cost again/,
   );
   const { appendFile } = await import("node:fs/promises");
   await appendFile(
@@ -1171,4 +1171,167 @@ test("experimental Studio needs distinct paid confirmation and retains finite cu
   );
   assert.equal(submits, 1);
   assert.equal(service.budget(p).reservedMicroUsd, 1500000);
+});
+
+test("changed experimental 5–15s review creates a new idempotent unapproved project and never reuses stale authorization", async () => {
+  const f = await fixture();
+  const { reviewedDurationBand } =
+    await import("../lib/live/studio-duration-admin.ts");
+  const audio = path.join(root, "media", randomUUID() + ".wav");
+  execFileSync("ffmpeg", [
+    "-nostdin",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:duration=14",
+    audio,
+  ]);
+  const songId = randomUUID();
+  db.putAsset({
+    id: songId,
+    owner,
+    kind: "audio",
+    path: audio,
+    mime: "audio/wav",
+    name: "clip.wav",
+    bytes: (await stat(audio)).size,
+    duration: 14,
+    width: null,
+    height: null,
+    created: Date.now(),
+  });
+  const short = structuredClone(policy);
+  short.contract.maxDurationSeconds = 5;
+  short.contract.generatedDurationBound!.maxInputSeconds = 5;
+  let band = reviewedDurationBand(
+    {
+      reviewMode: "experimental",
+      experimental: {
+        kind: "operator-planning-v1",
+        unknownDurationAccepted: true,
+        unknownFeesAccepted: true,
+        unknownMediaAccepted: true,
+        hostEvidence: "Mock approval for the exact existing output hostname.",
+      },
+      minInputSeconds: 5,
+      maxInputSeconds: 15,
+      maxGeneratedSeconds: 16,
+      ceilingUsd: 1.5,
+      billingEvidence:
+        "Operator planning allowance; actual fees remain unknown.",
+      durationEvidence:
+        "Operator validation cap; actual duration remains unknown.",
+      outputEvidence:
+        "Operator media acceptance limits; actual output is unknown.",
+      transferEvidence:
+        "Operator finite byte and timeout limits for validation.",
+      maxBytes: 10000000,
+      timeoutSeconds: 120,
+      hosts: "output.example.test",
+      width: 1280,
+      height: 720,
+      fps: 25,
+      videoCodec: "h264",
+      audioCodec: "aac",
+      toleranceSeconds: 2,
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    },
+    "staff",
+    short,
+  );
+  let submits = 0;
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxJobMicroUsd: 2000000 },
+    {
+      policy: async () => ({ ...short, durationBands: [band] }),
+      provider: (p) => ({
+        contract: p.contract,
+        submit: async () => {
+          submits++;
+          return { jobId: "mock-reviewed" };
+        },
+        poll: async () => ({ state: "pending" as const }),
+      }),
+    },
+  );
+  const selection = { ...f.selection, songId, end: 12.384 };
+  const first = await service.prepare(selection, owner, "Singer", true, true);
+  assert.ok(first.durationSeconds >= 12.384 && first.durationSeconds < 12.5);
+  assert.equal(first.experimental, true);
+  const original = f.store.get(first.id);
+  band = structuredClone(band);
+  band.contract.revision += "-reviewed-again";
+  band.contract.pilotAdmission!.inclusiveMaxMicroUsd = 1700000;
+  const phrase = (p: typeof first) =>
+    `CONFIRM PAID STUDIO ${p.id} ${p.digest} ${p.ceilingMicroUsd} ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA`;
+  await assert.rejects(
+    service.submit(
+      first.id,
+      owner,
+      first.digest,
+      first.ceilingMicroUsd,
+      phrase(first),
+    ),
+    /Click Review real video cost again/,
+  );
+  let fresh = await service.prepare(selection, owner, "Singer", true, true);
+  assert.notEqual(fresh.id, first.id);
+  assert.equal(fresh.ceilingMicroUsd, 1700000);
+  assert.equal(fresh.state, "prepared");
+  assert.equal(
+    (await service.prepare(selection, owner, "Singer", true, true)).id,
+    fresh.id,
+  );
+  assert.deepEqual(f.store.get(first.id), original);
+  assert.equal(submits, 0);
+  const priorFresh = f.store.get(fresh.id);
+  band.expiresAt = new Date(Date.parse(band.expiresAt) + 3600000).toISOString();
+  const renewed = await service.prepare(selection, owner, "Singer", true, true);
+  assert.notEqual(renewed.id, fresh.id);
+  assert.equal(renewed.digest, fresh.digest);
+  assert.deepEqual(f.store.get(fresh.id), priorFresh);
+  fresh = renewed;
+
+  await assert.rejects(
+    service.submit(
+      fresh.id,
+      owner,
+      first.digest,
+      fresh.ceilingMicroUsd,
+      phrase(fresh),
+    ),
+    /digest is stale/,
+  );
+  await assert.rejects(
+    service.submit(
+      fresh.id,
+      owner,
+      fresh.digest,
+      first.ceilingMicroUsd,
+      phrase(fresh),
+    ),
+    /spending ceiling differs/,
+  );
+  await service.submit(
+    fresh.id,
+    owner,
+    fresh.digest,
+    fresh.ceilingMicroUsd,
+    phrase(fresh),
+  );
+  assert.equal(submits, 1);
+  band.contract.revision += "-after-submit";
+  assert.equal(
+    (await service.prepare(selection, owner, "Singer", true, true)).id,
+    fresh.id,
+  );
+  assert.equal(f.store.get(first.id).state, "prepared");
+  assert.equal(
+    service.budget({ ...short, durationBands: [band] }).reservedMicroUsd,
+    1700000,
+  );
 });

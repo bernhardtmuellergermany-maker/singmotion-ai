@@ -4,7 +4,7 @@ import { build } from "esbuild";
 import { chromium } from "@playwright/test";
 const bundle = await build({
   stdin: {
-    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {StudioLiveControl,LiveProjects} from './components/studio-live';createRoot(document.getElementById('root')).render(location.search ? <LiveProjects/> : <StudioLiveControl selection={{version:1,owner:'owner',songId:'song',imageId:'image',start:0,end:4.7,performance:'Natural',camera:'Static Close-Up',customPrompt:''}} artistName="Singer" consent={true} disabled={false}/>);`,
+    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {StudioLiveControl,LiveProjects} from './components/studio-live';createRoot(document.getElementById('root')).render(location.search ? <LiveProjects/> : <StudioLiveControl selection={{version:1,owner:'owner',songId:'song',imageId:'image',start:0,end:location.hash?12.384:4.7,performance:'Natural',camera:'Static Close-Up',customPrompt:''}} artistName="Singer" consent={true} disabled={false}/>);`,
     resolveDir: process.cwd(),
     loader: "tsx",
   },
@@ -228,6 +228,109 @@ try {
     assert.equal(posts.filter((p) => p.action === "submit").length, 1);
     await page.close();
   }
+
+  const page = await browser.newPage();
+  let reviews = 0,
+    approvals = 0;
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/")
+      return route.fulfill({
+        contentType: "text/html",
+        body: '<div id="root"></div><script src="/bundle.js"></script>',
+      });
+    if (url.pathname === "/bundle.js")
+      return route.fulfill({
+        contentType: "application/javascript",
+        body: bundle.outputFiles[0].text,
+      });
+    if (url.pathname === "/api/session")
+      return route.fulfill({ json: { owner: "owner" } });
+    if (url.pathname !== "/api/studio-live") return route.abort();
+    if (route.request().method() === "GET")
+      return route.fulfill({
+        json: { available: true, pilot: true, blockers: [] },
+      });
+    const body = route.request().postDataJSON();
+    if (body.action === "submit") {
+      approvals++;
+      assert.match(
+        body.confirmation,
+        /ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA$/,
+      );
+      if (reviews === 1)
+        return route.fulfill({
+          status: 409,
+          json: {
+            error:
+              "Policy changed. Click Review real video cost again to create a new unapproved review.",
+          },
+        });
+      assert.equal(body.id, "review-2");
+      return route.fulfill({ json: { state: "submitted" } });
+    }
+    reviews++;
+    return route.fulfill({
+      json: {
+        id: `review-${reviews}`,
+        digest: `digest-${reviews}`,
+        experimental: true,
+        state: "prepared",
+        stage: "New unapproved review",
+        durationSeconds: 12.384,
+        prompt: "Sing",
+        ceilingMicroUsd: 1500000,
+        estimatedBaseMicroUsd: 866880,
+        selection: body.selection,
+        budget: {
+          remainingMicroUsd: 2000000,
+          remainingMicroEur: 48000000,
+          basis: "reviewed-bound",
+        },
+      },
+    });
+  });
+  await page.goto("http://studio.test/#experimental");
+  await page.getByLabel("The composed prompt is English.").check();
+  const reviewButton = page.getByRole("button", {
+    name: "Review real video cost — no paid request",
+    exact: true,
+  });
+  await reviewButton.click();
+  const approval = page.getByLabel(
+    /I explicitly approve one experimental paid generation/,
+  );
+  await approval.check();
+  await page
+    .getByRole("button", { name: "Generate ONE real video", exact: true })
+    .click();
+  await page.getByRole("alert").waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Generate ONE real video", exact: true })
+      .count(),
+    0,
+  );
+  assert.equal(approvals, 1);
+  await reviewButton.click();
+  await approval.waitFor();
+  assert.equal(await approval.isChecked(), false);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Generate ONE real video", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(approvals, 1);
+  await approval.check();
+  await page
+    .getByRole("button", { name: "Generate ONE real video", exact: true })
+    .click();
+  await page.waitForFunction(() =>
+    Boolean((window as unknown as { __route: string }).__route),
+  );
+  assert.equal(approvals, 2);
+  await page.close();
   console.log(
     "PASS: desktop/mobile pilot review and separate explicit paid confirmation; mock HTTP only.",
   );
