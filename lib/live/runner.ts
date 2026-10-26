@@ -19,6 +19,13 @@ export function outputFailureCode(error: unknown): string {
   const message = error.message;
   const detailCodes = new Set(["OUTPUT_FORMAT_INVALID", "OUTPUT_STREAM_MISSING", "OUTPUT_CODEC_MISMATCH", "OUTPUT_DIMENSIONS_MISMATCH", "OUTPUT_DURATION_MISMATCH", "OUTPUT_FRAMERATE_MISMATCH"]);
   if (detailCodes.has(message)) return message;
+  // Accept only bounded numeric dimensions; never expose arbitrary provider errors.
+  if (/^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\\d{0,3})x(?:[1-9]\\d{0,3})_EXPECTED_(?:(?:[1-9]\\d{0,3})x(?:[1-9]\\d{0,3})|720P)$/.test(message)) {
+    const values = message.match(/\\d+/g)?.map(Number) || [];
+    if (values.every((value) => value > 0 && value <= 8192))
+      return message;
+  }
+
   if (message === "Provider output URL is invalid." ||
       message === "Provider output URL is not an approved HTTPS download destination.")
     return "OUTPUT_HOST_REJECTED";
