@@ -326,6 +326,7 @@ test("download failure categories contain no URL or provider details", () => {
     ["Provider output length/encoding is invalid or too large.", "OUTPUT_SIZE_REJECTED"],
     ["Provider MP4 failed duration, dimensions, audio or frame-rate validation.", "OUTPUT_MP4_VALIDATION_FAILED"],
     ["Cannot create private provider output file.", "OUTPUT_STORAGE_FAILED"],
+    ...["OUTPUT_FORMAT_INVALID", "OUTPUT_STREAM_MISSING", "OUTPUT_CODEC_MISMATCH", "OUTPUT_DIMENSIONS_MISMATCH", "OUTPUT_DURATION_MISMATCH", "OUTPUT_FRAMERATE_MISMATCH"].map((code): [string, string] => [code, code]),
   ];
   for (const [reason, code] of cases)
     assert.equal(outputFailureCode(new Error(reason)), code);
