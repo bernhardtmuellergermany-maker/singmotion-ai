@@ -1,3 +1,4 @@
+import { restoreTempoOutput, validateRestored } from "./tempo.ts";
 import { providerRequest } from "./timeout.ts";
 import path from "node:path";
 import { renameSync } from "node:fs";
@@ -127,11 +128,18 @@ export class LiveTestRunner {
       try {
         const info = await lstat(output);
         if (info.isFile() && !info.isSymbolicLink()) {
-          await validateOutput(
-            output,
-            attempt.media.durationSeconds,
-            this.provider.contract,
-          );
+          if (attempt.media.tempo)
+            await validateRestored(
+              output,
+              attempt.media,
+              this.provider.contract,
+            );
+          else
+            await validateOutput(
+              output,
+              attempt.media.durationSeconds,
+              this.provider.contract,
+            );
           recovered = true;
         }
       } catch {
@@ -183,6 +191,20 @@ export class LiveTestRunner {
           attempt.media.durationSeconds,
           this.provider.contract,
         );
+        if (attempt.media.tempo) {
+          const restored = partial + ".restored.mp4";
+          try {
+            await restoreTempoOutput(
+              partial,
+              restored,
+              attempt.media,
+              this.provider.contract,
+            );
+            renameSync(restored, partial);
+          } finally {
+            await unlink(restored).catch(() => {});
+          }
+        }
       } catch {
         return finish(this.recoverableOutput ? "processing" : "failed", {
           failureCode: "INVALID_OUTPUT",

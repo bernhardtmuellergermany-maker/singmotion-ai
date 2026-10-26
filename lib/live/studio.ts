@@ -20,6 +20,11 @@ import {
   type StudioPolicy,
 } from "./studio-policy.ts";
 import { BytePlusError } from "./byteplus.ts";
+import {
+  tempoAuthorization,
+  slowExcerpt,
+  checkTempoSubmission,
+} from "./tempo.ts";
 import { pollError } from "./poll-error.ts";
 const policyReviewKey = (p: StudioPolicy) =>
   createHash("sha256")
@@ -570,7 +575,13 @@ export class StudioWorkflow {
         "SELECTION_INVALID",
         "Select your own image/audio and an excerpt of at least 4 seconds.",
       );
-    let source = `studio-${createHash("sha256").update(JSON.stringify(selection)).digest("hex")}`;
+    const tempo = await tempoAuthorization(
+      this.root,
+      this.store,
+      selection,
+      owner,
+    );
+    let source = `studio-${createHash("sha256").update(JSON.stringify(selection)).digest("hex")}${tempo ? "-tempo-" + tempo.digest : ""}`;
     if (repeatOf !== undefined) {
       if (typeof repeatOf !== "string")
         throw new StudioLiveError(
@@ -632,6 +643,14 @@ export class StudioWorkflow {
         Math.min(this.config.maxDurationSeconds, 60),
       );
     }
+    if (tempo && !media.tempo)
+      media = await slowExcerpt(
+        media,
+        this.root,
+        selection.songId,
+        tempo,
+        Math.min(this.config.maxDurationSeconds, 60),
+      );
     const policy = selectStudioPolicy(rootPolicy, media.durationSeconds);
     // Recheck after asynchronous preparation: a concurrent approval must win.
     const nowStarted = findStarted();
@@ -740,6 +759,12 @@ export class StudioWorkflow {
           : "Confirm this exact reviewed project and spending ceiling before submitting. No paid request was made.",
         409,
       );
+    await checkTempoSubmission(
+      a.media,
+      this.root,
+      this.store,
+      JSON.parse(row.selection_json),
+    );
     await this.dependencies.ready?.();
     const workflow = this.operator({ ...policy, eurBudget: current.eurBudget });
     const token = await workflow.approve(

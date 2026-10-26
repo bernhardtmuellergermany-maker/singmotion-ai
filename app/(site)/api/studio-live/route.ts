@@ -16,6 +16,7 @@ import {
   studioConfig,
   studioGate,
 } from "@/lib/live/studio-policy";
+import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { AppError } from "@/lib/domain";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -166,17 +167,24 @@ async function handler(req: NextRequest) {
       await reader.cancel();
     }
     const body = JSON.parse(Buffer.concat(chunks).toString());
-    if (body.action === "prepare")
-      return json(
-        await service.prepare(
-          body.selection,
-          owner,
-          body.artistName,
-          body.consent,
-          body.english,
-          body.repeatOf,
-        ),
+    if (body.action === "prepare") {
+      requireRights(body.consent, body.termsVersion);
+      const project = await service.prepare(
+        body.selection,
+        owner,
+        body.artistName,
+        body.consent,
+        body.english,
+        body.repeatOf,
       );
+      recordRights(
+        service.store.db,
+        String(user!.id),
+        project.id,
+        termsVersion(),
+      );
+      return json(project);
+    }
     if (body.action === "fresh-test")
       return json(await service.freshTest(owner, String(user!.id)));
     if (typeof body.id !== "string")
@@ -185,7 +193,9 @@ async function handler(req: NextRequest) {
         "Choose a saved Studio project.",
       );
     if (body.action === "submit") {
+      requireRights(body.consent, body.termsVersion);
       service.view(body.id, owner);
+      recordRights(service.store.db, String(user!.id), body.id, termsVersion());
       await payload.create({
         collection: "audit-events",
         overrideAccess: true,

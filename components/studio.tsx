@@ -63,6 +63,7 @@ export function Studio() {
     [error, setError] = useState(""),
     [price, setPrice] = useState<number | null>(null),
     [consent, setConsent] = useState(false),
+    [termsVersion, setTermsVersion] = useState(""),
     [advanced, setAdvanced] = useState(false);
   const router = useRouter(),
     fileInput = useRef<HTMLInputElement>(null),
@@ -83,6 +84,11 @@ export function Studio() {
     setDraft((prev) => ({ ...prev, ...patch }));
     requestKey.current = null;
   }
+  useEffect(() => {
+    void api<{ version: string }>("rights")
+      .then((r) => setTermsVersion(r.version))
+      .catch(() => setTermsVersion(""));
+  }, []);
   useEffect(() => {
     ensureSession()
       .then((session) => {
@@ -190,6 +196,7 @@ export function Studio() {
           expectedPrice: price,
           requestKey: requestKey.current,
           consent,
+          termsVersion,
         }),
       });
       window.dispatchEvent(new Event("credits-changed"));
@@ -497,11 +504,17 @@ export function Studio() {
               <input
                 type="checkbox"
                 checked={consent}
+                required
+                disabled={!termsVersion}
                 onChange={(e) => setConsent(e.target.checked)}
               />
               <span>
                 I have the rights or permission to use this music and person’s
-                likeness.
+                likeness, including the processing described in the{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer">
+                  AGB / Terms
+                </a>
+                .
               </span>
             </label>
             <button
@@ -555,6 +568,7 @@ export function Studio() {
               }
               artistName={artistName}
               consent={consent}
+              termsVersion={termsVersion}
               disabled={
                 busy || uploading || !validSegment || end - start < 4 || !prompt
               }

@@ -22,6 +22,7 @@ export type LiveState =
   | "failed"
   | "uncertain";
 export interface PreparedMedia {
+  tempo?: import("./tempo.ts").TempoMetadata;
   sourceJobId: string;
   owner: string;
   audioPath: string;

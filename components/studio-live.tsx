@@ -10,11 +10,13 @@ export function StudioLiveControl({
   selection,
   artistName,
   consent,
+  termsVersion,
   disabled,
 }: {
   selection: StudioDraftExport | null;
   artistName: string;
   consent: boolean;
+  termsVersion?: string;
   disabled: boolean;
 }) {
   const [available, setAvailable] = useState(false),
@@ -61,6 +63,7 @@ export function StudioLiveControl({
           selection,
           artistName,
           consent,
+          termsVersion,
           english,
           ...(repeatOf ? { repeatOf } : {}),
         }),
@@ -82,6 +85,8 @@ export function StudioLiveControl({
         method: "POST",
         body: JSON.stringify({
           action: "submit",
+          consent,
+          termsVersion,
           id: plan.id,
           digest: plan.digest,
           ceilingMicroUsd: plan.ceilingMicroUsd,

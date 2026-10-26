@@ -33,7 +33,11 @@ export function retainedInputPaths(dataDir: string): string[] {
       }[]
     ).flatMap(({ data }) => {
       const { media } = JSON.parse(data);
-      return [media.imagePath, media.audioPath];
+      return [
+        media.imagePath,
+        media.audioPath,
+        ...(media.tempo ? [media.tempo.originalPath] : []),
+      ];
     });
   } finally {
     ledger.close();

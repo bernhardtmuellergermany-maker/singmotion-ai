@@ -1,3 +1,4 @@
+import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
 import { removeOfflinePlans } from "@/lib/live/cleanup";
@@ -299,6 +300,7 @@ async function handler(
       if (process.env.GENERATIONS_ENABLED === "false")
         throw new AppError("New generations are temporarily disabled.", 503);
       const b = await body(req);
+      requireRights(b.consent, b.termsVersion);
       if (b.consent !== true)
         throw new AppError(
           "Confirm that you have permission to use the music and image.",
@@ -360,6 +362,8 @@ async function handler(
         saved: false,
         demo: true,
       };
+      const { db } = await import("@/lib/db");
+      recordRights(db, owner, j.id, termsVersion());
       return json(enqueue(j), 201);
     }
     if (route === "jobs" && id && method === "PATCH") {
