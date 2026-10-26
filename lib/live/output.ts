@@ -56,35 +56,36 @@ export async function validateOutput(
   const length = Number(p.format.duration);
   const fps = video?.avg_frame_rate?.split("/").map(Number);
   const actualFps = fps?.length === 2 ? fps[0] / fps[1] : NaN;
-  if (
-    !p.format.format_name?.split(",").includes("mp4") ||
-    !video ||
-    !audio ||
-    (contract.output.videoCodec !== undefined &&
-      video.codec_name !== contract.output.videoCodec) ||
-    (contract.output.audioCodec !== undefined &&
-      audio.codec_name !== contract.output.audioCodec) ||
-    (contract.discover720p
-      ? !Number.isInteger(video.width) ||
-        !Number.isInteger(video.height) ||
-        Math.min(video.width!, video.height!) !== 720 ||
-        Math.max(video.width!, video.height!) > 4096 ||
-        !["h264", "hevc"].includes(video.codec_name) ||
-        audio.codec_name !== "aac"
-      : video.width !== contract.output.width ||
-        video.height !== contract.output.height) ||
-    !Number.isFinite(length) ||
-    (contract.output.maxDurationSeconds !== undefined &&
-      length > contract.output.maxDurationSeconds) ||
-    Math.abs(length - duration) > contract.output.durationToleranceSeconds ||
-    !Number.isFinite(actualFps) ||
-    (contract.discover720p
-      ? actualFps <= 0 || actualFps > 120
-      : Math.abs(actualFps - contract.output.fps) > 0.01)
-  )
-    throw new Error(
-      "Provider MP4 failed duration, dimensions, audio or frame-rate validation.",
-    );
+  // Keep the same validation rules but report only stable, non-sensitive categories.
+  if (!p.format.format_name?.split(",").includes("mp4"))
+    throw new Error("OUTPUT_FORMAT_INVALID");
+  if (!video || !audio)
+    throw new Error("OUTPUT_STREAM_MISSING");
+  if ((contract.output.videoCodec !== undefined &&
+       video.codec_name !== contract.output.videoCodec) ||
+      (contract.output.audioCodec !== undefined &&
+       audio.codec_name !== contract.output.audioCodec) ||
+      (contract.discover720p &&
+       (!["h264", "hevc"].includes(video.codec_name) || audio.codec_name !== "aac")))
+    throw new Error("OUTPUT_CODEC_MISMATCH");
+  if (contract.discover720p
+    ? !Number.isInteger(video.width) ||
+      !Number.isInteger(video.height) ||
+      Math.min(video.width!, video.height!) !== 720 ||
+      Math.max(video.width!, video.height!) > 4096
+    : video.width !== contract.output.width ||
+      video.height !== contract.output.height)
+    throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
+  if (!Number.isFinite(length) ||
+      (contract.output.maxDurationSeconds !== undefined &&
+       length > contract.output.maxDurationSeconds) ||
+      Math.abs(length - duration) > contract.output.durationToleranceSeconds)
+    throw new Error("OUTPUT_DURATION_MISMATCH");
+  if (!Number.isFinite(actualFps) ||
+      (contract.discover720p
+       ? actualFps <= 0 || actualFps > 120
+       : Math.abs(actualFps - contract.output.fps) > 0.01))
+    throw new Error("OUTPUT_FRAMERATE_MISMATCH");
   const fileHandle = await open(file, "r");
   try {
     const header = Buffer.alloc(12);
