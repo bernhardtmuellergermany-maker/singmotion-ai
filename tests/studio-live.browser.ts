@@ -49,6 +49,7 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     page.on("pageerror", (error) => console.error(error.message));
     const posts: Record<string, unknown>[] = [];
+    let savedPlan: Record<string, unknown> | null = null;
     let budgetSaved = false,
       workerBlocked = true;
     const budget = {
@@ -61,7 +62,7 @@ try {
     };
     await page.route("**/*", async (route) => {
       const url = new URL(route.request().url());
-      if (url.pathname === "/")
+      if (url.pathname === "/" || url.pathname === "/projects/live_plan")
         return route.fulfill({
           contentType: "text/html",
           body: '<div id="root"></div><script src="/bundle.js"></script>',
@@ -74,6 +75,8 @@ try {
       if (url.pathname === "/api/session")
         return route.fulfill({ json: { owner: "owner" } });
       if (url.pathname === "/api/studio-live") {
+        if (route.request().method() === "GET" && url.searchParams.has("id"))
+          return route.fulfill({ json: savedPlan });
         if (route.request().method() === "GET")
           return route.fulfill({
             json: {
@@ -116,23 +119,26 @@ try {
           budgetSaved = true;
           return route.fulfill({ json: { budget } });
         }
-        return route.fulfill({
-          json: {
-            budget: {
-              remainingMicroUsd: 1000000,
-              remainingMicroEur: 48000000,
-              basis: "reviewed-bound",
-            },
-            id: "plan",
-            state: "prepared",
-            durationSeconds: 4.728,
-            prompt: "Natural singing performance.",
-            estimatedBaseMicroUsd: 330960,
-            ceilingMicroUsd: 420000,
-            digest: "mock-digest",
-            selection: body.selection,
+        if (body.action === "submit")
+          return route.fulfill({ json: { state: "submitted" } });
+        savedPlan = {
+          budget: {
+            remainingMicroUsd: 1000000,
+            remainingMicroEur: 48000000,
+            basis: "reviewed-bound",
           },
-        });
+          id: "plan",
+          state: "prepared",
+          durationSeconds: 4.728,
+          prompt: "Natural singing performance.",
+          estimatedBaseMicroUsd: 330960,
+          ceilingMicroUsd: 420000,
+          digest: "mock-digest",
+          selection: Object.fromEntries(
+            Object.entries(body.selection).reverse(),
+          ),
+        };
+        return route.fulfill({ json: savedPlan });
       }
       return route.abort();
     });
@@ -171,6 +177,7 @@ try {
       if (renewal === 0) {
         await page
           .getByText("Recovery worker is offline", { exact: true })
+          .first()
           .waitFor();
         assert.equal(await review.isDisabled(), true);
         workerBlocked = false;
@@ -200,6 +207,32 @@ try {
         "I explicitly approve one paid generation of this exact reviewed selection up to this ceiling.",
       )
       .check();
+    // Leave the component entirely, then return: server reload of the same
+    // project must retain unchanged explicit approval without another prepare.
+    await page.getByRole("link", { name: "Saved private project" }).click();
+    await page.waitForURL("**/projects/live_plan");
+    await page.goBack();
+    await submit.waitFor();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("button")].some(
+        (b) => b.textContent === "Generate ONE real video" && !b.disabled,
+      ),
+    );
+    assert.equal(posts.filter((p) => p.action === "prepare").length, 1);
+    assert.equal(posts.filter((p) => p.action === "submit").length, 0);
+    savedPlan!.ceilingMicroUsd = 430000;
+    await page.reload();
+    await submit.waitFor();
+    assert.equal(await submit.isDisabled(), true);
+    await page
+      .getByRole("status", { name: "Generation blockers" })
+      .getByText(/Approve one paid generation/)
+      .waitFor();
+    await page
+      .getByLabel(
+        "I explicitly approve one paid generation of this exact reviewed selection up to this ceiling.",
+      )
+      .check();
     await submit.click();
     await page.waitForFunction(() =>
       Boolean((window as unknown as { __route: string }).__route),
@@ -208,7 +241,7 @@ try {
     assert.equal(posts[1].action, "submit");
     assert.equal(
       posts[1].confirmation,
-      "CONFIRM PAID STUDIO plan mock-digest 420000",
+      "CONFIRM PAID STUDIO plan mock-digest 430000",
     );
     let hidden = false;
     await page.route("**/api/studio-live", async (route) => {
@@ -396,8 +429,8 @@ try {
   assert.equal(
     await page
       .getByRole("button", { name: "Generate ONE real video", exact: true })
-      .count(),
-    0,
+      .isDisabled(),
+    true,
   );
   assert.equal(approvals, 1);
   await reviewButton.click();
@@ -463,6 +496,7 @@ try {
       },
     });
   });
+  await page.evaluate(() => sessionStorage.clear());
   await page.goto("http://studio.test/");
   await page.getByLabel("The composed prompt is English.").check();
   await reviewButton.click();

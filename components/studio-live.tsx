@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
@@ -8,6 +8,35 @@ import type { StudioWorkflow, StudioProject } from "@/lib/live/studio";
 import { StudioRecordingReview } from "./studio-recording-review";
 import { StudioBudgetReview } from "./studio-budget";
 import type { offerStudioBudget } from "@/lib/live/studio-budget-review";
+// Explicit field order: object insertion order is not selection identity.
+function selectionIdentity(s: StudioDraftExport | null) {
+  return s
+    ? JSON.stringify([
+        s.version,
+        s.owner,
+        s.songId,
+        s.imageId,
+        s.start,
+        s.end,
+        s.performance,
+        s.camera,
+        s.customPrompt,
+      ])
+    : "null";
+}
+function reviewIdentity(p: StudioProject, termsVersion?: string) {
+  return JSON.stringify([
+    p.id,
+    p.digest,
+    p.ceilingMicroUsd,
+    selectionIdentity(p.selection),
+    p.experimental,
+    p.prompt,
+    p.durationSeconds,
+    termsVersion || "",
+  ]);
+}
+const receiptKey = "singmotion-private-review-v1";
 const usd = (micro: number) => `USD ${(micro / 1000000).toFixed(2)}`;
 export function StudioLiveControl({
   selection,
@@ -15,12 +44,14 @@ export function StudioLiveControl({
   consent,
   termsVersion,
   disabled,
+  disabledReason,
 }: {
   selection: StudioDraftExport | null;
   artistName: string;
   consent: boolean;
   termsVersion?: string;
   disabled: boolean;
+  disabledReason?: string;
 }) {
   const [available, setAvailable] = useState(false),
     [pilot, setPilot] = useState(false),
@@ -35,6 +66,72 @@ export function StudioLiveControl({
     [english, setEnglish] = useState(false),
     [confirmed, setConfirmed] = useState<string | null>(null);
   const router = useRouter();
+  const selectionKey = selectionIdentity(selection);
+  const currentSelection = useRef(selectionKey);
+  const reviewRevision = useRef(0);
+  useEffect(() => {
+    currentSelection.current = selectionKey;
+  }, [selectionKey]);
+  useEffect(() => {
+    let current = true;
+    const revision = ++reviewRevision.current;
+    void ensureSession()
+      .then(async () => {
+        const raw = sessionStorage.getItem(receiptKey);
+        if (!raw) return;
+        const receipt = JSON.parse(raw);
+        if (
+          receipt.selection !== selectionKey ||
+          typeof receipt.id !== "string"
+        )
+          return;
+        // Restore only from the authenticated server, never a cached project snapshot.
+        const saved = await api<StudioProject>(
+          `studio-live?id=${encodeURIComponent(receipt.id)}`,
+        );
+        if (
+          !current ||
+          revision !== reviewRevision.current ||
+          selectionIdentity(saved.selection) !== selectionKey
+        )
+          return;
+        setPlan(saved);
+        setEnglish(receipt.english === true);
+        setConfirmed(
+          receipt.approval === reviewIdentity(saved, termsVersion)
+            ? receipt.approval
+            : null,
+        );
+      })
+      .catch(() => {
+        if (current)
+          setError(
+            "Saved review could not be refreshed. Review real video cost to reload the existing project; no generation was started.",
+          );
+      });
+    return () => {
+      current = false;
+    };
+  }, [selectionKey, termsVersion]);
+  function saveReceipt(
+    p: StudioProject,
+    approval: string | null,
+    englishConfirmed = english,
+  ) {
+    try {
+      sessionStorage.setItem(
+        receiptKey,
+        JSON.stringify({
+          id: p.id,
+          selection: selectionIdentity(p.selection),
+          approval,
+          english: englishConfirmed,
+        }),
+      );
+    } catch {
+      /* In-memory review still works when browser storage is unavailable. */
+    }
+  }
   const refreshReadiness = useCallback(async () => {
     await ensureSession();
     const r = await api<{
@@ -53,17 +150,57 @@ export function StudioLiveControl({
       .then(refreshReadiness)
       .catch(() => {});
   }, [refreshReadiness]);
-  const selectionKey = JSON.stringify(selection);
   const plan =
-    reviewedPlan && JSON.stringify(reviewedPlan.selection) === selectionKey
+    reviewedPlan && selectionIdentity(reviewedPlan.selection) === selectionKey
       ? reviewedPlan
       : null;
-  const approvalKey = plan ? `${plan.id}:${plan.digest}:${selectionKey}` : null;
+  const approvalKey = plan ? reviewIdentity(plan, termsVersion) : null;
   const isConfirmed = approvalKey !== null && confirmed === approvalKey;
+  const generateReasons = [
+    busy && "A Studio operation is still running. Wait for it to finish.",
+    !available &&
+      (blockers.join(" ") ||
+        "Pilot readiness has not been verified. Refresh Studio."),
+    disabled &&
+      (disabledReason ||
+        "Finish the upload and select a valid audio excerpt and prompt."),
+    !consent && "Confirm rights for this selection and the current Terms.",
+    !english && "Confirm that the composed prompt is English.",
+    !plan &&
+      (reviewedPlan
+        ? "Selection changed. Review real video cost for the current selection."
+        : "Review real video cost to load a prepared project."),
+    plan &&
+      plan.state !== "prepared" &&
+      `Project is ${plan.state}; use its saved project for status or recovery. Do not resubmit.`,
+    plan?.providerJobId &&
+      "This project already has a provider task. Open the saved project to recover it.",
+    plan &&
+      !plan.digest &&
+      "The project has no reviewed policy digest. Review real video cost again.",
+    plan &&
+      (plan.ceilingMicroUsd === null ||
+        !Number.isSafeInteger(plan.ceilingMicroUsd) ||
+        plan.ceilingMicroUsd <= 0) &&
+      "A valid reviewed spending ceiling is required.",
+    plan &&
+      !plan.budget &&
+      (plan.budgetBlocker ||
+        "Current budget authorization is unavailable. Review / renew EUR 50 budget."),
+    plan?.budget && plan.budgetBlocker,
+    plan?.budget &&
+      plan.ceilingMicroUsd !== null &&
+      plan.budget.remainingMicroUsd < plan.ceilingMicroUsd &&
+      "Remaining cumulative budget is below this project's spending ceiling. Existing reservations remain counted.",
+    plan &&
+      !isConfirmed &&
+      "Approve one paid generation of this exact reviewed project and spending ceiling below.",
+  ].filter(
+    (reason): reason is string => typeof reason === "string" && !!reason,
+  );
   if (!pilot) return null;
   async function prepare(repeatOf?: string) {
-    setConfirmed(null);
-    setPlan(null);
+    ++reviewRevision.current;
     setBusy(true);
     setError("");
     setRecordingNotice("");
@@ -80,8 +217,12 @@ export function StudioLiveControl({
           ...(repeatOf ? { repeatOf } : {}),
         }),
       });
+      if (currentSelection.current !== selectionKey) return;
+      const approval =
+        confirmed === reviewIdentity(result, termsVersion) ? confirmed : null;
       setPlan(result);
-      setConfirmed(null);
+      setConfirmed(approval);
+      saveReceipt(result, approval);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -89,7 +230,8 @@ export function StudioLiveControl({
     }
   }
   async function submit() {
-    if (!plan || !isConfirmed) return;
+    if (!plan || generateReasons.length) return;
+    ++reviewRevision.current;
     setBusy(true);
     setError("");
     try {
@@ -108,7 +250,7 @@ export function StudioLiveControl({
       router.push(`/projects/live_${plan.id}`);
     } catch (e) {
       setConfirmed(null);
-      setPlan(null);
+      if (plan) saveReceipt(plan, null);
       setError((e as Error).message);
     } finally {
       setBusy(false);
@@ -139,7 +281,11 @@ export function StudioLiveControl({
         <input
           type="checkbox"
           checked={english}
-          onChange={(e) => setEnglish(e.target.checked)}
+          disabled={busy}
+          onChange={(e) => {
+            setEnglish(e.target.checked);
+            if (plan) saveReceipt(plan, confirmed, e.target.checked);
+          }}
         />
         The composed prompt is English.
       </label>
@@ -178,6 +324,20 @@ export function StudioLiveControl({
             setConfirmed(null);
           }}
         />
+      )}
+      {generateReasons.length > 0 && (
+        <div
+          id="studio-generate-blockers"
+          role="status"
+          aria-label="Generation blockers"
+        >
+          <strong>Generate is unavailable:</strong>
+          <ul>
+            {generateReasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+        </div>
       )}
       {plan && (
         <>
@@ -244,9 +404,13 @@ export function StudioLiveControl({
                 <input
                   type="checkbox"
                   checked={isConfirmed}
-                  onChange={(e) =>
-                    setConfirmed(e.target.checked ? approvalKey : null)
-                  }
+                  disabled={busy}
+                  onChange={(e) => {
+                    ++reviewRevision.current;
+                    const approval = e.target.checked ? approvalKey : null;
+                    setConfirmed(approval);
+                    saveReceipt(plan, approval);
+                  }}
                 />
                 {plan.experimental
                   ? "I explicitly approve one experimental paid generation and this finite budget reservation. Generated duration, fees and media properties are unknown; actual provider charges are not guaranteed by the reservation. Out-of-bounds output will be rejected without refund or automatic retry."
@@ -254,19 +418,8 @@ export function StudioLiveControl({
               </label>
               <button
                 className="button primary"
-                disabled={
-                  busy ||
-                  !isConfirmed ||
-                  !consent ||
-                  !english ||
-                  disabled ||
-                  !plan.digest ||
-                  !plan.budget ||
-                  (plan.budget?.remainingMicroUsd ?? 0) <
-                    (plan.ceilingMicroUsd ?? 0) ||
-                  plan.ceilingMicroUsd === null ||
-                  JSON.stringify(plan.selection) !== selectionKey
-                }
+                disabled={generateReasons.length > 0}
+                aria-describedby="studio-generate-blockers"
                 onClick={() => void submit()}
               >
                 Generate ONE real video

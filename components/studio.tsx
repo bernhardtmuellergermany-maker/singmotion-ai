@@ -603,6 +603,19 @@ export function Studio() {
               disabled={
                 busy || uploading || !validSegment || end - start < 4 || !prompt
               }
+              disabledReason={
+                busy
+                  ? "Another Studio operation is running. Wait for it to finish."
+                  : uploading
+                    ? "The media upload is still running. Wait for it to finish."
+                    : !validSegment
+                      ? "Select a valid excerpt within the uploaded song."
+                      : end - start < 4
+                        ? "The private pilot requires at least 4 seconds of audio."
+                        : !prompt
+                          ? "Choose valid performance/camera settings and a valid prompt."
+                          : undefined
+              }
             />
             <p className="demo-disclaimer">
               <ShieldCheck size={13} /> Simulated render. A fixed sample, not a
