@@ -25,7 +25,7 @@ export function outputFailureCode(error: unknown): string {
   if (message === "Provider output connection failed or timed out." ||
       error.name === "TimeoutError" || error.name === "AbortError")
     return "OUTPUT_CONNECTION_FAILED";
-  if (message === "Provider output HTTP status rejected." ||
+  if (message === "Provider output HTTP status rejected; redirects are forbidden." ||
       message === "Provider download did not return a complete file.")
     return "OUTPUT_HTTP_REJECTED";
   if (message.includes("too large") || message.includes("length/encoding") ||
