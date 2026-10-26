@@ -1,3 +1,8 @@
+import {
+  offerStudioBudget,
+  authorizeStudioBudget,
+} from "@/lib/live/studio-budget-review";
+import { FxReferenceError } from "@/lib/live/fx-reference";
 import { createHash } from "node:crypto";
 import { NextRequest } from "next/server";
 import { getPayload } from "payload";
@@ -139,10 +144,16 @@ async function handler(req: NextRequest) {
       let budget = null;
       try {
         budget = await service.currentBudget();
-      } catch {
-        blockers.push(
-          "EUR 50 total-budget conversion/fee review is missing or expired; existing reservations remain counted.",
-        );
+        if (budget.remainingMicroUsd <= 0)
+          blockers.push(
+            "The cumulative spending allowance is exhausted. Renewal does not reset prior reservations or increase server caps.",
+          );
+      } catch (e) {
+        const message =
+          e instanceof StudioLiveError
+            ? e.message
+            : "EUR 50 total-budget conversion/fee review is missing or expired; existing reservations remain counted.";
+        if (!blockers.includes(message)) blockers.push(message);
       }
       return json({
         budget,
@@ -174,6 +185,26 @@ async function handler(req: NextRequest) {
       await reader.cancel();
     }
     const body = JSON.parse(Buffer.concat(chunks).toString());
+    if (body.action === "budget-review")
+      return json(
+        await offerStudioBudget(
+          service.store.db,
+          String(user!.id),
+          owner,
+          service.config.maxTotalMicroUsd,
+        ),
+      );
+    if (body.action === "budget-authorize")
+      return json(
+        authorizeStudioBudget(
+          service.store.db,
+          String(user!.id),
+          owner,
+          service.config.maxTotalMicroUsd,
+          body.offerId,
+          body.acknowledgment,
+        ),
+      );
     if (body.action === "rights-status") {
       const selection = parseStudioDraft(body.selection);
       if (selection.owner !== owner)
@@ -287,6 +318,8 @@ async function handler(req: NextRequest) {
     if (body.action === "poll") return json(await service.poll(body.id, owner));
     throw new StudioLiveError("ACTION_INVALID", "Unsupported Studio action.");
   } catch (e) {
+    if (e instanceof FxReferenceError)
+      return json({ error: e.message, code: "BUDGET_REVIEW_REQUIRED" }, 400);
     if (e instanceof StudioLiveError || e instanceof AppError)
       return json(
         {

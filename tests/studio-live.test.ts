@@ -1487,3 +1487,100 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
     delete process.env.AUDIO_TEMPO_ENABLED;
   }
 });
+
+test("Studio budget renewal replaces expired currency review while retaining genuine blockers and reservations", async () => {
+  const {
+    offerStudioBudget,
+    authorizeStudioBudget,
+    studioBudgetAcknowledgment,
+  } = await import("../lib/live/studio-budget-review.ts");
+  const f = await fixture();
+  const expiredCurrency = {
+    ...policy,
+    eurBudget: { ...policy.eurBudget!, validUntil: "2000-01-01" },
+  };
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    { ...f.service.dependencies, policy: async () => expiredCurrency },
+  );
+  const history = f.store.prepare(
+    { ...f.store.get(f.plan.id).media, sourceJobId: "historical-operator" },
+    "mock",
+    8640000,
+  );
+  f.store.db
+    .prepare("UPDATE live_attempts SET reserved_micro_usd=?,data=? WHERE id=?")
+    .run(
+      8640000,
+      JSON.stringify({
+        ...history,
+        state: "failed",
+        providerJobId: "retained-task",
+      }),
+      history.id,
+    );
+  await assert.rejects(service.currentBudget(), /EUR50_REVIEW_REQUIRED/);
+  const offer = await offerStudioBudget(
+    f.store.db,
+    "staff",
+    owner,
+    50000000,
+    async () =>
+      new Response(
+        `<Cube time='${new Date().toISOString().slice(0, 10)}'><Cube currency='USD' rate='1.1'/></Cube>`,
+      ),
+  );
+  authorizeStudioBudget(
+    f.store.db,
+    "staff",
+    owner,
+    50000000,
+    offer.id,
+    studioBudgetAcknowledgment,
+  );
+  assert.equal((await service.currentBudget()).reservedMicroUsd, 8640000);
+  assert.equal((await service.withCurrentBudget(f.plan)).budgetBlocker, null);
+  const plan = await service.prepare(
+    { ...f.selection, customPrompt: "Reviewed budget renewal" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  assert.ok(plan.budget!.remainingMicroUsd > plan.ceilingMicroUsd!);
+  assert.equal(f.counts().submits, 0);
+  const submit = () =>
+    service.submit(
+      plan.id,
+      owner,
+      plan.digest,
+      plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`,
+    );
+  f.store.db
+    .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+    .run(
+      JSON.stringify({ ...f.store.get(history.id), state: "uncertain" }),
+      history.id,
+    );
+  await assert.rejects(submit(), /ONE_ACTIVE_GENERATION/);
+  assert.equal(f.counts().submits, 0);
+  const expiredPolicy = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    {
+      ...f.service.dependencies,
+      policy: async () => ({ ...expiredCurrency, expiresAt: "2000-01-01" }),
+    },
+  );
+  await assert.rejects(expiredPolicy.currentBudget());
+  assert.equal(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(history.id)!.reserved_micro_usd,
+    8640000,
+  );
+});

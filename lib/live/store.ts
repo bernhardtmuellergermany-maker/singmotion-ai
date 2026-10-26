@@ -1,3 +1,4 @@
+import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget } from "./studio-budget.ts";
 import {
   contractDigest,
@@ -343,8 +344,11 @@ export class LiveTestStore {
           .get() as { n: number }
       ).n,
     );
-    return euroBudget(config.eurBudget, reserved, config.maxTotalMicroUsd)
-      .usdCapMicro;
+    return euroBudget(
+      latestStudioBudget(this.db) ?? config.eurBudget,
+      reserved,
+      config.maxTotalMicroUsd,
+    ).usdCapMicro;
   }
   authorize(
     id: string,

@@ -49,6 +49,16 @@ try {
     const page = await browser.newPage({ viewport: { width, height: 900 } });
     page.on("pageerror", (error) => console.error(error.message));
     const posts: Record<string, unknown>[] = [];
+    let budgetSaved = false,
+      workerBlocked = true;
+    const budget = {
+      totalMicroEur: 50000000,
+      reservedMicroUsd: 8640000,
+      usdCapMicro: 20000000,
+      remainingMicroUsd: 11360000,
+      remainingMicroEur: 22720000,
+      basis: "planning-allowance",
+    };
     await page.route("**/*", async (route) => {
       const url = new URL(route.request().url());
       if (url.pathname === "/")
@@ -66,10 +76,46 @@ try {
       if (url.pathname === "/api/studio-live") {
         if (route.request().method() === "GET")
           return route.fulfill({
-            json: { available: true, pilot: true, blockers: [] },
+            json: {
+              available: budgetSaved && !workerBlocked,
+              pilot: true,
+              budget: budgetSaved ? budget : null,
+              blockers: !budgetSaved
+                ? [
+                    "EUR 50 total-budget conversion/fee review is missing or expired",
+                  ]
+                : workerBlocked
+                  ? ["Recovery worker is offline"]
+                  : [],
+            },
           });
         const body = route.request().postDataJSON();
         posts.push(body);
+        if (body.action === "budget-review")
+          return route.fulfill({
+            json: {
+              id: "mock-offer",
+              reference: {
+                source:
+                  "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml",
+                asOf: "2026-10-26",
+                usdPerEur: "1.1",
+              },
+              review: {
+                eurPerUsdUpperPpm: 1818182,
+                validUntil: "2026-10-27T00:00:00Z",
+              },
+              budget,
+            },
+          });
+        if (body.action === "budget-authorize") {
+          assert.equal(
+            body.acknowledgment,
+            "AUTHORIZE_EUR50_STUDIO_PLANNING_NOT_A_FEE_GUARANTEE",
+          );
+          budgetSaved = true;
+          return route.fulfill({ json: { budget } });
+        }
         return route.fulfill({
           json: {
             budget: {
@@ -98,6 +144,48 @@ try {
     await review.waitFor();
     assert.equal(await review.isDisabled(), true);
     await page.getByLabel("The composed prompt is English.").check();
+    assert.equal(await review.isDisabled(), true);
+    for (let renewal = 0; renewal < 2; renewal++) {
+      await page
+        .getByRole("button", {
+          name: "Review / renew EUR 50 budget",
+          exact: true,
+        })
+        .click();
+      const save = page.getByRole("button", {
+        name: "Save budget authorization — no generation",
+        exact: true,
+      });
+      await save.waitFor();
+      assert.equal(await save.isDisabled(), true);
+      assert.ok(
+        await page
+          .getByText(/All historical reservations remain: USD 8.64/)
+          .count(),
+      );
+      await page
+        .getByLabel(/I authorize the existing EUR 50 TOTAL budget/)
+        .check();
+      await save.click();
+      await save.waitFor({ state: "detached" });
+      if (renewal === 0) {
+        await page
+          .getByText("Recovery worker is offline", { exact: true })
+          .waitFor();
+        assert.equal(await review.isDisabled(), true);
+        workerBlocked = false;
+      }
+    }
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("button")].some(
+        (b) => b.textContent?.includes("Review real video cost") && !b.disabled,
+      ),
+    );
+    assert.equal(
+      posts.some((p) => p.action === "submit" || p.action === "prepare"),
+      false,
+    );
+    posts.length = 0;
     await review.click();
     const submit = page.getByRole("button", {
       name: "Generate ONE real video",

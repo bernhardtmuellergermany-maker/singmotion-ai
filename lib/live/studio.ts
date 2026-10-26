@@ -1,3 +1,4 @@
+import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget, type EuroBudget } from "./studio-budget.ts";
 import { reservedUsd, secondReview } from "./second-test.ts";
 /** Studio projects use the SAME reservation ledger; operator slots are never touched. */
@@ -115,6 +116,7 @@ export class StudioWorkflow {
   private budgetReview(policy: StudioPolicy): EuroBudget | undefined {
     const slot = this.store.secondTest();
     return (
+      latestStudioBudget(this.store.db) ??
       policy.eurBudget ??
       (slot ? secondReview(this.store, slot.attempt_id) : undefined)
     );

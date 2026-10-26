@@ -1,10 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioWorkflow, StudioProject } from "@/lib/live/studio";
+import { StudioBudgetReview } from "./studio-budget";
+import type { offerStudioBudget } from "@/lib/live/studio-budget-review";
 const usd = (micro: number) => `USD ${(micro / 1000000).toFixed(2)}`;
 export function StudioLiveControl({
   selection,
@@ -21,6 +23,9 @@ export function StudioLiveControl({
 }) {
   const [available, setAvailable] = useState(false),
     [pilot, setPilot] = useState(false),
+    [budget, setBudget] = useState<
+      Awaited<ReturnType<typeof offerStudioBudget>>["budget"] | null
+    >(null),
     [blockers, setBlockers] = useState<string[]>([]),
     [reviewedPlan, setPlan] = useState<StudioProject | null>(null),
     [error, setError] = useState(""),
@@ -28,20 +33,24 @@ export function StudioLiveControl({
     [english, setEnglish] = useState(false),
     [confirmed, setConfirmed] = useState<string | null>(null);
   const router = useRouter();
+  const refreshReadiness = useCallback(async () => {
+    await ensureSession();
+    const r = await api<{
+      available: boolean;
+      pilot?: boolean;
+      blockers: string[];
+      budget?: Awaited<ReturnType<typeof offerStudioBudget>>["budget"] | null;
+    }>("studio-live");
+    setAvailable(r.available);
+    setPilot(r.pilot === true);
+    setBlockers(r.blockers || []);
+    setBudget(r.budget || null);
+  }, []);
   useEffect(() => {
     void ensureSession()
-      .then(() =>
-        api<{ available: boolean; pilot?: boolean; blockers: string[] }>(
-          "studio-live",
-        ),
-      )
-      .then((r) => {
-        setAvailable(r.available);
-        setPilot(r.pilot === true);
-        setBlockers(r.blockers || []);
-      })
+      .then(refreshReadiness)
       .catch(() => {});
-  }, []);
+  }, [refreshReadiness]);
   const selectionKey = JSON.stringify(selection);
   const plan =
     reviewedPlan && JSON.stringify(reviewedPlan.selection) === selectionKey
@@ -114,6 +123,15 @@ export function StudioLiveControl({
           {b}
         </p>
       ))}
+      <StudioBudgetReview
+        budget={budget}
+        onSaved={async () => {
+          setAvailable(false);
+          setPlan(null);
+          setConfirmed(null);
+          await refreshReadiness();
+        }}
+      />
       <label className="consent">
         <input
           type="checkbox"
