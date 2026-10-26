@@ -186,8 +186,11 @@ export function studioConfig(
     demoMode: false,
     enabled: env.BYTEPLUS_STUDIO_ENABLED === "true",
     operatorSecret: env.BYTEPLUS_STUDIO_OPERATOR_SECRET || "",
-    maxJobMicroUsd: number("BYTEPLUS_STUDIO_MAX_JOB_MICRO_USD"),
-    maxTotalMicroUsd: number("BYTEPLUS_STUDIO_MAX_TOTAL_MICRO_USD"),
+    // Studio uses the reviewed EUR 50 authorization as its sole monetary budget.
+    // Do not constrain it with legacy independent USD job/total test caps.
+    // The durable reservation ledger and euroBudget() still gate every submission.
+    maxJobMicroUsd: Number.MAX_SAFE_INTEGER,
+    maxTotalMicroUsd: Number.MAX_SAFE_INTEGER,
     maxDurationSeconds: number("BYTEPLUS_STUDIO_MAX_DURATION_SECONDS"),
   };
 }
