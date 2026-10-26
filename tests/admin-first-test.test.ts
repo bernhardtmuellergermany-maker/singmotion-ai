@@ -723,13 +723,13 @@ test("discovery acceptance rejects non-720p media and over-bound duration", asyn
     discover720p: true,
     output: { width: 0, height: 0, fps: 0, durationToleranceSeconds: 2.5 },
   };
-  await assert.rejects(validateOutput(wrong, 3.5, policy), /failed duration/);
+  await assert.rejects(validateOutput(wrong, 3.5, policy), /OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_320x180_EXPECTED_720P/);
   await assert.rejects(
     validateOutput(video, 1, {
       ...policy,
       output: { ...policy.output, durationToleranceSeconds: 0.1 },
     }),
-    /failed duration/,
+    /OUTPUT_DURATION_MISMATCH/,
   );
 });
 

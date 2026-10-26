@@ -4,7 +4,6 @@ import {
   mkdtemp,
   mkdir,
   readFile,
-  copyFile,
   writeFile,
   stat,
   rm,
@@ -23,6 +22,7 @@ import {
   validateRestored,
   checkTempoSubmission,
 } from "../lib/live/tempo.ts";
+import { downloadValidatedOutput } from "../lib/live/output.ts";
 import { sha256File } from "../lib/live/media.ts";
 import { trimAudio } from "../lib/media.ts";
 import { LiveTestStore, type PreparedMedia } from "../lib/live/store.ts";
@@ -135,7 +135,7 @@ const contract: VerifiedContract = {
   outputHosts: ["approved.example.test"],
   output: {
     width: 720,
-    height: 720,
+    height: 1280,
     fps: 25,
     durationToleranceSeconds: 0.2,
     maxDurationSeconds: 8,
@@ -294,7 +294,7 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
     "-f",
     "lavfi",
     "-i",
-    "color=black:s=720x720:r=25",
+    "color=black:s=1280x720:r=25",
     "-i",
     slow.audioPath,
     "-t",
@@ -405,7 +405,8 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   store.db
     .prepare("UPDATE live_attempts SET data=?,reserved_micro_usd=? WHERE id=?")
     .run(JSON.stringify(pending), cost, job.id);
-  let polls = 0;
+  let polls = 0,
+    downloads = 0;
   const runner = new LiveTestRunner(
     store,
     {
@@ -430,12 +431,37 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
       maxDurationSeconds: 10,
     },
     path.join(root, "live-output"),
-    async (_url, destination) => {
-      await copyFile(raw, destination);
+    async (url, destination, duration, policy) => {
+      if (++downloads === 1)
+        throw new Error(
+          "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_1280x720_EXPECTED_720x1280",
+        );
+      await downloadValidatedOutput(
+        url,
+        destination,
+        duration,
+        policy,
+        async () => new Response(await readFile(raw)),
+      );
     },
     true,
   );
+  const blocked = await runner.pollOnce(job.id);
+  assert.equal(blocked.state, "processing");
+  assert.equal(blocked.providerJobId, pending.providerJobId);
+  assert.equal(
+    blocked.failureCode,
+    "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_1280x720_EXPECTED_720x1280",
+  );
   const done = await runner.pollOnce(job.id);
+  assert.equal(done.providerJobId, pending.providerJobId);
+  assert.equal(polls, 1); // cached output recovery, no submission or extra provider poll
+  assert.equal(
+    store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(job.id)!.reserved_micro_usd,
+    cost,
+  );
   assert.equal(done.state, "completed");
   await validateRestored(done.outputPath!, slow, full);
   store.db

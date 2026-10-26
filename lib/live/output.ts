@@ -63,6 +63,26 @@ export function outputDimensionDiagnostic(
   return `OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_${width}x${height}_EXPECTED_${expectedWidth}x${expectedHeight}`;
 }
 
+/** The reviewed 720p rectangle may be portrait or landscape, with exactly the
+ * same side lengths and pixel budget. This does not approve other aspect ratios,
+ * arbitrary short-side-720 sizes, FPS or codecs, or assert provider guarantees. */
+export function matchesReviewedDimensions(
+  width: unknown,
+  height: unknown,
+  expectedWidth: number,
+  expectedHeight: number,
+): boolean {
+  if (width === expectedWidth && height === expectedHeight) return true;
+  return (
+    Number.isInteger(expectedWidth) &&
+    Number.isInteger(expectedHeight) &&
+    Math.min(expectedWidth, expectedHeight) === 720 &&
+    Math.max(expectedWidth, expectedHeight) <= 4096 &&
+    width === expectedHeight &&
+    height === expectedWidth
+  );
+}
+
 export async function validateOutput(
   file: string,
   duration: number,
@@ -91,8 +111,9 @@ export async function validateOutput(
       !Number.isInteger(video.height) ||
       Math.min(video.width!, video.height!) !== 720 ||
       Math.max(video.width!, video.height!) > 4096
-    : video.width !== contract.output.width ||
-      video.height !== contract.output.height)
+    : !matchesReviewedDimensions(
+        video.width, video.height, contract.output.width, contract.output.height,
+      ))
     throw new Error(
       outputDimensionDiagnostic(
         video?.width,

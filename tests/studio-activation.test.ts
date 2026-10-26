@@ -414,14 +414,14 @@ test("experimental planning is labeled, separately acknowledged and never relaxe
       ...band.contract,
       output: { ...band.contract.output, maxDurationSeconds: 4 },
     }),
-    /validation/,
+    /OUTPUT_DURATION_MISMATCH/,
   );
   await assert.rejects(
     validateOutput(file, 5, {
       ...band.contract,
       output: { ...band.contract.output, fps: 99 },
     }),
-    /validation/,
+    /OUTPUT_FRAMERATE_MISMATCH/,
   );
   await assert.rejects(
     downloadValidatedOutput(
