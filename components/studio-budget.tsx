@@ -104,8 +104,8 @@ export function StudioBudgetReview({
             All historical reservations remain: USD{" "}
             {(offer.budget.reservedMicroUsd / 1e6).toFixed(2)}. Remaining
             allowance: EUR {(offer.budget.remainingMicroEur / 1e6).toFixed(2)} /
-            USD {(offer.budget.remainingMicroUsd / 1e6).toFixed(2)}. Existing
-            server USD and per-job caps still apply. Valid until{" "}
+            USD {(offer.budget.remainingMicroUsd / 1e6).toFixed(2)}. Each new video requires its own reviewed inclusive cost ceiling;
+            there is no separate Studio USD job or total cap. Valid until{" "}
             {offer.review.validUntil}.
           </p>
           <label className="consent">
