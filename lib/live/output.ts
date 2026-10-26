@@ -45,6 +45,24 @@ export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
     );
   return url;
 }
+/** Only bounded numeric dimensions, never paths, URLs or probe metadata, enter diagnostics. */
+export function outputDimensionDiagnostic(
+  width: unknown,
+  height: unknown,
+  expectedWidth: unknown,
+  expectedHeight: unknown,
+  discover720p: boolean,
+): string {
+  const safe = (value: unknown): value is number =>
+    typeof value === "number" && Number.isInteger(value) && value > 0 && value <= 8192;
+  if (!safe(width) || !safe(height)) return "OUTPUT_DIMENSIONS_MISMATCH";
+  if (discover720p)
+    return `OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_${width}x${height}_EXPECTED_720P`;
+  if (!safe(expectedWidth) || !safe(expectedHeight))
+    return "OUTPUT_DIMENSIONS_MISMATCH";
+  return `OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_${width}x${height}_EXPECTED_${expectedWidth}x${expectedHeight}`;
+}
+
 export async function validateOutput(
   file: string,
   duration: number,
@@ -75,7 +93,15 @@ export async function validateOutput(
       Math.max(video.width!, video.height!) > 4096
     : video.width !== contract.output.width ||
       video.height !== contract.output.height)
-    throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
+    throw new Error(
+      outputDimensionDiagnostic(
+        video?.width,
+        video?.height,
+        contract.output.width,
+        contract.output.height,
+        contract.discover720p === true,
+      ),
+    );
   if (!Number.isFinite(length) ||
       (contract.output.maxDurationSeconds !== undefined &&
        length > contract.output.maxDurationSeconds) ||
