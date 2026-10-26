@@ -4,7 +4,8 @@ import {
 } from "./output-transport.ts";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { open, unlink } from "node:fs/promises";
+import { open, unlink, mkdtemp, chmod, stat, rename, rm } from "node:fs/promises";
+import path from "node:path";
 import { isIP } from "node:net";
 import { probe } from "../media.ts";
 import type { VerifiedContract } from "./contract.ts";
@@ -185,6 +186,76 @@ export function outputTransferLimits(contract: OutputValidationContract) {
     throw new Error("Invalid reviewed output transfer limits.");
   return limits;
 }
+/** Operator-observed source rectangle, not a new provider format guarantee.
+ * Only this source -> reviewed portrait export is admitted for local conversion.
+ * Raw source is never published and no general resolution bypass is available. */
+export async function validateDownloadedOutput(
+  file: string,
+  duration: number,
+  contract: OutputValidationContract,
+) {
+  const source = await probe(file);
+  const video = source.streams.find(s => s.codec_type === "video");
+  if (contract.discover720p || contract.output.width !== 720 ||
+      contract.output.height !== 1280 || video?.width !== 786 || video.height !== 1178) {
+    await validateOutput(file, duration, contract);
+    return;
+  }
+  const metadata = video as typeof video & {
+    sample_aspect_ratio?: string; side_data_list?: { rotation?: number }[];
+  };
+  if (contract.output.videoCodec !== "h264" || contract.output.audioCodec !== "aac" ||
+      source.streams.length !== 2 || metadata.sample_aspect_ratio !== "1:1" ||
+      metadata.side_data_list?.some(s => s.rotation !== undefined && s.rotation !== 0))
+    throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
+  // Same codec/FPS/duration/container/full-decode checks, with an explicit source
+  // rectangle. This does not change the saved contract or the final-output policy.
+  await validateOutput(file, duration, {
+    ...contract, output: { ...contract.output, width: 786, height: 1178 },
+  });
+  const limits = outputTransferLimits(contract);
+  if ((await stat(file)).size > limits.maxBytes) throw new Error("Provider output is too large.");
+  const scratch = await mkdtemp(path.join(path.dirname(file), ".normalize-"));
+  const normalized = path.join(scratch, "normalized.mp4");
+  const exec = promisify(execFile);
+  const audioHash = async (input: string) => (await exec("ffmpeg", [
+    "-nostdin", "-v", "error", "-i", input, "-map", "0:a:0", "-c:a", "copy",
+    "-f", "hash", "-hash", "sha256", "-",
+  ], { timeout: 30000, maxBuffer: 1024 })).stdout.trim();
+  try {
+    await exec("ffmpeg", [
+      "-nostdin", "-v", "error", "-xerror", "-noautorotate", "-i", file,
+      "-map", "0:v:0", "-map", "0:a:0",
+      "-vf", "scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black",
+      "-c:v", "libx264", "-threads", "2", "-preset", "fast", "-crf", "18",
+      "-pix_fmt", "yuv420p", "-fps_mode", "passthrough", "-c:a", "copy",
+      "-map_metadata", "-1", "-movflags", "+faststart", "-fs", String(limits.maxBytes), normalized,
+    ], { timeout: 60000, maxBuffer: 1024 * 1024 });
+    await chmod(normalized, 0o600);
+    if ((await stat(normalized)).size >= limits.maxBytes)
+      throw new Error("Provider output is too large.");
+    await validateOutput(normalized, duration, contract);
+    const result = await probe(normalized);
+    // Resizing may not shorten or retime either stream, nor replace its soundtrack.
+    for (const kind of ["video", "audio"]) {
+      const before = source.streams.find(s => s.codec_type === kind) as
+        { duration?: string; start_time?: string; nb_frames?: string };
+      const after = result.streams.find(s => s.codec_type === kind) as typeof before;
+      if (![before, after].every(s => Number.isFinite(Number(s.duration)) && Number.isFinite(Number(s.start_time))) ||
+          Math.abs(Number(before.duration) - Number(after.duration)) > 1 / contract.output.fps ||
+          Math.abs(Number(before.start_time) - Number(after.start_time)) > 0.001 ||
+          (kind === "video" && (!before.nb_frames || before.nb_frames !== after.nb_frames)))
+        throw new Error("OUTPUT_NORMALIZATION_TIMING_FAILED");
+    }
+    if (await audioHash(file) !== await audioHash(normalized))
+      throw new Error("OUTPUT_NORMALIZATION_AUDIO_CHANGED");
+    // Only the newly downloaded private temporary file is replaced, never a
+    // retained customer upload, ledger record or previously published MP4.
+    await rename(normalized, file);
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
 /** No credentials are forwarded to output hosts and redirects are never followed. */
 export async function downloadValidatedOutput(
   raw: string,
@@ -236,7 +307,7 @@ export async function downloadValidatedOutput(
     if (advertised !== null && bytes !== advertised)
       throw new Error("Provider output length did not match.");
     await handle.close();
-    await validateOutput(file, duration, contract);
+    await validateDownloadedOutput(file, duration, contract);
     success = true;
   } finally {
     await reader.cancel().catch(() => {});

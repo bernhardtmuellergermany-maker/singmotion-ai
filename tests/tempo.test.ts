@@ -22,7 +22,10 @@ import {
   validateRestored,
   checkTempoSubmission,
 } from "../lib/live/tempo.ts";
-import { downloadValidatedOutput } from "../lib/live/output.ts";
+import {
+  downloadValidatedOutput,
+  type OutputValidationContract,
+} from "../lib/live/output.ts";
 import { sha256File } from "../lib/live/media.ts";
 import { trimAudio } from "../lib/media.ts";
 import { LiveTestStore, type PreparedMedia } from "../lib/live/store.ts";
@@ -111,7 +114,7 @@ const media: PreparedMedia = {
   prompt: "Sing",
   promptLanguageConfirmed: true,
 };
-const contract: VerifiedContract = {
+const contract: VerifiedContract & OutputValidationContract = {
   revision: "tempo-offline",
   model: "OmniHuman 2.0",
   documentationUrl: "https://example.test/",
@@ -136,6 +139,8 @@ const contract: VerifiedContract = {
   output: {
     width: 720,
     height: 1280,
+    videoCodec: "h264",
+    audioCodec: "aac",
     fps: 25,
     durationToleranceSeconds: 0.2,
     maxDurationSeconds: 8,
@@ -405,6 +410,20 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   store.db
     .prepare("UPDATE live_attempts SET data=?,reserved_micro_usd=? WHERE id=?")
     .run(JSON.stringify(pending), cost, job.id);
+  const unusual = path.join(root, "provider-786x1178.mp4");
+  ff([
+    "-i",
+    raw,
+    "-vf",
+    "scale=786:1178,setsar=1",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-c:a",
+    "copy",
+    unusual,
+  ]);
   let polls = 0,
     downloads = 0;
   const runner = new LiveTestRunner(
@@ -434,14 +453,14 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
     async (url, destination, duration, policy) => {
       if (++downloads === 1)
         throw new Error(
-          "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_1280x720_EXPECTED_720x1280",
+          "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_786x1178_EXPECTED_720x1280",
         );
       await downloadValidatedOutput(
         url,
         destination,
         duration,
         policy,
-        async () => new Response(await readFile(raw)),
+        async () => new Response(await readFile(unusual)),
       );
     },
     true,
@@ -451,7 +470,7 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   assert.equal(blocked.providerJobId, pending.providerJobId);
   assert.equal(
     blocked.failureCode,
-    "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_1280x720_EXPECTED_720x1280",
+    "OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_786x1178_EXPECTED_720x1280",
   );
   const done = await runner.pollOnce(job.id);
   assert.equal(done.providerJobId, pending.providerJobId);

@@ -17,7 +17,7 @@ import { type Attempt, type PreparedMedia, LiveTestStore } from "./store.ts";
 export function outputFailureCode(error: unknown): string {
   if (!(error instanceof Error)) return "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED";
   const message = error.message;
-  const detailCodes = new Set(["OUTPUT_FORMAT_INVALID", "OUTPUT_STREAM_MISSING", "OUTPUT_CODEC_MISMATCH", "OUTPUT_DIMENSIONS_MISMATCH", "OUTPUT_DURATION_MISMATCH", "OUTPUT_FRAMERATE_MISMATCH"]);
+  const detailCodes = new Set(["OUTPUT_FORMAT_INVALID", "OUTPUT_STREAM_MISSING", "OUTPUT_CODEC_MISMATCH", "OUTPUT_DIMENSIONS_MISMATCH", "OUTPUT_DURATION_MISMATCH", "OUTPUT_FRAMERATE_MISMATCH", "OUTPUT_NORMALIZATION_POLICY_REJECTED", "OUTPUT_NORMALIZATION_TIMING_FAILED", "OUTPUT_NORMALIZATION_AUDIO_CHANGED"]);
   if (detailCodes.has(message)) return message;
   // Accept only bounded numeric dimensions; never expose arbitrary provider errors.
   if (/^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})_EXPECTED_(?:(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})|720P)$/.test(message)) {
