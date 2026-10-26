@@ -204,70 +204,35 @@ test("rights confirmation is required, version-bound and records server actor/pr
   assert.equal(row.terms_version, termsVersion());
   assert.ok(Number(row.confirmed_at) <= Date.now());
 });
-test("off/default and absent or mismatched provider permission keep BytePlus original; approved 0.9x preserves pitch and original packets", async () => {
+test("flag-only activation preserves ownership, moderation, pitch and original packets without an authorization file", async () => {
   const before = await readFile(original),
     sourceBefore = await readFile(source);
   assert.equal(await tempoAuthorization(root, store, selection, owner), null);
+  for (const disabled of ["false", "TRUE", "1"]) {
+    process.env.AUDIO_TEMPO_ENABLED = disabled;
+    assert.equal(await tempoAuthorization(root, store, selection, owner), null);
+  }
   process.env.AUDIO_TEMPO_ENABLED = "true";
-  assert.equal(await tempoAuthorization(root, store, selection, owner), null);
-  const approval = {
-    provider: "BytePlus OmniHuman 2.0",
-    sourceSha256: await sha256File(source),
-    imageSha256: media.imageSha256,
-    owner,
-    explicitlyAllowsTempoProcessing: true,
-    evidence:
-      "MOCK provider authorization explicitly covering this recording and tempo processing.",
-    expiresAt: new Date(Date.now() + 86400000).toISOString(),
-  };
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify({ ...approval, sourceSha256: "wrong" }),
+  // No operator-created file exists; activation works with the existing flag only.
+  const first = await tempoAuthorization(root, store, selection, owner);
+  assert.ok(first);
+  // Legacy authorization administration is ignored, never modified or deleted.
+  const legacyFile = path.join(root, "byteplus-tempo-authorization.json");
+  await writeFile(legacyFile, "legacy invalid JSON; must not be consulted");
+  assert.deepEqual(
+    await tempoAuthorization(root, store, selection, owner),
+    first,
   );
-  assert.equal(await tempoAuthorization(root, store, selection, owner), null);
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify(approval),
-  );
-  assert.ok(await tempoAuthorization(root, store, selection, owner));
-  // Broader permission is opt-in, reviewed and owner-scoped, never inferred from API access.
-  const broad = {
-    ...approval,
-    scope: "standard-preprocessing",
-    sourceSha256: undefined,
-    imageSha256: undefined,
-    coversAllOwnedRecordings: true,
-    reviewedBy: "Mock operator",
-    reviewedAt: new Date().toISOString(),
-  };
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify({ ...broad, reviewedBy: "" }),
+  assert.equal(
+    await readFile(legacyFile, "utf8"),
+    "legacy invalid JSON; must not be consulted",
   );
   await assert.rejects(
-    tempoAuthorization(root, store, selection, owner),
-    /dated provider-evidence review/,
-  );
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify({ ...broad, owner: "other" }),
-  );
-  assert.equal(await tempoAuthorization(root, store, selection, owner), null);
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify(broad),
-  );
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify({ ...broad, expiresAt: "2000-01-01T00:00:00Z" }),
+    tempoAuthorization(root, store, { ...selection, owner: "other" }, owner),
+    /ownership/,
   );
   await assert.rejects(
-    tempoAuthorization(root, store, selection, owner),
-    /expired/,
-  );
-  await writeFile(
-    path.join(root, "byteplus-tempo-authorization.json"),
-    JSON.stringify(broad),
+    tempoAuthorization(root, store, { ...selection, owner: "other" }, "other"),
   );
   const authorization = (await tempoAuthorization(
     root,
@@ -277,6 +242,32 @@ test("off/default and absent or mismatched provider permission keep BytePlus ori
   ))!;
   const slow = await slowExcerpt(media, root, "song", authorization, 10);
   assert.ok(Math.abs(slow.durationSeconds * 0.9 - duration) < 0.2);
+  await assert.rejects(
+    checkTempoSubmission(
+      {
+        ...slow,
+        tempo: { ...slow.tempo!, authorizationDigest: "legacy-file-review" },
+      },
+      root,
+      store,
+      selection,
+    ),
+    /fresh cost review/,
+  );
+
+  // Automatic binding still detects changed original audio/image bytes without manual hashes.
+  for (const file of [source, image]) {
+    const bytes = await readFile(file);
+    try {
+      await writeFile(file, Buffer.concat([bytes, Buffer.from([0])]));
+      await assert.rejects(
+        checkTempoSubmission(slow, root, store, selection),
+        /fresh cost review/,
+      );
+    } finally {
+      await writeFile(file, bytes);
+    }
+  }
   const pcm = ff([
     "-i",
     slow.audioPath,
@@ -402,6 +393,11 @@ test("off/default and absent or mismatched provider permission keep BytePlus ori
   );
   const pending = {
     ...job,
+    // Already-submitted legacy-file plans recover without reauthorization or resubmission.
+    media: {
+      ...slow,
+      tempo: { ...slow.tempo!, authorizationDigest: "legacy-file-review" },
+    },
     state: "processing",
     providerJobId: "mock-tempo-task",
     contractDigest: contractDigest(full),

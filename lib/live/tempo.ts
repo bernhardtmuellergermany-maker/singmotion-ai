@@ -2,14 +2,7 @@
 import { AppError } from "../domain.ts";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import {
-  readFile,
-  stat,
-  copyFile,
-  unlink,
-  chmod,
-  realpath,
-} from "node:fs/promises";
+import { stat, copyFile, unlink, chmod, realpath } from "node:fs/promises";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import type { PreparedMedia, LiveTestStore } from "./store.ts";
@@ -20,21 +13,6 @@ import { probe, validateAudio } from "../media.ts";
 import { validateOutput, outputTransferLimits } from "./output.ts";
 import { validateEncodedDuration, validateOmniAudio } from "./limits.ts";
 const exec = promisify(execFile);
-export interface TempoAuthorization {
-  /** Omitted means the original exact-recording scope. */
-  scope?: "recording" | "standard-preprocessing";
-  sourceSha256?: string;
-  imageSha256?: string;
-  /** Required for broader permission, reviewed against actual provider scope. */
-  coversAllOwnedRecordings?: true;
-  reviewedBy?: string;
-  reviewedAt?: string;
-  owner: string;
-  provider: "BytePlus OmniHuman 2.0";
-  explicitlyAllowsTempoProcessing: true;
-  evidence: string;
-  expiresAt: string;
-}
 export interface TempoMetadata {
   rate: 0.9;
   /** Decoded samples exclude MP3 encoder delay/padding; absent on legacy plans. */
@@ -121,59 +99,29 @@ export async function tempoAuthorization(
   owner: string,
 ) {
   if (process.env.AUDIO_TEMPO_ENABLED !== "true") return null;
-  let text: string;
-  try {
-    text = await readFile(
-      path.join(root, "byteplus-tempo-authorization.json"),
-      "utf8",
-    );
-  } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
-    throw e;
-  }
-  if (text.length > 16384)
-    throw new AppError("Tempo authorization exceeds size limit.");
-  const a = JSON.parse(text) as TempoAuthorization;
+  // The operator enables the standard workflow under their existing provider
+  // authorization. This flag neither grants rights nor overrides moderation.
+  // Hashes are automatic integrity/provenance binding, not an authorization form.
+  if (selection.owner !== owner)
+    throw new AppError("Draft ownership mismatch.", 403);
   const { asset } = await import("../db.ts");
   const source = asset(selection.songId, owner),
     image = asset(selection.imageId, owner);
   const sourceSha256 = await sha256File(await privateFile(root, source.path));
   const imageSha256 = await sha256File(await privateFile(root, image.path));
-  if (a.owner !== owner) return null;
-  const broad = a.scope === "standard-preprocessing";
-  if (a.scope !== undefined && a.scope !== "recording" && !broad)
-    throw new AppError("Unknown provider tempo authorization scope.");
-  if (
-    !broad &&
-    (a.sourceSha256 !== sourceSha256 || a.imageSha256 !== imageSha256)
-  )
-    return null;
-  if (
-    broad &&
-    (a.coversAllOwnedRecordings !== true ||
-      typeof a.reviewedBy !== "string" ||
-      !a.reviewedBy.trim() ||
-      !Number.isFinite(Date.parse(a.reviewedAt || "")) ||
-      Date.parse(a.reviewedAt!) > Date.now())
-  )
-    throw new AppError(
-      "Standard preprocessing permission requires explicit scope and a dated provider-evidence review.",
-    );
-  if (
-    a.provider !== "BytePlus OmniHuman 2.0" ||
-    a.explicitlyAllowsTempoProcessing !== true ||
-    typeof a.evidence !== "string" ||
-    a.evidence.trim().length < 20 ||
-    !Number.isFinite(Date.parse(a.expiresAt)) ||
-    Date.parse(a.expiresAt) <= Date.now()
-  )
-    throw new AppError(
-      "Matching provider tempo authorization is incomplete or expired.",
-    );
   await rejectedRecording(store, selection.songId, sourceSha256);
   return {
     sourceSha256,
-    digest: createHash("sha256").update(text).digest("hex"),
+    digest: createHash("sha256")
+      .update(
+        JSON.stringify([
+          "operator-standard-tempo-0.9-v1",
+          owner,
+          sourceSha256,
+          imageSha256,
+        ]),
+      )
+      .digest("hex"),
   };
 }
 async function ffmpeg(args: string[]) {
@@ -285,7 +233,7 @@ export async function checkTempoSubmission(
   const current = await tempoAuthorization(root, store, selection, media.owner);
   if (!current || current.digest !== media.tempo.authorizationDigest)
     throw new AppError(
-      "Tempo authorization changed or processing is disabled; no submission.",
+      "Tempo review changed or processing is disabled; prepare a fresh cost review. No submission.",
     );
   await rejectedRecording(
     store,

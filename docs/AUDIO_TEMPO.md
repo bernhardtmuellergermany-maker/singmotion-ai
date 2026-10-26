@@ -1,7 +1,11 @@
 # Private Studio tempo processing
 
-OFF by default. Normal BytePlus audio is unchanged unless both
-AUDIO_TEMPO_ENABLED=true and a valid scoped provider authorization exist.
+OFF by default. `AUDIO_TEMPO_ENABLED=true` enables standard pitch-preserving
+0.9x processing under the operator's existing BytePlus authorization. No custom
+authorization file, SSH, recording/image-hash entry or additional permission
+checkbox is required. The flag is an operator configuration decision, not proof
+of provider permission. It does not expand the actual authorization scope.
+Leave it OFF if that authorization does not cover the workflow or selected content.
 Rights confirmation is required regardless of the flag. The unchecked checkbox
 links to /terms and is validated against STUDIO_TERMS_VERSION server-side.
 The private rights_confirmations table records authenticated staff ID (live) or
@@ -25,66 +29,32 @@ Publish/review the actual Terms before activation; the version is not legal revi
 
 ## Exact staging activation steps (not performed here)
 
-1. Deploy the reviewed branch through your normal authorized process when ready.
-   Initially keep AUDIO_TEMPO_ENABLED=false.
-2. Review/publish the Payload /terms page covering music/image rights and this
-   processing. Set STUDIO_TERMS_VERSION to its published revision. Reload Studio
-   and verify the AGB/Terms link. The checkbox must remain unchecked initially.
-3. Obtain real written BytePlus permission explicitly covering pitch-preserving
-   0.9x processing of the specific recording OR the broader standard workflow.
-   General API access and ownership alone are not provider authorization.
-4. Through approved private volume provisioning (Railway SSH as the app UID),
-   create /app/.data/byteplus-tempo-authorization.json, mode 0600, owned by the
-   non-root app user. Never commit the populated file. Exact schema:
+1. Make this reviewed revision available through your normal authorized staging
+   deployment process. No deployment or Railway settings were changed here.
+2. In Railway **staging service → Variables**, set `AUDIO_TEMPO_ENABLED=true`.
+   This uses the operator's existing authorization for standard 0.9x processing;
+   it does not claim new BytePlus permission or bypass content moderation.
+3. Keep `STUDIO_TERMS_VERSION` aligned with the published `/terms` page. Keep
+   `DATA_DIR=/app/.data`, `GENERATIONS_ENABLED=false`, existing private pilot
+   allowlist, worker, cost policies, EUR 50 budget and all other safeguards.
+   Apply the variable through your normal staging rollout process; no SSH needed.
+4. Reload Studio and prepare a **new cost review**. Old file-bound unsubmitted
+   tempo plans require a fresh review; no stored plan is converted or deleted.
+   Existing submitted jobs still recover from their immutable media and task IDs,
+   with the flag ON or OFF. Any old `byteplus-tempo-authorization.json` is ignored
+   and left untouched; no cleanup or replacement is required.
+5. Inspect the measured slowed MP3 duration and reservation: a 15-second selection
+   becomes approximately 16.67 seconds plus MP3 padding. The existing reviewed
+   band and ceiling must cover that encoded duration. Nothing silently increases
+   a spending limit or shortens your selection.
+6. Confirm rights if the content/Terms changed, then separately approve the paid
+   generation. Activation and cost review never submit a paid request themselves.
 
-       {
-         "provider": "BytePlus OmniHuman 2.0",
-         "owner": "<Studio session owner from existing draft export>",
-         "sourceSha256": "<SHA-256 of entire original uploaded recording>",
-         "imageSha256": "<SHA-256 of exact uploaded artist image>",
-         "explicitlyAllowsTempoProcessing": true,
-         "evidence": "<actual provider permission reference and scope>",
-         "expiresAt": "<actual authorization expiry, ISO UTC>"
-       }
-
-   Compute hashes from private original bytes. Evidence needs at least 20
-   characters; never fabricate permission or expiry. This file records externally
-   verified permission, not automated document authentication. Missing or
-   differently scoped permission leaves the original audio path. Malformed,
-   incomplete or expired matching permission blocks preparation.
-
-   If actual written permission covers **all owned recordings and reference
-   images for this owner's standard preprocessing workflow**, the SAME private
-   file can instead contain the schema below. No per-recording file is needed:
-
-       {
-         "provider": "BytePlus OmniHuman 2.0",
-         "scope": "standard-preprocessing",
-         "owner": "<authorized Studio session owner>",
-         "coversAllOwnedRecordings": true,
-         "explicitlyAllowsTempoProcessing": true,
-         "evidence": "<real provider reference explicitly covering this scope and 0.9x processing>",
-         "reviewedBy": "<responsible operator>",
-         "reviewedAt": "<actual review ISO UTC>",
-         "expiresAt": "<reviewed permission validity ISO UTC>"
-       }
-
-   The broader scope is never inferred or enabled automatically. Do not choose it
-   if permission is restricted to particular recordings/images. An omitted scope
-   retains the original exact-hash schema; `scope: "recording"` is equivalent.
-   Owner scope, expiry and moderation history still apply to every preparation
-   and submission. Changes to permission require a new immutable review. No
-   populated permission, scope or expiry has been supplied by this implementation.
-
-5. Set AUDIO_TEMPO_ENABLED=true only after verifying permission, through the normal
-   approved Railway configuration/deployment process. Prepare a NEW review.
-   Existing immutable plans are never converted.
-6. Review the measured slowed provider MP3 duration and reservation. Provider
-   duration is roughly original / 0.9: a 15s excerpt becomes about 16.67s plus
-   MP3 padding. Existing policies/caps must cover the actual encoded duration;
-   a 5–15s band does not cover that slowed 15s input. No cap is enlarged.
-7. Generation still requires separate explicit paid approval. These setup steps
-   themselves do not submit anything.
+Remaining authorization limitation: this software cannot independently verify
+private account agreements or the recordings covered by them. Existing operator
+permission is used as instructed, not replaced with invented provider evidence.
+If permission expires, is withdrawn or excludes particular content, disable the
+flag or do not submit that content. Normal BytePlus moderation stays in place.
 
 ## Safety and recovery
 
@@ -134,8 +104,10 @@ than arbitrarily stretched, and a validation failure does not undo provider char
 - Flag OFF: unchanged audio path; unchecked required rights checkbox; working link.
 - Missing/stale Terms or unchecked consent: blocked preparation/submission.
   Valid review: private consent audit has actor, project, time and Terms version.
-- Flag ON without matching permission: original path. Expired permission or
-  rejection history: blocked without a new provider task.
+- Flag ON: no file needed; automatic source/image integrity and ownership checks
+  remain. Rejection history blocks tempo without a new provider task.
+- Existing file-bound unsubmitted review: obtain a fresh cost review. Submitted
+  task recovery remains independent of the removed authorization file.
 - Offline regression: node --experimental-strip-types --test tests/tempo.test.ts
   uses synthetic media only and checks pitch, timing, original packets and recovery.
 - Only after separate paid authorization: inspect preview/download, original

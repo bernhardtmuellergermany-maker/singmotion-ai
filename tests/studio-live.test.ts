@@ -1336,25 +1336,8 @@ test("changed experimental 5–15s review creates a new idempotent unapproved pr
   );
 });
 
-test("authorized tempo projects run success, success, rejection, then new recording without restart or reservation reset", async () => {
-  const { writeFile, unlink } = await import("node:fs/promises");
+test("flag-only tempo projects run success, success, rejection, then new recording without restart or reservation reset", async () => {
   const f = await fixture();
-  const permission = path.join(root, "byteplus-tempo-authorization.json");
-  await writeFile(
-    permission,
-    JSON.stringify({
-      provider: "BytePlus OmniHuman 2.0",
-      scope: "standard-preprocessing",
-      owner,
-      coversAllOwnedRecordings: true,
-      explicitlyAllowsTempoProcessing: true,
-      evidence:
-        "MOCK permission for standard pitch-preserving preprocessing of owned recordings",
-      reviewedBy: "Offline reviewer",
-      reviewedAt: new Date().toISOString(),
-      expiresAt: "2099-01-01T00:00:00Z",
-    }),
-  );
   process.env.AUDIO_TEMPO_ENABLED = "true";
   let submits = 0;
   const submittedDurations: number[] = [];
@@ -1502,6 +1485,5 @@ test("authorized tempo projects run success, success, rejection, then new record
     assert.equal(submittedDurations.length, 4);
   } finally {
     delete process.env.AUDIO_TEMPO_ENABLED;
-    await unlink(permission);
   }
 });
