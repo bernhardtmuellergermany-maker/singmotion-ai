@@ -801,9 +801,11 @@ export class StudioWorkflow {
           "UPDATE live_studio_projects SET diagnostic=? WHERE attempt_id=?",
         )
         .run(
-          failure
-            ? `[${failure}] Output is not ready. Resume this same task; never generate a replacement automatically.`
-            : null,
+          failure === "TEMPO_RESTORATION_FAILED"
+            ? "[TEMPO_RESTORATION_FAILED] Original-audio export failed timing, integrity or MP4 validation. No video published. Resume this task after resolving export validation; no replacement paid submission."
+            : failure
+              ? `[${failure}] Output is not ready. Resume this same task; never generate a replacement automatically.`
+              : null,
           id,
         );
     } catch (e) {

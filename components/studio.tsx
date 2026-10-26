@@ -62,12 +62,13 @@ export function Studio() {
     [uploading, setUploading] = useState(false),
     [error, setError] = useState(""),
     [price, setPrice] = useState<number | null>(null),
-    [consent, setConsent] = useState(false),
+    [consentKey, setConsentKey] = useState<string | null>(null),
     [termsVersion, setTermsVersion] = useState(""),
     [advanced, setAdvanced] = useState(false);
   const router = useRouter(),
     fileInput = useRef<HTMLInputElement>(null),
     requestKey = useRef<string | null>(null),
+    declinedRights = useRef<string | null>(null),
     dialog = useRef<HTMLDialogElement>(null),
     artistTrigger = useRef<HTMLButtonElement>(null);
   const {
@@ -80,6 +81,46 @@ export function Studio() {
     camera,
     customPrompt,
   } = draft;
+  const selection =
+    song && sessionOwner && imageId
+      ? {
+          version: 1 as const,
+          owner: sessionOwner,
+          songId: song.id,
+          imageId,
+          start,
+          end,
+          performance,
+          camera,
+          customPrompt,
+        }
+      : null;
+  const rightsKey = JSON.stringify([selection, termsVersion]);
+  const consent = consentKey === rightsKey;
+  useEffect(() => {
+    let current = true;
+    const [selected, version] = JSON.parse(rightsKey);
+    const timer = setTimeout(() => {
+      if (selected && version) {
+        void api<{ confirmed: boolean }>("studio-live", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "rights-status",
+            selection: selected,
+          }),
+        })
+          .then((r) => {
+            if (current && r.confirmed && declinedRights.current !== rightsKey)
+              setConsentKey(rightsKey);
+          })
+          .catch(() => {});
+      }
+    }, 500);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [rightsKey]);
   function update(patch: Partial<Draft>) {
     setDraft((prev) => ({ ...prev, ...patch }));
     requestKey.current = null;
@@ -506,11 +547,15 @@ export function Studio() {
                 checked={consent}
                 required
                 disabled={!termsVersion}
-                onChange={(e) => setConsent(e.target.checked)}
+                onChange={(e) => {
+                  declinedRights.current = e.target.checked ? null : rightsKey;
+                  setConsentKey(e.target.checked ? rightsKey : null);
+                }}
               />
               <span>
-                I have the rights or permission to use this music and person’s
-                likeness, including the processing described in the{" "}
+                I own or have all necessary permissions for the music, sound
+                recording, image and likeness, including AI processing described
+                in the{" "}
                 <a href="/terms" target="_blank" rel="noopener noreferrer">
                   AGB / Terms
                 </a>
@@ -551,21 +596,7 @@ export function Studio() {
               Export draft for offline review
             </button>
             <StudioLiveControl
-              selection={
-                song && sessionOwner && imageId
-                  ? {
-                      version: 1,
-                      owner: sessionOwner,
-                      songId: song.id,
-                      imageId,
-                      start,
-                      end,
-                      performance,
-                      camera,
-                      customPrompt,
-                    }
-                  : null
-              }
+              selection={selection}
               artistName={artistName}
               consent={consent}
               termsVersion={termsVersion}

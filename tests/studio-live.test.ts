@@ -1335,3 +1335,173 @@ test("changed experimental 5–15s review creates a new idempotent unapproved pr
     1700000,
   );
 });
+
+test("authorized tempo projects run success, success, rejection, then new recording without restart or reservation reset", async () => {
+  const { writeFile, unlink } = await import("node:fs/promises");
+  const f = await fixture();
+  const permission = path.join(root, "byteplus-tempo-authorization.json");
+  await writeFile(
+    permission,
+    JSON.stringify({
+      provider: "BytePlus OmniHuman 2.0",
+      scope: "standard-preprocessing",
+      owner,
+      coversAllOwnedRecordings: true,
+      explicitlyAllowsTempoProcessing: true,
+      evidence:
+        "MOCK permission for standard pitch-preserving preprocessing of owned recordings",
+      reviewedBy: "Offline reviewer",
+      reviewedAt: new Date().toISOString(),
+      expiresAt: "2099-01-01T00:00:00Z",
+    }),
+  );
+  process.env.AUDIO_TEMPO_ENABLED = "true";
+  let submits = 0;
+  const submittedDurations: number[] = [];
+  const dependencies = {
+    ...f.service.dependencies,
+    provider: (p: StudioPolicy) => ({
+      contract: p.contract,
+      submit: async (media: import("../lib/live/store.ts").PreparedMedia) => {
+        assert.ok(media.tempo);
+        submittedDurations.push(media.durationSeconds);
+        return { jobId: `tempo-sequential-${++submits}` };
+      },
+      poll: async (id: string) =>
+        id === "tempo-sequential-3"
+          ? { state: "failed" as const }
+          : {
+              state: "completed" as const,
+              outputUrl: "https://output.example.test/mock",
+            },
+    }),
+    download: async (_url: string, file: string, duration: number) => {
+      execFileSync("ffmpeg", [
+        "-nostdin",
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=black:s=1280x720:r=25",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=330",
+        "-t",
+        String(duration),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-c:a",
+        "aac",
+        file,
+      ]);
+    },
+  };
+  const makeService = () =>
+    new StudioWorkflow(
+      f.store,
+      root,
+      { ...config, maxTotalMicroUsd: 50000000 },
+      dependencies,
+    );
+  let reserved = 0;
+  try {
+    for (let i = 0; i < 4; i++) {
+      let songId = "song";
+      if (i === 3) {
+        // A rejected recording is NOT retried at another tempo or reuploaded to evade moderation.
+        songId = "independent-new-recording";
+        const file = path.join(root, "media", "independent.wav");
+        execFileSync("ffmpeg", [
+          "-nostdin",
+          "-v",
+          "error",
+          "-f",
+          "lavfi",
+          "-i",
+          "sine=frequency=660:duration=8",
+          file,
+        ]);
+        db.putAsset({
+          ...db.asset("song", owner),
+          id: songId,
+          path: file,
+          bytes: (await stat(file)).size,
+          duration: 8,
+        });
+      }
+      const selection = {
+        ...f.selection,
+        songId,
+        start: 0.25,
+        end: 4.75,
+        customPrompt: `Independent tempo test ${i}`,
+      };
+      const service = makeService();
+      const plan = await service.prepare(
+        selection,
+        owner,
+        "Singer",
+        true,
+        true,
+      );
+      assert.ok(plan.durationSeconds > 5); // cap/quote uses encoded slowed audio, not 4.5 seconds
+      const confirm = `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`;
+      await service.submit(
+        plan.id,
+        owner,
+        plan.digest,
+        plan.ceilingMicroUsd,
+        confirm,
+      );
+      const replay = await service.submit(
+        plan.id,
+        owner,
+        plan.digest,
+        plan.ceilingMicroUsd,
+        confirm,
+      );
+      assert.equal(replay.id, plan.id);
+      assert.equal(submits, i + 1);
+      const restarted = makeService();
+      const done = await restarted.poll(plan.id, owner);
+      assert.equal(done.state, i === 2 ? "failed" : "completed");
+      assert.equal(
+        f.store.get(plan.id).providerJobId,
+        `tempo-sequential-${i + 1}`,
+      );
+      await restarted.poll(plan.id, owner);
+      assert.equal(submits, i + 1);
+      if (i !== 2) {
+        assert.ok(await restarted.output(plan.id, owner));
+        await assert.rejects(restarted.output(plan.id, "other-owner"));
+      } else {
+        await assert.rejects(
+          restarted.prepare(
+            { ...selection, customPrompt: "Forbidden retry" },
+            owner,
+            "Singer",
+            true,
+            true,
+          ),
+          /previous provider failure/,
+        );
+      }
+      reserved += plan.ceilingMicroUsd!;
+      assert.equal(
+        f.store.db
+          .prepare("SELECT SUM(reserved_micro_usd) n FROM live_attempts")
+          .get()!.n,
+        reserved,
+      );
+      assert.equal(done.budget!.remainingMicroEur, 49000000 - reserved);
+    }
+    assert.equal(submittedDurations.length, 4);
+  } finally {
+    delete process.env.AUDIO_TEMPO_ENABLED;
+    await unlink(permission);
+  }
+});

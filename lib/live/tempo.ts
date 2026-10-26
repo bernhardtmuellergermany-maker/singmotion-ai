@@ -21,8 +21,14 @@ import { validateOutput, outputTransferLimits } from "./output.ts";
 import { validateEncodedDuration, validateOmniAudio } from "./limits.ts";
 const exec = promisify(execFile);
 export interface TempoAuthorization {
-  sourceSha256: string;
-  imageSha256: string;
+  /** Omitted means the original exact-recording scope. */
+  scope?: "recording" | "standard-preprocessing";
+  sourceSha256?: string;
+  imageSha256?: string;
+  /** Required for broader permission, reviewed against actual provider scope. */
+  coversAllOwnedRecordings?: true;
+  reviewedBy?: string;
+  reviewedAt?: string;
   owner: string;
   provider: "BytePlus OmniHuman 2.0";
   explicitlyAllowsTempoProcessing: true;
@@ -31,6 +37,9 @@ export interface TempoAuthorization {
 }
 export interface TempoMetadata {
   rate: 0.9;
+  /** Decoded samples exclude MP3 encoder delay/padding; absent on legacy plans. */
+  originalDecodedSeconds?: number;
+  providerDecodedSeconds?: number;
   originalPath: string;
   originalSha256: string;
   originalDuration: number;
@@ -130,13 +139,26 @@ export async function tempoAuthorization(
     image = asset(selection.imageId, owner);
   const sourceSha256 = await sha256File(await privateFile(root, source.path));
   const imageSha256 = await sha256File(await privateFile(root, image.path));
-  // An authorization for a different recording never opts this recording in.
+  if (a.owner !== owner) return null;
+  const broad = a.scope === "standard-preprocessing";
+  if (a.scope !== undefined && a.scope !== "recording" && !broad)
+    throw new AppError("Unknown provider tempo authorization scope.");
   if (
-    a.sourceSha256 !== sourceSha256 ||
-    a.imageSha256 !== imageSha256 ||
-    a.owner !== owner
+    !broad &&
+    (a.sourceSha256 !== sourceSha256 || a.imageSha256 !== imageSha256)
   )
     return null;
+  if (
+    broad &&
+    (a.coversAllOwnedRecordings !== true ||
+      typeof a.reviewedBy !== "string" ||
+      !a.reviewedBy.trim() ||
+      !Number.isFinite(Date.parse(a.reviewedAt || "")) ||
+      Date.parse(a.reviewedAt!) > Date.now())
+  )
+    throw new AppError(
+      "Standard preprocessing permission requires explicit scope and a dated provider-evidence review.",
+    );
   if (
     a.provider !== "BytePlus OmniHuman 2.0" ||
     a.explicitlyAllowsTempoProcessing !== true ||
@@ -159,6 +181,33 @@ async function ffmpeg(args: string[]) {
     timeout: 120000,
     maxBuffer: 1024 * 1024,
   });
+}
+/** Decode to a bounded PCM buffer, not container length (which includes MP3 padding). */
+async function decodedSeconds(file: string) {
+  const { stdout } = await exec(
+    "ffmpeg",
+    [
+      "-nostdin",
+      "-v",
+      "error",
+      "-i",
+      file,
+      "-map",
+      "0:a:0",
+      "-f",
+      "s16le",
+      "-ac",
+      "1",
+      "-ar",
+      "48000",
+      "-",
+    ],
+    { encoding: "buffer", timeout: 120000, maxBuffer: 64 * 1024 * 1024 },
+  );
+  const seconds = stdout.length / (48000 * 2);
+  if (!Number.isFinite(seconds) || seconds <= 0 || seconds > 334)
+    throw new AppError("Decoded audio duration is outside processing bounds.");
+  return seconds;
 }
 export async function slowExcerpt(
   media: PreparedMedia,
@@ -195,6 +244,10 @@ export async function slowExcerpt(
     });
     if (Math.abs(duration * 0.9 - media.durationSeconds) > 0.2)
       throw new AppError("Tempo duration validation failed.");
+    const originalDecodedSeconds = await decodedSeconds(original);
+    const providerDecodedSeconds = await decodedSeconds(temp);
+    if (Math.abs(originalDecodedSeconds / providerDecodedSeconds - 0.9) > 0.005)
+      throw new AppError("Decoded tempo ratio failed validation.");
     const hash = await sha256File(temp),
       file = path.join(root, "media", `tempo-${hash}.mp3`);
     await copyFile(temp, file, 1).catch(async (e) => {
@@ -208,6 +261,8 @@ export async function slowExcerpt(
       durationSeconds: duration,
       tempo: {
         rate: 0.9,
+        originalDecodedSeconds,
+        providerDecodedSeconds,
         originalPath: original,
         originalSha256: media.audioSha256,
         originalDuration: media.durationSeconds,
@@ -305,13 +360,40 @@ export async function restoreTempoOutput(
   contract: VerifiedContract,
 ) {
   const t = media.tempo!;
+  const originalSeconds = await decodedSeconds(t.originalPath);
+  const providerSeconds = await decodedSeconds(media.audioPath);
+  const ratio = originalSeconds / providerSeconds;
+  // Recheck immutable inputs even during flag-off recovery. Never stretch arbitrary output.
   if (
-    Math.abs(
-      Number((await probe(input)).format.duration) * 0.9 - t.originalDuration,
-    ) > 0.2
+    (await sha256File(media.audioPath)) !== media.audioSha256 ||
+    (await sha256File(t.originalPath)) !== t.originalSha256
+  )
+    throw new AppError("Tempo restoration inputs changed.");
+  if (
+    Math.abs(ratio - 0.9) > 0.005 ||
+    Math.abs(originalSeconds - t.originalDuration) > 0.2 ||
+    (t.originalDecodedSeconds !== undefined &&
+      Math.abs(originalSeconds - t.originalDecodedSeconds) > 0.001) ||
+    (t.providerDecodedSeconds !== undefined &&
+      Math.abs(providerSeconds - t.providerDecodedSeconds) > 0.001)
   )
     throw new AppError(
       "Provider output cannot be restored within the original timing bounds.",
+    );
+  await validateOutput(input, media.durationSeconds, contract);
+  const video = (await probe(input)).streams.find(
+    (s) => s.codec_type === "video",
+  ) as { start_time?: string; duration?: string } | undefined;
+  const start = Number(video?.start_time ?? 0);
+  const videoSeconds = Number(video?.duration);
+  if (
+    !Number.isFinite(start) ||
+    Math.abs(start) > 0.1 ||
+    !Number.isFinite(videoSeconds) ||
+    videoSeconds < providerSeconds - 1 / contract.output.fps
+  )
+    throw new AppError(
+      "Provider video is missing the required audio timeline; no automatic replacement generation.",
     );
   await ffmpeg([
     "-i",
@@ -323,7 +405,7 @@ export async function restoreTempoOutput(
     "-map",
     "1:a:0",
     "-vf",
-    `setpts=0.9*(PTS-STARTPTS),fps=${contract.output.fps}`,
+    `setpts=PTS-STARTPTS,trim=duration=${providerSeconds},setpts=${ratio}*PTS,fps=${contract.output.fps}`,
     "-c:v",
     "libx264",
     "-pix_fmt",

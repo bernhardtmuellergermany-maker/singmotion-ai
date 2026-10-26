@@ -8,6 +8,7 @@ import {
   writeFile,
   stat,
   rm,
+  readdir,
 } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { tmpdir } from "node:os";
@@ -26,7 +27,12 @@ import { sha256File } from "../lib/live/media.ts";
 import { trimAudio } from "../lib/media.ts";
 import { LiveTestStore, type PreparedMedia } from "../lib/live/store.ts";
 import { StudioWorkflow } from "../lib/live/studio.ts";
-import { requireRights, termsVersion, recordRights } from "../lib/rights.ts";
+import {
+  requireRights,
+  termsVersion,
+  recordRights,
+  hasRights,
+} from "../lib/rights.ts";
 import type { VerifiedContract } from "../lib/live/contract.ts";
 const root = await mkdtemp(path.join(tmpdir(), "tempo offline "));
 process.env.DATA_DIR = root;
@@ -38,7 +44,26 @@ const source = path.join(root, "media", "source.wav"),
   image = path.join(root, "media", "singer.png");
 const ff = (args: string[]) =>
   execFileSync("ffmpeg", ["-nostdin", "-v", "error", "-y", ...args]);
-ff(["-f", "lavfi", "-i", "sine=frequency=440:duration=7", source]);
+// Distinct leading/trailing tones detect a shifted excerpt, not just its length.
+ff([
+  "-f",
+  "lavfi",
+  "-i",
+  "sine=frequency=220:duration=1",
+  "-f",
+  "lavfi",
+  "-i",
+  "sine=frequency=440:duration=5",
+  "-f",
+  "lavfi",
+  "-i",
+  "sine=frequency=880:duration=1",
+  "-filter_complex",
+  "[0:a][1:a][2:a]concat=n=3:v=0:a=1[out]",
+  "-map",
+  "[out]",
+  source,
+]);
 const duration = await trimAudio(source, original, 1, 6);
 await sharp({
   create: { width: 720, height: 720, channels: 3, background: "black" },
@@ -144,7 +169,35 @@ test("rights confirmation is required, version-bound and records server actor/pr
   ])
     assert.throws(() => requireRights(consent, version), /Confirm/);
   requireRights(true, termsVersion());
-  recordRights(store.db, owner, "project", termsVersion());
+  recordRights(store.db, owner, "project", termsVersion(), {
+    session: "session",
+    content: "exact-content",
+  });
+  recordRights(store.db, owner, "project", termsVersion(), {
+    session: "session",
+    content: "exact-content",
+  });
+  assert.equal(
+    store.db.prepare("SELECT count(*) n FROM rights_confirmations").get()!.n,
+    1,
+  );
+  assert.ok(hasRights(store.db, owner, "session", "exact-content"));
+  assert.equal(
+    hasRights(store.db, "another-actor", "session", "exact-content"),
+    false,
+  );
+  assert.equal(
+    hasRights(store.db, owner, "another-session", "exact-content"),
+    false,
+  );
+  assert.equal(hasRights(store.db, owner, "session", "changed-content"), false);
+  process.env.STUDIO_TERMS_VERSION = "updated-terms";
+  assert.equal(hasRights(store.db, owner, "session", "exact-content"), false);
+  assert.throws(
+    () => requireRights(true, "staging-terms-2026-10-26"),
+    /Confirm/,
+  );
+  delete process.env.STUDIO_TERMS_VERSION;
   const row = store.db.prepare("SELECT * FROM rights_confirmations").get()!;
   assert.equal(row.actor, owner);
   assert.equal(row.project, "project");
@@ -175,6 +228,46 @@ test("off/default and absent or mismatched provider permission keep BytePlus ori
   await writeFile(
     path.join(root, "byteplus-tempo-authorization.json"),
     JSON.stringify(approval),
+  );
+  assert.ok(await tempoAuthorization(root, store, selection, owner));
+  // Broader permission is opt-in, reviewed and owner-scoped, never inferred from API access.
+  const broad = {
+    ...approval,
+    scope: "standard-preprocessing",
+    sourceSha256: undefined,
+    imageSha256: undefined,
+    coversAllOwnedRecordings: true,
+    reviewedBy: "Mock operator",
+    reviewedAt: new Date().toISOString(),
+  };
+  await writeFile(
+    path.join(root, "byteplus-tempo-authorization.json"),
+    JSON.stringify({ ...broad, reviewedBy: "" }),
+  );
+  await assert.rejects(
+    tempoAuthorization(root, store, selection, owner),
+    /dated provider-evidence review/,
+  );
+  await writeFile(
+    path.join(root, "byteplus-tempo-authorization.json"),
+    JSON.stringify({ ...broad, owner: "other" }),
+  );
+  assert.equal(await tempoAuthorization(root, store, selection, owner), null);
+  await writeFile(
+    path.join(root, "byteplus-tempo-authorization.json"),
+    JSON.stringify(broad),
+  );
+  await writeFile(
+    path.join(root, "byteplus-tempo-authorization.json"),
+    JSON.stringify({ ...broad, expiresAt: "2000-01-01T00:00:00Z" }),
+  );
+  await assert.rejects(
+    tempoAuthorization(root, store, selection, owner),
+    /expired/,
+  );
+  await writeFile(
+    path.join(root, "byteplus-tempo-authorization.json"),
+    JSON.stringify(broad),
   );
   const authorization = (await tempoAuthorization(
     root,
@@ -225,6 +318,39 @@ test("off/default and absent or mismatched provider permission keep BytePlus ori
   ]);
   await restoreTempoOutput(raw, final, slow, contract);
   await validateRestored(final, slow, contract);
+  assert.ok(Math.abs(slow.tempo!.originalDecodedSeconds! - 5) < 0.001);
+  assert.ok(slow.durationSeconds > slow.tempo!.providerDecodedSeconds!); // MP3 padding is not music
+  // Provider may add a bounded tail: trim that tail, don't stretch it across the song.
+  const tail = path.join(root, "provider-tail.mp4");
+  ff([
+    "-i",
+    raw,
+    "-vf",
+    "tpad=stop_mode=clone:stop_duration=0.4",
+    "-c:v",
+    "libx264",
+    "-preset",
+    "ultrafast",
+    "-c:a",
+    "copy",
+    tail,
+  ]);
+  const tailContract = {
+    ...contract,
+    output: { ...contract.output, durationToleranceSeconds: 0.7 },
+  };
+  await restoreTempoOutput(tail, final, slow, tailContract);
+  await validateRestored(final, slow, contract);
+  // Even a permissive total-container tolerance cannot conceal missing video frames.
+  const short = path.join(root, "provider-short.mp4");
+  ff(["-i", raw, "-t", "4", "-c", "copy", short]);
+  await assert.rejects(
+    restoreTempoOutput(short, final, slow, {
+      ...tailContract,
+      output: { ...tailContract.output, durationToleranceSeconds: 2 },
+    }),
+    /missing the required audio timeline/,
+  );
   await assert.rejects(
     restoreTempoOutput(
       raw,
@@ -322,12 +448,53 @@ test("off/default and absent or mismatched provider permission keep BytePlus ori
   process.env.AUDIO_TEMPO_ENABLED = "false";
   assert.equal((await runner.pollOnce(job.id)).state, "completed");
   assert.equal(polls, 1);
+  // Failed restoration never publishes an MP4 or releases/duplicates the paid reservation.
+  const brokenMedia = {
+    ...slow,
+    sourceJobId: "mock-bad-restoration",
+    tempo: { ...slow.tempo!, originalDuration: 2 },
+  };
+  const broken = store.prepare(brokenMedia, full.revision, cost);
+  store.db
+    .prepare("UPDATE live_attempts SET data=?,reserved_micro_usd=? WHERE id=?")
+    .run(
+      JSON.stringify({
+        ...broken,
+        state: "processing",
+        providerJobId: "same-broken-task",
+        contractDigest: contractDigest(full),
+      }),
+      cost,
+      broken.id,
+    );
+  const failedExport = await runner.pollOnce(broken.id);
+  assert.equal(failedExport.state, "processing");
+  assert.equal(failedExport.failureCode, "TEMPO_RESTORATION_FAILED");
+  assert.equal(failedExport.providerJobId, "same-broken-task");
+  assert.ok(!failedExport.outputPath);
+  assert.equal(
+    store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(broken.id)!.reserved_micro_usd,
+    cost,
+  );
+  assert.ok(
+    !(await readdir(path.join(root, "live-output"))).some(
+      (f) => f.includes("partial") || f.startsWith(broken.id),
+    ),
+  );
   process.env.AUDIO_TEMPO_ENABLED = "true";
   assert.deepEqual(await readFile(original), before);
   assert.deepEqual(await readFile(source), sourceBefore);
   await assert.rejects(
     slowExcerpt(media, root, "song", authorization, 5),
     /Encoded MP3/,
+  );
+  const files = await readdir(path.join(root, "media"));
+  assert.ok(
+    files
+      .filter((f) => f.startsWith("tempo-"))
+      .every((f) => /^tempo-[a-f0-9]{64}\.mp3$/.test(f)),
   );
   process.env.AUDIO_TEMPO_ENABLED = "false";
   await assert.rejects(

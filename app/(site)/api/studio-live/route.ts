@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { NextRequest } from "next/server";
 import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
@@ -6,7 +7,7 @@ import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { stagingDenial } from "@/lib/staging";
 import { studioStaff } from "@/cms/studio-access";
-import { session, limit, dataDir } from "@/lib/db";
+import { session, limit, dataDir, asset } from "@/lib/db";
 import { openStudioStore } from "@/lib/live/studio";
 import { studioRuntime, studioReadiness } from "@/lib/live/studio-runtime";
 import {
@@ -16,7 +17,13 @@ import {
   studioConfig,
   studioGate,
 } from "@/lib/live/studio-policy";
-import { requireRights, recordRights, termsVersion } from "@/lib/rights";
+import {
+  requireRights,
+  recordRights,
+  termsVersion,
+  hasRights,
+} from "@/lib/rights";
+import { parseStudioDraft } from "@/lib/studio-draft";
 import { AppError } from "@/lib/domain";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -167,6 +174,24 @@ async function handler(req: NextRequest) {
       await reader.cancel();
     }
     const body = JSON.parse(Buffer.concat(chunks).toString());
+    if (body.action === "rights-status") {
+      const selection = parseStudioDraft(body.selection);
+      if (selection.owner !== owner)
+        throw new AppError("Draft ownership mismatch.", 403);
+      asset(selection.songId, owner);
+      asset(selection.imageId, owner);
+      const content = createHash("sha256")
+        .update(JSON.stringify(selection))
+        .digest("hex");
+      return json({
+        confirmed: hasRights(
+          service.store.db,
+          String(user!.id),
+          owner,
+          content,
+        ),
+      });
+    }
     if (body.action === "prepare") {
       requireRights(body.consent, body.termsVersion);
       const project = await service.prepare(
@@ -182,6 +207,12 @@ async function handler(req: NextRequest) {
         String(user!.id),
         project.id,
         termsVersion(),
+        {
+          session: owner,
+          content: createHash("sha256")
+            .update(JSON.stringify(project.selection))
+            .digest("hex"),
+        },
       );
       return json(project);
     }
@@ -194,8 +225,19 @@ async function handler(req: NextRequest) {
       );
     if (body.action === "submit") {
       requireRights(body.consent, body.termsVersion);
-      service.view(body.id, owner);
-      recordRights(service.store.db, String(user!.id), body.id, termsVersion());
+      const project = service.view(body.id, owner);
+      recordRights(
+        service.store.db,
+        String(user!.id),
+        body.id,
+        termsVersion(),
+        {
+          session: owner,
+          content: createHash("sha256")
+            .update(JSON.stringify(project.selection))
+            .digest("hex"),
+        },
+      );
       await payload.create({
         collection: "audit-events",
         overrideAccess: true,

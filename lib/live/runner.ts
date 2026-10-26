@@ -207,7 +207,9 @@ export class LiveTestRunner {
         }
       } catch {
         return finish(this.recoverableOutput ? "processing" : "failed", {
-          failureCode: "INVALID_OUTPUT",
+          failureCode: attempt.media.tempo
+            ? "TEMPO_RESTORATION_FAILED"
+            : "INVALID_OUTPUT",
         });
       }
       return finish(
