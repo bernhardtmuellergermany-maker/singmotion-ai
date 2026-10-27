@@ -90,12 +90,17 @@ export function StudioWizard() {
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
           setStep(Math.max(0, Math.min(3, saved.step)));
+          setDetectedFormat(saved.selection.outputFormat === "16:9" ? "16:9" : "9:16");
           setReady(true);
           return;
         }
         try {
           const saved = localStorage.getItem("singmotion-studio");
-          if (saved) setDraft({ ...initial, ...JSON.parse(saved) });
+          if (saved) {
+            const restored = { ...initial, ...JSON.parse(saved) };
+            setDraft(restored);
+            setDetectedFormat(restored.outputFormat === "16:9" ? "16:9" : "9:16");
+          }
         } catch {}
         setReady(true);
       })
