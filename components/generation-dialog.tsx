@@ -15,10 +15,6 @@ export function GenerationDialog({
   artistName: string;
   onClose: () => void;
 }) {
-  const [daily, setDaily] = useState<{
-    day: string;
-    reservedMicroEur: number;
-  } | null>(null);
   const dialog = useRef<HTMLDialogElement>(null),
     lock = useRef(false),
     router = useRouter();
@@ -46,7 +42,6 @@ export function GenerationDialog({
           setTerms(t.version);
           setPilot(r.pilot === true);
           setBlockers(r.blockers || []);
-          setDaily(r.dailyBudget || null);
         }
       })
       .catch(() => {
@@ -84,9 +79,7 @@ export function GenerationDialog({
         plan.state !== "prepared" ||
         !plan.digest ||
         !plan.ceilingMicroUsd ||
-        !plan.budget ||
-        plan.budgetBlocker ||
-        plan.budget.remainingMicroUsd < plan.ceilingMicroUsd
+        plan.budgetBlocker
       )
         throw Error(
           "This project cannot be submitted. Open its saved status or operator review.",
@@ -123,9 +116,7 @@ export function GenerationDialog({
       (plan.state !== "prepared" ||
         !plan.digest ||
         !plan.ceilingMicroUsd ||
-        !plan.budget ||
-        plan.budgetBlocker ||
-        plan.budget.remainingMicroUsd < plan.ceilingMicroUsd)
+        plan.budgetBlocker)
     );
   return (
     <dialog
@@ -166,14 +157,6 @@ export function GenerationDialog({
             Private operator generation. No customer payment or credit
             deduction.
           </p>
-          {daily && (
-            <p>
-              Daily limit: EUR 50 · {daily.day} (Europe/Berlin). Reserved today:
-              EUR {(daily.reservedMicroEur / 1000000).toFixed(2)}. Existing
-              cumulative reservations and fee assumptions also limit
-              availability.
-            </p>
-          )}
           {plan ? (
             <>
               <p>Measured provider audio: {plan.durationSeconds.toFixed(3)}s</p>
