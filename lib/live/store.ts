@@ -336,13 +336,18 @@ export class LiveTestStore {
   }
   private studioGuard(attempt: Attempt, config: LiveTestConfig) {
     const studio = attempt.media.sourceJobId.startsWith("studio-");
-    const active = this.db
-      .prepare(
-        `SELECT id FROM live_attempts WHERE id<>? AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') AND (?=1 OR source_job_id LIKE 'studio-%')
-          AND NOT (?=1 AND EXISTS (SELECT 1 FROM live_private_exceptions e WHERE e.attempt_id=live_attempts.id AND e.task_id=json_extract(live_attempts.data,'$.providerJobId') AND e.owner=? AND (e.task_id='176942047' OR e.attempt_id IN (SELECT attempt_id FROM live_first_test UNION SELECT attempt_id FROM live_second_test)))) LIMIT 1`,
-      )
-      .get(attempt.id, studio ? 1 : 0, studio ? 1 : 0, attempt.media.owner);
-    if (active) throw new Error("ONE_ACTIVE_GENERATION");
+    // Studio projects are independent. A historical task's state must not
+    // globally block authorization of a DIFFERENT source job. The per-attempt
+    // submission token and poll lease still prevent double processing.
+    // Keep the conservative legacy operator-test exclusion intact.
+    if (!studio) {
+      const active = this.db
+        .prepare(
+          "SELECT 1 FROM live_attempts WHERE id<>? AND source_job_id LIKE 'studio-%' AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') LIMIT 1",
+        )
+        .get(attempt.id);
+      if (active) throw new Error("ONE_ACTIVE_GENERATION");
+    }
     if (!studio) return config.maxTotalMicroUsd;
     const reserved = Number(
       (
