@@ -7,7 +7,7 @@ export function ProductHeader() {
         singmotion<span>.</span>
       </Link>
       <nav aria-label="Account navigation">
-        <Link href="/projects">My videos</Link>
+        <Link href="/my-videos">My videos</Link>
         <Link href="/signin" className="product-login">
           <UserRound size={17} /> Log in
         </Link>

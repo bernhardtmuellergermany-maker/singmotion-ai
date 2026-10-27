@@ -829,3 +829,117 @@
 .product-theme .page-heading .eyebrow {
   color: var(--product-muted);
 }
+
+/* Precision editor: scrolling stays inside the waveform, handles retain touch targets. */
+.wave-viewport {
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  padding: 0 14px;
+  overscroll-behavior-x: contain;
+}
+.wave-viewport .wave-strip {
+  min-width: 100%;
+  overflow: visible;
+}
+.wave-viewport .wave-bars {
+  display: flex;
+  gap: 0;
+  justify-content: space-between;
+  overflow: hidden;
+}
+.wave-viewport .wave-bars i {
+  flex: 0 1 1px;
+  width: 1px;
+  min-width: 0;
+}
+.wave-viewport .wave-handle {
+  width: 24px;
+  margin-left: -12px;
+  touch-action: none;
+  z-index: 3;
+  background: transparent;
+  border: 0;
+}
+.wave-viewport .wave-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 10px;
+  background: #c4b5fd;
+  border-radius: 2px;
+}
+.wave-viewport .wave-selection {
+  min-width: 0;
+  z-index: 2;
+}
+.wave-viewport .is-dragging .wave-selection {
+  cursor: grabbing;
+  background: rgba(167, 139, 250, 0.24) !important;
+}
+.wave-zoom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.wave-zoom button {
+  min-width: 44px;
+  min-height: 44px;
+  background: #211d34;
+  color: #eee8ff;
+  border: 1px solid #615475;
+  border-radius: 8px;
+}
+.wave-zoom button:disabled {
+  opacity: 0.45;
+}
+.wave-time span {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-size: 10px;
+}
+.new-project {
+  margin: 0 24px 8px;
+}
+.operator-login label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+}
+.operator-login input {
+  min-height: 44px;
+}
+
+.wave-viewport .wave-bars i {
+  flex: 0 0 1px;
+}
+.wave-viewport .wave-handle::before {
+  display: none;
+}
+.wave-viewport .wave-handle::after {
+  width: 3px;
+  inset: 0 auto 0 10px;
+}
+.product-theme .wizard-upload input[type="file"] {
+  background: #101a2a;
+  color: #dce4fa;
+  border: 1px solid #50607a;
+}
+.product-theme .wizard-upload input[type="file"]::file-selector-button {
+  background: #30233f;
+  color: #f1e7ff;
+  border: 1px solid #755d8f;
+  border-radius: 8px;
+  padding: 10px;
+  margin-right: 12px;
+}
+.skip-link {
+  position: fixed;
+  top: 10px;
+  clip-path: inset(100%);
+  color: #111;
+}
+.skip-link:focus {
+  clip-path: none;
+}

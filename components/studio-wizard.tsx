@@ -24,18 +24,15 @@ import {
   time,
   type Asset,
 } from "@/lib/domain";
+import { photoFormat } from "@/lib/studio-editor";
+import { defaultStudioContent, type StudioContent } from "@/lib/studio-content";
+import { productCopy } from "@/lib/product-copy";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
 });
-const steps = ["Add your song", "Choose your photo", "Describe performance", "Generate"];
-const suggestions = [
-  "Walking towards camera",
-  "On a dark stage",
-  "Emotional close-up",
-  "Dancing performance",
-];
+const steps = productCopy.en.steps;
 const initial = {
   song: null as Asset | null,
   imageId: "",
@@ -48,9 +45,15 @@ const initial = {
   outputFormat: "9:16" as "9:16" | "16:9",
   formatMode: "auto" as "auto" | "9:16" | "16:9",
 };
-export function StudioWizard() {
+export function StudioWizard({
+  content = defaultStudioContent,
+}: {
+  content?: StudioContent;
+}) {
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const draftId = useRef<string>(""),
-    [saved, setSaved] = useState(false);
+    [saved, setSaved] = useState(false),
+    [projectKey, setProjectKey] = useState("");
   const [draft, setDraft] = useState(initial),
     [step, setStep] = useState(0),
     [owner, setOwner] = useState(""),
@@ -73,10 +76,12 @@ export function StudioWizard() {
           localStorage.getItem("singmotion-draft-id") ||
           crypto.randomUUID();
         localStorage.setItem("singmotion-draft-id", draftId.current);
+        setProjectKey(draftId.current);
         if (requested) {
           const saved = await api<{
             selection: StudioDraftExport;
-            song: Asset;
+            song: Asset | null;
+            image: Asset | null;
             artistName: string;
             step: number;
           }>(`studio-drafts/${encodeURIComponent(requested)}`);
@@ -90,7 +95,12 @@ export function StudioWizard() {
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
           setStep(Math.max(0, Math.min(3, saved.step)));
-          setDetectedFormat(saved.selection.outputFormat === "16:9" ? "16:9" : "9:16");
+          setDetectedFormat(
+            photoFormat(
+              saved.image?.width ?? null,
+              saved.image?.height ?? null,
+            ),
+          );
           setReady(true);
           return;
         }
@@ -99,7 +109,16 @@ export function StudioWizard() {
           if (saved) {
             const restored = { ...initial, ...JSON.parse(saved) };
             setDraft(restored);
-            setDetectedFormat(restored.outputFormat === "16:9" ? "16:9" : "9:16");
+            if (restored.imageId) {
+              const img = new Image();
+              img.onload = () => {
+                if (current)
+                  setDetectedFormat(
+                    photoFormat(img.naturalWidth, img.naturalHeight),
+                  );
+              };
+              img.src = `/api/assets/${encodeURIComponent(restored.imageId)}`;
+            }
           }
         } catch {}
         setReady(true);
@@ -115,12 +134,14 @@ export function StudioWizard() {
     if (ready) localStorage.setItem("singmotion-studio", JSON.stringify(draft));
   }, [draft, ready]);
   useEffect(() => {
-    if (!ready || !draft.song || !draft.imageId || !owner) return;
+    if (!ready || !owner || !projectKey) return;
+    let current = true;
+    const id = projectKey;
     const timer = setTimeout(() => {
       const selection: StudioDraftExport = {
         version: 1,
         owner,
-        songId: draft.song!.id,
+        songId: draft.song?.id || "",
         imageId: draft.imageId,
         start: draft.start,
         end: draft.end,
@@ -130,24 +151,44 @@ export function StudioWizard() {
         outputFormat: draft.outputFormat,
         formatMode: draft.formatMode,
       };
-      void api("studio-drafts", {
-        method: "POST",
-        body: JSON.stringify({
-          id: draftId.current,
-          selection,
-          artistName: draft.artistName,
-          step,
-        }),
-      })
-        .then(() => setSaved(true))
-        .catch(() =>
-          setError(
-            "Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
-          ),
-        );
+      saveQueue.current = saveQueue.current
+        .catch(() => {})
+        .then(() =>
+          api("studio-drafts", {
+            method: "POST",
+            body: JSON.stringify({
+              id,
+              selection,
+              artistName: draft.artistName,
+              step,
+            }),
+          }),
+        )
+        .then(() => {
+          if (current) setSaved(true);
+        })
+        .catch(() => {
+          if (current)
+            setError(
+              "Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
+            );
+        });
     }, 700);
-    return () => clearTimeout(timer);
-  }, [draft, step, owner, ready]);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [draft, step, owner, ready, projectKey]);
+  function newProject() {
+    draftId.current = crypto.randomUUID();
+    localStorage.setItem("singmotion-draft-id", draftId.current);
+    setProjectKey(draftId.current);
+    setDraft(initial);
+    setStep(0);
+    setSaved(false);
+    setError("");
+    window.history.replaceState(null, "", "/");
+  }
   function update(patch: Partial<typeof initial>) {
     setDraft((previous) => ({ ...previous, ...patch }));
     setError("");
@@ -167,12 +208,7 @@ export function StudioWizard() {
           end: Math.min(10, asset.duration || 10),
         });
       else {
-        let detected: "9:16" | "16:9" = "9:16";
-        try {
-          const image = await createImageBitmap(file, { imageOrientation: "from-image" });
-          detected = image.width > image.height * 1.1 ? "16:9" : "9:16";
-          image.close();
-        } catch { /* Keep the documented portrait fallback. */ }
+        const detected = photoFormat(asset.width, asset.height);
         setDetectedFormat(detected);
         update({
           imageId: asset.id,
@@ -208,6 +244,7 @@ export function StudioWizard() {
           camera: draft.camera,
           customPrompt: draft.customPrompt,
           outputFormat: draft.outputFormat,
+          formatMode: draft.formatMode,
         }
       : null;
   const canAdvance =
@@ -225,6 +262,13 @@ export function StudioWizard() {
   return (
     <div className="product-theme product-studio">
       <ProductHeader />
+      <button
+        className="text-button new-project"
+        onClick={newProject}
+        disabled={!ready || busy}
+      >
+        New project
+      </button>
       <main id="content" className="wizard-layout">
         <nav className="wizard-steps" aria-label="Creation steps">
           {steps.map((name, index) => (
@@ -244,7 +288,7 @@ export function StudioWizard() {
           {step === 0 && (
             <>
               <h1>Add your song</h1>
-              <p>Upload an audio file and choose your moment.</p>
+              <p>{content.intro}</p>
               <label
                 className="wizard-upload"
                 onDragOver={(e) => e.preventDefault()}
@@ -279,6 +323,7 @@ export function StudioWizard() {
                     </div>
                     <button
                       aria-label="Remove song"
+                      disabled={busy}
                       onClick={() => update({ song: null })}
                     >
                       <X />
@@ -294,9 +339,9 @@ export function StudioWizard() {
                     onChange={(start, end) => update({ start, end })}
                   />
                   <p>
-                    {(draft.end - draft.start).toFixed(3)} seconds selected.
-                    Available generation durations depend on the reviewed
-                    policy.
+                    {(draft.end - draft.start).toFixed(3)} seconds selected. The
+                    server checks the supported generation duration before
+                    submission.
                   </p>
                 </>
               )}
@@ -322,30 +367,65 @@ export function StudioWizard() {
                 />
               </label>
               {draft.imageId && (
-                <img src={`/api/assets/${draft.imageId}`} alt="Current uploaded reference photo" style={{maxWidth:"100%",maxHeight:220,objectFit:"contain",display:"block",margin:"12px auto",borderRadius:12}} />
+                <img
+                  src={`/api/assets/${draft.imageId}`}
+                  alt="Current uploaded reference photo"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: 220,
+                    objectFit: "contain",
+                    display: "block",
+                    margin: "12px auto",
+                    borderRadius: 12,
+                  }}
+                />
               )}
               {draft.imageId && (
                 <button
                   className="product-secondary"
+                  disabled={busy}
                   onClick={() => update({ imageId: "" })}
                 >
                   Remove photo
                 </button>
               )}
-              <div className="format-options" role="group" aria-label="Video orientation" style={{marginTop:16}}>
+              <div
+                className="format-options"
+                role="group"
+                aria-label="Video orientation"
+                style={{ marginTop: 16 }}
+              >
                 {(["auto", "9:16", "16:9"] as const).map((format) => (
-                  <button key={format} type="button"
+                  <button
+                    key={format}
+                    type="button"
+                    disabled={busy}
                     aria-pressed={draft.formatMode === format}
                     onClick={() => {
-                      update({ formatMode: format, outputFormat: format === "auto" ? detectedFormat : format });
-                    }}>
+                      update({
+                        formatMode: format,
+                        outputFormat:
+                          format === "auto" ? detectedFormat : format,
+                      });
+                    }}
+                  >
                     {format === "16:9" ? <Monitor /> : <Smartphone />}
                     <strong>{format === "auto" ? "Auto" : format}</strong>
-                    <span>{format === "auto" ? "From photo" : format === "9:16" ? "Vertical" : "Horizontal"}</span>
+                    <span>
+                      {format === "auto"
+                        ? "From photo"
+                        : format === "9:16"
+                          ? "Vertical"
+                          : "Horizontal"}
+                    </span>
                   </button>
                 ))}
               </div>
-              <p className="field-note">Output: {draft.outputFormat}. Landscape export may use padding; native landscape generation is not guaranteed.</p>
+              <p className="field-note">
+                Output: {draft.outputFormat}. Square and near-square photos
+                default to 9:16. Landscape export may use padding; native
+                landscape generation is not guaranteed.
+              </p>
               <p>
                 <Link href="/artists">Manage your saved artists</Link>
               </p>
@@ -367,9 +447,12 @@ export function StudioWizard() {
                 placeholder="E.g. Singer walks forward, looking into camera…"
               />
               <div className="suggestion-chips">
-                {suggestions.map((text) => (
+                {[
+                  ...content.performanceTemplates,
+                  ...content.cameraTemplates,
+                ].map(({ label, prompt: text }) => (
                   <button
-                    key={text}
+                    key={label}
                     onClick={() =>
                       update({
                         customPrompt: [draft.customPrompt.trim(), text]
@@ -380,7 +463,7 @@ export function StudioWizard() {
                       })
                     }
                   >
-                    {text}
+                    {label}
                   </button>
                 ))}
               </div>
@@ -408,6 +491,11 @@ export function StudioWizard() {
                   </select>
                 </label>
               </div>
+              <p className="field-note">
+                A custom direction replaces the preset text. Include any camera
+                instructions you want to keep. Camera movements are suggestions,
+                not guaranteed results.
+              </p>
               <details>
                 <summary>English prompt preview</summary>
                 <p>{prompt || "Enter a valid direction."}</p>
@@ -425,7 +513,7 @@ export function StudioWizard() {
                 {[
                   {
                     label: "Audio",
-                    value: `${draft.song?.name || "No song"} · ${time(draft.start)}–${time(draft.end)}`,
+                    value: `${draft.song?.name || "No song"} · ${draft.start.toFixed(3)}–${draft.end.toFixed(3)}s`,
                     at: 0,
                   },
                   { label: "Photo", value: draft.artistName, at: 1 },
@@ -518,11 +606,13 @@ export function StudioWizard() {
         <Link href="/terms">Terms</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/help">Help</Link>
+        <Link href="/legal">Legal notice</Link>
       </footer>
       {confirm && selection && (
         <GenerationDialog
           key={JSON.stringify(selection)}
           selection={selection}
+          requestKey={projectKey}
           artistName={draft.artistName}
           onClose={() => setConfirm(false)}
         />

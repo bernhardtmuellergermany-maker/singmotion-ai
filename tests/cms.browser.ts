@@ -133,6 +133,16 @@ const admin = await payload.create({
     role: "super-admin",
   },
 });
+const operator = await payload.create({
+  collection: "staff",
+  data: {
+    email: `operator-${randomUUID()}@example.test`,
+    password,
+    role: "editor",
+  },
+});
+process.env.BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS = String(operator.id);
+process.env.CUSTOMER_ACCOUNTS_ENABLED = "true";
 await payload.delete({
   collection: "pages",
   where: { slug: { equals: "about" } },
@@ -292,7 +302,15 @@ try {
   const page = await context.newPage();
   // Studio session/quote must work behind TLS termination without APP_ORIGIN.
   await page.goto(origin + "/studio");
-  await page.getByText("€12.50", { exact: true }).waitFor();
+  await page
+    .getByRole("heading", { name: "Add your song", exact: true })
+    .waitFor();
+  await page.waitForFunction(
+    () =>
+      !document.querySelector<HTMLInputElement>(
+        'input[aria-label="Choose audio file"]',
+      )?.disabled,
+  );
   assert.equal(
     await page
       .getByText("Request origin is not allowed.", { exact: true })
@@ -399,6 +417,9 @@ try {
     ).status(),
     403,
   );
+  await page
+    .getByText("Historical pilot tools and policy maintenance", { exact: true })
+    .click();
   const panel = page.getByRole("region", { name: "OmniHuman first test" });
   await panel.waitFor();
   const testAudio = path.join(directory, "admin-test.mp3");
@@ -548,6 +569,11 @@ try {
   assert.equal(cookie?.sameSite, "Strict");
   await page.goto(origin + "/");
   await page
+    .getByRole("heading", { name: "Add your song", exact: true })
+    .waitFor();
+  assert.equal(await page.locator(".wizard-steps button").count(), 4);
+  await page.goto(origin + "/cms-preview/home");
+  await page
     .getByRole("heading", { name: "A published artist story", exact: true })
     .waitFor();
   assert.equal(
@@ -611,6 +637,86 @@ try {
       .count(),
     0,
   );
+  const operatorContext = await browser.newContext({
+    ignoreHTTPSErrors: true,
+    httpCredentials: { username: "staging", password: stagingPassword },
+  });
+  try {
+    const operatorPage = await operatorContext.newPage();
+    await operatorPage.goto(origin + "/operator-signin");
+    await operatorPage
+      .getByLabel("Email", { exact: true })
+      .fill(operator.email);
+    await operatorPage.getByLabel("Password", { exact: true }).fill(password);
+    await operatorPage
+      .getByRole("button", { name: "Sign in to Studio", exact: true })
+      .click();
+    await operatorPage.waitForURL(origin + "/");
+    const access = await (
+      await operatorContext.request.get(origin + "/api/studio-live", {
+        headers: { origin },
+      })
+    ).json();
+    assert.equal(
+      access.pilot,
+      true,
+      JSON.stringify({
+        error: access.error,
+        code: access.code,
+        blockers: access.blockers,
+      }),
+    );
+    assert.equal(
+      (
+        await operatorContext.request.get(adminTest, { headers: { origin } })
+      ).status(),
+      403,
+    );
+    assert.equal(
+      (
+        await operatorContext.request.post(origin + "/api/studio-live", {
+          headers: { origin },
+          data: { action: "budget-authorize" },
+        })
+      ).status(),
+      403,
+    );
+    assert.equal(
+      (
+        await operatorContext.request.post(origin + "/api/studio-live", {
+          headers: { origin: "https://evil.test" },
+          data: { action: "submit", id: "guess" },
+        })
+      ).status(),
+      403,
+    );
+    // A customer cookie never borrows even an authenticated operator's authority.
+    const account = await operatorContext.request.post(
+      origin + "/api/account",
+      {
+        headers: { origin },
+        data: {
+          action: "register",
+          email: `customer-${randomUUID()}@example.test`,
+          password,
+        },
+      },
+    );
+    assert.equal(account.status(), 200);
+    await operatorContext.request.post(origin + "/api/session", {
+      headers: { origin },
+    });
+    assert.equal(
+      (
+        await operatorContext.request.get(origin + "/api/studio-live", {
+          headers: { origin },
+        })
+      ).status(),
+      403,
+    );
+  } finally {
+    await operatorContext.close();
+  }
   await page.goto(origin + "/admin/logout");
   await page.locator('input[name="email"]').waitFor();
   assert.equal(
@@ -618,7 +724,7 @@ try {
     403,
   );
   console.log(
-    "PASS: CMS hero asset and editable navigation, Studio HTTPS origin fallback/CSRF, HTTPS proxy, protected/applied Payload CSS, exact Origin rejection diagnostics, wrong-password rejection, secure-cookie login, staging protection, registration denial, CSRF, real Payload browser login, publishing, draft preview, XSS escaping, secure session flags and legacy admin isolation.",
+    "PASS: direct Studio, editor operator login, customer/operator isolation, retained CMS hero preview and editable navigation, Studio HTTPS origin fallback/CSRF, HTTPS proxy, protected/applied Payload CSS, exact Origin rejection diagnostics, wrong-password rejection, secure-cookie login, staging protection, registration denial, CSRF, real Payload browser login, publishing, draft preview, XSS escaping, secure session flags and legacy admin isolation.",
   );
 } catch (error) {
   console.error(log.slice(-3000));

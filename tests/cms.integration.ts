@@ -66,6 +66,60 @@ test("Payload PostgreSQL authentication, roles, publishing, versions, uploads an
     const ed = { ...editor, collection: "staff" as const },
       su = { ...support, collection: "staff" as const };
     await t.test(
+      "additive Studio settings preserve legacy content and enforce editor/support boundaries",
+      async () => {
+        const before = await payload.count({ collection: "staff" });
+        const templates = [
+          { label: "Test camera", prompt: "Use a slow camera move" },
+        ];
+        await payload.updateGlobal({
+          slug: "studio-settings",
+          overrideAccess: false,
+          user: ed,
+          data: {
+            intro: "Private test studio",
+            performanceTemplates: [],
+            cameraTemplates: templates,
+          },
+        });
+        const saved = await payload.findGlobal({
+          slug: "studio-settings",
+          overrideAccess: false,
+        });
+        assert.deepEqual(saved.cameraTemplates, templates);
+        await assert.rejects(
+          payload.updateGlobal({
+            slug: "studio-settings",
+            overrideAccess: false,
+            user: su,
+            data: { intro: "Forbidden" },
+          }),
+        );
+        await assert.rejects(
+          payload.updateGlobal({
+            slug: "studio-settings",
+            overrideAccess: false,
+            user: ed,
+            data: {
+              cameraTemplates: [{ label: "Bad", prompt: "x".repeat(301) }],
+            },
+          }),
+        );
+        assert.equal(
+          (await payload.count({ collection: "staff" })).totalDocs,
+          before.totalDocs,
+        );
+        assert.ok(
+          (
+            await payload.find({
+              collection: "audit-events",
+              where: { resource: { equals: "studio-settings" } },
+            })
+          ).totalDocs > 0,
+        );
+      },
+    );
+    await t.test(
       "server recovery preserves account, revokes every session and clears lockout",
       async () => {
         const { recoverAdmin, recoveryConfirmation } =

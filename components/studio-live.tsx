@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
-import type { StudioWorkflow, StudioProject } from "@/lib/live/studio";
+import type { StudioProject } from "@/lib/live/studio";
 import { StudioRecordingReview } from "./studio-recording-review";
 import { StudioBudgetReview } from "./studio-budget";
 import type { offerStudioBudget } from "@/lib/live/studio-budget-review";
@@ -432,109 +432,6 @@ export function StudioLiveControl({
     </section>
   );
 }
-function FreshTest() {
-  const [result, setResult] = useState<Awaited<
-    ReturnType<StudioWorkflow["freshTest"]>
-  > | null>(null);
-  const [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  return (
-    <div>
-      <button
-        className="button outline"
-        disabled={busy}
-        onClick={async () => {
-          setBusy(true);
-          setError("");
-          setResult(null);
-          try {
-            await ensureSession();
-            setResult(
-              await api("studio-live", {
-                method: "POST",
-                body: JSON.stringify({ action: "fresh-test" }),
-              }),
-            );
-          } catch (e) {
-            setError((e as Error).message);
-          } finally {
-            setBusy(false);
-          }
-        }}
-      >
-        {busy ? "Checking previous tasks…" : "Start fresh test"}
-      </button>
-      {error && <p role="alert">{error}</p>}
-      {result && (
-        <div role="status">
-          {result.ready ? (
-            <p>
-              {result.exceptionExposure
-                ? "Private-test exception acknowledged. The old task is still unresolved; overlapping generation and billing remain possible."
-                : "No unresolved task blocks this check."}{" "}
-              Reservations remain counted.{" "}
-              <Link href="/studio">
-                Open Studio to select inputs and explicitly approve a new test
-              </Link>
-              . Spending and active-task checks run again before submission.
-            </p>
-          ) : (
-            result.blockers.map((b, i) => (
-              <p key={i}>
-                {b.workflow && (
-                  <strong>
-                    {b.workflow} task {b.taskId || "ID not assigned"} ·{" "}
-                    {b.state}.{" "}
-                  </strong>
-                )}
-                {b.message}{" "}
-                {b.canAcknowledge && (
-                  <button
-                    className="button outline"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (
-                        !window.confirm(
-                          `Accept possible overlapping generation and billing for operator task ${b.taskId}? Its state and full reservation remain unchanged within EUR 50. No task will be submitted.`,
-                        )
-                      )
-                        return;
-                      setBusy(true);
-                      setError("");
-                      try {
-                        setResult(
-                          await api("studio-live", {
-                            method: "POST",
-                            body: JSON.stringify({
-                              action: "acknowledge-operator-risk",
-                              id: b.attemptId,
-                              confirmation: `ACCEPT OVERLAPPING BILLING ${b.attemptId} ${b.taskId}`,
-                            }),
-                          }),
-                        );
-                      } catch (e) {
-                        setError((e as Error).message);
-                      } finally {
-                        setBusy(false);
-                      }
-                    }}
-                  >
-                    Acknowledge operator-task risk — permit private testing
-                  </button>
-                )}
-                {b.projectId && (
-                  <Link href={`/projects/live_${b.projectId}`}>
-                    Recover / reconcile previous task
-                  </Link>
-                )}
-              </p>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 export function LiveProject({ id }: { id: string }) {
   const router = useRouter();
   const [project, setProject] = useState<StudioProject | null>(null),
@@ -553,11 +450,15 @@ export function LiveProject({ id }: { id: string }) {
         .catch((e) => {
           if (active) setError(e.message);
         });
-    void read();
-    const timer = setInterval(() => void read(), 5000);
+    let timer: ReturnType<typeof setTimeout>;
+    async function refresh() {
+      if (document.visibilityState !== "hidden") await read();
+      if (active) timer = setTimeout(refresh, 5000);
+    }
+    void refresh();
     return () => {
       active = false;
-      clearInterval(timer);
+      clearTimeout(timer);
     };
   }, [id]);
   async function poll() {
@@ -679,20 +580,20 @@ export function LiveProject({ id }: { id: string }) {
                 onClick={() => {
                   if (
                     window.confirm(
-                      "Delete project from My Projects? Files, billing records and active task locks are retained. Save this page link for recovery.",
+                      "Hide project from My Videos? Files, billing records and active task locks are retained. Save this page link for recovery.",
                     )
                   )
                     void action("hide", { confirmation: `HIDE ${id}` });
                 }}
               >
-                Delete project
+                Hide project
               </button>
             )}
             {project.providerJobId &&
               ["submitted", "processing"].includes(project.state) && (
                 <details>
                   <summary>
-                    Super Admin: reconcile a confirmed terminal task
+                    Operator: reconcile a confirmed terminal task
                   </summary>
                   <p>
                     50510 alone does not prove this task ended. Verify and
@@ -753,43 +654,6 @@ export function LiveProject({ id }: { id: string }) {
                   </form>
                 </details>
               )}
-            {project.providerJobId === "176942047" &&
-              ["submitted", "processing", "uncertain"].includes(
-                project.state,
-              ) &&
-              (project.privateException ? (
-                <p role="status">
-                  Private-test exception recorded. Old task outcome remains
-                  unverified; its full reservation and possible overlapping
-                  billing remain.
-                </p>
-              ) : (
-                <div>
-                  <p>
-                    For task 176942047 only: if the retained response cannot
-                    establish terminal rejection, a Super Admin may accept
-                    possible overlapping generation and billing. This does not
-                    mark the task terminal or refund its reservation.
-                  </p>
-                  <button
-                    className="button outline"
-                    disabled={busy}
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          "I accept possible overlapping generation and billing for unresolved task 176942047. Preserve its full reservation within EUR 50. Permit separately approved private tests without claiming this task is terminal?",
-                        )
-                      )
-                        void action("acknowledge-private-risk", {
-                          confirmation: `ACCEPT OVERLAPPING BILLING ${id} 176942047`,
-                        });
-                    }}
-                  >
-                    Acknowledge unresolved-task risk — permit private testing
-                  </button>
-                </div>
-              ))}
-            <FreshTest />
             <Link href="/studio">Back to Studio</Link>
           </div>
         </div>
@@ -803,20 +667,34 @@ export function LiveProjects() {
     [error, setError] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   useEffect(() => {
-    void ensureSession()
-      .then(() =>
-        api<{ projects: StudioProject[]; pilot?: boolean }>("studio-live"),
-      )
-      .then((r) => {
-        setProjects(r.projects || []);
-        setPilot(!!r.pilot);
-      })
-      .catch(() => {});
+    let active = true,
+      timer: ReturnType<typeof setTimeout>;
+    async function refresh() {
+      try {
+        await ensureSession();
+        if (document.visibilityState !== "hidden") {
+          const r = await api<{ projects: StudioProject[]; pilot?: boolean }>(
+            "studio-live",
+          );
+          if (active) {
+            setProjects(r.projects || []);
+            setPilot(!!r.pilot);
+          }
+        }
+      } catch {
+        /* Login/access remains separate; no provider request occurs here. */
+      }
+      if (active) timer = setTimeout(refresh, 5000);
+    }
+    void refresh();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, []);
   if (!pilot) return null;
   return (
     <section aria-label="OmniHuman projects" className="project-grid">
-      <FreshTest />
       {error && <p role="alert">{error}</p>}
       {projects.map((p) => (
         <div key={p.id}>
@@ -830,7 +708,12 @@ export function LiveProjects() {
             </div>
             <div className="project-info">
               <h3>{p.artistName}</h3>
-              <p>OmniHuman 2.0 · {p.durationSeconds.toFixed(2)}s</p>
+              <p>
+                {p.selection.outputFormat || "Original format"} ·{" "}
+                {p.durationSeconds.toFixed(2)}s ·{" "}
+                {new Date(p.createdAt).toLocaleDateString("en-GB")}
+              </p>
+              <p>Base estimate: {usd(p.estimatedBaseMicroUsd)}</p>
               <p>
                 {p.ceilingMicroUsd === null
                   ? "Unpriced"
@@ -844,7 +727,7 @@ export function LiveProjects() {
             onClick={async () => {
               if (
                 !window.confirm(
-                  "Delete project from My Projects? Task history, files, reservations and unresolved locks are retained.",
+                  "Hide project from My Videos? Task history, files, reservations and unresolved locks are retained.",
                 )
               )
                 return;
@@ -869,7 +752,7 @@ export function LiveProjects() {
               }
             }}
           >
-            Delete project
+            Hide project
           </button>
         </div>
       ))}

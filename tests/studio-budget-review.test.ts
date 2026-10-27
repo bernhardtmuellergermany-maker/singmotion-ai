@@ -8,7 +8,6 @@ import {
   studioReservedUsd,
   studioBudgetAcknowledgment,
 } from "../lib/live/studio-budget-review.ts";
-import { euroBudget } from "../lib/live/studio-budget.ts";
 import { studioStaff } from "../cms/studio-access.ts";
 const http: typeof fetch = async () =>
   new Response(
@@ -226,95 +225,46 @@ test("stale rates, changed reservations/caps and expired offers fail closed", as
     store.close();
   }
 });
-test("reservation transaction uses latest renewal, preserves USD cap and uncertain lock", async () => {
+test("private reservations ignore historical budget expiry and uncertainty, but retain one-time admission", () => {
   const { store, a } = fixture();
   try {
-    const offer = await offerStudioBudget(
-      store.db,
-      "staff",
-      "owner",
-      50000000,
-      http,
-    );
-    authorizeStudioBudget(
-      store.db,
-      "staff",
-      "owner",
-      50000000,
-      offer.id,
-      studioBudgetAcknowledgment,
-    );
     const cfg = {
       demoMode: false,
       enabled: true,
       operatorSecret: "mock-private-secret-at-least-32-characters",
       maxJobMicroUsd: 20000000,
-      maxTotalMicroUsd: 50000000,
+      maxTotalMicroUsd: 1,
       maxDurationSeconds: 60,
-      eurBudget: {
-        ...latestStudioBudget(store.db)!,
-        eurPerUsdUpperPpm: 1,
-        fxFeesMaxMicroEur: 0,
-      },
     };
-    const fresh = store.prepare(
-      { ...a.media, sourceJobId: "studio-new" },
-      "mock",
-      20000000,
-    );
-    assert.throws(
-      () =>
-        store.authorize(
-          fresh.id,
-          cfg,
-          cfg.operatorSecret,
-          confirmationPhrase(fresh),
-        ),
-      /Total live-test spending cap/,
-    );
-    assert.equal(studioReservedUsd(store.db), 8640000);
-    assert.equal(
-      euroBudget(latestStudioBudget(store.db), 8640000, 9000000)
-        .remainingMicroUsd,
-      360000,
-    );
     store.db
       .prepare("UPDATE live_attempts SET data=? WHERE id=?")
       .run(JSON.stringify({ ...store.get(a.id), state: "uncertain" }), a.id);
-    assert.throws(
-      () =>
-        store.authorize(
-          fresh.id,
-          cfg,
-          cfg.operatorSecret,
-          confirmationPhrase(fresh),
-        ),
-      /ONE_ACTIVE_GENERATION/,
-    );
-    store.db
-      .prepare("UPDATE live_attempts SET data=? WHERE id=?")
-      .run(JSON.stringify({ ...store.get(a.id), state: "failed" }), a.id);
-    store.db.prepare("UPDATE live_studio_budget_reviews SET review_json=?").run(
-      JSON.stringify({
-        ...latestStudioBudget(store.db),
-        validUntil: "2000-01-01",
-      }),
-    );
-    assert.throws(
-      () =>
-        store.authorize(
-          fresh.id,
-          cfg,
-          cfg.operatorSecret,
-          confirmationPhrase(fresh),
-        ),
-      /EUR50_REVIEW_REQUIRED/,
-    );
+    const before = store.get(a.id);
+    for (let i = 0; i < 3; i++) {
+      const fresh = store.prepare(
+        { ...a.media, sourceJobId: `studio-new-${i}` },
+        "mock",
+        20000000,
+      );
+      const token = store.authorize(
+        fresh.id,
+        cfg,
+        cfg.operatorSecret,
+        confirmationPhrase(fresh),
+      );
+      store.claimSubmission(fresh.id, token, cfg);
+      assert.throws(
+        () => store.claimSubmission(fresh.id, token, cfg),
+        /already consumed/,
+      );
+      assert.deepEqual(store.get(a.id), before);
+    }
+    assert.equal(studioReservedUsd(store.db), 68640000);
   } finally {
     store.close();
   }
 });
-test("budget POST uses existing Super Admin allowlist and exact Origin protections", () => {
+test("operator POST uses staff allowlist and exact Origin protections", () => {
   const env = {
     CMS_ENABLED: "true",
     CMS_ORIGIN: "https://staging.example.test",
@@ -331,7 +281,7 @@ test("budget POST uses existing Super Admin allowlist and exact Origin protectio
   );
   for (const user of [
     null,
-    { id: "admin", collection: "staff", role: "editor" },
+    { id: "admin", collection: "customers", role: "editor" },
     { id: "other", collection: "staff", role: "super-admin" },
   ])
     assert.throws(() =>

@@ -94,10 +94,12 @@ export interface Config {
   };
   fallbackLocale: null;
   globals: {
+    'studio-settings': StudioSetting;
     'site-navigation': SiteNavigation;
     'notification-templates': NotificationTemplate;
   };
   globalsSelect: {
+    'studio-settings': StudioSettingsSelect<false> | StudioSettingsSelect<true>;
     'site-navigation': SiteNavigationSelect<false> | SiteNavigationSelect<true>;
     'notification-templates': NotificationTemplatesSelect<false> | NotificationTemplatesSelect<true>;
   };
@@ -555,6 +557,42 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
   createdAt?: T;
 }
 /**
+ * Studio copy and optional prompt suggestions only. Authorization, costs and provider policy cannot be changed here.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-settings".
+ */
+export interface StudioSetting {
+  id: number;
+  intro?: string | null;
+  /**
+   * Optional array of {"label":"Name","prompt":"English suggestion"}; up to 12 entries.
+   */
+  performanceTemplates?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  /**
+   * Optional array of {"label":"Name","prompt":"English suggestion"}; up to 12 entries.
+   */
+  cameraTemplates?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
  * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-navigation".
  */
@@ -600,6 +638,18 @@ export interface NotificationTemplate {
     | null;
   updatedAt?: string | null;
   createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "studio-settings_select".
+ */
+export interface StudioSettingsSelect<T extends boolean = true> {
+  intro?: T;
+  performanceTemplates?: T;
+  cameraTemplates?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

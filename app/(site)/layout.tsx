@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s · SingMotion AI",
   },
   description:
-    "Create a singing performance from your own music and artist image. Explore the private, clearly simulated SingMotion studio.",
+    "Create a singing performance from your own music and photo in your private SingMotion studio.",
 };
 export default function RootLayout({
   children,

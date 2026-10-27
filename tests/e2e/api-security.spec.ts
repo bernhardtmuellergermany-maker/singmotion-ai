@@ -148,3 +148,89 @@ test("customer sessions enforce Origin, start without invented credit and persis
     await client.dispose();
   }
 });
+
+test("EXIF-oriented uploads, saved formats and private draft ownership survive server round-trip", async ({
+  playwright,
+}) => {
+  const baseURL = "http://127.0.0.1:3100",
+    headers = { Origin: baseURL };
+  const a = await playwright.request.newContext({ baseURL }),
+    b = await playwright.request.newContext({ baseURL });
+  try {
+    const owner = (await (await a.post("/api/session", { headers })).json())
+      .owner;
+    await b.post("/api/session", { headers });
+    const rotated = await sharp({
+      create: { width: 1280, height: 720, channels: 3, background: "#aabbcc" },
+    })
+      .withMetadata({ orientation: 6 })
+      .jpeg()
+      .toBuffer();
+    const image = await (
+      await a.post("/api/assets", {
+        headers,
+        multipart: {
+          kind: "image",
+          file: {
+            name: "rotated.jpg",
+            mimeType: "image/jpeg",
+            buffer: rotated,
+          },
+        },
+      })
+    ).json();
+    expect(image.width).toBe(720);
+    expect(image.height).toBe(1280);
+    const audio = await (
+      await a.post("/api/assets", {
+        headers,
+        multipart: {
+          kind: "audio",
+          file: {
+            name: "song.wav",
+            mimeType: "audio/wav",
+            buffer: readFileSync(song),
+          },
+        },
+      })
+    ).json();
+    const id = `draft-${Date.now()}`;
+    const selection = {
+      version: 1,
+      owner,
+      songId: audio.id,
+      imageId: image.id,
+      start: 1.25,
+      end: 5.25,
+      outputFormat: "16:9",
+      formatMode: "16:9",
+      performance: "Natural",
+      camera: "Static Close-Up",
+      customPrompt: "",
+    };
+    expect(
+      (
+        await a.post("/api/studio-drafts", {
+          headers,
+          data: { id, selection, artistName: "EXIF test", step: 3 },
+        })
+      ).ok(),
+    ).toBe(true);
+    const restored = await (await a.get(`/api/studio-drafts/${id}`)).json();
+    expect(restored.selection).toEqual(selection);
+    expect(restored.image.width).toBe(720);
+    expect((await b.get(`/api/studio-drafts/${id}`)).status()).toBe(404);
+    expect((await b.get(`/api/assets/${image.id}`)).status()).toBe(404);
+    expect(
+      (
+        await b.post("/api/studio-drafts", {
+          headers,
+          data: { id, selection, artistName: "Spoof", step: 3 },
+        })
+      ).status(),
+    ).toBe(403);
+  } finally {
+    await a.dispose();
+    await b.dispose();
+  }
+});

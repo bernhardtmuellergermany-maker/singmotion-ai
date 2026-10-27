@@ -33,7 +33,8 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   if (
     Object.keys(v).some((key) => !keys.includes(key)) ||
     v.version !== 1 ||
-    (v.formatMode !== undefined && !["auto", "9:16", "16:9"].includes(String(v.formatMode))) ||
+    (v.formatMode !== undefined &&
+      !["auto", "9:16", "16:9"].includes(String(v.formatMode))) ||
     (v.outputFormat !== undefined &&
       v.outputFormat !== "9:16" &&
       v.outputFormat !== "16:9") ||
@@ -53,7 +54,9 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   composePrompt(v.performance, v.camera, v.customPrompt);
   return {
     version: 1,
-    ...(v.formatMode ? { formatMode: v.formatMode as "auto" | "9:16" | "16:9" } : {}),
+    ...(v.formatMode
+      ? { formatMode: v.formatMode as "auto" | "9:16" | "16:9" }
+      : {}),
     ...(v.outputFormat
       ? { outputFormat: v.outputFormat as "9:16" | "16:9" }
       : {}),
@@ -65,5 +68,27 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     performance: v.performance,
     camera: v.camera,
     customPrompt: v.customPrompt,
+  };
+}
+
+/** Saved editing state can be incomplete; paid preparation still uses the strict parser. */
+export function parseSavedStudioDraft(value: unknown): StudioDraftExport {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("Invalid saved Studio draft.");
+  const v = value as Record<string, unknown>;
+  const partial = parseStudioDraft({
+    ...v,
+    songId: v.songId === "" ? "pending-audio" : v.songId,
+    imageId: v.imageId === "" ? "pending-image" : v.imageId,
+    performance:
+      v.performance === "Custom" && v.customPrompt === ""
+        ? "Natural"
+        : v.performance,
+  });
+  return {
+    ...partial,
+    songId: v.songId as string,
+    imageId: v.imageId as string,
+    performance: v.performance as string,
   };
 }

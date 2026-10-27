@@ -1,3 +1,4 @@
+import { reportedBaseChargeMicroUsd } from "./contract.ts";
 import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget, type EuroBudget } from "./studio-budget.ts";
 import { reservedUsd, secondReview } from "./second-test.ts";
@@ -55,6 +56,7 @@ export interface StudioProject {
   artistName: string;
   selection: StudioDraftExport;
   estimatedBaseMicroUsd: number;
+  estimatedGeneratedSeconds: number;
   planningUpliftMicroUsd: number | null;
   ceilingMicroUsd: number | null;
   digest: string | null;
@@ -154,6 +156,13 @@ export class StudioWorkflow {
       failed:
         "Provider reported a terminal failure; reservation retained pending billing reconciliation.",
     };
+    const savedContract = JSON.parse(row.policy_json)
+      .contract as StudioPolicy["contract"];
+    const estimatedGeneratedSeconds = Math.min(
+      300,
+      a.media.durationSeconds +
+        (savedContract.generatedDurationBound?.maxAdditionalSeconds || 0),
+    );
     const budget = null;
     const budgetBlocker = null;
     return {
@@ -181,11 +190,11 @@ export class StudioWorkflow {
       imageId: JSON.parse(row.selection_json).imageId,
       artistName: row.artist_name,
       selection: JSON.parse(row.selection_json),
-      estimatedBaseMicroUsd: Math.ceil(a.media.durationSeconds * 70000),
-      planningUpliftMicroUsd: JSON.parse(row.policy_json).contract
-        .pilotAdmission
-        ? Math.ceil(a.media.durationSeconds * 70000 * 1.19)
-        : null,
+      estimatedGeneratedSeconds,
+      estimatedBaseMicroUsd: reportedBaseChargeMicroUsd(
+        estimatedGeneratedSeconds,
+      ),
+      planningUpliftMicroUsd: null,
       ceilingMicroUsd: a.upperBoundMicroUsd,
       digest: a.contractDigest || null,
       stage:
@@ -529,6 +538,7 @@ export class StudioWorkflow {
     consent: unknown,
     english: unknown,
     repeatOf?: unknown,
+    requestKey?: unknown,
   ) {
     studioGate(this.config);
     if (consent !== true || english !== true)
@@ -572,6 +582,17 @@ export class StudioWorkflow {
           409,
         );
       source += `-repeat-${repeatOf}`;
+    }
+    if (requestKey !== undefined) {
+      if (
+        typeof requestKey !== "string" ||
+        !/^[a-zA-Z0-9-]{16,80}$/.test(requestKey)
+      )
+        throw new StudioLiveError(
+          "INVALID_REQUEST_KEY",
+          "A valid project request identifier is required.",
+        );
+      source += `-request-${requestKey}`;
     }
     const originalSource = source;
     const findStarted = () =>

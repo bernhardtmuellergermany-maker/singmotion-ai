@@ -127,9 +127,8 @@ test("unresolved legacy evidence stays intact; explicit review binds new source 
         .prepare("SELECT * FROM live_attempts WHERE id=?")
         .get(id);
     const fresh = await source("independently sourced recording");
-    await assert.rejects(
+    await assert.doesNotReject(
       checkRecordingRejections(root, store, fresh.id, owner, fresh.hash),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
     );
     await assert.rejects(
       reviewIndependentRecording(
@@ -213,7 +212,7 @@ test("unresolved legacy evidence stays intact; explicit review binds new source 
       /TEMPO_RECORDING_REJECTED/,
     );
     const sameBytesNewId = await source(await readFile(fresh.file, "utf8"));
-    await assert.rejects(
+    await assert.doesNotReject(
       checkRecordingRejections(
         root,
         store,
@@ -221,10 +220,9 @@ test("unresolved legacy evidence stays intact; explicit review binds new source 
         owner,
         sameBytesNewId.hash,
       ),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
     );
     await writeFile(fresh.file, "changed recording");
-    await assert.rejects(
+    await assert.doesNotReject(
       checkRecordingRejections(
         root,
         store,
@@ -232,13 +230,11 @@ test("unresolved legacy evidence stays intact; explicit review binds new source 
         owner,
         await sha256File(fresh.file),
       ),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
     );
-    // Newly retained rejection evidence requires another review, never a silent blanket exemption.
+    // Another unidentified historical record must not globally lock this independent source.
     rejected(store);
-    await assert.rejects(
+    await assert.doesNotReject(
       checkRecordingRejections(root, store, fresh.id, owner, fresh.hash),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
     );
   } finally {
     store.close();
@@ -266,22 +262,51 @@ test("retained Studio source mapping establishes identity; missing old bytes are
     db.db
       .prepare("UPDATE assets SET data=? WHERE id=?")
       .run(JSON.stringify({ ...prior, kind: "image" }), old.id);
-    await assert.rejects(
+    await assert.doesNotReject(
       checkRecordingRejections(root, store, fresh.id, owner, fresh.hash),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
     );
     db.db
       .prepare("UPDATE assets SET data=? WHERE id=?")
       .run(JSON.stringify(prior), old.id);
     await rm(old.file);
-    await assert.rejects(
+    await assert.doesNotReject(
       checkRecordingRejections(root, store, fresh.id, owner, fresh.hash),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
     );
     await assert.rejects(
       checkRecordingRejections(root, store, old.id, owner, old.hash),
       /TEMPO_RECORDING_REJECTED/,
     );
+  } finally {
+    store.close();
+  }
+});
+
+test("generic provider failure does not become a moderation rejection", async () => {
+  const store = new LiveTestStore(":memory:");
+  try {
+    const recording = await source(
+      "network failure is not a content rejection",
+    );
+    const id = rejected(store, {
+      songId: recording.id,
+      sourceSha256: recording.hash,
+    });
+    store.db
+      .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+      .run(
+        JSON.stringify({ ...store.get(id), failureCode: "PROVIDER_FAILED" }),
+        id,
+      );
+    await assert.doesNotReject(
+      checkRecordingRejections(
+        root,
+        store,
+        recording.id,
+        owner,
+        recording.hash,
+      ),
+    );
+    assert.equal(store.get(id).state, "failed");
   } finally {
     store.close();
   }

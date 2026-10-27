@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { PrivateLedger } from "./private-ledger";
 import { StudioActivation } from "./studio-activation";
 import { FirstTestPanel } from "./first-test-panel";
 import type { AdminViewServerProps } from "payload";
@@ -29,15 +31,36 @@ export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
     >
       {hasRole(user, ["super-admin"]) && (
         <>
-          <StudioActivation />
-          <FirstTestPanel />
+          <h2>Private Studio operations</h2>
+          <PrivateLedger user={user} />
+          <p>
+            <Link href="/">Open Studio</Link> ·{" "}
+            <Link href="/my-videos">Projects and private downloads</Link> ·{" "}
+            <Link href="/operator">Task diagnostics and recovery</Link>
+          </p>
+          <p>
+            Private generation requires an explicitly allowlisted operator.
+            Editor accounts can operate without Super Admin rights. Existing
+            task IDs, cost reservations and recovery records remain in the
+            private ledger.
+          </p>
+          <details>
+            <summary>Historical pilot tools and policy maintenance</summary>
+            <p>
+              These tools preserve earlier test records. New Studio projects do
+              not require pilot activation or daily/cumulative budget renewal.
+            </p>
+            <StudioActivation />
+            <FirstTestPanel />
+          </details>
         </>
       )}
       <h2>SingMotion operations</h2>
       <p>
-        Demo mode. Public paid generation and Stripe remain disabled. The
-        separate Super Admin first-test panel requires explicit server and cost
-        authorization.
+        Public customer generation and payments remain disabled. Operator media,
+        orders, provider task IDs and recovery are managed through the private
+        Studio. CMS website assets are public content and must never contain
+        private uploads.
       </p>
       <p>
         Active anonymous demo workspaces: {count}. These are not registered
@@ -53,9 +76,10 @@ export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
       </ul>
       <h3>Not connected</h3>
       <p>
-        Customer accounts, suspension, subscriptions, real credits, payments,
-        revenue, margins and refunds. Support cases record requests only. No
-        invented financial balances.
+        Verified customer payments, email delivery, invoices and public customer
+        generation are not connected. The isolated customer/guest ledger and
+        idempotent credit primitives are preparation only. No starting credit is
+        invented.
       </p>
       <p>
         The Super Admin test panel exposes only that administrator’s private

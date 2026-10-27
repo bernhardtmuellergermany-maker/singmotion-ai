@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests/e2e",
   // Previous three-step UI specs remain in the repository as historical coverage.
-  // The five-step product suite replaces their obsolete selectors; API security stays active.
+  // The four-step product suite replaces their obsolete selectors; API security stays active.
   testMatch: ["api-security.spec.ts", "product.spec.ts"],
   fullyParallel: false,
   workers: 1,

@@ -219,7 +219,7 @@ async function fixture(taskId = "mock-task") {
   };
 }
 test("pilot disabled by default and incomplete/replayed policy cannot price", () => {
-  assert.throws(() => studioGate(studioConfig({})), /explicit server/);
+  assert.throws(() => studioGate(studioConfig({})), /server enablement/);
   assert.equal(validateStudioPolicy(policy).contract.model, "OmniHuman 2.0");
   for (const p of [
     { ...policy, billingEvidence: "" },
@@ -282,7 +282,7 @@ test("real WAV trim, immutable owned image/MP3, prompts, review and duplicate pr
   assert.ok(!JSON.stringify(persisted).includes(root));
   assert.ok(!JSON.stringify(persisted).includes("signed="));
 });
-test("shared cumulative reservation includes prior tasks and never uses demo credits", async () => {
+test("historical cumulative reservations do not block private Studio or consume customer credits", async () => {
   const f = await fixture();
   const before = db.balance(owner);
   const previous = f.store.prepare(
@@ -300,8 +300,8 @@ test("shared cumulative reservation includes prior tasks and never uses demo cre
   f.store.db
     .prepare("UPDATE live_attempts SET reserved_micro_usd=? WHERE id=?")
     .run(1500000, previous.id);
-  await assert.rejects(f.submit(), /Total live-test spending cap/);
-  assert.equal(f.counts().submits, 0);
+  await f.submit();
+  assert.equal(f.counts().submits, 1);
   assert.equal(db.balance(owner), before);
   assert.deepEqual(f.store.firstTest(), oldSlot);
   assert.deepEqual(f.store.firstTestResult(previous.id), oldResult);
@@ -350,7 +350,7 @@ test("uncertain submission never retries, failed task never restores a reservati
   }
 });
 
-test("pilot authorization rejects anonymous, non-super-admin, unlisted staff and forged Origin", async () => {
+test("operator authorization allows listed editors and rejects anonymous, customers, unlisted staff and forged Origin", async () => {
   const { studioStaff } = await import("../cms/studio-access.ts");
   const env = {
     CMS_ENABLED: "true",
@@ -360,9 +360,13 @@ test("pilot authorization rejects anonymous, non-super-admin, unlisted staff and
   const headers = new Headers({ origin: env.CMS_ORIGIN });
   const admin = { id: 17, collection: "staff", role: "super-admin" };
   assert.equal(studioStaff(admin, "POST", headers, env), "cms-staff-17");
+  assert.equal(
+    studioStaff({ ...admin, role: "editor" }, "POST", headers, env),
+    "cms-staff-17",
+  );
   for (const user of [
     null,
-    { ...admin, role: "editor" },
+    { ...admin, collection: "customers", role: "editor" },
     { ...admin, role: "support" },
     { ...admin, role: "customer" },
     { ...admin, id: 18 },
@@ -426,7 +430,7 @@ test("stored project policy permits read-only recovery after new submissions are
       f.plan.ceilingMicroUsd,
       "anything",
     ),
-    /explicit server/,
+    /server enablement/,
   );
   assert.equal((await service.poll(f.plan.id, owner)).state, "completed");
   assert.equal(f.counts().submits, 1);
@@ -451,14 +455,32 @@ test("public diagnostics classify budget and media constraints without private e
   );
 });
 
-test("atomic single-active guard covers different plans and uncertain outcomes", async () => {
+test("independent projects submit concurrently while each request remains idempotent after uncertainty", async () => {
   const f = await fixture();
+  const key = randomUUID();
   const second = await f.service.prepare(
-    { ...f.selection, customPrompt: "Another explicit mock selection." },
+    f.selection,
     owner,
     "Singer",
     true,
     true,
+    undefined,
+    key,
+  );
+  assert.notEqual(second.id, f.plan.id);
+  assert.equal(
+    (
+      await f.service.prepare(
+        f.selection,
+        owner,
+        "Singer",
+        true,
+        true,
+        undefined,
+        key,
+      )
+    ).id,
+    second.id,
   );
   const startSecond = () =>
     f.service.submit(
@@ -468,28 +490,46 @@ test("atomic single-active guard covers different plans and uncertain outcomes",
       second.ceilingMicroUsd,
       `CONFIRM PAID STUDIO ${second.id} ${second.digest} ${second.ceilingMicroUsd}`,
     );
-  const results = await Promise.allSettled([f.submit(), startSecond()]);
-  assert.equal(results.filter((r) => r.status === "fulfilled").length, 1);
-  assert.equal(f.counts().submits, 1);
-  assert.match(
-    String(
-      (results.find((r) => r.status === "rejected") as PromiseRejectedResult)
-        .reason,
-    ),
-    /ONE_ACTIVE_GENERATION/,
-  );
-  const active = [f.plan, second].find(
-    (p) => f.store.get(p.id).state === "submitted",
-  )!;
+  await Promise.all([f.submit(), startSecond()]);
+  assert.equal(f.counts().submits, 2);
   f.store.db
     .prepare("UPDATE live_attempts SET data=? WHERE id=?")
     .run(
-      JSON.stringify({ ...f.store.get(active.id), state: "uncertain" }),
-      active.id,
+      JSON.stringify({ ...f.store.get(f.plan.id), state: "uncertain" }),
+      f.plan.id,
     );
-  const other = active.id === f.plan.id ? startSecond : f.submit;
-  await assert.rejects(other(), /ONE_ACTIVE_GENERATION/);
-  assert.equal(f.counts().submits, 1);
+  await Promise.all([f.submit(), startSecond()]);
+  assert.equal(f.counts().submits, 2);
+  const third = await f.service.prepare(
+    f.selection,
+    owner,
+    "Singer",
+    true,
+    true,
+    undefined,
+    randomUUID(),
+  );
+  await f.service.submit(
+    third.id,
+    owner,
+    third.digest,
+    third.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${third.id} ${third.digest} ${third.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 3);
+  assert.equal(f.store.get(f.plan.id).state, "uncertain");
+  await assert.rejects(
+    f.service.prepare(
+      f.selection,
+      owner,
+      "Singer",
+      true,
+      true,
+      undefined,
+      "bad",
+    ),
+    /identifier/,
+  );
 });
 test("explicit sequential repeats have no task-count limit and keep all reservations", async () => {
   const f = await fixture();
@@ -544,10 +584,7 @@ test("explicit sequential repeats have no task-count limit and keep all reservat
     ).n,
     3 * f.plan.ceilingMicroUsd!,
   );
-  assert.equal(
-    plan.budget!.remainingMicroEur,
-    49000000 - 3 * f.plan.ceilingMicroUsd!,
-  );
+  assert.equal(plan.budget, null);
 });
 test("reviewed duration bands select measured duration without extrapolation", async () => {
   const { selectStudioPolicy } = await import("../lib/live/studio-policy.ts");
@@ -604,7 +641,7 @@ test("reviewed duration bands select measured duration without extrapolation", a
   assert.throws(() => validateStudioPolicy(expired));
 });
 
-test("EUR ceiling cannot be enlarged by USD config and a Studio task blocks legacy approvals", async () => {
+test("historical EUR ceiling does not block private Studio; legacy approvals retain their original guard", async () => {
   const f = await fixture();
   const proof = policy.eurBudget!;
   const previous = f.store.prepare(
@@ -621,17 +658,14 @@ test("EUR ceiling cannot be enlarged by USD config and a Studio task blocks lega
     { ...config, maxTotalMicroUsd: 50000000 },
     f.service.dependencies,
   );
-  await assert.rejects(
-    service.submit(
-      f.plan.id,
-      owner,
-      f.plan.digest,
-      f.plan.ceilingMicroUsd,
-      `CONFIRM PAID STUDIO ${f.plan.id} ${f.plan.digest} ${f.plan.ceilingMicroUsd}`,
-    ),
-    /Total live-test spending cap/,
+  await service.submit(
+    f.plan.id,
+    owner,
+    f.plan.digest,
+    f.plan.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${f.plan.id} ${f.plan.digest} ${f.plan.ceilingMicroUsd}`,
   );
-  assert.equal(f.counts().submits, 0);
+  assert.equal(f.counts().submits, 1);
   const g = await fixture();
   await g.submit();
   const legacy = g.store.prepare(
@@ -734,15 +768,12 @@ test("hidden active projects retain reservations, ownership and recovery", async
     true,
     true,
   );
-  await assert.rejects(
-    f.service.submit(
-      next.id,
-      owner,
-      next.digest,
-      next.ceilingMicroUsd,
-      `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
-    ),
-    /active|reconcil/i,
+  await f.service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
   );
 
   assert.equal(
@@ -753,7 +784,7 @@ test("hidden active projects retain reservations, ownership and recovery", async
   f.setMode("error");
   await f.service.poll(f.plan.id, owner);
   assert.ok(["submitted", "processing"].includes(f.store.get(f.plan.id).state));
-  assert.equal(f.counts().submits, 1);
+  assert.equal(f.counts().submits, 2);
 });
 
 test("terminal reconciliation requires exact verified evidence and fences poll races without refund", async () => {
@@ -884,7 +915,7 @@ test("task-bound 50510 protocol evidence atomically rejects without releasing re
   assert.equal(f.counts().submits, 1);
 });
 
-test("explicit exception preserves uncertainty and permits only one additional active owned Studio task", async () => {
+test("historical exception remains readable while independent Studio tasks run concurrently", async () => {
   const f = await fixture("176942047");
   await f.submit();
   f.setMode("error");
@@ -936,17 +967,14 @@ test("explicit exception preserves uncertainty and permits only one additional a
     true,
     true,
   );
-  await assert.rejects(
-    f.service.submit(
-      third.id,
-      owner,
-      third.digest,
-      third.ceilingMicroUsd,
-      `CONFIRM PAID STUDIO ${third.id} ${third.digest} ${third.ceilingMicroUsd}`,
-    ),
-    /ONE_ACTIVE|cap|budget/i,
+  await f.service.submit(
+    third.id,
+    owner,
+    third.digest,
+    third.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${third.id} ${third.digest} ${third.ceilingMicroUsd}`,
   );
-  assert.equal(f.counts().submits, 2);
+  assert.equal(f.counts().submits, 3);
 });
 
 test("private exception cannot apply to another provider task", async () => {
@@ -1159,18 +1187,15 @@ test("experimental Studio needs distinct paid confirmation and retains finite cu
     true,
     true,
   );
-  await assert.rejects(
-    service.submit(
-      next.id,
-      owner,
-      next.digest,
-      next.ceilingMicroUsd,
-      `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd} ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA`,
-    ),
-    /cap|budget/i,
+  await service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd} ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA`,
   );
-  assert.equal(submits, 1);
-  assert.equal(service.budget(p).reservedMicroUsd, 1500000);
+  assert.equal(submits, 2);
+  assert.equal(service.budget(p).reservedMicroUsd, 3000000);
 });
 
 test("changed experimental 5–15s review creates a new idempotent unapproved project and never reuses stale authorization", async () => {
@@ -1462,6 +1487,16 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
         assert.ok(await restarted.output(plan.id, owner));
         await assert.rejects(restarted.output(plan.id, "other-owner"));
       } else {
+        // Explicit moderation evidence is distinct from a generic provider failure.
+        f.store.db
+          .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+          .run(
+            JSON.stringify({
+              ...f.store.get(plan.id),
+              failureCode: "CONTENT_PREFILTER_REJECTED",
+            }),
+            plan.id,
+          );
         await assert.rejects(
           restarted.prepare(
             { ...selection, customPrompt: "Forbidden retry" },
@@ -1480,7 +1515,7 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
           .get()!.n,
         reserved,
       );
-      assert.equal(done.budget!.remainingMicroEur, 49000000 - reserved);
+      assert.equal(done.budget, null);
     }
     assert.equal(submittedDurations.length, 4);
   } finally {
@@ -1549,7 +1584,7 @@ test("Studio budget renewal replaces expired currency review while retaining gen
     true,
     true,
   );
-  assert.ok(plan.budget!.remainingMicroUsd > plan.ceilingMicroUsd!);
+  assert.equal(plan.budget, null);
   assert.equal(f.counts().submits, 0);
   const submit = () =>
     service.submit(
@@ -1565,8 +1600,8 @@ test("Studio budget renewal replaces expired currency review while retaining gen
       JSON.stringify({ ...f.store.get(history.id), state: "uncertain" }),
       history.id,
     );
-  await assert.rejects(submit(), /ONE_ACTIVE_GENERATION/);
-  assert.equal(f.counts().submits, 0);
+  await submit();
+  assert.equal(f.counts().submits, 1);
   const expiredPolicy = new StudioWorkflow(
     f.store,
     root,
@@ -1629,10 +1664,15 @@ test("independent new recording reaches private cost review despite unresolved l
   };
   process.env.AUDIO_TEMPO_ENABLED = "true";
   try {
-    await assert.rejects(
-      service.prepare(selected, owner, "Singer", true, true),
-      /TEMPO_IDENTITY_REVIEW_REQUIRED/,
+    const independentPlan = await service.prepare(
+      selected,
+      owner,
+      "Singer",
+      true,
+      true,
     );
+    assert.equal(independentPlan.state, "prepared");
+    assert.equal(f.counts().submits, 0);
     await reviewIndependentRecording(
       root,
       f.store,
@@ -1648,7 +1688,7 @@ test("independent new recording reaches private cost review despite unresolved l
     assert.ok(f.store.get(plan.id).media.tempo);
     assert.ok(f.store.get(plan.id).media.recording?.sourceSha256);
     assert.equal(f.counts().submits, 0);
-    assert.equal(plan.budget!.reservedMicroUsd, 8640000);
+    assert.equal(plan.budget, null);
     assert.deepEqual(
       f.store.db
         .prepare("SELECT * FROM live_attempts WHERE id=?")

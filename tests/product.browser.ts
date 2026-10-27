@@ -13,7 +13,8 @@ const screenshots =
   process.env.PRODUCT_SCREENSHOTS || "/tmp/sm-product-screenshots";
 await mkdir(screenshots, { recursive: true });
 const song = path.join(root, "test.wav"),
-  photo = path.join(root, "singer.jpg");
+  photo = path.join(root, "singer.jpg"),
+  landscape = path.join(root, "landscape.jpg");
 execFileSync("ffmpeg", [
   "-v",
   "error",
@@ -28,6 +29,11 @@ await sharp({
 })
   .jpeg()
   .toFile(photo);
+await sharp({
+  create: { width: 1280, height: 720, channels: 3, background: "#7854af" },
+})
+  .jpeg()
+  .toFile(landscape);
 const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH,
   args: ["--no-sandbox"],
@@ -44,26 +50,19 @@ try {
     page.on("pageerror", (e) => errors.push(e.message));
     await page.goto(origin);
     await page
-      .getByRole("heading", { name: "Your music brought to life." })
+      .getByRole("heading", { name: "Add your song", exact: true })
       .waitFor();
+    assert.equal(await page.locator(".wizard-steps button").count(), 4);
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,
       ),
       true,
     );
-    if (width >= 1024)
-      assert.equal(
-        await page.evaluate(
-          () => document.documentElement.scrollHeight <= innerHeight + 1,
-        ),
-        true,
-      );
     await page.screenshot({
       path: path.join(screenshots, `home-${width}.png`),
       fullPage: true,
     });
-    await page.getByRole("link", { name: /Create your video/ }).click();
     await page.getByLabel("Choose audio file").waitFor();
     await page.waitForFunction(
       () =>
@@ -109,6 +108,33 @@ try {
       ) < 0.2,
     );
     await page.getByLabel("Start seconds").fill("1.25");
+    const interval = page.getByRole("slider", {
+      name: "Move selected audio segment",
+    });
+    await interval.focus();
+    await page.keyboard.press("ArrowLeft");
+    assert.ok(
+      Math.abs(
+        Number(await page.getByLabel("Start seconds").inputValue()) - 1.24,
+      ) < 0.001,
+    );
+    assert.ok(
+      Math.abs(
+        Number(await page.getByLabel("End seconds").inputValue()) - 5.24,
+      ) < 0.001,
+    );
+    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    assert.ok(
+      (await page.locator(".wave-strip").boundingBox())!.width >
+        (await page.locator(".wave-viewport").boundingBox())!.width,
+    );
+    await page.getByRole("button", { name: "Later", exact: true }).click();
+    assert.ok(
+      await page.locator(".wave-viewport").evaluate((el) => el.scrollLeft > 0),
+    );
+    await page.getByRole("button", { name: "Zoom out", exact: true }).click();
+    await page.getByLabel("Start seconds").fill("1.25");
+    await page.getByLabel("End seconds").fill("5.25");
     await page
       .getByRole("button", { name: "Preview selection", exact: true })
       .click();
@@ -124,7 +150,19 @@ try {
     await page
       .getByRole("button", { name: "Remove photo", exact: true })
       .waitFor();
-    await page.getByRole("button", { name: "Continue", exact: true }).click();
+    await page.getByLabel("Choose photo file").setInputFiles(landscape);
+    await page.getByText(/Output: 16:9/).waitFor();
+    await page.getByRole("button", { name: /16:9 Horizontal/ }).click();
+    await page.getByLabel("Choose photo file").setInputFiles(photo);
+    await page.waitForFunction(
+      () =>
+        !document.querySelector<HTMLInputElement>(
+          'input[aria-label="Choose photo file"]',
+        )?.disabled,
+    );
+    assert.ok(await page.getByText(/Output: 16:9/).count());
+    await page.getByRole("button", { name: /Auto From photo/ }).click();
+    await page.getByText(/Output: 9:16/).waitFor();
     await page.getByRole("button", { name: /16:9 Horizontal/ }).click();
     await page.screenshot({
       path: path.join(screenshots, `format-${width}.png`),
@@ -147,7 +185,7 @@ try {
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     assert.match(
       await page.getByLabel("Your direction").inputValue(),
-      /On a dark stage.*Emotional close-up/,
+      /dark cinematic stage.*heartfelt emotion/,
     );
     await page.getByRole("button", { name: "Continue", exact: true }).click();
     await page.getByText("Draft saved", { exact: true }).waitFor();
@@ -172,6 +210,10 @@ try {
         nodes: v.nodes.map((n) => n.target),
       })),
     });
+    assert.deepEqual(
+      accessibility.violations.map((v) => v.id),
+      [],
+    );
     let submits = 0,
       prepares = 0;
     await page.route("**/api/studio-live**", async (route) => {
@@ -217,14 +259,10 @@ try {
     await page
       .getByRole("button", { name: "Generate performance", exact: true })
       .click();
-    const review = page.getByRole("button", {
-      name: "Review generation cost",
-      exact: true,
-    });
-    await review.waitFor();
-    assert.equal(await review.isDisabled(), true);
+    await page.getByRole("dialog").waitFor();
+    assert.equal(await page.getByRole("dialog").count(), 1);
+    assert.equal(await page.getByRole("checkbox").isChecked(), false);
     await page.getByRole("checkbox").check();
-    await review.click();
     await page
       .getByRole("button", { name: "Confirm & generate", exact: true })
       .waitFor();
@@ -258,7 +296,7 @@ try {
   );
   console.log(JSON.stringify(results));
   console.log(
-    "PASS: five-step desktop/mobile, local uploads, saved drafts, format/prompt persistence, rights, explicit single mocked generation, layout checks.",
+    "PASS: four-step desktop/mobile, local uploads, saved drafts, format/prompt persistence, rights, explicit single mocked generation, layout checks.",
   );
 } finally {
   await browser.close();

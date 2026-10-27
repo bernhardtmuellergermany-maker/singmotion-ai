@@ -9,10 +9,12 @@ const usd = (n: number) => `USD ${(n / 1000000).toFixed(2)}`;
 export function GenerationDialog({
   selection,
   artistName,
+  requestKey,
   onClose,
 }: {
   selection: StudioDraftExport;
   artistName: string;
+  requestKey: string;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null),
@@ -54,13 +56,24 @@ export function GenerationDialog({
   // Prepare and price server-side inside the same dialog once the operator
   // accepts the media rights. This is NOT a paid provider submission.
   useEffect(() => {
-    if (!rights || !terms || pilot !== true || blockers.length || plan || busy || error || lock.current) return;
+    if (
+      !rights ||
+      !terms ||
+      pilot !== true ||
+      blockers.length ||
+      plan ||
+      busy ||
+      error ||
+      lock.current
+    )
+      return;
     lock.current = true;
     setBusy(true);
     void api<StudioProject>("studio-live", {
       method: "POST",
       body: JSON.stringify({
         action: "prepare",
+        requestKey,
         selection,
         artistName,
         consent: true,
@@ -78,7 +91,18 @@ export function GenerationDialog({
         lock.current = false;
         setBusy(false);
       });
-  }, [rights, terms, pilot, blockers.length, plan, busy, error, selection, artistName]);
+  }, [
+    rights,
+    terms,
+    pilot,
+    blockers.length,
+    plan,
+    busy,
+    error,
+    selection,
+    artistName,
+    requestKey,
+  ]);
   async function act(repeatOf?: string) {
     if (lock.current || !rights || !terms || !pilot || blockers.length) return;
     lock.current = true;
@@ -91,6 +115,7 @@ export function GenerationDialog({
             method: "POST",
             body: JSON.stringify({
               action: "prepare",
+              requestKey,
               selection,
               artistName,
               consent: true,
@@ -126,7 +151,8 @@ export function GenerationDialog({
       router.push(`/projects/live_${plan.id}`);
     } catch (e) {
       setError((e as Error).message);
-      setPlan(null);
+      // Retain the exact saved plan on an uncertain HTTP result. Retrying this
+      // id is idempotent; never prepare a replacement automatically.
     } finally {
       lock.current = false;
       setBusy(false);
@@ -160,9 +186,15 @@ export function GenerationDialog({
         {selection.outputFormat || "Reviewed format"} · {artistName}
       </p>
       <p>
-        BytePlus base-rate estimate: USD {((selection.end - selection.start) * 0.07).toFixed(2)}
-        {" "}based on the selected audio duration at USD 0.07 per second.
-        Actual billed generated video seconds may differ; taxes or provider fees may apply.
+        BytePlus base rate: USD 0.07 per billable generated second. The server
+        calculates the estimate after preparing your audio. Actual generated
+        duration, fees and taxes may differ.
+      </p>
+      <p>
+        {selection.start.toFixed(2)}–{selection.end.toFixed(2)} seconds ·{" "}
+        {plan?.prompt ||
+          selection.customPrompt ||
+          `${selection.performance} · ${selection.camera}`}
       </p>
       <p>
         Local fitting may add borders; this is not a promise of native landscape
@@ -175,7 +207,7 @@ export function GenerationDialog({
             Customer checkout is not available yet. No payment or generation
             will be started.
           </p>
-          <Link href="/signin">Account access</Link> ·{" "}
+          <Link href="/operator-signin">Private operator sign in</Link> ·{" "}
           <Link href="/checkout">Guest checkout information</Link>
         </div>
       )}
@@ -189,8 +221,15 @@ export function GenerationDialog({
             <>
               <p>Measured provider audio: {plan.durationSeconds.toFixed(3)}s</p>
               <p>
-                Pre-tax provider estimate: {usd(plan.estimatedBaseMicroUsd)}.
-                Not a customer sale price.
+                BytePlus base estimate: {usd(plan.estimatedBaseMicroUsd)}. Based
+                on the reviewed generated-duration bound
+                {plan.estimatedGeneratedSeconds
+                  ? ` of ${plan.estimatedGeneratedSeconds.toFixed(3)}s`
+                  : ""}
+                , including the prepared audio duration. Support-reported
+                billing rounds generated seconds down, with a one-second
+                minimum. Actual billed duration, taxes and fees remain subject
+                to the provider invoice.
               </p>
               <p>
                 Reviewed reservation:{" "}
@@ -229,9 +268,9 @@ export function GenerationDialog({
           onChange={(e) => setRights(e.target.checked)}
         />
         <span>
-          I own or have permission for the music, sound recording, image and
-          likeness, including this AI processing. I have reviewed the English
-          performance prompt and the{" "}
+          I confirm that I own or have obtained all necessary rights and
+          permissions for the uploaded music, audio, image and depicted
+          person(s), and authorize their processing for this video. I accept the{" "}
           <Link href="/terms" target="_blank">
             Terms
           </Link>{" "}

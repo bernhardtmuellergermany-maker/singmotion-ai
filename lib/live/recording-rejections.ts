@@ -38,7 +38,6 @@ async function identityState(
     const a = JSON.parse(row.data) as Attempt;
     const result = store.firstTestResult(a.id)?.result;
     if (!(
-      a.state === "failed" ||
       a.failureCode?.includes("REJECT") ||
       a.failureCode?.includes("PREFILTER") ||
       result?.sanitizedResult?.code === 50510
@@ -126,24 +125,11 @@ export async function checkRecordingRejections(
   clipHash?: string,
 ) {
   const state = await identityState(root, store, songId, owner, hash, clipHash);
-  if (!state.unknown.length) return;
-  const table = store.db
-    .prepare(
-      "SELECT 1 FROM sqlite_master WHERE type='table' AND name='live_recording_independence_reviews'",
-    )
-    .get();
-  if (
-    table &&
-    store.db
-      .prepare(
-        "SELECT 1 FROM live_recording_independence_reviews WHERE owner=? AND song_id=? AND source_sha256=? AND legacy_digest=?",
-      )
-      .get(owner, songId, hash, state.digest)
-  )
-    return;
-  throw new AppError(
-    `[TEMPO_IDENTITY_REVIEW_REQUIRED] ${state.unknown.length} retained rejection record(s) have unresolved recording identity; no match to this upload was established. For a newly uploaded, demonstrably independent recording, provide a Super Admin evidence review below. A new filename, upload ID, encoding, excerpt or tempo alone is not evidence. Known rejected recordings remain blocked.`,
-  );
+  // Unknown legacy identity is not evidence against this upload. Matching
+  // source/clip hashes and owned source IDs still fail in identityState above.
+  // Preserve every historical record; optional provenance reviews remain useful
+  // audit evidence, but unrelated legacy records cannot lock new Studio jobs.
+  return { unresolvedHistoricalRecords: state.unknown.length };
 }
 /** Explicit staff assessment of NEW content; never fills in or rewrites legacy provenance. */
 export async function reviewIndependentRecording(

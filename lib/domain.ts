@@ -124,7 +124,7 @@ export function validateFile(name: string, size: number, kind: string) {
   if (!(kind === "audio" ? /\.(mp3|wav|m4a)$/i : /\.(png|jpe?g)$/i).test(name))
     throw new AppError(
       kind === "audio"
-        ? "Only MP3 and WAV files are supported."
+        ? "Only MP3, WAV and audio-only AAC/M4A files are supported."
         : "Only JPEG and PNG images are supported.",
     );
 }

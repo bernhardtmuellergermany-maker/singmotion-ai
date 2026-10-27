@@ -1,7 +1,7 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Play, Pause, Scissors } from "lucide-react";
-import { time } from "@/lib/domain";
+import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
   duration,
@@ -18,23 +18,27 @@ export default function Waveform({
   const [peaks, setPeaks] = useState<number[]>([]),
     [playing, setPlaying] = useState(false),
     [error, setError] = useState(""),
-    [position, setPosition] = useState(0);
+    [position, setPosition] = useState(0),
+    [zoom, setZoom] = useState(1),
+    [dragging, setDragging] = useState(false);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
+    viewport = useRef<HTMLDivElement>(null),
     segment = useRef(false),
-    dragOrigin = useRef<{x: number; start: number; end: number} | null>(null);
+    dragOrigin = useRef<{ x: number; start: number; end: number } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let context: AudioContext | undefined;
     async function decode() {
       try {
         const response = await fetch(url, { signal: controller.signal });
+        if (!response.ok) throw new Error("Audio unavailable");
         context = new AudioContext();
         const buffer = await context.decodeAudioData(
           await response.arrayBuffer(),
         );
         const data = buffer.getChannelData(0),
-          count = 220,
+          count = 2048,
           block = Math.max(1, Math.floor(data.length / count));
         const p = Array.from({ length: count }, (_, i) => {
           let max = 0;
@@ -61,10 +65,28 @@ export default function Waveform({
       controller.abort();
     };
   }, [url]);
+  useEffect(() => {
+    if (!playing) return;
+    let frame: number;
+    const checkEnd = () => {
+      const player = audio.current;
+      if (player && segment.current && player.currentTime >= end) {
+        player.pause();
+        player.currentTime = end;
+        segment.current = false;
+        return;
+      }
+      frame = requestAnimationFrame(checkEnd);
+    };
+    frame = requestAnimationFrame(checkEnd);
+    return () => cancelAnimationFrame(frame);
+  }, [playing, end]);
   function drag(
     e: React.PointerEvent<HTMLButtonElement>,
     handle: "start" | "end",
   ) {
+    audio.current?.pause();
+    setDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
     move(e, handle);
   }
@@ -82,8 +104,13 @@ export default function Waveform({
           Math.min(duration, ((e.clientX - rect.left) / rect.width) * duration),
         ) * 100,
       ) / 100;
-    if (handle === "start") onChange(Math.max(0, end - 300, Math.min(val, end - 0.1)), end);
-    else onChange(start, Math.max(start + 0.1, Math.min(val, start + 300, duration)));
+    if (handle === "start")
+      onChange(Math.max(0, end - 300, Math.min(val, end - 0.1)), end);
+    else
+      onChange(
+        start,
+        Math.max(start + 0.1, Math.min(val, start + 300, duration)),
+      );
   }
   function toggle() {
     const a = audio.current;
@@ -100,6 +127,28 @@ export default function Waveform({
         setError("Playback could not start. Try the audio controls."),
       );
   }
+  const bars = useMemo(() => {
+    const count = Math.min(peaks.length || 160, 160 * zoom);
+    const values = Array.from({ length: count }, (_, i) => {
+      if (!peaks.length) return 0.08;
+      const from = Math.floor((i * peaks.length) / count),
+        to = Math.max(from + 1, Math.floor(((i + 1) * peaks.length) / count));
+      return Math.max(...peaks.slice(from, to));
+    });
+    return values.map((p, i) => (
+      <i
+        key={i}
+        style={{
+          height: `${Math.max(3, p * 76)}%`,
+          background:
+            (i / values.length) * duration >= start &&
+            (i / values.length) * duration <= end
+              ? "#bba5ff"
+              : "#69758e",
+        }}
+      />
+    ));
+  }, [peaks, duration, start, end, zoom]);
   return (
     <div className="wave-editor">
       <div className="wave-toolbar">
@@ -110,104 +159,185 @@ export default function Waveform({
           {playing ? <Pause size={14} /> : <Play size={14} />} Preview selection
         </button>
       </div>
-      <div className="wave-strip" ref={strip}>
-        <div className="wave-bars" aria-hidden="true">
-          {(peaks.length ? peaks : Array(220).fill(0.08)).map((p, i) => (
-            <i
-              key={i}
+      <div className="wave-zoom" role="group" aria-label="Waveform zoom">
+        <button
+          type="button"
+          aria-label="Zoom out"
+          disabled={zoom === 1}
+          onClick={() => setZoom(Math.max(1, zoom / 2))}
+        >
+          −
+        </button>
+        <output aria-live="polite">{zoom}×</output>
+        <button
+          type="button"
+          aria-label="Zoom in"
+          disabled={zoom === 16}
+          onClick={() => setZoom(Math.min(16, zoom * 2))}
+        >
+          +
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            viewport.current?.scrollBy({
+              left: -viewport.current.clientWidth / 2,
+            })
+          }
+          disabled={zoom === 1}
+        >
+          Earlier
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            viewport.current?.scrollBy({
+              left: viewport.current.clientWidth / 2,
+            })
+          }
+          disabled={zoom === 1}
+        >
+          Later
+        </button>
+      </div>
+      <div
+        className="wave-viewport"
+        ref={viewport}
+        tabIndex={0}
+        role="region"
+        aria-label="Scrollable audio waveform"
+      >
+        <div
+          className={`wave-strip ${dragging ? "is-dragging" : ""}`}
+          ref={strip}
+          style={{ width: `${zoom * 100}%` }}
+        >
+          <div className="wave-bars" aria-hidden="true">
+            {bars}
+          </div>
+          <div
+            className="wave-selection"
+            role="slider"
+            tabIndex={0}
+            aria-label="Move selected audio segment"
+            aria-valuemin={0}
+            aria-valuemax={Math.max(0, duration - (end - start))}
+            aria-valuenow={start}
+            aria-valuetext={`${start.toFixed(3)} to ${end.toFixed(3)} seconds`}
+            onPointerDown={(e) => {
+              audio.current?.pause();
+              setDragging(true);
+              e.currentTarget.setPointerCapture(e.pointerId);
+              dragOrigin.current = { x: e.clientX, start, end };
+            }}
+            onPointerMove={(e) => {
+              const origin = dragOrigin.current;
+              const rect = strip.current?.getBoundingClientRect();
+              if (
+                !origin ||
+                !rect ||
+                !e.currentTarget.hasPointerCapture(e.pointerId)
+              )
+                return;
+              onChange(
+                ...moveSelection(
+                  origin.start,
+                  origin.end,
+                  ((e.clientX - origin.x) / rect.width) * duration,
+                  duration,
+                ),
+              );
+            }}
+            onPointerUp={() => {
+              dragOrigin.current = null;
+              setDragging(false);
+            }}
+            onPointerCancel={() => {
+              dragOrigin.current = null;
+              setDragging(false);
+            }}
+            onLostPointerCapture={() => {
+              dragOrigin.current = null;
+              setDragging(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+              e.preventDefault();
+              audio.current?.pause();
+              onChange(
+                ...moveSelection(
+                  start,
+                  end,
+                  (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 0.01),
+                  duration,
+                ),
+              );
+            }}
+            style={{
+              cursor: "grab",
+              touchAction: "none",
+              background: "rgba(167,139,250,.10)",
+              border: "1px solid #a78bfa",
+              left: `${(start / duration) * 100}%`,
+              width: `${((end - start) / duration) * 100}%`,
+            }}
+          />
+          <div
+            className="playhead"
+            style={{ left: `${(position / duration) * 100}%` }}
+          />
+          {(["start", "end"] as const).map((handle) => (
+            <button
+              type="button"
+              role="slider"
+              aria-label={`${handle === "start" ? "Start" : "End"} of selection`}
+              aria-valuemin={handle === "start" ? 0 : start + 0.1}
+              aria-valuemax={
+                handle === "start" ? end - 0.1 : Math.min(duration, start + 300)
+              }
+              aria-valuenow={handle === "start" ? start : end}
+              key={handle}
+              className="wave-handle"
               style={{
-                height: `${Math.max(3, p * 76)}%`,
-                width: "1px",
-                flex: "0 0 1px",
-                background:
-                  (i / 220) * duration >= start && (i / 220) * duration <= end
-                    ? "#bba5ff"
-                    : "#69758e",
+                left: `${((handle === "start" ? start : end) / duration) * 100}%`,
+              }}
+              onPointerDown={(e) => drag(e, handle)}
+              onPointerMove={(e) => move(e, handle)}
+              onPointerUp={() => setDragging(false)}
+              onPointerCancel={() => setDragging(false)}
+              onLostPointerCapture={() => setDragging(false)}
+              onKeyDown={(e) => {
+                if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
+                e.preventDefault();
+                audio.current?.pause();
+                const delta =
+                  (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 0.01);
+                if (handle === "start")
+                  onChange(
+                    Math.max(0, end - 300, Math.min(end - 0.1, start + delta)),
+                    end,
+                  );
+                else
+                  onChange(
+                    start,
+                    Math.max(
+                      start + 0.1,
+                      Math.min(duration, start + 300, end + delta),
+                    ),
+                  );
               }}
             />
           ))}
         </div>
         <div
-          className="wave-selection"
-          role="slider"
-          tabIndex={0}
-          aria-label="Move selected audio segment"
-          aria-valuemin={0}
-          aria-valuemax={Math.max(0, duration - (end - start))}
-          aria-valuenow={start}
-          aria-valuetext={`${start.toFixed(2)} to ${end.toFixed(2)} seconds`}
-          onPointerDown={(e) => {
-            e.currentTarget.setPointerCapture(e.pointerId);
-            dragOrigin.current = {x: e.clientX, start, end};
-          }}
-          onPointerMove={(e) => {
-            const origin = dragOrigin.current;
-            const rect = strip.current?.getBoundingClientRect();
-            if (!origin || !rect || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
-            const length = origin.end - origin.start;
-            const newStart = Math.round(Math.max(0, Math.min(duration - length, origin.start + (e.clientX - origin.x) / rect.width * duration)) * 100) / 100;
-            onChange(newStart, Math.min(duration, Math.round((newStart + length) * 100) / 100));
-          }}
-          onPointerUp={() => { dragOrigin.current = null; }}
-          onPointerCancel={() => { dragOrigin.current = null; }}
-          onKeyDown={(e) => {
-            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
-            e.preventDefault();
-            const length = end - start;
-            const next = Math.round(Math.max(0, Math.min(duration - length, start + (e.key === "ArrowLeft" ? -0.1 : 0.1))) * 100) / 100;
-            onChange(next, Math.round((next + length) * 100) / 100);
-          }}
-          style={{
-            cursor: "grab",
-            touchAction: "none",
-            background: "rgba(167,139,250,.10)",
-            border: "1px solid #a78bfa",
-            left: `${(start / duration) * 100}%`,
-            width: `${((end - start) / duration) * 100}%`,
-          }}
-        />
-        <div
-          className="playhead"
-          style={{ left: `${(position / duration) * 100}%` }}
-        />
-        {(["start", "end"] as const).map((handle) => (
-          <button
-            type="button"
-            role="slider"
-            aria-label={`${handle === "start" ? "Start" : "End"} of selection`}
-            aria-valuemin={handle === "start" ? 0 : start + 0.1}
-            aria-valuemax={
-              handle === "start" ? end - 0.1 : Math.min(duration, start + 300)
-            }
-            aria-valuenow={handle === "start" ? start : end}
-            key={handle}
-            className="wave-handle"
-            style={{
-              left: `${((handle === "start" ? start : end) / duration) * 100}%`,
-            }}
-            onPointerDown={(e) => drag(e, handle)}
-            onPointerMove={(e) => move(e, handle)}
-            onKeyDown={(e) => {
-              if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
-              e.preventDefault();
-              const delta = e.key === "ArrowLeft" ? -0.1 : 0.1;
-              if (handle === "start")
-                onChange(Math.max(0, Math.min(end - 0.1, start + delta)), end);
-              else
-                onChange(
-                  start,
-                  Math.max(
-                    start + 0.1,
-                    Math.min(duration, start + 300, end + delta),
-                  ),
-                );
-            }}
-          />
-        ))}
-      </div>
-      <div className="wave-time">
-        <span>0:00</span>
-        <span>{time(duration)}</span>
+          className="wave-time"
+          style={{ width: `${zoom * 100}%` }}
+          aria-hidden="true"
+        >
+          {Array.from({ length: zoom * 4 + 1 }, (_, i) => (
+            <span key={i}>{((duration * i) / (zoom * 4)).toFixed(2)}s</span>
+          ))}
+        </div>
       </div>
       <div className="time-inputs">
         <label>
@@ -215,11 +345,18 @@ export default function Waveform({
           <input
             aria-label="Start seconds"
             type="number"
-            step="0.01"
+            step="0.001"
             min="0"
             max={end - 0.1}
-            value={start}
-            onChange={(e) => onChange(Number(e.target.value), end)}
+            value={Number(start.toFixed(3))}
+            onChange={(e) => {
+              const value = e.target.valueAsNumber;
+              if (Number.isFinite(value))
+                onChange(
+                  Math.max(0, end - 300, Math.min(value, end - 0.1)),
+                  end,
+                );
+            }}
           />
         </label>
         <span>—</span>
@@ -228,11 +365,19 @@ export default function Waveform({
           <input
             aria-label="End seconds"
             type="number"
-            step="0.01"
+            step="0.001"
             min={start + 0.1}
             max={duration}
-            value={end}
-            onChange={(e) => onChange(start, Number(e.target.value))}
+            value={Number(end.toFixed(3))}
+            onChange={(e) => {
+              const value =
+                e.target.value.valueOf() === "" ? NaN : e.target.valueAsNumber;
+              if (Number.isFinite(value))
+                onChange(
+                  start,
+                  Math.max(start + 0.1, Math.min(duration, start + 300, value)),
+                );
+            }}
           />
         </label>
         <strong>{Math.max(0, end - start).toFixed(2)}s</strong>

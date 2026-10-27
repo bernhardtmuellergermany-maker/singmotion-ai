@@ -1,4 +1,4 @@
-import { parseStudioDraft } from "@/lib/studio-draft";
+import { parseSavedStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
@@ -150,14 +150,21 @@ async function handler(
         "CREATE TABLE IF NOT EXISTS studio_drafts (id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, artist_name TEXT NOT NULL, step INTEGER NOT NULL, updated INTEGER NOT NULL)",
       );
       const view = (row: Record<string, unknown>) => {
-        const selected = parseStudioDraft(JSON.parse(String(row.selection)));
+        const selected = parseSavedStudioDraft(
+          JSON.parse(String(row.selection)),
+        );
         return {
           id: row.id,
           selection: selected,
           artistName: row.artist_name,
           step: row.step,
           updated: row.updated,
-          song: safeAsset(asset(selected.songId, owner)),
+          song: selected.songId
+            ? safeAsset(asset(selected.songId, owner))
+            : null,
+          image: selected.imageId
+            ? safeAsset(asset(selected.imageId, owner))
+            : null,
         };
       };
       if (method === "GET") {
@@ -179,12 +186,12 @@ async function handler(
       if (method === "POST") {
         limit(`${owner}:drafts`, 60, 60000);
         const input = await body(req),
-          selected = parseStudioDraft(input.selection);
+          selected = parseSavedStudioDraft(input.selection);
         if (selected.owner !== owner)
           throw new AppError("Draft unavailable.", 403);
         if (
-          asset(selected.songId, owner).kind !== "audio" ||
-          asset(selected.imageId, owner).kind !== "image"
+          (selected.songId && asset(selected.songId, owner).kind !== "audio") ||
+          (selected.imageId && asset(selected.imageId, owner).kind !== "image")
         )
           throw new AppError("Invalid draft media.");
         const key = string(input.id, 80);
@@ -268,8 +275,9 @@ async function handler(
               "Use a still JPEG or PNG, at most 4096 × 4096 pixels.",
             );
           await image.stats();
-          width = meta.width;
-          height = meta.height;
+          const rotated = [5, 6, 7, 8].includes(meta.orientation || 1);
+          width = rotated ? meta.height : meta.width;
+          height = rotated ? meta.width : meta.height;
           mime = meta.format === "png" ? "image/png" : "image/jpeg";
         }
         const a: Asset = {

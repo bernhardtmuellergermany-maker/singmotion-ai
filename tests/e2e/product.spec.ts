@@ -1,7 +1,7 @@
 import { test } from "@playwright/test";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-test("five-step product: real local uploads, responsive desktop/mobile and mocked paid boundary", async () => {
+test("four-step product: real local uploads, responsive desktop/mobile and mocked paid boundary", async () => {
   test.setTimeout(240000);
   await promisify(execFile)(
     process.execPath,

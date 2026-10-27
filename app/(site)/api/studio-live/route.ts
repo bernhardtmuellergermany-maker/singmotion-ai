@@ -12,6 +12,7 @@ import { createReadStream } from "node:fs";
 import { stat } from "node:fs/promises";
 import { Readable } from "node:stream";
 import { stagingDenial } from "@/lib/staging";
+import { hasRole } from "@/cms/policy";
 import { studioStaff } from "@/cms/studio-access";
 import { session, limit, dataDir, asset } from "@/lib/db";
 import { openStudioStore } from "@/lib/live/studio";
@@ -80,6 +81,12 @@ async function handler(req: NextRequest) {
         401,
       );
     const owner = auth.owner;
+    if (owner.startsWith("customer-"))
+      throw new StudioLiveError(
+        "CUSTOMER_OPERATOR_SEPARATION",
+        "Sign out of the customer workspace before using private operator access.",
+        403,
+      );
     limit(`${owner}:studio-live`, req.method === "POST" ? 30 : 180, 60000);
     runtime = studioRuntime(await openStudioStore(dataDir), dataDir);
     const service = runtime.service;
@@ -173,6 +180,20 @@ async function handler(req: NextRequest) {
       await reader.cancel();
     }
     const body = JSON.parse(Buffer.concat(chunks).toString());
+    if (
+      [
+        "budget-review",
+        "budget-authorize",
+        "fresh-test",
+        "acknowledge-operator-risk",
+      ].includes(body.action) &&
+      !hasRole(user, ["super-admin"])
+    )
+      throw new StudioLiveError(
+        "ADMIN_REQUIRED",
+        "Historical administrative controls require Super Admin access.",
+        403,
+      );
     if (body.action === "budget-review")
       return json(
         await offerStudioBudget(
@@ -234,6 +255,7 @@ async function handler(req: NextRequest) {
         body.consent,
         body.english,
         body.repeatOf,
+        body.requestKey,
       );
       recordRights(
         service.store.db,

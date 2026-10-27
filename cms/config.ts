@@ -1,3 +1,4 @@
+import { validTemplates } from "../lib/studio-content.ts";
 import path from "node:path";
 import sharp from "sharp";
 import {
@@ -339,6 +340,30 @@ const collections: CollectionConfig[] = [
   },
 ];
 const globals: GlobalConfig[] = [
+  {
+    slug: "studio-settings",
+    admin: {
+      group: "Operations",
+      description:
+        "Studio copy and optional prompt suggestions only. Authorization, costs and provider policy cannot be changed here.",
+    },
+    access: { read: () => true, update: editor },
+    fields: [
+      { name: "intro", type: "text", maxLength: 300 },
+      ...["performanceTemplates", "cameraTemplates"].map((name) => ({
+        name,
+        type: "json" as const,
+        admin: {
+          description:
+            'Optional array of {"label":"Name","prompt":"English suggestion"}; up to 12 entries.',
+        },
+        validate: (v: unknown) =>
+          v == null ||
+          validTemplates(v) ||
+          "Use up to 12 label/prompt objects, labels ≤60 and prompts ≤300 characters.",
+      })),
+    ],
+  },
   {
     slug: "site-navigation",
     admin: { group: "Website" },
