@@ -58,7 +58,8 @@ export function StudioWizard() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [confirm, setConfirm] = useState(false),
-    [formatMode, setFormatMode] = useState<"auto" | "9:16" | "16:9">("auto");
+    [formatMode, setFormatMode] = useState<"auto" | "9:16" | "16:9">("auto"),
+    [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16");
   useEffect(() => {
     let current = true;
     void ensureSession()
@@ -165,6 +166,7 @@ export function StudioWizard() {
           detected = image.width > image.height * 1.1 ? "16:9" : "9:16";
           image.close();
         } catch { /* Keep the documented portrait fallback. */ }
+        setDetectedFormat(detected);
         update({
           imageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
@@ -326,7 +328,7 @@ export function StudioWizard() {
                     aria-pressed={formatMode === format}
                     onClick={() => {
                       setFormatMode(format);
-                      if (format !== "auto") update({ outputFormat: format });
+                      update({ outputFormat: format === "auto" ? detectedFormat : format });
                     }}>
                     {format === "16:9" ? <Monitor /> : <Smartphone />}
                     <strong>{format === "auto" ? "Auto" : format}</strong>
