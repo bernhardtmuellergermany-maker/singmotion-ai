@@ -186,9 +186,8 @@ export function studioConfig(
     demoMode: false,
     enabled: env.BYTEPLUS_STUDIO_ENABLED === "true",
     operatorSecret: env.BYTEPLUS_STUDIO_OPERATOR_SECRET || "",
-    // Studio uses the reviewed EUR 50 authorization as its sole monetary budget.
-    // Do not constrain it with legacy independent USD job/total test caps.
-    // The durable reservation ledger and euroBudget() still gate every submission.
+    // Private operator jobs do not have internal daily or cumulative spending caps.
+    // Exact per-task confirmation and persistent reservations remain mandatory.
     maxJobMicroUsd: Number.MAX_SAFE_INTEGER,
     maxTotalMicroUsd: Number.MAX_SAFE_INTEGER,
     maxDurationSeconds: number("BYTEPLUS_STUDIO_MAX_DURATION_SECONDS"),
@@ -205,7 +204,7 @@ export function studioGate(config: LiveTestConfig) {
   )
     throw new StudioLiveError(
       "STUDIO_DISABLED",
-      "Studio pilot requires explicit server enablement, a server secret and a valid duration limit. The EUR 50 reviewed budget remains mandatory.",
+      "Private Studio requires server enablement, a strong operator secret and a valid provider duration limit.",
       503,
     );
 }
