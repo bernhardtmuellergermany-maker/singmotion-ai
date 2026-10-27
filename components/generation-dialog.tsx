@@ -51,6 +51,36 @@ export function GenerationDialog({
       current = false;
     };
   }, []);
+  // Prepare and price server-side inside the same dialog once the operator
+  // accepts the media rights. This is NOT a paid provider submission.
+  useEffect(() => {
+    if (!rights || !terms || pilot !== true || blockers.length || plan || busy || error || lock.current) return;
+    let current = true;
+    lock.current = true;
+    setBusy(true);
+    void api<StudioProject>("studio-live", {
+      method: "POST",
+      body: JSON.stringify({
+        action: "prepare",
+        selection,
+        artistName,
+        consent: true,
+        termsVersion: terms,
+        english: true,
+      }),
+    })
+      .then((prepared) => {
+        if (current) setPlan(prepared);
+      })
+      .catch((cause) => {
+        if (current) setError((cause as Error).message);
+      })
+      .finally(() => {
+        lock.current = false;
+        if (current) setBusy(false);
+      });
+    return () => { current = false; };
+  }, [rights, terms, pilot, blockers.length, plan, busy, error, selection, artistName]);
   async function act(repeatOf?: string) {
     if (lock.current || !rights || !terms || !pilot || blockers.length) return;
     lock.current = true;
@@ -110,6 +140,7 @@ export function GenerationDialog({
     !terms ||
     pilot !== true ||
     blockers.length > 0 ||
+    !plan ||
     !!(
       plan &&
       (plan.state !== "prepared" ||
@@ -260,7 +291,7 @@ export function GenerationDialog({
               ? "Working…"
               : plan
                 ? "Confirm & generate"
-                : "Review generation cost"}
+                : "Preparing cost estimate…"}
           </button>
         )}
       </div>
