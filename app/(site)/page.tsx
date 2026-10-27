@@ -1,11 +1,10 @@
-import { publishedPage } from "@/cms/content";
-import { homePage } from "@/cms/home-page";
-import { ProductHome } from "@/components/product-home";
-export const dynamic = "force-dynamic";
-export async function generateMetadata() {
-  const page = (await publishedPage("home")) || homePage;
-  return { title: page.title, description: page.description };
-}
-export default async function Home() {
-  return <ProductHome page={(await publishedPage("home")) || homePage} />;
+import { StudioWizard } from "@/components/studio-wizard";
+
+export const metadata = {
+  title: "Create your music video · SingMotion AI",
+  description: "Upload music, choose a photo, and create your AI music video.",
+};
+
+export default function Home() {
+  return <StudioWizard />;
 }
