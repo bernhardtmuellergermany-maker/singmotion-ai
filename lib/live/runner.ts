@@ -223,44 +223,62 @@ export class LiveTestRunner {
       }
       if (recovered)
         return finish("completed", { outputPath: output, failureCode: null });
-      const cached = this.recoverableOutput
-        ? this.store.firstTestResult(id)
-        : null;
-      const result =
-        cached && Date.now() - cached.observedAt < 50 * 60000
-          ? (cached.result as { state: "completed"; outputUrl: string })
-          : await providerRequest((signal) =>
-              this.provider.poll(attempt.providerJobId!, signal),
-            );
-      if (!["pending", "completed", "failed"].includes(result.state))
-        throw new Error("Unexpected normalized provider status.");
-      if (result.state === "failed")
-        return finish("failed", { failureCode: "PROVIDER_JOB_FAILED" });
-      if (result.state === "pending") return finish("processing");
-      if (!result.outputUrl)
-        return finish("failed", { failureCode: "MISSING_OUTPUT" });
-      if (
-        this.recoverableOutput &&
-        (!cached || Date.now() - cached.observedAt >= 50 * 60000)
-      )
-        finish("processing", {}, () =>
-          this.store.recordFirstTestResult(id, result),
-        );
-      try {
-        await this.download(
-          result.outputUrl,
-          partial,
-          attempt.media.durationSeconds,
-          this.provider.contract,
-        );
-        const info = await lstat(partial);
-        if (!info.isFile() || info.isSymbolicLink()) throw new Error();
-        await chmod(partial, 0o600);
-      } catch (error) {
-        return finish(this.recoverableOutput ? "processing" : "failed", {
-          failureCode: outputFailureCode(error),
-        });
+      // A validated local provider response is sufficient for another export
+      // attempt. Its task identity is bound to this immutable attempt ID.
+      // This avoids depending on a short-lived signed provider URL.
+      let reusedSource = false;
+      if (attempt.media.tempo) {
+        try {
+          const info = await lstat(retainedSource);
+          if (!info.isFile() || info.isSymbolicLink()) throw new Error("Unsafe source");
+          await validateOutput(retainedSource, attempt.media.durationSeconds, this.provider.contract);
+          await copyFile(retainedSource, partial);
+          await chmod(partial, 0o600);
+          reusedSource = true;
+        } catch {
+          // Missing/invalid local capture: use normal provider status and download.
+        }
       }
+      if (!reusedSource) {
+        const cached = this.recoverableOutput
+          ? this.store.firstTestResult(id)
+          : null;
+        const result =
+          cached && Date.now() - cached.observedAt < 50 * 60000
+            ? (cached.result as { state: "completed"; outputUrl: string })
+            : await providerRequest((signal) =>
+                this.provider.poll(attempt.providerJobId!, signal),
+              );
+        if (!["pending", "completed", "failed"].includes(result.state))
+          throw new Error("Unexpected normalized provider status.");
+        if (result.state === "failed")
+          return finish("failed", { failureCode: "PROVIDER_JOB_FAILED" });
+        if (result.state === "pending") return finish("processing");
+        if (!result.outputUrl)
+          return finish("failed", { failureCode: "MISSING_OUTPUT" });
+        if (
+          this.recoverableOutput &&
+          (!cached || Date.now() - cached.observedAt >= 50 * 60000)
+        )
+          finish("processing", {}, () =>
+            this.store.recordFirstTestResult(id, result),
+          );
+        try {
+          await this.download(
+            result.outputUrl,
+            partial,
+            attempt.media.durationSeconds,
+            this.provider.contract,
+          );
+          const info = await lstat(partial);
+          if (!info.isFile() || info.isSymbolicLink()) throw new Error();
+          await chmod(partial, 0o600);
+        } catch (error) {
+          return finish(this.recoverableOutput ? "processing" : "failed", {
+            failureCode: outputFailureCode(error),
+          });
+        }
+        }
       let exportStage = "provider-validation";
       try {
         await validateOutput(
