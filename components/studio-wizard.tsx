@@ -87,7 +87,9 @@ export function StudioWizard() {
             song: saved.song,
             artistName: saved.artistName,
           });
-          setStep(Math.max(0, Math.min(3, saved.step >= 3 ? saved.step - 1 : saved.step)));
+          // Drafts already saved by the four-step wizard use 0–3 unchanged.
+          // Earlier five-step drafts used 3 for performance and 4 for review.
+          setStep(Math.max(0, Math.min(3, saved.step)));
           setReady(true);
           return;
         }
@@ -313,6 +315,9 @@ export function StudioWizard() {
                   onChange={(e) => void add(e.target.files?.[0], "image")}
                 />
               </label>
+              {draft.imageId && (
+                <img src={`/api/assets/${draft.imageId}`} alt="Current uploaded reference photo" style={{maxWidth:"100%",maxHeight:220,objectFit:"contain",display:"block",margin:"12px auto",borderRadius:12}} />
+              )}
               {draft.imageId && (
                 <button
                   className="product-secondary"
