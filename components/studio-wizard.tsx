@@ -46,6 +46,7 @@ const initial = {
   camera: "Static Close-Up",
   customPrompt: "",
   outputFormat: "9:16" as "9:16" | "16:9",
+  formatMode: "auto" as "auto" | "9:16" | "16:9",
 };
 export function StudioWizard() {
   const draftId = useRef<string>(""),
@@ -57,7 +58,6 @@ export function StudioWizard() {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
     [confirm, setConfirm] = useState(false),
-    [formatMode, setFormatMode] = useState<"auto" | "9:16" | "16:9">("auto"),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16");
   useEffect(() => {
     let current = true;
@@ -171,7 +171,7 @@ export function StudioWizard() {
         update({
           imageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
-          ...(formatMode === "auto" ? { outputFormat: detected } : {}),
+          ...(draft.formatMode === "auto" ? { outputFormat: detected } : {}),
         });
       }
     } catch (e) {
@@ -329,10 +329,9 @@ export function StudioWizard() {
               <div className="format-options" role="group" aria-label="Video orientation" style={{marginTop:16}}>
                 {(["auto", "9:16", "16:9"] as const).map((format) => (
                   <button key={format} type="button"
-                    aria-pressed={formatMode === format}
+                    aria-pressed={draft.formatMode === format}
                     onClick={() => {
-                      setFormatMode(format);
-                      update({ outputFormat: format === "auto" ? detectedFormat : format });
+                      update({ formatMode: format, outputFormat: format === "auto" ? detectedFormat : format });
                     }}>
                     {format === "16:9" ? <Monitor /> : <Smartphone />}
                     <strong>{format === "auto" ? "Auto" : format}</strong>
