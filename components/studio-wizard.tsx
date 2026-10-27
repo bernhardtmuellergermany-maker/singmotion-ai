@@ -128,6 +128,7 @@ export function StudioWizard() {
         camera: draft.camera,
         customPrompt: draft.customPrompt,
         outputFormat: draft.outputFormat,
+        formatMode: draft.formatMode,
       };
       void api("studio-drafts", {
         method: "POST",
