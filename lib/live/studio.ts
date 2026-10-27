@@ -132,20 +132,9 @@ export class StudioWorkflow {
     return this.budget(validateStudioPolicy(await this.dependencies.policy()));
   }
   async withCurrentBudget(project: StudioProject): Promise<StudioProject> {
-    try {
-      return {
-        ...project,
-        budget: await this.currentBudget(),
-        budgetBlocker: null,
-      };
-    } catch {
-      return {
-        ...project,
-        budget: null,
-        budgetBlocker:
-          "EUR 50 conversion/fee or policy review is missing or expired. Existing task recovery remains available.",
-      };
-    }
+    // Historical EUR reviews remain in the ledger for reporting; they no
+    // longer determine whether an authorized private Studio task can start.
+    return { ...project, budget: null, budgetBlocker: null };
   }
 
   view(id: string, owner: string): StudioProject {
