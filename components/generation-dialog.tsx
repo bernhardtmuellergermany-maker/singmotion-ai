@@ -55,7 +55,6 @@ export function GenerationDialog({
   // accepts the media rights. This is NOT a paid provider submission.
   useEffect(() => {
     if (!rights || !terms || pilot !== true || blockers.length || plan || busy || error || lock.current) return;
-    let current = true;
     lock.current = true;
     setBusy(true);
     void api<StudioProject>("studio-live", {
@@ -70,16 +69,15 @@ export function GenerationDialog({
       }),
     })
       .then((prepared) => {
-        if (current) setPlan(prepared);
+        setPlan(prepared);
       })
       .catch((cause) => {
-        if (current) setError((cause as Error).message);
+        setError((cause as Error).message);
       })
       .finally(() => {
         lock.current = false;
-        if (current) setBusy(false);
+        setBusy(false);
       });
-    return () => { current = false; };
   }, [rights, terms, pilot, blockers.length, plan, busy, error, selection, artistName]);
   async function act(repeatOf?: string) {
     if (lock.current || !rights || !terms || !pilot || blockers.length) return;
