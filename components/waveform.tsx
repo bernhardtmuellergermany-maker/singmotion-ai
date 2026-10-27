@@ -82,8 +82,8 @@ export default function Waveform({
           Math.min(duration, ((e.clientX - rect.left) / rect.width) * duration),
         ) * 100,
       ) / 100;
-    if (handle === "start") onChange(Math.min(val, end - 0.1), end);
-    else onChange(start, Math.max(start + 0.1, Math.min(val, start + 300)));
+    if (handle === "start") onChange(Math.max(0, Math.min(val, end - 0.1, end - 300)), end);
+    else onChange(start, Math.max(start + 0.1, Math.min(val, start + 300, duration)));
   }
   function toggle() {
     const a = audio.current;
@@ -265,7 +265,7 @@ export default function Waveform({
       />
       <small className="quiet">
         Recommended: 5–10 seconds with clear lead vocals. Selected audio is
-        actually trimmed before the demo completes.
+        trimmed for the final generation.
       </small>
       {error && <p className="notice">{error}</p>}
     </div>
