@@ -73,6 +73,25 @@ export async function tempoAuthorization(
       .digest("hex"),
   };
 }
+/** Fixed diagnostic codes only; never persist FFmpeg stderr or private paths. */
+export function tempoExportFailureCode(error: unknown): string {
+  if (!(error instanceof Error)) return "TEMPO_EXPORT_UNKNOWN";
+  const known: Record<string, string> = {
+    "Tempo restoration inputs changed.": "TEMPO_INPUT_HASH_CHANGED",
+    "Original excerpt changed.": "TEMPO_ORIGINAL_HASH_CHANGED",
+    "Provider output cannot be restored within the original timing bounds.": "TEMPO_RATIO_MISMATCH",
+    "Provider video is missing the required audio timeline; no automatic replacement generation.": "TEMPO_PROVIDER_TIMELINE_MISSING",
+    "Restored output exceeds byte cap.": "TEMPO_RESTORED_TOO_LARGE",
+    "Restored audio differs from original MP3 packets.": "TEMPO_AUDIO_PACKET_MISMATCH",
+    "Restored audio/video start alignment failed.": "TEMPO_START_ALIGNMENT_MISMATCH",
+  };
+  if (known[error.message]) return known[error.message];
+  const child = error as Error & { killed?: boolean; signal?: string };
+  if (child.killed || child.signal === "SIGTERM" || child.signal === "SIGKILL")
+    return "TEMPO_FFMPEG_TIMEOUT_OR_TERMINATED";
+  if ("stderr" in error) return "TEMPO_FFMPEG_EXECUTION_FAILED";
+  return "TEMPO_EXPORT_VALIDATION_FAILED";
+}
 async function ffmpeg(args: string[]) {
   await exec("ffmpeg", ["-nostdin", "-v", "error", "-y", ...args], {
     timeout: 120000,
