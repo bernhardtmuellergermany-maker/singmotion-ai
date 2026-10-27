@@ -12,7 +12,6 @@ import {
   Sparkles,
   X,
 } from "lucide-react";
-import { productCopy } from "@/lib/product-copy";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
 import { api, ensureSession, upload } from "@/lib/client";
