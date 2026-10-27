@@ -1,4 +1,4 @@
-import { restoreTempoOutput, validateRestored } from "./tempo.ts";
+import { restoreTempoOutput, validateRestored, tempoExportFailureCode } from "./tempo.ts";
 import { providerRequest } from "./timeout.ts";
 import path from "node:path";
 import { renameSync } from "node:fs";
@@ -343,7 +343,7 @@ export class LiveTestRunner {
         console.error("STUDIO_EXPORT_STAGE_FAILURE", {
           attemptId: id,
           stage: exportStage,
-          category: outputFailureCode(error),
+          category: attempt.media.tempo ? tempoExportFailureCode(error) : outputFailureCode(error),
         });
         return finish(this.recoverableOutput ? "processing" : "failed", {
           failureCode: attempt.media.tempo
