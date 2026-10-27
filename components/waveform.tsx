@@ -21,7 +21,8 @@ export default function Waveform({
     [position, setPosition] = useState(0);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
-    segment = useRef(false);
+    segment = useRef(false),
+    dragOrigin = useRef<{x: number; start: number; end: number} | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let context: AudioContext | undefined;
@@ -33,7 +34,7 @@ export default function Waveform({
           await response.arrayBuffer(),
         );
         const data = buffer.getChannelData(0),
-          count = 110,
+          count = 220,
           block = Math.max(1, Math.floor(data.length / count));
         const p = Array.from({ length: count }, (_, i) => {
           let max = 0;
@@ -111,22 +112,56 @@ export default function Waveform({
       </div>
       <div className="wave-strip" ref={strip}>
         <div className="wave-bars" aria-hidden="true">
-          {(peaks.length ? peaks : Array(110).fill(0.08)).map((p, i) => (
+          {(peaks.length ? peaks : Array(220).fill(0.08)).map((p, i) => (
             <i
               key={i}
               style={{
-                height: `${Math.max(5, p * 95)}%`,
+                height: `${Math.max(3, p * 76)}%`,
+                width: "1px",
+                flex: "0 0 1px",
                 background:
-                  (i / 110) * duration >= start && (i / 110) * duration <= end
-                    ? "#696bb1"
-                    : "#d4d5e2",
+                  (i / 220) * duration >= start && (i / 220) * duration <= end
+                    ? "#bba5ff"
+                    : "#69758e",
               }}
             />
           ))}
         </div>
         <div
           className="wave-selection"
+          role="slider"
+          tabIndex={0}
+          aria-label="Move selected audio segment"
+          aria-valuemin={0}
+          aria-valuemax={Math.max(0, duration - (end - start))}
+          aria-valuenow={start}
+          aria-valuetext={`${start.toFixed(2)} to ${end.toFixed(2)} seconds`}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            dragOrigin.current = {x: e.clientX, start, end};
+          }}
+          onPointerMove={(e) => {
+            const origin = dragOrigin.current;
+            const rect = strip.current?.getBoundingClientRect();
+            if (!origin || !rect || !e.currentTarget.hasPointerCapture(e.pointerId)) return;
+            const length = origin.end - origin.start;
+            const newStart = Math.round(Math.max(0, Math.min(duration - length, origin.start + (e.clientX - origin.x) / rect.width * duration)) * 100) / 100;
+            onChange(newStart, Math.min(duration, Math.round((newStart + length) * 100) / 100));
+          }}
+          onPointerUp={() => { dragOrigin.current = null; }}
+          onPointerCancel={() => { dragOrigin.current = null; }}
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+            e.preventDefault();
+            const length = end - start;
+            const next = Math.round(Math.max(0, Math.min(duration - length, start + (e.key === "ArrowLeft" ? -0.1 : 0.1))) * 100) / 100;
+            onChange(next, Math.round((next + length) * 100) / 100);
+          }}
           style={{
+            cursor: "grab",
+            touchAction: "none",
+            background: "rgba(167,139,250,.10)",
+            border: "1px solid #a78bfa",
             left: `${(start / duration) * 100}%`,
             width: `${((end - start) / duration) * 100}%`,
           }}
