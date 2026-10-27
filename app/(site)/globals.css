@@ -2500,3 +2500,18 @@ summary::-webkit-details-marker {
 .generate-button {
   scroll-margin-bottom: 100px;
 }
+
+
+/* Precision audio selection: visually quiet bars and a draggable region. */
+.wave-editor .wave-strip { background: #111a2a; border: 1px solid #34415d; height: 82px; }
+.wave-editor .wave-bars { justify-content: space-evenly; gap: 0; }
+.wave-editor .wave-bars i { border-radius: 1px; max-width: 2px; }
+.wave-editor .wave-selection { pointer-events: auto; z-index: 2; touch-action: none; }
+.wave-editor .wave-selection:focus-visible { outline: 2px solid #e3d5ff; outline-offset: 2px; }
+.wave-editor .wave-handle { z-index: 3; width: 13px; border: 4px solid #111a2a; background: #bca5ff; border-radius: 7px; }
+.wave-editor .playhead { z-index: 1; background: #eadbff; pointer-events: none; }
+.wizard-card .format-options { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.wizard-card .format-options button { min-height: 100px; padding: 10px 6px; }
+@media(max-width: 600px) {
+  .wizard-card .format-options button { min-height: 86px; }
+}
