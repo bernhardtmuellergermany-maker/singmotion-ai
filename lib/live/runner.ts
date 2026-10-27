@@ -338,7 +338,6 @@ export class LiveTestRunner {
               ),
             );
           }
-        }
       } catch (error) {
         // Raw FFmpeg stderr, provider URLs and media paths are never logged.
         console.error("STUDIO_EXPORT_STAGE_FAILURE", {
