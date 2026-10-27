@@ -1,4 +1,3 @@
-import { reserveDaily } from "./daily-budget.ts";
 import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget } from "./studio-budget.ts";
 import {
@@ -348,21 +347,9 @@ export class LiveTestStore {
         .get(attempt.id);
       if (active) throw new Error("ONE_ACTIVE_GENERATION");
     }
-    if (!studio) return config.maxTotalMicroUsd;
-    const reserved = Number(
-      (
-        this.db
-          .prepare(
-            "SELECT COALESCE(SUM(reserved_micro_usd),0) AS n FROM live_attempts",
-          )
-          .get() as { n: number }
-      ).n,
-    );
-    return euroBudget(
-      latestStudioBudget(this.db) ?? config.eurBudget,
-      reserved,
-      config.maxTotalMicroUsd,
-    ).usdCapMicro;
+    // Private Studio is uncapped by its historical operator-test ledger.
+    // Reservations remain immutable and counted for accounting, not admission.
+    return studio ? Number.MAX_SAFE_INTEGER : config.maxTotalMicroUsd;
   }
   authorize(
     id: string,
@@ -397,14 +384,12 @@ export class LiveTestStore {
       ).total;
       if (
         !Number.isSafeInteger(total) ||
-        total + attempt.upperBoundMicroUsd! > cumulativeCap
+        (!attempt.media.sourceJobId.startsWith("studio-") &&
+          total + attempt.upperBoundMicroUsd! > cumulativeCap)
       )
         throw new Error("Total live-test spending cap exceeded.");
-      if (attempt.media.sourceJobId.startsWith("studio-")) {
-        const review = latestStudioBudget(this.db) ?? config.eurBudget;
-        if (!review) throw new Error("EUR50_REVIEW_REQUIRED");
-        reserveDaily(this.db, id, attempt.upperBoundMicroUsd!, review);
-      }
+      // No daily-budget reservation is required for private Studio jobs.
+      // The exact task's USD reservation is still persisted below.
       const token = randomBytes(32).toString("hex");
       this.db
         .prepare(
@@ -456,15 +441,13 @@ export class LiveTestStore {
           .get() as { total: number }
       ).total;
       const cumulativeCap = this.studioGuard(attempt, config);
-      if (!Number.isSafeInteger(total) || total > cumulativeCap)
+      if (
+        !Number.isSafeInteger(total) ||
+        (!attempt.media.sourceJobId.startsWith("studio-") && total > cumulativeCap)
+      )
         throw new Error("Total live-test spending cap exceeded.");
-      if (attempt.media.sourceJobId.startsWith("studio-")) {
-        const review = latestStudioBudget(this.db) ?? config.eurBudget;
-        if (!review) throw new Error("EUR50_REVIEW_REQUIRED");
-        // A midnight-crossing submission also reserves the new Berlin day;
-        // the previous day entry remains immutable.
-        reserveDaily(this.db, id, attempt.upperBoundMicroUsd!, review);
-      }
+      // Historic daily ledger entries remain intact. Fresh Studio jobs
+      // do not need a second daily budget admission.
       this.db
         .prepare(
           "UPDATE live_attempts SET consumed=1,token_hash=NULL WHERE id=?",
