@@ -198,7 +198,6 @@ export class LiveTestRunner {
         const info = await lstat(output);
         if (info.isFile() && !info.isSymbolicLink()) {
           if (attempt.media.tempo) {
-            exportStage = "final-tempo-validation";
             await validateRestored(
               output,
               attempt.media,
@@ -207,7 +206,7 @@ export class LiveTestRunner {
                 attempt.media.outputFormat,
               ),
             );
-          else
+          } else
             await validateOutput(
               output,
               attempt.media.durationSeconds,
@@ -328,7 +327,8 @@ export class LiveTestRunner {
             timingContract,
             attempt.media.outputFormat,
           );
-          if (attempt.media.tempo)
+          if (attempt.media.tempo) {
+            exportStage = "final-tempo-validation";
             await validateRestored(
               partial,
               attempt.media,
@@ -338,6 +338,7 @@ export class LiveTestRunner {
               ),
             );
           }
+        }
       } catch (error) {
         // Raw FFmpeg stderr, provider URLs and media paths are never logged.
         console.error("STUDIO_EXPORT_STAGE_FAILURE", {
