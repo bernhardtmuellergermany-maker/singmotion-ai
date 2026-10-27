@@ -52,7 +52,9 @@ export async function Website({
     (item, i, all) => all.findIndex((other) => other.url === item.url) === i,
   );
   return (
-    <div className={`marketing premium-site ${isHome ? "home-site" : ""}`}>
+    <div
+      className={`marketing premium-site product-theme ${isHome ? "home-site" : ""}`}
+    >
       <SiteHeader
         actions={
           <nav aria-label="Website navigation">

@@ -21,6 +21,7 @@ function selectionIdentity(s: StudioDraftExport | null) {
         s.performance,
         s.camera,
         s.customPrompt,
+        s.outputFormat || null,
       ])
     : "null";
 }

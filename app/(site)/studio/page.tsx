@@ -1,9 +1,4 @@
-import { Shell } from "@/components/shell";
-import { Studio } from "@/components/studio";
+import { StudioWizard } from "@/components/studio-wizard";
 export default function Page() {
-  return (
-    <Shell>
-      <Studio />
-    </Shell>
-  );
+  return <StudioWizard />;
 }

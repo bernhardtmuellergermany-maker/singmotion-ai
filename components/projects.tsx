@@ -1,4 +1,5 @@
 "use client";
+import { SavedDrafts } from "./saved-drafts";
 import Link from "next/link";
 import { LiveProjects, LiveProject } from "./studio-live";
 import { useEffect, useState } from "react";
@@ -29,7 +30,7 @@ export function Projects() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">YOUR COLLECTION</span>
-          <h1>My projects</h1>
+          <h1>My videos</h1>
           <p>Every song has a story. Keep yours close.</p>
         </div>
         <Link href="/studio" className="button primary">
@@ -41,6 +42,7 @@ export function Projects() {
           {error}
         </p>
       )}
+      <SavedDrafts />
       <LiveProjects />
       {loading ? (
         <p className="quiet">Loading your projects…</p>

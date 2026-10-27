@@ -1,11 +1,14 @@
-export const dynamic = "force-dynamic";
 import { Shell } from "@/components/shell";
-import { Billing } from "@/components/settings";
-import { quote } from "@/lib/domain";
+import { CustomerAccount } from "@/components/customer-account";
 export default function Page() {
   return (
     <Shell>
-      <Billing referencePrice={quote(10).cents} />
+      <h1>Billing</h1>
+      <p>
+        Payments and subscriptions are not activated. Provider reservations are
+        separate from customer credit.
+      </p>
+      <CustomerAccount />
     </Shell>
   );
 }
