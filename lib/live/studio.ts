@@ -550,7 +550,7 @@ export class StudioWorkflow {
     if (
       selection.owner !== owner ||
       selection.end - selection.start < 4 ||
-      selection.end - selection.start > 60
+      selection.end - selection.start > 300
     )
       throw new StudioLiveError(
         "SELECTION_INVALID",
@@ -640,7 +640,7 @@ export class StudioWorkflow {
       media = await prepareStudioDraft(
         selection,
         owner,
-        Math.min(this.config.maxDurationSeconds, 60),
+        Math.min(this.config.maxDurationSeconds, 300),
       );
     }
     // Check exact trimmed bytes against legacy rejected clips before any tempo change.
@@ -664,7 +664,7 @@ export class StudioWorkflow {
         this.root,
         selection.songId,
         tempo,
-        Math.min(this.config.maxDurationSeconds, 60),
+        Math.min(this.config.maxDurationSeconds, 300),
       );
     const policy = selectStudioPolicy(rootPolicy, media.durationSeconds);
     // Recheck after asynchronous preparation: a concurrent approval must win.
