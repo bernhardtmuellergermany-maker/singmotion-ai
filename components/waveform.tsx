@@ -82,7 +82,7 @@ export default function Waveform({
           Math.min(duration, ((e.clientX - rect.left) / rect.width) * duration),
         ) * 100,
       ) / 100;
-    if (handle === "start") onChange(Math.max(0, Math.min(val, end - 0.1, end - 300)), end);
+    if (handle === "start") onChange(Math.max(0, end - 300, Math.min(val, end - 0.1)), end);
     else onChange(start, Math.max(start + 0.1, Math.min(val, start + 300, duration)));
   }
   function toggle() {
