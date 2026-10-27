@@ -69,7 +69,7 @@ async function handler(req: NextRequest) {
         return json({
           available: false,
           projects: [],
-          blockers: ["Paid Studio pilot requires a Super Admin login."],
+          blockers: ["Paid Studio requires an approved operator account."],
         });
       throw e;
     }
