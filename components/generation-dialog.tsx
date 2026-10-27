@@ -141,6 +141,11 @@ export function GenerationDialog({
         {selection.outputFormat || "Reviewed format"} · {artistName}
       </p>
       <p>
+        BytePlus base-rate illustration: USD {((selection.end - selection.start) * 0.07).toFixed(2)}
+        {" "}at $0.07 per second of selected audio. The provider bills generated
+        video seconds, which may differ; taxes and fees are not included.
+      </p>
+      <p>
         Local fitting may add borders; this is not a promise of native landscape
         generation.
       </p>
