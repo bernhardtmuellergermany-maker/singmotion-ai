@@ -2,7 +2,7 @@ import { restoreTempoOutput, validateRestored } from "./tempo.ts";
 import { providerRequest } from "./timeout.ts";
 import path from "node:path";
 import { renameSync } from "node:fs";
-import { mkdir, unlink, lstat, chmod } from "node:fs/promises";
+import { mkdir, unlink, lstat, chmod, copyFile } from "node:fs/promises";
 import { enforceCap, type LiveTestConfig } from "./config.ts";
 import {
   contractDigest,
@@ -183,6 +183,7 @@ export class LiveTestRunner {
       this.outputDirectory,
       `${attempt.id}.${lease}.partial.mp4`,
     );
+    const retainedSource = path.join(this.outputDirectory, `${attempt.id}.provider-source.mp4`);
     const finish = (
       state: "processing" | "completed" | "failed",
       patch: Parameters<LiveTestStore["transition"]>[2] = {},
@@ -196,7 +197,8 @@ export class LiveTestRunner {
       try {
         const info = await lstat(output);
         if (info.isFile() && !info.isSymbolicLink()) {
-          if (attempt.media.tempo)
+          if (attempt.media.tempo) {
+            exportStage = "final-tempo-validation";
             await validateRestored(
               output,
               attempt.media,
@@ -259,6 +261,7 @@ export class LiveTestRunner {
           failureCode: outputFailureCode(error),
         });
       }
+      let exportStage = "provider-validation";
       try {
         await validateOutput(
           partial,
@@ -266,6 +269,12 @@ export class LiveTestRunner {
           this.provider.contract,
         );
         if (attempt.media.tempo) {
+          // Keep one immutable provider response for local recovery/debugging.
+          // Do not overwrite an earlier captured source or re-submit the task.
+          await copyFile(partial, retainedSource, 1).then(() => chmod(retainedSource, 0o600)).catch((e: NodeJS.ErrnoException) => {
+            if (e.code !== "EEXIST") throw e;
+          });
+          exportStage = "tempo-restoration";
           const restored = partial + ".restored.mp4";
           try {
             await restoreTempoOutput(
@@ -280,6 +289,7 @@ export class LiveTestRunner {
           }
         }
         if (attempt.media.outputFormat) {
+          exportStage = "output-format-fit";
           const timingContract = attempt.media.tempo
             ? {
                 ...this.provider.contract,
@@ -309,8 +319,15 @@ export class LiveTestRunner {
                 attempt.media.outputFormat,
               ),
             );
+          }
         }
-      } catch {
+      } catch (error) {
+        // Raw FFmpeg stderr, provider URLs and media paths are never logged.
+        console.error("STUDIO_EXPORT_STAGE_FAILURE", {
+          attemptId: id,
+          stage: exportStage,
+          category: outputFailureCode(error),
+        });
         return finish(this.recoverableOutput ? "processing" : "failed", {
           failureCode: attempt.media.tempo
             ? "TEMPO_RESTORATION_FAILED"
