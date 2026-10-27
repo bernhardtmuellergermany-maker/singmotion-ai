@@ -234,7 +234,7 @@ export function GenerationDialog({
                 ? "Current Terms are unavailable."
                 : plan && plan.state !== "prepared"
                   ? "This project already has a status. Open the saved project; do not submit it again."
-                  : "Resolve the displayed authorization or budget requirements before generating."}
+                  : "Resolve the displayed operator authorization or provider policy requirements before generating."}
         </p>
       )}
       {plan && ["completed", "failed"].includes(plan.state) && (
