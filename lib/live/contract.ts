@@ -141,7 +141,7 @@ export function planUpperBoundMicroUsd(
           !Number.isFinite(p.maxGeneratedSeconds) ||
           p.maxGeneratedSeconds < bound.maxInputSeconds ||
           p.maxGeneratedSeconds > 300 ||
-          bound.maxInputSeconds > 60)) ||
+          bound.maxInputSeconds > 300)) ||
       bound.minInputSeconds < 4 ||
       contract.billing.microUsdPerSecond !== 70000 ||
       [
