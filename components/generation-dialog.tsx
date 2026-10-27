@@ -34,7 +34,6 @@ export function GenerationDialog({
         pilot?: boolean;
         available: boolean;
         blockers: string[];
-        dailyBudget?: { day: string; reservedMicroEur: number };
       }>("studio-live"),
     ])
       .then(([t, r]) => {
@@ -132,9 +131,9 @@ export function GenerationDialog({
         {selection.outputFormat || "Reviewed format"} · {artistName}
       </p>
       <p>
-        BytePlus base-rate illustration: USD {((selection.end - selection.start) * 0.07).toFixed(2)}
-        {" "}at $0.07 per second of selected audio. The provider bills generated
-        video seconds, which may differ; taxes and fees are not included.
+        BytePlus base-rate estimate: USD {((selection.end - selection.start) * 0.07).toFixed(2)}
+        {" "}based on the selected audio duration at USD 0.07 per second.
+        Actual billed generated video seconds may differ; taxes or provider fees may apply.
       </p>
       <p>
         Local fitting may add borders; this is not a promise of native landscape
@@ -178,13 +177,6 @@ export function GenerationDialog({
                   Experimental: generated duration, fees and media properties
                   remain unknown. This reservation is not a guaranteed invoice
                   amount. Confirming accepts these reviewed risks.
-                </p>
-              )}
-              {plan.budget && (
-                <p>
-                  Remaining authorized allowance: EUR{" "}
-                  {(plan.budget.remainingMicroEur / 1000000).toFixed(2)}.
-                  Unresolved reservations remain included.
                 </p>
               )}
               {plan.budgetBlocker && <p role="alert">{plan.budgetBlocker}</p>}
