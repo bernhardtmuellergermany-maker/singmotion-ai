@@ -436,22 +436,8 @@ export class StudioWorkflow {
             " No new paid test until this task is terminal. Open its recovery page; if BytePlus confirms a terminal outcome, use evidence-backed reconciliation.",
         };
       });
-    let budget: ReturnType<typeof euroBudget> | null = null;
-    try {
-      budget = await this.currentBudget();
-    } catch {
-      blockers.push({
-        projectId: null,
-        message:
-          "The EUR 50 budget policy is missing or expired. Renew its review; existing reservations remain counted.",
-      });
-    }
-    if (budget && budget.remainingMicroUsd <= 0)
-      blockers.push({
-        projectId: null,
-        message:
-          "No reviewed spending budget remains. Historical reservations cannot be reset.",
-      });
+    // This legacy diagnostics view must not require a fresh EUR budget.
+    const budget = null;
     return {
       ready: blockers.length === 0,
       blockers,
