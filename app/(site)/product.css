@@ -823,3 +823,9 @@
     padding-top: 100px;
   }
 }
+
+.product-theme .page-heading p,
+.product-theme .empty-state p,
+.product-theme .page-heading .eyebrow {
+  color: var(--product-muted);
+}

@@ -85,8 +85,8 @@ export function Projects() {
           <FolderOpen size={35} />
           <h3>Your first performance starts here.</h3>
           <p>
-            Create a demo in the studio. Your project and its progress will be
-            saved automatically.
+            Choose your song and photo in the studio, then save and review your
+            performance before generating.
           </p>
           <Link href="/studio" className="button primary">
             Open the studio <ArrowRight size={16} />
