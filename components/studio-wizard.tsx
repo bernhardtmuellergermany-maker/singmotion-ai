@@ -30,7 +30,7 @@ const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
 });
-const steps = productCopy.en.steps;
+const steps = ["Add your song", "Choose your photo", "Describe performance", "Generate"];
 const suggestions = [
   "Walking towards camera",
   "On a dark stage",
@@ -57,7 +57,8 @@ export function StudioWizard() {
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
-    [confirm, setConfirm] = useState(false);
+    [confirm, setConfirm] = useState(false),
+    [formatMode, setFormatMode] = useState<"auto" | "9:16" | "16:9">("auto");
   useEffect(() => {
     let current = true;
     void ensureSession()
@@ -86,7 +87,7 @@ export function StudioWizard() {
             song: saved.song,
             artistName: saved.artistName,
           });
-          setStep(saved.step);
+          setStep(Math.max(0, Math.min(3, saved.step >= 3 ? saved.step - 1 : saved.step)));
           setReady(true);
           return;
         }
@@ -157,11 +158,19 @@ export function StudioWizard() {
           start: 0,
           end: Math.min(10, asset.duration || 10),
         });
-      else
+      else {
+        let detected: "9:16" | "16:9" = "9:16";
+        try {
+          const image = await createImageBitmap(file, { imageOrientation: "from-image" });
+          detected = image.width > image.height * 1.1 ? "16:9" : "9:16";
+          image.close();
+        } catch { /* Keep the documented portrait fallback. */ }
         update({
           imageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
+          ...(formatMode === "auto" ? { outputFormat: detected } : {}),
         });
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -199,7 +208,7 @@ export function StudioWizard() {
       ? audioValid
       : step === 1
         ? !!draft.imageId
-        : step === 3
+        : step === 2
           ? !!prompt
           : true);
   const allowed = (index: number) =>
@@ -222,7 +231,7 @@ export function StudioWizard() {
           ))}
         </nav>
         <div className="wizard-card">
-          <p className="wizard-kicker">STEP {step + 1}/5</p>
+          <p className="wizard-kicker">STEP {step + 1}/4</p>
           {step === 0 && (
             <>
               <h1>Add your song</h1>
@@ -311,41 +320,27 @@ export function StudioWizard() {
                   Remove photo
                 </button>
               )}
+              <div className="format-options" role="group" aria-label="Video orientation" style={{marginTop:16}}>
+                {(["auto", "9:16", "16:9"] as const).map((format) => (
+                  <button key={format} type="button"
+                    aria-pressed={formatMode === format}
+                    onClick={() => {
+                      setFormatMode(format);
+                      if (format !== "auto") update({ outputFormat: format });
+                    }}>
+                    {format === "16:9" ? <Monitor /> : <Smartphone />}
+                    <strong>{format === "auto" ? "Auto" : format}</strong>
+                    <span>{format === "auto" ? "From photo" : format === "9:16" ? "Vertical" : "Horizontal"}</span>
+                  </button>
+                ))}
+              </div>
+              <p className="field-note">Output: {draft.outputFormat}. Landscape export may use padding; native landscape generation is not guaranteed.</p>
               <p>
                 <Link href="/artists">Manage your saved artists</Link>
               </p>
             </>
           )}
           {step === 2 && (
-            <>
-              <h1>Choose format</h1>
-              <p>Select the export format for your performance.</p>
-              <div className="format-options">
-                {(["9:16", "16:9"] as const).map((format) => (
-                  <button
-                    key={format}
-                    aria-pressed={draft.outputFormat === format}
-                    onClick={() => update({ outputFormat: format })}
-                  >
-                    {format === "9:16" ? <Smartphone /> : <Monitor />}
-                    <strong>{format}</strong>
-                    <span>{format === "9:16" ? "Vertical" : "Horizontal"}</span>
-                    <small>
-                      {format === "9:16"
-                        ? "720 × 1280 · Reels, Shorts"
-                        : "1280 × 720 · YouTube, desktop"}
-                    </small>
-                  </button>
-                ))}
-              </div>
-              <p className="field-note">
-                Export fits the validated provider video without cropping. Black
-                borders may be added; native landscape generation is not
-                promised.
-              </p>
-            </>
-          )}
-          {step === 3 && (
             <>
               <h1>Performance &amp; camera</h1>
               <p>
@@ -408,7 +403,7 @@ export function StudioWizard() {
               </details>
             </>
           )}
-          {step === 4 && (
+          {step === 3 && (
             <>
               <h1>Generate your performance</h1>
               <p>
@@ -426,9 +421,9 @@ export function StudioWizard() {
                   {
                     label: "Format",
                     value: `${draft.outputFormat} · fitted export`,
-                    at: 2,
+                    at: 1,
                   },
-                  { label: "Performance", value: prompt, at: 3 },
+                  { label: "Performance", value: prompt, at: 2 },
                 ].map((row) => (
                   <button key={row.label} onClick={() => setStep(row.at)}>
                     <strong>{row.label}</strong>
@@ -461,7 +456,7 @@ export function StudioWizard() {
             >
               <ArrowLeft size={16} /> Back
             </button>
-            {step < 4 ? (
+            {step < 3 ? (
               <button
                 className="product-primary"
                 disabled={!canAdvance}
