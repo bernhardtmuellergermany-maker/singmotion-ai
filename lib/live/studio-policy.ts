@@ -200,7 +200,7 @@ export function studioGate(config: LiveTestConfig) {
     config.maxJobMicroUsd <= 0 ||
     config.maxTotalMicroUsd <= 0 ||
     config.maxDurationSeconds < 4 ||
-    config.maxDurationSeconds > 60
+    config.maxDurationSeconds > 300
   )
     throw new StudioLiveError(
       "STUDIO_DISABLED",
