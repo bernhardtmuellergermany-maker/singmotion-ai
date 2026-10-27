@@ -154,14 +154,8 @@ export class StudioWorkflow {
       failed:
         "Provider reported a terminal failure; reservation retained pending billing reconciliation.",
     };
-    let budget: ReturnType<typeof euroBudget> | null = null,
-      budgetBlocker: string | null = null;
-    try {
-      budget = this.budget(JSON.parse(row.policy_json));
-    } catch {
-      budgetBlocker =
-        "EUR 50 conversion/fee review is missing or expired. No paid submission until reviewed.";
-    }
+    const budget = null;
+    const budgetBlocker = null;
     return {
       budget,
       budgetBlocker,
