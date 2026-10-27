@@ -1,3 +1,4 @@
+import { parseStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
@@ -144,6 +145,72 @@ async function handler(
         401,
       );
     const owner = auth.owner;
+    if (route === "studio-drafts") {
+      db.exec(
+        "CREATE TABLE IF NOT EXISTS studio_drafts (id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, artist_name TEXT NOT NULL, step INTEGER NOT NULL, updated INTEGER NOT NULL)",
+      );
+      const view = (row: Record<string, unknown>) => {
+        const selected = parseStudioDraft(JSON.parse(String(row.selection)));
+        return {
+          id: row.id,
+          selection: selected,
+          artistName: row.artist_name,
+          step: row.step,
+          updated: row.updated,
+          song: safeAsset(asset(selected.songId, owner)),
+        };
+      };
+      if (method === "GET") {
+        if (!id)
+          return json(
+            db
+              .prepare(
+                "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC LIMIT 100",
+              )
+              .all(owner)
+              .map(view),
+          );
+        const row = db
+          .prepare("SELECT * FROM studio_drafts WHERE id=? AND owner=?")
+          .get(id, owner);
+        if (!row) throw new AppError("Draft unavailable.", 404);
+        return json(view(row));
+      }
+      if (method === "POST") {
+        limit(`${owner}:drafts`, 60, 60000);
+        const input = await body(req),
+          selected = parseStudioDraft(input.selection);
+        if (selected.owner !== owner)
+          throw new AppError("Draft unavailable.", 403);
+        if (
+          asset(selected.songId, owner).kind !== "audio" ||
+          asset(selected.imageId, owner).kind !== "image"
+        )
+          throw new AppError("Invalid draft media.");
+        const key = string(input.id, 80);
+        if (!/^[a-zA-Z0-9-]+$/.test(key))
+          throw new AppError("Invalid draft identifier.");
+        const step = Number(input.step);
+        if (!Number.isInteger(step) || step < 0 || step > 4)
+          throw new AppError("Invalid draft step.");
+        const result = db
+          .prepare(
+            "INSERT INTO studio_drafts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated WHERE studio_drafts.owner=excluded.owner",
+          )
+          .run(
+            key,
+            owner,
+            JSON.stringify(selected),
+            string(input.artistName, 80),
+            step,
+            Date.now(),
+          );
+        if (result.changes !== 1) throw new AppError("Draft unavailable.", 403);
+        return json({ id: key });
+      }
+      throw new AppError("Method not allowed.", 405);
+    }
+
     if (method !== "GET") limit(`${owner}:write`, 60);
     if (route === "session" && method === "GET")
       return json({ owner, balance: balance(owner), demo: true });
@@ -178,7 +245,11 @@ async function handler(
         await writeFile(dest, bytes, { mode: 0o600, flag: "wx" });
         if (kind === "audio") {
           duration = await validateAudio(dest);
-          mime = /\.wav$/i.test(file.name) ? "audio/wav" : "audio/mpeg";
+          mime = /\.wav$/i.test(file.name)
+            ? "audio/wav"
+            : /\.m4a$/i.test(file.name)
+              ? "audio/mp4"
+              : "audio/mpeg";
         } else {
           const image = sharp(bytes, {
             limitInputPixels: 4096 * 4096,
@@ -232,7 +303,7 @@ async function handler(
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "Accept-Ranges": "bytes",
-        "Content-Disposition": `${req.nextUrl.searchParams.has("download") ? "attachment" : "inline"}; filename="${a.kind === "video" ? "singmotion-demo.mp4" : a.kind === "audio" ? "song" + (a.mime === "audio/wav" ? ".wav" : ".mp3") : "reference" + (a.mime === "image/png" ? ".png" : ".jpg")}"`,
+        "Content-Disposition": `${req.nextUrl.searchParams.has("download") ? "attachment" : "inline"}; filename="${a.kind === "video" ? "singmotion-demo.mp4" : a.kind === "audio" ? "song" + (a.mime === "audio/wav" ? ".wav" : a.mime === "audio/mp4" ? ".m4a" : ".mp3") : "reference" + (a.mime === "image/png" ? ".png" : ".jpg")}"`,
       };
       const range = req.headers.get("range");
       if (range) {

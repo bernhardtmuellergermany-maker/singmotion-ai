@@ -40,9 +40,15 @@ export async function validateAudio(file: string, provider = false) {
   if (
     !["mp3", "wav"].some((format) =>
       p.format.format_name?.split(",").includes(format),
+    ) &&
+    !(
+      p.format.format_name?.split(",").includes("mp4") &&
+      audio.codec_name === "aac"
     )
   )
-    throw new AppError("Audio must be an actual MP3 or WAV file.");
+    throw new AppError(
+      "Audio must be an actual MP3, WAV or audio-only AAC/M4A file.",
+    );
   if (
     provider &&
     (audio.codec_name !== "mp3" ||

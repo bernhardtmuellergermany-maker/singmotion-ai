@@ -121,7 +121,7 @@ export function validateFile(name: string, size: number, kind: string) {
         ? "Choose an audio file up to 50 MB."
         : "Choose an image up to 30 MB.",
     );
-  if (!(kind === "audio" ? /\.(mp3|wav)$/i : /\.(png|jpe?g)$/i).test(name))
+  if (!(kind === "audio" ? /\.(mp3|wav|m4a)$/i : /\.(png|jpe?g)$/i).test(name))
     throw new AppError(
       kind === "audio"
         ? "Only MP3 and WAV files are supported."

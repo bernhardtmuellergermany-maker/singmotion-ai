@@ -10,38 +10,71 @@ import {
   type VerifiedContract,
 } from "./contract.ts";
 import { revalidateMedia } from "./media.ts";
-import { downloadValidatedOutput, validateOutput } from "./output.ts";
+import {
+  downloadValidatedOutput,
+  validateOutput,
+  exportContract,
+  fitOutputFormat,
+} from "./output.ts";
 import { type Attempt, type PreparedMedia, LiveTestStore } from "./store.ts";
 
 /** Fixed, non-sensitive download diagnostics. Never persist raw errors, URLs or headers. */
 export function outputFailureCode(error: unknown): string {
   if (!(error instanceof Error)) return "OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED";
   const message = error.message;
-  const detailCodes = new Set(["OUTPUT_FORMAT_INVALID", "OUTPUT_STREAM_MISSING", "OUTPUT_CODEC_MISMATCH", "OUTPUT_DIMENSIONS_MISMATCH", "OUTPUT_DURATION_MISMATCH", "OUTPUT_FRAMERATE_MISMATCH", "OUTPUT_NORMALIZATION_POLICY_REJECTED", "OUTPUT_NORMALIZATION_TIMING_FAILED", "OUTPUT_NORMALIZATION_AUDIO_CHANGED"]);
+  const detailCodes = new Set([
+    "OUTPUT_FORMAT_INVALID",
+    "OUTPUT_STREAM_MISSING",
+    "OUTPUT_CODEC_MISMATCH",
+    "OUTPUT_DIMENSIONS_MISMATCH",
+    "OUTPUT_DURATION_MISMATCH",
+    "OUTPUT_FRAMERATE_MISMATCH",
+    "OUTPUT_NORMALIZATION_POLICY_REJECTED",
+    "OUTPUT_NORMALIZATION_TIMING_FAILED",
+    "OUTPUT_NORMALIZATION_AUDIO_CHANGED",
+  ]);
   if (detailCodes.has(message)) return message;
   // Accept only bounded numeric dimensions; never expose arbitrary provider errors.
-  if (/^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})_EXPECTED_(?:(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})|720P)$/.test(message)) {
+  if (
+    /^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})_EXPECTED_(?:(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})|720P)$/.test(
+      message,
+    )
+  ) {
     const values = message.match(/\d+/g)?.map(Number) || [];
-    if (values.every((value) => value > 0 && value <= 8192))
-      return message;
+    if (values.every((value) => value > 0 && value <= 8192)) return message;
   }
 
-  if (message === "Provider output URL is invalid." ||
-      message === "Provider output URL is not an approved HTTPS download destination.")
+  if (
+    message === "Provider output URL is invalid." ||
+    message ===
+      "Provider output URL is not an approved HTTPS download destination."
+  )
     return "OUTPUT_HOST_REJECTED";
   if (message === "Provider output DNS resolution failed or timed out.")
     return "OUTPUT_DNS_FAILED";
-  if (message === "Provider output connection failed or timed out." ||
-      error.name === "TimeoutError" || error.name === "AbortError")
+  if (
+    message === "Provider output connection failed or timed out." ||
+    error.name === "TimeoutError" ||
+    error.name === "AbortError"
+  )
     return "OUTPUT_CONNECTION_FAILED";
-  if (message === "Provider output HTTP status rejected; redirects are forbidden." ||
-      message === "Provider download did not return a complete file.")
+  if (
+    message ===
+      "Provider output HTTP status rejected; redirects are forbidden." ||
+    message === "Provider download did not return a complete file."
+  )
     return "OUTPUT_HTTP_REJECTED";
-  if (message.includes("too large") || message.includes("length/encoding") ||
-      message === "Provider output length did not match.")
+  if (
+    message.includes("too large") ||
+    message.includes("length/encoding") ||
+    message === "Provider output length did not match."
+  )
     return "OUTPUT_SIZE_REJECTED";
-  if (message === "Provider MP4 failed duration, dimensions, audio or frame-rate validation." ||
-      message === "Output is not a supported MP4 container.")
+  if (
+    message ===
+      "Provider MP4 failed duration, dimensions, audio or frame-rate validation." ||
+    message === "Output is not a supported MP4 container."
+  )
     return "OUTPUT_MP4_VALIDATION_FAILED";
   if (message === "Cannot create private provider output file.")
     return "OUTPUT_STORAGE_FAILED";
@@ -167,13 +200,19 @@ export class LiveTestRunner {
             await validateRestored(
               output,
               attempt.media,
-              this.provider.contract,
+              exportContract(
+                this.provider.contract,
+                attempt.media.outputFormat,
+              ),
             );
           else
             await validateOutput(
               output,
               attempt.media.durationSeconds,
-              this.provider.contract,
+              exportContract(
+                this.provider.contract,
+                attempt.media.outputFormat,
+              ),
             );
           recovered = true;
         }
@@ -239,6 +278,37 @@ export class LiveTestRunner {
           } finally {
             await unlink(restored).catch(() => {});
           }
+        }
+        if (attempt.media.outputFormat) {
+          const timingContract = attempt.media.tempo
+            ? {
+                ...this.provider.contract,
+                output: {
+                  ...this.provider.contract.output,
+                  videoCodec: "h264",
+                  audioCodec: "mp3",
+                  durationToleranceSeconds: 0.2,
+                  maxDurationSeconds:
+                    attempt.media.tempo.originalDuration + 0.2,
+                },
+              }
+            : this.provider.contract;
+          await fitOutputFormat(
+            partial,
+            attempt.media.tempo?.originalDuration ??
+              attempt.media.durationSeconds,
+            timingContract,
+            attempt.media.outputFormat,
+          );
+          if (attempt.media.tempo)
+            await validateRestored(
+              partial,
+              attempt.media,
+              exportContract(
+                this.provider.contract,
+                attempt.media.outputFormat,
+              ),
+            );
         }
       } catch {
         return finish(this.recoverableOutput ? "processing" : "failed", {

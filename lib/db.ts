@@ -66,6 +66,22 @@ export function createSession() {
   );
   return { token, owner };
 }
+/** Called only after customer password verification. No demo or monetary credit is created. */
+export function createCustomerMediaSession(accountId: string) {
+  if (!/^[a-f0-9-]{36}$/.test(accountId))
+    throw new AppError("Invalid account.", 403);
+  const token = randomUUID() + randomUUID(),
+    owner = `customer-${accountId}`;
+  db.prepare("INSERT INTO sessions VALUES (?,?,?,0)").run(
+    hash(token),
+    owner,
+    Date.now() + 86400000,
+  );
+  return { token, owner };
+}
+export function revokeMediaSession(token: string) {
+  db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
+}
 export function session(token?: string) {
   if (!token) return null;
   return db

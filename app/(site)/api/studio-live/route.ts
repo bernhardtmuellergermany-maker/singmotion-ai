@@ -1,3 +1,4 @@
+import { dailyBudgetSnapshot } from "@/lib/live/daily-budget";
 import { reviewIndependentRecording } from "@/lib/live/recording-rejections";
 import {
   offerStudioBudget,
@@ -159,6 +160,7 @@ async function handler(req: NextRequest) {
       return json({
         budget,
         pilot: true,
+        dailyBudget: dailyBudgetSnapshot(service.store.db),
         available: blockers.length === 0,
         projects: service.list(owner),
         blockers,

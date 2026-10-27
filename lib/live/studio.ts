@@ -693,6 +693,7 @@ export class StudioWorkflow {
       return this.withCurrentBudget(this.view(existing.id, owner));
     }
     media.sourceJobId = source;
+    if (selection.outputFormat) media.outputFormat = selection.outputFormat;
     media.promptLanguageConfirmed = true;
     const a = this.store.prepare(media, null, null);
     this.store.db

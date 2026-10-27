@@ -4,7 +4,15 @@ import {
 } from "./output-transport.ts";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { open, unlink, mkdtemp, chmod, stat, rename, rm } from "node:fs/promises";
+import {
+  open,
+  unlink,
+  mkdtemp,
+  chmod,
+  stat,
+  rename,
+  rm,
+} from "node:fs/promises";
 import path from "node:path";
 import { isIP } from "node:net";
 import { probe } from "../media.ts";
@@ -55,7 +63,10 @@ export function outputDimensionDiagnostic(
   discover720p: boolean,
 ): string {
   const safe = (value: unknown): value is number =>
-    typeof value === "number" && Number.isInteger(value) && value > 0 && value <= 8192;
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value > 0 &&
+    value <= 8192;
   if (!safe(width) || !safe(height)) return "OUTPUT_DIMENSIONS_MISMATCH";
   if (discover720p)
     return `OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_${width}x${height}_EXPECTED_720P`;
@@ -98,23 +109,30 @@ export async function validateOutput(
   // Keep the same validation rules but report only stable, non-sensitive categories.
   if (!p.format.format_name?.split(",").includes("mp4"))
     throw new Error("OUTPUT_FORMAT_INVALID");
-  if (!video || !audio)
-    throw new Error("OUTPUT_STREAM_MISSING");
-  if ((contract.output.videoCodec !== undefined &&
-       video.codec_name !== contract.output.videoCodec) ||
-      (contract.output.audioCodec !== undefined &&
-       audio.codec_name !== contract.output.audioCodec) ||
-      (contract.discover720p &&
-       (!["h264", "hevc"].includes(video.codec_name) || audio.codec_name !== "aac")))
+  if (!video || !audio) throw new Error("OUTPUT_STREAM_MISSING");
+  if (
+    (contract.output.videoCodec !== undefined &&
+      video.codec_name !== contract.output.videoCodec) ||
+    (contract.output.audioCodec !== undefined &&
+      audio.codec_name !== contract.output.audioCodec) ||
+    (contract.discover720p &&
+      (!["h264", "hevc"].includes(video.codec_name) ||
+        audio.codec_name !== "aac"))
+  )
     throw new Error("OUTPUT_CODEC_MISMATCH");
-  if (contract.discover720p
-    ? !Number.isInteger(video.width) ||
-      !Number.isInteger(video.height) ||
-      Math.min(video.width!, video.height!) !== 720 ||
-      Math.max(video.width!, video.height!) > 4096
-    : !matchesReviewedDimensions(
-        video.width, video.height, contract.output.width, contract.output.height,
-      ))
+  if (
+    contract.discover720p
+      ? !Number.isInteger(video.width) ||
+        !Number.isInteger(video.height) ||
+        Math.min(video.width!, video.height!) !== 720 ||
+        Math.max(video.width!, video.height!) > 4096
+      : !matchesReviewedDimensions(
+          video.width,
+          video.height,
+          contract.output.width,
+          contract.output.height,
+        )
+  )
     throw new Error(
       outputDimensionDiagnostic(
         video?.width,
@@ -124,15 +142,19 @@ export async function validateOutput(
         contract.discover720p === true,
       ),
     );
-  if (!Number.isFinite(length) ||
-      (contract.output.maxDurationSeconds !== undefined &&
-       length > contract.output.maxDurationSeconds) ||
-      Math.abs(length - duration) > contract.output.durationToleranceSeconds)
+  if (
+    !Number.isFinite(length) ||
+    (contract.output.maxDurationSeconds !== undefined &&
+      length > contract.output.maxDurationSeconds) ||
+    Math.abs(length - duration) > contract.output.durationToleranceSeconds
+  )
     throw new Error("OUTPUT_DURATION_MISMATCH");
-  if (!Number.isFinite(actualFps) ||
-      (contract.discover720p
-       ? actualFps <= 0 || actualFps > 120
-       : Math.abs(actualFps - contract.output.fps) > 0.01))
+  if (
+    !Number.isFinite(actualFps) ||
+    (contract.discover720p
+      ? actualFps <= 0 || actualFps > 120
+      : Math.abs(actualFps - contract.output.fps) > 0.01)
+  )
     throw new Error("OUTPUT_FRAMERATE_MISMATCH");
   const fileHandle = await open(file, "r");
   try {
@@ -195,42 +217,148 @@ export async function validateDownloadedOutput(
   contract: OutputValidationContract,
 ) {
   const source = await probe(file);
-  const video = source.streams.find(s => s.codec_type === "video");
-  if (contract.discover720p || contract.output.width !== 720 ||
-      contract.output.height !== 1280 || video?.width !== 786 || video.height !== 1178) {
+  const video = source.streams.find((s) => s.codec_type === "video");
+  if (
+    contract.discover720p ||
+    contract.output.width !== 720 ||
+    contract.output.height !== 1280 ||
+    video?.width !== 786 ||
+    video.height !== 1178
+  ) {
     await validateOutput(file, duration, contract);
     return;
   }
   const metadata = video as typeof video & {
-    sample_aspect_ratio?: string; side_data_list?: { rotation?: number }[];
+    sample_aspect_ratio?: string;
+    side_data_list?: { rotation?: number }[];
   };
-  if (contract.output.videoCodec !== "h264" || contract.output.audioCodec !== "aac" ||
-      source.streams.length !== 2 || metadata.sample_aspect_ratio !== "1:1" ||
-      metadata.side_data_list?.some(s => s.rotation !== undefined && s.rotation !== 0))
+  if (
+    contract.output.videoCodec !== "h264" ||
+    contract.output.audioCodec !== "aac" ||
+    source.streams.length !== 2 ||
+    metadata.sample_aspect_ratio !== "1:1" ||
+    metadata.side_data_list?.some(
+      (s) => s.rotation !== undefined && s.rotation !== 0,
+    )
+  )
     throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   // Same codec/FPS/duration/container/full-decode checks, with an explicit source
   // rectangle. This does not change the saved contract or the final-output policy.
   await validateOutput(file, duration, {
-    ...contract, output: { ...contract.output, width: 786, height: 1178 },
+    ...contract,
+    output: { ...contract.output, width: 786, height: 1178 },
   });
+  await fitValidatedRectangle(file, duration, contract);
+}
+/** Local export only; does not send an aspect-ratio parameter to BytePlus. */
+export function exportContract<T extends OutputValidationContract>(
+  contract: T,
+  format?: "9:16" | "16:9",
+): T {
+  if (!format) return contract;
+  return {
+    ...contract,
+    output: {
+      ...contract.output,
+      width: format === "9:16" ? 720 : 1280,
+      height: format === "9:16" ? 1280 : 720,
+    },
+  };
+}
+export async function fitOutputFormat(
+  file: string,
+  duration: number,
+  contract: OutputValidationContract,
+  format: "9:16" | "16:9",
+) {
+  await validateOutput(file, duration, contract);
+  const video = (await probe(file)).streams.find(
+    (s) => s.codec_type === "video",
+  );
+  const target = exportContract(contract, format);
+  if (
+    video?.width === target.output.width &&
+    video.height === target.output.height
+  )
+    return;
+  await fitValidatedRectangle(file, duration, target);
+}
+async function fitValidatedRectangle(
+  file: string,
+  duration: number,
+  contract: OutputValidationContract,
+) {
+  const source = await probe(file);
   const limits = outputTransferLimits(contract);
-  if ((await stat(file)).size > limits.maxBytes) throw new Error("Provider output is too large.");
+  if ((await stat(file)).size > limits.maxBytes)
+    throw new Error("Provider output is too large.");
   const scratch = await mkdtemp(path.join(path.dirname(file), ".normalize-"));
   const normalized = path.join(scratch, "normalized.mp4");
   const exec = promisify(execFile);
-  const audioHash = async (input: string) => (await exec("ffmpeg", [
-    "-nostdin", "-v", "error", "-i", input, "-map", "0:a:0", "-c:a", "copy",
-    "-f", "hash", "-hash", "sha256", "-",
-  ], { timeout: 30000, maxBuffer: 1024 })).stdout.trim();
+  const audioHash = async (input: string) =>
+    (
+      await exec(
+        "ffmpeg",
+        [
+          "-nostdin",
+          "-v",
+          "error",
+          "-i",
+          input,
+          "-map",
+          "0:a:0",
+          "-c:a",
+          "copy",
+          "-f",
+          "hash",
+          "-hash",
+          "sha256",
+          "-",
+        ],
+        { timeout: 30000, maxBuffer: 1024 },
+      )
+    ).stdout.trim();
   try {
-    await exec("ffmpeg", [
-      "-nostdin", "-v", "error", "-xerror", "-noautorotate", "-i", file,
-      "-map", "0:v:0", "-map", "0:a:0",
-      "-vf", "scale=720:1280:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=720:1280:(ow-iw)/2:(oh-ih)/2:color=black",
-      "-c:v", "libx264", "-threads", "2", "-preset", "fast", "-crf", "18",
-      "-pix_fmt", "yuv420p", "-fps_mode", "passthrough", "-c:a", "copy",
-      "-map_metadata", "-1", "-movflags", "+faststart", "-fs", String(limits.maxBytes), normalized,
-    ], { timeout: 60000, maxBuffer: 1024 * 1024 });
+    await exec(
+      "ffmpeg",
+      [
+        "-nostdin",
+        "-v",
+        "error",
+        "-xerror",
+        "-noautorotate",
+        "-i",
+        file,
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0",
+        "-vf",
+        `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black`,
+        "-c:v",
+        "libx264",
+        "-threads",
+        "2",
+        "-preset",
+        "fast",
+        "-crf",
+        "18",
+        "-pix_fmt",
+        "yuv420p",
+        "-fps_mode",
+        "passthrough",
+        "-c:a",
+        "copy",
+        "-map_metadata",
+        "-1",
+        "-movflags",
+        "+faststart",
+        "-fs",
+        String(limits.maxBytes),
+        normalized,
+      ],
+      { timeout: 60000, maxBuffer: 1024 * 1024 },
+    );
     await chmod(normalized, 0o600);
     if ((await stat(normalized)).size >= limits.maxBytes)
       throw new Error("Provider output is too large.");
@@ -238,16 +366,30 @@ export async function validateDownloadedOutput(
     const result = await probe(normalized);
     // Resizing may not shorten or retime either stream, nor replace its soundtrack.
     for (const kind of ["video", "audio"]) {
-      const before = source.streams.find(s => s.codec_type === kind) as
-        { duration?: string; start_time?: string; nb_frames?: string };
-      const after = result.streams.find(s => s.codec_type === kind) as typeof before;
-      if (![before, after].every(s => Number.isFinite(Number(s.duration)) && Number.isFinite(Number(s.start_time))) ||
-          Math.abs(Number(before.duration) - Number(after.duration)) > 1 / contract.output.fps ||
-          Math.abs(Number(before.start_time) - Number(after.start_time)) > 0.001 ||
-          (kind === "video" && (!before.nb_frames || before.nb_frames !== after.nb_frames)))
+      const before = source.streams.find((s) => s.codec_type === kind) as {
+        duration?: string;
+        start_time?: string;
+        nb_frames?: string;
+      };
+      const after = result.streams.find(
+        (s) => s.codec_type === kind,
+      ) as typeof before;
+      if (
+        ![before, after].every(
+          (s) =>
+            Number.isFinite(Number(s.duration)) &&
+            Number.isFinite(Number(s.start_time)),
+        ) ||
+        Math.abs(Number(before.duration) - Number(after.duration)) >
+          1 / contract.output.fps ||
+        Math.abs(Number(before.start_time) - Number(after.start_time)) >
+          0.001 ||
+        (kind === "video" &&
+          (!before.nb_frames || before.nb_frames !== after.nb_frames))
+      )
         throw new Error("OUTPUT_NORMALIZATION_TIMING_FAILED");
     }
-    if (await audioHash(file) !== await audioHash(normalized))
+    if ((await audioHash(file)) !== (await audioHash(normalized)))
       throw new Error("OUTPUT_NORMALIZATION_AUDIO_CHANGED");
     // Only the newly downloaded private temporary file is replaced, never a
     // retained customer upload, ledger record or previously published MP4.

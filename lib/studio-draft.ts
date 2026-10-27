@@ -1,6 +1,7 @@
 import { composePrompt, validateSelection } from "./domain.ts";
 export interface StudioDraftExport {
   version: 1;
+  outputFormat?: "9:16" | "16:9";
   owner: string;
   songId: string;
   imageId: string;
@@ -17,6 +18,7 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   const v = value as Record<string, unknown>;
   const keys = [
     "version",
+    "outputFormat",
     "owner",
     "songId",
     "imageId",
@@ -29,6 +31,9 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   if (
     Object.keys(v).some((key) => !keys.includes(key)) ||
     v.version !== 1 ||
+    (v.outputFormat !== undefined &&
+      v.outputFormat !== "9:16" &&
+      v.outputFormat !== "16:9") ||
     ["owner", "songId", "imageId"].some(
       (key) =>
         typeof v[key] !== "string" ||
@@ -45,6 +50,9 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   composePrompt(v.performance, v.camera, v.customPrompt);
   return {
     version: 1,
+    ...(v.outputFormat
+      ? { outputFormat: v.outputFormat as "9:16" | "16:9" }
+      : {}),
     owner: v.owner as string,
     songId: v.songId as string,
     imageId: v.imageId as string,

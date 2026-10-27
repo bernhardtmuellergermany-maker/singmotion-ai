@@ -1,3 +1,4 @@
+import { reserveDaily } from "./daily-budget.ts";
 import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget } from "./studio-budget.ts";
 import {
@@ -23,6 +24,7 @@ export type LiveState =
   | "failed"
   | "uncertain";
 export interface PreparedMedia {
+  outputFormat?: "9:16" | "16:9";
   /** Recorded from the owned original at preparation; never inferred for legacy rows. */
   recording?: { songId: string; sourceSha256: string };
   tempo?: import("./tempo.ts").TempoMetadata;
@@ -63,6 +65,11 @@ export class LiveTestStore {
         reserved_micro_usd INTEGER NOT NULL DEFAULT 0,
         token_hash TEXT, expires_at INTEGER, consumed INTEGER NOT NULL DEFAULT 0,
         poll_token TEXT, poll_lease_until INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS live_daily_reservations (
+        attempt_id TEXT NOT NULL, day TEXT NOT NULL, micro_usd INTEGER NOT NULL,
+        micro_eur INTEGER NOT NULL, fee_bound INTEGER NOT NULL, review_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL, PRIMARY KEY(attempt_id,day)
       );
       CREATE TABLE IF NOT EXISTS live_private_exceptions (
         attempt_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, owner TEXT NOT NULL,
@@ -388,6 +395,11 @@ export class LiveTestStore {
         total + attempt.upperBoundMicroUsd! > cumulativeCap
       )
         throw new Error("Total live-test spending cap exceeded.");
+      if (attempt.media.sourceJobId.startsWith("studio-")) {
+        const review = latestStudioBudget(this.db) ?? config.eurBudget;
+        if (!review) throw new Error("EUR50_REVIEW_REQUIRED");
+        reserveDaily(this.db, id, attempt.upperBoundMicroUsd!, review);
+      }
       const token = randomBytes(32).toString("hex");
       this.db
         .prepare(
@@ -441,6 +453,13 @@ export class LiveTestStore {
       const cumulativeCap = this.studioGuard(attempt, config);
       if (!Number.isSafeInteger(total) || total > cumulativeCap)
         throw new Error("Total live-test spending cap exceeded.");
+      if (attempt.media.sourceJobId.startsWith("studio-")) {
+        const review = latestStudioBudget(this.db) ?? config.eurBudget;
+        if (!review) throw new Error("EUR50_REVIEW_REQUIRED");
+        // A midnight-crossing submission also reserves the new Berlin day;
+        // the previous day entry remains immutable.
+        reserveDaily(this.db, id, attempt.upperBoundMicroUsd!, review);
+      }
       this.db
         .prepare(
           "UPDATE live_attempts SET consumed=1,token_hash=NULL WHERE id=?",

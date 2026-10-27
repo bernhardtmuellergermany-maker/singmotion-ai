@@ -27,7 +27,7 @@ import {
   type OutputValidationContract,
 } from "../lib/live/output.ts";
 import { sha256File } from "../lib/live/media.ts";
-import { trimAudio } from "../lib/media.ts";
+import { trimAudio, probe } from "../lib/media.ts";
 import { LiveTestStore, type PreparedMedia } from "../lib/live/store.ts";
 import { StudioWorkflow } from "../lib/live/studio.ts";
 import {
@@ -401,6 +401,7 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
     // Already-submitted legacy-file plans recover without reauthorization or resubmission.
     media: {
       ...slow,
+      outputFormat: "16:9" as const,
       tempo: { ...slow.tempo!, authorizationDigest: "legacy-file-review" },
     },
     state: "processing",
@@ -482,6 +483,11 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
     cost,
   );
   assert.equal(done.state, "completed");
+  const exportedVideo = (await probe(done.outputPath!)).streams.find(
+    (s) => s.codec_type === "video",
+  )!;
+  assert.equal(exportedVideo.width, 1280);
+  assert.equal(exportedVideo.height, 720);
   await validateRestored(done.outputPath!, slow, full);
   store.db
     .prepare("UPDATE live_attempts SET data=? WHERE id=?")
