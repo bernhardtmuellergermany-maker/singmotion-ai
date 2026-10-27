@@ -1701,3 +1701,16 @@ test("independent new recording reaches private cost review despite unresolved l
     delete process.env.AUDIO_TEMPO_ENABLED;
   }
 });
+
+test("studio duration gate accepts reviewed configuration through 300 seconds", () => {
+  const allowed = studioConfig({
+    BYTEPLUS_STUDIO_ENABLED: "true",
+    BYTEPLUS_STUDIO_OPERATOR_SECRET: "x".repeat(40),
+    BYTEPLUS_STUDIO_MAX_DURATION_SECONDS: "300",
+  });
+  assert.doesNotThrow(() => studioGate(allowed));
+  assert.throws(
+    () => studioGate({ ...allowed, maxDurationSeconds: 301 }),
+    /server enablement/,
+  );
+});
