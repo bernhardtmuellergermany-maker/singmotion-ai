@@ -143,20 +143,7 @@ async function handler(req: NextRequest) {
             : "Server policy unavailable.",
         );
       }
-      let budget = null;
-      try {
-        budget = await service.currentBudget();
-        if (budget.remainingMicroUsd <= 0)
-          blockers.push(
-            "The cumulative spending allowance is exhausted. Renewal does not reset prior reservations or increase server caps.",
-          );
-      } catch (e) {
-        const message =
-          e instanceof StudioLiveError
-            ? e.message
-            : "EUR 50 total-budget conversion/fee review is missing or expired; existing reservations remain counted.";
-        if (!blockers.includes(message)) blockers.push(message);
-      }
+      const budget = null;
       return json({
         budget,
         pilot: true,
