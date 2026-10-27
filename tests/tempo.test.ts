@@ -21,6 +21,7 @@ import {
   restoreTempoOutput,
   validateRestored,
   checkTempoSubmission,
+  tempoExportFailureCode,
 } from "../lib/live/tempo.ts";
 import {
   downloadValidatedOutput,
@@ -571,5 +572,24 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   await assert.rejects(
     tempoAuthorization(root, store, selection, owner),
     /previous provider failure/,
+  );
+});
+
+test("tempo export diagnostics expose only bounded stages, never private stderr", () => {
+  assert.equal(
+    tempoExportFailureCode(new Error("Restored audio differs from original MP3 packets.")),
+    "TEMPO_AUDIO_PACKET_MISMATCH",
+  );
+  assert.equal(
+    tempoExportFailureCode(new Error("Provider video is missing the required audio timeline; no automatic replacement generation.")),
+    "TEMPO_PROVIDER_TIMELINE_MISSING",
+  );
+  const sensitive = Object.assign(new Error("secret provider URL https://example.test/private?token=secret"), {
+    stderr: "private file path /app/.data/media/example.mp3",
+  });
+  assert.equal(tempoExportFailureCode(sensitive), "TEMPO_FFMPEG_EXECUTION_FAILED");
+  assert.equal(
+    tempoExportFailureCode(Object.assign(new Error("timeout"), { killed: true })),
+    "TEMPO_FFMPEG_TIMEOUT_OR_TERMINATED",
   );
 });
