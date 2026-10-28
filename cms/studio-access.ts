@@ -29,7 +29,10 @@ export function studioStaff(
     !/^[a-zA-Z0-9_-]{1,100}$/.test(String(id))
   )
     throw new StudioLiveError("STAFF_AUTH_REQUIRED", "Invalid operator identity.", 403);
+  // Super Admin is always an authorized private Studio operator. The explicit
+  // ID allowlist continues to apply to editors; all media/provider checks remain.
   if (
+    !hasRole(user, ["super-admin"]) &&
     !(env.BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS || "")
       .split(",")
       .map((s) => s.trim())
