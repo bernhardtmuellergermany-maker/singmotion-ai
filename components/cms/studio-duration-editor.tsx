@@ -145,8 +145,7 @@ export function StudioDurationEditor() {
       <h3>Video duration &amp; budget</h3>
       <p>
         Add or edit separately reviewed duration bands. The existing 4–5-second
-        policy stays unchanged. A five-second success does not prove
-        fifteen-second output bounds.
+        policy stays unchanged. A five-second success does not prove longer-video output bounds. The EUR 50 ledger reservation is a planning control, not a guaranteed provider invoice maximum.
       </p>
       <button disabled={busy} onClick={() => void run(false)}>
         Load duration bands
@@ -229,7 +228,7 @@ export function StudioDurationEditor() {
             >
               <option value="evidence">Evidence-backed review</option>
               <option value="experimental">
-                Experimental — operator planning assumptions (up to 15s)
+                Experimental — operator planning assumptions (up to 300s)
               </option>
             </select>
           </label>
