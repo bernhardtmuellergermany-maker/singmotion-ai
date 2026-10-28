@@ -161,11 +161,11 @@ export function selectStudioPolicy(root: StudioPolicy, seconds: number) {
   void _bands;
   return { ...selected, eurBudget: root.eurBudget };
 }
-export async function loadStudioPolicy(root: string) {
+export async function loadStudioPolicy(root: string, checkExpiry = true) {
   try {
     const file = await readFile(path.join(root, "studio-live-policy.json"));
     if (file.length > 65536) throw Error();
-    return validateStudioPolicy(JSON.parse(file.toString()));
+    return validateStudioPolicy(JSON.parse(file.toString()), checkExpiry);
   } catch (e) {
     if (e instanceof StudioLiveError) throw e;
     throw new StudioLiveError(
