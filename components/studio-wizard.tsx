@@ -276,7 +276,13 @@ export function StudioWizard({
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
         {!draft.song ? (
           <label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
-            <FileMusic size={80} strokeWidth={1.6}/>
+            <svg className="flow-upload-symbol" viewBox="0 0 100 106" fill="none" aria-hidden="true">
+              <path d="M17 5H61L83 27V73H17C12 73 9 70 9 65V13C9 8 12 5 17 5Z" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"/>
+              <path d="M61 6V27H82" stroke="currentColor" strokeWidth="6" strokeLinejoin="round"/>
+              <path d="M54 31V57C51 53 44 53 39 56C32 61 35 70 43 70C51 70 56 65 56 57V39L69 36V31L54 34Z" fill="currentColor"/>
+              <circle cx="77" cy="80" r="19" fill="#080b12" stroke="currentColor" strokeWidth="6"/>
+              <path d="M77 70V90M67 80H87" stroke="currentColor" strokeWidth="5" strokeLinecap="round"/>
+            </svg>
             <strong>{busy ? "Uploading your song…" : "Upload your song…"}</strong>
             <span>Or click to choose an audio file</span>
             <small>MP3, WAV, M4A · up to 50 MB</small>
