@@ -1,0 +1,60 @@
+/* SingMotion CMS: editorial dark interface matching the customer Studio.
+   Styles are scoped to Payload's admin root; public pages stay unchanged. */
+html:has(.payload-admin) { color-scheme: dark; }
+.payload-admin {
+  --theme-bg: #0c0d11;
+  --theme-input-bg: #17191f;
+  --theme-elevation-0: #0c0d11;
+  --theme-elevation-50: #121419;
+  --theme-elevation-100: #171a20;
+  --theme-elevation-150: #1c1f26;
+  --theme-elevation-200: #242832;
+  --theme-elevation-250: #292e38;
+  --theme-elevation-300: #343946;
+  --theme-elevation-400: #676f7e;
+  --theme-elevation-500: #9299a6;
+  --theme-elevation-600: #b3bac5;
+  --theme-elevation-700: #d2d7df;
+  --theme-elevation-800: #e8ecf2;
+  --theme-elevation-900: #f7f8fb;
+  --theme-elevation-1000: #ffffff;
+  --theme-text: #ebedf3;
+  --theme-success-500: #52caab;
+  --theme-error-500: #fa7787;
+  --theme-warning-500: #f2c36e;
+  --font-body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: #0c0d11;
+  color: #ebedf3;
+}
+.payload-admin .nav {
+  background: #101217;
+  border-right: 1px solid #272b34;
+}
+.payload-admin .nav__brand { padding-top: 1.5rem; padding-bottom: 1.5rem; }
+.payload-admin .nav a,
+.payload-admin .nav button { border-radius: 9px; }
+.payload-admin .nav a:hover,
+.payload-admin .nav button:hover { background: #20242d; }
+.payload-admin .nav a.active,
+.payload-admin .nav a[aria-current="page"] { background: #292f3b; color: #fff; }
+.payload-admin .template-default__wrap,
+.payload-admin .dashboard__wrap { max-width: 1450px; }
+.payload-admin h1,
+.payload-admin h2,
+.payload-admin h3 { letter-spacing: -.025em; }
+.payload-admin h1 { font-weight: 650; }
+.payload-admin .card,
+.payload-admin .collection-list,
+.payload-admin .render-fields,
+.payload-admin .tabs-field,
+.payload-admin .collapsible { border-radius: 14px; }
+.payload-admin input,
+.payload-admin textarea,
+.payload-admin select,
+.payload-admin .select__control { border-radius: 10px; }
+.payload-admin .btn--style-primary { border-radius: 10px; }
+.payload-admin :focus-visible { outline: 2px solid #a6baff; outline-offset: 3px; }
+@media (max-width: 800px) {
+  .payload-admin .template-default__wrap,
+  .payload-admin .dashboard__wrap { padding-inline: 1rem; }
+}
