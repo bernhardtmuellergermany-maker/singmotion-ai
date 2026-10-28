@@ -300,13 +300,13 @@ export function StudioLiveControl({
           disabled ||
           !selection ||
           selection.end - selection.start < 4 ||
-          selection.end - selection.start > 60 ||
+          selection.end - selection.start > 300 ||
           !consent ||
           !english
         }
         onClick={() => void prepare()}
       >
-        Review real video cost — no paid request
+        {superAdmin ? "Prepare video — no provider request" : "Review real video cost — no paid request"}
       </button>
       {error && (
         <p role="alert" className="error">
@@ -403,7 +403,7 @@ export function StudioLiveControl({
           <Link href={`/projects/live_${plan.id}`}>Saved private project</Link>
           {plan.state === "prepared" && (
             <>
-              <label className="consent">
+              {!superAdmin && <label className="consent">
                 <input
                   type="checkbox"
                   checked={isConfirmed}
@@ -418,14 +418,14 @@ export function StudioLiveControl({
                 {plan.experimental
                   ? "I explicitly approve one experimental paid generation and this finite budget reservation. Generated duration, fees and media properties are unknown; actual provider charges are not guaranteed by the reservation. Out-of-bounds output will be rejected without refund or automatic retry."
                   : "I explicitly approve one paid generation of this exact reviewed selection up to this ceiling."}
-              </label>
+              </label>}
               <button
                 className="button primary"
                 disabled={generateReasons.length > 0}
                 aria-describedby="studio-generate-blockers"
                 onClick={() => void submit()}
               >
-                Generate ONE real video
+                {superAdmin ? "Generate video" : "Generate ONE real video"}
               </button>
             </>
           )}
