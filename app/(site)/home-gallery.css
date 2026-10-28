@@ -44,3 +44,27 @@
 .home-gallery-options button{position:absolute;right:0;top:100%;z-index:8;white-space:nowrap;padding:12px 15px;border:1px solid #58406d;border-radius:10px;background:#1a162b;color:#ffb7c2;display:flex;gap:8px;align-items:center;cursor:pointer}
 .home-gallery-options button:hover{background:#35213d}
 .home-gallery-cover:focus-within .home-gallery-sound{display:grid}
+
+/* Refined responsive gallery — capped columns, consistent poster rhythm. */
+.home-gallery{background:radial-gradient(ellipse 55% 50% at 50% 45%,rgba(25,32,52,.19),transparent 72%),#090d16}
+.home-gallery-content{max-width:1420px;padding:38px 32px 85px}
+.home-gallery-grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:30px 24px;align-items:start}
+.home-gallery-item{min-width:0}
+.home-gallery-cover,.home-gallery-create{border-radius:15px}
+.home-gallery-create{border-color:rgba(147,121,204,.34);outline:1px dashed rgba(167,145,212,.15);background:linear-gradient(160deg,#171a2c,#101522);gap:12px}
+.home-gallery-create:hover,.home-gallery-create:focus-visible{border-color:#a27bff;background:#211c38}
+.home-gallery-plus{width:58px;height:58px;border-width:2px;box-shadow:0 0 17px rgba(119,68,235,.16);margin-bottom:7px}
+.home-gallery-plus svg{width:26px;height:26px}
+.home-gallery-create strong{font-size:18px}
+.home-gallery-create>span:not(.home-gallery-plus):not(.sr-only){font-size:12px;line-height:1.5}
+.home-gallery-title-row{min-height:32px;margin-top:10px}
+.home-gallery-title{min-width:0;flex:1;font-size:14px;font-weight:600}
+.home-gallery-date{min-height:19px;margin:2px 0 0}
+.home-gallery-options-list{position:absolute;right:0;top:100%;z-index:10;min-width:174px;padding:5px;border:1px solid #3a4055;border-radius:10px;background:#181c2c;box-shadow:0 14px 30px #0007}
+.home-gallery-options-list button,.home-gallery-options-list a{position:static;display:flex;align-items:center;gap:9px;width:100%;min-height:38px;border:0;border-radius:6px;background:transparent;color:#e8e6f0;text-decoration:none;padding:8px 10px;font-size:12px;white-space:nowrap;text-align:left}
+.home-gallery-options-list button:hover,.home-gallery-options-list a:hover{background:#2c2942}
+.home-gallery-options-list button:last-child{color:#ffb7c2}
+@media(max-width:1250px){.home-gallery-grid{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:1000px){.home-gallery-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:760px){.home-gallery-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:22px 15px}.home-gallery-content{padding:28px 20px 70px}}
+@media(max-width:520px){.home-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 13px}.home-gallery-content{padding:23px 16px 55px}}
