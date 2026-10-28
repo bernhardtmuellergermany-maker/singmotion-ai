@@ -1,0 +1,33 @@
+/* Personal gallery homepage — scoped so the studio and CMS keep their styles. */
+.home-gallery{min-height:100vh;background:radial-gradient(ellipse 70% 65% at 51% 55%,rgba(36,26,75,.24),transparent 68%),#070b14;color:#f6f5fb;font-family:inherit}
+.home-gallery-header{height:88px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,3vw,52px)}
+.home-gallery-wordmark{font-size:23px;letter-spacing:-.65px;font-weight:750;color:#faf9ff;text-decoration:none}
+.home-gallery-wordmark span{color:#9d4cff}
+.home-gallery-account{width:42px;height:42px;border-radius:50%;border:1px solid #3b3c57;display:grid;place-items:center;color:#f7f5fd}
+.home-gallery-content{padding:40px clamp(22px,2.6vw,50px) 75px;max-width:1900px;margin:0 auto}
+.home-gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(185px,1fr));gap:27px 23px;align-items:start}
+.home-gallery-item{min-width:0}
+.home-gallery-cover,.home-gallery-create{aspect-ratio:2/3;border-radius:19px;position:relative;display:block;overflow:hidden;border:1px solid #343851;background:#121827}
+.home-gallery-cover img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s ease}
+.home-gallery-cover:hover img{transform:scale(1.035)}
+.home-gallery-cover-placeholder{width:100%;height:100%;background:linear-gradient(145deg,#232445,#0b0d17)}
+.home-gallery-duration,.home-gallery-state{position:absolute;top:12px;left:12px;background:rgba(12,13,30,.73);border-radius:9px;padding:6px 9px;font-size:12px;color:white;backdrop-filter:blur(5px)}
+.home-gallery-state{top:auto;bottom:12px;left:12px;text-transform:capitalize}
+.home-gallery-title-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:11px}
+.home-gallery-title{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#fff;text-decoration:none}
+.home-gallery-more{color:#aeb1c7;padding:3px;display:grid;place-items:center}
+.home-gallery-date{font-size:13px;color:#989bb4;margin:5px 0 0}
+.home-gallery-create{border:1px solid #8038ff;outline:1px dashed rgba(160,142,220,.3);outline-offset:-11px;background:linear-gradient(145deg,rgba(39,39,72,.62),rgba(11,12,27,.9));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff;text-decoration:none;text-align:center;padding:20px;transition:border-color .2s,background .2s}
+.home-gallery-create:hover{border-color:#bd95ff;background:#16132d}
+.home-gallery-plus{width:83px;height:83px;display:grid;place-items:center;border-radius:50%;border:3px solid #8b39ff;background:radial-gradient(circle at 50% 25%,#432a82,#180d3e);box-shadow:0 0 30px rgba(125,37,255,.36);margin-bottom:15px}
+.home-gallery-create strong{font-size:21px;font-weight:550}
+.home-gallery-create>span:not(.home-gallery-plus):not(.sr-only){font-size:14px;line-height:1.7;color:#a9a9c2}
+.home-gallery-empty{min-height:calc(100vh - 100px);display:grid;place-items:center;padding:26px 24px 80px}
+.home-gallery-empty-art{position:relative;width:min(100%,390px);isolation:isolate;text-align:center}
+.home-gallery-empty-art .home-gallery-create{width:100%;position:relative;z-index:1}
+.home-gallery-empty-art>p{color:#8d90ae;font-size:14px;margin-top:18px}
+.home-gallery-ghost{position:absolute;top:17%;width:68%;height:58%;border:1px solid #77639e;border-radius:22px;background:linear-gradient(145deg,#1c1c34,#0e1020);opacity:.6;z-index:-1}
+.ghost-left{left:-30%;transform:rotate(-9deg)}.ghost-right{right:-30%;transform:rotate(9deg)}
+.home-gallery-loading,.home-gallery-error{color:#bfc0d5;text-align:center}
+.home-gallery-error{color:#f5abb2}
+@media (max-width:650px){.home-gallery-header{height:72px}.home-gallery-content{padding-top:23px}.home-gallery-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 13px}.home-gallery-cover,.home-gallery-create{border-radius:14px}.home-gallery-plus{width:58px;height:58px;margin-bottom:7px}.home-gallery-create strong{font-size:16px}.home-gallery-create>span:not(.home-gallery-plus):not(.sr-only){font-size:12px}.home-gallery-empty-art{width:min(65vw,310px)}}
