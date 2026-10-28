@@ -1144,3 +1144,53 @@
 .singmotion-flow .flow-track strong{font-size:14px}
 .singmotion-flow .wave-strip{height:85px}
 }
+
+
+/* Studio refinement: strong waveform, compact file, grouped composer controls */
+.singmotion-flow .flow-has-audio{gap:27px}
+.singmotion-flow .flow-audio{width:min(100%,1020px);gap:18px}
+.singmotion-flow .flow-track{width:min(100%,780px);justify-content:flex-start;gap:12px}
+.singmotion-flow .flow-track-art{width:46px;height:46px;flex:none;border-radius:10px;background:#191624;border-color:#2a2638}
+.singmotion-flow .flow-track-art img{width:28px;height:30px;object-fit:contain}
+.singmotion-flow .flow-track-meta{min-width:0;flex:1}
+.singmotion-flow .flow-track strong{font-size:14px;font-weight:550;max-width:100%;white-space:nowrap}
+.singmotion-flow .flow-track small{font-size:11px;color:#9095aa}
+.singmotion-flow .flow-track-remove{width:34px;height:34px;margin-left:auto;border-radius:8px;border-color:#23283a;background:transparent;color:#a4a7bb}
+.singmotion-flow .wave-strip{height:154px}
+.singmotion-flow .wave-viewport .wave-bars i{min-width:2px;border-radius:3px}
+.singmotion-flow .wave-viewport .wave-selection{background:rgba(145,87,241,.13)!important;border:1px solid rgba(192,146,255,.42)!important;border-radius:8px}
+.singmotion-flow .wave-viewport .wave-handle::after{background:#dfbbff;box-shadow:0 0 12px rgba(161,99,255,.28)}
+.singmotion-flow .time-inputs{display:flex;align-items:end;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:12px;width:100%}
+.singmotion-flow .time-inputs label{display:flex;flex-direction:column;gap:5px;font-size:11px;min-width:0;flex:0 1 140px;color:#a4a8bd}
+.singmotion-flow .time-inputs input{width:100%!important;min-height:38px;border-radius:8px;background:#101522;color:#f4eefc;border:1px solid #323448;padding:8px 10px!important;font-variant-numeric:tabular-nums}
+.singmotion-flow .time-inputs .wave-duration-badge{align-self:end;display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:0 12px;border:1px solid #34294d;background:#1d1630;color:#d9c2ff;border-radius:9px;font-size:11px;font-weight:500;white-space:nowrap}
+.singmotion-flow .flow-composer{width:min(100%,650px);padding:12px;gap:11px}
+.singmotion-flow .flow-composer-top{align-items:stretch;gap:11px}
+.singmotion-flow .flow-photo-add,.singmotion-flow .flow-photo{height:77px;width:55px;flex-basis:55px}
+.singmotion-flow .flow-prompt-wrap{display:flex;flex-direction:column;flex:1;min-width:0;gap:6px}
+.singmotion-flow .flow-prompt-wrap label{font-size:10px;letter-spacing:.08em;font-weight:600;color:#b6a8dc}
+.singmotion-flow textarea.flow-prompt{width:100%;min-height:53px;flex:1;resize:vertical;padding:10px 12px;line-height:1.45;font-family:inherit;background:#141927;border:1px solid #333049;font-size:12px}
+.singmotion-flow textarea.flow-prompt::placeholder{color:#8e91a7}
+.singmotion-flow .flow-composer-bottom{align-items:stretch;gap:10px}
+.singmotion-flow .flow-settings-group{flex:1 1 auto;min-width:0;display:flex;align-items:stretch;gap:0;border:1px solid #303349;border-radius:9px;background:#111522;overflow:hidden}
+.singmotion-flow .flow-settings-group .flow-select{min-width:0;flex:1 1 55%;border:0;border-radius:0;background:transparent;padding:0 8px}
+.singmotion-flow .flow-settings-group .flow-format{flex:0 1 34%;border-left:1px solid #303349}
+.singmotion-flow .flow-settings-group .flow-select select{height:42px;font-size:11px}
+.singmotion-flow .flow-create{flex:0 0 auto;min-width:150px;justify-content:center;padding:0 14px;font-size:12px;font-weight:600;background:linear-gradient(110deg,#a96aff,#7340f1);border-color:#b084fb;box-shadow:0 3px 18px rgba(128,65,240,.22)}
+.singmotion-flow .flow-create:not(:disabled):hover{filter:brightness(1.1)}
+.singmotion-flow .flow-create:disabled{opacity:1;color:#918ba3;background:#282436;border-color:#413951;box-shadow:none}
+.singmotion-flow .flow-missing{margin:-3px 0 0;text-align:center;font-size:11px;color:#9c9ab0}
+@media(max-width:680px){
+.singmotion-flow .wave-strip{height:120px}
+.singmotion-flow .flow-track{width:100%;gap:8px}
+.singmotion-flow .flow-track-art{width:42px;height:42px}
+.singmotion-flow .flow-track strong{font-size:12px}
+.singmotion-flow .flow-composer{padding:10px}
+.singmotion-flow .flow-photo-add,.singmotion-flow .flow-photo{width:42px;flex-basis:42px;height:80px}
+.singmotion-flow .flow-settings-group .flow-select{padding:0 5px;gap:3px}
+.singmotion-flow .flow-settings-group .flow-select select{font-size:10px}
+.singmotion-flow .flow-create{min-width:112px;padding:0 8px;font-size:11px}
+.singmotion-flow .flow-create svg:last-child{display:none}
+.singmotion-flow .time-inputs label{flex:1 1 95px}
+.singmotion-flow .time-inputs .wave-duration-badge{font-size:10px;padding:0 8px}
+}
