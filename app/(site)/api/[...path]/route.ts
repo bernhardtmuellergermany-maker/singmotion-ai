@@ -149,6 +149,7 @@ async function handler(
       db.exec(
         "CREATE TABLE IF NOT EXISTS studio_drafts (id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, artist_name TEXT NOT NULL, step INTEGER NOT NULL, updated INTEGER NOT NULL)",
       );
+      db.exec("CREATE TABLE IF NOT EXISTS deleted_studio_drafts (id TEXT NOT NULL, owner TEXT NOT NULL, PRIMARY KEY(id,owner))");
       const view = (row: Record<string, unknown>) => {
         const selected = parseSavedStudioDraft(
           JSON.parse(String(row.selection)),
@@ -184,6 +185,7 @@ async function handler(
         return json(view(row));
       }
       if (method === "DELETE" && id) {
+        db.prepare("INSERT OR IGNORE INTO deleted_studio_drafts(id,owner) VALUES(?,?)").run(id,owner);
         const result = db.prepare("DELETE FROM studio_drafts WHERE id=? AND owner=?").run(id,owner);
         if (!result.changes) throw new AppError("Draft unavailable.",404);
         return json({deleted:true});
@@ -200,6 +202,8 @@ async function handler(
         )
           throw new AppError("Invalid draft media.");
         const key = string(input.id, 80);
+        if (db.prepare("SELECT 1 FROM deleted_studio_drafts WHERE id=? AND owner=?").get(key,owner))
+          throw new AppError("Deleted draft cannot be recreated.",410);
         if (!/^[a-zA-Z0-9-]+$/.test(key))
           throw new AppError("Invalid draft identifier.");
         const step = Number(input.step);
