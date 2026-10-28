@@ -39,8 +39,10 @@ async function identityState(
     const result = store.firstTestResult(a.id)?.result;
     if (!(
       a.failureCode?.includes("REJECT") ||
-      a.failureCode?.includes("PREFILTER") ||
-      result?.sanitizedResult?.code === 50510
+      a.failureCode?.includes("PREFILTER")
+      // A 50510 status-read response alone does not prove content rejection.
+      // Preserve its task record for reconciliation without permanently
+      // blacklisting the same recording.
     ))
       continue;
     const clipMatches = [
