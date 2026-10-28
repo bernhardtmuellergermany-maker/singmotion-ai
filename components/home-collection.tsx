@@ -122,7 +122,7 @@ function GalleryTile({tile,deleting,onDelete,onRename}:{tile:Tile;deleting:boole
   </article>;
 }
 function CreateTile() {
-  return <Link href="/studio" className="home-gallery-create">
+  return <Link href="/studio?new=1" className="home-gallery-create">
     <span className="home-gallery-plus"><Plus size={38} strokeWidth={1.7} /></span>
     <strong>Create Project</strong>
     <span>Create a music video</span>
