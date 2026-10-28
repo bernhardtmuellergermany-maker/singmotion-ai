@@ -19,11 +19,9 @@ export default function Waveform({
     [playing, setPlaying] = useState(false),
     [error, setError] = useState(""),
     [position, setPosition] = useState(0),
-    [zoom, setZoom] = useState(1),
     [dragging, setDragging] = useState(false);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
-    viewport = useRef<HTMLDivElement>(null),
     segment = useRef(false),
     dragOrigin = useRef<{ x: number; start: number; end: number } | null>(null);
   useEffect(() => {
@@ -128,7 +126,7 @@ export default function Waveform({
       );
   }
   const bars = useMemo(() => {
-    const count = Math.min(peaks.length || 160, 160 * zoom);
+    const count = Math.min(peaks.length || 160, 160);
     const values = Array.from({ length: count }, (_, i) => {
       if (!peaks.length) return 0.08;
       const from = Math.floor((i * peaks.length) / count),
@@ -143,12 +141,12 @@ export default function Waveform({
           background:
             (i / values.length) * duration >= start &&
             (i / values.length) * duration <= end
-              ? "#bba5ff"
-              : "#69758e",
+              ? "#e9c6ff"
+              : "#536884",
         }}
       />
     ));
-  }, [peaks, duration, start, end, zoom]);
+  }, [peaks, duration, start, end]);
   return (
     <div className="wave-editor">
       <div className="wave-toolbar">
@@ -159,58 +157,14 @@ export default function Waveform({
           {playing ? <Pause size={14} /> : <Play size={14} />} Preview selection
         </button>
       </div>
-      <div className="wave-zoom" role="group" aria-label="Waveform zoom">
-        <button
-          type="button"
-          aria-label="Zoom out"
-          disabled={zoom === 1}
-          onClick={() => setZoom(Math.max(1, zoom / 2))}
-        >
-          −
-        </button>
-        <output aria-live="polite">{zoom}×</output>
-        <button
-          type="button"
-          aria-label="Zoom in"
-          disabled={zoom === 16}
-          onClick={() => setZoom(Math.min(16, zoom * 2))}
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            viewport.current?.scrollBy({
-              left: -viewport.current.clientWidth / 2,
-            })
-          }
-          disabled={zoom === 1}
-        >
-          Earlier
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            viewport.current?.scrollBy({
-              left: viewport.current.clientWidth / 2,
-            })
-          }
-          disabled={zoom === 1}
-        >
-          Later
-        </button>
-      </div>
       <div
         className="wave-viewport"
-        ref={viewport}
-        tabIndex={0}
         role="region"
-        aria-label="Scrollable audio waveform"
+        aria-label="Audio waveform and selection"
       >
         <div
           className={`wave-strip ${dragging ? "is-dragging" : ""}`}
           ref={strip}
-          style={{ width: `${zoom * 100}%` }}
         >
           <div className="wave-bars" aria-hidden="true">
             {bars}
@@ -276,8 +230,8 @@ export default function Waveform({
             style={{
               cursor: "grab",
               touchAction: "none",
-              background: "rgba(167,139,250,.10)",
-              border: "1px solid #a78bfa",
+              background: "rgba(168,85,247,.22)",
+              border: "0",
               left: `${(start / duration) * 100}%`,
               width: `${((end - start) / duration) * 100}%`,
             }}
@@ -331,11 +285,11 @@ export default function Waveform({
         </div>
         <div
           className="wave-time"
-          style={{ width: `${zoom * 100}%` }}
+          
           aria-hidden="true"
         >
-          {Array.from({ length: zoom * 4 + 1 }, (_, i) => (
-            <span key={i}>{((duration * i) / (zoom * 4)).toFixed(2)}s</span>
+          {Array.from({ length: 5 }, (_, i) => (
+            <span key={i}>{((duration * i) / 4).toFixed(2)}s</span>
           ))}
         </div>
       </div>
@@ -380,7 +334,7 @@ export default function Waveform({
             }}
           />
         </label>
-        <strong>{Math.max(0, end - start).toFixed(2)}s</strong>
+        <strong aria-label="Selected duration">{Math.max(0, end - start).toFixed(2)}s selected</strong>
       </div>
       <audio
         ref={audio}
