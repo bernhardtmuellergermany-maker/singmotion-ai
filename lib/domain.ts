@@ -13,6 +13,16 @@ export const cameras = [
   "Slow Push-In",
   "Gentle Handheld",
   "Side Tracking",
+  "Turn left",
+  "Turn right",
+  "Orbit left",
+  "Orbit right",
+  "Tilt up",
+  "Tilt down",
+  "Push in",
+  "Pull out",
+  "Follow forwards",
+  "Follow backwards",
 ] as const;
 export const views = [
   "Front",
