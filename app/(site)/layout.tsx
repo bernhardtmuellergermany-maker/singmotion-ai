@@ -4,6 +4,7 @@ import "./redesign.css";
 import "./system.css";
 import "./product.css";
 import "./home-gallery.css";
+import "./prompt-visibility.css";
 export const metadata: Metadata = {
   title: {
     default: "SingMotion AI — Your music. Your performance.",
