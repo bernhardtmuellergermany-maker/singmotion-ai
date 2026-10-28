@@ -40,3 +40,22 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: false
+
+      - name: Verify anonymous GHCR access for Railway
+        shell: bash
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${{ github.repository }}"
+          REPO="${IMAGE#ghcr.io/}"
+          TAG="staging-${{ github.sha }}"
+          TOKEN=$(curl --fail --silent --show-error --get "https://ghcr.io/token" --data-urlencode "scope=repository:${REPO}:pull" --data-urlencode "service=ghcr.io" | jq -r '.token // empty')
+          if [ -z "$TOKEN" ]; then
+            echo "::error::GHCR has not issued an anonymous pull token. Make the container package public in GitHub Packages."
+            exit 1
+          fi
+          HTTP_CODE=$(curl --silent --output /dev/null --write-out "%{http_code}" -H "Authorization: Bearer ${TOKEN}" -H "Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json, application/vnd.oci.image.index.v1+json" "https://ghcr.io/v2/${REPO}/manifests/${TAG}")
+          echo "Anonymous pull manifest status: ${HTTP_CODE}"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Railway cannot pull this image anonymously (HTTP ${HTTP_CODE}). Check GHCR package visibility is Public, and that the image version exists."
+            exit 1
+          fi
