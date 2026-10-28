@@ -150,6 +150,7 @@ export function validateFile(name: string, size: number, kind: string) {
         : "Only JPEG and PNG images are supported.",
     );
 }
+const legacyCameras = ["Static Close-Up", "Slow Push-In", "Side Tracking", "Turn left", "Turn right", "Orbit right", "Push in", "Follow forwards"];
 export function composePrompt(
   performance: string,
   camera: string,
@@ -157,7 +158,7 @@ export function composePrompt(
 ) {
   if (
     !performances.includes(performance as (typeof performances)[number]) ||
-    !cameras.includes(camera as (typeof cameras)[number])
+    !(cameras as readonly string[]).includes(camera) && !legacyCameras.includes(camera)
   )
     throw new AppError("Choose a supported performance and camera preset.");
   if (custom.length > 1500)
@@ -167,7 +168,7 @@ export function composePrompt(
   const performanceDirection = performance === "Custom"
     ? "Natural singing performance."
     : `${performance} singing performance.`;
-  const cameraDirection = cameraPrompt[camera];
+  const cameraDirection = cameraPrompt[camera] ?? `Camera direction: ${camera}. Keep the singer clearly visible.`;
   const customDirection = custom.trim() ? ` Additional performance direction: ${custom.trim()}.` : "";
   const result = `${performanceDirection} ${cameraDirection} Keep facial identity, lip synchronization, and background consistent.${customDirection}`;
   if (result.length > 1500)
