@@ -1,4 +1,5 @@
 import "@payloadcms/next/css";
+import "./admin-theme.css";
 import config from "@payload-config";
 import { RootLayout, handleServerFunctions } from "@payloadcms/next/layouts";
 import type { ServerFunctionClient } from "payload";
