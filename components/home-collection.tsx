@@ -13,6 +13,7 @@ export function HomeCollection() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [muted, setMuted] = useState(false);
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -73,7 +74,7 @@ export function HomeCollection() {
         {loading ? <p className="home-gallery-loading">Loading your projects…</p> : tiles.length ? (
           <div className="home-gallery-grid">
             <CreateTile />
-            {tiles.map(tile => <GalleryTile key={tile.id} tile={tile} deleting={deleting === tile.id} onDelete={async () => {
+            {tiles.map(tile => <GalleryTile key={tile.id} tile={tile} muted={muted} setMuted={setMuted} deleting={deleting === tile.id} onDelete={async () => {
               if (!window.confirm(`Remove "${tile.name}" from your projects? Active BytePlus jobs may continue and incur charges; their billing and recovery records are retained.`)) return;
               setDeleting(tile.id); setError("");
               try {
@@ -83,6 +84,14 @@ export function HomeCollection() {
                   await api(`jobs/${encodeURIComponent(tile.id.slice(4))}`,{method:"DELETE"});
                 } else {
                   await api(`studio-drafts/${encodeURIComponent(tile.id.slice(6))}`,{method:"DELETE"});
+                }
+                if (tile.id.startsWith("draft_")) {
+                  const id = tile.id.slice(6);
+                  if (localStorage.getItem("singmotion-draft-id") === id) {
+                    localStorage.removeItem("singmotion-draft-id");
+                    localStorage.removeItem("singmotion-studio");
+                  }
+                  localStorage.removeItem(`singmotion-project-name:${id}`);
                 }
                 setTiles(items => items.filter(item => item.id !== tile.id));
               } catch(e) {setError((e as Error).message);}
@@ -94,11 +103,10 @@ export function HomeCollection() {
     </div>
   );
 }
-function GalleryTile({tile,deleting,onDelete}:{tile:Tile;deleting:boolean;onDelete:()=>void}) {
+function GalleryTile({tile,deleting,onDelete,muted,setMuted}:{tile:Tile;deleting:boolean;onDelete:()=>void;muted:boolean;setMuted:(v:boolean)=>void}) {
   const video = useRef<HTMLVideoElement>(null);
-  const [muted,setMuted] = useState(true);
   const [playing,setPlaying] = useState(false);
-  const play=()=>{if(!video.current)return;video.current.currentTime=0;void video.current.play().then(()=>setPlaying(true)).catch(()=>{});};
+  const play=()=>{if(!video.current)return;video.current.currentTime=0;void video.current.play().then(()=>setPlaying(true)).catch(()=>{ if (!muted && video.current) { video.current.muted = true; void video.current.play().then(()=>setPlaying(true)).catch(()=>{}); } });};
   const pause=()=>{video.current?.pause();setPlaying(false);};
   return <article className="home-gallery-item">
     <div className="home-gallery-cover" onMouseEnter={play} onMouseLeave={pause}>
@@ -108,7 +116,7 @@ function GalleryTile({tile,deleting,onDelete}:{tile:Tile;deleting:boolean;onDele
       </Link>
       <span className="home-gallery-duration">{Number.isFinite(tile.seconds) && tile.seconds>0 ? `${Math.floor(tile.seconds/60)}:${String(Math.floor(tile.seconds%60)).padStart(2,"0")}` : "Draft"}</span>
       {tile.state && tile.state !== "completed" && <span className="home-gallery-state">{tile.state}</span>}
-      {tile.videoUrl && <button type="button" className="home-gallery-sound" aria-label={muted?"Turn sound on":"Mute video"} onClick={()=>setMuted(v=>!v)}>{muted?<VolumeX size={18}/>:<Volume2 size={18}/>}</button>}
+      {tile.videoUrl && <button type="button" className="home-gallery-sound" aria-label={muted?"Turn sound on":"Mute video"} onClick={()=>setMuted(!muted)}>{muted?<VolumeX size={18}/>:<Volume2 size={18}/>}</button>}
     </div>
     <div className="home-gallery-title-row">
       <Link href={tile.href} className="home-gallery-title">{tile.name}</Link>
