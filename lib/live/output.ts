@@ -151,25 +151,21 @@ export async function validateOutput(
     Number.isFinite(actualFps) && actualFps > 0 && actualFps <= 120
       ? Math.min(0.1, 1 / actualFps + 0.01)
       : 0;
-  // OmniHuman 2.0 can add an intro/outro around the supplied MP3.
-  // Only the authenticated Super Admin's server-created planning contract
-  // admits a bounded, positive provider extension (up to two seconds).
-  // Every other contract retains its original strict reviewed tolerance.
-  const adminPlanning = (contract as VerifiedContract).generatedDurationBound?.evidence
-    ?.startsWith("Super Admin operational planning:") === true;
+  // Shared OmniHuman 2.0 output duration policy for operators and paid
+  // customers, including recovery of existing immutable tasks.
+  // Generated MP4 may contain up to 2s of provider-added lead/tail frames.
+  // Shorter or materially longer outputs are still rejected.
   const allowedDurationDelta = Math.max(
     contract.output.durationToleranceSeconds,
     frameRoundingSeconds,
   );
-  const permittedDuration = adminPlanning
-    ? Math.max(allowedDurationDelta, 2)
-    : allowedDurationDelta;
+  const permittedPositiveDelta = Math.max(allowedDurationDelta, 2);
   const delta = length - duration;
   if (
     !Number.isFinite(length) ||
     (contract.output.maxDurationSeconds !== undefined &&
       length > contract.output.maxDurationSeconds) ||
-    (adminPlanning ? delta < -allowedDurationDelta || delta > permittedDuration : Math.abs(delta) > permittedDuration)
+    (delta < -allowedDurationDelta || delta > permittedPositiveDelta)
   ) {
     // Safe bounded numerical diagnostics only. No provider URL, file path,
     // user content or credentials are emitted. Required to distinguish MP4
@@ -177,7 +173,7 @@ export async function validateOutput(
     console.warn("OUTPUT_DURATION_MISMATCH_DIAGNOSTIC", {
       expectedSeconds: Number.isFinite(duration) ? Number(duration.toFixed(3)) : null,
       actualSeconds: Number.isFinite(length) ? Number(length.toFixed(3)) : null,
-      allowedDeltaSeconds: Number(permittedDuration.toFixed(3)),
+      allowedDeltaSeconds: Number(permittedPositiveDelta.toFixed(3)),
       maxSeconds: contract.output.maxDurationSeconds ?? null,
     });
     throw new Error("OUTPUT_DURATION_MISMATCH");
