@@ -47,6 +47,11 @@ const blank = (): Fields => ({
 });
 interface Loaded {
   digest: string;
+  existingTechnicalSettings: {
+    outputEvidence: string; transferEvidence: string; hosts: string;
+    maxBytes: number; timeoutSeconds: number; width: number;
+    height: number; fps: number; videoCodec: string; audioCodec: string;
+  };
   bands: DurationBandReview[];
   shortRange: { minInputSeconds: number; maxInputSeconds: number };
   shortExpiresAt: string;
@@ -55,6 +60,26 @@ interface Loaded {
     maxDurationSeconds: number;
     maxJobMicroUsd: number;
     maxTotalMicroUsd: number;
+  };
+}
+function newBand(data: Loaded): Fields {
+  const t = data.existingTechnicalSettings;
+  return {
+    ...blank(),
+    minInputSeconds: String(Math.max(5.001, data.shortRange.maxInputSeconds + 0.001)),
+    maxInputSeconds: String(Math.min(300, data.limits.maxDurationSeconds)),
+    maxGeneratedSeconds: String(Math.min(300, data.limits.maxDurationSeconds)),
+    ceilingUsd: "",
+    hosts: t.hosts,
+    maxBytes: String(t.maxBytes),
+    timeoutSeconds: String(t.timeoutSeconds),
+    width: String(t.width),
+    height: String(t.height),
+    fps: String(t.fps),
+    videoCodec: t.videoCodec,
+    audioCodec: t.audioCodec,
+    toleranceSeconds: "0",
+    expiresAt: new Date(Date.now() + 6 * 86400000).toISOString(),
   };
 }
 export function StudioDurationEditor() {
@@ -79,7 +104,7 @@ export function StudioDurationEditor() {
       throw new Error(data.error || "Duration policy unavailable.");
     setLoaded(data);
     setIndex(data.bands.length);
-    setFields(blank());
+    setFields(newBand(data));
     setExperimental(false);
     setHostEvidence("");
     setAcks({ duration: false, fees: false, media: false });
@@ -201,7 +226,7 @@ export function StudioDurationEditor() {
                           .filter(([k]) => k in blank())
                           .map(([k, v]) => [k, String(v)]),
                       ) as Fields)
-                    : blank(),
+                    : newBand(loaded),
                 );
               }}
             >
@@ -211,7 +236,7 @@ export function StudioDurationEditor() {
                 </option>
               ))}
               <option value={loaded.bands.length}>
-                Add new duration band (up to 300s with evidence)
+                Add new duration band (existing technical settings prefilled)
               </option>
             </select>
           </label>
@@ -233,7 +258,7 @@ export function StudioDurationEditor() {
             </select>
           </label>
           {experimental && (
-            <div>
+            <div>\n              <p>Existing approved output hostnames, codecs, resolution, FPS and transfer limits are prefilled from the original policy. Review them for long videos. New duration, billing, and media-risk evidence is still required; no 5-second findings are presented as long-video guarantees.</p>
               <p role="alert">
                 Experimental only. These are operator assumptions, not provider
                 guarantees. Finite ledger reservations limit admissions under
