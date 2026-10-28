@@ -126,7 +126,7 @@ export default function Waveform({
       );
   }
   const bars = useMemo(() => {
-    const count = Math.min(peaks.length || 160, 160);
+    const count = Math.min(peaks.length || 220, 220);
     const values = Array.from({ length: count }, (_, i) => {
       if (!peaks.length) return 0.08;
       const from = Math.floor((i * peaks.length) / count),
@@ -137,12 +137,12 @@ export default function Waveform({
       <i
         key={i}
         style={{
-          height: `${Math.max(3, p * 76)}%`,
+          height: `${Math.max(5, p * 92)}%`,
           background:
             (i / values.length) * duration >= start &&
             (i / values.length) * duration <= end
               ? "#e9c6ff"
-              : "#536884",
+              : "#71809d",
         }}
       />
     ));
@@ -230,7 +230,7 @@ export default function Waveform({
             style={{
               cursor: "grab",
               touchAction: "none",
-              background: "rgba(168,85,247,.22)",
+              background: "rgba(151,86,246,.13)",
               border: "0",
               left: `${(start / duration) * 100}%`,
               width: `${((end - start) / duration) * 100}%`,
@@ -313,7 +313,7 @@ export default function Waveform({
             }}
           />
         </label>
-        <span>—</span>
+
         <label>
           End (seconds)
           <input
@@ -334,7 +334,7 @@ export default function Waveform({
             }}
           />
         </label>
-        <strong aria-label="Selected duration">{Math.max(0, end - start).toFixed(2)}s selected</strong>
+        <strong className="wave-duration-badge" aria-label="Selected duration">{Math.max(0, end - start).toFixed(2)}s selected</strong>
       </div>
       <audio
         ref={audio}
