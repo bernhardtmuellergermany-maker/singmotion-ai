@@ -55,6 +55,7 @@ export function StudioLiveControl({
   disabledReason?: string;
 }) {
   const [available, setAvailable] = useState(false),
+    [superAdmin, setSuperAdmin] = useState(false),
     [pilot, setPilot] = useState(false),
     [budget, setBudget] = useState<
       Awaited<ReturnType<typeof offerStudioBudget>>["budget"] | null
@@ -137,11 +138,13 @@ export function StudioLiveControl({
     await ensureSession();
     const r = await api<{
       available: boolean;
+      superAdmin?: boolean;
       pilot?: boolean;
       blockers: string[];
       budget?: Awaited<ReturnType<typeof offerStudioBudget>>["budget"] | null;
     }>("studio-live");
     setAvailable(r.available);
+    setSuperAdmin(r.superAdmin === true);
     setPilot(r.pilot === true);
     setBlockers(r.blockers || []);
     setBudget(r.budget || null);
@@ -184,16 +187,16 @@ export function StudioLiveControl({
         !Number.isSafeInteger(plan.ceilingMicroUsd) ||
         plan.ceilingMicroUsd <= 0) &&
       "A valid reviewed spending ceiling is required.",
-    plan &&
+    !superAdmin && plan &&
       !plan.budget &&
       (plan.budgetBlocker ||
         "Current budget authorization is unavailable. Review / renew EUR 50 budget."),
-    plan?.budget && plan.budgetBlocker,
-    plan?.budget &&
+    !superAdmin && plan?.budget && plan.budgetBlocker,
+    !superAdmin && plan?.budget &&
       plan.ceilingMicroUsd !== null &&
       plan.budget.remainingMicroUsd < plan.ceilingMicroUsd &&
       "Remaining cumulative budget is below this project's spending ceiling. Existing reservations remain counted.",
-    plan &&
+    !superAdmin && plan &&
       !isConfirmed &&
       "Approve one paid generation of this exact reviewed project and spending ceiling below.",
   ].filter(
@@ -259,17 +262,16 @@ export function StudioLiveControl({
   }
   return (
     <section aria-label="Real video pilot" className="prompt-preview">
-      <h3>OmniHuman 2.0 · administrator pilot</h3>
+      <h3>{superAdmin ? "OmniHuman 2.0 · Super Admin Studio" : "OmniHuman 2.0 · private Studio"}</h3>
       <p>
-        Real provider charges. Choose up to 300 seconds only within explicitly reviewed duration
-        bands and the server's approved duration limit. No customer credit or payment integration.
+        {superAdmin ? "Super Admin generation: no internal test budget or duration-band approval. BytePlus charges still apply. Media and task safety checks remain active." : "Real provider charges. Use a reviewed duration band and the server-approved limit. Customer payment is separate."}
       </p>
       {blockers.map((b) => (
         <p role="status" key={b}>
           {b}
         </p>
       ))}
-      <StudioBudgetReview
+      {!superAdmin && <StudioBudgetReview
         budget={budget}
         onSaved={async () => {
           setAvailable(false);
@@ -277,7 +279,7 @@ export function StudioLiveControl({
           setConfirmed(null);
           await refreshReadiness();
         }}
-      />
+      />}
       <label className="consent">
         <input
           type="checkbox"
