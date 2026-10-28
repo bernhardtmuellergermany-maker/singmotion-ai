@@ -79,10 +79,16 @@ async function identityState(
       clipMatches ||
       fullHashes.includes(hash) ||
       (oldSong === songId && a.media.owner === owner)
-    )
+    ) {
+      console.warn("TEMPO_RECORDING_REJECTED diagnostic", {
+        rejectionEvidence: a.failureCode === "CONTENT_PREFILTER_REJECTED" ? "stored-content-prefilter" : "provider-code-50510",
+        matchMethod: clipMatches ? "clip-hash" : fullHashes.includes(hash) ? "source-hash" : "owned-song-id",
+        historicalAttemptId: a.id,
+      });
       throw new AppError(
         "[TEMPO_RECORDING_REJECTED] Tempo processing is blocked for a recording with a previous provider failure/rejection. A new upload ID, excerpt or tempo is not a moderation retry authorization.",
       );
+    }
     // Persisted source hashes are authoritative; different source IDs alone are not proof.
     if (new Set(fullHashes).size === 1) continue;
     if (!fullHashes.length && oldSong) {
