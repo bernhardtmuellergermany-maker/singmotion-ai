@@ -1010,3 +1010,68 @@
 @media (max-width: 620px) {
   .product-theme .wizard-upload.compact-upload input[type="file"] { margin-left: 0; width: 100%; }
 }
+
+
+/* Single-screen SingMotion studio */
+.singmotion-flow{min-height:100svh;background:radial-gradient(ellipse at 52% 40%,#0b0e17 0%,#05070d 68%,#03050a 100%);color:#f6f5fb;position:relative;font-family:inherit}
+.singmotion-flow .flow-header{height:90px;padding:21px clamp(20px,3vw,52px);display:flex;align-items:flex-start;justify-content:space-between;gap:24px;background:transparent;border:0}
+.flow-header-left,.flow-header-right{display:flex;align-items:center;gap:21px;min-width:0}
+.flow-header-right{gap:26px}
+.flow-icon,.flow-profile{color:#f4f4f8;display:inline-flex;align-items:center;justify-content:center}
+.flow-profile{border:1px solid #252b3b;border-radius:50%;width:48px;height:48px}
+.flow-divider{height:38px;width:1px;background:#636779;opacity:.7}
+.flow-project-name,.flow-project-input{font:500 19px/1.4 inherit;color:#f4f4f8;background:transparent;border:0;padding:4px 0;max-width:min(46vw,410px);text-overflow:ellipsis;overflow:hidden;white-space:nowrap;text-align:left;cursor:text}
+.flow-project-input{border-bottom:1px solid #8d69f8;outline:none}
+.flow-menu{position:relative;color:#9397aa}
+.flow-menu summary{list-style:none;display:flex;align-items:center;justify-content:center;cursor:pointer;min-width:28px;min-height:40px}
+.flow-menu summary::-webkit-details-marker{display:none}
+.flow-popover{position:absolute;top:42px;left:0;display:grid;min-width:190px;padding:7px;border:1px solid #293044;border-radius:12px;background:#121621;z-index:30;box-shadow:0 12px 34px #0008}
+.flow-header-right .flow-popover{left:auto;right:0}
+.flow-popover a,.flow-popover button{display:block;width:100%;text-align:left;color:#ececf3;background:none;border:0;padding:11px 13px;font-size:13px;text-decoration:none;border-radius:7px;cursor:pointer}
+.flow-popover a:hover,.flow-popover button:hover{background:#272d3c}
+.flow-main{min-height:calc(100svh - 90px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:35px 24px 58px;gap:80px}
+.flow-empty{gap:clamp(85px,15vh,180px)}
+.flow-drop{position:relative;display:flex;align-items:center;flex-direction:column;text-align:center;gap:13px;color:#b4b5c0;cursor:pointer;padding:10px 20px;border:0;background:none;max-width:100%}
+.flow-drop svg{color:#fff;margin-bottom:5px}
+.flow-drop strong{font-size:25px;font-weight:600;color:#f8f8fb}
+.flow-drop span{font-size:17px}
+.flow-drop small{font-size:14px;color:#a3a5b2;margin-top:3px}
+.flow-drop input,.flow-photo-add input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.flow-drop:focus-within,.flow-photo-add:focus-within{outline:2px solid #8e70fb;outline-offset:8px;border-radius:10px}
+.flow-composer{width:min(100%,676px);border:1px solid #1e2533;background:#0c101aee;border-radius:23px;padding:15px 16px;box-shadow:0 8px 38px #0004;display:grid;gap:14px}
+.flow-composer-top,.flow-composer-bottom{display:flex;align-items:stretch;gap:13px;min-width:0}
+.flow-photo-add,.flow-photo{width:64px;height:60px;flex:0 0 64px;position:relative;border-radius:12px;border:1px solid #202a3b;background:#111622;display:flex;align-items:center;justify-content:center;color:#f5f5f9;cursor:pointer;overflow:visible}
+.flow-photo img{width:100%;height:100%;object-fit:cover;border-radius:12px}
+.flow-photo button{position:absolute;right:-9px;top:-9px;border-radius:50%;background:#121722;border:1px solid #5e6778;color:#fff;width:23px;height:23px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+.flow-prompt{background:#151b28;border:1px solid #252b3e;border-radius:12px;flex:1;min-width:0;padding:15px 17px;color:#fff;font-size:14px;outline:none}
+.flow-prompt:focus{border-color:#8161ec}
+.flow-prompt::placeholder{color:#9b9eae}
+.flow-select{display:flex;align-items:center;gap:10px;flex:1 1 0;min-width:0;border:1px solid #252d3d;border-radius:12px;background:#101520;color:#f1f2f8;padding:0 13px}
+.flow-select select{background:transparent;color:inherit;min-width:0;width:100%;height:56px;outline:none;border:0;font-size:14px;cursor:pointer}
+.flow-select select option{color:#fff;background:#131725}
+.flow-format{flex:.8 1 0}
+.flow-create{flex:1.2 1 0;display:flex;align-items:center;justify-content:space-around;gap:10px;background:linear-gradient(115deg,#a15cff,#5b2bf2);color:white;font-size:15px;font-weight:600;border:1px solid #9563fe;border-radius:12px;min-width:0;padding:0 12px;cursor:pointer}
+.flow-create:disabled{color:#a5a0b3;background:#3c344f;border-color:#55486a;opacity:.65;cursor:not-allowed}
+.flow-has-audio{gap:45px}
+.flow-audio{width:min(100%,1140px);display:flex;flex-direction:column;align-items:center;gap:25px}
+.flow-track{display:flex;gap:20px;align-items:center;justify-content:center;color:#f8f7fc}
+.flow-track-art{display:flex;align-items:center;justify-content:center;width:85px;height:85px;border-radius:12px;background:linear-gradient(140deg,#322060,#15192c);color:#cbb2ff;border:1px solid #34384a}
+.flow-track strong{font-size:22px;font-weight:600;display:block;max-width:45vw;overflow:hidden;text-overflow:ellipsis}
+.flow-track small{font-size:16px;color:#a8a9b8;display:block;margin-top:4px}
+.flow-track-remove{background:#0d111b;border:1px solid #242b3b;border-radius:12px;width:55px;height:55px;color:#fff;margin-left:15px;cursor:pointer}
+.singmotion-flow .wave-editor{width:100%;border:0;background:transparent;padding:0}
+.singmotion-flow .wave-strip{height:130px;border:0;background:transparent}
+.singmotion-flow .wave-viewport .wave-bars i.selected{background:#995bff}
+.singmotion-flow .wave-viewport .wave-selection{background:#7a39ee40!important;border-radius:8px}
+.singmotion-flow .wave-toolbar{justify-content:center;gap:18px}
+.singmotion-flow .wave-toolbar>span{display:none}
+.singmotion-flow .wave-toolbar button{border:1px solid #293144;background:#0d111c;color:white;border-radius:50px;padding:14px 22px}
+.singmotion-flow .wave-time{display:none}
+.singmotion-flow .time-inputs{justify-content:center;gap:15px;color:#a9abb7;font-size:12px}
+.singmotion-flow .time-inputs label{font-size:12px}
+.singmotion-flow .time-inputs input{width:105px!important;background:#0b1019;color:#d6d7e1;border:1px solid #292d40;border-radius:7px}
+.singmotion-flow .time-inputs strong{font-size:13px;font-weight:500}
+.singmotion-flow .wave-editor audio{display:none}
+.singmotion-flow .wave-editor>.quiet{display:none}
+.flow-error{color:#ffb3b9;max-width:700px;text-align:center}
+@media(max-width:680px){.singmotion-flow .flow-header{height:77px;padding:17px 16px}.flow-header-left,.flow-header-right{gap:9px}.flow-project-name,.flow-project-input{font-size:13px;max-width:35vw}.flow-profile{width:36px;height:36px}.flow-divider{height:27px}.flow-main{min-height:calc(100svh - 77px);padding:30px 14px}.flow-composer{padding:10px;gap:9px}.flow-composer-top,.flow-composer-bottom{gap:8px}.flow-photo-add,.flow-photo{width:49px;height:51px;flex-basis:49px}.flow-select{padding:0 7px;gap:4px}.flow-select select{font-size:12px;height:49px}.flow-create{font-size:12px;padding:0 7px}.flow-create svg:first-child{display:none}.flow-drop strong{font-size:21px}.flow-drop span{font-size:14px}.flow-track-art{width:58px;height:58px}.flow-track strong{font-size:16px}.flow-track-remove{width:42px;height:42px;margin-left:0}.singmotion-flow .wave-strip{height:96px}}
