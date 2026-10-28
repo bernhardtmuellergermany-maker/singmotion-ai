@@ -89,9 +89,6 @@ export function HomeCollection() {
               finally {setDeleting(null);}
             }} />)}
           </div>
-              <p className="home-gallery-date">{tile.created ? new Date(tile.created).toLocaleDateString("en-US", {month:"short", day:"numeric", year:"numeric"}) : "Saved draft"}</p>
-            </article>)}
-          </div>
         ) : <div className="home-gallery-empty-art"><div className="home-gallery-ghost ghost-left" /><div className="home-gallery-ghost ghost-right" /><CreateTile /><p>Your music videos will appear here.</p></div>}
       </main>
     </div>
