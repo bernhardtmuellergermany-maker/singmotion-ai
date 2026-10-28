@@ -9,21 +9,33 @@ export const performances = [
   "Custom",
 ] as const;
 export const cameras = [
-  "Static Close-Up",
-  "Slow Push-In",
-  "Gentle Handheld",
-  "Side Tracking",
-  "Turn left",
-  "Turn right",
+  "Static camera",
   "Orbit left",
-  "Orbit right",
   "Tilt up",
   "Tilt down",
-  "Push in",
   "Pull out",
-  "Follow forwards",
+  "Gentle Handheld",
   "Follow backwards",
 ] as const;
+export const cameraHelp: Record<string, string> = {
+  "Static camera": "The camera stays in one fixed position.",
+  "Orbit left": "The camera moves in a smooth arc to the left around the singer.",
+  "Tilt up": "The camera gently tilts upward.",
+  "Tilt down": "The camera gently tilts downward.",
+  "Pull out": "The camera moves slowly back to reveal more of the scene.",
+  "Gentle Handheld": "Subtle natural handheld motion, without strong shaking.",
+  "Follow backwards": "The camera tracks backward in front of the moving singer.",
+};
+export const cameraPrompt: Record<string, string> = {
+  "Static camera": "Keep the camera fixed in a stable shot with no camera movement.",
+  "Orbit left": "Move the camera slowly in a smooth arc to the left around the singer, keeping the singer centered.",
+  "Tilt up": "Gently tilt the camera upward while keeping the singer visible and in focus.",
+  "Tilt down": "Gently tilt the camera downward while keeping the singer visible and in focus.",
+  "Pull out": "Slowly move the camera backward, revealing more of the singer and environment.",
+  "Gentle Handheld": "Use very subtle, smooth handheld camera movement with no abrupt shake.",
+  "Follow backwards": "Track the camera smoothly backward in front of the singer as the singer walks forward, maintaining consistent framing.",
+};
+
 export const views = [
   "Front",
   "Three-Quarter",
@@ -150,11 +162,17 @@ export function composePrompt(
     throw new AppError("Choose a supported performance and camera preset.");
   if (custom.length > 1500)
     throw new AppError("Keep your custom prompt under 1,500 characters.");
-  // Explicit full replacement avoids silently combining contradictory instructions.
-  if (custom.trim()) return custom.trim();
-  if (performance === "Custom")
+  if (performance === "Custom" && !custom.trim())
     throw new AppError("Enter a custom performance prompt.");
-  return `${performance} singing performance. ${camera}. Keep facial details and background stable. Use gentle, natural head movement.`;
+  const performanceDirection = performance === "Custom"
+    ? "Natural singing performance."
+    : `${performance} singing performance.`;
+  const cameraDirection = cameraPrompt[camera];
+  const customDirection = custom.trim() ? ` Additional performance direction: ${custom.trim()}.` : "";
+  const result = `${performanceDirection} ${cameraDirection} Keep facial identity, lip synchronization, and background consistent.${customDirection}`;
+  if (result.length > 1500)
+    throw new AppError("Keep the complete composed prompt under 1,500 characters.");
+  return result;
 }
 export function canTransition(from: JobStatus, to: JobStatus) {
   return (
