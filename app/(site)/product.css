@@ -1085,3 +1085,62 @@
 .flow-project-name,.flow-project-input{font-family:inherit;font-size:19px;font-weight:500;line-height:1.4}
 
 /* Staging builder comparison: Nixpacks retry; no visual changes. */
+
+
+/* Refined, lightweight studio scale — one coherent compact composer. */
+.singmotion-flow .flow-header{height:70px;padding:14px clamp(20px,2.7vw,42px)}
+.singmotion-flow .flow-header-left,.singmotion-flow .flow-header-right{gap:15px}
+.singmotion-flow .flow-icon svg{width:22px;height:22px}
+.singmotion-flow .flow-divider{height:26px}
+.singmotion-flow .flow-project-name,.singmotion-flow .flow-project-input{font-size:14px;font-weight:450;max-width:min(44vw,370px)}
+.singmotion-flow .flow-profile{width:38px;height:38px}
+.singmotion-flow .flow-profile svg{width:18px;height:18px}
+.singmotion-flow .flow-main{min-height:calc(100svh - 70px);padding:22px 20px 45px}
+.singmotion-flow .flow-empty{gap:clamp(75px,13vh,130px)}
+.singmotion-flow .flow-drop{gap:9px}
+.singmotion-flow .flow-upload-symbol{width:68px;height:74px;display:block;margin-bottom:5px;color:#fafafa}
+.singmotion-flow .flow-drop strong{font-size:19px;font-weight:500;letter-spacing:-.025em}
+.singmotion-flow .flow-drop span{font-size:13px}
+.singmotion-flow .flow-drop small{font-size:11px;margin-top:2px}
+.singmotion-flow .flow-composer{width:min(100%,560px);padding:10px 11px;border-radius:18px;gap:9px;background:#0c1019ec;border-color:#1b2230;box-shadow:0 12px 32px #0003}
+.singmotion-flow .flow-composer-top,.singmotion-flow .flow-composer-bottom{gap:9px}
+.singmotion-flow .flow-photo-add,.singmotion-flow .flow-photo{width:45px;height:43px;flex-basis:45px;border-radius:9px}
+.singmotion-flow .flow-photo-add svg{width:17px;height:17px}
+.singmotion-flow .flow-photo img{border-radius:9px}
+.singmotion-flow .flow-prompt{font-size:12px;padding:10px 12px;border-radius:9px;font-weight:400}
+.singmotion-flow .flow-select{gap:7px;padding:0 10px;border-radius:9px}
+.singmotion-flow .flow-select svg{height:16px;width:16px;flex:none}
+.singmotion-flow .flow-select select{height:40px;font-size:12px}
+.singmotion-flow .flow-create{font-size:12px;font-weight:500;border-radius:9px;padding:0 9px;gap:7px}
+.singmotion-flow .flow-create svg{width:16px;height:16px}
+.singmotion-flow .flow-has-audio{gap:29px}
+.singmotion-flow .flow-audio{width:min(100%,960px);gap:18px}
+.singmotion-flow .flow-track{gap:13px}
+.singmotion-flow .flow-track-art{height:61px;width:61px;border-radius:10px}
+.singmotion-flow .flow-track-art svg{width:26px;height:26px}
+.singmotion-flow .flow-track strong{font-size:16px;font-weight:500}
+.singmotion-flow .flow-track small{font-size:12px;margin-top:3px}
+.singmotion-flow .flow-track-remove{height:42px;width:42px;margin-left:9px;border-radius:9px}
+.singmotion-flow .flow-track-remove svg{width:17px;height:17px}
+.singmotion-flow .wave-strip{height:100px}
+.singmotion-flow .wave-toolbar button{padding:10px 16px;font-size:12px;font-weight:400}
+.singmotion-flow .time-inputs{gap:9px}
+.singmotion-flow .time-inputs input{width:85px!important;padding:7px!important;font-size:12px}
+.singmotion-flow .time-inputs label{font-size:11px}
+.singmotion-flow .time-inputs strong{font-size:11px}
+@media(max-width:680px){
+.singmotion-flow .flow-header{height:65px;padding:12px 14px}
+.singmotion-flow .flow-header-left,.singmotion-flow .flow-header-right{gap:8px}
+.singmotion-flow .flow-project-name,.singmotion-flow .flow-project-input{font-size:12px;max-width:35vw}
+.singmotion-flow .flow-main{min-height:calc(100svh - 65px);padding:20px 12px 36px}
+.singmotion-flow .flow-composer{width:100%;padding:9px;gap:8px}
+.singmotion-flow .flow-composer-top,.singmotion-flow .flow-composer-bottom{gap:7px}
+.singmotion-flow .flow-photo-add,.singmotion-flow .flow-photo{width:42px;height:42px;flex-basis:42px}
+.singmotion-flow .flow-select{padding:0 6px;gap:4px}
+.singmotion-flow .flow-select select{height:39px;font-size:11px}
+.singmotion-flow .flow-create{font-size:11px;padding:0 6px}
+.singmotion-flow .flow-drop strong{font-size:18px}
+.singmotion-flow .flow-upload-symbol{height:66px;width:61px}
+.singmotion-flow .flow-track strong{font-size:14px}
+.singmotion-flow .wave-strip{height:85px}
+}
