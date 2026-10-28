@@ -311,3 +311,31 @@ test("generic provider failure does not become a moderation rejection", async ()
     store.close();
   }
 });
+
+test("generic provider rejection does not become content moderation", async () => {
+  const store = new LiveTestStore(":memory:");
+  try {
+    const recording = await source("provider account error is not content rejection");
+    const id = rejected(store, {
+      songId: recording.id,
+      sourceSha256: recording.hash,
+    });
+    store.db.prepare("UPDATE live_attempts SET data=? WHERE id=?").run(
+      JSON.stringify({ ...store.get(id), failureCode: "PROVIDER_REJECTED" }),
+      id,
+    );
+    await assert.doesNotReject(
+      checkRecordingRejections(root, store, recording.id, owner, recording.hash),
+    );
+    store.db.prepare("UPDATE live_attempts SET data=? WHERE id=?").run(
+      JSON.stringify({ ...store.get(id), failureCode: "CONTENT_PREFILTER_REJECTED" }),
+      id,
+    );
+    await assert.rejects(
+      checkRecordingRejections(root, store, recording.id, owner, recording.hash),
+      /TEMPO_RECORDING_REJECTED/,
+    );
+  } finally {
+    store.close();
+  }
+});
