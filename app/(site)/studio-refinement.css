@@ -1,0 +1,33 @@
+/* Studio visual refinement: existing workflow and media controls remain unchanged. */
+.singmotion-flow{--studio-bg:#080B13;--studio-surface:#141D2B;--studio-border:#29354A;--studio-accent:#9255F2;background:var(--studio-bg);color:#f4f2fa}
+.singmotion-flow .flow-main{max-width:1200px;margin:0 auto;width:100%;padding:25px 22px 38px;justify-content:center}
+.singmotion-flow .flow-has-audio{gap:18px}
+.singmotion-flow .flow-audio{width:min(100%,1140px);gap:13px}
+.singmotion-flow .flow-track{width:100%;max-width:none;gap:11px;padding:0 2px}
+.singmotion-flow .flow-track-art{width:35px;height:35px;background:transparent;border:0}
+.singmotion-flow .flow-track-art img{width:28px;height:28px}
+.singmotion-flow .flow-track strong{font-size:13px}
+.singmotion-flow .flow-track small{font-size:11px}
+.singmotion-flow .flow-track-remove{height:31px;width:31px}
+.singmotion-flow .wave-editor{display:grid;grid-template-columns:50px minmax(0,1fr);align-items:center;gap:8px 10px;width:100%}
+.singmotion-flow .wave-viewport{grid-column:2;grid-row:1;min-width:0;order:unset}
+.singmotion-flow .wave-toolbar{grid-column:1;grid-row:1;order:unset;display:flex;align-items:center;justify-content:center;margin:0}
+.singmotion-flow .wave-toolbar button{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;font-size:0;border:1px solid var(--studio-border);border-radius:12px;background:var(--studio-surface)}
+.singmotion-flow .wave-toolbar button svg{width:18px;height:18px}
+.singmotion-flow .wave-strip{height:148px;background:var(--studio-surface);border-radius:12px}
+.singmotion-flow .wave-viewport .wave-bars i{min-width:1px;max-width:3px;border-radius:2px;opacity:.9}
+.singmotion-flow .wave-viewport .wave-selection{background:rgba(146,85,242,.09)!important;border:1px solid rgba(146,85,242,.75)!important;border-radius:3px}
+.singmotion-flow .wave-viewport .wave-handle::after{background:var(--studio-accent);box-shadow:0 0 6px rgba(146,85,242,.25)}
+.singmotion-flow .wave-time{display:flex;justify-content:space-between;color:#8f9aaf;font-size:10px;padding:6px 2px 0}
+.singmotion-flow .time-inputs{grid-column:1/-1;grid-row:2;order:unset;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:12px;margin:4px 0 0;padding:10px 13px;border:1px solid var(--studio-border);border-radius:12px;background:var(--studio-surface)}
+.singmotion-flow .time-inputs label{flex:0 1 145px;min-width:110px;gap:4px;font-size:10px;color:#9ea9bf}
+.singmotion-flow .time-inputs input{min-height:32px;border:1px solid var(--studio-border);background:var(--studio-bg);border-radius:7px;color:#fff;font-size:12px}
+.singmotion-flow .time-inputs .wave-duration-badge{background:transparent;border:0;color:#c8a8ff;padding:0 6px;min-height:32px}
+.singmotion-flow .flow-composer{width:min(100%,850px);padding:15px 16px;border:1px solid var(--studio-border);border-radius:19px;background:var(--studio-surface);box-shadow:0 12px 36px #0004;gap:10px}
+.singmotion-flow .flow-composer-label{font-size:12px;font-weight:600;letter-spacing:.01em;color:#c1c9d8}
+.singmotion-flow .flow-prompt{border:0;background:transparent;padding:8px 6px;font-size:14px;line-height:1.5;box-shadow:none}
+.singmotion-flow .flow-prompt:focus{border:0;outline:2px solid rgba(146,85,242,.45);outline-offset:3px;border-radius:7px}
+.singmotion-flow .flow-photo-add,.singmotion-flow .flow-photo{background:#101726;border:1px solid var(--studio-border)}
+.singmotion-flow .flow-select,.singmotion-flow .flow-camera-menu>summary{background:#101726;border-color:var(--studio-border)}
+.singmotion-flow .flow-create{background:var(--studio-accent);border-color:var(--studio-accent)}
+@media(max-width:680px){.singmotion-flow .flow-main{padding:20px 13px 30px}.singmotion-flow .wave-editor{grid-template-columns:40px minmax(0,1fr);gap:6px}.singmotion-flow .wave-toolbar button{width:36px;height:36px}.singmotion-flow .wave-strip{height:105px}.singmotion-flow .time-inputs{padding:8px;gap:8px}.singmotion-flow .time-inputs label{flex:1 1 95px;min-width:90px}.singmotion-flow .flow-composer{padding:12px;width:100%}}
