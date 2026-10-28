@@ -285,8 +285,8 @@ export function StudioWizard({
         ) : (
           <section className="flow-audio">
             <div className="flow-track">
-              <div className="flow-track-art"><FileMusic size={36}/></div>
-              <div><strong>{draft.song.name}</strong><small>{time(draft.song.duration || 0)}</small></div>
+              <div className="flow-track-art"><img src="/media/upload-song.png" alt="" aria-hidden="true" /></div>
+              <div className="flow-track-meta"><strong title={draft.song.name}>{draft.song.name}</strong><small>{time(draft.song.duration || 0)}</small></div>
               <button className="flow-track-remove" aria-label="Remove song" onClick={()=>update({song:null})} disabled={busy}><Trash2 size={20}/></button>
             </div>
             <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})}/>
@@ -296,14 +296,17 @@ export function StudioWizard({
           <div className="flow-composer-top">
             {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
               <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
-            <input className="flow-prompt" aria-label="Video description" maxLength={1000} placeholder="Describe your artist's performance…" value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:"Custom"})}/>
+            <div className="flow-prompt-wrap"><label htmlFor="flow-performance-prompt">PERFORMANCE DESCRIPTION</label><textarea id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="Example: Singing with emotion, subtle movements, warm stage lighting…" value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
           </div>
           <div className="flow-composer-bottom">
+            <div className="flow-settings-group" role="group" aria-label="Video settings">
             <label className="flow-select"><Camera size={18}/><select aria-label="Camera" value={draft.camera} onChange={e=>update({camera:e.target.value})}>{cameraOptions.map(option=><option key={option} value={option}>{option}</option>)}</select></label>
             <label className="flow-select flow-format"><Smartphone size={18}/><select aria-label="Format" value={draft.outputFormat} onChange={e=>update({outputFormat:e.target.value as "9:16"|"16:9",formatMode:e.target.value as "9:16"|"16:9"})}><option value="9:16">9:16</option><option value="16:9">16:9</option></select></label>
-            <button className="flow-create" disabled={!available} onClick={()=>setConfirm(true)}><Sparkles size={19}/>Create video <ArrowRight size={19}/></button>
+            </div>
+            <button className="flow-create" disabled={!available} title={!draft.song?"Add a song":!draft.imageId?"Add an artist photo":!audioValid?"Select a valid audio segment":!prompt?"Add a description":"Create video"} onClick={()=>setConfirm(true)}><Sparkles size={19}/>Create video <ArrowRight size={19}/></button>
           </div>
         </section>
+        {!available && <p className="flow-missing" role="status">{busy ? "Uploading…" : !draft.song ? "Add a song to start" : !draft.imageId ? "Add an artist photo to continue" : !audioValid ? "Select a valid audio segment" : !prompt ? "Add a performance description" : ""}</p>}
         {error && <p className="flow-error" role="alert">{error}</p>}
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} onClose={()=>setConfirm(false)}/>}
