@@ -88,7 +88,8 @@ async function handler(req: NextRequest) {
         403,
       );
     limit(`${owner}:studio-live`, req.method === "POST" ? 30 : 180, 60000);
-    runtime = studioRuntime(await openStudioStore(dataDir), dataDir);
+    const isSuperAdmin = hasRole(user, ["super-admin"]);
+    runtime = studioRuntime(await openStudioStore(dataDir), dataDir, process.env, isSuperAdmin);
     const service = runtime.service;
     if (req.method === "GET") {
       const id = req.nextUrl.searchParams.get("id");
@@ -152,6 +153,7 @@ async function handler(req: NextRequest) {
       const budget = null;
       return json({
         budget,
+        superAdmin: isSuperAdmin,
         pilot: true,
         available: blockers.length === 0,
         projects: service.list(owner),
