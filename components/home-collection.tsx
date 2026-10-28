@@ -6,7 +6,7 @@ import { api, ensureSession } from "@/lib/client";
 import type { Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
 
-type Draft = { id: string; artistName: string; selection: { imageId?: string; start: number; end: number } };
+type Draft = { id: string; artistName: string; selection: { imageId?: string; songId?: string; start: number; end: number } };
 type Tile = { id: string; name: string; href: string; imageId?: string; seconds: number; created: number; state?: string };
 export function HomeCollection() {
   const [tiles, setTiles] = useState<Tile[]>([]);
@@ -41,7 +41,7 @@ export function HomeCollection() {
             imageId: j.imageId, seconds: j.end - j.start,
             created: j.created, state: j.status,
           })),
-          ...drafts.map(d => ({
+          ...drafts.filter(d => d.selection.songId && d.selection.imageId).map(d => ({
             id: "draft_" + d.id, name: d.artistName || "Untitled project",
             href: "/studio?draft=" + encodeURIComponent(d.id),
             imageId: d.selection.imageId,
