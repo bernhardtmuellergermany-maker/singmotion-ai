@@ -6,7 +6,7 @@ import { reservedUsd, secondReview } from "./second-test.ts";
 /** Studio projects use the SAME reservation ledger; operator slots are never touched. */
 import { createHash } from "node:crypto";
 import path from "node:path";
-import { mkdir, realpath, stat } from "node:fs/promises";
+import { mkdir, realpath, stat, unlink } from "node:fs/promises";
 import { LiveTestStore, confirmationPhrase, type Attempt } from "./store.ts";
 import { prepareStudioDraft } from "./media.ts";
 import { parseStudioDraft, type StudioDraftExport } from "../studio-draft.ts";
@@ -459,6 +459,27 @@ export class StudioWorkflow {
         this.hasPrivateException(id, owner),
       ),
     };
+  }
+  async deleteProject(id: string, owner: string, confirmation: unknown) {
+    this.row(id, owner);
+    if (confirmation !== `DELETE ${id}`)
+      throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm permanent deletion of this project.",400);
+    const attempt = this.store.get(id);
+    if (!["completed","failed"].includes(attempt.state))
+      throw new StudioLiveError("ACTIVE_TASK","Active or uncertain provider jobs cannot be deleted.",409);
+    const file = attempt.outputPath;
+    // Keep billing/authorization ledger and immutable provider task evidence
+    // for reconciliation. Remove the owned project from every gallery/list.
+    this.store.db.prepare("DELETE FROM live_studio_projects WHERE attempt_id=? AND owner=?").run(id,owner);
+    if (file) {
+      const outputDir = await realpath(path.join(this.root,"live-output"));
+      const candidate = await realpath(file).catch(() => null);
+      if (candidate?.startsWith(outputDir + path.sep))
+        await unlink(candidate).catch((error: NodeJS.ErrnoException) => {
+          if (error.code !== "ENOENT") throw error;
+        });
+    }
+    return { deleted: true };
   }
   hide(id: string, owner: string, actor: string, confirmation: unknown) {
     this.row(id, owner);
