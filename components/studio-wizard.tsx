@@ -276,7 +276,7 @@ export function StudioWizard({
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
         {!draft.song ? (
           <label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
-            <svg className="flow-upload-symbol" viewBox="0 0 119 130" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M83,79 76,83 70,90 67,98 67,107 71,116 78,123 85,126 98,126 106,122 113,114 115,109 115,106 116,105 115,95 110,86 104,81 97,78 87,78 86,79Z M91,86 94,87 96,89 96,97 104,97 106,98 108,101 108,103 105,107 96,107 96,116 93,118 89,118 87,116 87,108 86,107 78,107 75,104 75,101 77,98 79,97 87,97 87,89Z M35,10 31,12 8,35 6,39 6,113 8,117 14,121 67,121 62,113 60,105 61,94 64,87 76,75 86,71 96,71 96,17 92,12 87,10Z M70,38 72,40 72,56 67,59 51,64 51,92 48,99 43,103 41,103 40,104 34,104 33,103 31,103 25,97 24,92 25,91 25,88 27,85 34,80 43,80 43,48 45,46 49,45 52,43 54,43 67,38Z M34,16 35,17 35,35 32,39 13,39 12,38Z"/></svg>
+            <img className="flow-upload-symbol" src="/media/upload-song.png" alt="" aria-hidden="true" />
             <strong>{busy ? "Uploading your song…" : "Upload your song…"}</strong>
             <span>Or click to choose an audio file</span>
             <small>MP3, WAV, M4A · up to 50 MB</small>
