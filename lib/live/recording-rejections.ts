@@ -97,10 +97,16 @@ async function identityState(
         if (prior.kind !== "audio")
           throw new Error("Invalid recording mapping");
         const priorHash = await privateHash(root, prior.path);
-        if (priorHash === hash)
+        if (priorHash === hash) {
+          console.warn("TEMPO_RECORDING_REJECTED diagnostic", {
+            rejectionEvidence: a.failureCode === "CONTENT_PREFILTER_REJECTED" ? "stored-content-prefilter" : "provider-code-50510",
+            matchMethod: "historical-source-bytes",
+            historicalAttemptId: a.id,
+          });
           throw new AppError(
             "[TEMPO_RECORDING_REJECTED] Tempo processing is blocked for a recording with a previous provider failure/rejection, including identical reuploads.",
           );
+        }
         continue;
       } catch (error) {
         if (
