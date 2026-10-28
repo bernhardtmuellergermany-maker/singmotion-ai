@@ -7,10 +7,7 @@ import { hasRole } from "../../cms/policy";
 export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
   if (!hasRole(user, ["super-admin", "support"]))
     return (
-      <p>
-        Website editing: use Pages, CMS assets and Site navigation. Publish only
-        reviewed content.
-      </p>
+      <section style={{padding:"24px",background:"var(--theme-elevation-50)",borderRadius:16}}><h2>SingMotion Content Studio</h2><p>Manage the website and publish reviewed content.</p><p><Link href="/admin/collections/pages">Website pages</Link> · <Link href="/admin/collections/cms-assets">Media library</Link> · <Link href="/admin/globals/site-navigation">Navigation</Link></p></section>
     );
   const { db } = await import("../../lib/db");
   // Deliberate projection: no owner/session tokens, filenames, URLs, prompts or media.
@@ -25,10 +22,13 @@ export async function Operations({ user }: Pick<AdminViewServerProps, "user">) {
   return (
     <section
       style={{
-        padding: "24px",
-        border: "1px solid var(--theme-elevation-150)",
+        padding: "28px",
+        border: "1px solid var(--theme-elevation-200)",
+        borderRadius: "18px",
+        background: "var(--theme-elevation-50)",
       }}
     >
+      <div style={{marginBottom: 28}}><p style={{letterSpacing:".12em",textTransform:"uppercase",fontSize:11,color:"var(--theme-elevation-600)"}}>SINGMOTION / CONTROL CENTER</p><h1 style={{fontSize:"clamp(26px,3vw,40px)",marginBottom:8}}>Your workspace</h1><p>Manage your content, review Studio activity and prepare the customer experience.</p><nav aria-label="CMS quick links" style={{display:"flex",flexWrap:"wrap",gap:12,marginTop:18}}><Link href="/admin/collections/pages" style={{padding:"12px 16px",border:"1px solid var(--theme-elevation-250)",borderRadius:12}}>Website pages</Link><Link href="/admin/collections/cms-assets" style={{padding:"12px 16px",border:"1px solid var(--theme-elevation-250)",borderRadius:12}}>Media library</Link><Link href="/admin/globals/studio-settings" style={{padding:"12px 16px",border:"1px solid var(--theme-elevation-250)",borderRadius:12}}>Studio content</Link><Link href="/admin/globals/site-navigation" style={{padding:"12px 16px",border:"1px solid var(--theme-elevation-250)",borderRadius:12}}>Navigation</Link></nav></div>
       {hasRole(user, ["super-admin"]) && (
         <>
           <h2>Private Studio operations</h2>
