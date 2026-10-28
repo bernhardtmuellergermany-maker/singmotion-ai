@@ -142,11 +142,24 @@ export async function validateOutput(
         contract.discover720p === true,
       ),
     );
+  // Video encoders quantize playback length to frames while MP3 audio is
+  // measured independently. Permit at most one frame plus 10ms of container
+  // timestamp rounding; preserve the reviewed tolerance if it is larger.
+  // This also repairs recovery of already submitted tasks whose saved policy
+  // specified an impractical exact-zero duration tolerance.
+  const frameRoundingSeconds =
+    Number.isFinite(actualFps) && actualFps > 0 && actualFps <= 120
+      ? Math.min(0.1, 1 / actualFps + 0.01)
+      : 0;
+  const allowedDurationDelta = Math.max(
+    contract.output.durationToleranceSeconds,
+    frameRoundingSeconds,
+  );
   if (
     !Number.isFinite(length) ||
     (contract.output.maxDurationSeconds !== undefined &&
       length > contract.output.maxDurationSeconds) ||
-    Math.abs(length - duration) > contract.output.durationToleranceSeconds
+    Math.abs(length - duration) > allowedDurationDelta
   )
     throw new Error("OUTPUT_DURATION_MISMATCH");
   if (
