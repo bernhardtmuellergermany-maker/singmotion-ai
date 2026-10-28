@@ -47,7 +47,7 @@ const initial = {
   start: 0,
   end: 10,
   performance: "Natural",
-  camera: "Static Close-Up",
+  camera: "Static camera",
   customPrompt: "",
   outputFormat: "9:16" as "9:16" | "16:9",
   formatMode: "auto" as "auto" | "9:16" | "16:9",
@@ -77,12 +77,12 @@ export function StudioWizard({
       .then(async (session) => {
         if (!current) return;
         setOwner((session as { owner: string }).owner);
-        const requested = new URLSearchParams(window.location.search).get(
-          "draft",
-        );
+        const params = new URLSearchParams(window.location.search);
+        const requested = params.get("draft");
+        const createNew = params.get("new") === "1" && !requested;
         draftId.current =
           requested ||
-          localStorage.getItem("singmotion-draft-id") ||
+          (createNew ? null : localStorage.getItem("singmotion-draft-id")) ||
           crypto.randomUUID();
         localStorage.setItem("singmotion-draft-id", draftId.current);
         setProjectKey(draftId.current);
@@ -111,6 +111,15 @@ export function StudioWizard({
               saved.image?.height ?? null,
             ),
           );
+          setReady(true);
+          return;
+        }
+        if (createNew) {
+          setDraft({ ...initial });
+          setStep(0);
+          setDetectedFormat("9:16");
+          localStorage.setItem("singmotion-studio", JSON.stringify(initial));
+          window.history.replaceState(window.history.state, "", "/studio");
           setReady(true);
           return;
         }
@@ -249,7 +258,7 @@ export function StudioWizard({
       : null;
 
   const available = !!selection && audioValid && !!prompt && !busy;
-  const cameraOptions = ["Static Close-Up", "Turn left", "Turn right", "Orbit left", "Orbit right", "Tilt up", "Tilt down", "Push in", "Pull out", "Follow forwards", "Follow backwards"];
+  const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
       document.querySelectorAll<HTMLDetailsElement>(".singmotion-flow details.flow-menu, .singmotion-flow details.flow-camera-menu").forEach(menu => {
