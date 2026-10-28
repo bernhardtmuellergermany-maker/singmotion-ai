@@ -646,7 +646,7 @@ export class StudioWorkflow {
       media = await prepareStudioDraft(
         selection,
         owner,
-        Math.min(this.config.maxDurationSeconds, 300),
+        this.superAdmin ? 300 : Math.min(this.config.maxDurationSeconds, 300),
       );
     }
     // Check exact trimmed bytes against legacy rejected clips before any tempo change.
