@@ -179,16 +179,6 @@ export function StudioWizard({
       clearTimeout(timer);
     };
   }, [draft, step, owner, ready, projectKey]);
-  function newProject() {
-    draftId.current = crypto.randomUUID();
-    localStorage.setItem("singmotion-draft-id", draftId.current);
-    setProjectKey(draftId.current);
-    setDraft(initial);
-    setStep(0);
-    setSaved(false);
-    setError("");
-    window.history.replaceState(null, "", "/");
-  }
   function update(patch: Partial<typeof initial>) {
     setDraft((previous) => ({ ...previous, ...patch }));
     setError("");
@@ -262,13 +252,6 @@ export function StudioWizard({
   return (
     <div className="product-theme product-studio">
       <ProductHeader />
-      <button
-        className="text-button new-project"
-        onClick={newProject}
-        disabled={!ready || busy}
-      >
-        New project
-      </button>
       <main id="content" className="wizard-layout">
         <nav className="wizard-steps" aria-label="Creation steps">
           {steps.map((name, index) => (
@@ -290,7 +273,7 @@ export function StudioWizard({
               <h1>Add your song</h1>
               <p>{content.intro}</p>
               <label
-                className="wizard-upload"
+                className="wizard-upload compact-upload"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
@@ -354,7 +337,7 @@ export function StudioWizard({
                 Upload a clear, front-facing portrait you have permission to
                 use.
               </p>
-              <label className="wizard-upload photo-upload">
+              <label className="wizard-upload photo-upload compact-upload">
                 <ImagePlus />
                 <strong>Upload photo</strong>
                 <span>JPG or PNG · up to 30 MB · server-validated</span>
@@ -366,20 +349,6 @@ export function StudioWizard({
                   onChange={(e) => void add(e.target.files?.[0], "image")}
                 />
               </label>
-              {draft.imageId && (
-                <img
-                  src={`/api/assets/${draft.imageId}`}
-                  alt="Current uploaded reference photo"
-                  style={{
-                    maxWidth: "100%",
-                    maxHeight: 220,
-                    objectFit: "contain",
-                    display: "block",
-                    margin: "12px auto",
-                    borderRadius: 12,
-                  }}
-                />
-              )}
               {draft.imageId && (
                 <button
                   className="product-secondary"
@@ -548,13 +517,13 @@ export function StudioWizard({
             </p>
           )}
           <div className="product-actions">
-            <button
+            {step > 0 && <button
               className="product-secondary"
               disabled={step === 0 || busy}
               onClick={() => setStep(step - 1)}
             >
               <ArrowLeft size={16} /> Back
-            </button>
+            </button>}
             {step < 3 ? (
               <button
                 className="product-primary"
@@ -574,32 +543,6 @@ export function StudioWizard({
             )}
           </div>
         </div>
-        <aside className="wizard-preview">
-          <div>
-            <strong>Preview</strong>
-            <span>{draft.outputFormat}</span>
-          </div>
-          <div
-            className={`wizard-preview-image ${draft.outputFormat === "16:9" ? "wide" : ""}`}
-          >
-            {draft.imageId ? (
-              <img
-                src={`/api/assets/${draft.imageId}`}
-                alt="Selected reference — not a generated video"
-              />
-            ) : (
-              <>
-                <Music2 />
-                <p>Your performance will appear here, step by step.</p>
-              </>
-            )}
-          </div>
-          <small>
-            {draft.imageId
-              ? "Reference image · output may use padding"
-              : "Your private project"}
-          </small>
-        </aside>
       </main>
       <footer className="wizard-footer">
         <span role="status">{saved ? "Draft saved" : "Browser draft"}</span>
