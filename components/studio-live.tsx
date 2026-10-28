@@ -261,8 +261,8 @@ export function StudioLiveControl({
     <section aria-label="Real video pilot" className="prompt-preview">
       <h3>OmniHuman 2.0 · administrator pilot</h3>
       <p>
-        Real provider charges. Choose 4–60 seconds within the reviewed duration
-        bands. No customer credit or payment integration.
+        Real provider charges. Choose up to 300 seconds only within explicitly reviewed duration
+        bands and the server's approved duration limit. No customer credit or payment integration.
       </p>
       {blockers.map((b) => (
         <p role="status" key={b}>
