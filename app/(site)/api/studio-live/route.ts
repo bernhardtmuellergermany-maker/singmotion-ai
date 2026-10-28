@@ -141,7 +141,7 @@ async function handler(req: NextRequest) {
       const blockers: string[] = [];
       try {
         studioGate(studioConfig());
-        await loadStudioPolicy(dataDir);
+        await loadStudioPolicy(dataDir, !isSuperAdmin);
         await studioReadiness(dataDir);
       } catch (e) {
         blockers.push(
