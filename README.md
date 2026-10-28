@@ -6,7 +6,7 @@ A responsive Next.js studio for a **local, private demonstration** of a singing-
 
 ## Run locally
 
-Requirements: **Node.js 24**, npm, `ffmpeg` and `ffprobe` on `PATH`. No paid keys, database account, GPU, or hosted service is needed.
+Requirements: **Node.js 24.22.1 or newer within 24.x**, npm, `ffmpeg` and `ffprobe` on `PATH`. No paid keys, database account, GPU, or hosted service is needed.
 
 ```sh
 cd /workspace/singmotion-ai # or your existing checkout
@@ -86,17 +86,17 @@ For local development only, configure `ADMIN_DEMO_ENABLED=true` and a strong, in
 
 ## Architecture and integrations
 
-| Area                                   | v0.1 state                                                                         |
-| -------------------------------------- | ---------------------------------------------------------------------------------- |
-| Next.js / strict TypeScript / Tailwind | Implemented; shared responsive components, server pages and focused client editors |
-| Local private uploads / FFmpeg         | Working; separate worker and validated trimmed MP3                                 |
-| Jobs / credits                         | Durable local SQLite demo; reservations and restorations are atomic                |
-| Supabase PostgreSQL / auth             | Versioned migrations and interfaces; **not connected or applied**                  |
-| Cloudflare R2                          | Private storage interface and access contract; **not connected**                   |
-| BytePlus direct OmniHuman 2.0          | Explicitly disabled adapter; full API contract remains unverified                  |
-| fal.ai OmniHuman 2.0                   | Disabled optional adapter; no automatic fallback                                   |
-| Stripe                                 | Disabled checkout/webhook interface; **no live payments**                          |
-| Legal pages                            | Clearly labeled review placeholders; operator/support details not invented         |
+| Area                                   | v0.1 state                                                                          |
+| -------------------------------------- | ----------------------------------------------------------------------------------- |
+| Next.js / strict TypeScript / Tailwind | Implemented; shared responsive components, server pages and focused client editors  |
+| Local private uploads / FFmpeg         | Working; separate worker and validated trimmed MP3                                  |
+| Jobs / credits                         | Durable local SQLite demo; reservations and restorations are atomic                 |
+| Supabase PostgreSQL / auth             | Versioned migrations and interfaces; **not connected or applied**                   |
+| Cloudflare R2                          | Private provider-input uploads and signed GETs; **mock-tested, not live-connected** |
+| BytePlus direct OmniHuman 2.0          | Explicitly disabled adapter; full API contract remains unverified                   |
+| fal.ai OmniHuman 2.0                   | Disabled optional adapter; no automatic fallback                                    |
+| Stripe                                 | Disabled checkout/webhook interface; **no live payments**                           |
+| Legal pages                            | Clearly labeled review placeholders; operator/support details not invented          |
 
 See `docs/ARCHITECTURE.md`, `docs/PROVIDER_VERIFICATION.md`, and `docs/LAUNCH_CHECKLIST.md`.
 
@@ -106,7 +106,7 @@ See [Railway staging configuration](docs/RAILWAY_STAGING.md) for the exact varia
 
 ## BytePlus first-test preparation (still offline)
 
-The direct OmniHuman 2.0 contract could not be verified because the official documentation host is blocked by the Cloud network. No endpoint or 1.5 schema has been substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
+The supplied October 15, 2026 OmniHuman 2.0 document now supports a mock-tested direct protocol adapter. HMAC signing is now verified against the official BytePlus SDK with deterministic fixtures. [Private R2 input delivery](docs/R2_PRIVATE_INPUTS.md) is implemented and mock-tested. Live transport remains blocked pending billing, live input-delivery validation and output restrictions. No 1.5 schema or guessed signing algorithm is substituted. The new operator-only preflight uses an existing owned project's selected clip, validates an actual trimmed MP3 and one original artist image, and persists an immutable local review plan:
 
 ```sh
 npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --confirm-english
@@ -115,3 +115,9 @@ npm run byteplus:preflight -- --job <project-id> --owner <owning-session-id> --c
 It performs **no network request or paid generation**. The current plan reports an unknown provider cost and cannot be authorized. `.env.byteplus.example` describes separate, disabled operator settings; keep the normal app in demo mode. The internal one-time authorization, spending cap, task-ID persistence, polling and MP4 validation lifecycle has fake-provider tests, but no verified live transport. `npm run byteplus:live-test` always refuses submission in this version.
 
 See [the verification matrix and BytePlus account checklist](docs/PROVIDER_VERIFICATION.md) for the precise evidence still needed. Do not add provider credentials or enable real spending until the model-specific contract and billing rules are confirmed.
+
+## Payload administration
+
+Payload CMS is implemented but disabled by default. See [Payload admin setup](docs/PAYLOAD_ADMIN.md) for dedicated PostgreSQL migrations, secure first-admin provisioning, editable pages, supported roles, disconnected business functions, and the manual Railway deployment/rollback procedure. Never deploy or enable paid services just to test CMS.
+
+Studio OmniHuman administrator pilot (disabled by default): [readiness, policy review and staged rollout](docs/STUDIO_BYTEPLUS_PILOT.md). Existing operator-test records are preserved; this does not enable customer payments or public live generation.

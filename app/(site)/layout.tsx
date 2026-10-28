@@ -1,0 +1,30 @@
+import type { Metadata } from "next";
+import "./globals.css";
+import "./redesign.css";
+import "./system.css";
+import "./product.css";
+import "./home-gallery.css";
+export const metadata: Metadata = {
+  title: {
+    default: "SingMotion AI — Your music. Your performance.",
+    template: "%s · SingMotion AI",
+  },
+  description:
+    "Create a singing performance from your own music and photo in your private SingMotion studio.",
+};
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <a className="skip-link" href="#content">
+          Skip to content
+        </a>
+        {children}
+      </body>
+    </html>
+  );
+}

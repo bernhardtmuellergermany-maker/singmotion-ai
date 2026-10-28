@@ -1,5 +1,7 @@
+import type { EuroBudget } from "./studio-budget.ts";
 import { createHash, timingSafeEqual } from "node:crypto";
 export interface LiveTestConfig {
+  eurBudget?: EuroBudget;
   demoMode: boolean;
   enabled: boolean;
   operatorSecret: string;

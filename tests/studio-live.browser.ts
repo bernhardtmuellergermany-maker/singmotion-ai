@@ -1,0 +1,536 @@
+// All endpoints intercepted; no provider, R2 or CMS network access.
+import assert from "node:assert/strict";
+import { build } from "esbuild";
+import { chromium } from "@playwright/test";
+const bundle = await build({
+  stdin: {
+    contents: `import React from 'react';import {createRoot} from 'react-dom/client';import {StudioLiveControl,LiveProjects} from './components/studio-live';createRoot(document.getElementById('root')).render(location.search ? <LiveProjects/> : <StudioLiveControl selection={{version:1,owner:'owner',songId:'song',imageId:'image',start:0,end:location.hash?12.384:4.7,performance:'Natural',camera:'Static Close-Up',customPrompt:''}} artistName="Singer" consent={true} disabled={false}/>);`,
+    resolveDir: process.cwd(),
+    loader: "tsx",
+  },
+  bundle: true,
+  write: false,
+  platform: "browser",
+  jsx: "automatic",
+  plugins: [
+    {
+      name: "router-mock",
+      setup(b) {
+        b.onResolve({ filter: /^next\/navigation$/ }, () => ({
+          path: "router",
+          namespace: "mock",
+        }));
+        b.onResolve({ filter: /^next\/link$/ }, () => ({
+          path: "link",
+          namespace: "link-mock",
+        }));
+        b.onLoad({ filter: /.*/, namespace: "link-mock" }, () => ({
+          contents:
+            'import React from "react";export default function Link(props){return React.createElement("a",props)}',
+          loader: "js",
+          resolveDir: process.cwd(),
+        }));
+        b.onLoad({ filter: /.*/, namespace: "mock" }, () => ({
+          contents:
+            "export function useRouter(){return {push(url){window.__route=url}}}",
+          loader: "js",
+        }));
+      },
+    },
+  ],
+});
+const browser = await chromium.launch({
+  executablePath:
+    process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || "/usr/bin/chromium",
+  args: ["--no-sandbox"],
+});
+try {
+  for (const width of [390, 1440]) {
+    const page = await browser.newPage({ viewport: { width, height: 900 } });
+    page.on("pageerror", (error) => console.error(error.message));
+    const posts: Record<string, unknown>[] = [];
+    let savedPlan: Record<string, unknown> | null = null;
+    let budgetSaved = false,
+      workerBlocked = true;
+    const budget = {
+      totalMicroEur: 50000000,
+      reservedMicroUsd: 8640000,
+      usdCapMicro: 20000000,
+      remainingMicroUsd: 11360000,
+      remainingMicroEur: 22720000,
+      basis: "planning-allowance",
+    };
+    await page.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/" || url.pathname === "/projects/live_plan")
+        return route.fulfill({
+          contentType: "text/html",
+          body: '<div id="root"></div><script src="/bundle.js"></script>',
+        });
+      if (url.pathname === "/bundle.js")
+        return route.fulfill({
+          contentType: "application/javascript",
+          body: bundle.outputFiles[0].text,
+        });
+      if (url.pathname === "/api/session")
+        return route.fulfill({ json: { owner: "owner" } });
+      if (url.pathname === "/api/studio-live") {
+        if (route.request().method() === "GET" && url.searchParams.has("id"))
+          return route.fulfill({ json: savedPlan });
+        if (route.request().method() === "GET")
+          return route.fulfill({
+            json: {
+              available: budgetSaved && !workerBlocked,
+              pilot: true,
+              budget: budgetSaved ? budget : null,
+              blockers: !budgetSaved
+                ? [
+                    "EUR 50 total-budget conversion/fee review is missing or expired",
+                  ]
+                : workerBlocked
+                  ? ["Recovery worker is offline"]
+                  : [],
+            },
+          });
+        const body = route.request().postDataJSON();
+        posts.push(body);
+        if (body.action === "budget-review")
+          return route.fulfill({
+            json: {
+              id: "mock-offer",
+              reference: {
+                source:
+                  "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml",
+                asOf: "2026-10-26",
+                usdPerEur: "1.1",
+              },
+              review: {
+                eurPerUsdUpperPpm: 1818182,
+                validUntil: "2026-10-27T00:00:00Z",
+              },
+              budget,
+            },
+          });
+        if (body.action === "budget-authorize") {
+          assert.equal(
+            body.acknowledgment,
+            "AUTHORIZE_EUR50_STUDIO_PLANNING_NOT_A_FEE_GUARANTEE",
+          );
+          budgetSaved = true;
+          return route.fulfill({ json: { budget } });
+        }
+        if (body.action === "submit")
+          return route.fulfill({ json: { state: "submitted" } });
+        savedPlan = {
+          budget: {
+            remainingMicroUsd: 1000000,
+            remainingMicroEur: 48000000,
+            basis: "reviewed-bound",
+          },
+          id: "plan",
+          state: "prepared",
+          durationSeconds: 4.728,
+          prompt: "Natural singing performance.",
+          estimatedBaseMicroUsd: 330960,
+          ceilingMicroUsd: 420000,
+          digest: "mock-digest",
+          selection: Object.fromEntries(
+            Object.entries(body.selection).reverse(),
+          ),
+        };
+        return route.fulfill({ json: savedPlan });
+      }
+      return route.abort();
+    });
+    await page.goto("http://studio.test/");
+    const review = page.getByRole("button", {
+      name: "Review real video cost — no paid request",
+      exact: true,
+    });
+    await review.waitFor();
+    assert.equal(await review.isDisabled(), true);
+    await page.getByLabel("The composed prompt is English.").check();
+    assert.equal(await review.isDisabled(), true);
+    for (let renewal = 0; renewal < 2; renewal++) {
+      await page
+        .getByRole("button", {
+          name: "Review / renew EUR 50 budget",
+          exact: true,
+        })
+        .click();
+      const save = page.getByRole("button", {
+        name: "Save budget authorization — no generation",
+        exact: true,
+      });
+      await save.waitFor();
+      assert.equal(await save.isDisabled(), true);
+      assert.ok(
+        await page
+          .getByText(/All historical reservations remain: USD 8.64/)
+          .count(),
+      );
+      await page
+        .getByLabel(/I authorize the existing EUR 50 TOTAL budget/)
+        .check();
+      await save.click();
+      await save.waitFor({ state: "detached" });
+      if (renewal === 0) {
+        await page
+          .getByText("Recovery worker is offline", { exact: true })
+          .first()
+          .waitFor();
+        assert.equal(await review.isDisabled(), true);
+        workerBlocked = false;
+      }
+    }
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("button")].some(
+        (b) => b.textContent?.includes("Review real video cost") && !b.disabled,
+      ),
+    );
+    assert.equal(
+      posts.some((p) => p.action === "submit" || p.action === "prepare"),
+      false,
+    );
+    posts.length = 0;
+    await review.click();
+    const submit = page.getByRole("button", {
+      name: "Generate ONE real video",
+      exact: true,
+    });
+    await submit.waitFor();
+    assert.equal(posts.length, 1);
+    assert.equal(posts[0].action, "prepare");
+    assert.equal(await submit.isDisabled(), true);
+    await page
+      .getByLabel(
+        "I explicitly approve one paid generation of this exact reviewed selection up to this ceiling.",
+      )
+      .check();
+    // Leave the component entirely, then return: server reload of the same
+    // project must retain unchanged explicit approval without another prepare.
+    await page.getByRole("link", { name: "Saved private project" }).click();
+    await page.waitForURL("**/projects/live_plan");
+    await page.goBack();
+    await submit.waitFor();
+    await page.waitForFunction(() =>
+      [...document.querySelectorAll("button")].some(
+        (b) => b.textContent === "Generate ONE real video" && !b.disabled,
+      ),
+    );
+    assert.equal(posts.filter((p) => p.action === "prepare").length, 1);
+    assert.equal(posts.filter((p) => p.action === "submit").length, 0);
+    savedPlan!.ceilingMicroUsd = 430000;
+    await page.reload();
+    await submit.waitFor();
+    assert.equal(await submit.isDisabled(), true);
+    await page
+      .getByRole("status", { name: "Generation blockers" })
+      .getByText(/Approve one paid generation/)
+      .waitFor();
+    await page
+      .getByLabel(
+        "I explicitly approve one paid generation of this exact reviewed selection up to this ceiling.",
+      )
+      .check();
+    await submit.click();
+    await page.waitForFunction(() =>
+      Boolean((window as unknown as { __route: string }).__route),
+    );
+    assert.equal(posts.length, 2);
+    assert.equal(posts[1].action, "submit");
+    assert.equal(
+      posts[1].confirmation,
+      "CONFIRM PAID STUDIO plan mock-digest 430000",
+    );
+    let hidden = false;
+    await page.route("**/api/studio-live", async (route) => {
+      if (route.request().method() === "GET")
+        return route.fulfill({
+          json: {
+            pilot: true,
+            projects: hidden
+              ? []
+              : [
+                  {
+                    id: "blocked",
+                    state: "uncertain",
+                    artistName: "Test singer",
+                    durationSeconds: 4.7,
+                    ceilingMicroUsd: 420000,
+                    imageId: "image",
+                  },
+                ],
+          },
+        });
+      const body = route.request().postDataJSON();
+      posts.push(body);
+      if (body.action === "hide") {
+        hidden = true;
+        return route.fulfill({ json: { hidden: true } });
+      }
+      return route.fulfill({
+        json: {
+          ready: false,
+          blockers: [
+            {
+              projectId: "blocked",
+              message: "Outcome unverified. Reservation retained.",
+            },
+          ],
+        },
+      });
+    });
+    page.on("dialog", (dialog) => void dialog.accept());
+    await page.goto("http://studio.test/?projects");
+    await page
+      .getByRole("button", { name: "Delete project", exact: true })
+      .click();
+    await page
+      .getByRole("button", { name: "Start fresh test", exact: true })
+      .click();
+    const recovery = page.getByRole("link", {
+      name: "Recover / reconcile previous task",
+    });
+    await recovery.waitFor();
+    assert.equal(
+      await page
+        .getByRole("button", { name: "Delete project", exact: true })
+        .count(),
+      0,
+    );
+    assert.equal(await recovery.getAttribute("href"), "/projects/live_blocked");
+    assert.equal(posts.filter((p) => p.action === "submit").length, 1);
+    await page.route("**/api/studio-live", async (route) => {
+      const body = route.request().postDataJSON();
+      posts.push(body);
+      return route.fulfill({
+        json:
+          body.action === "acknowledge-operator-risk"
+            ? { ready: true, exceptionExposure: true, blockers: [] }
+            : {
+                ready: false,
+                blockers: [
+                  {
+                    projectId: null,
+                    attemptId: "operator-plan",
+                    taskId: "1660608639",
+                    workflow: "operator",
+                    state: "processing",
+                    canAcknowledge: true,
+                    message:
+                      "Retained evidence does not establish terminal rejection.",
+                  },
+                ],
+              },
+      });
+    });
+    await page
+      .getByRole("button", { name: "Start fresh test", exact: true })
+      .click();
+    await page
+      .getByText("operator task 1660608639 · processing.", { exact: true })
+      .waitFor();
+    await page
+      .getByRole("button", {
+        name: "Acknowledge operator-task risk — permit private testing",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("link", {
+        name: "Open Studio to select inputs and explicitly approve a new test",
+      })
+      .waitFor();
+    assert.equal(
+      posts.at(-1)?.confirmation,
+      "ACCEPT OVERLAPPING BILLING operator-plan 1660608639",
+    );
+    assert.equal(posts.filter((p) => p.action === "submit").length, 1);
+    await page.close();
+  }
+
+  const page = await browser.newPage();
+  let reviews = 0,
+    approvals = 0;
+  await page.route("**/*", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/")
+      return route.fulfill({
+        contentType: "text/html",
+        body: '<div id="root"></div><script src="/bundle.js"></script>',
+      });
+    if (url.pathname === "/bundle.js")
+      return route.fulfill({
+        contentType: "application/javascript",
+        body: bundle.outputFiles[0].text,
+      });
+    if (url.pathname === "/api/session")
+      return route.fulfill({ json: { owner: "owner" } });
+    if (url.pathname !== "/api/studio-live") return route.abort();
+    if (route.request().method() === "GET")
+      return route.fulfill({
+        json: { available: true, pilot: true, blockers: [] },
+      });
+    const body = route.request().postDataJSON();
+    if (body.action === "submit") {
+      approvals++;
+      assert.match(
+        body.confirmation,
+        /ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA$/,
+      );
+      if (reviews === 1)
+        return route.fulfill({
+          status: 409,
+          json: {
+            error:
+              "Policy changed. Click Review real video cost again to create a new unapproved review.",
+          },
+        });
+      assert.equal(body.id, "review-2");
+      return route.fulfill({ json: { state: "submitted" } });
+    }
+    reviews++;
+    return route.fulfill({
+      json: {
+        id: `review-${reviews}`,
+        digest: `digest-${reviews}`,
+        experimental: true,
+        state: "prepared",
+        stage: "New unapproved review",
+        durationSeconds: 12.384,
+        prompt: "Sing",
+        ceilingMicroUsd: 1500000,
+        estimatedBaseMicroUsd: 866880,
+        selection: body.selection,
+        budget: {
+          remainingMicroUsd: 2000000,
+          remainingMicroEur: 48000000,
+          basis: "reviewed-bound",
+        },
+      },
+    });
+  });
+  await page.goto("http://studio.test/#experimental");
+  await page.getByLabel("The composed prompt is English.").check();
+  const reviewButton = page.getByRole("button", {
+    name: "Review real video cost — no paid request",
+    exact: true,
+  });
+  await reviewButton.click();
+  const approval = page.getByLabel(
+    /I explicitly approve one experimental paid generation/,
+  );
+  await approval.check();
+  await page
+    .getByRole("button", { name: "Generate ONE real video", exact: true })
+    .click();
+  await page.getByRole("alert").waitFor();
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Generate ONE real video", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(approvals, 1);
+  await reviewButton.click();
+  await approval.waitFor();
+  assert.equal(await approval.isChecked(), false);
+  assert.equal(
+    await page
+      .getByRole("button", { name: "Generate ONE real video", exact: true })
+      .isDisabled(),
+    true,
+  );
+  assert.equal(approvals, 1);
+  await approval.check();
+  await page
+    .getByRole("button", { name: "Generate ONE real video", exact: true })
+    .click();
+  await page.waitForFunction(() =>
+    Boolean((window as unknown as { __route: string }).__route),
+  );
+  assert.equal(approvals, 2);
+  let identityReviewed = false;
+  const identityPosts: Record<string, unknown>[] = [];
+  await page.route("**/api/studio-live", async (route) => {
+    if (route.request().method() === "GET")
+      return route.fulfill({
+        json: { pilot: true, available: true, blockers: [] },
+      });
+    const body = route.request().postDataJSON();
+    identityPosts.push(body);
+    if (body.action === "tempo-recording-review") {
+      assert.equal(
+        body.confirmation,
+        "INDEPENDENT_NEW_RECORDING_NOT_A_REJECTION_RETRY",
+      );
+      assert.ok(body.evidence.length >= 40);
+      identityReviewed = true;
+      return route.fulfill({
+        json: {
+          message:
+            "Assessment saved. Review video cost again; no generation started.",
+        },
+      });
+    }
+    assert.equal(body.action, "prepare");
+    if (!identityReviewed)
+      return route.fulfill({
+        status: 400,
+        json: {
+          error:
+            "[TEMPO_IDENTITY_REVIEW_REQUIRED] Legacy recording identity is unresolved; review evidence for the new independent upload.",
+        },
+      });
+    return route.fulfill({
+      json: {
+        id: "independent-plan",
+        state: "prepared",
+        durationSeconds: 5.2,
+        prompt: "Sing",
+        selection: body.selection,
+        digest: "new-digest",
+        ceilingMicroUsd: 500000,
+        estimatedBaseMicroUsd: 364000,
+      },
+    });
+  });
+  await page.evaluate(() => sessionStorage.clear());
+  await page.goto("http://studio.test/");
+  await page.getByLabel("The composed prompt is English.").check();
+  await reviewButton.click();
+  const evidence = page.getByLabel("Independent recording evidence reference", {
+    exact: true,
+  });
+  await evidence.waitFor();
+  const saveEvidence = page.getByRole("button", {
+    name: "Save independent-recording assessment — no generation",
+    exact: true,
+  });
+  assert.equal(await saveEvidence.isDisabled(), true);
+  await evidence.fill(
+    "OFFLINE MOCK master/session record dated after the old task; verified new independent recording with no derivation from rejected material.",
+  );
+  await page.getByLabel(/I reviewed the referenced source evidence/).check();
+  await saveEvidence.click();
+  await page
+    .getByText(
+      "Assessment saved. Review video cost again; no generation started.",
+      { exact: true },
+    )
+    .waitFor();
+  assert.equal(identityPosts.length, 2);
+  await reviewButton.click();
+  await page.getByRole("link", { name: "Saved private project" }).waitFor();
+  assert.equal(
+    identityPosts.some((p) => p.action === "submit"),
+    false,
+  );
+  await page.close();
+  console.log(
+    "PASS: desktop/mobile pilot review and separate explicit paid confirmation; mock HTTP only.",
+  );
+} finally {
+  await browser.close();
+}

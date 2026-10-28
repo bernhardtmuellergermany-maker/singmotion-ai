@@ -1,3 +1,4 @@
+import { pollStudioProjects } from "../lib/live/studio-worker.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { copyFile, unlink, writeFile } from "node:fs/promises";
@@ -21,9 +22,12 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
   stopping = true;
 });
-console.log("SingMotion demo worker ready. Paid providers are disabled.");
+console.log(
+  "SingMotion worker ready. Demo rendering and Studio recovery are separately gated; this worker never submits paid tasks.",
+);
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
+  await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
   if (process.env.GENERATIONS_ENABLED === "false") {
     await new Promise((resolve) => setTimeout(resolve, 750));
     continue;

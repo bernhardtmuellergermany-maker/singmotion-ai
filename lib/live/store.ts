@@ -1,3 +1,8 @@
+import {
+  contractDigest,
+  planUpperBoundMicroUsd,
+  type VerifiedContract,
+} from "./contract.ts";
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID, randomBytes, createHash } from "node:crypto";
 import {
@@ -11,10 +16,15 @@ export type LiveState =
   | "submitting"
   | "submitted"
   | "processing"
+  | "output_observed"
   | "completed"
   | "failed"
   | "uncertain";
 export interface PreparedMedia {
+  outputFormat?: "9:16" | "16:9";
+  /** Recorded from the owned original at preparation; never inferred for legacy rows. */
+  recording?: { songId: string; sourceSha256: string };
+  tempo?: import("./tempo.ts").TempoMetadata;
   sourceJobId: string;
   owner: string;
   audioPath: string;
@@ -30,6 +40,7 @@ export interface Attempt {
   media: PreparedMedia;
   contractRevision: string | null;
   upperBoundMicroUsd: number | null;
+  contractDigest?: string;
   state: LiveState;
   providerJobId: string | null;
   outputPath: string | null;
@@ -45,12 +56,49 @@ export class LiveTestStore {
   readonly db: DatabaseSync;
   constructor(filename: string) {
     this.db = new DatabaseSync(filename);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+    this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
       CREATE TABLE IF NOT EXISTS live_attempts (
         id TEXT PRIMARY KEY, source_job_id TEXT NOT NULL UNIQUE, data TEXT NOT NULL,
         reserved_micro_usd INTEGER NOT NULL DEFAULT 0,
         token_hash TEXT, expires_at INTEGER, consumed INTEGER NOT NULL DEFAULT 0,
         poll_token TEXT, poll_lease_until INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS live_daily_reservations (
+        attempt_id TEXT NOT NULL, day TEXT NOT NULL, micro_usd INTEGER NOT NULL,
+        micro_eur INTEGER NOT NULL, fee_bound INTEGER NOT NULL, review_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL, PRIMARY KEY(attempt_id,day)
+      );
+      CREATE TABLE IF NOT EXISTS live_private_exceptions (
+        attempt_id TEXT PRIMARY KEY, task_id TEXT NOT NULL, owner TEXT NOT NULL,
+        actor TEXT NOT NULL, evidence TEXT NOT NULL, created_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_input_deliveries (
+        attempt_id TEXT PRIMARY KEY, manifest TEXT NOT NULL, state TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_contract_reviews (
+        attempt_id TEXT PRIMARY KEY, contract_json TEXT NOT NULL, reviewed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_first_test (
+        slot INTEGER PRIMARY KEY CHECK(slot=1), attempt_id TEXT NOT NULL,
+        digest TEXT NOT NULL, claimed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_second_test (
+        slot INTEGER PRIMARY KEY CHECK(slot=2), attempt_id TEXT NOT NULL UNIQUE,
+        digest TEXT NOT NULL, claimed_at INTEGER NOT NULL, authorization_digest TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_second_authorizations (
+        attempt_id TEXT PRIMARY KEY, review_json TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_first_test_results (
+        attempt_id TEXT PRIMARY KEY, result_json TEXT NOT NULL, observed_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS live_output_reviews (
+        attempt_id TEXT NOT NULL, digest TEXT NOT NULL, review_json TEXT NOT NULL,
+        reviewed_at INTEGER NOT NULL, PRIMARY KEY(attempt_id,digest)
+      );
+      CREATE TABLE IF NOT EXISTS live_operator_actions (
+        attempt_id TEXT NOT NULL, action TEXT NOT NULL, state TEXT NOT NULL,
+        PRIMARY KEY(attempt_id, action)
       );`);
   }
   close() {
@@ -121,6 +169,186 @@ export class LiveTestStore {
       return attempt;
     });
   }
+  /** Trusted reviewed-contract caller only. No environment/file-based verifier. */
+  pricePrepared(
+    id: string,
+    owner: string,
+    expectedMedia: PreparedMedia,
+    contract: VerifiedContract,
+  ) {
+    return this.priceReviewedBound(
+      id,
+      owner,
+      expectedMedia,
+      contract.revision,
+      contractDigest(contract),
+      planUpperBoundMicroUsd(expectedMedia.durationSeconds, contract),
+      contract,
+    );
+  }
+  /** Server-only exact-case operator review; does not certify a production contract. */
+  priceReviewedBound(
+    id: string,
+    owner: string,
+    expectedMedia: PreparedMedia,
+    revision: string,
+    digest: string,
+    cost: number,
+    review: unknown,
+  ) {
+    if (
+      !revision ||
+      !/^[a-f0-9]{64}$/.test(digest) ||
+      !Number.isSafeInteger(cost) ||
+      cost <= 0
+    )
+      throw new Error("Invalid reviewed bound.");
+    return this.transaction(() => {
+      const attempt = this.get(id);
+      const row = this.db
+        .prepare(
+          "SELECT consumed,reserved_micro_usd FROM live_attempts WHERE id=?",
+        )
+        .get(id)!;
+      if (
+        attempt.media.owner !== owner ||
+        JSON.stringify(attempt.media) !== JSON.stringify(expectedMedia) ||
+        attempt.state !== "prepared" ||
+        row.consumed ||
+        row.reserved_micro_usd !== 0
+      )
+        throw new Error(
+          "Only the exact owned, unreserved prepared plan may be priced.",
+        );
+      if (
+        attempt.contractRevision !== null ||
+        attempt.upperBoundMicroUsd !== null
+      ) {
+        if (
+          attempt.contractRevision !== revision ||
+          attempt.contractDigest !== digest ||
+          attempt.upperBoundMicroUsd !== cost
+        )
+          throw new Error(
+            "Priced contract is immutable; changed terms require review.",
+          );
+        return attempt;
+      }
+      attempt.contractRevision = revision;
+      attempt.contractDigest = digest;
+      attempt.upperBoundMicroUsd = cost;
+      this.db
+        .prepare("INSERT INTO live_contract_reviews VALUES (?,?,?)")
+        .run(id, JSON.stringify(review), Date.now());
+      this.save(attempt);
+      return attempt;
+    });
+  }
+  claimFirstTest(id: string, digest: string) {
+    this.transaction(() => {
+      const row = this.firstTest();
+      if (row && (row.attempt_id !== id || row.digest !== digest))
+        throw new Error(
+          "The single first-test slot is already bound; never reset this ledger.",
+        );
+      if (!row)
+        this.db
+          .prepare("INSERT INTO live_first_test VALUES (1,?,?,?)")
+          .run(id, digest, Date.now());
+    });
+  }
+  firstTest() {
+    return this.db
+      .prepare("SELECT * FROM live_first_test WHERE slot=1")
+      .get() as
+      { attempt_id: string; digest: string; claimed_at: number } | undefined;
+  }
+  secondTest() {
+    return this.db
+      .prepare("SELECT * FROM live_second_test WHERE slot=2")
+      .get() as
+      | {
+          attempt_id: string;
+          digest: string;
+          claimed_at: number;
+          authorization_digest: string;
+        }
+      | undefined;
+  }
+  testSlot(id: string) {
+    const first = this.firstTest();
+    if (first?.attempt_id === id) return first;
+    const second = this.secondTest();
+    return second?.attempt_id === id ? second : undefined;
+  }
+  firstTestResult(id: string) {
+    const row = this.db
+      .prepare(
+        "SELECT result_json,observed_at FROM live_first_test_results WHERE attempt_id=?",
+      )
+      .get(id) as { result_json: string; observed_at: number } | undefined;
+    return row
+      ? { result: JSON.parse(row.result_json), observedAt: row.observed_at }
+      : null;
+  }
+  recordFirstTestResult(id: string, result: unknown) {
+    // Called inside transition's poll-fenced transaction via its commit callback.
+    this.db
+      .prepare(
+        "INSERT INTO live_first_test_results VALUES (?,?,?) ON CONFLICT(attempt_id) DO UPDATE SET result_json=excluded.result_json,observed_at=excluded.observed_at",
+      )
+      .run(id, JSON.stringify(result), Date.now());
+  }
+  claimCancellation(id: string, lease: string) {
+    this.transaction(() => {
+      this.assertPollLease(id, lease);
+      this.db
+        .prepare(
+          "INSERT INTO live_operator_actions VALUES (?,'cancel','claimed')",
+        )
+        .run(id);
+    });
+  }
+  finishCancellation(id: string, state: "done" | "uncertain") {
+    this.db
+      .prepare(
+        "UPDATE live_operator_actions SET state=? WHERE attempt_id=? AND action='cancel'",
+      )
+      .run(state, id);
+  }
+  assertPollLease(id: string, token: string) {
+    const row = this.db
+      .prepare(
+        "SELECT poll_token,poll_lease_until FROM live_attempts WHERE id=?",
+      )
+      .get(id);
+    if (
+      !row ||
+      row.poll_token !== token ||
+      Number(row.poll_lease_until) <= Date.now()
+    )
+      throw new Error(
+        "Poll lease expired or replaced; stale worker cannot commit.",
+      );
+  }
+  private studioGuard(attempt: Attempt, config: LiveTestConfig) {
+    const studio = attempt.media.sourceJobId.startsWith("studio-");
+    // Studio projects are independent. A historical task's state must not
+    // globally block authorization of a DIFFERENT source job. The per-attempt
+    // submission token and poll lease still prevent double processing.
+    // Keep the conservative legacy operator-test exclusion intact.
+    if (!studio) {
+      const active = this.db
+        .prepare(
+          "SELECT 1 FROM live_attempts WHERE id<>? AND source_job_id LIKE 'studio-%' AND json_extract(data,'$.state') IN ('authorized','submitting','submitted','processing','output_observed','uncertain') LIMIT 1",
+        )
+        .get(attempt.id);
+      if (active) throw new Error("ONE_ACTIVE_GENERATION");
+    }
+    // Private Studio is uncapped by its historical operator-test ledger.
+    // Reservations remain immutable and counted for accounting, not admission.
+    return studio ? Number.MAX_SAFE_INTEGER : config.maxTotalMicroUsd;
+  }
   authorize(
     id: string,
     config: LiveTestConfig,
@@ -130,6 +358,7 @@ export class LiveTestStore {
     authorizeOperator(config, secret);
     return this.transaction(() => {
       const attempt = this.get(id);
+      const cumulativeCap = this.studioGuard(attempt, config);
       enforceCap(
         config,
         attempt.media.durationSeconds,
@@ -151,8 +380,14 @@ export class LiveTestStore {
           )
           .get() as { total: number }
       ).total;
-      if (total + attempt.upperBoundMicroUsd! > config.maxTotalMicroUsd)
+      if (
+        !Number.isSafeInteger(total) ||
+        (!attempt.media.sourceJobId.startsWith("studio-") &&
+          total + attempt.upperBoundMicroUsd! > cumulativeCap)
+      )
         throw new Error("Total live-test spending cap exceeded.");
+      // No daily-budget reservation is required for private Studio jobs.
+      // The exact task's USD reservation is still persisted below.
       const token = randomBytes(32).toString("hex");
       this.db
         .prepare(
@@ -169,7 +404,7 @@ export class LiveTestStore {
       return token;
     });
   }
-  claimSubmission(id: string, token: string): Attempt {
+  claimSubmission(id: string, token: string, config: LiveTestConfig): Attempt {
     return this.transaction(() => {
       const row = this.db
         .prepare(
@@ -189,6 +424,28 @@ export class LiveTestStore {
         throw new Error(
           "Approval expired, invalid or already consumed; never resubmit automatically.",
         );
+      if (config.demoMode || !config.enabled)
+        throw new Error("Paid provider access is disabled.");
+      enforceCap(
+        config,
+        attempt.media.durationSeconds,
+        attempt.upperBoundMicroUsd,
+      );
+      const total = (
+        this.db
+          .prepare(
+            "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
+          )
+          .get() as { total: number }
+      ).total;
+      const cumulativeCap = this.studioGuard(attempt, config);
+      if (
+        !Number.isSafeInteger(total) ||
+        (!attempt.media.sourceJobId.startsWith("studio-") && total > cumulativeCap)
+      )
+        throw new Error("Total live-test spending cap exceeded.");
+      // Historic daily ledger entries remain intact. Fresh Studio jobs
+      // do not need a second daily budget admission.
       this.db
         .prepare(
           "UPDATE live_attempts SET consumed=1,token_hash=NULL WHERE id=?",
@@ -198,6 +455,88 @@ export class LiveTestStore {
       this.save(attempt);
       return attempt;
     });
+  }
+  assertInputDeliveryAllowed(media: PreparedMedia): string {
+    const row = this.db
+      .prepare(
+        "SELECT id,consumed,reserved_micro_usd FROM live_attempts WHERE source_job_id=?",
+      )
+      .get(media.sourceJobId) as
+      { id: string; consumed: number; reserved_micro_usd: number } | undefined;
+    if (!row)
+      throw new Error("Private input delivery requires a claimed approval.");
+    const attempt = this.get(row.id);
+    if (
+      attempt.state !== "submitting" ||
+      row.consumed !== 1 ||
+      row.reserved_micro_usd <= 0 ||
+      !attempt.contractRevision ||
+      JSON.stringify(attempt.media) !== JSON.stringify(media)
+    )
+      throw new Error(
+        "Private input delivery requires the exact approved media.",
+      );
+    return attempt.id;
+  }
+  claimInputDelivery(
+    media: PreparedMedia,
+    manifest: {
+      accountId: string;
+      bucket: string;
+      audioKey: string;
+      imageKey: string;
+      expiresAt: number;
+    },
+  ) {
+    return this.transaction(() => {
+      const id = this.assertInputDeliveryAllowed(media);
+      if (
+        this.db
+          .prepare(
+            "SELECT attempt_id FROM live_input_deliveries WHERE attempt_id=?",
+          )
+          .get(id)
+      )
+        throw new Error(
+          "Input delivery already claimed; reconcile instead of uploading again.",
+        );
+      this.db
+        .prepare("INSERT INTO live_input_deliveries VALUES (?,?,?)")
+        .run(id, JSON.stringify(manifest), "uploading");
+      return id;
+    });
+  }
+  inputDelivery(id: string) {
+    const row = this.db
+      .prepare(
+        "SELECT manifest,state FROM live_input_deliveries WHERE attempt_id=?",
+      )
+      .get(id) as { manifest: string; state: string } | undefined;
+    if (!row) throw new Error("Input delivery not found.");
+    return {
+      state: row.state,
+      manifest: JSON.parse(row.manifest) as {
+        accountId: string;
+        bucket: string;
+        audioKey: string;
+        imageKey: string;
+        expiresAt: number;
+      },
+    };
+  }
+  markInputDeliveryCleaned(id: string) {
+    this.db
+      .prepare(
+        "UPDATE live_input_deliveries SET state='cleaned' WHERE attempt_id=?",
+      )
+      .run(id);
+  }
+  finishInputDelivery(id: string, state: "ready" | "failed") {
+    this.db
+      .prepare(
+        "UPDATE live_input_deliveries SET state=? WHERE attempt_id=? AND state='uploading'",
+      )
+      .run(state, id);
   }
   removeUnsubmittedOwnerPlans(owner: string) {
     this.transaction(() => {
@@ -220,12 +559,28 @@ export class LiveTestStore {
     });
   }
   claimPoll(id: string): string {
+    return this.claimReadLease(id, ["submitted", "processing"]);
+  }
+  claimOutputDownload(id: string): string {
+    return this.claimReadLease(id, ["output_observed", "completed"]);
+  }
+  recordOutputReview(
+    id: string,
+    digest: string,
+    review: unknown,
+    lease: string,
+  ) {
+    this.transaction(() => {
+      this.assertPollLease(id, lease);
+      this.db
+        .prepare("INSERT OR IGNORE INTO live_output_reviews VALUES (?,?,?,?)")
+        .run(id, digest, JSON.stringify(review), Date.now());
+    });
+  }
+  private claimReadLease(id: string, allowed: LiveState[]): string {
     return this.transaction(() => {
       const attempt = this.get(id);
-      if (
-        !["submitted", "processing"].includes(attempt.state) ||
-        !attempt.providerJobId
-      )
+      if (!allowed.includes(attempt.state) || !attempt.providerJobId)
         throw new Error(
           "Only a persisted provider job may be polled; uncertain submissions require manual reconciliation.",
         );
@@ -253,15 +608,19 @@ export class LiveTestStore {
     patch: Partial<
       Pick<Attempt, "providerJobId" | "outputPath" | "failureCode">
     > = {},
+    pollToken?: string,
+    commitFile?: () => void,
   ) {
     return this.transaction(() => {
       const attempt = this.get(id);
+      if (pollToken !== undefined) this.assertPollLease(id, pollToken);
       const allowed: Record<LiveState, LiveState[]> = {
         prepared: [],
         authorized: [],
         submitting: ["submitted", "uncertain"],
-        submitted: ["processing", "completed", "failed"],
-        processing: ["processing", "completed", "failed"],
+        submitted: ["processing", "output_observed", "completed", "failed"],
+        processing: ["processing", "output_observed", "completed", "failed"],
+        output_observed: ["output_observed", "completed"],
         completed: [],
         failed: [],
         uncertain: [],
@@ -279,6 +638,7 @@ export class LiveTestStore {
         throw new Error("Missing provider job ID.");
       if (state === "completed" && !patch.outputPath)
         throw new Error("A validated private output is required.");
+      commitFile?.(); // Synchronous atomic rename under the lease-check transaction.
       Object.assign(attempt, patch, { state });
       this.save(attempt);
       return attempt;

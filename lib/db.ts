@@ -5,9 +5,15 @@ import { randomUUID, createHash } from "node:crypto";
 import type { Asset, Artist, Job, JobStatus } from "./domain.ts";
 import { AppError, canTransition } from "./domain.ts";
 export const dataDir = path.resolve(process.env.DATA_DIR || ".data");
-mkdirSync(path.join(dataDir, "media"), { recursive: true, mode: 0o700 });
-export const db = new DatabaseSync(path.join(dataDir, "demo.sqlite"));
-db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+// Next imports route modules in parallel during builds. Importing this module must
+// not create directories, open the runtime database or initialize its schema.
+let connection: DatabaseSync | undefined;
+function runtimeDatabase(): DatabaseSync {
+  if (connection) return connection;
+  mkdirSync(path.join(dataDir, "media"), { recursive: true, mode: 0o700 });
+  const opened = new DatabaseSync(path.join(dataDir, "demo.sqlite"));
+  try {
+    opened.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
 CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL, admin INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS assets (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS artists (id TEXT PRIMARY KEY, owner TEXT NOT NULL, data TEXT NOT NULL);
@@ -16,6 +22,21 @@ CREATE TABLE IF NOT EXISTS ledger (id TEXT PRIMARY KEY, owner TEXT NOT NULL, job
 CREATE TABLE IF NOT EXISTS rate_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL, reset INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS audit (id TEXT PRIMARY KEY, owner TEXT NOT NULL, action TEXT NOT NULL, created INTEGER NOT NULL);
 `);
+    connection = opened;
+    return opened;
+  } catch (error) {
+    opened.close();
+    throw error;
+  }
+}
+// Preserve the existing API and bind native SQLite methods to their real receiver.
+export const db = new Proxy({} as DatabaseSync, {
+  get(_target, property) {
+    const database = runtimeDatabase();
+    const value = Reflect.get(database, property, database);
+    return typeof value === "function" ? value.bind(database) : value;
+  },
+});
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
 export function demoOnly() {
   if (process.env.DEMO_MODE === "false")
@@ -44,6 +65,22 @@ export function createSession() {
     Date.now(),
   );
   return { token, owner };
+}
+/** Called only after customer password verification. No demo or monetary credit is created. */
+export function createCustomerMediaSession(accountId: string) {
+  if (!/^[a-f0-9-]{36}$/.test(accountId))
+    throw new AppError("Invalid account.", 403);
+  const token = randomUUID() + randomUUID(),
+    owner = `customer-${accountId}`;
+  db.prepare("INSERT INTO sessions VALUES (?,?,?,0)").run(
+    hash(token),
+    owner,
+    Date.now() + 86400000,
+  );
+  return { token, owner };
+}
+export function revokeMediaSession(token: string) {
+  db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
 }
 export function session(token?: string) {
   if (!token) return null;

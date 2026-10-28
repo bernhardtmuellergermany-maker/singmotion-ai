@@ -13,6 +13,16 @@ export const cameras = [
   "Slow Push-In",
   "Gentle Handheld",
   "Side Tracking",
+  "Turn left",
+  "Turn right",
+  "Orbit left",
+  "Orbit right",
+  "Tilt up",
+  "Tilt down",
+  "Push in",
+  "Pull out",
+  "Follow forwards",
+  "Follow backwards",
 ] as const;
 export const views = [
   "Front",
@@ -121,10 +131,10 @@ export function validateFile(name: string, size: number, kind: string) {
         ? "Choose an audio file up to 50 MB."
         : "Choose an image up to 30 MB.",
     );
-  if (!(kind === "audio" ? /\.(mp3|wav)$/i : /\.(png|jpe?g)$/i).test(name))
+  if (!(kind === "audio" ? /\.(mp3|wav|m4a)$/i : /\.(png|jpe?g)$/i).test(name))
     throw new AppError(
       kind === "audio"
-        ? "Only MP3 and WAV files are supported."
+        ? "Only MP3, WAV and audio-only AAC/M4A files are supported."
         : "Only JPEG and PNG images are supported.",
     );
 }

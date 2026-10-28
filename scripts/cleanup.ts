@@ -1,4 +1,4 @@
-import { removeOfflinePlans } from "../lib/live/cleanup.ts";
+import { removeOfflinePlans, retainedInputPaths } from "../lib/live/cleanup.ts";
 import { unlink, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { db, dataDir, list } from "../lib/db.ts";
@@ -29,6 +29,7 @@ const referenced = new Set(
     (r) => (JSON.parse(r.data) as Asset).path,
   ),
 );
+for (const file of retainedInputPaths(dataDir)) referenced.add(file);
 for (const name of await readdir(path.join(dataDir, "media"))) {
   const file = path.join(dataDir, "media", name);
   if (

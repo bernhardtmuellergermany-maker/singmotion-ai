@@ -1,5 +1,7 @@
 "use client";
+import { SavedDrafts } from "./saved-drafts";
 import Link from "next/link";
+import { LiveProjects, LiveProject } from "./studio-live";
 import { useEffect, useState } from "react";
 import {
   Download,
@@ -28,7 +30,7 @@ export function Projects() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">YOUR COLLECTION</span>
-          <h1>My projects</h1>
+          <h1>My videos</h1>
           <p>Every song has a story. Keep yours close.</p>
         </div>
         <Link href="/studio" className="button primary">
@@ -40,6 +42,8 @@ export function Projects() {
           {error}
         </p>
       )}
+      <SavedDrafts />
+      <LiveProjects />
       {loading ? (
         <p className="quiet">Loading your projects…</p>
       ) : jobs.length ? (
@@ -81,8 +85,8 @@ export function Projects() {
           <FolderOpen size={35} />
           <h3>Your first performance starts here.</h3>
           <p>
-            Create a demo in the studio. Your project and its progress will be
-            saved automatically.
+            Choose your song and photo in the studio, then save and review your
+            performance before generating.
           </p>
           <Link href="/studio" className="button primary">
             Open the studio <ArrowRight size={16} />
@@ -93,6 +97,13 @@ export function Projects() {
   );
 }
 export function Project({ id }: { id: string }) {
+  return id.startsWith("live_") ? (
+    <LiveProject id={id.slice(5)} />
+  ) : (
+    <DemoProject id={id} />
+  );
+}
+function DemoProject({ id }: { id: string }) {
   const [job, setJob] = useState<Job | null>(null),
     [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
@@ -161,7 +172,7 @@ export function Project({ id }: { id: string }) {
         </p>
       )}
       {job ? (
-        <div className="result-layout">
+        <div className="result-layout polished-result">
           <div>
             {job.status === "completed" && job.outputId ? (
               <>
@@ -231,12 +242,7 @@ export function Project({ id }: { id: string }) {
                     <Check size={17} /> Uploads validated
                   </p>
                   <p>
-                    {job.status === "processing" ? (
-                      <Check size={17} />
-                    ) : (
-                      <Circle size={17} />
-                    )}{" "}
-                    Trimming the selected audio
+                    <Circle size={17} /> Trimming the selected audio
                   </p>
                   <p>
                     <Circle size={17} /> Preparing the fixed demo sample

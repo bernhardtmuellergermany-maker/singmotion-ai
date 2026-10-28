@@ -1,23 +1,22 @@
 "use client";
 import dynamic from "next/dynamic";
+import { StudioLiveControl } from "./studio-live";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
-  ArrowLeft,
   AudioLines,
   Check,
   ChevronDown,
   Clock,
   ImagePlus,
-  Lightbulb,
   Music2,
-  Upload,
   X,
   ShieldCheck,
   SlidersHorizontal,
 } from "lucide-react";
 import { api, ensureSession, upload } from "@/lib/client";
+import { parseStudioDraft } from "@/lib/studio-draft";
 import {
   money,
   time,
@@ -57,18 +56,21 @@ const initial: Draft = {
 export function Studio() {
   const [draft, setDraft] = useState<Draft>(initial),
     [ready, setReady] = useState(false),
-    [step, setStep] = useState(1),
+    [sessionOwner, setSessionOwner] = useState(""),
     [showArtists, setShowArtists] = useState(false),
     [busy, setBusy] = useState(false),
     [uploading, setUploading] = useState(false),
     [error, setError] = useState(""),
     [price, setPrice] = useState<number | null>(null),
-    [consent, setConsent] = useState(false),
+    [consentKey, setConsentKey] = useState<string | null>(null),
+    [termsVersion, setTermsVersion] = useState(""),
     [advanced, setAdvanced] = useState(false);
   const router = useRouter(),
     fileInput = useRef<HTMLInputElement>(null),
     requestKey = useRef<string | null>(null),
-    dialog = useRef<HTMLDialogElement>(null);
+    declinedRights = useRef<string | null>(null),
+    dialog = useRef<HTMLDialogElement>(null),
+    artistTrigger = useRef<HTMLButtonElement>(null);
   const {
     song,
     imageId,
@@ -79,13 +81,59 @@ export function Studio() {
     camera,
     customPrompt,
   } = draft;
+  const selection =
+    song && sessionOwner && imageId
+      ? {
+          version: 1 as const,
+          owner: sessionOwner,
+          songId: song.id,
+          imageId,
+          start,
+          end,
+          performance,
+          camera,
+          customPrompt,
+        }
+      : null;
+  const rightsKey = JSON.stringify([selection, termsVersion]);
+  const consent = consentKey === rightsKey;
+  useEffect(() => {
+    let current = true;
+    const [selected, version] = JSON.parse(rightsKey);
+    const timer = setTimeout(() => {
+      if (selected && version) {
+        void api<{ confirmed: boolean }>("studio-live", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "rights-status",
+            selection: selected,
+          }),
+        })
+          .then((r) => {
+            if (current && r.confirmed && declinedRights.current !== rightsKey)
+              setConsentKey(rightsKey);
+          })
+          .catch(() => {});
+      }
+    }, 500);
+    return () => {
+      current = false;
+      clearTimeout(timer);
+    };
+  }, [rightsKey]);
   function update(patch: Partial<Draft>) {
     setDraft((prev) => ({ ...prev, ...patch }));
     requestKey.current = null;
   }
   useEffect(() => {
+    void api<{ version: string }>("rights")
+      .then((r) => setTermsVersion(r.version))
+      .catch(() => setTermsVersion(""));
+  }, []);
+  useEffect(() => {
     ensureSession()
-      .then(() => {
+      .then((session) => {
+        setSessionOwner((session as { owner: string }).owner);
         try {
           const saved = localStorage.getItem("singmotion-studio");
           if (saved) setDraft({ ...initial, ...JSON.parse(saved) });
@@ -115,7 +163,10 @@ export function Studio() {
   }, [start, end, ready]);
   useEffect(() => {
     if (showArtists) dialog.current?.showModal();
-    else dialog.current?.close();
+    else if (dialog.current?.open) {
+      dialog.current.close();
+      artistTrigger.current?.focus();
+    }
   }, [showArtists]);
   let prompt = "";
   try {
@@ -142,6 +193,36 @@ export function Studio() {
       setUploading(false);
     }
   }
+  function exportDraft() {
+    if (!song) return;
+    try {
+      const exported = parseStudioDraft({
+        version: 1,
+        owner: sessionOwner,
+        songId: song.id,
+        imageId,
+        start,
+        end,
+        performance,
+        camera,
+        customPrompt,
+      });
+      const url = URL.createObjectURL(
+        new Blob([JSON.stringify(exported, null, 2)], {
+          type: "application/json",
+        }),
+      );
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "singmotion-draft.json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
   async function generate() {
     if (!song || price === null) return;
     setBusy(true);
@@ -156,6 +237,7 @@ export function Studio() {
           expectedPrice: price,
           requestKey: requestKey.current,
           consent,
+          termsVersion,
         }),
       });
       window.dispatchEvent(new Event("credits-changed"));
@@ -165,34 +247,9 @@ export function Studio() {
       setBusy(false);
     }
   }
-  const canNext =
-    step === 1 ? !!song && validSegment : step === 2 ? !!imageId : true;
   return (
-    <div className="studio-page" id="content">
-      <div className="page-heading studio-heading">
-        <div>
-          <span className="eyebrow">THE STUDIO</span>
-          <h1>
-            Create your
-            <br className="desktop-break" /> singing video
-            <span className="heading-dot">.</span>
-          </h1>
-          <p>Your song. A familiar face. A whole new way to be heard.</p>
-        </div>
-        <span className="studio-version">WORKSPACE / 01</span>
-      </div>
-      <div className="mobile-steps" aria-label={`Step ${step} of 3`}>
-        {["Your song", "Your artist", "Your direction"].map((label, i) => (
-          <button
-            key={label}
-            onClick={() => setStep(i + 1)}
-            className={step === i + 1 ? "current" : step > i + 1 ? "done" : ""}
-          >
-            <span>{step > i + 1 ? <Check size={12} /> : i + 1}</span>
-            {label}
-          </button>
-        ))}
-      </div>
+    <div className="studio-page continuous-studio" id="content">
+      <h1 className="sr-only">Create your music video</h1>
       {error && (
         <div role="alert" className="error">
           {error}
@@ -200,9 +257,7 @@ export function Studio() {
       )}
       <div className="studio-grid">
         <div className="editor">
-          <section
-            className={`editor-section mobile-step ${step === 1 ? "visible" : ""}`}
-          >
+          <section id="studio-step-1" className="editor-section">
             <div className="step-title">
               <span className="step-number">1</span>
               <h2>Upload your song</h2>
@@ -229,6 +284,18 @@ export function Studio() {
                     {(song.bytes / 1024 / 1024).toFixed(1)} MB
                   </span>
                 </div>
+                <button
+                  type="button"
+                  className="icon-button remove-song"
+                  aria-label="Remove song from draft"
+                  disabled={uploading}
+                  onClick={() => {
+                    update({ song: null, start: 0, end: 10 });
+                    if (fileInput.current) fileInput.current.value = "";
+                  }}
+                >
+                  <X size={18} />
+                </button>
                 <button
                   className="button outline small"
                   disabled={uploading}
@@ -268,7 +335,11 @@ export function Studio() {
             )}
             <div className="section-subtitle">
               <span>Select your audio section</span>
-              <span className="micro-label">START SMALL. DREAM BIG.</span>
+              <span className="micro-label">
+                {song
+                  ? `${Math.max(0, end - start).toFixed(2)}s selected`
+                  : "Find your best moment"}
+              </span>
             </div>
             {song ? (
               <Waveform
@@ -306,9 +377,7 @@ export function Studio() {
               </p>
             )}
           </section>
-          <section
-            className={`editor-section mobile-step ${step === 2 ? "visible" : ""}`}
-          >
+          <section id="studio-step-2" className="editor-section">
             <div className="step-title">
               <span className="step-number">2</span>
               <h2>Choose your artist</h2>
@@ -323,6 +392,7 @@ export function Studio() {
                 </div>
                 <button
                   className="button outline small"
+                  ref={artistTrigger}
                   onClick={() => setShowArtists(true)}
                 >
                   Change
@@ -332,6 +402,7 @@ export function Studio() {
               <button
                 className="choose-artist"
                 disabled={!ready}
+                ref={artistTrigger}
                 onClick={() => setShowArtists(true)}
               >
                 <div className="artist-placeholder">
@@ -349,30 +420,53 @@ export function Studio() {
               best.
             </p>
           </section>
-          <section
-            className={`editor-section mobile-step ${step === 3 ? "visible" : ""}`}
-          >
+          <section id="studio-step-3" className="editor-section">
             <div className="step-title">
               <span className="step-number">3</span>
-              <h2>Performance & camera</h2>
+              <h2>Performance &amp; camera</h2>
             </div>
-            <div className="select-row">
-              <label>
-                Performance
-                <div className="select-wrap">
-                  <select
-                    value={performance}
-                    onChange={(e) => update({ performance: e.target.value })}
+            <p className="direction-defaults">
+              {customPrompt.trim()
+                ? "Custom performance direction"
+                : `${performance} performance · ${camera}`}
+            </p>
+            <button
+              className="advanced-toggle"
+              onClick={() => setAdvanced(!advanced)}
+              aria-expanded={advanced}
+              aria-controls="studio-advanced"
+            >
+              <SlidersHorizontal size={16} /> Advanced settings{" "}
+              <ChevronDown size={15} />
+            </button>
+            <div
+              id="studio-advanced"
+              className="custom-prompt"
+              hidden={!advanced}
+            >
+              <fieldset className="performance-presets">
+                <legend>Performance</legend>
+                {performances.map((p) => (
+                  <label
+                    key={p}
+                    className={performance === p ? "selected" : ""}
                   >
-                    {performances.map((p) => (
-                      <option key={p}>{p}</option>
-                    ))}
-                  </select>
-                  <ChevronDown size={14} />
-                </div>
-              </label>
-              <label>
-                Camera
+                    <input
+                      type="radio"
+                      name="performance"
+                      value={p}
+                      checked={performance === p}
+                      onChange={() => {
+                        update({ performance: p });
+                        if (p === "Custom") setAdvanced(true);
+                      }}
+                    />
+                    {p}
+                  </label>
+                ))}
+              </fieldset>
+              <label className="camera-field">
+                Camera direction
                 <div className="select-wrap">
                   <select
                     value={camera}
@@ -385,20 +479,6 @@ export function Studio() {
                   <ChevronDown size={14} />
                 </div>
               </label>
-            </div>
-            <p className="field-note">
-              Creative guidance, not guaranteed controls. Static and gentle
-              movements are safer starting points.
-            </p>
-            <button
-              className="advanced-toggle"
-              onClick={() => setAdvanced(!advanced)}
-              aria-expanded={advanced}
-            >
-              <SlidersHorizontal size={16} /> Advanced settings{" "}
-              <ChevronDown size={15} />
-            </button>
-            <div className={`custom-prompt ${advanced ? "expanded" : ""}`}>
               <label htmlFor="custom-prompt">
                 Custom Performance Prompt <span>Optional</span>
               </label>
@@ -420,80 +500,19 @@ export function Studio() {
                   keep.
                 </p>
               )}
+              <details className="prompt-preview">
+                <summary>
+                  View composed prompt <ChevronDown size={14} />
+                </summary>
+                <p>{prompt || "Add a custom prompt to continue."}</p>
+              </details>
             </div>
-            <details className="prompt-preview">
-              <summary>
-                View composed prompt <ChevronDown size={14} />
-              </summary>
-              <p>{prompt || "Add a custom prompt to continue."}</p>
-            </details>
           </section>
         </div>
-        <div className={`preview-column ${step === 3 ? "mobile-review" : ""}`}>
-          <div className="preview-frame">
-            {imageId ? (
-              <img
-                className="reference-preview"
-                src={`/api/assets/${imageId}`}
-                alt={`${artistName} — selected reference, not a generated video`}
-              />
-            ) : (
-              <div className="preview-empty">
-                <div className="preview-halo" />
-                <div className="preview-portrait">
-                  <ImagePlus size={37} strokeWidth={1} />
-                </div>
-                <h3>
-                  A new stage.
-                  <br />
-                  For your sound.
-                </h3>
-                <p>Your artist preview will appear here.</p>
-                <button
-                  className="button frosted"
-                  disabled={!ready}
-                  onClick={() => setShowArtists(true)}
-                >
-                  <Upload size={15} /> Add your artist
-                </button>
-              </div>
-            )}
-            <div className="preview-top">
-              <span>
-                <span className="status-dot" />
-                {imageId ? "ARTIST REFERENCE" : "YOUR PERFORMANCE"}
-              </span>
-              <span>720p</span>
-            </div>
-            <div className="preview-caption">
-              <span>
-                <span className="outline-play">▷</span>
-                {imageId
-                  ? "Reference image preview"
-                  : "The next chapter of your music"}
-              </span>
-              <span>{imageId ? "Not a generated video" : "Made by you."}</span>
-            </div>
-          </div>
-          <details className="tips-card" open>
-            <summary>
-              <Lightbulb size={23} />
-              <strong>Small details. Better performances.</strong>
-              <ChevronDown size={16} />
-            </summary>
-            <p>
-              Use a sharp image with an unobstructed face and clear lead vocals.
-              Start with 5–10 seconds and a static camera.
-            </p>
-            <p className="extra-tip">
-              Strong head rotations may alter facial details. Dynamic cameras
-              can reduce background consistency. Directions and identity are
-              never guaranteed.
-            </p>
-          </details>
+        <div className="preview-column mobile-review">
           <div className="generation-summary">
             <div className="summary-heading">
-              <span className="eyebrow">YOUR NEXT PERFORMANCE</span>
+              <span className="eyebrow">YOUR SELECTION</span>
               <span className="demo-badge">Demo</span>
             </div>
             <div className="summary-main">
@@ -503,13 +522,16 @@ export function Studio() {
                   <strong>
                     {(end - start).toFixed(2).replace(/\.00$/, "")} seconds
                   </strong>
-                  <small>720p · 25 FPS · MP4</small>
+                  <small>Requested audio excerpt · MP4 demo</small>
                 </span>
               </div>
               <strong className="total-price">
                 {price === null ? "—" : money(price)}
               </strong>
             </div>
+            <p className="summary-cost-note">
+              Simulated credits only. No charge.
+            </p>
             <details className="why-price">
               <summary>Why this price?</summary>
               <p>
@@ -523,11 +545,21 @@ export function Studio() {
               <input
                 type="checkbox"
                 checked={consent}
-                onChange={(e) => setConsent(e.target.checked)}
+                required
+                disabled={!termsVersion}
+                onChange={(e) => {
+                  declinedRights.current = e.target.checked ? null : rightsKey;
+                  setConsentKey(e.target.checked ? rightsKey : null);
+                }}
               />
               <span>
-                I have the rights or permission to use this music and person’s
-                likeness.
+                I own or have all necessary permissions for the music, sound
+                recording, image and likeness, including AI processing described
+                in the{" "}
+                <a href="/terms" target="_blank" rel="noopener noreferrer">
+                  AGB / Terms
+                </a>
+                .
               </span>
             </label>
             <button
@@ -547,6 +579,44 @@ export function Studio() {
               {busy ? "Preparing your project…" : "Generate demo video"}
               <ArrowRight size={19} />
             </button>
+            <button
+              className="text-button export-draft"
+              type="button"
+              disabled={
+                !ready ||
+                !sessionOwner ||
+                uploading ||
+                !song ||
+                !imageId ||
+                !validSegment ||
+                !prompt
+              }
+              onClick={exportDraft}
+            >
+              Export draft for offline review
+            </button>
+            <StudioLiveControl
+              selection={selection}
+              artistName={artistName}
+              consent={consent}
+              termsVersion={termsVersion}
+              disabled={
+                busy || uploading || !validSegment || end - start < 4 || !prompt
+              }
+              disabledReason={
+                busy
+                  ? "Another Studio operation is running. Wait for it to finish."
+                  : uploading
+                    ? "The media upload is still running. Wait for it to finish."
+                    : !validSegment
+                      ? "Select a valid excerpt within the uploaded song."
+                      : end - start < 4
+                        ? "The private pilot requires at least 4 seconds of audio."
+                        : !prompt
+                          ? "Choose valid performance/camera settings and a valid prompt."
+                          : undefined
+              }
+            />
             <p className="demo-disclaimer">
               <ShieldCheck size={13} /> Simulated render. A fixed sample, not a
               video of your uploads.
@@ -554,27 +624,12 @@ export function Studio() {
           </div>
         </div>
       </div>
-      <div className="mobile-step-actions">
-        {step > 1 && (
-          <button className="button outline" onClick={() => setStep(step - 1)}>
-            <ArrowLeft size={16} /> Back
-          </button>
-        )}
-        {step < 3 && (
-          <button
-            className="button primary"
-            disabled={!canNext}
-            onClick={() => setStep(step + 1)}
-          >
-            Continue <ArrowRight size={16} />
-          </button>
-        )}
-      </div>
       <dialog
         ref={dialog}
         onCancel={() => setShowArtists(false)}
         onClose={() => setShowArtists(false)}
         className="artist-dialog"
+        aria-label="Choose your artist"
       >
         <div className="dialog-heading">
           <div>

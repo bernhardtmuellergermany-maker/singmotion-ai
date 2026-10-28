@@ -1,0 +1,1716 @@
+import { test, after, beforeEach, type TestContext } from "node:test";
+import assert from "node:assert/strict";
+import { mkdtemp, rm, stat, readFile } from "node:fs/promises";
+import path from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import sharp from "sharp";
+import net from "node:net";
+import tls from "node:tls";
+import { StudioWorkflow } from "../lib/live/studio.ts";
+import {
+  studioConfig,
+  studioGate,
+  validateStudioPolicy,
+  StudioLiveError,
+  type StudioPolicy,
+} from "../lib/live/studio-policy.ts";
+import { LiveTestStore } from "../lib/live/store.ts";
+import { downloadValidatedOutput } from "../lib/live/output.ts";
+import { BytePlusError, BytePlusProtocol } from "../lib/live/byteplus.ts";
+import type { StudioDraftExport } from "../lib/studio-draft.ts";
+const root = await mkdtemp(path.join(tmpdir(), "studio live mock "));
+process.env.DATA_DIR = root;
+process.env.DEMO_MODE = "true";
+const db = await import("../lib/db.ts");
+const owner = db.createSession().owner;
+const song = path.join(root, "media", "song.wav"),
+  image = path.join(root, "media", "singer.png");
+execFileSync("ffmpeg", [
+  "-nostdin",
+  "-v",
+  "error",
+  "-f",
+  "lavfi",
+  "-i",
+  "sine=frequency=440:duration=12",
+  song,
+]);
+await sharp({
+  create: { width: 300, height: 300, channels: 3, background: "#aabbcc" },
+})
+  .png()
+  .toFile(image);
+for (const [id, kind, file, mime] of [
+  ["song", "audio", song, "audio/wav"],
+  ["singer", "image", image, "image/png"],
+] as const)
+  db.putAsset({
+    id,
+    owner,
+    kind,
+    path: file,
+    mime,
+    name: id,
+    bytes: (await stat(file)).size,
+    duration: kind === "audio" ? 12 : null,
+    width: null,
+    height: null,
+    created: Date.now(),
+  });
+const stores: LiveTestStore[] = [];
+after(async () => {
+  for (const s of stores) s.close();
+  db.db.close();
+  await rm(root, { recursive: true, force: true });
+});
+beforeEach((context) => {
+  const t = context as TestContext;
+  const deny = () => {
+    throw Error("Real network forbidden");
+  };
+  t.mock.method(globalThis, "fetch", deny);
+  t.mock.method(net.Socket.prototype, "connect", deny);
+  t.mock.method(tls, "connect", deny);
+});
+const policy: StudioPolicy = {
+  eurBudget: {
+    eurPerUsdUpperPpm: 1000000,
+    fxFeesMaxMicroEur: 1000000,
+    evidence: "Mock reviewed currency and fee bounds",
+    reviewedBy: "Mock",
+    reviewedAt: new Date().toISOString(),
+    validUntil: new Date(Date.now() + 86400000).toISOString(),
+  },
+  reviewedBy: "Mock reviewer",
+  reviewedAt: "2026-01-01T00:00:00Z",
+  expiresAt: "2099-01-01T00:00:00Z",
+  billingEvidence: "Mock inclusive terms only, not real vendor evidence",
+  outputEvidence: "Mock output policy only",
+  contract: {
+    revision: "mock-studio-v1",
+    model: "OmniHuman 2.0",
+    documentationUrl: "https://example.test/mock",
+    maxDurationSeconds: 300,
+    promptSupported: true,
+    inputFetchWindowSeconds: 44100,
+    generatedDurationBound: {
+      evidence: "Mock generated duration bound",
+      minInputSeconds: 4,
+      maxInputSeconds: 299,
+      maxAdditionalSeconds: 1,
+    },
+    billing: {
+      microUsdPerSecond: 70000,
+      minimumBillableMs: 0,
+      billingQuantumMs: 1000,
+      minimumChargeMicroUsd: 0,
+      fixedFeeMicroUsd: 0,
+      taxBasisPointsUpperBound: 0,
+    },
+    output: {
+      videoCodec: "h264",
+      audioCodec: "aac",
+      width: 1280,
+      height: 720,
+      fps: 25,
+      durationToleranceSeconds: 0.2,
+    },
+    outputHosts: ["output.example.test"],
+  },
+};
+const config = {
+  demoMode: false,
+  enabled: true,
+  operatorSecret: "mock-operator-secret-at-least-32-characters",
+  maxJobMicroUsd: 1000000,
+  maxTotalMicroUsd: 2000000,
+  maxDurationSeconds: 60,
+};
+async function fixture(taskId = "mock-task") {
+  const store = new LiveTestStore(path.join(root, randomUUID() + ".sqlite"));
+  stores.push(store);
+  let submits = 0,
+    polls = 0,
+    mode = "pending",
+    downloadFail = false;
+  const factory = () =>
+    new StudioWorkflow(store, root, config, {
+      policy: async () => policy,
+      provider: (p) => ({
+        contract: p.contract,
+        submit: async () => {
+          submits++;
+          if (mode === "uncertain") throw Error("private upstream secret");
+          return { jobId: taskId };
+        },
+        poll: async () => {
+          polls++;
+          if (mode === "proven-rejection") {
+            const protocol = new BytePlusProtocol(async () => ({
+              status: 500,
+              body: { code: 50510, message: "Content Pre-filter failed" },
+            }));
+            await protocol.status(taskId, AbortSignal.timeout(1000));
+          }
+          if (mode === "error")
+            throw new BytePlusError(false, {
+              code: "PROVIDER_REJECTED",
+              httpStatus: 500,
+              providerCode: 50510,
+            });
+          return mode === "pending"
+            ? { state: "pending" }
+            : mode === "failed"
+              ? { state: "failed" }
+              : {
+                  state: "completed",
+                  outputUrl: "https://output.example.test/file?signed=private",
+                };
+        },
+      }),
+      download: async (url, file, duration, c) => {
+        if (downloadFail) throw Error("private download error");
+        await downloadValidatedOutput(
+          url,
+          file,
+          duration,
+          c,
+          async () => new Response(await readFile("public/media/demo.mp4")),
+        );
+      },
+    });
+  const service = factory();
+  const selection: StudioDraftExport = {
+    version: 1,
+    owner,
+    songId: "song",
+    imageId: "singer",
+    start: 0,
+    end: 10,
+    performance: "Natural",
+    camera: "Static Close-Up",
+    customPrompt: `Sing softly. ${randomUUID()}`,
+  };
+  const plan = await service.prepare(selection, owner, "Singer", true, true);
+  const submit = () =>
+    service.submit(
+      plan.id,
+      owner,
+      plan.digest,
+      plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`,
+    );
+  return {
+    store,
+    service,
+    factory,
+    selection,
+    plan,
+    submit,
+    setMode: (v: string) => {
+      mode = v;
+    },
+    failDownload: (v: boolean) => {
+      downloadFail = v;
+    },
+    counts: () => ({ submits, polls }),
+  };
+}
+test("pilot disabled by default and incomplete/replayed policy cannot price", () => {
+  assert.throws(() => studioGate(studioConfig({})), /server enablement/);
+  assert.equal(validateStudioPolicy(policy).contract.model, "OmniHuman 2.0");
+  for (const p of [
+    { ...policy, billingEvidence: "" },
+    { ...policy, expiresAt: "2000-01-01" },
+    {
+      ...policy,
+      contract: { ...policy.contract, outputHosts: ["*.example.test"] },
+    },
+    {
+      ...policy,
+      contract: { ...policy.contract, generatedDurationBound: null },
+    },
+    {
+      ...policy,
+      contract: {
+        ...policy.contract,
+        billing: { ...policy.contract.billing, taxBasisPointsUpperBound: null },
+      },
+    },
+  ])
+    assert.throws(() => validateStudioPolicy(p), StudioLiveError);
+});
+test("real WAV trim, immutable owned image/MP3, prompts, review and duplicate prevention", async () => {
+  const f = await fixture();
+  assert.ok(f.plan.durationSeconds >= 10 && f.plan.durationSeconds < 10.2);
+  assert.match(f.plan.prompt, /Sing softly/);
+  assert.ok(f.plan.ceilingMicroUsd! >= 770000);
+  assert.equal(
+    (await f.service.prepare(f.selection, owner, "Singer", true, true)).id,
+    f.plan.id,
+  );
+  assert.throws(() => f.service.view(f.plan.id, "other"), /not found/);
+  assert.throws(() => f.service.view("unknown", owner), /not found/);
+  await assert.rejects(
+    f.service.prepare(
+      { ...f.selection, start: 0, end: 3 },
+      owner,
+      "Singer",
+      true,
+      true,
+    ),
+    /at least 4/,
+  );
+  await assert.rejects(
+    f.service.prepare(f.selection, owner, "Singer", false, true),
+    /rights/,
+  );
+  await assert.rejects(
+    f.service.submit(f.plan.id, owner, f.plan.digest, 1, "wrong"),
+    /spending ceiling differs/,
+  );
+  await Promise.allSettled([f.submit(), f.submit()]);
+  assert.equal(f.counts().submits, 1);
+  await f.submit();
+  assert.equal(f.counts().submits, 1);
+  assert.equal(f.store.firstTest(), undefined);
+  assert.equal(f.store.secondTest(), undefined);
+  const persisted = f.factory().view(f.plan.id, owner);
+  assert.equal(persisted.state, "submitted");
+  assert.ok(!JSON.stringify(persisted).includes(root));
+  assert.ok(!JSON.stringify(persisted).includes("signed="));
+});
+test("historical cumulative reservations do not block private Studio or consume customer credits", async () => {
+  const f = await fixture();
+  const before = db.balance(owner);
+  const previous = f.store.prepare(
+    { ...f.store.get(f.plan.id).media, sourceJobId: "original-operator-task" },
+    "original-review",
+    1500000,
+  );
+  f.store.claimFirstTest(previous.id, "original-digest");
+  f.store.recordFirstTestResult(previous.id, {
+    taskId: "existing-successful-task",
+    outputPath: "private-preserved.mp4",
+  });
+  const oldSlot = f.store.firstTest(),
+    oldResult = f.store.firstTestResult(previous.id);
+  f.store.db
+    .prepare("UPDATE live_attempts SET reserved_micro_usd=? WHERE id=?")
+    .run(1500000, previous.id);
+  await f.submit();
+  assert.equal(f.counts().submits, 1);
+  assert.equal(db.balance(owner), before);
+  assert.deepEqual(f.store.firstTest(), oldSlot);
+  assert.deepEqual(f.store.firstTestResult(previous.id), oldResult);
+});
+test("provider errors retain task and reservation; completed output retries securely without resubmission", async () => {
+  const f = await fixture();
+  await f.submit();
+  f.setMode("error");
+  const error = await f.service.poll(f.plan.id, owner);
+  assert.match(error.stage, /50510/);
+  assert.equal(error.state, "submitted");
+  f.setMode("complete");
+  f.failDownload(true);
+  const retry = await f.service.poll(f.plan.id, owner);
+  assert.equal(retry.state, "processing");
+  assert.match(retry.stage, /OUTPUT_DOWNLOAD/);
+  const count = f.counts().polls;
+  f.failDownload(false);
+  const completed = await f.factory().poll(f.plan.id, owner);
+  assert.equal(completed.state, "completed");
+  assert.equal(f.counts().polls, count);
+  assert.equal(f.counts().submits, 1);
+  assert.ok((await stat(await f.service.output(f.plan.id, owner))).size > 0);
+  await assert.rejects(f.service.output(f.plan.id, "other"), /not found/);
+  assert.ok(!JSON.stringify(completed).includes("signed="));
+});
+test("uncertain submission never retries, failed task never restores a reservation", async () => {
+  for (const mode of ["uncertain", "failed"]) {
+    const f = await fixture();
+    f.setMode(mode);
+    await f.submit();
+    await f.service.poll(f.plan.id, owner);
+    await f.submit();
+    assert.equal(f.counts().submits, 1);
+    assert.equal(f.service.view(f.plan.id, owner).state, mode);
+    assert.equal(
+      (
+        f.store.db
+          .prepare(
+            "SELECT reserved_micro_usd AS n FROM live_attempts WHERE id=?",
+          )
+          .get(f.plan.id) as { n: number }
+      ).n,
+      f.plan.ceilingMicroUsd,
+    );
+  }
+});
+
+test("operator authorization allows listed editors and rejects anonymous, customers, unlisted staff and forged Origin", async () => {
+  const { studioStaff } = await import("../cms/studio-access.ts");
+  const env = {
+    CMS_ENABLED: "true",
+    CMS_ORIGIN: "https://staging.example.test",
+    BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS: "17",
+  };
+  const headers = new Headers({ origin: env.CMS_ORIGIN });
+  const admin = { id: 17, collection: "staff", role: "super-admin" };
+  assert.equal(studioStaff(admin, "POST", headers, env), "cms-staff-17");
+  assert.equal(
+    studioStaff({ ...admin, role: "editor" }, "POST", headers, env),
+    "cms-staff-17",
+  );
+  for (const user of [
+    null,
+    { ...admin, collection: "customers", role: "editor" },
+    { ...admin, role: "support" },
+    { ...admin, role: "customer" },
+    { ...admin, id: 18 },
+  ])
+    assert.throws(() => studioStaff(user, "POST", headers, env));
+  assert.throws(() =>
+    studioStaff(
+      admin,
+      "POST",
+      new Headers({
+        origin: "https://evil.test",
+        "x-forwarded-host": "staging.example.test",
+      }),
+      env,
+    ),
+  );
+  assert.throws(() => studioStaff(admin, "POST", new Headers(), env));
+});
+
+test("policy changes and tampered immutable media block submission before any provider call", async () => {
+  const f = await fixture();
+  const changed = structuredClone(policy);
+  changed.contract.revision = "changed";
+  const service = new StudioWorkflow(f.store, root, config, {
+    ...f.service.dependencies,
+    policy: async () => changed,
+  });
+  await assert.rejects(
+    service.submit(
+      f.plan.id,
+      owner,
+      f.plan.digest,
+      f.plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${f.plan.id} ${f.plan.digest} ${f.plan.ceilingMicroUsd}`,
+    ),
+    /Click Review real video cost again/,
+  );
+  const { appendFile } = await import("node:fs/promises");
+  await appendFile(
+    f.store.get(f.plan.id).media.imagePath,
+    Buffer.from("tampered"),
+  );
+  await assert.rejects(f.submit(), /changed after review/);
+  assert.equal(f.counts().submits, 0);
+});
+test("stored project policy permits read-only recovery after new submissions are disabled", async () => {
+  const f = await fixture();
+  await f.submit();
+  f.setMode("complete");
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, enabled: false, maxJobMicroUsd: 1, maxTotalMicroUsd: 1 },
+    f.service.dependencies,
+  );
+  await assert.rejects(
+    service.submit(
+      f.plan.id,
+      owner,
+      f.plan.digest,
+      f.plan.ceilingMicroUsd,
+      "anything",
+    ),
+    /server enablement/,
+  );
+  assert.equal((await service.poll(f.plan.id, owner)).state, "completed");
+  assert.equal(f.counts().submits, 1);
+});
+
+test("public diagnostics classify budget and media constraints without private error data", async () => {
+  const { studioDiagnostic } = await import("../lib/live/studio-policy.ts");
+  assert.equal(
+    studioDiagnostic(new Error("Total live-test spending cap exceeded.")).code,
+    "TOTAL_BUDGET_EXCEEDED",
+  );
+  assert.equal(
+    studioDiagnostic(
+      new Error("Audio exceeds documented OmniHuman 2.0 audio limits."),
+    ).code,
+    "AUDIO_LIMIT",
+  );
+  assert.ok(
+    !studioDiagnostic(
+      new Error("secret AK https://private.test/?signed=secret /private/path"),
+    ).message.includes("secret"),
+  );
+});
+
+test("independent projects submit concurrently while each request remains idempotent after uncertainty", async () => {
+  const f = await fixture();
+  const key = randomUUID();
+  const second = await f.service.prepare(
+    f.selection,
+    owner,
+    "Singer",
+    true,
+    true,
+    undefined,
+    key,
+  );
+  assert.notEqual(second.id, f.plan.id);
+  assert.equal(
+    (
+      await f.service.prepare(
+        f.selection,
+        owner,
+        "Singer",
+        true,
+        true,
+        undefined,
+        key,
+      )
+    ).id,
+    second.id,
+  );
+  const startSecond = () =>
+    f.service.submit(
+      second.id,
+      owner,
+      second.digest,
+      second.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${second.id} ${second.digest} ${second.ceilingMicroUsd}`,
+    );
+  await Promise.all([f.submit(), startSecond()]);
+  assert.equal(f.counts().submits, 2);
+  f.store.db
+    .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+    .run(
+      JSON.stringify({ ...f.store.get(f.plan.id), state: "uncertain" }),
+      f.plan.id,
+    );
+  await Promise.all([f.submit(), startSecond()]);
+  assert.equal(f.counts().submits, 2);
+  const third = await f.service.prepare(
+    f.selection,
+    owner,
+    "Singer",
+    true,
+    true,
+    undefined,
+    randomUUID(),
+  );
+  await f.service.submit(
+    third.id,
+    owner,
+    third.digest,
+    third.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${third.id} ${third.digest} ${third.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 3);
+  assert.equal(f.store.get(f.plan.id).state, "uncertain");
+  await assert.rejects(
+    f.service.prepare(
+      f.selection,
+      owner,
+      "Singer",
+      true,
+      true,
+      undefined,
+      "bad",
+    ),
+    /identifier/,
+  );
+});
+test("explicit sequential repeats have no task-count limit and keep all reservations", async () => {
+  const f = await fixture();
+  f.setMode("complete");
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    f.service.dependencies,
+  );
+  let plan = f.plan;
+  for (let i = 0; i < 3; i++) {
+    await service.submit(
+      plan.id,
+      owner,
+      plan.digest,
+      plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`,
+    );
+    await service.poll(plan.id, owner);
+    assert.equal(f.store.get(plan.id).state, "completed");
+    const previous = plan;
+    plan = await service.prepare(
+      f.selection,
+      owner,
+      "Singer",
+      true,
+      true,
+      previous.id,
+    );
+    assert.notEqual(plan.id, previous.id);
+    assert.equal(
+      (
+        await service.prepare(
+          f.selection,
+          owner,
+          "Singer",
+          true,
+          true,
+          previous.id,
+        )
+      ).id,
+      plan.id,
+    );
+  }
+  assert.equal(f.counts().submits, 3);
+  assert.equal(
+    (
+      f.store.db
+        .prepare("SELECT SUM(reserved_micro_usd) AS n FROM live_attempts")
+        .get() as { n: number }
+    ).n,
+    3 * f.plan.ceilingMicroUsd!,
+  );
+  assert.equal(plan.budget, null);
+});
+test("reviewed duration bands select measured duration without extrapolation", async () => {
+  const { selectStudioPolicy } = await import("../lib/live/studio-policy.ts");
+  const short = structuredClone(policy);
+  short.contract.maxDurationSeconds = 5;
+  short.contract.generatedDurationBound!.maxInputSeconds = 5;
+  const long = structuredClone(policy);
+  long.contract.maxDurationSeconds = 60;
+  long.contract.generatedDurationBound = {
+    minInputSeconds: 5,
+    maxInputSeconds: 60,
+    maxAdditionalSeconds: 2,
+    evidence: "Mock explicit range envelope, not BytePlus evidence",
+  };
+  long.contract.pilotAdmission = {
+    inclusiveMaxMicroUsd: 6000000,
+    maxGeneratedSeconds: 62,
+    planningUpliftBasisPoints: 1900,
+    durationEvidence: "Mock reviewed 5–60s duration-dependent bound",
+    evidence: "Mock separate inclusive fees/charge ceiling",
+  };
+  long.contract.billing = {
+    microUsdPerSecond: 70000,
+    minimumBillableMs: null,
+    billingQuantumMs: null,
+    minimumChargeMicroUsd: null,
+    fixedFeeMicroUsd: null,
+    taxBasisPointsUpperBound: null,
+  };
+  long.contract.output.maxDurationSeconds = 62;
+  long.contract.output.transfer = {
+    maxBytes: 128 * 1024 * 1024,
+    timeoutMs: 150000,
+    evidence: "Mock output-size/transfer acceptance evidence",
+  };
+  assert.throws(() => selectStudioPolicy(short, 30), /No reviewed/);
+  const bundle = { ...short, durationBands: [long] };
+  validateStudioPolicy(bundle);
+  assert.equal(
+    selectStudioPolicy(bundle, 4.872).contract.maxDurationSeconds,
+    5,
+  );
+  assert.equal(
+    selectStudioPolicy(bundle, 60).contract.pilotAdmission!
+      .inclusiveMaxMicroUsd,
+    6000000,
+  );
+  assert.throws(() => selectStudioPolicy(bundle, 60.001), /No reviewed/);
+  const bad = structuredClone(bundle);
+  delete bad.durationBands[0].contract.pilotAdmission!.durationEvidence;
+  assert.throws(() => validateStudioPolicy(bad));
+  const expired = structuredClone(bundle);
+  expired.durationBands[0].expiresAt = "2000-01-01";
+  assert.throws(() => validateStudioPolicy(expired));
+});
+
+test("historical EUR ceiling does not block private Studio; legacy approvals retain their original guard", async () => {
+  const f = await fixture();
+  const proof = policy.eurBudget!;
+  const previous = f.store.prepare(
+    { ...f.store.get(f.plan.id).media, sourceJobId: "prior-reservation" },
+    "prior",
+    48500000,
+  );
+  f.store.db
+    .prepare("UPDATE live_attempts SET reserved_micro_usd=? WHERE id=?")
+    .run(48500000, previous.id);
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    f.service.dependencies,
+  );
+  await service.submit(
+    f.plan.id,
+    owner,
+    f.plan.digest,
+    f.plan.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${f.plan.id} ${f.plan.digest} ${f.plan.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 1);
+  const g = await fixture();
+  await g.submit();
+  const legacy = g.store.prepare(
+    { ...g.store.get(g.plan.id).media, sourceJobId: "legacy-operator" },
+    "legacy",
+    100000,
+  );
+  await assert.rejects(
+    async () =>
+      g.store.authorize(
+        legacy.id,
+        { ...config, eurBudget: proof },
+        config.operatorSecret,
+        `AUTHORIZE ONE PAID BYTEPLUS TEST ${legacy.id} UP TO 100000 MICROUSD`,
+      ),
+    /ONE_ACTIVE_GENERATION/,
+  );
+});
+
+test("longer WAV selection uses actual encoded MP3 duration and never submits during review", async () => {
+  const f = await fixture(),
+    audio = path.join(root, "media", randomUUID() + ".wav");
+  execFileSync("ffmpeg", [
+    "-nostdin",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:duration=61",
+    audio,
+  ]);
+  const id = randomUUID();
+  db.putAsset({
+    id,
+    owner,
+    kind: "audio",
+    path: audio,
+    mime: "audio/wav",
+    name: "long.wav",
+    bytes: (await stat(audio)).size,
+    duration: 61,
+    width: null,
+    height: null,
+    created: Date.now(),
+  });
+  const long = structuredClone(policy);
+  long.contract.maxDurationSeconds = 60;
+  long.contract.generatedDurationBound = {
+    minInputSeconds: 4,
+    maxInputSeconds: 60,
+    maxAdditionalSeconds: 2,
+    evidence: "Mock reviewed generated-duration envelope",
+  };
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxJobMicroUsd: 10000000 },
+    { ...f.service.dependencies, policy: async () => long },
+  );
+  const plan = await service.prepare(
+    { ...f.selection, songId: id, end: 59.8 },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  assert.ok(plan.durationSeconds >= 59.8 && plan.durationSeconds <= 60);
+  assert.ok(plan.ceilingMicroUsd! > 4000000);
+  assert.equal(f.counts().submits, 0);
+  await assert.rejects(
+    service.prepare(
+      { ...f.selection, songId: id, end: 60.1 },
+      owner,
+      "Singer",
+      true,
+      true,
+    ),
+  );
+});
+
+test("hidden active projects retain reservations, ownership and recovery", async () => {
+  const f = await fixture();
+  await f.submit();
+  const before = f.store.get(f.plan.id);
+  assert.throws(
+    () => f.service.hide(f.plan.id, "other", "staff", `HIDE ${f.plan.id}`),
+    /not found/,
+  );
+  assert.throws(() => f.service.hide(f.plan.id, owner, "staff", ""), /Confirm/);
+  f.service.hide(f.plan.id, owner, "staff", `HIDE ${f.plan.id}`);
+  f.service.hide(f.plan.id, owner, "staff", `HIDE ${f.plan.id}`);
+  assert.equal(f.service.list(owner).length, 0);
+  assert.equal(f.service.view(f.plan.id, owner).hidden, true);
+  assert.deepEqual(f.store.get(f.plan.id), before);
+  const next = await f.service.prepare(
+    { ...f.selection, customPrompt: "Another explicitly reviewed draft" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await f.service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
+  );
+
+  assert.equal(
+    f.store.db.prepare("SELECT COUNT(*) AS n FROM live_studio_actions").get()!
+      .n,
+    1,
+  );
+  f.setMode("error");
+  await f.service.poll(f.plan.id, owner);
+  assert.ok(["submitted", "processing"].includes(f.store.get(f.plan.id).state));
+  assert.equal(f.counts().submits, 2);
+});
+
+test("terminal reconciliation requires exact verified evidence and fences poll races without refund", async () => {
+  const f = await fixture();
+  await f.submit();
+  const id = f.plan.id,
+    taskId = f.store.get(id).providerJobId;
+  const reserved = () =>
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(id);
+  const before = reserved();
+  const evidence = {
+    taskId,
+    outcome: "rejected",
+    reference: "support-case-123",
+    sha256: "a".repeat(64),
+    verified: true,
+    confirmation: `RECONCILE ${id} ${taskId}`,
+  };
+  assert.throws(
+    () => f.service.reconcile(id, "other", "staff", evidence),
+    /not found/,
+  );
+  for (const invalid of [
+    null,
+    { ...evidence, verified: false },
+    { ...evidence, taskId: "wrong" },
+    { ...evidence, sha256: "" },
+  ])
+    assert.throws(
+      () => f.service.reconcile(id, owner, "staff", invalid),
+      /Verify provider evidence/,
+    );
+  const lease = f.store.claimPoll(id);
+  assert.throws(
+    () => f.service.reconcile(id, owner, "staff", evidence),
+    /poll is in progress/,
+  );
+  assert.equal(
+    f.store.db.prepare("SELECT COUNT(*) AS n FROM live_studio_actions").get()!
+      .n,
+    0,
+  );
+  f.store.releasePoll(id, lease);
+  f.service.reconcile(id, owner, "staff", evidence);
+  assert.equal(f.store.get(id).state, "failed");
+  assert.equal(f.store.get(id).providerJobId, taskId);
+  assert.deepEqual(reserved(), before);
+  assert.throws(
+    () => f.store.transition(id, "processing"),
+    /Cannot transition/,
+  );
+  await f.service.poll(id, owner);
+  assert.equal(f.counts().submits, 1);
+  f.service.hide(id, owner, "staff", `HIDE ${id}`);
+  assert.equal(f.service.list(owner).length, 0);
+  assert.deepEqual(reserved(), before);
+});
+
+test("fresh test checks hidden tasks, retains 50510 lock and releases only verified terminal outcomes", async () => {
+  const f = await fixture();
+  await f.submit();
+  f.service.hide(f.plan.id, owner, "staff", `HIDE ${f.plan.id}`);
+  const reservation = () =>
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.plan.id);
+  const before = reservation();
+  f.setMode("error");
+  const blocked = await f.service.freshTest(owner);
+  assert.equal(blocked.ready, false);
+  assert.equal(blocked.blockers[0].projectId, f.plan.id);
+  assert.match(blocked.blockers[0].message, /50510/);
+  assert.deepEqual(reservation(), before);
+  f.setMode("failed");
+  const ready = await f.service.freshTest(owner);
+  assert.equal(ready.ready, true);
+  assert.equal(f.store.get(f.plan.id).state, "failed");
+  assert.deepEqual(reservation(), before);
+  assert.equal(f.service.list(owner).length, 0);
+  assert.equal(f.counts().submits, 1);
+});
+
+test("fresh test never polls foreign or uncertain tasks or exposes their IDs", async () => {
+  const f = await fixture();
+  f.setMode("uncertain");
+  await f.submit();
+  const count = f.counts();
+  const result = await f.service.freshTest(owner);
+  assert.equal(result.ready, false);
+  assert.equal(result.blockers[0].projectId, f.plan.id);
+  const foreign = await f.service.freshTest("another-owner");
+  assert.equal(foreign.ready, false);
+  assert.equal(foreign.blockers[0].projectId, null);
+  assert.ok(!JSON.stringify(foreign).includes(f.plan.id));
+  assert.deepEqual(f.counts(), count);
+});
+
+test("task-bound 50510 protocol evidence atomically rejects without releasing reservation", async () => {
+  const f = await fixture("176942047");
+  await f.submit();
+  f.setMode("proven-rejection");
+  const before = f.store.db
+    .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+    .get(f.plan.id);
+  const result = await f.service.freshTest(owner);
+  assert.equal(result.ready, true);
+  assert.equal(f.store.get(f.plan.id).state, "failed");
+  assert.equal(
+    f.store.get(f.plan.id).failureCode,
+    "CONTENT_PREFILTER_REJECTED",
+  );
+  assert.deepEqual(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.plan.id),
+    before,
+  );
+  const audit = f.store.db
+    .prepare(
+      "SELECT evidence FROM live_studio_actions WHERE attempt_id=? AND action='provider-terminal-rejection'",
+    )
+    .get(f.plan.id)!;
+  const evidence = JSON.parse(String(audit.evidence));
+  assert.equal(evidence.taskId, "176942047");
+  assert.match(evidence.responseSha256, /^[a-f0-9]{64}$/);
+  assert.equal(f.counts().submits, 1);
+});
+
+test("historical exception remains readable while independent Studio tasks run concurrently", async () => {
+  const f = await fixture("176942047");
+  await f.submit();
+  f.setMode("error");
+  await f.service.poll(f.plan.id, owner);
+  const before = f.store.get(f.plan.id);
+  const phrase = `ACCEPT OVERLAPPING BILLING ${f.plan.id} 176942047`;
+  assert.throws(
+    () => f.service.acknowledgePrivateRisk(f.plan.id, "other", "staff", phrase),
+    /not found/,
+  );
+  assert.throws(
+    () => f.service.acknowledgePrivateRisk(f.plan.id, owner, "staff", ""),
+    /Explicitly/,
+  );
+  f.service.acknowledgePrivateRisk(f.plan.id, owner, "staff", phrase);
+  f.service.acknowledgePrivateRisk(f.plan.id, owner, "staff", phrase);
+  assert.deepEqual(f.store.get(f.plan.id), before);
+  assert.equal(
+    f.store.db
+      .prepare("SELECT COUNT(*) AS n FROM live_private_exceptions")
+      .get()!.n,
+    1,
+  );
+  const readiness = await f.service.freshTest(owner);
+  assert.equal(readiness.ready, true);
+  assert.equal(readiness.exceptionExposure, true);
+  assert.equal((await f.service.freshTest("other")).ready, false);
+  const next = await f.service.prepare(
+    { ...f.selection, customPrompt: "New reviewed inputs" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  f.setMode("pending");
+  await f.service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 2);
+  assert.equal((await f.service.freshTest(owner)).ready, false);
+  const third = await f.service.prepare(
+    { ...f.selection, customPrompt: "Third selection" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await f.service.submit(
+    third.id,
+    owner,
+    third.digest,
+    third.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${third.id} ${third.digest} ${third.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 3);
+});
+
+test("private exception cannot apply to another provider task", async () => {
+  const f = await fixture();
+  await f.submit();
+  assert.throws(
+    () =>
+      f.service.acknowledgePrivateRisk(
+        f.plan.id,
+        owner,
+        "staff",
+        `ACCEPT OVERLAPPING BILLING ${f.plan.id} 176942047`,
+      ),
+    /Explicitly/,
+  );
+});
+
+async function historicalOperator() {
+  const f = await fixture("1660608639");
+  await f.submit();
+  f.store.db
+    .prepare(
+      "INSERT INTO live_first_test (slot,attempt_id,digest,claimed_at) VALUES (1,?,?,?)",
+    )
+    .run(f.plan.id, f.plan.digest!, Date.now());
+  f.store.db
+    .prepare("DELETE FROM live_studio_projects WHERE attempt_id=?")
+    .run(f.plan.id);
+  return f;
+}
+
+test("Super Admin sees exact historical operator blocker and retained 50510 evidence reconciles atomically", async () => {
+  const f = await historicalOperator();
+  const old = f.store.get(f.plan.id);
+  const before = f.store.db
+    .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+    .get(f.plan.id);
+  const blocked = await f.service.freshTest(owner, "super-admin");
+  assert.equal(blocked.blockers[0].taskId, "1660608639");
+  assert.equal(blocked.blockers[0].state, old.state);
+  assert.equal(blocked.blockers[0].workflow, "operator");
+  assert.equal(blocked.blockers[0].canAcknowledge, true);
+  assert.equal(
+    (await f.service.freshTest("other")).blockers[0].taskId,
+    undefined,
+  );
+  const result = {
+    taskId: "1660608639",
+    readFailed: true,
+    sanitizedResult: { code: 50510 },
+  };
+  f.store.recordFirstTestResult(f.plan.id, result);
+  const lease = f.store.claimPoll(f.plan.id);
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
+  f.store.releasePoll(f.plan.id, lease);
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, true);
+  assert.equal(f.store.get(f.plan.id).state, "failed");
+  assert.deepEqual(f.store.firstTestResult(f.plan.id)!.result, result);
+  assert.deepEqual(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(f.plan.id),
+    before,
+  );
+  assert.equal(
+    f.store.db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM live_studio_actions WHERE action='retained-operator-rejection'",
+      )
+      .get()!.n,
+    1,
+  );
+  assert.equal(f.counts().submits, 1);
+});
+
+test("mismatched operator evidence stays unresolved; exact explicit exception enables only private Studio admission", async () => {
+  const f = await historicalOperator();
+  f.store.recordFirstTestResult(f.plan.id, {
+    taskId: "wrong",
+    readFailed: true,
+    sanitizedResult: { code: 50510 },
+  });
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
+  const prior = f.store.get(f.plan.id);
+  const phrase = `ACCEPT OVERLAPPING BILLING ${f.plan.id} 1660608639`;
+  assert.throws(
+    () => f.service.acknowledgeOperatorRisk(f.plan.id, owner, "", phrase),
+    /Confirm/,
+  );
+  assert.throws(
+    () =>
+      f.service.acknowledgeOperatorRisk(
+        f.plan.id,
+        owner,
+        "super-admin",
+        "wrong",
+      ),
+    /Confirm/,
+  );
+  f.service.acknowledgeOperatorRisk(f.plan.id, owner, "super-admin", phrase);
+  assert.deepEqual(f.store.get(f.plan.id), prior);
+  const ready = await f.service.freshTest(owner, "super-admin");
+  assert.equal(ready.ready, true);
+  assert.equal(ready.exceptionExposure, true);
+  assert.equal(
+    (await f.service.freshTest("other", "super-admin")).ready,
+    false,
+  );
+  const next = await f.service.prepare(
+    { ...f.selection, customPrompt: "A separately reviewed test" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await f.service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd}`,
+  );
+  assert.equal(f.counts().submits, 2);
+  assert.equal((await f.service.freshTest(owner, "super-admin")).ready, false);
+});
+
+test("experimental Studio needs distinct paid confirmation and retains finite cumulative reservations", async () => {
+  const { reviewedDurationBand } =
+    await import("../lib/live/studio-duration-admin.ts");
+  const f = await fixture();
+  const p = reviewedDurationBand(
+    {
+      reviewMode: "experimental",
+      experimental: {
+        kind: "operator-planning-v1",
+        unknownDurationAccepted: true,
+        unknownFeesAccepted: true,
+        unknownMediaAccepted: true,
+        hostEvidence: "MOCK exact host approval; not a newly assumed hostname.",
+      },
+      minInputSeconds: 5,
+      maxInputSeconds: 15,
+      maxGeneratedSeconds: 16,
+      ceilingUsd: 1.5,
+      billingEvidence:
+        "Operator planning reservation; actual fees are unknown.",
+      durationEvidence: "Operator validation cap; actual duration is unknown.",
+      outputEvidence:
+        "Operator media acceptance limits; actual media is unknown.",
+      transferEvidence:
+        "Operator transfer limits; oversized outputs are rejected.",
+      maxBytes: 10000000,
+      timeoutSeconds: 120,
+      hosts: "output.example.test",
+      width: 1280,
+      height: 720,
+      fps: 25,
+      videoCodec: "h264",
+      audioCodec: "aac",
+      toleranceSeconds: 2,
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    },
+    "staff",
+    policy,
+  );
+  p.eurBudget = policy.eurBudget;
+  let submits = 0;
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxJobMicroUsd: 2000000 },
+    {
+      policy: async () => p,
+      provider: () => ({
+        contract: p.contract,
+        submit: async () => {
+          submits++;
+          return { jobId: "experimental-mock" };
+        },
+        poll: async () => ({ state: "failed" as const }),
+      }),
+    },
+  );
+  const plan = await service.prepare(
+    { ...f.selection, customPrompt: "Experimental review" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  const phrase = `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`;
+  assert.equal(plan.experimental, true);
+  await assert.rejects(
+    service.submit(plan.id, owner, plan.digest, plan.ceilingMicroUsd, phrase),
+    /Confirm/,
+  );
+  assert.equal(submits, 0);
+  await service.submit(
+    plan.id,
+    owner,
+    plan.digest,
+    plan.ceilingMicroUsd,
+    phrase + " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA",
+  );
+  await service.poll(plan.id, owner);
+  const next = await service.prepare(
+    { ...f.selection, customPrompt: "Another experimental review" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  await service.submit(
+    next.id,
+    owner,
+    next.digest,
+    next.ceilingMicroUsd,
+    `CONFIRM PAID STUDIO ${next.id} ${next.digest} ${next.ceilingMicroUsd} ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA`,
+  );
+  assert.equal(submits, 2);
+  assert.equal(service.budget(p).reservedMicroUsd, 3000000);
+});
+
+test("changed experimental 5–15s review creates a new idempotent unapproved project and never reuses stale authorization", async () => {
+  const f = await fixture();
+  const { reviewedDurationBand } =
+    await import("../lib/live/studio-duration-admin.ts");
+  const audio = path.join(root, "media", randomUUID() + ".wav");
+  execFileSync("ffmpeg", [
+    "-nostdin",
+    "-v",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "sine=frequency=440:duration=14",
+    audio,
+  ]);
+  const songId = randomUUID();
+  db.putAsset({
+    id: songId,
+    owner,
+    kind: "audio",
+    path: audio,
+    mime: "audio/wav",
+    name: "clip.wav",
+    bytes: (await stat(audio)).size,
+    duration: 14,
+    width: null,
+    height: null,
+    created: Date.now(),
+  });
+  const short = structuredClone(policy);
+  short.contract.maxDurationSeconds = 5;
+  short.contract.generatedDurationBound!.maxInputSeconds = 5;
+  let band = reviewedDurationBand(
+    {
+      reviewMode: "experimental",
+      experimental: {
+        kind: "operator-planning-v1",
+        unknownDurationAccepted: true,
+        unknownFeesAccepted: true,
+        unknownMediaAccepted: true,
+        hostEvidence: "Mock approval for the exact existing output hostname.",
+      },
+      minInputSeconds: 5,
+      maxInputSeconds: 15,
+      maxGeneratedSeconds: 16,
+      ceilingUsd: 1.5,
+      billingEvidence:
+        "Operator planning allowance; actual fees remain unknown.",
+      durationEvidence:
+        "Operator validation cap; actual duration remains unknown.",
+      outputEvidence:
+        "Operator media acceptance limits; actual output is unknown.",
+      transferEvidence:
+        "Operator finite byte and timeout limits for validation.",
+      maxBytes: 10000000,
+      timeoutSeconds: 120,
+      hosts: "output.example.test",
+      width: 1280,
+      height: 720,
+      fps: 25,
+      videoCodec: "h264",
+      audioCodec: "aac",
+      toleranceSeconds: 2,
+      expiresAt: new Date(Date.now() + 86400000).toISOString(),
+    },
+    "staff",
+    short,
+  );
+  let submits = 0;
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxJobMicroUsd: 2000000 },
+    {
+      policy: async () => ({ ...short, durationBands: [band] }),
+      provider: (p) => ({
+        contract: p.contract,
+        submit: async () => {
+          submits++;
+          return { jobId: "mock-reviewed" };
+        },
+        poll: async () => ({ state: "pending" as const }),
+      }),
+    },
+  );
+  const selection = { ...f.selection, songId, end: 12.384 };
+  const first = await service.prepare(selection, owner, "Singer", true, true);
+  assert.ok(first.durationSeconds >= 12.384 && first.durationSeconds < 12.5);
+  assert.equal(first.experimental, true);
+  const original = f.store.get(first.id);
+  band = structuredClone(band);
+  band.contract.revision += "-reviewed-again";
+  band.contract.pilotAdmission!.inclusiveMaxMicroUsd = 1700000;
+  const phrase = (p: typeof first) =>
+    `CONFIRM PAID STUDIO ${p.id} ${p.digest} ${p.ceilingMicroUsd} ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA`;
+  await assert.rejects(
+    service.submit(
+      first.id,
+      owner,
+      first.digest,
+      first.ceilingMicroUsd,
+      phrase(first),
+    ),
+    /Click Review real video cost again/,
+  );
+  let fresh = await service.prepare(selection, owner, "Singer", true, true);
+  assert.notEqual(fresh.id, first.id);
+  assert.equal(fresh.ceilingMicroUsd, 1700000);
+  assert.equal(fresh.state, "prepared");
+  assert.equal(
+    (await service.prepare(selection, owner, "Singer", true, true)).id,
+    fresh.id,
+  );
+  assert.deepEqual(f.store.get(first.id), original);
+  assert.equal(submits, 0);
+  const priorFresh = f.store.get(fresh.id);
+  band.expiresAt = new Date(Date.parse(band.expiresAt) + 3600000).toISOString();
+  const renewed = await service.prepare(selection, owner, "Singer", true, true);
+  assert.notEqual(renewed.id, fresh.id);
+  assert.equal(renewed.digest, fresh.digest);
+  assert.deepEqual(f.store.get(fresh.id), priorFresh);
+  fresh = renewed;
+
+  await assert.rejects(
+    service.submit(
+      fresh.id,
+      owner,
+      first.digest,
+      fresh.ceilingMicroUsd,
+      phrase(fresh),
+    ),
+    /digest is stale/,
+  );
+  await assert.rejects(
+    service.submit(
+      fresh.id,
+      owner,
+      fresh.digest,
+      first.ceilingMicroUsd,
+      phrase(fresh),
+    ),
+    /spending ceiling differs/,
+  );
+  await service.submit(
+    fresh.id,
+    owner,
+    fresh.digest,
+    fresh.ceilingMicroUsd,
+    phrase(fresh),
+  );
+  assert.equal(submits, 1);
+  band.contract.revision += "-after-submit";
+  assert.equal(
+    (await service.prepare(selection, owner, "Singer", true, true)).id,
+    fresh.id,
+  );
+  assert.equal(f.store.get(first.id).state, "prepared");
+  assert.equal(
+    service.budget({ ...short, durationBands: [band] }).reservedMicroUsd,
+    1700000,
+  );
+});
+
+test("flag-only tempo projects run success, success, rejection, then new recording without restart or reservation reset", async () => {
+  const f = await fixture();
+  process.env.AUDIO_TEMPO_ENABLED = "true";
+  let submits = 0;
+  const submittedDurations: number[] = [];
+  const dependencies = {
+    ...f.service.dependencies,
+    provider: (p: StudioPolicy) => ({
+      contract: p.contract,
+      submit: async (media: import("../lib/live/store.ts").PreparedMedia) => {
+        assert.ok(media.tempo);
+        submittedDurations.push(media.durationSeconds);
+        return { jobId: `tempo-sequential-${++submits}` };
+      },
+      poll: async (id: string) =>
+        id === "tempo-sequential-3"
+          ? { state: "failed" as const }
+          : {
+              state: "completed" as const,
+              outputUrl: "https://output.example.test/mock",
+            },
+    }),
+    download: async (_url: string, file: string, duration: number) => {
+      execFileSync("ffmpeg", [
+        "-nostdin",
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        "color=black:s=1280x720:r=25",
+        "-f",
+        "lavfi",
+        "-i",
+        "sine=frequency=330",
+        "-t",
+        String(duration),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "ultrafast",
+        "-c:a",
+        "aac",
+        file,
+      ]);
+    },
+  };
+  const makeService = () =>
+    new StudioWorkflow(
+      f.store,
+      root,
+      { ...config, maxTotalMicroUsd: 50000000 },
+      dependencies,
+    );
+  let reserved = 0;
+  try {
+    for (let i = 0; i < 4; i++) {
+      let songId = "song";
+      if (i === 3) {
+        // A rejected recording is NOT retried at another tempo or reuploaded to evade moderation.
+        songId = "independent-new-recording";
+        const file = path.join(root, "media", "independent.wav");
+        execFileSync("ffmpeg", [
+          "-nostdin",
+          "-v",
+          "error",
+          "-f",
+          "lavfi",
+          "-i",
+          "sine=frequency=660:duration=8",
+          file,
+        ]);
+        db.putAsset({
+          ...db.asset("song", owner),
+          id: songId,
+          path: file,
+          bytes: (await stat(file)).size,
+          duration: 8,
+        });
+      }
+      const selection = {
+        ...f.selection,
+        songId,
+        start: 0.25,
+        end: 4.75,
+        customPrompt: `Independent tempo test ${i}`,
+      };
+      const service = makeService();
+      const plan = await service.prepare(
+        selection,
+        owner,
+        "Singer",
+        true,
+        true,
+      );
+      assert.ok(plan.durationSeconds > 5); // cap/quote uses encoded slowed audio, not 4.5 seconds
+      const confirm = `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`;
+      await service.submit(
+        plan.id,
+        owner,
+        plan.digest,
+        plan.ceilingMicroUsd,
+        confirm,
+      );
+      const replay = await service.submit(
+        plan.id,
+        owner,
+        plan.digest,
+        plan.ceilingMicroUsd,
+        confirm,
+      );
+      assert.equal(replay.id, plan.id);
+      assert.equal(submits, i + 1);
+      const restarted = makeService();
+      const done = await restarted.poll(plan.id, owner);
+      assert.equal(done.state, i === 2 ? "failed" : "completed");
+      assert.equal(
+        f.store.get(plan.id).providerJobId,
+        `tempo-sequential-${i + 1}`,
+      );
+      await restarted.poll(plan.id, owner);
+      assert.equal(submits, i + 1);
+      if (i !== 2) {
+        assert.ok(await restarted.output(plan.id, owner));
+        await assert.rejects(restarted.output(plan.id, "other-owner"));
+      } else {
+        // Explicit moderation evidence is distinct from a generic provider failure.
+        f.store.db
+          .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+          .run(
+            JSON.stringify({
+              ...f.store.get(plan.id),
+              failureCode: "CONTENT_PREFILTER_REJECTED",
+            }),
+            plan.id,
+          );
+        await assert.rejects(
+          restarted.prepare(
+            { ...selection, customPrompt: "Forbidden retry" },
+            owner,
+            "Singer",
+            true,
+            true,
+          ),
+          /previous provider failure/,
+        );
+      }
+      reserved += plan.ceilingMicroUsd!;
+      assert.equal(
+        f.store.db
+          .prepare("SELECT SUM(reserved_micro_usd) n FROM live_attempts")
+          .get()!.n,
+        reserved,
+      );
+      assert.equal(done.budget, null);
+    }
+    assert.equal(submittedDurations.length, 4);
+  } finally {
+    delete process.env.AUDIO_TEMPO_ENABLED;
+  }
+});
+
+test("Studio budget renewal replaces expired currency review while retaining genuine blockers and reservations", async () => {
+  const {
+    offerStudioBudget,
+    authorizeStudioBudget,
+    studioBudgetAcknowledgment,
+  } = await import("../lib/live/studio-budget-review.ts");
+  const f = await fixture();
+  const expiredCurrency = {
+    ...policy,
+    eurBudget: { ...policy.eurBudget!, validUntil: "2000-01-01" },
+  };
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    { ...f.service.dependencies, policy: async () => expiredCurrency },
+  );
+  const history = f.store.prepare(
+    { ...f.store.get(f.plan.id).media, sourceJobId: "historical-operator" },
+    "mock",
+    8640000,
+  );
+  f.store.db
+    .prepare("UPDATE live_attempts SET reserved_micro_usd=?,data=? WHERE id=?")
+    .run(
+      8640000,
+      JSON.stringify({
+        ...history,
+        state: "failed",
+        providerJobId: "retained-task",
+      }),
+      history.id,
+    );
+  await assert.rejects(service.currentBudget(), /EUR50_REVIEW_REQUIRED/);
+  const offer = await offerStudioBudget(
+    f.store.db,
+    "staff",
+    owner,
+    50000000,
+    async () =>
+      new Response(
+        `<Cube time='${new Date().toISOString().slice(0, 10)}'><Cube currency='USD' rate='1.1'/></Cube>`,
+      ),
+  );
+  authorizeStudioBudget(
+    f.store.db,
+    "staff",
+    owner,
+    50000000,
+    offer.id,
+    studioBudgetAcknowledgment,
+  );
+  assert.equal((await service.currentBudget()).reservedMicroUsd, 8640000);
+  assert.equal((await service.withCurrentBudget(f.plan)).budgetBlocker, null);
+  const plan = await service.prepare(
+    { ...f.selection, customPrompt: "Reviewed budget renewal" },
+    owner,
+    "Singer",
+    true,
+    true,
+  );
+  assert.equal(plan.budget, null);
+  assert.equal(f.counts().submits, 0);
+  const submit = () =>
+    service.submit(
+      plan.id,
+      owner,
+      plan.digest,
+      plan.ceilingMicroUsd,
+      `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`,
+    );
+  f.store.db
+    .prepare("UPDATE live_attempts SET data=? WHERE id=?")
+    .run(
+      JSON.stringify({ ...f.store.get(history.id), state: "uncertain" }),
+      history.id,
+    );
+  await submit();
+  assert.equal(f.counts().submits, 1);
+  const expiredPolicy = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    {
+      ...f.service.dependencies,
+      policy: async () => ({ ...expiredCurrency, expiresAt: "2000-01-01" }),
+    },
+  );
+  await assert.rejects(expiredPolicy.currentBudget());
+  assert.equal(
+    f.store.db
+      .prepare("SELECT reserved_micro_usd FROM live_attempts WHERE id=?")
+      .get(history.id)!.reserved_micro_usd,
+    8640000,
+  );
+});
+
+test("independent new recording reaches private cost review despite unresolved legacy rejection, without paid submission", async () => {
+  const { reviewIndependentRecording, independentRecordingConfirmation } =
+    await import("../lib/live/recording-rejections.ts");
+  const f = await fixture();
+  const legacy = f.store.prepare(
+    {
+      ...f.store.get(f.plan.id).media,
+      recording: undefined,
+      sourceJobId: "unknown-legacy-recording",
+      audioSha256: "f".repeat(64),
+    },
+    null,
+    null,
+  );
+  f.store.db
+    .prepare("UPDATE live_attempts SET data=?,reserved_micro_usd=? WHERE id=?")
+    .run(
+      JSON.stringify({
+        ...legacy,
+        state: "failed",
+        providerJobId: "old-rejected-task",
+        failureCode: "CONTENT_PREFILTER_REJECTED",
+        createdAt: Date.now() - 3600000,
+      }),
+      8640000,
+      legacy.id,
+    );
+  const before = f.store.db
+    .prepare("SELECT * FROM live_attempts WHERE id=?")
+    .get(legacy.id);
+  const service = new StudioWorkflow(
+    f.store,
+    root,
+    { ...config, maxTotalMicroUsd: 50000000 },
+    f.service.dependencies,
+  );
+  const selected = {
+    ...f.selection,
+    start: 0,
+    end: 4.5,
+    customPrompt: "New independent recording review",
+  };
+  process.env.AUDIO_TEMPO_ENABLED = "true";
+  try {
+    const independentPlan = await service.prepare(
+      selected,
+      owner,
+      "Singer",
+      true,
+      true,
+    );
+    assert.equal(independentPlan.state, "prepared");
+    assert.equal(f.counts().submits, 0);
+    await reviewIndependentRecording(
+      root,
+      f.store,
+      selected,
+      owner,
+      "staff",
+      "OFFLINE MOCK evidence: original master/session creation record demonstrates this new recording was independently made, not derived from any rejected recording.",
+      independentRecordingConfirmation,
+    );
+    const plan = await service.prepare(selected, owner, "Singer", true, true);
+    assert.equal(plan.state, "prepared");
+    assert.ok(plan.ceilingMicroUsd! > 0);
+    assert.ok(f.store.get(plan.id).media.tempo);
+    assert.ok(f.store.get(plan.id).media.recording?.sourceSha256);
+    assert.equal(f.counts().submits, 0);
+    assert.equal(plan.budget, null);
+    assert.deepEqual(
+      f.store.db
+        .prepare("SELECT * FROM live_attempts WHERE id=?")
+        .get(legacy.id),
+      before,
+    );
+    const replay = await service.prepare(selected, owner, "Singer", true, true);
+    assert.equal(replay.id, plan.id);
+  } finally {
+    delete process.env.AUDIO_TEMPO_ENABLED;
+  }
+});
+
+test("studio duration gate accepts reviewed configuration through 300 seconds", () => {
+  const allowed = studioConfig({
+    BYTEPLUS_STUDIO_ENABLED: "true",
+    BYTEPLUS_STUDIO_OPERATOR_SECRET: "x".repeat(40),
+    BYTEPLUS_STUDIO_MAX_DURATION_SECONDS: "300",
+  });
+  assert.doesNotThrow(() => studioGate(allowed));
+  assert.throws(
+    () => studioGate({ ...allowed, maxDurationSeconds: 301 }),
+    /server enablement/,
+  );
+});
