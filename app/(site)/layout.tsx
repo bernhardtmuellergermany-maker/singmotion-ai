@@ -3,6 +3,7 @@ import "./globals.css";
 import "./redesign.css";
 import "./system.css";
 import "./product.css";
+import "./home-gallery.css";
 export const metadata: Metadata = {
   title: {
     default: "SingMotion AI — Your music. Your performance.",
