@@ -38,8 +38,7 @@ async function identityState(
     const a = JSON.parse(row.data) as Attempt;
     const result = store.firstTestResult(a.id)?.result;
     if (!(
-      a.failureCode?.includes("REJECT") ||
-      a.failureCode?.includes("PREFILTER") ||
+      a.failureCode === "CONTENT_PREFILTER_REJECTED" ||
       result?.sanitizedResult?.code === 50510
     ))
       continue;
