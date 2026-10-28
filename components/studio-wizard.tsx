@@ -306,6 +306,7 @@ export function StudioWizard({
           </section>
         )}
         <section className="flow-composer" aria-label="Video settings">
+          <label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance</label>
           <div className="flow-composer-top">
             {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
               <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
