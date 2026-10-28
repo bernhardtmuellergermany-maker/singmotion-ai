@@ -429,6 +429,11 @@ export function Studio() {
             <p className="direction-defaults">
               {`${performance} performance · ${camera}`}
             </p>
+            <div className="studio-prompt-summary" aria-live="polite">
+              <strong>Prompt sent to BytePlus</strong>
+              <p>{prompt || "Choose a performance and camera direction."}</p>
+              <small>The AI follows this direction as closely as possible; camera movements are not guaranteed.</small>
+            </div>
             <button
               className="advanced-toggle"
               onClick={() => setAdvanced(!advanced)}
@@ -498,12 +503,6 @@ export function Studio() {
                   Your custom instructions are added to the selected performance and camera direction.
                 </p>
               )}
-              <details className="prompt-preview">
-                <summary>
-                  View composed prompt <ChevronDown size={14} />
-                </summary>
-                <p>{prompt || "Add a custom prompt to continue."}</p>
-              </details>
             </div>
           </section>
         </div>
