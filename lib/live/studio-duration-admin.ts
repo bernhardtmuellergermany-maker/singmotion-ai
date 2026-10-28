@@ -149,7 +149,7 @@ export function reviewedDurationBand(
     return v as number;
   };
   const min = number("minInputSeconds", 5, 300),
-    max = number("maxInputSeconds", min, experimental ? 15 : 300);
+    max = number("maxInputSeconds", min, 300);
   const generated = number("maxGeneratedSeconds", max, 300);
   const ceiling = number("ceilingUsd", 0.000001, 10000);
   const micro = Math.round(ceiling * 1000000);
