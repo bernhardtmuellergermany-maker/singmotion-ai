@@ -465,13 +465,15 @@ export class StudioWorkflow {
     if (confirmation !== `DELETE ${id}`)
       throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm permanent deletion of this project.",400);
     const attempt = this.store.get(id);
-    if (!["completed","failed"].includes(attempt.state))
-      throw new StudioLiveError("ACTIVE_TASK","Active or uncertain provider jobs cannot be deleted.",409);
+    // The user's gallery deletion is always allowed. Active/uncertain provider
+    // tasks are NOT cancelled and their immutable recovery/billing records stay.
+    // Remove the user-facing project and output only when terminal.
+    const terminal = ["completed","failed"].includes(attempt.state);
     const file = attempt.outputPath;
     // Keep billing/authorization ledger and immutable provider task evidence
     // for reconciliation. Remove the owned project from every gallery/list.
     this.store.db.prepare("DELETE FROM live_studio_projects WHERE attempt_id=? AND owner=?").run(id,owner);
-    if (file) {
+    if (terminal && file) {
       const outputDir = await realpath(path.join(this.root,"live-output"));
       const candidate = await realpath(file).catch(() => null);
       if (candidate?.startsWith(outputDir + path.sep))
@@ -479,7 +481,7 @@ export class StudioWorkflow {
           if (error.code !== "ENOENT") throw error;
         });
     }
-    return { deleted: true };
+    return { deleted: true, providerTaskRetained: !terminal };
   }
   hide(id: string, owner: string, actor: string, confirmation: unknown) {
     this.row(id, owner);
