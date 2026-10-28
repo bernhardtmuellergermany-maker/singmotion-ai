@@ -48,6 +48,18 @@ async function handler(req: NextRequest) {
       return json({
         digest,
         bands: (policy.durationBands || []).map(durationReview),
+        existingTechnicalSettings: {
+          outputEvidence: policy.outputEvidence,
+          transferEvidence: policy.contract.output.transfer?.evidence || "",
+          hosts: policy.contract.outputHosts.join("\n"),
+          maxBytes: policy.contract.output.transfer?.maxBytes || 0,
+          timeoutSeconds: (policy.contract.output.transfer?.timeoutMs || 0) / 1000,
+          width: policy.contract.output.width,
+          height: policy.contract.output.height,
+          fps: policy.contract.output.fps,
+          videoCodec: policy.contract.output.videoCodec,
+          audioCodec: policy.contract.output.audioCodec,
+        },
         shortRange: policy.contract.generatedDurationBound,
         shortExpiresAt: policy.expiresAt,
         limits: {
