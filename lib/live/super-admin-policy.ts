@@ -8,9 +8,17 @@ import { validateStudioPolicy, type StudioPolicy } from "./studio-policy.ts";
 export function superAdminStudioPolicy(root: StudioPolicy): StudioPolicy {
   const base = validateStudioPolicy(root, false);
   const contract = structuredClone(base.contract);
-  if (!contract.outputHosts.length || !contract.output.transfer) {
-    throw new Error("Private output transport and exact hosts must be configured.");
+  if (!contract.outputHosts.length) {
+    throw new Error("Private output hosts must be configured.");
   }
+  // Reuse the existing secure output transport default when the original
+  // five-second policy predates explicit transfer settings. These are local
+  // safety limits, not assertions about BytePlus video characteristics.
+  contract.output.transfer ??= {
+    maxBytes: 100 * 1024 * 1024,
+    timeoutMs: 120000,
+    evidence: "Server-owned default output transfer limits for Super Admin; not provider verification.",
+  };
   contract.generatedDurationBound = {
     minInputSeconds: 4,
     maxInputSeconds: 300,
