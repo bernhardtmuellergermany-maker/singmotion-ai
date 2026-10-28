@@ -160,8 +160,18 @@ export async function validateOutput(
     (contract.output.maxDurationSeconds !== undefined &&
       length > contract.output.maxDurationSeconds) ||
     Math.abs(length - duration) > allowedDurationDelta
-  )
+  ) {
+    // Safe bounded numerical diagnostics only. No provider URL, file path,
+    // user content or credentials are emitted. Required to distinguish MP4
+    // rounding from a genuinely mismatched generated video.
+    console.warn("OUTPUT_DURATION_MISMATCH_DIAGNOSTIC", {
+      expectedSeconds: Number.isFinite(duration) ? Number(duration.toFixed(3)) : null,
+      actualSeconds: Number.isFinite(length) ? Number(length.toFixed(3)) : null,
+      allowedDeltaSeconds: Number(allowedDurationDelta.toFixed(3)),
+      maxSeconds: contract.output.maxDurationSeconds ?? null,
+    });
     throw new Error("OUTPUT_DURATION_MISMATCH");
+  }
   if (
     !Number.isFinite(actualFps) ||
     (contract.discover720p
