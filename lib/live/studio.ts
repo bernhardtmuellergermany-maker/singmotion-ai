@@ -1,4 +1,5 @@
 import { reportedBaseChargeMicroUsd } from "./contract.ts";
+import { superAdminStudioPolicy } from "./super-admin-policy.ts";
 import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget, type EuroBudget } from "./studio-budget.ts";
 import { reservedUsd, secondReview } from "./second-test.ts";
@@ -76,12 +77,15 @@ export class StudioWorkflow {
   readonly root: string;
   readonly config: LiveTestConfig;
   readonly dependencies: StudioDependencies;
+  readonly superAdmin: boolean;
   constructor(
     store: LiveTestStore,
     root: string,
     config: LiveTestConfig,
     dependencies: StudioDependencies,
+    superAdmin = false,
   ) {
+    this.superAdmin = superAdmin;
     this.store = store;
     this.root = root;
     this.config = config;
@@ -610,7 +614,9 @@ export class StudioWorkflow {
     const old = this.store.db
       .prepare("SELECT id FROM live_attempts WHERE source_job_id=?")
       .get(source) as { id: string } | undefined;
-    const rootPolicy = validateStudioPolicy(await this.dependencies.policy());
+    const rootPolicy = this.superAdmin
+      ? superAdminStudioPolicy(await this.dependencies.policy())
+      : validateStudioPolicy(await this.dependencies.policy());
     let media;
     let refreshed = false;
     if (old) {
@@ -626,7 +632,7 @@ export class StudioWorkflow {
         );
       // Match the current band to the actual immutable encoded duration, not the
       // requested waveform span. Never reprice or mutate a saved review.
-      const current = selectStudioPolicy(rootPolicy, a.media.durationSeconds);
+      const current = this.superAdmin ? rootPolicy : selectStudioPolicy(rootPolicy, a.media.durationSeconds);
       const currentDigest = policyReviewKey(current);
       if (policyReviewKey(JSON.parse(row.policy_json)) === currentDigest) {
         if (a.upperBoundMicroUsd === null)
@@ -666,7 +672,7 @@ export class StudioWorkflow {
         tempo,
         Math.min(this.config.maxDurationSeconds, 300),
       );
-    const policy = selectStudioPolicy(rootPolicy, media.durationSeconds);
+    const policy = this.superAdmin ? rootPolicy : selectStudioPolicy(rootPolicy, media.durationSeconds);
     // Recheck after asynchronous preparation: a concurrent approval must win.
     const nowStarted = findStarted();
     if (nowStarted) {
@@ -716,7 +722,9 @@ export class StudioWorkflow {
           maxJobMicroUsd: Number.MAX_SAFE_INTEGER,
           maxTotalMicroUsd: Number.MAX_SAFE_INTEGER,
         }
-      : { ...this.config, eurBudget: this.budgetReview(policy) };
+      : this.superAdmin
+        ? { ...this.config, maxDurationSeconds: 300, eurBudget: undefined }
+        : { ...this.config, eurBudget: this.budgetReview(policy) };
     return new OperatorWorkflow(this.store, config, this.root, {
       verifiedContract: () => policy.contract,
       provider: this.dependencies.provider(policy),
@@ -737,10 +745,12 @@ export class StudioWorkflow {
     if (a.state !== "prepared")
       return this.withCurrentBudget(this.view(id, owner)); // Durable idempotency: never authorize or submit again.
     const policy = validateStudioPolicy(JSON.parse(row.policy_json), false),
-      current = selectStudioPolicy(
-        validateStudioPolicy(await this.dependencies.policy()),
-        a.media.durationSeconds,
-      );
+      current = this.superAdmin
+        ? superAdminStudioPolicy(await this.dependencies.policy())
+        : selectStudioPolicy(
+            validateStudioPolicy(await this.dependencies.policy()),
+            a.media.durationSeconds,
+          );
     const currentDigest = contractDigest(current.contract),
       savedDigest = contractDigest(policy.contract);
     if (
@@ -765,6 +775,7 @@ export class StudioWorkflow {
         409,
       );
     if (
+      !this.superAdmin &&
       confirmation !==
       `CONFIRM PAID STUDIO ${id} ${a.contractDigest} ${a.upperBoundMicroUsd}${policy.contract.pilotAdmission?.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`
     )
