@@ -212,7 +212,7 @@ export function StudioDurationEditor() {
                 </option>
               ))}
               <option value={loaded.bands.length}>
-                Add new band (5–15 seconds)
+                Add new duration band (up to 300s with evidence)
               </option>
             </select>
           </label>
