@@ -22,6 +22,7 @@ import {
   time,
   performances,
   cameras,
+  cameraHelp,
   composePrompt,
   validateSelection,
   validateFile,
@@ -50,7 +51,7 @@ const initial: Draft = {
   start: 0,
   end: 10,
   performance: "Natural",
-  camera: "Static Close-Up",
+  camera: "Static camera",
   customPrompt: "",
 };
 export function Studio() {
@@ -426,9 +427,7 @@ export function Studio() {
               <h2>Performance &amp; camera</h2>
             </div>
             <p className="direction-defaults">
-              {customPrompt.trim()
-                ? "Custom performance direction"
-                : `${performance} performance · ${camera}`}
+              {`${performance} performance · ${camera}`}
             </p>
             <button
               className="advanced-toggle"
@@ -473,12 +472,13 @@ export function Studio() {
                     onChange={(e) => update({ camera: e.target.value })}
                   >
                     {cameras.map((c) => (
-                      <option key={c}>{c}</option>
+                      <option key={c} value={c} title={cameraHelp[c]}>{c}</option>
                     ))}
                   </select>
                   <ChevronDown size={14} />
                 </div>
               </label>
+              <p className="quiet" role="status" title={cameraHelp[camera]}>ⓘ {cameraHelp[camera]} <a href="/help/camera-movements">Camera movement help</a></p>
               <label htmlFor="custom-prompt">
                 Custom Performance Prompt <span>Optional</span>
               </label>
@@ -491,13 +491,11 @@ export function Studio() {
                 placeholder="Describe how your artist should perform, move, and express the song..."
               />
               <small className="quiet">
-                Write in English. No additional prompt fee.
+                Write in English. Your instructions supplement the selected camera movement. No additional prompt fee.
               </small>
               {customPrompt.trim() && (
                 <p className="notice">
-                  Your custom prompt replaces both preset directions in full.
-                  Include any performance and camera instructions you want to
-                  keep.
+                  Your custom instructions are added to the selected performance and camera direction.
                 </p>
               )}
               <details className="prompt-preview">
