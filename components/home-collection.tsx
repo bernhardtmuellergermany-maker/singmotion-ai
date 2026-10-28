@@ -74,7 +74,7 @@ export function HomeCollection() {
           <div className="home-gallery-grid">
             <CreateTile />
             {tiles.map(tile => <GalleryTile key={tile.id} tile={tile} deleting={deleting === tile.id} onDelete={async () => {
-              if (!window.confirm(`Permanently delete "${tile.name}"? This cannot be undone. Active provider tasks cannot be deleted.`)) return;
+              if (!window.confirm(`Remove "${tile.name}" from your projects? Active BytePlus jobs may continue and incur charges; their billing and recovery records are retained.`)) return;
               setDeleting(tile.id); setError("");
               try {
                 if (tile.id.startsWith("live_")) {
