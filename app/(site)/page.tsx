@@ -1,12 +1,7 @@
 export const dynamic = "force-dynamic";
-import { studioContent } from "@/cms/studio-content";
-import { StudioWizard } from "@/components/studio-wizard";
-
+import { HomeCollection } from "@/components/home-collection";
 export const metadata = {
-  title: "Create your music video · SingMotion AI",
-  description: "Upload music, choose a photo, and create your AI music video.",
+  title: "Your projects · SingMotion AI",
+  description: "Your own private music video projects.",
 };
-
-export default async function Home() {
-  return <StudioWizard content={await studioContent()} />;
-}
+export default function Home() { return <HomeCollection />; }
