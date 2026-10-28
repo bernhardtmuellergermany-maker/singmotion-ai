@@ -180,7 +180,7 @@ export function reviewedDurationBand(
   if (Math.min(width, height) !== 720)
     invalid("Media dimensions: one side must be exactly 720 pixels.");
   const fps = number("fps", 0.01, 120);
-  const tolerance = number("toleranceSeconds", 0, generated - min);
+  const tolerance = number("toleranceSeconds", 0, generated - max);
   if (!["h264", "hevc"].includes(r.videoCodec) || r.audioCodec !== "aac")
     invalid(
       "Media codecs: only reviewed h264/hevc video with aac audio are supported.",
@@ -214,7 +214,7 @@ export function reviewedDurationBand(
       generatedDurationBound: {
         minInputSeconds: min,
         maxInputSeconds: max,
-        maxAdditionalSeconds: generated - min,
+        maxAdditionalSeconds: generated - max,
         evidence: planning(r.durationEvidence),
       },
       billing: {
