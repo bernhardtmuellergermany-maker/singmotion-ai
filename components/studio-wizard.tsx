@@ -82,7 +82,6 @@ export function StudioWizard({
         );
         draftId.current =
           requested ||
-          localStorage.getItem("singmotion-draft-id") ||
           crypto.randomUUID();
         localStorage.setItem("singmotion-draft-id", draftId.current);
         setProjectKey(draftId.current);
@@ -114,23 +113,6 @@ export function StudioWizard({
           setReady(true);
           return;
         }
-        try {
-          const saved = localStorage.getItem("singmotion-studio");
-          if (saved) {
-            const restored = { ...initial, ...JSON.parse(saved) };
-            setDraft(restored);
-            if (restored.imageId) {
-              const img = new Image();
-              img.onload = () => {
-                if (current)
-                  setDetectedFormat(
-                    photoFormat(img.naturalWidth, img.naturalHeight),
-                  );
-              };
-              img.src = `/api/assets/${encodeURIComponent(restored.imageId)}`;
-            }
-          }
-        } catch {}
         setReady(true);
       })
       .catch(() =>
@@ -141,10 +123,10 @@ export function StudioWizard({
     };
   }, []);
   useEffect(() => {
-    if (ready) localStorage.setItem("singmotion-studio", JSON.stringify(draft));
+    // Drafts are stored server-side only; do not resurrect deleted browser state.
   }, [draft, ready]);
   useEffect(() => {
-    if (!ready || !owner || !projectKey) return;
+    if (!ready || !owner || !projectKey || (!draft.song && !draft.imageId)) return;
     let current = true;
     const id = projectKey;
     const timer = setTimeout(() => {
