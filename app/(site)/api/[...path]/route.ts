@@ -183,6 +183,11 @@ async function handler(
         if (!row) throw new AppError("Draft unavailable.", 404);
         return json(view(row));
       }
+      if (method === "DELETE" && id) {
+        const result = db.prepare("DELETE FROM studio_drafts WHERE id=? AND owner=?").run(id,owner);
+        if (!result.changes) throw new AppError("Draft unavailable.",404);
+        return json({deleted:true});
+      }
       if (method === "POST") {
         limit(`${owner}:drafts`, 60, 60000);
         const input = await body(req),
@@ -444,6 +449,21 @@ async function handler(
       const { db } = await import("@/lib/db");
       recordRights(db, owner, j.id, termsVersion());
       return json(enqueue(j), 201);
+    }
+    if (route === "jobs" && id && method === "DELETE") {
+      const existing = job(id,owner);
+      if (["queued","processing"].includes(existing.status))
+        throw new AppError("Active jobs cannot be deleted until terminal.",409);
+      // Delete the project and its generated output, never shared source media.
+      if (existing.outputId) {
+        const output = asset(existing.outputId,owner);
+        await unlink(output.path).catch((error: NodeJS.ErrnoException) => {
+          if(error.code !== "ENOENT") throw error;
+        });
+        db.prepare("DELETE FROM assets WHERE id=? AND owner=?").run(existing.outputId,owner);
+      }
+      db.prepare("DELETE FROM jobs WHERE id=? AND owner=?").run(id,owner);
+      return json({deleted:true});
     }
     if (route === "jobs" && id && method === "PATCH") {
       const j = job(id, owner),
