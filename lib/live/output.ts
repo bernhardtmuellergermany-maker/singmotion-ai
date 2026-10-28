@@ -95,6 +95,21 @@ export function matchesReviewedDimensions(
   );
 }
 
+/** Shared for paid customers, operators and existing-task recovery. */
+export function matchesOmniHumanDuration(
+  actual: number,
+  expected: number,
+  tolerance: number,
+  maxDuration?: number,
+): boolean {
+  if (!Number.isFinite(actual) || !Number.isFinite(expected) ||
+      !Number.isFinite(tolerance) || tolerance < 0 ||
+      expected <= 0 || actual <= 0) return false;
+  return (maxDuration === undefined || actual <= maxDuration) &&
+    actual >= expected - tolerance &&
+    actual <= expected + Math.max(2, tolerance);
+}
+
 export async function validateOutput(
   file: string,
   duration: number,
@@ -160,13 +175,7 @@ export async function validateOutput(
     frameRoundingSeconds,
   );
   const permittedPositiveDelta = Math.max(allowedDurationDelta, 2);
-  const delta = length - duration;
-  if (
-    !Number.isFinite(length) ||
-    (contract.output.maxDurationSeconds !== undefined &&
-      length > contract.output.maxDurationSeconds) ||
-    (delta < -allowedDurationDelta || delta > permittedPositiveDelta)
-  ) {
+  if (!matchesOmniHumanDuration(length, duration, allowedDurationDelta, contract.output.maxDurationSeconds)) {
     // Safe bounded numerical diagnostics only. No provider URL, file path,
     // user content or credentials are emitted. Required to distinguish MP4
     // rounding from a genuinely mismatched generated video.
