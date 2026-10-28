@@ -49,10 +49,11 @@ export function studioRuntime(
   store: LiveTestStore,
   root: string,
   env: NodeJS.ProcessEnv = process.env,
+  superAdmin = false,
 ) {
   const resources: R2PrivateInputDelivery[] = [];
   const service = new StudioWorkflow(store, root, studioConfig(env), {
-    policy: () => loadStudioPolicy(root),
+    policy: () => loadStudioPolicy(root, !superAdmin),
     ready: () => studioReadiness(root, env),
     provider: (policy) => {
       const delivery = new R2PrivateInputDelivery(
@@ -86,7 +87,7 @@ export function studioRuntime(
         },
       };
     },
-  });
+  }, superAdmin);
   return {
     service,
     close: () => {
