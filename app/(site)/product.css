@@ -968,14 +968,16 @@
 .product-theme .wave-viewport .wave-selection {
   border: 0 !important;
   background: rgba(168,85,247,.22) !important;
-  box-shadow: inset 0 0 0 1px rgba(214,170,255,.48);
+  box-shadow: none;
 }
 /* Invisible 32px touch target; exactly one visible slim grabber per edge. */
 .product-theme .wave-viewport .wave-handle {
   appearance: none;
   box-sizing: border-box;
   width: 32px;
-  margin-left: -16px;
+  /* globals.css already centers the handle with translateX(-50%). */
+  margin-left: 0;
+  transform: translateX(-50%);
   min-height: 44px;
   padding: 0;
   background: transparent !important;
