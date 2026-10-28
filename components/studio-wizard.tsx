@@ -250,6 +250,19 @@ export function StudioWizard({
 
   const available = !!selection && audioValid && !!prompt && !busy;
   const cameraOptions = ["Static Close-Up", "Turn left", "Turn right", "Orbit left", "Orbit right", "Tilt up", "Tilt down", "Push in", "Pull out", "Follow forwards", "Follow backwards"];
+  useEffect(() => {
+    const dismiss = (event: PointerEvent) => {
+      document.querySelectorAll<HTMLDetailsElement>(".singmotion-flow details.flow-menu, .singmotion-flow details.flow-camera-menu").forEach(menu => {
+        if (!menu.contains(event.target as Node)) menu.open = false;
+      });
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") document.querySelectorAll<HTMLDetailsElement>(".singmotion-flow details[open]").forEach(menu => menu.open = false);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    document.addEventListener("keydown", escape);
+    return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
+  }, []);
   const rename = (name: string) => {
     const trimmed = name.trim();
     if (trimmed) {
@@ -296,17 +309,17 @@ export function StudioWizard({
           <div className="flow-composer-top">
             {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
               <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
-            <div className="flow-prompt-wrap"><label htmlFor="flow-performance-prompt">PERFORMANCE DESCRIPTION</label><textarea id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="Example: Singing with emotion, subtle movements, warm stage lighting…" value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
+            <div className="flow-prompt-wrap"><textarea id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="Example: Singing with emotion, subtle movements, warm stage lighting…" value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
           </div>
           <div className="flow-composer-bottom">
             <div className="flow-settings-group" role="group" aria-label="Video settings">
-            <label className="flow-select"><Camera size={18}/><select aria-label="Camera" value={draft.camera} onChange={e=>update({camera:e.target.value})}>{cameraOptions.map(option=><option key={option} value={option}>{option}</option>)}</select></label>
+            <details className="flow-camera-menu"><summary aria-label="Camera mode"><Camera size={16}/><span>{draft.camera}</span><span className="flow-chevron">⌄</span></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}}>{option}</button>)}</div></details>
             <label className="flow-select flow-format"><Smartphone size={18}/><select aria-label="Format" value={draft.outputFormat} onChange={e=>update({outputFormat:e.target.value as "9:16"|"16:9",formatMode:e.target.value as "9:16"|"16:9"})}><option value="9:16">9:16</option><option value="16:9">16:9</option></select></label>
             </div>
             <button className="flow-create" disabled={!available} title={!draft.song?"Add a song":!draft.imageId?"Add an artist photo":!audioValid?"Select a valid audio segment":!prompt?"Add a description":"Create video"} onClick={()=>setConfirm(true)}><Sparkles size={19}/>Create video <ArrowRight size={19}/></button>
           </div>
         </section>
-        {!available && <p className="flow-missing" role="status">{busy ? "Uploading…" : !draft.song ? "Add a song to start" : !draft.imageId ? "Add an artist photo to continue" : !audioValid ? "Select a valid audio segment" : !prompt ? "Add a performance description" : ""}</p>}
+        {!available && !!draft.song && <p className="flow-missing" role="status">{busy ? "Uploading…" : !draft.imageId ? "Add an artist photo to continue" : !audioValid ? "Select a valid audio segment" : !prompt ? "Add a performance description" : ""}</p>}
         {error && <p className="flow-error" role="alert">{error}</p>}
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} onClose={()=>setConfirm(false)}/>}
