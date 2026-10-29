@@ -111,7 +111,7 @@ export function CarouselExperience(){
         const cards:Tile[]=[
           ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.projectName||p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
           ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
-          ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"prepared"}))
+          ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"draft"}))
         ].sort((a,b)=>b.created-a.created);
         setTiles(cards);setError("");
       }catch(e){if(mounted)setError((e as Error).message);}
@@ -261,13 +261,13 @@ function ProjectCarouselCard({tile,active}:{tile:Tile;active:boolean}){
   },[active,tile.videoUrl]);
   const status=tile.state.toLowerCase();
   const complete=status==="completed"&&!!tile.videoUrl;
-  const label=status==="draft"||status==="prepared"?"Prepared":status==="processing"||status==="rendering"?"Processing":status==="submitted"||status==="pending"||status==="authorized"||status==="submitting"||status==="uncertain"?"Pending":status==="failed"?"Failed":status==="completed"?"Completed":tile.state;
-  const explanation=label==="Prepared"?"Ready for your next step.":label==="Processing"?"Your music video is being generated.":label==="Pending"?"Waiting for the provider.":label==="Failed"?"Open to review the failed attempt.":"Open to view your project.";
+  const label=status==="draft"?"Draft":status==="prepared"?"Prepared":status==="processing"||status==="rendering"?"Processing":status==="submitted"||status==="pending"||status==="authorized"||status==="submitting"||status==="uncertain"?"Pending":status==="failed"?"Failed":status==="completed"?"Completed":tile.state;
+  const explanation=label==="Draft"?"Continue editing this saved draft.":label==="Prepared"?"Ready for your next step.":label==="Processing"?"Your music video is being generated.":label==="Pending"?"Waiting for the provider.":label==="Failed"?"Open to review the failed attempt.":"Open to view your project.";
   return <div className={"sm-carousel-project "+(complete?"has-video":"has-status")}>
     {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading="lazy"/>}
     {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
     {complete&&!mediaError?<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const v=video.current;if(!v)return;v.muted=sound;setSound(!sound);}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>:<div className="sm-carousel-status">
-      {label==="Failed"?<AlertCircle size={35}/>:label==="Prepared"?<CheckCircle2 size={35}/>:<LoaderCircle className={label==="Pending"||label==="Processing"?"sm-spinning":""} size={35}/>}
+      {label==="Failed"?<AlertCircle size={35}/>:label==="Prepared"||label==="Draft"?<CheckCircle2 size={35}/>:<LoaderCircle className={label==="Pending"||label==="Processing"?"sm-spinning":""} size={35}/>}
       <strong>{label}</strong><p>{mediaError?"Video preview unavailable. Open the project to inspect it.":explanation}</p>
     </div>}
     <div className="sm-carousel-project-footer">
