@@ -11,6 +11,8 @@ export function LegalAdminAccess(){
     try{
       const res=await fetch("/api/staff/logout",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}"});
       if(!res.ok)throw new Error("Logout failed");
+      // The admin session and private demo cookie are separate; end both on explicit logout.
+      await fetch("/api/session/logout",{method:"POST",credentials:"same-origin"}).catch(()=>{});
       setAdmin(false);
       window.location.assign("/legal");
     }catch{
