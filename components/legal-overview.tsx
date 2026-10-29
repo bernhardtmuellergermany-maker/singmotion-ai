@@ -1,3 +1,4 @@
+import { PageContentSearch } from "./page-content-search";
 import Link from "next/link";
 import { LegalAdminAccess } from "./legal-admin-access";
 import { GlobalMenu } from "./home-collection";
@@ -5,7 +6,7 @@ import { Search, UserRound } from "lucide-react";
 
 export function LegalOverview(){
 return <div className="sm-legal">
-  <header className="home-gallery-header sm-carousel-header"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><div className="sm-header-actions"><Link className="sm-legal-search" href="/?search=1" aria-label="Search projects" title="Search projects"><Search size={19}/></Link><GlobalMenu/><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div></header>
+  <header className="home-gallery-header sm-carousel-header"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><div className="sm-header-actions"><PageContentSearch/><GlobalMenu/><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div></header>
   <main id="content" className="sm-legal-main">
     <div className="sm-legal-intro"><span className="sm-legal-kicker">INFORMATION & RIGHTS</span><h1>Legals<span>.</span></h1><p>Company information, privacy, and responsible use of SingMotion AI.</p><small>Updated October 29, 2026 · Preliminary draft. Operator details, service providers, and policies must be verified and reviewed before public launch.</small></div>
     <nav className="sm-legal-nav" aria-label="Legal information"><a href="#imprint">Imprint</a><a href="#privacy">Privacy & Cookies</a><a href="#terms">Terms & Media Rights</a><a href="#ai">AI & OmniHuman</a></nav>
