@@ -1827,3 +1827,33 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   outline-offset:-2px;
   border-radius:8px;
 }
+
+/* Studio waveform: a visual selection keeps its exact width while its
+   transparent touch target remains usable for sub-five-second clips.
+   Handles own the bottom lane; the selection owns the upper lane. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  pointer-events:auto;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection-hit{
+  position:absolute;
+  display:block;
+  left:50%;
+  top:0;
+  width:max(100%, 36px);
+  height:calc(100% - 40px);
+  min-height:40px;
+  transform:translateX(-50%);
+  background:transparent;
+  cursor:grab;
+  touch-action:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection:active .wave-selection-hit{
+  cursor:grabbing;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  top:auto!important;
+  bottom:0!important;
+  height:40px!important;
+}
