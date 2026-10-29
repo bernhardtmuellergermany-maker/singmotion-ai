@@ -2,14 +2,20 @@ import { hiddenPrompt } from "./hidden-prompt.ts";
 
 let phase = "preflight";
 async function main() {
-  if (
-    process.argv.length !== 2 ||
-    process.env.CMS_ENABLED !== "true" ||
-    process.env.CMS_RECOVERY_ENABLED !== "true"
-  )
+  // tsx/npm may change process.argv shape. Never take passwords from argv.
+  // Only an explicitly enabled recovery gate and an interactive TTY are required.
+  if (process.env.CMS_ENABLED !== "true") {
+    phase = "cms-disabled";
     throw new Error("Recovery gate closed.");
-  if (!process.stdin.isTTY || !process.stdout.isTTY)
+  }
+  if (process.env.CMS_RECOVERY_ENABLED !== "true") {
+    phase = "recovery-disabled";
+    throw new Error("Recovery gate closed.");
+  }
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    phase = "terminal-not-interactive";
     throw new Error("Interactive terminal required.");
+  }
   // These are server configuration only; no provider adapters or public endpoints.
   phase = "cms-init";
   const { default: configuration } = await import("../payload.config.ts");
