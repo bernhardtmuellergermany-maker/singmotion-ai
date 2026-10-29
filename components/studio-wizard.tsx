@@ -16,6 +16,7 @@ import {
   MoreVertical,
   UserRound,
   Camera,
+  ChevronDown,
   Play,
   Trash2,
   FileMusic,
@@ -29,6 +30,7 @@ import {
   validateFile,
   performances,
   cameras,
+  cameraHelp,
   time,
   type Asset,
 } from "@/lib/domain";
@@ -336,8 +338,8 @@ export function StudioWizard({
           </div>
           <div className="flow-composer-bottom">
             <div className="flow-settings-group" role="group" aria-label="Video settings">
-            <details className="flow-camera-menu"><summary aria-label="Camera mode"><Camera size={16}/><span>{draft.camera}</span><span className="flow-chevron">⌄</span></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}}>{option}</button>)}</div></details>
-            <label className="flow-select flow-format"><Smartphone size={18}/><select aria-label="Format" value={draft.outputFormat} onChange={e=>update({outputFormat:e.target.value as "9:16"|"16:9",formatMode:e.target.value as "9:16"|"16:9"})}><option value="9:16">9:16</option><option value="16:9">16:9</option></select></label>
+            <details className="flow-camera-menu"><summary aria-label="Camera mode"><Camera size={16}/><span>{draft.camera}</span><ChevronDown className="flow-chevron" size={16} aria-hidden="true"/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option as keyof typeof cameraHelp] || option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp] || ""}</small></button>)}</div></details>
+            <details className="flow-camera-menu flow-format-menu"><summary aria-label="Video format">{draft.outputFormat==="9:16"?<Smartphone size={18}/>:<Monitor size={18}/>}<span>{draft.outputFormat}</span><ChevronDown className="flow-chevron" size={16} aria-hidden="true"/></summary><div className="flow-camera-options flow-format-options" role="group" aria-label="Video aspect ratio">{(["9:16","16:9"] as const).map(format=><button type="button" key={format} className={draft.outputFormat===format?"is-active":""} title={format==="9:16"?"Portrait — vertical video":"Landscape — horizontal video"} onClick={e=>{update({outputFormat:format,formatMode:format});e.currentTarget.closest("details")!.open=false;}}>{format==="9:16"?<Smartphone size={17}/>:<Monitor size={17}/>}<span>{format}</span><small>{format==="9:16"?"Portrait":"Landscape"}</small></button>)}</div></details>
             </div>
             <button className="flow-create" disabled={!available} title={!draft.song?"Add a song":!draft.imageId?"Add an artist photo":!audioValid?"Select a valid audio segment":!prompt?"Add a description":"Create video"} onClick={()=>setConfirm(true)}><Sparkles size={19}/>Create video <ArrowRight size={19}/></button>
           </div>
