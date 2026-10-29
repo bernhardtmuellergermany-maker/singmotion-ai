@@ -198,7 +198,7 @@ export function CarouselExperience(){
               <h1>Turn your song<br/>into a music video</h1>
               <p>Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.</p>
               {audio
-                ? <HomeUploadedAudio key={audio.id} audio={audio} active={distance===0} replacing={uploading} onReplace={file=>void selectAudio(file)}/>
+                ? <HomeUploadedAudio key={audio.id} audio={audio} active={distance===0} replacing={uploading} onReplace={file=>void selectAudio(file)} onRemove={()=>setAudio(null)}/>
                 : <label className="sm-carousel-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void selectAudio(e.dataTransfer.files?.[0]);}}>
                     <input type="file" disabled={uploading} accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Choose audio file" onChange={e=>{void selectAudio(e.target.files?.[0]);e.currentTarget.value="";}}/>
                     {uploading?<LoaderCircle className="sm-spinning" size={32}/>:<CloudUpload size={42}/>}
