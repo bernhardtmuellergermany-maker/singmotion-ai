@@ -277,3 +277,22 @@
 @media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
   .sm-carousel-card.is-active:hover{width:calc(min(88vw,calc((100svh - 160px) * .5625)) * 1.015)}
 }
+
+/* Dark scrollbar: stable width, consistent SingMotion palette. */
+html{scrollbar-color:#38304b #090d16}
+html::-webkit-scrollbar{width:11px}
+html::-webkit-scrollbar-track{background:#090d16}
+html::-webkit-scrollbar-thumb{background:#38304b;border:3px solid #090d16;border-radius:99px}
+html::-webkit-scrollbar-thumb:hover{background:#7753aa}
+/* Search within Help and Legals; results jump to matched text. */
+.sm-page-search{position:relative;display:flex;align-items:center;z-index:50}
+.sm-page-search .sm-legal-search{border:0;background:transparent;cursor:pointer}
+.sm-page-search-panel{position:absolute;top:calc(100% + 14px);right:0;width:min(380px,calc(100vw - 34px));border:1px solid rgba(178,143,236,.38);border-radius:14px;background:#141727;color:#f3eeff;box-shadow:0 18px 50px #0008;padding:10px;z-index:55}
+.sm-page-search-field{display:flex;align-items:center;gap:7px}
+.sm-page-search-field input{min-width:0;flex:1;background:#202238!important;color:#fff!important;border:1px solid #6d548f!important;border-radius:9px;padding:9px 11px;font-size:13px}
+.sm-page-search-field button{border:0;background:transparent;color:#c9b8df;cursor:pointer;padding:7px}
+.sm-page-search-results{max-height:320px;overflow-y:auto;margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.sm-page-search-results button{border:0;background:transparent;color:#d8d0ec;text-align:left;padding:10px;border-radius:7px;font-size:12px;line-height:1.5;cursor:pointer}
+.sm-page-search-results button:hover,.sm-page-search-results button:focus-visible{background:#33294b;color:#fff}
+.sm-page-search-results p{padding:10px;color:#b9aac8;font-size:12px}
+.sm-search-hit{outline:2px solid #ae80f8;outline-offset:5px;border-radius:4px;transition:outline-color 1.5s}
