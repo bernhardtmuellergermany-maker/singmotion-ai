@@ -76,6 +76,7 @@ export interface Job {
   songId: string;
   imageId: string;
   artistName: string;
+  projectName?: string;
   start: number;
   end: number;
   performance: string;
