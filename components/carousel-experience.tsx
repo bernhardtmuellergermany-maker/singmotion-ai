@@ -9,7 +9,7 @@ import type { StudioProject } from "@/lib/live/studio";
 import { showcase } from "@/lib/showcase";
 
 type Tile = { id:string; name:string; href:string; imageId?:string; state:string; created:number; videoUrl?:string; seconds:number };
-type Draft = { id:string; artistName:string; selection:{ songId?:string; imageId?:string; start:number; end:number } };
+type Draft = { id:string; artistName:string; projectName?:string; selection:{ songId?:string; imageId?:string; start:number; end:number } };
 const cleanTitle=(name:string)=>!name.trim()||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
 const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
 export function CarouselExperience(){
@@ -110,7 +110,7 @@ export function CarouselExperience(){
         const cards:Tile[]=[
           ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
           ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
-          ...drafts.filter(d=>d.selection.songId&&d.selection.imageId).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId,seconds:d.selection.end-d.selection.start,created:0,state:"prepared"}))
+          ...drafts.filter(d=>d.selection.songId&&d.selection.imageId).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId,seconds:d.selection.end-d.selection.start,created:0,state:"prepared"}))
         ].sort((a,b)=>b.created-a.created);
         setTiles(cards);setError("");
       }catch(e){if(mounted)setError((e as Error).message);}
