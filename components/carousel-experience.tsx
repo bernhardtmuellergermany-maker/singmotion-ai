@@ -21,6 +21,7 @@ export function CarouselExperience(){
   const [uploading,setUploading]=useState(false);
   const [uploadError,setUploadError]=useState("");
   const [dragging,setDragging]=useState(0);
+  const [hoveredSide,setHoveredSide]=useState<string|null>(null);
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
   const ids=["showcase","home","login",...tiles.map(t=>t.id)];
@@ -117,7 +118,7 @@ export function CarouselExperience(){
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
-          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor":"is-distant")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={Math.abs(distance)>1?true:undefined} inert={Math.abs(distance)>1} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
+          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={Math.abs(distance)>1?true:undefined} inert={Math.abs(distance)>1} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
             {Math.abs(distance)===1&&<button type="button" className="sm-carousel-side-hit" aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
             {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
@@ -140,6 +141,18 @@ export function CarouselExperience(){
               <button type="button" className="sm-carousel-primary" onClick={()=>{if(audio)continueToStudio();else navigate("home");}}>Continue to workspace <ArrowRight size={17}/></button>
             </div>:tile?<ProjectCarouselCard tile={tile} active={distance===0}/>:null}
           </section>;
+        })}
+        {([-1,1] as const).map(direction=>{
+          const target=ids[activeIndex+direction];
+          if(!target)return null;
+          return <button key={direction} type="button"
+            className={"sm-carousel-side-zone "+(direction<0?"is-left":"is-right")}
+            aria-label={`Select ${target==="showcase"?"Showcase":target==="home"?"Home":target==="login"?"Login":tiles.find(t=>t.id===target)?.name||"project"}`}
+            onPointerEnter={()=>setHoveredSide(target)}
+            onPointerLeave={()=>setHoveredSide(null)}
+            onFocus={()=>setHoveredSide(target)}
+            onBlur={()=>setHoveredSide(null)}
+            onClick={()=>{setHoveredSide(null);navigate(target);}} />;
         })}
       </div>
       {ids.length>1&&<nav className="sm-carousel-controls" aria-label="Carousel navigation">
