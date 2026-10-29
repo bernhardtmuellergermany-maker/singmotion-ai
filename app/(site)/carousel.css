@@ -321,3 +321,51 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   transform:translate(-50%,-50%) translateX(calc(var(--distance) * 65vw)) rotateY(calc(var(--distance) * -29deg)) scale(.80);
  }
 }
+
+/* Studio refinement: homepage-inspired, glow-free, compact floating composer. */
+.product-theme.singmotion-flow{background:#090d16!important;color:#faf9ff}
+.product-theme.singmotion-flow .flow-main{position:relative;max-width:none;width:100%;min-height:calc(100svh - 70px);padding:25px 20px 245px;justify-content:center;gap:22px}
+.product-theme.singmotion-flow .flow-drop{gap:8px;padding:12px 18px;max-width:260px;transition:transform .2s ease,color .2s ease}
+.product-theme.singmotion-flow .flow-drop:hover{transform:scale(1.015)}
+.product-theme.singmotion-flow .flow-drop .flow-upload-symbol{width:46px;height:46px;color:#a579eb;margin:0 0 9px;filter:none;box-shadow:none}
+.product-theme.singmotion-flow .flow-drop:hover .flow-upload-symbol{color:#c8a9ff}
+.product-theme.singmotion-flow .flow-drop strong{font-size:18px;font-weight:600;letter-spacing:-.025em}
+.product-theme.singmotion-flow .flow-drop span{font-size:13px;color:#aaa9bc}
+.product-theme.singmotion-flow .flow-drop small{font-size:11px;color:#7e809b}
+.product-theme.singmotion-flow .flow-audio{width:min(100%,960px);max-height:calc(100svh - 340px);overflow-y:auto}
+.product-theme.singmotion-flow .flow-composer{position:fixed;left:50%;bottom:clamp(20px,4vh,42px);transform:translateX(-50%);z-index:15;width:min(700px,calc(100vw - 36px));max-width:100%;padding:13px 14px;gap:10px;border:1px solid rgba(147,121,204,.36);border-radius:19px;background:#131724;box-shadow:0 13px 35px rgba(0,0,0,.29)}
+.product-theme.singmotion-flow .flow-composer-top{display:flex;align-items:stretch;gap:12px}
+.product-theme.singmotion-flow .flow-photo-add,.product-theme.singmotion-flow .flow-photo{height:auto;min-height:88px;width:116px;flex:0 0 116px;display:flex;flex-direction:column;justify-content:center;gap:9px;border:1px solid #33334c;border-radius:12px;background:#191d2e;color:#d8d6e6;transition:background .2s,border-color .2s,transform .2s}
+.product-theme.singmotion-flow .flow-photo-add:hover,.product-theme.singmotion-flow .flow-photo:hover{background:#22263a;border-color:#a582db;transform:scale(1.012)}
+.product-theme.singmotion-flow .flow-photo-add span{font-size:12px}
+.product-theme.singmotion-flow .flow-photo-add svg{width:25px;height:25px}
+.product-theme.singmotion-flow .flow-prompt-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:0;border:1px solid #30344d;background:#0f1422;border-radius:12px;padding:12px 14px}
+.product-theme.singmotion-flow .flow-composer-label{font-size:12px;font-weight:400;letter-spacing:0;color:#a9a9bd;line-height:1.35}
+.product-theme.singmotion-flow textarea.flow-prompt{min-height:50px;height:100%;resize:vertical;border:0!important;outline:0;background:transparent!important;padding:7px 0 0;font-size:12px;box-shadow:none}
+.product-theme.singmotion-flow textarea.flow-prompt:focus{outline:none;border:0}
+.product-theme.singmotion-flow .flow-prompt-wrap:focus-within{border-color:#8b67c5}
+.product-theme.singmotion-flow .flow-composer-bottom{display:flex;align-items:stretch;gap:10px}
+.product-theme.singmotion-flow .flow-settings-group{min-width:0;flex:1 1 auto;border:0;background:transparent;gap:10px;display:flex;overflow:visible}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu,.product-theme.singmotion-flow .flow-settings-group .flow-format{border:1px solid #32364e;border-radius:11px;background:#101522;min-width:0}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu{flex:1 1 190px}
+.product-theme.singmotion-flow .flow-settings-group .flow-format{flex:0 1 132px}
+.product-theme.singmotion-flow .flow-create{flex:0 0 auto;min-width:188px;border:1px solid #8558df;border-radius:11px;background:#723fe0;box-shadow:none;font-size:12px;transition:background .2s}
+.product-theme.singmotion-flow .flow-create:not(:disabled):hover{background:#8955e9;filter:none}
+.product-theme.singmotion-flow .flow-create:disabled{background:#30283d;border-color:#48405a;box-shadow:none}
+.product-theme.singmotion-flow .flow-missing,.product-theme.singmotion-flow .flow-error{max-width:min(700px,calc(100vw - 36px))}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .flow-main{padding:18px 12px 255px;min-height:calc(100svh - 65px)}
+ .product-theme.singmotion-flow .flow-composer{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100vw - 22px);padding:10px;gap:8px}
+ .product-theme.singmotion-flow .flow-photo-add,.product-theme.singmotion-flow .flow-photo{width:78px;flex-basis:78px;min-height:92px}
+ .product-theme.singmotion-flow .flow-composer-bottom{gap:7px}
+ .product-theme.singmotion-flow .flow-settings-group{gap:7px}
+ .product-theme.singmotion-flow .flow-create{min-width:105px;font-size:11px}
+ .product-theme.singmotion-flow .flow-audio{max-height:calc(100svh - 375px)}
+}
+@media(max-width:410px){
+ .product-theme.singmotion-flow .flow-composer-bottom{flex-wrap:wrap}
+ .product-theme.singmotion-flow .flow-settings-group{flex:1 1 100%;min-height:42px}
+ .product-theme.singmotion-flow .flow-create{min-height:43px;flex:1}
+ .product-theme.singmotion-flow .flow-main{padding-bottom:300px}
+}
+@media(max-height:620px){.product-theme.singmotion-flow .flow-composer{position:relative;left:auto;bottom:auto;transform:none;margin-top:16px}.product-theme.singmotion-flow .flow-main{padding-bottom:30px;justify-content:flex-start}.product-theme.singmotion-flow .flow-audio{max-height:none}}
