@@ -1,8 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MoreVertical, Plus, UserRound, Trash2, Pencil, Download, Copy } from "lucide-react";
-import { api, ensureSession } from "@/lib/client";
+import { MoreVertical, Plus, UserRound, Trash2, Pencil, Download, Copy, Music2 } from "lucide-react";
+import { api, ensureSession, upload } from "@/lib/client";
+import { validateFile, type Asset } from "@/lib/domain";
 import type { Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
 
@@ -122,12 +123,38 @@ function GalleryTile({tile,deleting,onDelete,onRename}:{tile:Tile;deleting:boole
   </article>;
 }
 function CreateTile() {
-  return <Link href="/studio?new=1" className="home-gallery-create">
-    <span className="home-gallery-plus"><Plus size={38} strokeWidth={1.7} /></span>
-    <strong>Create Video</strong>
-    <span>Bring Music to Life.</span>
-    <span className="sr-only">Open the studio</span>
-  </Link>;
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  async function selectAudio(file?: File) {
+    if (!file || uploading) return;
+    setUploading(true);
+    setError("");
+    try {
+      validateFile(file.name, file.size, "audio");
+      await ensureSession();
+      const asset = await upload(file, "audio") as Asset;
+      // One-time handoff into a fresh Studio project; never reuse the prior draft.
+      sessionStorage.setItem("singmotion-home-audio-handoff", JSON.stringify(asset));
+      window.location.assign("/studio?new=1&audio=1");
+    } catch (e) {
+      setError((e as Error).message || "Audio upload failed. Please try again.");
+      setUploading(false);
+    }
+  }
+  return <div className="home-gallery-upload-wrap">
+    <label className={uploading ? "home-gallery-create home-gallery-upload is-uploading" : "home-gallery-create home-gallery-upload"}
+      onDragOver={e => e.preventDefault()}
+      onDrop={e => { e.preventDefault(); void selectAudio(e.dataTransfer.files?.[0]); }}>
+      <input type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={uploading}
+        aria-label="Upload your song" onChange={e => { void selectAudio(e.target.files?.[0]); e.currentTarget.value = ""; }} />
+      <span className="home-gallery-plus"><Music2 size={30} strokeWidth={1.7} /></span>
+      <strong>{uploading ? "Uploading your song…" : "Upload your song"}</strong>
+      <span>Drag & drop or click to choose audio</span>
+      <small>MP3, WAV, M4A · up to 50 MB</small>
+      <span className="sr-only">Start a new video by uploading audio</span>
+    </label>
+    {error && <p className="home-gallery-upload-error" role="alert">{error}</p>}
+  </div>;
 }
 
 export function GlobalMenu() {
