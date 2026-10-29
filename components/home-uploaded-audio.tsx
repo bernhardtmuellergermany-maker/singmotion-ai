@@ -20,6 +20,7 @@ export function HomeUploadedAudio({
   const [position, setPosition] = useState(0);
   const [peaks, setPeaks] = useState<number[]>([]);
   const duration = audio.duration || 0;
+  const playbackUrl = "/api/assets/" + encodeURIComponent(audio.id) + (/\.(wav|m4a)$/i.test(audio.name) ? "?playback=1" : "");
 
   useEffect(() => {
     const controller = new AbortController();
@@ -29,7 +30,7 @@ export function HomeUploadedAudio({
     setPlaying(false);
     (async () => {
       try {
-        const res = await fetch("/api/assets/" + encodeURIComponent(audio.id), { signal: controller.signal });
+        const res = await fetch(playbackUrl, { signal: controller.signal });
         if (!res.ok) return;
         const raw = await res.arrayBuffer();
         if (controller.signal.aborted) return;
@@ -53,7 +54,7 @@ export function HomeUploadedAudio({
       }
     })();
     return () => { controller.abort(); player.current?.pause(); };
-  }, [audio.id]);
+  }, [audio.id, playbackUrl]);
 
   useEffect(() => {
     if (!active) player.current?.pause();
@@ -101,7 +102,7 @@ export function HomeUploadedAudio({
             <span>{time(position)} / {time(duration)}</span>
           </div>
         </div>
-        <audio ref={player} src={"/api/assets/"+encodeURIComponent(audio.id)} preload="metadata"
+        <audio ref={player} src={playbackUrl} preload="metadata"
           onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
           onTimeUpdate={e=>setPosition(e.currentTarget.currentTime)}
           onEnded={()=>setPlaying(false)} />
