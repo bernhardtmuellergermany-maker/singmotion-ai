@@ -263,3 +263,17 @@
 .sm-help-bottom{margin-top:40px;padding:24px 4px;border-top:1px solid rgba(195,168,240,.18);color:#aca6bf;font-size:13px;line-height:1.7}
 .sm-help-bottom a{color:#b99afa;text-decoration:underline;text-underline-offset:3px}
 .sm-help-bottom a:hover{color:#dec8ff}
+
+/* Sharper active-card hover: resize the layout box rather than scaling a
+   pre-rasterized 3D texture containing video, labels and buttons. */
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active{transition:width .35s cubic-bezier(.22,1,.36,1),transform .35s cubic-bezier(.22,1,.36,1),border-color .28s ease,box-shadow .35s ease}
+  .sm-carousel-card.is-active:hover{
+    width:calc(min(90vw,400px,calc((100svh - 170px) * .5625)) * 1.015);
+    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1);
+    filter:none;opacity:1;
+  }
+}
+@media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active:hover{width:calc(min(88vw,calc((100svh - 160px) * .5625)) * 1.015)}
+}
