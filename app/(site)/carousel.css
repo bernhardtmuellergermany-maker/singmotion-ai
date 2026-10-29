@@ -53,3 +53,19 @@
 /* Preserve the exact 9:16 ratio even when the viewport is short or narrow. */
 .sm-carousel-card{width:min(90vw,400px,calc((100svh - 170px) * .5625));height:auto;max-height:none}
 @media(max-width:690px){.sm-carousel-card{width:min(88vw,calc((100svh - 160px) * .5625));height:auto;max-height:none}}
+
+/* Restore gallery-card hover treatment while keeping 3D navigation smooth. */
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active:hover{
+    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1.015);
+    border-color:#b78cff;
+    box-shadow:0 28px 72px rgba(0,0,0,.56),0 0 30px rgba(146,85,242,.17);
+    background:linear-gradient(150deg,#211c38,#111522);
+  }
+  .sm-carousel-card.is-inactive:hover{
+    filter:brightness(.93);
+    border-color:#a27bff;
+    box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 22px rgba(146,85,242,.17);
+  }
+}
+.sm-carousel-card{transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1),border-color .28s ease,box-shadow .35s ease,background .3s ease}
