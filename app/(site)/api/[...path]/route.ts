@@ -39,7 +39,7 @@ import {
   type Artist,
   type Job,
 } from "@/lib/domain";
-import { validateAudio } from "@/lib/media";
+import { validateAudio, createAudioPreview } from "@/lib/media";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (v: unknown, status = 200) =>
@@ -261,6 +261,7 @@ async function handler(
       const bytes = Buffer.from(await file.arrayBuffer());
       const assetId = randomUUID();
       const dest = path.join(dataDir, "media", assetId);
+      const preview = path.join(dataDir, "media", `${assetId}.preview.mp3`);
       let duration: number | null = null,
         width: number | null = null,
         height: number | null = null,
@@ -269,6 +270,9 @@ async function handler(
         await writeFile(dest, bytes, { mode: 0o600, flag: "wx" });
         if (kind === "audio") {
           duration = await validateAudio(dest);
+          // Preserve the uploaded bytes; create a separate MP3 for browsers
+          // that cannot decode WAV/ALAC or a particular AAC profile.
+          if (/\.(wav|m4a)$/i.test(file.name)) await createAudioPreview(dest, preview);
           mime = /\.wav$/i.test(file.name)
             ? "audio/wav"
             : /\.m4a$/i.test(file.name)
@@ -314,17 +318,19 @@ async function handler(
         return json(safeAsset(a), 201);
       } catch (e) {
         await unlink(dest).catch(() => {});
+        await unlink(preview).catch(() => {});
         if (e instanceof AppError) throw e;
         throw new AppError(
-          "This file could not be decoded. Upload a valid MP3, WAV, JPEG, or PNG.",
+          "This file could not be decoded. Upload a valid MP3, WAV, M4A, JPEG, or PNG.",
         );
       }
     }
     if (route === "assets" && id && method === "GET") {
       const a = asset(id, owner);
-      const content = await readFile(a.path);
+      const playback = a.kind === "audio" && req.nextUrl.searchParams.has("playback") && (a.mime === "audio/wav" || a.mime === "audio/mp4");
+      const content = await readFile(playback ? path.join(dataDir, "media", `${a.id}.preview.mp3`) : a.path);
       const headers: Record<string, string> = {
-        "Content-Type": a.mime,
+        "Content-Type": playback ? "audio/mpeg" : a.mime,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "Accept-Ranges": "bytes",
