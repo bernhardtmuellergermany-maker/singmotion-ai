@@ -264,7 +264,9 @@ export default function Waveform({
               left: `${(start / duration) * 100}%`,
               width: `${((end - start) / duration) * 100}%`,
             }}
-          />
+            >
+              <span className="wave-selection-hit" aria-hidden="true" />
+            </div>
           <div
             className="playhead"
             style={{ left: `${(position / duration) * 100}%` }}
