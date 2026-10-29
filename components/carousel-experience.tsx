@@ -272,7 +272,8 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   const [adminProjects,setAdminProjects]=useState<{id:string;artist:string;selected:boolean}[]|null>(null);
   const [selecting,setSelecting]=useState(false);
   const [selectionError,setSelectionError]=useState("");
-  // Begin fetching the already-public Showcase stream immediately, in parallel\n  // with its metadata. This avoids a network round trip before video buffering.\n  const videoUrl=published===null?"/api/showcase?video=1":published.videoUrl;
+  // Start buffering the public Showcase stream in parallel with its metadata.
+  const videoUrl=published===null?"/api/showcase?video=1":published.videoUrl;
   const posterUrl=showcase.posterUrl;
   const hasVideo=videoUrl.startsWith("https://") || videoUrl.startsWith("/");
   useEffect(()=>{setFailed(false);},[videoUrl]);
