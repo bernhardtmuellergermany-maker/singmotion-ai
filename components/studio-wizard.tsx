@@ -332,19 +332,14 @@ export function StudioWizard({
           </label>
         ) : (
           <section className="flow-audio">
-            <div className="flow-track">
-              <div className="flow-track-art"><img src="/media/upload-song.png" alt="" aria-hidden="true" /></div>
-              <div className="flow-track-meta"><strong title={draft.song.name}>{draft.song.name}</strong><small>{time(draft.song.duration || 0)}</small></div>
-              <button className="flow-track-remove" aria-label="Remove song" onClick={()=>update({song:null})} disabled={busy}><Trash2 size={20}/></button>
-            </div>
-            <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})}/>
+            <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name} onRemove={()=>update({song:null})} removeDisabled={busy}/>
           </section>
         )}
           </div>
         <section className="flow-composer" aria-label="Video settings">
           <div className="flow-composer-top">
-            {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
-              <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
+            <div className="flow-image-field">{draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
+              <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}{!draft.imageId&&!!draft.song&&!busy&&<span className="flow-image-hint">Add an image to create your video</span>}</div>
             <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
           </div>
           <div className="flow-composer-bottom">
@@ -355,7 +350,7 @@ export function StudioWizard({
             <button className="flow-create" disabled={!available} title={!draft.song?"Add a song":!draft.imageId?"Add an artist photo":!audioValid?"Select a valid audio segment":!prompt?"Add a description":"Create video"} onClick={()=>setConfirm(true)}><Sparkles size={19}/>Create video <ArrowRight size={19}/></button>
           </div>
         </section>
-        {!available && !!draft.song && <p className="flow-missing" role="status">{busy ? "Uploading…" : !draft.imageId ? "Add an artist photo to continue" : !audioValid ? "Select a valid audio segment" : !prompt ? "Add a performance description" : ""}</p>}
+        {!available && !!draft.song && !!draft.imageId && <p className="flow-missing" role="status">{busy ? "Uploading…" : !audioValid ? "Select a valid audio segment" : !prompt ? "Check performance settings" : ""}</p>}
         </div>
         {error && <p className="flow-error" role="alert">{error}</p>}
       </main>
