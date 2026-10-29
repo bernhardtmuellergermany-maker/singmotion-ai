@@ -199,3 +199,27 @@
 .legal-admin-access a,.legal-admin-access button{border:0;background:transparent;padding:8px 0;font:inherit;font-size:11px;color:#a09ab5;text-decoration:none;cursor:pointer}
 .legal-admin-access a:hover,.legal-admin-access button:hover{color:#dfccff}
 @media(max-width:650px){.legal-refresh .premium-site .marketing-header{padding:0 22px}.legal-refresh .premium-site .hero.content-hero{padding:42px 0 30px}.legal-refresh .premium-site main{padding-bottom:48px}.legal-admin-access{justify-content:flex-start;flex-wrap:wrap}}
+
+/* Compact dedicated legal overview */
+.sm-legal{background:radial-gradient(ellipse at 48% -8%,rgba(104,60,180,.20),transparent 60%),#080b15;color:#eceaf7;min-height:100vh;font-family:inherit}
+.sm-legal-top{height:82px;border-bottom:1px solid #ffffff13;max-width:1100px;padding:0 28px;margin:auto;display:flex;align-items:center;justify-content:space-between}
+.sm-legal a{text-decoration:none;color:inherit}
+.sm-legal-brand{font-size:18px;font-weight:800;letter-spacing:.04em}.sm-legal-brand span,.sm-legal h1 span{color:#a778fa}
+.sm-legal-back{font-size:12px;color:#aaa5bf!important}
+.sm-legal-main{max-width:940px;margin:auto;padding:68px 26px 55px}
+.sm-legal-intro{max-width:740px;margin-bottom:25px}
+.sm-legal-kicker,.sm-legal-num{font-size:10px;font-weight:750;letter-spacing:.20em;color:#b68df8}
+.sm-legal h1{font-size:clamp(48px,8vw,78px);font-weight:750;letter-spacing:-.065em;line-height:1.04;margin:14px 0}
+.sm-legal-intro>p{font-size:15px;color:#b8b3cb;line-height:1.65}
+.sm-legal-intro>small{display:block;color:#a2a0b5;font-size:11px;line-height:1.65;margin-top:20px}
+.sm-legal-nav{display:flex;gap:7px;flex-wrap:wrap;margin:30px 0 25px}
+.sm-legal-nav a{border:1px solid #a58ac344;border-radius:20px;font-size:11px;padding:8px 13px;color:#d6cbed;background:#a58ac30c}
+.sm-legal-nav a:hover{background:#9872d830}
+.sm-legal-panel{scroll-margin-top:25px;background:linear-gradient(125deg,#1b1b33,#111525);border:1px solid #c3a8f02b;border-radius:18px;padding:clamp(24px,4vw,38px);margin:15px 0}
+.sm-legal-panel h2{font-size:clamp(22px,3vw,29px);line-height:1.2;letter-spacing:-.03em;margin:12px 0 17px}
+.sm-legal-panel p,.sm-legal-panel address{font-size:13px;line-height:1.84;color:#bcb7d0;margin:12px 0;font-style:normal}
+.sm-legal-panel strong{color:#f1eafa}
+.sm-legal-panel address{border-left:2px solid #a779ec;padding:8px 0 8px 20px;background:#ffffff04}
+.sm-legal-footer{max-width:940px;margin:0 auto;padding:18px 26px 38px;border-top:1px solid #ffffff15;color:#858096;font-size:11px;display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:14px}
+.sm-legal-footer .legal-admin-access{border:0;margin:0;padding:0;gap:10px}
+@media(max-width:580px){.sm-legal-top{padding:0 18px;height:72px}.sm-legal-main{padding:44px 17px}.sm-legal-footer{padding:18px 17px 35px}.sm-legal-footer .legal-admin-access{justify-content:flex-start}}
