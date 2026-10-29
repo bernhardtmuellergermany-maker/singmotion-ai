@@ -25,26 +25,28 @@ export function CarouselExperience(){
   const [searchOpen,setSearchOpen]=useState(false);
   const [searchText,setSearchText]=useState("");
   const [searchQuery,setSearchQuery]=useState("");
-  const [searchFocus,setSearchFocus]=useState(0);
+  const priorCard=useRef("home");
   const searchInput=useRef<HTMLInputElement>(null);
   const searchButton=useRef<HTMLButtonElement>(null);
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
-  const ids=["showcase","home","login",...tiles.map(t=>t.id)];
-  const searchResults=searchQuery.trim()?tiles.filter(t=>t.name.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())):tiles;
-  const visibleSearchResults=searchResults.slice(0,30);
-  useEffect(()=>{const timer=setTimeout(()=>{setSearchQuery(searchText);setSearchFocus(0);},250);return()=>clearTimeout(timer);},[searchText]);
-  useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
-  const closeSearch=()=>{setSearchOpen(false);setSearchText("");setSearchQuery("");searchButton.current?.focus();};
-  const selectSearch=(id:string)=>{closeSearch();navigate(id);};
+  const searching=searchOpen && searchQuery.trim().length>0;
+  const matches=searching?tiles.filter(t=>t.name.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())):tiles;
+  const ids=searching?matches.map(t=>t.id):["showcase","home","login",...tiles.map(t=>t.id)];
   const activeIndex=Math.max(0,ids.indexOf(current));
-  const activeId=ids[activeIndex];
+  useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
+  useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
+  const closeSearch=()=>{setSearchOpen(false);setSearchText("");setSearchQuery("");const restore=priorCard.current;window.setTimeout(()=>navigate(restore==="home"||tiles.some(t=>t.id===restore)?restore:"home"),0);searchButton.current?.focus();};
   const navigate=useCallback((id:string,replace=false)=>{
     currentRef.current=id;setCurrent(id);
     const u=new URL(window.location.href);
     if(id==="home")u.searchParams.delete("card");else u.searchParams.set("card",id);
     window.history[replace?"replaceState":"pushState"]({ ...window.history.state, carouselCard:id },"",u.pathname+u.search+u.hash);
   },[]);
+  useEffect(()=>{
+    if(!searching)return;
+    if(matches.length && !matches.some(t=>t.id===current))navigate(matches[0].id,true);
+  },[searchQuery,tiles,searchOpen]);
   useEffect(()=>{
     const id=queryCard();currentRef.current=id;setCurrent(id);
     const onPop=()=>{const next=queryCard();currentRef.current=next;setCurrent(next);};
@@ -76,10 +78,10 @@ export function CarouselExperience(){
     return()=>{mounted=false;window.clearInterval(interval);};
   },[]);
   useEffect(()=>{
-    if(!loading&&!ids.includes(current)){
+    if(!loading&&!searching&&!ids.includes(current)){
       navigate("home",true);
     }
-  },[loading,tiles,current,navigate]);
+  },[loading,tiles,current,navigate,searching]);
   const step=(offset:number)=>{
     const i=Math.max(0,ids.indexOf(currentRef.current));
     const target=ids[Math.max(0,Math.min(ids.length-1,i+offset))];
@@ -118,25 +120,16 @@ export function CarouselExperience(){
     <header className="home-gallery-header sm-carousel-header">
       <a href="/" className="sm-wordmark" aria-label="SingMotion AI home" onClick={e=>{e.preventDefault();navigate("home");}}>SingMotion <span>AI</span></a>
       <div className="sm-header-actions">
+        <div className={"sm-inline-search"+(searchOpen?" is-open":"")}>
+          <button ref={searchButton} type="button" className="sm-inline-search-icon" aria-label="Search projects" aria-expanded={searchOpen} onClick={()=>{if(searchOpen){searchInput.current?.focus();return;}priorCard.current=current;setSearchOpen(true);}}><Search size={19}/></button>
+          <input ref={searchInput} type="search" tabIndex={searchOpen?0:-1} placeholder="Search projects..." aria-label="Search projects" value={searchText} onChange={e=>setSearchText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();closeSearch();}if(e.key==="Enter"&&matches.length){navigate(matches[0].id);}}}/>
+          <button type="button" className="sm-inline-search-close" aria-label="Close search" tabIndex={searchOpen?0:-1} onClick={closeSearch}><X size={16}/></button>
+        </div>
         <GlobalMenu/>
-        <button ref={searchButton} className="sm-carousel-search-trigger" type="button" aria-label="Search projects" aria-expanded={searchOpen} onClick={()=>setSearchOpen(value=>!value)}><Search size={20}/></button>
-        <a href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account" onClick={e=>{e.preventDefault();navigate("login");}}><UserRound size={21}/></a>
+        <a href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account" onClick={e=>{e.preventDefault();closeSearch();navigate("login");}}><UserRound size={21}/></a>
       </div>
     </header>
-    {searchOpen&&<div className="sm-project-search-backdrop" onPointerDown={e=>{if(e.target===e.currentTarget)closeSearch();}}>
-      <section className="sm-project-search" role="dialog" aria-modal="true" aria-label="Search your projects" onKeyDown={e=>{
-        if(e.key==="Escape"){e.preventDefault();closeSearch();}
-        if(e.key==="ArrowDown"){e.preventDefault();setSearchFocus(i=>Math.min(i+1,visibleSearchResults.length-1));}
-        if(e.key==="ArrowUp"){e.preventDefault();setSearchFocus(i=>Math.max(0,i-1));}
-        if(e.key==="Enter"&&visibleSearchResults[searchFocus]){e.preventDefault();selectSearch(visibleSearchResults[searchFocus].id);}
-      }}>
-        <div className="sm-project-search-top"><Search size={19}/><input ref={searchInput} type="search" placeholder="Search your projects…" value={searchText} onChange={e=>setSearchText(e.target.value)} aria-label="Search project names"/><button type="button" onClick={closeSearch} aria-label="Close search"><X size={19}/></button></div>
-        <div className="sm-project-search-list" role="listbox" aria-label="Matching private projects">
-          {loading?<p className="sm-project-search-empty">Loading projects…</p>:error?<p className="sm-project-search-empty" role="alert">{error}</p>:searchResults.length===0?<p className="sm-project-search-empty">No matching projects.</p>:visibleSearchResults.map((item,i)=><button type="button" role="option" aria-selected={searchFocus===i} className={"sm-project-search-result"+(searchFocus===i?" is-highlighted":"")} key={item.id} onMouseEnter={()=>setSearchFocus(i)} onClick={()=>selectSearch(item.id)}><span className="sm-project-search-result-name">{item.name}</span><span className="sm-project-search-result-status">{item.state}</span></button>)}
-          {searchResults.length>30&&<p className="sm-project-search-empty">Showing first 30 of {searchResults.length} results. Refine your search.</p>}
-        </div>
-      </section>
-    </div>}
+    {searching&&matches.length===0&&<div className="sm-carousel-search-empty" role="status"><strong>No matching projects</strong><span>Try another name.</span></div>}
     <main id="content" className="sm-carousel-main">
       {error&&<p className="sm-carousel-error" role="alert">{error}</p>}
       <div className="sm-carousel-stage" aria-label="Music video cards" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
