@@ -269,7 +269,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   return <div className="sm-showcase-card">
     {posterUrl&&<img className="sm-showcase-poster" src={posterUrl} alt="" loading="eager"/>}
     {hasVideo&&visible&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload="auto" onError={()=>setFailed(true)}/>}
-    {hasVideo&&nearby&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
+    {hasVideo&&visible&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Made with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
