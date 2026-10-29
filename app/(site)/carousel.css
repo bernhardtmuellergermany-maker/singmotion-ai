@@ -1959,3 +1959,22 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   right:auto!important;
   transform:translate(-50%,-50%)!important;
 }
+
+/* Trim interaction priority: the entire selected interior must remain draggable,
+   including clips below 5s. Edge sliders only catch the OUTSIDE half of each edge. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  z-index:12!important;
+  pointer-events:auto!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection-hit{
+  left:0!important;
+  width:100%!important;
+  min-width:0!important;
+  transform:none!important;
+  height:100%!important;
+  min-height:0!important;
+  pointer-events:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  z-index:10!important;
+}
