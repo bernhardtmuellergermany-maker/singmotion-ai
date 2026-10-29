@@ -1990,3 +1990,19 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   margin-bottom:0;
   resize:vertical!important;
 }
+
+/* Visible trim markers: twice as tall, bright white, centered on each boundary.
+   Preserve the existing invisible edge hit targets and draggable selection interior. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-start::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-end::after{
+  top:50%!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translate(-50%,-50%)!important;
+  height:48px!important;
+  width:3px!important;
+  background:#fff!important;
+  border-radius:3px!important;
+  box-shadow:0 0 5px rgba(255,255,255,.28)!important;
+}
