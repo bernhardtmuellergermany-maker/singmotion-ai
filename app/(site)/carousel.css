@@ -551,3 +551,31 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 /* Keep auto-growing prompt comfortably bounded; scroll internally beyond cap. */
 .product-theme.singmotion-flow textarea.flow-prompt{max-height:240px;overflow-y:auto;resize:vertical;flex:none}
 .product-theme.singmotion-flow .flow-prompt-wrap{align-self:stretch}
+
+/* Responsive carousel depth: distances scale with actual card size, not viewport width. */
+.sm-carousel-stage{
+  --sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625));
+  --sm-carousel-step:clamp(185px,calc(var(--sm-card-width)*.83),335px);
+}
+.sm-carousel-card{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step) + var(--drag)*1px)) translateZ(calc(var(--depth)*-110px)) rotateY(calc(var(--distance)*-35deg)) scale(calc(1 - var(--depth)*.12));
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-neighbor.is-side-hovered{
+   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) translateZ(-55px) rotateY(calc(var(--distance)*-24deg)) scale(.94);
+ }
+ .sm-carousel-card.is-distant.is-distant-hovered{
+   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) translateZ(-185px) rotateY(calc(var(--distance)*-29deg)) scale(.80);
+ }
+}
+@media(max-width:690px){
+ .sm-carousel-stage{--sm-card-width:min(88vw,calc((100svh - 160px)*.5625));--sm-carousel-step:65vw}
+ .sm-carousel-card{
+   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step) + var(--drag)*1px)) rotateY(calc(var(--distance)*-34deg)) scale(calc(1 - var(--depth)*.12));
+ }
+}
+@media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-distant.is-distant-hovered{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) rotateY(calc(var(--distance)*-29deg)) scale(.80);
+ }
+}
