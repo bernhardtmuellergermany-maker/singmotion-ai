@@ -217,7 +217,7 @@ export function StudioWizard({
       current = false;
       clearTimeout(timer);
     };
-  }, [draft, step, owner, ready, projectKey]);
+  }, [draft, step, owner, ready, projectKey, projectName]);
   // Grow with the content (including restored drafts), capped to keep the composer compact.
   useEffect(() => {
     const field = performanceInput.current;
