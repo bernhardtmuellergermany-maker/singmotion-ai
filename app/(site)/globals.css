@@ -2,6 +2,9 @@
 :root {
   /* Keep header controls aligned when navigating to long pages. */
   scrollbar-gutter: stable;
+  /* Paint the reserved scrollbar gutter in the site's dark theme. */
+  background-color: #090d16;
+  scrollbar-color: #38304b #090d16;
   --ink: #171c2f;
   --muted: #72788a;
   --indigo: #50539c;
@@ -2517,3 +2520,9 @@ summary::-webkit-details-marker {
 @media(max-width: 600px) {
   .wizard-card .format-options button { min-height: 86px; }
 }
+
+/* Consistent scrollbar styling on the homepage and long information pages. */
+html::-webkit-scrollbar{width:11px}
+html::-webkit-scrollbar-track{background:#090d16}
+html::-webkit-scrollbar-thumb{background:#38304b;border:3px solid #090d16;border-radius:99px}
+html::-webkit-scrollbar-thumb:hover{background:#7753aa}
