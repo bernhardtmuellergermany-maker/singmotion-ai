@@ -312,6 +312,8 @@ export function StudioWizard({
         </div>
       </header>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
+        <div className="flow-workspace" aria-label="Studio creation workspace">
+          <div className="flow-workspace-media">
         {!draft.song ? (
           <label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
             <FileMusic className="flow-upload-symbol" size={47} strokeWidth={1.65} aria-hidden="true" />
@@ -330,6 +332,7 @@ export function StudioWizard({
             <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})}/>
           </section>
         )}
+          </div>
         <section className="flow-composer" aria-label="Video settings">
           <div className="flow-composer-top">
             {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
@@ -345,6 +348,7 @@ export function StudioWizard({
           </div>
         </section>
         {!available && !!draft.song && <p className="flow-missing" role="status">{busy ? "Uploading…" : !draft.imageId ? "Add an artist photo to continue" : !audioValid ? "Select a valid audio segment" : !prompt ? "Add a performance description" : ""}</p>}
+        </div>
         {error && <p className="flow-error" role="alert">{error}</p>}
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} onClose={()=>setConfirm(false)}/>}
