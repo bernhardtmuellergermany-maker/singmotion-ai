@@ -951,3 +951,69 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .product-theme.singmotion-flow .flow-generate-price{font-variant-numeric:tabular-nums;flex:none;font-size:11px;font-weight:650;padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.15)}
 @media(max-width:850px){.product-theme.singmotion-flow .flow-create{min-height:44px}}
 @media(max-width:520px){.product-theme.singmotion-flow .flow-create{font-size:11px}.product-theme.singmotion-flow .flow-generate-price{font-size:10px;padding:3px 5px}}
+
+/* Studio alignment: center the shared workspace as one block.
+   Auto block margins distribute spare height, but collapse to zero when
+   the workspace needs natural scrolling on short viewports. */
+.product-theme.singmotion-flow .flow-main.flow-empty,
+.product-theme.singmotion-flow .flow-main.flow-has-audio{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  box-sizing:border-box;
+  height:auto;
+  min-height:calc(100dvh - 70px);
+  padding:32px 24px max(32px,env(safe-area-inset-bottom));
+}
+.product-theme.singmotion-flow .flow-main>.flow-workspace{
+  margin-block:auto;
+  margin-inline:auto;
+  flex:0 0 auto;
+  width:min(100%,1020px);
+  align-items:center;
+  justify-content:center;
+}
+.product-theme.singmotion-flow .flow-main.flow-empty>.flow-workspace{gap:44px}
+.product-theme.singmotion-flow .flow-main.flow-has-audio>.flow-workspace{gap:28px}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  box-sizing:border-box;
+  width:min(100%,740px);
+  padding:18px;
+}
+.product-theme.singmotion-flow .flow-composer-top{
+  display:flex;
+  align-items:center;
+  gap:24px;
+  min-width:0;
+}
+.product-theme.singmotion-flow .flow-image-field{
+  width:128px;
+  flex:0 0 128px;
+  align-self:center;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{
+  width:128px;
+  height:128px;
+  aspect-ratio:1 / 1;
+  flex:none;
+}
+.product-theme.singmotion-flow .flow-composer-top .flow-prompt-wrap{
+  flex:1 1 0;
+  min-width:0;
+}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .flow-main.flow-empty,
+ .product-theme.singmotion-flow .flow-main.flow-has-audio{
+   min-height:calc(100dvh - 65px);
+   padding:24px 12px max(28px,env(safe-area-inset-bottom));
+ }
+ .product-theme.singmotion-flow .flow-main.flow-empty>.flow-workspace{gap:30px}
+ .product-theme.singmotion-flow .flow-main.flow-has-audio>.flow-workspace{gap:26px}
+ .product-theme.singmotion-flow .flow-workspace>.flow-composer{padding:12px}
+ .product-theme.singmotion-flow .flow-composer-top{gap:12px}
+ .product-theme.singmotion-flow .flow-image-field{width:84px;flex-basis:84px}
+ .product-theme.singmotion-flow .flow-image-field .flow-photo,
+ .product-theme.singmotion-flow .flow-image-field .flow-photo-add{width:84px;height:84px}
+}
