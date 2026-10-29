@@ -1,5 +1,7 @@
 @import "tailwindcss";
 :root {
+  /* Keep header controls aligned when navigating to long pages. */
+  scrollbar-gutter: stable;
   --ink: #171c2f;
   --muted: #72788a;
   --indigo: #50539c;
