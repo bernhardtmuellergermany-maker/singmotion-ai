@@ -312,9 +312,9 @@ export function StudioWizard({
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
         {!draft.song ? (
           <label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
-            <img className="flow-upload-symbol" src="/media/upload-song.png" alt="" aria-hidden="true" />
-            <strong>{busy ? "Uploading your song…" : "Upload your song…"}</strong>
-            <span>Or click to choose an audio file</span>
+            <FileMusic className="flow-upload-symbol" size={47} strokeWidth={1.65} aria-hidden="true" />
+            <strong>{busy ? "Uploading your song…" : "Upload audio"}</strong>
+            <span>Click to add your song</span>
             <small>MP3, WAV, M4A · up to 50 MB</small>
             <input type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"audio")}/>
           </label>
@@ -329,11 +329,10 @@ export function StudioWizard({
           </section>
         )}
         <section className="flow-composer" aria-label="Video settings">
-          <label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance</label>
           <div className="flow-composer-top">
             {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
-              <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
-            <div className="flow-prompt-wrap"><textarea id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="Example: Singing with emotion, subtle movements, warm stage lighting…" value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
+              <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
+            <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
           </div>
           <div className="flow-composer-bottom">
             <div className="flow-settings-group" role="group" aria-label="Video settings">
