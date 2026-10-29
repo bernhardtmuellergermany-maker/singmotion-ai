@@ -369,3 +369,74 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .flow-main{padding-bottom:300px}
 }
 @media(max-height:620px){.product-theme.singmotion-flow .flow-composer{position:relative;left:auto;bottom:auto;transform:none;margin-top:16px}.product-theme.singmotion-flow .flow-main{padding-bottom:30px;justify-content:flex-start}.product-theme.singmotion-flow .flow-audio{max-height:none}}
+
+/* Premium Studio finish: crisp hover lift, no decorative glow. */
+.product-theme.singmotion-flow .flow-composer{
+  background:#171a2b;border-color:rgba(160,136,203,.36);border-radius:20px;
+  box-shadow:0 16px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.045);
+  transition:background-color .25s ease,border-color .25s ease,box-shadow .25s ease;
+}
+@media(hover:hover) and (pointer:fine){
+ .product-theme.singmotion-flow .flow-composer:hover{
+   border-color:rgba(183,140,255,.65);background:#1a1d30;
+   box-shadow:0 19px 48px rgba(0,0,0,.39),inset 0 1px 0 rgba(255,255,255,.065);
+ }
+ .product-theme.singmotion-flow .flow-photo-add:hover,
+ .product-theme.singmotion-flow .flow-photo:hover{
+   transform:translateY(-3px) scale(1.02);background:#27263e;border-color:#ac8be5;
+   box-shadow:0 8px 18px rgba(0,0,0,.23);
+ }
+ .product-theme.singmotion-flow .flow-settings-group .flow-camera-menu:hover,
+ .product-theme.singmotion-flow .flow-settings-group .flow-format:hover{
+   background:#24263a;border-color:rgba(183,140,255,.72);
+   transform:translateY(-2px);
+ }
+ .product-theme.singmotion-flow .flow-create:not(:disabled):hover{
+   transform:translateY(-2px) scale(1.012);
+   background:#9262ed;border-color:#c5a0ff;
+   box-shadow:0 9px 21px rgba(0,0,0,.26);
+ }
+ .product-theme.singmotion-flow .flow-drop:hover{
+   transform:translateY(-3px) scale(1.02);
+   color:#e9e1ff;
+ }
+ .product-theme.singmotion-flow .flow-track-remove:hover{
+   background:#30243e;color:#fff;transform:scale(1.055);
+ }
+}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu,
+.product-theme.singmotion-flow .flow-settings-group .flow-format{
+ transition:background-color .2s,border-color .2s,transform .2s;
+}
+.product-theme.singmotion-flow .flow-create{transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s}
+.product-theme.singmotion-flow .flow-composer-label{font-weight:550;color:#c9c2db}
+.product-theme.singmotion-flow .flow-prompt-wrap{border-color:#3b3953;background:#101425;transition:border-color .2s,background-color .2s}
+.product-theme.singmotion-flow .flow-prompt-wrap:hover{border-color:#71608d;background:#14182a}
+.product-theme.singmotion-flow .flow-prompt-wrap:focus-within{border-color:#a281d9;background:#14182a}
+.product-theme.singmotion-flow .flow-create:not(:disabled){background:#7847dc;border-color:#996bed}
+.product-theme.singmotion-flow .flow-drop strong{font-weight:650;letter-spacing:-.035em}
+.product-theme.singmotion-flow .flow-audio{
+ width:min(100%,940px);gap:16px;
+}
+.product-theme.singmotion-flow .flow-track{
+ border:1px solid rgba(151,130,190,.3);border-radius:16px;
+ background:#151a2b;padding:11px 14px;
+ box-shadow:0 8px 27px rgba(0,0,0,.19);
+}
+.product-theme.singmotion-flow .flow-track strong{font-weight:650;color:#f5f2ff}
+.product-theme.singmotion-flow .flow-track small{color:#a9a2bd}
+.product-theme.singmotion-flow .flow-track-remove{transition:background-color .2s,color .2s,transform .2s}
+.product-theme.singmotion-flow .wave-strip{background:#151b2b;border:1px solid rgba(151,130,190,.26);border-radius:13px}
+.product-theme.singmotion-flow .wave-toolbar button{transition:background-color .2s,border-color .2s,transform .2s}
+@media(hover:hover) and (pointer:fine){
+ .product-theme.singmotion-flow .wave-toolbar button:hover{
+  background:#29253c;border-color:#a47de2;transform:translateY(-2px);
+ }
+}
+.product-theme.singmotion-flow .flow-photo img{border-radius:11px}
+.product-theme.singmotion-flow .flow-photo{overflow:visible}
+@media(prefers-reduced-motion:reduce){
+ .product-theme.singmotion-flow .flow-composer,
+ .product-theme.singmotion-flow .flow-composer *,
+ .product-theme.singmotion-flow .flow-drop{transition:none!important}
+}
