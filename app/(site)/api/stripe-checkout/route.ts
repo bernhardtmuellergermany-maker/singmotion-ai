@@ -16,7 +16,11 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   // Deliberately limited to the test-mode backend and pre-reviewed orders.
   const key = process.env.STRIPE_SECRET_KEY;
+  // Do not collect money until paid-order generation and delivery are active.
   if (process.env.STRIPE_CHECKOUT_ENABLED !== "true" ||
+      process.env.CUSTOMER_GENERATION_ENABLED !== "true" ||
+      process.env.CUSTOMER_FULFILLMENT_ENABLED !== "true" ||
+      process.env.CUSTOMER_DELIVERY_ENABLED !== "true" ||
       process.env.CUSTOMER_ACCOUNTS_ENABLED !== "true" ||
       !key?.startsWith("sk_test_"))
     return reply({ error: "Test Checkout is not configured." }, 503);
