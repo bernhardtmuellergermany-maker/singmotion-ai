@@ -547,3 +547,7 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 @media(max-width:690px){
   .product-theme.singmotion-flow .flow-workspace{gap:32px}
 }
+
+/* Keep auto-growing prompt comfortably bounded; scroll internally beyond cap. */
+.product-theme.singmotion-flow textarea.flow-prompt{max-height:240px;overflow-y:auto;resize:vertical;flex:none}
+.product-theme.singmotion-flow .flow-prompt-wrap{align-self:stretch}
