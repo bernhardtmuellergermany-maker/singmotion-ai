@@ -108,7 +108,7 @@ export function CarouselExperience(){
         const live=results[1].status==="fulfilled"?results[1].value.projects:[];
         const drafts=results[2].status==="fulfilled"?results[2].value:[];
         const cards:Tile[]=[
-          ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
+          ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.projectName||p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
           ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
           ...drafts.filter(d=>d.selection.songId&&d.selection.imageId).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId,seconds:d.selection.end-d.selection.start,created:0,state:"prepared"}))
         ].sort((a,b)=>b.created-a.created);
