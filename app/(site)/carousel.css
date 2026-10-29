@@ -1439,3 +1439,62 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   flex:0 0 158px;
  }
 }
+
+/* Audio filename/total duration: reference-style compact two-line metadata. */
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:11px;
+  flex:1 1 0;
+  min-width:0;
+  text-align:left;
+  color:#b583f1;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename>svg{
+  flex:0 0 18px;
+  color:#b889f1;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:4px;
+  flex:1 1 0;
+  min-width:0;
+  text-align:left;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>strong{
+  display:block;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  font-size:16px;
+  line-height:1.25;
+  font-weight:600;
+  color:#f4f2fa;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>small{
+  display:block;
+  font-size:14px;
+  line-height:1.25;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+  color:#a8a6c0;
+  white-space:nowrap;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-actions{flex:0 0 auto}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{gap:8px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>strong{font-size:14px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>small{font-size:12px}
+}
