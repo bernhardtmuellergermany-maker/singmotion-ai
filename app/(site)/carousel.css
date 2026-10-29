@@ -457,3 +457,38 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .product-theme.singmotion-flow .flow-settings-group .flow-format-menu .flow-format-options{min-width:170px;width:190px;left:auto;right:0}
 .product-theme.singmotion-flow .flow-settings-group .flow-format-menu .flow-format-options button small{max-width:none}
 @media(max-width:690px){.product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:0 1 95px}.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{gap:5px;padding:0 7px}.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options{max-width:min(280px,85vw)}}
+
+/* Studio workspace: waveform controls + composer form one normal-flow stack. */
+.product-theme.singmotion-flow .flow-main{
+  min-height:calc(100svh - 70px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:30px 20px 48px;gap:14px;
+}
+.product-theme.singmotion-flow .flow-workspace{
+  width:100%;max-width:1020px;min-width:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:28px;
+}
+.product-theme.singmotion-flow .flow-workspace-media{
+  width:min(100%,960px);min-width:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.product-theme.singmotion-flow .flow-workspace-media .flow-audio{
+  width:100%;max-height:none;overflow:visible;gap:16px;
+}
+.product-theme.singmotion-flow .flow-workspace-media .flow-drop{margin:0}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  position:relative;left:auto;bottom:auto;transform:none;
+  margin:0;width:min(100%,700px);max-width:100%;
+}
+.product-theme.singmotion-flow .flow-main .flow-missing{margin:0;text-align:center}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .flow-main{min-height:calc(100svh - 65px);padding:24px 12px 40px;justify-content:center}
+  .product-theme.singmotion-flow .flow-workspace{gap:26px}
+  .product-theme.singmotion-flow .flow-workspace>.flow-composer{width:100%;bottom:auto}
+  .product-theme.singmotion-flow .flow-workspace-media .flow-audio{max-height:none}
+}
+@media(max-height:670px){
+  .product-theme.singmotion-flow .flow-main{justify-content:flex-start}
+  .product-theme.singmotion-flow .flow-workspace>.flow-composer{margin-top:0}
+}
