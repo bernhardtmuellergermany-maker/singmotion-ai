@@ -2,6 +2,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { GlobalMenu } from "./home-collection";
 import {
   ArrowLeft,
   ArrowRight,
@@ -291,7 +292,7 @@ export function StudioWizard({
           <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button onClick={()=>setEditingName(true)}>Rename project</button><button onClick={()=>{if(window.confirm("Delete this draft? Generated videos will not be deleted.")){localStorage.removeItem("singmotion-studio");localStorage.removeItem("singmotion-draft-id");localStorage.removeItem(`singmotion-project-name:${projectKey}`);window.location.href="/studio";}}}>Delete draft</button></div></details>
         </div>
         <div className="flow-header-right">
-          <details className="flow-menu"><summary aria-label="More information"><MoreVertical size={19}/></summary><div className="flow-popover"><Link href="/help">Help</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/legal">Legal notice</Link></div></details>
+          <GlobalMenu />
           <Link href="/login" className="flow-profile" aria-label="Login"><UserRound size={21}/></Link>
         </div>
       </header>
