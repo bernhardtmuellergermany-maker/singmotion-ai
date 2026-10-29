@@ -913,3 +913,34 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{left:9px;top:54px;width:37px;height:37px}
   .product-theme.singmotion-flow .flow-image-field{width:84px;flex-basis:84px}
 }
+
+/* Identical 1:1 image placeholder and uploaded thumbnail; preview crop only. */
+.product-theme.singmotion-flow .flow-image-field{
+  align-self:flex-start;
+  width:132px;
+  flex:0 0 132px;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{
+  box-sizing:border-box;
+  display:flex;
+  width:100%;
+  height:auto;
+  aspect-ratio:1 / 1;
+  min-height:0;
+  max-height:none;
+  flex:0 0 auto;
+  border-radius:12px;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo img{
+  display:block;
+  width:100%;
+  height:100%;
+  aspect-ratio:1 / 1;
+  object-fit:cover;
+  object-position:center;
+  border-radius:inherit;
+}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .flow-image-field{width:84px;flex:0 0 84px}
+}
