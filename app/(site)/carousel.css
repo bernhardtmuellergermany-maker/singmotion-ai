@@ -1748,3 +1748,41 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   display:block;box-sizing:border-box;width:100%;min-width:0;
   margin:0;padding:0;touch-action:pan-x;cursor:pointer;
 }
+
+/* Compact final generation confirmation; no changes to checkout or billing logic. */
+.product-theme.sm-confirm-simple{width:min(92vw,530px);max-width:530px;padding:26px;box-sizing:border-box}
+.product-theme.sm-confirm-simple h2{font-size:25px;line-height:1.2;margin:0 0 18px}
+.product-theme.sm-confirm-simple .sm-confirm-summary{
+ display:flex;flex-direction:column;gap:0;background:rgba(23,26,42,.5);
+ border:1px solid rgba(122,113,159,.28);border-radius:15px;padding:4px 16px;
+}
+.product-theme.sm-confirm-simple .sm-confirm-summary>div{
+ display:flex;justify-content:space-between;align-items:center;gap:16px;
+ min-height:51px;border-bottom:1px solid rgba(122,113,159,.18);
+}
+.product-theme.sm-confirm-simple .sm-confirm-summary>div:last-child{border-bottom:0}
+.product-theme.sm-confirm-simple .sm-confirm-summary span{color:#aaa8c0;font-size:14px}
+.product-theme.sm-confirm-simple .sm-confirm-summary strong{
+ font-size:17px;color:#f4f2fa;font-weight:650;font-variant-numeric:tabular-nums;
+}
+.product-theme.sm-confirm-simple .sm-confirm-song{
+ min-width:0;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.product-theme.sm-confirm-simple .sm-confirm-consent{
+ margin:20px 0 0;display:flex;gap:12px;align-items:flex-start;
+}
+.product-theme.sm-confirm-simple .sm-confirm-consent>span{
+ font-size:13px;line-height:1.55;color:#c6c5d8;
+}
+.product-theme.sm-confirm-simple .sm-confirm-links{
+ margin:7px 0 18px 28px;font-size:12px;color:#9997b1;
+}
+.product-theme.sm-confirm-simple .sm-confirm-links a{color:#ba8dff}
+.product-theme.sm-confirm-simple .sm-confirm-notice{font-size:12px;margin:7px 0;color:#bfb7d1}
+.product-theme.sm-confirm-simple .product-actions{display:flex;gap:12px;margin-top:20px}
+.product-theme.sm-confirm-simple .product-actions>button{flex:1 1 0;min-width:0}
+@media(max-width:520px){
+ .product-theme.sm-confirm-simple{padding:18px}
+ .product-theme.sm-confirm-simple h2{font-size:21px}
+ .product-theme.sm-confirm-simple .sm-confirm-summary strong{font-size:15px}
+}
