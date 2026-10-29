@@ -338,7 +338,7 @@ export default function Waveform({
           /><button type="button" aria-label="Decrease end" onClick={()=>adjust("end",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase end" onClick={()=>adjust("end",1)}><Plus size={15}/></button></div>
         </label>
         </div>
-        <strong className="wave-duration-badge" aria-label="Selected duration"><span>Selected duration</span> <span className="wave-duration-value">{formatHundredths(Math.max(0,end-start))}</span></strong>
+        <div className="studio-duration-field"><span className="studio-timing-label">Selected duration</span><strong className="wave-duration-badge" aria-label="Selected duration"><span className="wave-duration-value">{formatHundredths(Math.max(0,end-start))}</span></strong></div>
       </div>
       <audio
         ref={audio}
