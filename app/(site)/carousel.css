@@ -1978,3 +1978,15 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .product-theme.singmotion-flow .studio-modern-wave .wave-handle{
   z-index:10!important;
 }
+
+/* Keep the native textarea resize corner at the bottom of the prompt card.
+   The textarea fills the available vertical space instead of leaving a gap. */
+.product-theme.singmotion-flow .flow-prompt-wrap{
+  padding-bottom:4px;
+}
+.product-theme.singmotion-flow textarea.flow-prompt{
+  flex:1 1 auto!important;
+  min-height:68px;
+  margin-bottom:0;
+  resize:vertical!important;
+}
