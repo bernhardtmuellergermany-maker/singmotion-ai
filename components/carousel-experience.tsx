@@ -47,7 +47,7 @@ export function CarouselExperience(){
     document.addEventListener("pointerdown",onOutside);
     return()=>document.removeEventListener("pointerdown",onOutside);
   },[searchOpen,tiles]);
-  const closeSearch=()=>{setSearchOpen(false);setSearchText("");setSearchQuery("");const restore=priorCard.current;navigate(restore==="home"||tiles.some(t=>t.id===restore)?restore:"home");searchButton.current?.focus();};
+  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
   const navigate=useCallback((id:string,replace=false)=>{
     currentRef.current=id;setCurrent(id);
     const u=new URL(window.location.href);
