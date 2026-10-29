@@ -116,7 +116,7 @@ export function CarouselExperience(){
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
-          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":"is-inactive")} aria-label={id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={distance!==0} style={{"--distance":distance,"--drag":distance===0?dragging:0} as React.CSSProperties} onClick={()=>{if(distance!==0)navigate(id);}}>
+          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":"is-inactive")} aria-label={id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={distance!==0} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} onClick={()=>{if(distance!==0)navigate(id);}}>
             {id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
