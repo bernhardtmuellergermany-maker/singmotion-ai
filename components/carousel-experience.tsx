@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, Trash2, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
 import { HomeUploadedAudio } from "./home-uploaded-audio";
 import { api, ensureSession, resetSession, upload } from "@/lib/client";
@@ -28,6 +28,7 @@ export function CarouselExperience(){
   const [current,setCurrent]=useState("home");
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
+  const [deletingDraft,setDeletingDraft]=useState<string|null>(null);
   const [audio,setAudio]=useState<Asset|null>(null);
   const [uploading,setUploading]=useState(false);
   const [uploadError,setUploadError]=useState("");
@@ -126,6 +127,24 @@ export function CarouselExperience(){
       navigate("home",true);
     }
   },[loading,tiles,current,navigate,searching]);
+  const deleteDraft=async(tile:Tile)=>{
+    if(!tile.id.startsWith("draft_") || deletingDraft)return;
+    if(!window.confirm(`Permanently delete draft "${tile.name}"? This frees a guest draft slot.`))return;
+    const id=tile.id.slice(6);
+    setDeletingDraft(tile.id);
+    setError("");
+    try{
+      await api(`studio-drafts/${encodeURIComponent(id)}`,{method:"DELETE"});
+      if(localStorage.getItem("singmotion-draft-id")===id){
+        localStorage.removeItem("singmotion-draft-id");
+        localStorage.removeItem("singmotion-studio");
+      }
+      localStorage.removeItem(`singmotion-project-name:${id}`);
+      setTiles(old=>old.filter(t=>t.id!==tile.id));
+      if(currentRef.current===tile.id)navigate("home",true);
+    }catch(cause){setError((cause as Error).message||"Draft could not be deleted.");}
+    finally{setDeletingDraft(null);}
+  };
   const step=(offset:number)=>{
     const i=Math.max(0,ids.indexOf(currentRef.current));
     const target=ids[Math.max(0,Math.min(ids.length-1,i+offset))];
@@ -214,7 +233,7 @@ export function CarouselExperience(){
               <p className="sm-login-explanation">Email sign-in is not active yet. Projects are currently linked to this browser's private demo session.</p>
               <button type="button" className="sm-carousel-primary" onClick={()=>{if(audio)continueToStudio();else navigate("home");}}>Continue to workspace <ArrowRight size={17}/></button>
               <button type="button" className="sm-carousel-demo-disconnect" onClick={()=>void disconnectDemoWorkspace()}>Disconnect this browser’s demo projects</button>
-            </div>:tile?<ProjectCarouselCard tile={tile} active={distance===0}/>:null}
+            </div>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
         })}
         {([-1,1] as const).map(direction=>{
@@ -245,7 +264,7 @@ export function CarouselExperience(){
     </main>
   </div>;
 }
-function ProjectCarouselCard({tile,active}:{tile:Tile;active:boolean}){
+function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:boolean;deleting:boolean;onDelete:()=>void}){
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [mediaError,setMediaError]=useState(false);
@@ -264,6 +283,7 @@ function ProjectCarouselCard({tile,active}:{tile:Tile;active:boolean}){
   const label=status==="draft"?"Draft":status==="prepared"?"Prepared":status==="processing"||status==="rendering"?"Processing":status==="submitted"||status==="pending"||status==="authorized"||status==="submitting"||status==="uncertain"?"Pending":status==="failed"?"Failed":status==="completed"?"Completed":tile.state;
   const explanation=label==="Draft"?"Continue editing this saved draft.":label==="Prepared"?"Ready for your next step.":label==="Processing"?"Your music video is being generated.":label==="Pending"?"Waiting for the provider.":label==="Failed"?"Open to review the failed attempt.":"Open to view your project.";
   return <div className={"sm-carousel-project "+(complete?"has-video":"has-status")}>
+    {tile.id.startsWith("draft_")&&<button type="button" className="sm-carousel-draft-delete" aria-label={`Delete draft ${tile.name}`} title="Delete draft" disabled={deleting} onPointerDown={e=>e.stopPropagation()} onTouchStart={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onDelete();}}><Trash2 size={16} aria-hidden="true"/></button>}
     {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading="lazy"/>}
     {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
     {complete&&!mediaError?<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const v=video.current;if(!v)return;v.muted=sound;setSound(!sound);}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>:<div className="sm-carousel-status">
