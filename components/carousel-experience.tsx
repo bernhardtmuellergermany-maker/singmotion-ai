@@ -41,7 +41,7 @@ export function CarouselExperience(){
   useEffect(()=>{
     if(!searchOpen)return;
     const onOutside=(event:PointerEvent)=>{
-      if(searchContainer.current && !searchContainer.current.contains(event.target as Node))closeSearch();
+      if(searchContainer.current && !searchContainer.current.contains(event.target as Node) && !(event.target as Element).closest?.(".home-gallery-account"))closeSearch();
     };
     document.addEventListener("pointerdown",onOutside);
     return()=>document.removeEventListener("pointerdown",onOutside);
@@ -136,7 +136,7 @@ export function CarouselExperience(){
           <button type="button" className="sm-inline-search-close" aria-label="Close search" tabIndex={searchOpen?0:-1} onClick={closeSearch}><X size={16}/></button>
         </div>
         <GlobalMenu/>
-        <a href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account" onClick={e=>{e.preventDefault();setSearchOpen(false);setSearchText("");setSearchQuery("");navigate("login");}}><UserRound size={21}/></a>
+        <a href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account" onClick={e=>{e.preventDefault();setSearchOpen(false);setSearchText("");setSearchQuery("");currentRef.current="login";navigate("login");}}><UserRound size={21}/></a>
       </div>
     </header>
     {searching&&matches.length===0&&<div className="sm-carousel-search-empty" role="status"><strong>No matching projects</strong><span>Try another name.</span></div>}
