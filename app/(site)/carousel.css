@@ -718,3 +718,7 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .studio-modern-wave .time-inputs{justify-content:center;gap:10px}
  .product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{width:65px}
 }
+
+.product-theme.singmotion-flow .studio-modern-wave{position:relative}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar{z-index:5}
+.product-theme.singmotion-flow .studio-modern-wave>audio{display:block;position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
