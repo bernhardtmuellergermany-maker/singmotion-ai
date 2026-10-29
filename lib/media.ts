@@ -37,13 +37,15 @@ export async function validateAudio(file: string, provider = false) {
     )
   )
     throw new AppError("This file does not contain valid audio.");
+  // Validate the real container, not a narrow codec allowlist. M4A and WAV
+  // may carry several audio codecs; FFmpeg decodability is subsequently tested
+  // by createAudioPreview before accepting the upload.
   const formats = new Set((p.format.format_name || "").split(","));
   const isMp3 = formats.has("mp3") && audio.codec_name === "mp3";
-  const isWav = formats.has("wav") && /^(pcm_|adpcm_|alaw$|mulaw$|flac$)/.test(audio.codec_name);
-  const isM4a = (formats.has("mov") || formats.has("mp4") || formats.has("m4a") || formats.has("3gp"))
-    && ["aac", "alac"].includes(audio.codec_name);
+  const isWav = formats.has("wav");
+  const isM4a = ["mov", "mp4", "m4a", "3gp", "3g2", "mj2"].some(format => formats.has(format));
   if (!isMp3 && !isWav && !isM4a)
-    throw new AppError("Use an MP3, PCM WAV, or AAC/ALAC M4A audio file.");
+    throw new AppError("Use a valid MP3, WAV or M4A audio file.");
   if (
     provider &&
     (audio.codec_name !== "mp3" ||
