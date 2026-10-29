@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
+import { customerLaunchReadiness } from "@/lib/commerce/readiness";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -17,7 +18,8 @@ export async function POST(req: NextRequest) {
   // Deliberately limited to the test-mode backend and pre-reviewed orders.
   const key = process.env.STRIPE_SECRET_KEY;
   // Do not collect money until paid-order generation and delivery are active.
-  if (process.env.STRIPE_CHECKOUT_ENABLED !== "true" ||
+  if (!customerLaunchReadiness().readyForPaidOrders ||
+      process.env.STRIPE_CHECKOUT_ENABLED !== "true" ||
       process.env.CUSTOMER_GENERATION_ENABLED !== "true" ||
       process.env.CUSTOMER_FULFILLMENT_ENABLED !== "true" ||
       process.env.CUSTOMER_DELIVERY_ENABLED !== "true" ||
