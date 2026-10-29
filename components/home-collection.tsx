@@ -164,10 +164,6 @@ function CreateTile() {
 
 export function GlobalMenu() {
   const menu = useRef<HTMLDetailsElement>(null);
-  const [superAdmin,setSuperAdmin]=useState(false);
-  const [loggingOut,setLoggingOut]=useState(false);
-  useEffect(()=>{let active=true;fetch("/api/staff/me",{credentials:"same-origin",cache:"no-store"}).then(r=>r.ok?r.json():null).then(result=>{if(active)setSuperAdmin(result?.user?.role==="super-admin");}).catch(()=>{});return()=>{active=false;};},[]);
-  const logout=async()=>{setLoggingOut(true);try{const r=await fetch("/api/staff/logout",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:"{}"});if(!r.ok)throw new Error("Logout unsuccessful");setSuperAdmin(false);window.location.assign("/");}catch{setLoggingOut(false);window.location.assign("/admin");}};
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
       if (menu.current && !menu.current.contains(event.target as Node)) menu.current.open = false;
@@ -187,7 +183,6 @@ export function GlobalMenu() {
     <nav className="sm-global-menu-list" aria-label="More options">
       <Link href="/help" onClick={() => { if (menu.current) menu.current.open = false; }}>Help</Link>
       <Link href="/legal" onClick={() => { if (menu.current) menu.current.open = false; }}>Legals</Link>
-      {superAdmin?<button className="sm-global-menu-admin" type="button" onClick={()=>void logout()} disabled={loggingOut}>{loggingOut?"Signing out…":"Super-Admin Logout"}</button>:<Link className="sm-global-menu-admin" href="/admin/login" onClick={() => { if(menu.current)menu.current.open=false; }}>Super-Admin Login</Link>}
     </nav>
   </details>;
 }
