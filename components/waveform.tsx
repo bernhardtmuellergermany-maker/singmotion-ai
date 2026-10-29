@@ -92,6 +92,7 @@ export default function Waveform({
   ) {
     audio.current?.pause();
     setDragging(true);
+    e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     move(e, handle);
   }
@@ -206,6 +207,7 @@ export default function Waveform({
             aria-valuenow={start}
             aria-valuetext={`${start.toFixed(3)} to ${end.toFixed(3)} seconds`}
             onPointerDown={(e) => {
+              e.stopPropagation();
               audio.current?.pause();
               setDragging(true);
               e.currentTarget.setPointerCapture(e.pointerId);
@@ -278,12 +280,12 @@ export default function Waveform({
               }
               aria-valuenow={handle === "start" ? start : end}
               key={handle}
-              className="wave-handle"
+              className={`wave-handle wave-handle-${handle}`}
               style={{
                 left: `${((handle === "start" ? start : end) / duration) * 100}%`,
               }}
-              onPointerDown={(e) => drag(e, handle)}
-              onPointerMove={(e) => move(e, handle)}
+              onPointerDown={(e) => { e.stopPropagation(); drag(e, handle); }}
+              onPointerMove={(e) => { e.stopPropagation(); move(e, handle); }}
               onPointerUp={() => setDragging(false)}
               onPointerCancel={() => setDragging(false)}
               onLostPointerCapture={() => setDragging(false)}
