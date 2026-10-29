@@ -789,3 +789,68 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .studio-modern-wave .time-inputs{gap:10px}
  .product-theme.singmotion-flow .flow-image-field{width:76px;flex-basis:76px}
 }
+
+/* Final reference alignment: lightweight waveform, stable timing controls. */
+.product-theme.singmotion-flow .flow-workspace{gap:28px}
+.product-theme.singmotion-flow .studio-modern-wave{gap:16px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+ border:0!important;border-radius:0!important;background:transparent!important;
+ box-shadow:none!important;padding:8px 4px 6px 74px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+ margin:0 0 2px -70px;padding:0 0 2px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:98px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{top:48px;left:13px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{padding-top:7px}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+ width:min(100%,800px);margin-inline:auto;
+ display:grid;grid-template-columns:minmax(0,230px) minmax(0,230px) minmax(0,145px);
+ align-items:center;justify-content:center;column-gap:18px;row-gap:10px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{
+ width:230px;min-width:0;max-width:100%;display:grid;
+ grid-template-columns:42px minmax(0,1fr);align-items:center;gap:9px;
+ font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust{
+ min-width:0;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 34px 34px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{
+ box-sizing:border-box;width:100%;min-width:0;font-variant-numeric:tabular-nums;
+ font-feature-settings:"tnum" 1;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{
+ box-sizing:border-box;width:34px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+ min-width:145px;justify-content:flex-start;white-space:nowrap;
+ font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+ width:min(100%,730px);background:#151927;border-color:#34344c;
+ box-shadow:0 11px 28px rgba(0,0,0,.22);
+}
+.product-theme.singmotion-flow .flow-image-field{
+ gap:0;align-self:stretch;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{
+ min-height:0;height:100%;flex:1 1 auto;
+}
+@media(max-width:760px){
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  grid-template-columns:repeat(2,minmax(0,230px));justify-content:center;gap:10px 14px;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+  grid-column:1/-1;justify-content:center;
+ }
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:8px 4px 5px 52px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{margin-left:-49px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{top:46px;left:5px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{grid-template-columns:minmax(0,1fr);max-width:300px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs label{width:100%}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{grid-column:1}
+}
