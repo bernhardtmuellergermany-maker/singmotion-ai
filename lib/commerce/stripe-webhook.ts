@@ -19,13 +19,14 @@ export function stripeCheckoutAdapter(secret: string): PaymentAdapter {
           timingSafeEqual(Buffer.from(value, "hex"), expected)))
         throw Error("Invalid Stripe signature.");
       const event = JSON.parse(Buffer.from(raw).toString("utf8"));
+      if (event.livemode !== false) throw Error("Only Stripe sandbox events are accepted.");
       if (event.type !== "checkout.session.completed") throw Error("Unsupported Stripe payment event.");
       const checkout = event.data?.object;
       if (checkout?.object !== "checkout.session" || checkout.mode !== "payment" ||
           checkout.payment_status !== "paid" || checkout.currency?.toLowerCase() !== "eur" ||
           !Number.isSafeInteger(checkout.amount_total) || checkout.amount_total <= 0 ||
           typeof checkout.metadata?.orderId !== "string" || !/^[a-f0-9-]{36}$/.test(checkout.metadata.orderId) ||
-          typeof checkout.id !== "string" || !checkout.id.startsWith("cs_") ||
+          typeof checkout.id !== "string" || !checkout.id.startsWith("cs_test_") ||
           typeof event.id !== "string" || !event.id.startsWith("evt_"))
         throw Error("Stripe Checkout payment is not eligible for fulfillment.");
       return {
