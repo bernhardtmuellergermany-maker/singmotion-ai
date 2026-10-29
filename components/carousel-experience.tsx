@@ -268,7 +268,7 @@ function ShowcaseCard({active,nearby,onCreate,published,onPublish}:{active:boole
   },[active,nearby,videoUrl]);
   return <div className="sm-showcase-card">
     {posterUrl&&<img className="sm-showcase-poster" src={posterUrl} alt="" loading="eager"/>}
-    {hasVideo&&nearby&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload={active?"metadata":"none"} onError={()=>setFailed(true)}/>}
+    {hasVideo&&nearby&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload="auto" onError={()=>setFailed(true)}/>}
     {hasVideo&&nearby&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Made with SingMotion AI</span>
