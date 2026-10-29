@@ -1,0 +1,113 @@
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { CheckCircle2, Music2, Pause, Play, RefreshCw } from "lucide-react";
+import type { Asset } from "@/lib/domain";
+
+const time = (n: number) => {
+  const s = Math.max(0, Math.floor(Number.isFinite(n) ? n : 0));
+  return String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+};
+
+export function HomeUploadedAudio({
+  audio, active, replacing, onReplace,
+}: {
+  audio: Asset;
+  active: boolean;
+  replacing: boolean;
+  onReplace: (file?: File) => void;
+}) {
+  const player = useRef<HTMLAudioElement>(null);
+  const picker = useRef<HTMLInputElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [position, setPosition] = useState(0);
+  const [peaks, setPeaks] = useState<number[]>([]);
+  const duration = audio.duration || 0;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    let ctx: AudioContext | null = null;
+    setPeaks([]);
+    setPosition(0);
+    setPlaying(false);
+    (async () => {
+      try {
+        const res = await fetch("/api/assets/" + encodeURIComponent(audio.id), { signal: controller.signal });
+        if (!res.ok) return;
+        const raw = await res.arrayBuffer();
+        if (controller.signal.aborted) return;
+        ctx = new AudioContext();
+        const decoded = await ctx.decodeAudioData(raw);
+        const samples = decoded.getChannelData(0);
+        const count = 68;
+        const step = Math.max(1, Math.floor(samples.length / count));
+        const next = Array.from({ length: count }, (_, i) => {
+          let peak = 0;
+          const offset = i * step;
+          for (let j = offset; j < Math.min(samples.length, offset + step); j += Math.max(1, Math.floor(step / 180)))
+            peak = Math.max(peak, Math.abs(samples[j]));
+          return Math.max(.08, peak);
+        });
+        if (!controller.signal.aborted) setPeaks(next);
+      } catch {
+        // The native audio player remains usable when waveform decoding fails.
+      } finally {
+        if (ctx) await ctx.close().catch(() => {});
+      }
+    })();
+    return () => { controller.abort(); player.current?.pause(); };
+  }, [audio.id]);
+
+  useEffect(() => {
+    if (!active) player.current?.pause();
+  }, [active]);
+
+  const toggle = () => {
+    const el = player.current;
+    if (!el) return;
+    if (el.paused) void el.play().catch(() => setPlaying(false));
+    else el.pause();
+  };
+
+  return (
+    <div className="sm-home-uploaded" onTouchStart={e => e.stopPropagation()} onTouchMove={e => e.stopPropagation()} onTouchEnd={e => e.stopPropagation()}>
+      <div className="sm-home-audio-player">
+        <div className="sm-home-audio-heading">
+          <span className="sm-home-audio-file-icon"><Music2 size={21}/></span>
+          <div className="sm-home-audio-file">
+            <strong title={audio.name}>{audio.name}</strong>
+            <span>{time(duration)} total</span>
+          </div>
+          <CheckCircle2 className="sm-home-audio-check" size={21} aria-label="Audio ready"/>
+        </div>
+        <div className="sm-home-audio-wave" aria-label="Audio waveform preview">
+          {(peaks.length ? peaks : Array.from({length:68},()=>.13)).map((peak,i) => (
+            <i key={i} style={{
+              height: Math.max(8,Math.min(96,peak*96))+"%",
+              background: duration > 0 && i / 68 <= position / duration ? "#b67bff" : "#5c587c",
+            }} />
+          ))}
+        </div>
+        <div className="sm-home-audio-playback">
+          <button type="button" className="sm-home-audio-play" aria-label={playing?"Pause audio":"Play audio"} onClick={toggle}>
+            {playing?<Pause size={18}/>:<Play size={18}/>}
+          </button>
+          <div className="sm-home-audio-progress">
+            <input type="range" min={0} max={Math.max(1,duration)} step={.01} value={position}
+              aria-label="Audio playback position"
+              onChange={e=>{const n=Number(e.target.value);if(player.current)player.current.currentTime=n;setPosition(n);}}/>
+            <span>{time(position)} / {time(duration)}</span>
+          </div>
+        </div>
+        <audio ref={player} src={"/api/assets/"+encodeURIComponent(audio.id)} preload="metadata"
+          onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
+          onTimeUpdate={e=>setPosition(e.currentTarget.currentTime)}
+          onEnded={()=>setPlaying(false)} />
+      </div>
+      <input ref={picker} className="sm-home-replace-input" type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4"
+        aria-label="Replace audio file" disabled={replacing} onChange={e=>{onReplace(e.target.files?.[0]);e.currentTarget.value="";}}/>
+      <button type="button" className="sm-home-replace" disabled={replacing} onClick={()=>picker.current?.click()}>
+        <RefreshCw size={14}/>{replacing?"Uploading replacement…":"Replace audio"}
+      </button>
+    </div>
+  );
+}
