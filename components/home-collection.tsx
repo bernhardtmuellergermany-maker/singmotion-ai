@@ -130,4 +130,27 @@ function CreateTile() {
   </Link>;
 }
 
-export function GlobalMenu(){ return <details className="sm-global-menu"><summary aria-label="More options" title="More options"><MoreVertical size={19}/></summary><nav className="sm-global-menu-list" aria-label="More options"><Link href="/">Home</Link><Link href="/studio?new=1">Create Video</Link><Link href="/help">Help</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/settings">Settings</Link></nav></details>; }
+export function GlobalMenu() {
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const closeOutside = (event: PointerEvent) => {
+      if (menu.current && !menu.current.contains(event.target as Node)) menu.current.open = false;
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && menu.current) menu.current.open = false;
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, []);
+  return <details ref={menu} className="sm-global-menu">
+    <summary aria-label="More options" title="More options"><MoreVertical size={19}/></summary>
+    <nav className="sm-global-menu-list" aria-label="More options">
+      <Link href="/help" onClick={() => { if (menu.current) menu.current.open = false; }}>Help</Link>
+      <Link href="/legal" onClick={() => { if (menu.current) menu.current.open = false; }}>Legals</Link>
+    </nav>
+  </details>;
+}
