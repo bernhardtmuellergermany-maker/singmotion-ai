@@ -163,7 +163,7 @@ export default function Waveform({
         role="region"
         aria-label="Audio waveform and selection"
       >
-        <div className="studio-wave-meta"><div className="studio-wave-filename"><Music2 size={17} aria-hidden="true"/><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div><div className="studio-wave-actions"><button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>{onRemove && <button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}</div></div>
+        <div className="studio-wave-meta"><div className="studio-wave-filename"><Music2 size={18} aria-hidden="true"/><div className="studio-wave-file-text"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div></div><div className="studio-wave-actions"><button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>{onRemove && <button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}</div></div>
         <div
           className={`wave-strip ${dragging ? "is-dragging" : ""}`}
           ref={strip}
