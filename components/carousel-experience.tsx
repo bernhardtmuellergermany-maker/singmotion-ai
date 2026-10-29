@@ -34,7 +34,7 @@ export function CarouselExperience(){
   const searching=searchOpen && searchQuery.trim().length>0;
   const matches=searching?tiles.filter(t=>t.name.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())):tiles;
   const ids=searching?matches.map(t=>t.id):["showcase","home","login",...tiles.map(t=>t.id)];
-  const varkai=tiles.find(t=>t.name.trim().toLocaleLowerCase()==="varkai"&&!!t.videoUrl);
+  const showcaseProject=tiles.find(t=>t.name.trim().toLocaleLowerCase()==="varkai"&&!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_"))) || tiles.find(t=>!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_")));
   const activeIndex=Math.max(0,ids.indexOf(current));
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
@@ -150,7 +150,7 @@ export function CarouselExperience(){
           const tile=tiles.find(t=>t.id===id);
           return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={Math.abs(distance)>1?true:undefined} inert={Math.abs(distance)>1} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
             {Math.abs(distance)===1&&<button type="button" className="sm-carousel-side-hit" aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
-            {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")} project={varkai}/>:id==="home"?<div className="sm-carousel-home">
+            {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")} project={showcaseProject}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
               <p>Upload your song and bring your music to life with AI.</p>
@@ -239,6 +239,7 @@ function ShowcaseCard({active,nearby,onCreate,project}:{active:boolean;nearby:bo
   const videoUrl=project?.videoUrl||showcase.videoUrl;
   const posterUrl=project?.imageId?"/api/assets/"+encodeURIComponent(project.imageId):showcase.posterUrl;
   const hasVideo=videoUrl.startsWith("https://") || videoUrl.startsWith("/");
+  useEffect(()=>{setFailed(false);},[videoUrl]);
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
@@ -248,7 +249,7 @@ function ShowcaseCard({active,nearby,onCreate,project}:{active:boolean;nearby:bo
     sync();
     document.addEventListener("visibilitychange",sync);
     return()=>{document.removeEventListener("visibilitychange",sync);v.pause();};
-  },[active,nearby]);
+  },[active,nearby,videoUrl]);
   return <div className="sm-showcase-card">
     {posterUrl&&<img className="sm-showcase-poster" src={posterUrl} alt="" loading="eager"/>}
     {hasVideo&&nearby&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload={active?"metadata":"none"} onError={()=>setFailed(true)}/>}
@@ -256,7 +257,7 @@ function ShowcaseCard({active,nearby,onCreate,project}:{active:boolean;nearby:bo
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Made with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
-      <strong>{project?"Varkai":showcase.title}</strong>
+      <strong>{project?project.name:showcase.title}</strong>
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
   </div>;
