@@ -61,11 +61,11 @@
 .sm-carousel-card.is-neighbor:focus-visible{outline:2px solid #b99aff;outline-offset:4px}
 @media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
   .sm-carousel-card.is-neighbor:hover{
-    transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-95px) rotateY(calc(var(--distance) * -31deg)) scale(.907);
-    filter:brightness(.88);
-    opacity:.86;
-    border-color:rgba(172,136,240,.56);
-    box-shadow:0 21px 57px rgba(0,0,0,.52),0 0 16px rgba(146,85,242,.10);
+    transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-55px) rotateY(calc(var(--distance) * -24deg)) scale(.94);
+    filter:brightness(1);
+    opacity:1;
+    border-color:rgba(183,140,255,.85);
+    box-shadow:0 24px 65px rgba(0,0,0,.57),0 0 28px rgba(146,85,242,.24);
     transition:transform .23s ease-out,filter .23s ease-out,opacity .23s ease-out,border-color .23s ease-out,box-shadow .23s ease-out;
   }
 }
@@ -93,3 +93,7 @@
 .sm-showcase-fallback svg{filter:drop-shadow(0 0 15px #9355f266)}
 .sm-showcase-label{position:absolute;top:21px;left:17px;z-index:4;padding:7px 10px;border:1px solid #ffffff33;border-radius:999px;background:#0b1022a8;color:#e9e1ff;font-size:11px;letter-spacing:.025em;backdrop-filter:blur(8px)}
 .sm-showcase-card .sm-carousel-open{width:100%;border:0;cursor:pointer}
+
+/* Make adjacent cards reliably hoverable above distant cards but below center. */
+.sm-carousel-card.is-neighbor{z-index:4}
+.sm-carousel-card.is-neighbor:focus-visible{z-index:5;border-color:#b78cff;filter:brightness(1);opacity:1}
