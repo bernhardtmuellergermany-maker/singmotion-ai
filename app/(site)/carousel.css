@@ -440,3 +440,20 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .flow-composer *,
  .product-theme.singmotion-flow .flow-drop{transition:none!important}
 }
+
+/* Consistent, custom Studio settings dropdowns and the same chevron on both. */
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:0 1 132px}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu{position:relative;overflow:visible;z-index:16}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu[open]{z-index:60;border-color:#ae8de3;background:#242439}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{height:44px;padding:0 12px;gap:9px;list-style:none;display:flex;align-items:center}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary::-webkit-details-marker{display:none}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary .flow-chevron{margin-left:auto;flex:none;transition:transform .2s ease;color:#c1b0dd}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu[open]>summary .flow-chevron{transform:rotate(180deg)}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options{position:absolute;bottom:calc(100% + 8px);top:auto;left:0;min-width:max(100%,235px);width:max-content;max-width:min(310px,85vw);padding:6px;border:1px solid #64537c;border-radius:12px;background:#191b2d;box-shadow:0 13px 30px #0008;overflow-y:auto}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:8px;width:100%;min-width:0;text-align:left;font-size:12px;color:#eee8fc;background:transparent;white-space:normal}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button small{display:block;font-size:10px;color:#a9a1ba;line-height:1.45;margin-left:auto;max-width:175px}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button:hover{background:#302a43!important}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button.is-active{background:#3a3050!important}
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu .flow-format-options{min-width:170px;width:190px;left:auto;right:0}
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu .flow-format-options button small{max-width:none}
+@media(max-width:690px){.product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:0 1 95px}.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{gap:5px;padding:0 7px}.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options{max-width:min(280px,85vw)}}
