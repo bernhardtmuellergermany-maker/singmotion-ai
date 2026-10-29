@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, CloudUpload, LockKeyhole, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowRight, CloudUpload, LockKeyhole, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
 import { api, ensureSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
@@ -140,11 +140,17 @@ export function CarouselExperience(){
           </section>;
         })}
       </div>
-      <nav className="sm-carousel-controls" aria-label="Carousel navigation">
-        <button type="button" onClick={()=>step(-1)} disabled={activeIndex===0} aria-label="Previous card"><ArrowLeft size={19}/></button>
-        <span aria-live="polite">{activeIndex+1} / {ids.length}</span>
-        <button type="button" onClick={()=>step(1)} disabled={activeIndex===ids.length-1} aria-label="Next card"><ArrowRight size={19}/></button>
-      </nav>
+      {ids.length>1&&<nav className="sm-carousel-controls" aria-label="Carousel navigation">
+        <button className="sm-carousel-nav-arrow" type="button" onClick={()=>step(-1)} disabled={activeIndex===0} aria-label="Previous card"><ChevronLeft size={17} strokeWidth={2}/></button>
+        <div className="sm-carousel-indicators" role="group" aria-label="Select carousel card">
+          {ids.slice(Math.max(0,Math.min(activeIndex-2,ids.length-5)),Math.max(0,Math.min(activeIndex-2,ids.length-5))+5).map(id=>{
+            const i=ids.indexOf(id);
+            const label=id==="home"?"Home / Audio upload":id==="login"?"Login":tiles.find(t=>t.id===id)?.name||"Project";
+            return <button key={id} className={"sm-carousel-indicator"+(i===activeIndex?" is-current":"")} type="button" aria-label={`Go to ${label}, card ${i+1} of ${ids.length}`} aria-current={i===activeIndex?"step":undefined} onClick={()=>navigate(id)}><span/></button>;
+          })}
+        </div>
+        <button className="sm-carousel-nav-arrow" type="button" onClick={()=>step(1)} disabled={activeIndex===ids.length-1} aria-label="Next card"><ChevronRight size={17} strokeWidth={2}/></button>
+      </nav>}
       {loading&&<p className="sm-carousel-loading" role="status">Loading projects…</p>}
     </main>
   </div>;
