@@ -303,3 +303,21 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .sm-page-search.is-open{width:min(290px,38vw)}
 @media(max-width:690px){.sm-page-search.is-open{width:min(205px,42vw)}}
 @media(max-width:410px){.sm-page-search.is-open{width:min(160px,40vw)}}
+
+/* The second visible layer is interactive as well, for every future project. */
+.sm-carousel-card.is-distant{z-index:3;pointer-events:auto;cursor:pointer}
+.sm-carousel-card.is-distant>*:not(.sm-carousel-side-hit){pointer-events:none}
+.sm-carousel-card.is-distant .sm-carousel-side-hit{pointer-events:auto}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-distant.is-distant-hovered{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-185px) rotateY(calc(var(--distance) * -29deg)) scale(.80);
+  filter:brightness(.82);opacity:.78;border-color:rgba(183,140,255,.75);
+  box-shadow:0 20px 54px rgba(0,0,0,.52),0 0 23px rgba(146,85,242,.16);
+  transition:transform .25s ease-out,filter .25s ease-out,opacity .25s ease-out,border-color .25s ease-out,box-shadow .25s ease-out;
+ }
+}
+@media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-distant.is-distant-hovered{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance) * 65vw)) rotateY(calc(var(--distance) * -29deg)) scale(.80);
+ }
+}
