@@ -104,7 +104,7 @@
 .sm-carousel-card .sm-carousel-side-hit:focus-visible{outline:3px solid #c7a4ff;outline-offset:-5px}
 @media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
   .sm-carousel-card.is-active:hover{
-    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1.015);
+    transform:translate(-50%,-50%) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1);
     border-color:#b78cff;
     box-shadow:0 28px 72px rgba(0,0,0,.56),0 0 30px rgba(146,85,242,.17);
     background:linear-gradient(150deg,#211c38,#111522);
