@@ -9,11 +9,13 @@ const usd = (n: number) => `USD ${(n / 1000000).toFixed(2)}`;
 export function GenerationDialog({
   selection,
   artistName,
+  projectName,
   requestKey,
   onClose,
 }: {
   selection: StudioDraftExport;
   artistName: string;
+  projectName: string;
   requestKey: string;
   onClose: () => void;
 }) {
@@ -76,6 +78,7 @@ export function GenerationDialog({
         requestKey,
         selection,
         artistName,
+        projectName,
         consent: true,
         termsVersion: terms,
         english: true,
@@ -101,6 +104,7 @@ export function GenerationDialog({
     error,
     selection,
     artistName,
+    projectName,
     requestKey,
   ]);
   async function act(repeatOf?: string) {
@@ -118,6 +122,7 @@ export function GenerationDialog({
               requestKey,
               selection,
               artistName,
+              projectName,
               consent: true,
               termsVersion: terms,
               english: true,
