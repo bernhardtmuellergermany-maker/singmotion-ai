@@ -1,0 +1,24 @@
+/* Consistent SingMotion AI brand across homepage, studio and workspace. */
+.sm-wordmark{display:inline-flex;gap:.28em;align-items:baseline;white-space:nowrap;font-family:inherit;font-size:21px;font-weight:750;letter-spacing:-.65px;line-height:1.2;color:#faf9ff;text-decoration:none}
+.sm-wordmark span{color:#9d4cff}
+.sm-wordmark:hover{color:#fff}
+.sm-wordmark:focus-visible{outline:2px solid #9255f2;outline-offset:5px;border-radius:3px}
+.singmotion-flow .flow-header-left .sm-wordmark{font-size:20px}
+.product-header .sm-wordmark{font-size:21px}
+.sm-login-page{min-height:100svh;background:radial-gradient(ellipse 55% 50% at 50% 45%,rgba(25,32,52,.19),transparent 72%),#090d16;color:#f6f5fb}
+.sm-login-header{height:88px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(22px,3vw,52px)}
+.sm-login-main{min-height:calc(100svh - 88px);display:flex;align-items:center;justify-content:center;padding:30px 24px 80px}
+.sm-login-art{width:min(100%,380px);position:relative;isolation:isolate}
+.sm-login-ghost{position:absolute;top:19%;height:60%;width:69%;z-index:-1;border:1px solid rgba(119,99,158,.55);border-radius:20px;background:linear-gradient(145deg,#1c1c34,#0e1020);opacity:.6;pointer-events:none}
+.sm-login-ghost-left{left:-18%;transform:rotate(-8deg)}
+.sm-login-ghost-right{right:-18%;transform:rotate(8deg)}
+.sm-login-card{width:100%;position:relative;z-index:1;min-height:440px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:13px;padding:40px 30px;border:1px solid rgba(147,121,204,.34);outline:1px dashed rgba(167,145,212,.15);outline-offset:-10px;border-radius:16px;background:linear-gradient(160deg,#171a2c,#101522);box-shadow:0 18px 50px #0003;transition:border-color .2s,background .2s,box-shadow .2s,transform .2s}
+.sm-login-card:hover,.sm-login-card:focus-within{border-color:#a27bff;background:linear-gradient(160deg,#211c38,#101522);box-shadow:0 20px 60px rgba(97,54,177,.15);transform:translateY(-2px)}
+.sm-login-icon{width:58px;height:58px;display:grid;place-items:center;border-radius:50%;border:2px solid #8b39ff;background:radial-gradient(circle at 50% 25%,#432a82,#180d3e);box-shadow:0 0 17px rgba(119,68,235,.16);margin-bottom:7px}
+.sm-login-card h1{font-size:21px;font-weight:650;letter-spacing:-.3px;margin:0}
+.sm-login-card>p{color:#a9a9c2;font-size:13px;margin:0}
+.sm-login-notice{color:#a9aec4;font-size:12px;line-height:1.65;margin:12px 0 5px}
+.sm-login-action{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;max-width:270px;border:1px solid #9255f2;background:#9255f2;color:white;text-decoration:none;border-radius:10px;padding:13px 16px;font-size:13px;font-weight:650;transition:background .2s,transform .2s,box-shadow .2s}
+.sm-login-action:hover{background:#a278ff;box-shadow:0 8px 25px rgba(146,85,242,.24);transform:translateY(-1px)}
+.sm-login-secondary{color:#afa9cb;font-size:12px;text-underline-offset:3px}
+@media(max-width:650px){.sm-login-header{height:72px}.sm-login-main{min-height:calc(100svh - 72px);padding:25px 24px 55px}.sm-login-art{max-width:325px}.sm-login-ghost-left{left:-9%}.sm-login-ghost-right{right:-9%}.sm-login-card{min-height:400px;padding:32px 22px}.singmotion-flow .flow-header-left .sm-wordmark{font-size:15px}}
