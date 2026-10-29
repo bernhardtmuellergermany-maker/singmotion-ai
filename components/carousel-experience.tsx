@@ -42,8 +42,30 @@ export function CarouselExperience(){
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
   const searching=searchOpen && searchQuery.trim().length>0;
-  const matches=searching?tiles.filter(t=>t.name.toLocaleLowerCase().includes(searchQuery.trim().toLocaleLowerCase())):tiles;
-  const ids=searching?matches.map(t=>t.id):["showcase","home","login",...tiles.map(t=>t.id)];
+  const searchCards=[
+    {id:"showcase",keywords:"showcase example demo sample video singmotion ai featured watch preview"},
+    {id:"home",keywords:"home start create video generate upload music song audio new project studio"},
+    {id:"login",keywords:"login log in sign in sign out logout log out account profile user register"}
+  ];
+  const projectSearchText=(tile:Tile)=>{
+    const raw=tile.created;
+    const date=raw ? new Date(raw<1e11?raw*1000:raw) : null;
+    const dates=date&&!Number.isNaN(date.getTime())?[
+      date.toLocaleDateString("en-GB"),
+      date.toLocaleDateString("de-DE"),
+      date.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}),
+      date.toISOString().slice(0,10),
+      date.toISOString().slice(0,7),
+      String(date.getFullYear())
+    ].join(" "):"";
+    return (tile.name+" "+dates).toLocaleLowerCase();
+  };
+  const term=searchQuery.trim().toLocaleLowerCase();
+  const matches=searching?tiles.filter(t=>projectSearchText(t).includes(term)):tiles;
+  const ids=searching?[
+    ...searchCards.filter(card=>card.keywords.includes(term)).map(card=>card.id),
+    ...matches.map(t=>t.id)
+  ]:["showcase","home","login",...tiles.map(t=>t.id)];
   const showcaseProject=tiles.find(t=>t.name.trim().toLocaleLowerCase()==="varkai"&&!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_"))) || tiles.find(t=>!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_")));
   const activeIndex=Math.max(0,ids.indexOf(current));
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
@@ -66,7 +88,7 @@ export function CarouselExperience(){
   },[]);
   useEffect(()=>{
     if(!searching)return;
-    if(matches.length && !matches.some(t=>t.id===current))navigate(matches[0].id,true);
+    if(ids.length && !ids.includes(current))navigate(ids[0],true);
   },[searchQuery,tiles,searchOpen]);
   useEffect(()=>{
     const id=queryCard();currentRef.current=id;setCurrent(id);
@@ -143,14 +165,14 @@ export function CarouselExperience(){
       <div className="sm-header-actions">
         <div ref={searchContainer} className={"sm-inline-search"+(searchOpen?" is-open":"")}>
           <button ref={searchButton} type="button" className="sm-inline-search-icon" aria-label="Search projects" aria-expanded={searchOpen} onClick={()=>{if(searchOpen){searchInput.current?.focus();return;}priorCard.current=current;setSearchOpen(true);}}><Search size={19}/></button>
-          <input ref={searchInput} type="search" tabIndex={searchOpen?0:-1} placeholder="Search projects..." aria-label="Search projects" value={searchText} onChange={e=>setSearchText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();closeSearch();}if(e.key==="Enter"&&matches.length){navigate(matches[0].id);}}}/>
+          <input ref={searchInput} type="search" tabIndex={searchOpen?0:-1} placeholder="Search cards, projects, dates..." aria-label="Search projects" value={searchText} onChange={e=>setSearchText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();closeSearch();}if(e.key==="Enter"&&ids.length){navigate(ids[0]);}}}/>
           <button type="button" className="sm-inline-search-close" aria-label="Close search" tabIndex={searchOpen?0:-1} onClick={closeSearch}><X size={16}/></button>
         </div>
         <GlobalMenu/>
         <a href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account" onClick={e=>{e.preventDefault();setSearchOpen(false);setSearchText("");setSearchQuery("");currentRef.current="login";navigate("login");}}><UserRound size={21}/></a>
       </div>
     </header>
-    {searching&&matches.length===0&&<div className="sm-carousel-search-empty" role="status"><strong>No matching projects</strong><span>Try another name.</span></div>}
+    {searching&&ids.length===0&&<div className="sm-carousel-search-empty" role="status"><strong>No matching cards or projects</strong><span>Try another name.</span></div>}
     <main id="content" className="sm-carousel-main">
       {error&&<p className="sm-carousel-error" role="alert">{error}</p>}
       <div className="sm-carousel-stage" aria-label="Music video cards" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
