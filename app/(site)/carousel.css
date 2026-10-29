@@ -1357,3 +1357,85 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 @keyframes sm-home-audio-appear{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
 @media(prefers-reduced-motion:reduce){.sm-home-uploaded{animation:none}}
 @media(max-width:690px){.sm-home-audio-player{padding:10px}.sm-home-audio-wave{height:38px;margin:7px 0}.sm-home-audio-file-icon{width:36px;height:36px}.sm-home-audio-file strong{font-size:11px}.sm-home-uploaded{gap:5px}}
+
+/* Start/End as subdued sibling cards to the existing Selected duration. */
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  box-sizing:border-box;
+  width:158px;
+  height:66px;
+  flex:0 0 158px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  gap:3px;
+  padding:7px 9px;
+  border:1px solid rgba(129,139,171,.28);
+  border-radius:10px;
+  background:rgba(119,62,188,.055);
+  box-shadow:none;
+  transition:border-color .18s ease,background-color .18s ease;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field:hover,
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field:focus-within{
+  border-color:rgba(155,135,204,.47);
+  background:rgba(119,62,188,.09);
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field>span{
+  font-size:12px;
+  font-weight:500;
+  line-height:16px;
+  color:#b8bad0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  box-sizing:border-box;
+  width:100%;
+  height:30px;
+  min-height:0;
+  grid-template-columns:minmax(0,1fr) 24px 24px;
+  display:grid;
+  gap:1px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  overflow:visible;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust input{
+  box-sizing:border-box;
+  width:100%;
+  height:30px;
+  min-height:0;
+  padding:0 2px 0 0;
+  border:0;
+  border-radius:0;
+  outline-offset:0;
+  background:transparent;
+  color:#f5f3fb;
+  font-size:16px;
+  line-height:30px;
+  text-align:left;
+  font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button{
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:28px;
+  padding:0;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#beb7d2;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button:hover,
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button:focus-visible{
+  background:rgba(151,100,226,.17);
+  color:#fff;
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  width:158px;
+  flex:0 0 158px;
+ }
+}
