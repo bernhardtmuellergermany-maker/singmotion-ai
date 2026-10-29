@@ -17,10 +17,10 @@ export default function LoginPage() {
           <div className="sm-login-ghost sm-login-ghost-right" aria-hidden="true"/>
           <section className="sm-login-card" aria-labelledby="sm-login-title">
             <span className="sm-login-icon" aria-hidden="true"><LockKeyhole size={24} strokeWidth={1.7}/></span>
-            <h1 id="sm-login-title">Welcome back</h1>
+            <h1 id="sm-login-title">Under Construction</h1>
             <p>Your private music video workspace.</p>
             <div className="sm-login-notice">Email sign-in is not active yet. Your projects are currently linked to this browser's private demo session.</div>
-            <Link href="/" className="sm-login-action">Continue to workspace <ArrowRight size={17}/></Link>
+            <Link href="/studio?new=1" className="sm-login-action">Continue to workspace <ArrowRight size={17}/></Link>
           </section>
         </div>
       </main>
