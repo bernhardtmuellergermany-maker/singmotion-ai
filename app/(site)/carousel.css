@@ -1589,8 +1589,10 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   border:0;
   background:transparent;
   color:#f4f2fa;
-  font:600 13px/18px inherit;
   font-family:inherit;
+  font-size:13px;
+  font-weight:600;
+  line-height:18px;
   letter-spacing:0;
   font-variant-numeric:tabular-nums;
   padding:0 3px;
