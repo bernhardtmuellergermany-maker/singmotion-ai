@@ -15,6 +15,15 @@ const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit
 export function CarouselExperience(){
   const [tiles,setTiles]=useState<Tile[]>([]);
   const [publishedShowcase,setPublishedShowcase]=useState<{title:string;videoUrl:string}|null>(null);
+  // Public showcase selection is independent of the visitor's login/session.
+  useEffect(()=>{
+    let mounted=true;
+    fetch("/api/showcase",{cache:"no-store"})
+      .then(async r=>r.ok?await r.json():null)
+      .then(data=>{if(mounted&&data?.videoUrl)setPublishedShowcase({title:data.title,videoUrl:data.videoUrl});})
+      .catch(()=>{});
+    return()=>{mounted=false;};
+  },[]);
   const [current,setCurrent]=useState("home");
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
