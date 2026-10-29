@@ -1017,3 +1017,8 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .flow-image-field .flow-photo,
  .product-theme.singmotion-flow .flow-image-field .flow-photo-add{width:84px;height:84px}
 }
+
+/* Slightly narrower performance composition; keep image and inputs aligned. */
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  width:min(100%,680px);
+}
