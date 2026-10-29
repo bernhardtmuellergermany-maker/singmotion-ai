@@ -357,7 +357,7 @@ export function StudioWizard({
         </div>
         {error && <p className="flow-error" role="alert">{error}</p>}
       </main>
-      {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} onClose={()=>setConfirm(false)}/>}
+      {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} onClose={()=>setConfirm(false)}/>}
     </div>
   );
 }
