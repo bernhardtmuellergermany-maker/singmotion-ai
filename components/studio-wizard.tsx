@@ -206,10 +206,12 @@ export function StudioWizard({
         .then(() => {
           if (current) setSaved(true);
         })
-        .catch(() => {
+        .catch((cause) => {
           if (current)
             setError(
-              "Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
+              (cause as Error).message.includes("limit of 3 drafts")
+                ? "You have used all 3 guest drafts. Log in to create more drafts."
+                : "Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
             );
         });
     }, 700);
@@ -355,7 +357,7 @@ export function StudioWizard({
         </section>
         {!available && !!draft.song && !!draft.imageId && <p className="flow-missing" role="status">{busy ? "Uploading…" : !audioValid ? "Select a valid audio segment" : !prompt ? "Check performance settings" : ""}</p>}
         </div>
-        {error && <p className="flow-error" role="alert">{error}</p>}
+        {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} onClose={()=>setConfirm(false)}/>}
     </div>
