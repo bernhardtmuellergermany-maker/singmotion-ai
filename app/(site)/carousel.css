@@ -579,3 +579,7 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) rotateY(calc(var(--distance)*-29deg)) scale(.80);
  }
 }
+
+/* Explicit browser workspace disconnect, separate from admin sign-out. */
+.sm-carousel-demo-disconnect{border:0;background:none;color:#aea8c4;font-size:11px;padding:7px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.sm-carousel-demo-disconnect:hover,.sm-carousel-demo-disconnect:focus-visible{color:#d9c5ff}
