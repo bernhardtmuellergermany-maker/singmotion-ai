@@ -70,7 +70,7 @@ export function HomeCollection() {
     <div className="home-gallery">
       <header className="home-gallery-header">
         <Link href="/" className="home-gallery-wordmark sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link>
-        <Link href="/login" className="home-gallery-account" aria-label="Login" title="Login"><UserRound size={21} /></Link>
+        <div className="sm-header-actions"><GlobalMenu /><Link href="/login" className="home-gallery-account" aria-label="Login" title="Login"><UserRound size={21} /></Link></div>
       </header>
       <main id="content" className={loading || !tiles.length ? "home-gallery-empty" : "home-gallery-content"}>
         {error && <p className="home-gallery-error" role="alert">{error}</p>}
@@ -93,7 +93,7 @@ export function HomeCollection() {
               finally {setDeleting(null);}
             }} />)}
           </div>
-        ) : <div className="home-gallery-empty-art"><div className="home-gallery-ghost ghost-left" /><div className="home-gallery-ghost ghost-right" /><CreateTile /><p>Your music videos will appear here.</p></div>}
+        ) : <div className="home-gallery-empty-art"><div className="home-gallery-ghost ghost-left" /><div className="home-gallery-ghost ghost-right" /><CreateTile /></div>}
       </main>
     </div>
   );
@@ -124,8 +124,10 @@ function GalleryTile({tile,deleting,onDelete,onRename}:{tile:Tile;deleting:boole
 function CreateTile() {
   return <Link href="/studio?new=1" className="home-gallery-create">
     <span className="home-gallery-plus"><Plus size={38} strokeWidth={1.7} /></span>
-    <strong>Create Project</strong>
-    <span>Create a music video</span>
+    <strong>Create Video</strong>
+    <span>Bring Music to Life.</span>
     <span className="sr-only">Open the studio</span>
   </Link>;
 }
+
+export function GlobalMenu(){ return <details className="sm-global-menu"><summary aria-label="More options" title="More options"><MoreVertical size={19}/></summary><nav className="sm-global-menu-list" aria-label="More options"><Link href="/">Home</Link><Link href="/studio?new=1">Create Video</Link><Link href="/help">Help</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/settings">Settings</Link></nav></details>; }
