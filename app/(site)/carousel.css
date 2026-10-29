@@ -652,3 +652,69 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
    padding:22px 12px 35px;
  }
 }
+
+/* Modern Studio waveform — reuse existing player/selection logic. */
+.product-theme.singmotion-flow .studio-modern-wave{width:100%;display:grid;grid-template-columns:1fr;gap:18px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+ grid-column:1;grid-row:1;position:relative;width:100%;min-width:0;
+ padding:16px 20px 12px 88px;border:1px solid #303950;border-radius:19px;
+ background:#111727;box-shadow:0 12px 30px rgba(0,0,0,.18);
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar{
+ position:absolute;top:0;left:0;width:0;height:0;margin:0;padding:0;border:0;display:block;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar>span{display:none}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{
+ position:absolute;left:18px;top:47px;width:50px;height:50px;
+ border:0;border-radius:50%;background:#813bee;color:#fff;
+ display:grid;place-items:center;padding:0;z-index:2;
+ transition:transform .2s,background-color .2s;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button:hover{transform:translateY(-2px);background:#9c58ff}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+ width:100%;height:104px;background:transparent;border:0;border-radius:0;overflow:visible;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-bars i{border-radius:3px;opacity:1}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+ background:rgba(146,85,242,.23)!important;border:0!important;border-left:2px solid #e4d7ff!important;border-right:2px solid #e4d7ff!important;border-radius:3px!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+ background:#efe5ff;box-shadow:none;width:7px;border-radius:4px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{
+ display:flex;justify-content:space-between;padding-top:10px;font-size:11px;color:#b4b5cc;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+ grid-column:1;grid-row:2;display:flex;justify-content:space-around;align-items:center;
+ flex-wrap:wrap;gap:12px 20px;margin:0;padding:0;background:transparent;border:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{
+ display:flex;flex-direction:row;align-items:center;gap:12px;
+ flex:0 1 auto;min-width:0;font-size:12px;color:#bbc0d5;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust{
+ display:flex;align-items:center;overflow:hidden;border:1px solid #343c53;border-radius:11px;background:#12192b;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{
+ width:84px;min-width:0;min-height:42px;border:0;border-radius:0;background:transparent;color:#fff;text-align:center;font:inherit;font-size:13px;appearance:textfield;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input::-webkit-inner-spin-button,
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{
+ width:37px;height:42px;border:0;border-left:1px solid #303850;background:#192137;color:#e6e6f2;display:grid;place-items:center;cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button:hover{background:#322449;color:#fff}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+ display:flex;align-items:center;gap:12px;min-height:42px;border:0;background:transparent;color:#f7f2ff;font-size:14px;font-weight:650;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge span{font-size:12px;font-weight:400;color:#abb2c7}
+.product-theme.singmotion-flow .studio-modern-wave>audio{display:none}
+.product-theme.singmotion-flow .studio-modern-wave>.quiet{font-size:11px;opacity:.8;text-align:center}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:12px 10px 10px 58px;border-radius:14px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{width:38px;height:38px;top:44px;left:10px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:90px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-time{font-size:9px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{justify-content:center;gap:10px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{width:65px}
+}
