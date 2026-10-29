@@ -1,3 +1,4 @@
+import { LegalAdminAccess } from "@/components/legal-admin-access";
 import { publishedPage } from "@/cms/content";
 import { Website } from "@/components/cms/website";
 import { notFound } from "next/navigation";
@@ -8,8 +9,9 @@ export default async function Page({
 }: {
   params: Promise<{ info: string }>;
 }) {
-  const cms = await publishedPage((await params).info);
-  if (cms) return <Website page={cms} />;
+  const slug = (await params).info;
+  const cms = await publishedPage(slug);
+  if (cms) return slug === "legal" ? <div className="legal-refresh"><Website page={cms}/><LegalAdminAccess/></div> : <Website page={cms} />;
   const p = pages[(await params).info];
   if (!p) notFound();
   const fallback: CMSPage = {
@@ -45,7 +47,7 @@ export default async function Page({
       },
     ],
   };
-  return <Website page={fallback} />;
+  return slug === "legal" ? <div className="legal-refresh"><Website page={fallback}/><LegalAdminAccess/></div> : <Website page={fallback} />;
 }
 
 export async function generateMetadata({
