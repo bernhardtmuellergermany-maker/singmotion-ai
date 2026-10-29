@@ -61,6 +61,7 @@ export function StudioWizard({
   content?: StudioContent;
 }) {
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const firstDraftSave = useRef(true);
   const performanceInput = useRef<HTMLTextAreaElement>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
@@ -175,7 +176,11 @@ export function StudioWizard({
     if (!ready || !owner || !projectKey) return;
     let current = true;
     const id = projectKey;
+    // Register a new empty draft immediately when Studio opens.
+    // Later edits retain the debounce to avoid excessive server writes.
+    const delay = firstDraftSave.current ? 0 : 700;
     const timer = setTimeout(() => {
+      firstDraftSave.current = false;
       const selection: StudioDraftExport = {
         version: 1,
         owner,
@@ -214,7 +219,7 @@ export function StudioWizard({
                 : "Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
             );
         });
-    }, 700);
+    }, delay);
     return () => {
       current = false;
       clearTimeout(timer);
