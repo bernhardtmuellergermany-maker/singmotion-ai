@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Search, UserRound, ChevronDown } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
 
-const defaultGroups = [
+export type FAQGroup = {heading:string;items:[string,string][]};
+const defaultGroups:FAQGroup[] = [
   {heading:"Getting started",items:[
     ["How do I create a music video?","Start from the Home card, upload your own song, then continue to Studio. Choose an artist image, select your audio segment, review the available performance settings and submit your generation when available."],
     ["Which music files can I upload?","Use MP3 or WAV audio. Select the segment you want in the waveform editor. File size and duration are checked before processing."],
@@ -23,7 +24,6 @@ const defaultGroups = [
     ["How are my uploads and personal information handled?","Read the Privacy & Cookies section under Legals for information on sessions, uploads, AI providers, retention and your privacy rights."]
   ]}
 ];
-export type FAQGroup = {heading:string;items:[string,string][]};
 export function HelpFAQ({groups=defaultGroups}:{groups?:FAQGroup[]}){
 return <div className="sm-legal sm-help-faq">
 <header className="home-gallery-header sm-carousel-header"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><div className="sm-header-actions"><PageContentSearch/><GlobalMenu/><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div></header>
