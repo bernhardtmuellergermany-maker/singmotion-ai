@@ -13,7 +13,19 @@ export default async function Page({
 }) {
   const slug = (await params).info;
   if (slug === "legal") return <LegalOverview />;
-  if (slug === "help") return <HelpFAQ />;
+  if (slug === "help") {
+    // The published CMS "help" page supplies structured FAQ groups through Cards blocks.
+    // Until an editor publishes those blocks, preserve the existing curated FAQ.
+    const helpPage = await publishedPage("help");
+    const groups = (helpPage?.blocks || []).flatMap((block) => {
+      if (block.blockType !== "cards" || !block.heading?.trim()) return [];
+      const items: [string,string][] = (block.items || [])
+        .filter(item => !!item.heading?.trim() && !!item.body?.trim())
+        .map(item => [item.heading!, item.body!]);
+      return items.length ? [{ heading:block.heading, items }] : [];
+    });
+    return groups.length ? <HelpFAQ groups={groups} /> : <HelpFAQ />;
+  }
   const cms = await publishedPage(slug);
   if (cms) return slug === "legal" ? <div className="legal-refresh"><Website page={cms}/><LegalAdminAccess/></div> : <Website page={cms} />;
   const p = pages[(await params).info];
