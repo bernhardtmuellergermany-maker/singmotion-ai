@@ -293,7 +293,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
     {hasVideo&&visible&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload="auto" onError={()=>setFailed(true)}/>}
     {hasVideo&&visible&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
-    <span className="sm-showcase-label">Made with SingMotion AI</span>
+    <span className="sm-showcase-label">Lip-Synced with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
       <strong>{showcase.title}</strong>
       {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.artist} · {p.id.slice(0,8)}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
