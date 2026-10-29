@@ -443,6 +443,7 @@ async function handler(
         songId: song.id,
         imageId: image.id,
         artistName: string(b.artistName || "My artist", 80),
+        projectName: string(b.projectName || b.artistName || "Untitled Project", 100),
         start,
         end,
         performance,
