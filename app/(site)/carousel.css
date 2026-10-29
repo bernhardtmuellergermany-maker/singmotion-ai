@@ -54,22 +54,23 @@
 .sm-carousel-card{width:min(90vw,400px,calc((100svh - 170px) * .5625));height:auto;max-height:none}
 @media(max-width:690px){.sm-carousel-card{width:min(88vw,calc((100svh - 160px) * .5625));height:auto;max-height:none}}
 
-/* Restore gallery-card hover treatment while keeping 3D navigation smooth. */
+/* Only immediate neighbors respond to hover; preserve the center card's focus. */
+.sm-carousel-card.is-neighbor{cursor:pointer}
+.sm-carousel-card.is-neighbor>*{pointer-events:none}
+.sm-carousel-card.is-distant{pointer-events:none}
+.sm-carousel-card.is-neighbor:focus-visible{outline:2px solid #b99aff;outline-offset:4px}
 @media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
-  .sm-carousel-card.is-active:hover{
-    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1.015);
-    border-color:#b78cff;
-    box-shadow:0 28px 72px rgba(0,0,0,.56),0 0 30px rgba(146,85,242,.17);
-    background:linear-gradient(150deg,#211c38,#111522);
-  }
-  .sm-carousel-card.is-inactive:hover{
-    filter:brightness(.93);
-    border-color:#a27bff;
-    box-shadow:0 24px 64px rgba(0,0,0,.55),0 0 22px rgba(146,85,242,.17);
+  .sm-carousel-card.is-neighbor:hover{
+    transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-95px) rotateY(calc(var(--distance) * -31deg)) scale(.907);
+    filter:brightness(.88);
+    opacity:.86;
+    border-color:rgba(172,136,240,.56);
+    box-shadow:0 21px 57px rgba(0,0,0,.52),0 0 16px rgba(146,85,242,.10);
+    transition:transform .23s ease-out,filter .23s ease-out,opacity .23s ease-out,border-color .23s ease-out,box-shadow .23s ease-out;
   }
 }
 .sm-carousel-card{transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1),border-color .28s ease,box-shadow .35s ease,background .3s ease}
-
+@media(prefers-reduced-motion:reduce){.sm-carousel-card.is-neighbor:hover{transition:none}}
 /* Compact floating pagination integrated with the 3D cards. */
 .sm-carousel-controls{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:calc(100vw - 24px);padding:6px 9px;margin-top:13px;border:1px solid rgba(147,121,204,.24);border-radius:999px;background:rgba(17,19,35,.77);box-shadow:0 9px 30px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
 .sm-carousel-controls .sm-carousel-nav-arrow{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:#bbb8ce;transition:color .25s,background .25s,transform .25s}
