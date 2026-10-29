@@ -6,7 +6,8 @@ import { stagingDenial } from "@/lib/staging";
 import { dataDir } from "@/lib/db";
 import { openStudioStore } from "@/lib/live/studio";
 import { createReadStream } from "node:fs";
-import { stat } from "node:fs/promises";
+import { stat, realpath } from "node:fs/promises";
+import path from "node:path";
 import { Readable } from "node:stream";
 
 export const runtime = "nodejs";
@@ -15,6 +16,7 @@ const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cac
 type Selected={attempt_id:string;owner:string;artist_name:string};
 async function store(){
   const s=await openStudioStore(dataDir);
+  s.db.exec("CREATE TABLE IF NOT EXISTS live_studio_projects (attempt_id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection_json TEXT NOT NULL, policy_json TEXT NOT NULL, artist_name TEXT NOT NULL, diagnostic TEXT, started_at INTEGER)");
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_selection (slot TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, owner TEXT NOT NULL, artist_name TEXT NOT NULL)");
   return s;
 }
@@ -37,7 +39,9 @@ async function handler(req:NextRequest){
       if(!project)return json({error:"Showcase unavailable"},404);
       const attempt=s.get(selected.attempt_id);
       if(attempt.state!=="completed"||!attempt.outputPath)return json({error:"Showcase unavailable"},404);
-      const file=attempt.outputPath;
+      const base=await realpath(path.join(dataDir,"live-output"));
+      const file=await realpath(attempt.outputPath);
+      if(!file.startsWith(base+path.sep)||(await stat(file)).isFile()===false)return json({error:"Showcase unavailable"},404);
       const size=(await stat(file)).size;
       let start=0,end=size-1,status=200;
       const range=req.headers.get("range");
@@ -64,7 +68,9 @@ async function handler(req:NextRequest){
       if(!row)return json({error:"Project not found"},404);
       const a=s.get(row.attempt_id);
       if(a.state!=="completed"||!a.outputPath)return json({error:"Project video is not completed"},409);
-      await stat(a.outputPath);
+      const base=await realpath(path.join(dataDir,"live-output"));
+      const file=await realpath(a.outputPath);
+      if(!file.startsWith(base+path.sep)||!(await stat(file)).isFile())return json({error:"Video unavailable"},409);
       s.db.prepare("INSERT INTO public_showcase_selection (slot,attempt_id,owner,artist_name) VALUES ('main',?,?,?) ON CONFLICT(slot) DO UPDATE SET attempt_id=excluded.attempt_id,owner=excluded.owner,artist_name=excluded.artist_name").run(row.attempt_id,row.owner,row.artist_name);
       return json({ok:true,title:row.artist_name,videoUrl:"/api/showcase?video=1"});
     }
