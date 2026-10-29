@@ -295,8 +295,9 @@ export default function Waveform({
           ))}
         </div>
       </div>
-      <div className="time-inputs">
-        <label>
+      <div className="time-inputs studio-timing-row">
+        <div className="studio-timing-edits">
+        <label className="studio-timing-field">
           <span>Start</span>
           <div className="wave-time-adjust"><input
             aria-label="Start seconds"
@@ -316,7 +317,7 @@ export default function Waveform({
           /><button type="button" aria-label="Decrease start" onClick={()=>adjust("start",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase start" onClick={()=>adjust("start",1)}><Plus size={15}/></button></div>
         </label>
 
-        <label>
+        <label className="studio-timing-field">
           <span>End</span>
           <div className="wave-time-adjust"><input
             aria-label="End seconds"
@@ -336,6 +337,7 @@ export default function Waveform({
             }}
           /><button type="button" aria-label="Decrease end" onClick={()=>adjust("end",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase end" onClick={()=>adjust("end",1)}><Plus size={15}/></button></div>
         </label>
+        </div>
         <strong className="wave-duration-badge" aria-label="Selected duration"><span>Selected duration</span> <span className="wave-duration-value">{formatHundredths(Math.max(0,end-start))}</span></strong>
       </div>
       <audio
