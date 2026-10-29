@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, Scissors } from "lucide-react";
+import { Play, Pause, Scissors, Minus, Plus } from "lucide-react";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -125,6 +125,8 @@ export default function Waveform({
         setError("Playback could not start. Try the audio controls."),
       );
   }
+  const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
+  const adjust=(which:"start"|"end",amount:number)=>which==="start"?onChange(Math.max(0,end-300,Math.min(end-.1,start+amount)),end):onChange(start,Math.max(start+.1,Math.min(duration,start+300,end+amount)));
   const bars = useMemo(() => {
     const count = Math.min(peaks.length || 220, 220);
     const values = Array.from({ length: count }, (_, i) => {
@@ -141,20 +143,20 @@ export default function Waveform({
           background:
             (i / values.length) * duration >= start &&
             (i / values.length) * duration <= end
-              ? "#e9c6ff"
-              : "#71809d",
+              ? "#9c54ff"
+              : "#58627b",
         }}
       />
     ));
   }, [peaks, duration, start, end]);
   return (
-    <div className="wave-editor">
+    <div className="wave-editor studio-modern-wave">
       <div className="wave-toolbar">
         <span>
           <Scissors size={14} /> Find your moment
         </span>
         <button type="button" className="text-button" onClick={toggle}>
-          {playing ? <Pause size={14} /> : <Play size={14} />} Preview selection
+          {playing ? <Pause size={21} /> : <Play size={21} />}<span className="sr-only">{playing?"Pause":"Preview selection"}</span>
         </button>
       </div>
       <div
@@ -288,15 +290,15 @@ export default function Waveform({
           
           aria-hidden="true"
         >
-          {Array.from({ length: 5 }, (_, i) => (
-            <span key={i}>{((duration * i) / 4).toFixed(2)}s</span>
+          {Array.from({ length: 7 }, (_, i) => (
+            <span key={i}>{formatTime((duration * i) / 6)}</span>
           ))}
         </div>
       </div>
       <div className="time-inputs">
         <label>
-          Start (seconds)
-          <input
+          <span>Start</span>
+          <div className="wave-time-adjust"><input
             aria-label="Start seconds"
             type="number"
             step="0.001"
@@ -311,12 +313,12 @@ export default function Waveform({
                   end,
                 );
             }}
-          />
+          /><button type="button" aria-label="Decrease start" onClick={()=>adjust("start",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase start" onClick={()=>adjust("start",1)}><Plus size={15}/></button></div>
         </label>
 
         <label>
-          End (seconds)
-          <input
+          <span>End</span>
+          <div className="wave-time-adjust"><input
             aria-label="End seconds"
             type="number"
             step="0.001"
@@ -332,9 +334,9 @@ export default function Waveform({
                   Math.max(start + 0.1, Math.min(duration, start + 300, value)),
                 );
             }}
-          />
+          /><button type="button" aria-label="Decrease end" onClick={()=>adjust("end",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase end" onClick={()=>adjust("end",1)}><Plus size={15}/></button></div>
         </label>
-        <strong className="wave-duration-badge" aria-label="Selected duration">{Math.max(0, end - start).toFixed(2)}s selected</strong>
+        <strong className="wave-duration-badge" aria-label="Selected duration"><span>Duration</span> {formatTime(Math.max(0,end-start))}</strong>
       </div>
       <audio
         ref={audio}
