@@ -284,7 +284,7 @@ export function StudioWizard({
     <div className="product-theme singmotion-flow">
       <header className="flow-header">
         <div className="flow-header-left">
-          <Link href="/" aria-label="Home" className="flow-icon"><House size={26}/></Link>
+          <Link href="/" aria-label="SingMotion AI home" className="sm-wordmark">SingMotion <span>AI</span></Link>
           <span className="flow-divider"/>
           {editingName ? <input className="flow-project-input" aria-label="Project name" autoFocus value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") rename(projectName); if(e.key==="Escape") setEditingName(false);}}/> :
           <button className="flow-project-name" title="Click to rename" onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>}
@@ -292,7 +292,7 @@ export function StudioWizard({
         </div>
         <div className="flow-header-right">
           <details className="flow-menu"><summary aria-label="More information"><MoreVertical size={19}/></summary><div className="flow-popover"><Link href="/help">Help</Link><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/legal">Legal notice</Link></div></details>
-          <Link href="/settings" className="flow-profile" aria-label="Account"><UserRound size={21}/></Link>
+          <Link href="/login" className="flow-profile" aria-label="Login"><UserRound size={21}/></Link>
         </div>
       </header>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
