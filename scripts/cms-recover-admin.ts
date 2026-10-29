@@ -1,5 +1,6 @@
 import { hiddenPrompt } from "./hidden-prompt.ts";
 
+let phase = "preflight";
 async function main() {
   if (
     process.argv.length !== 2 ||
@@ -10,16 +11,14 @@ async function main() {
   if (!process.stdin.isTTY || !process.stdout.isTTY)
     throw new Error("Interactive terminal required.");
   // These are server configuration only; no provider adapters or public endpoints.
+  phase = "cms-init";
   const { default: configuration } = await import("../payload.config.ts");
   const { getPayload } = await import("payload");
   const { recoverAdmin, recoveryConfirmation, validateRecovery } =
     await import("../cms/recover-admin.ts");
-  const config = await configuration;
-  // Do not let database/validation exceptions log submitted data. The CLI emits fixed diagnostics only.
-  const { default: pino } = await import("pino");
-  // SanitizedConfig deeply requires optional Pino members; the supported logger is a Pino instance.
-  config.logger = pino({ level: "silent" }) as typeof config.logger;
-  const payload = await getPayload({ config });
+  // Use the same CMS initialization as the independently verified connection check.
+  const payload = await getPayload({ config: await configuration });
+  phase = "interactive-input";
   let password = "",
     repeat = "";
   try {
@@ -38,6 +37,7 @@ async function main() {
     repeat = await hiddenPrompt("Repeat new password (hidden): ");
     if (password !== repeat) throw new Error("Passwords do not match.");
     validateRecovery(password, confirmation);
+    phase = "account-recovery";
     await recoverAdmin(payload, email, password, confirmation);
     console.log(
       "Recovery committed. Existing account preserved; previous sessions revoked and login unlocked. Sign in with the new password.",
@@ -52,6 +52,7 @@ try {
   await main();
   process.exit(0);
 } catch {
+  console.error(`Recovery phase: ${phase}`);
   // Never print exceptions, stacks, arguments or connection details. A lost database
   // acknowledgement can mean a committed update: operator must check login first.
   console.error(
