@@ -116,10 +116,23 @@ export function StudioWizard({
           return;
         }
         if (createNew) {
-          setDraft({ ...initial });
+          let fresh = { ...initial };
+          if (params.get("audio") === "1") {
+            try {
+              const stored = sessionStorage.getItem("singmotion-home-audio-handoff");
+              sessionStorage.removeItem("singmotion-home-audio-handoff");
+              if (stored) {
+                const song = JSON.parse(stored) as Asset;
+                if (song && song.kind === "audio" && typeof song.id === "string" && song.id) {
+                  fresh = { ...initial, song, start: 0, end: Math.min(10, song.duration || 10) };
+                }
+              }
+            } catch { /* A broken handoff must never restore an old project. */ }
+          }
+          setDraft(fresh);
           setStep(0);
           setDetectedFormat("9:16");
-          localStorage.setItem("singmotion-studio", JSON.stringify(initial));
+          localStorage.setItem("singmotion-studio", JSON.stringify(fresh));
           window.history.replaceState(window.history.state, "", "/studio");
           setReady(true);
           return;
