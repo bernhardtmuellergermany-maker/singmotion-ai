@@ -1498,3 +1498,233 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>strong{font-size:14px}
  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>small{font-size:12px}
 }
+
+/* Unified Studio audio editor — one subtle player, toolbar above waveform. */
+.product-theme.singmotion-flow .studio-modern-wave{
+  width:100%;
+  display:block;
+  position:relative;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  box-sizing:border-box;
+  padding:16px 20px 13px!important;
+  border:1px solid #282d42!important;
+  background:#0d111d!important;
+  border-radius:22px!important;
+  box-shadow:none!important;
+  overflow:visible;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta.studio-unified-toolbar{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  justify-content:space-between;
+  min-height:46px;
+  width:100%;
+  margin:0 0 14px!important;
+  padding:0!important;
+  gap:16px;
+  background:none;
+  border:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{
+  flex:1 1 175px;
+  min-width:0;
+  max-width:none;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text strong{
+  font-size:15px;
+  line-height:1.2;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text small{font-size:13px}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-actions.studio-unified-actions{
+  display:flex;
+  flex:0 0 auto;
+  align-items:center;
+  gap:clamp(10px,1.5vw,22px);
+  min-width:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-unified-actions .studio-wave-play{
+  width:60px;
+  height:38px;
+  flex:0 0 60px;
+  border:none;
+  border-radius:999px;
+  background:#f4f2fa;
+  color:#252238;
+  box-shadow:none;
+  transition:background-color .18s ease;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-unified-actions .studio-wave-play:hover{
+  transform:none;
+  background:#dfd9ed;
+  color:#252238;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time{
+  display:flex;
+  position:relative;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  flex:0 0 auto;
+  min-width:65px;
+  font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time>span,
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration>span{
+  font-size:11px;
+  line-height:15px;
+  font-weight:400;
+  color:#aaa8be;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time-trigger{
+  border:0;
+  background:transparent;
+  color:#f4f2fa;
+  font:600 13px/18px inherit;
+  font-family:inherit;
+  letter-spacing:0;
+  font-variant-numeric:tabular-nums;
+  padding:0 3px;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time-trigger:hover{
+  color:#c9a8ff;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time:nth-of-type(3){
+  border-left:1px solid rgba(141,141,169,.21);
+  padding-left:clamp(10px,1.5vw,20px);
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration{
+  box-sizing:border-box;
+  display:flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  min-width:129px;
+  min-height:47px;
+  padding:5px 12px;
+  gap:3px;
+  border:1px solid rgba(155,82,231,.46);
+  border-radius:10px;
+  background:rgba(119,62,188,.13);
+  font-variant-numeric:tabular-nums;
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration strong{
+  font-size:19px;
+  line-height:22px;
+  font-weight:650;
+  color:#c59aff;
+  white-space:nowrap;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-wave-remove{
+  width:37px;
+  height:38px;
+  border:0;
+  background:transparent;
+  color:#a5a5b9;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-wave-remove:hover{
+  background:transparent;
+  color:#f7a6b8;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+  width:100%;
+  height:102px;
+  margin:0;
+  overflow:visible;
+  border:0;
+  background:transparent;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-bars i{
+  border-radius:999px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  background:rgba(149,79,232,.18)!important;
+  border:0!important;
+  border-left:1px solid rgba(191,158,235,.55)!important;
+  border-right:1px solid rgba(191,158,235,.55)!important;
+  box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  width:6px!important;
+  border-radius:6px;
+  background:#cdb5ef!important;
+  box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{
+  width:100%;
+  padding-top:8px;
+  color:#a8a6c0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover{
+  position:absolute;
+  top:100%;
+  right:0;
+  z-index:15;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:8px;
+  border:1px solid #36374e;
+  border-radius:10px;
+  background:#151a29;
+  box-shadow:0 8px 24px rgba(0,0,0,.26);
+  min-width:max-content;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover input{
+  width:85px;
+  min-width:0;
+  height:32px;
+  box-sizing:border-box;
+  font-size:13px;
+  padding:4px;
+  border:1px solid #44415c;
+  background:#0d111d;
+  color:#fff;
+  border-radius:6px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover button{
+  width:28px;
+  height:32px;
+  border:0;
+  border-radius:6px;
+  background:#222337;
+  color:#ece6fc;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover .studio-inline-time-done{
+  width:auto;
+  padding:0 8px;
+  font-size:11px;
+}
+@media(max-width:840px){
+  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta.studio-unified-toolbar{
+    flex-wrap:wrap;
+    gap:9px;
+  }
+  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{flex:1 1 100%}
+  .product-theme.singmotion-flow .studio-wave-actions.studio-unified-actions{
+    width:100%;
+    justify-content:space-between;
+    gap:8px;
+  }
+}
+@media(max-width:520px){
+  .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:12px 10px!important;border-radius:17px!important}
+  .product-theme.singmotion-flow .studio-wave-actions.studio-unified-actions{flex-wrap:wrap;justify-content:center;gap:8px 12px}
+  .product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration{min-width:119px}
+  .product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:90px}
+}
