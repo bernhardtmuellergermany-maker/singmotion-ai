@@ -1022,3 +1022,99 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .product-theme.singmotion-flow .flow-workspace>.flow-composer{
   width:min(100%,600px);
 }
+
+/* Final audio refinement: one compact toolbar and visually restrained waveform. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+ padding:11px 14px 12px!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+ display:flex;align-items:center;justify-content:space-between;gap:15px;
+ padding:0;margin:0 0 13px!important;min-height:40px;
+}
+.product-theme.singmotion-flow .studio-wave-filename{
+ flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;
+ color:#b5a9d3;
+}
+.product-theme.singmotion-flow .studio-wave-filename strong{
+ font-size:12px;max-width:38vw;
+}
+.product-theme.singmotion-flow .studio-wave-actions{
+ display:flex;align-items:center;gap:8px;flex:none;
+}
+.product-theme.singmotion-flow .studio-wave-play,
+.product-theme.singmotion-flow .studio-wave-remove{
+ box-sizing:border-box;width:39px;height:39px;display:grid;place-items:center;
+ border-radius:10px;cursor:pointer;box-shadow:none;
+ transition:background-color .18s ease,color .18s ease;
+}
+.product-theme.singmotion-flow .studio-wave-play{
+ border:1px solid #8056d9;background:#7944da;color:#fff;
+}
+.product-theme.singmotion-flow .studio-wave-play:hover{background:#9058ee}
+.product-theme.singmotion-flow .studio-wave-remove{
+ border:1px solid rgba(135,140,163,.2);background:transparent;color:#9ea5bb;
+}
+.product-theme.singmotion-flow .studio-wave-remove:hover{background:rgba(136,47,67,.13);color:#f6abbc}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:104px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-bars i{border-radius:999px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+ background:rgba(144,80,238,.17)!important;
+ border-left:1px solid rgba(185,158,242,.5)!important;
+ border-right:1px solid rgba(185,158,242,.5)!important;
+ border-top:0!important;border-bottom:0!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+ border-radius:6px;width:6px!important;background:#cdb9f3!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+ grid-template-columns:minmax(0,190px) minmax(0,190px) minmax(0,188px);
+ column-gap:16px;max-width:640px;align-items:center;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{
+ width:190px;grid-template-columns:34px minmax(0,1fr);gap:7px;
+ font-size:12px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust{
+ grid-template-columns:minmax(0,1fr) 29px 29px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{
+ min-height:38px;font-size:12px;padding-inline:3px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{
+ width:29px;height:38px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+ display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+ gap:2px;min-width:0;min-height:45px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge>span:first-child{
+ font-size:11px;font-weight:500;color:#a5abc0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-value{
+ font-size:22px;line-height:1.2;font-weight:650;color:#c49dff;
+ font-variant-numeric:tabular-nums;
+}
+@media(max-width:760px){
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  grid-template-columns:repeat(2,minmax(0,190px));justify-content:center;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+  grid-column:1/-1;align-items:center;
+ }
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+  gap:6px;
+ }
+ .product-theme.singmotion-flow .studio-wave-filename{gap:5px}
+ .product-theme.singmotion-flow .studio-wave-filename strong{max-width:30vw;font-size:11px}
+ .product-theme.singmotion-flow .studio-wave-filename small{font-size:9px}
+ .product-theme.singmotion-flow .studio-wave-actions{gap:4px}
+ .product-theme.singmotion-flow .studio-wave-play,
+ .product-theme.singmotion-flow .studio-wave-remove{width:36px;height:36px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  grid-template-columns:minmax(0,190px);justify-content:center;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs label{width:190px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{grid-column:1}
+}
