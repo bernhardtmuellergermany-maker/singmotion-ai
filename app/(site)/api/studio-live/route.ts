@@ -258,6 +258,7 @@ async function handler(req: NextRequest) {
         body.english,
         body.repeatOf,
         body.requestKey,
+        body.projectName,
       );
       recordRights(
         service.store.db,
