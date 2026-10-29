@@ -62,6 +62,7 @@ export function StudioWizard({
 }) {
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const firstDraftSave = useRef(true);
+  const deletingDraft = useRef(false);
   const performanceInput = useRef<HTMLTextAreaElement>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
@@ -173,7 +174,7 @@ export function StudioWizard({
     if (ready) localStorage.setItem("singmotion-studio", JSON.stringify(draft));
   }, [draft, ready]);
   useEffect(() => {
-    if (!ready || !owner || !projectKey) return;
+    if (!ready || !owner || !projectKey || deletingDraft.current) return;
     let current = true;
     const id = projectKey;
     // Register a new empty draft immediately when Studio opens.
@@ -314,6 +315,26 @@ export function StudioWizard({
     }
     setEditingName(false);
   };
+  const deleteCurrentDraft = async () => {
+    if (!projectKey || deletingDraft.current ||
+        !window.confirm("Permanently delete this draft? This frees one of your 3 guest draft slots. Generated videos will not be deleted.")) return;
+    deletingDraft.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      // Await pending autosaves so they cannot recreate the deleted draft.
+      await saveQueue.current.catch(() => {});
+      await api(`studio-drafts/${encodeURIComponent(projectKey)}`, { method: "DELETE" });
+      localStorage.removeItem("singmotion-studio");
+      localStorage.removeItem("singmotion-draft-id");
+      localStorage.removeItem(`singmotion-project-name:${projectKey}`);
+      window.location.assign("/");
+    } catch (cause) {
+      deletingDraft.current = false;
+      setError((cause as Error).message || "Draft could not be deleted.");
+      setBusy(false);
+    }
+  };
   return (
     <div className="product-theme singmotion-flow">
       <header className="flow-header">
@@ -322,7 +343,7 @@ export function StudioWizard({
           <span className="flow-divider"/>
           {editingName ? <input className="flow-project-input" aria-label="Project name" autoFocus value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") rename(projectName); if(e.key==="Escape") setEditingName(false);}}/> :
           <button className="flow-project-name" title="Click to rename" onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>}
-          <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button onClick={()=>setEditingName(true)}>Rename project</button><button onClick={()=>{if(window.confirm("Delete this draft? Generated videos will not be deleted.")){localStorage.removeItem("singmotion-studio");localStorage.removeItem("singmotion-draft-id");localStorage.removeItem(`singmotion-project-name:${projectKey}`);window.location.href="/studio";}}}>Delete draft</button></div></details>
+          <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
         </div>
         <div className="flow-header-right">
           <GlobalMenu />
