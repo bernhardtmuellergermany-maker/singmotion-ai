@@ -111,6 +111,7 @@ export class StudioWorkflow {
           selection_json: string;
           policy_json: string;
           artist_name: string;
+          project_name: string;
           diagnostic: string | null;
         }
       | undefined;
