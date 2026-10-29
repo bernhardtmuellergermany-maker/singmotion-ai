@@ -175,6 +175,27 @@
 .sm-showcase-admin select:focus-visible{outline:2px solid #ae8bf4;outline-offset:2px}
 .sm-showcase-admin small{font-size:10px;color:#ffb1bb}
 
-/* Quiet CMS access under the global Legals menu item. */
-.sm-global-menu-list .sm-global-menu-admin{display:block;width:100%;margin-top:3px;padding:7px 12px;border:0;border-top:1px solid rgba(175,149,215,.13);background:transparent;color:#918da9;font:inherit;font-size:11px;text-align:left;text-decoration:none;cursor:pointer}
-.sm-global-menu-list .sm-global-menu-admin:hover,.sm-global-menu-list .sm-global-menu-admin:focus-visible{color:#c6b2ee;background:rgba(143,98,202,.09)}
+
+/* Legals: new dark SingMotion presentation, without altering legal CMS copy. */
+.legal-refresh{min-height:100dvh;background:radial-gradient(ellipse 60% 42% at 50% 8%,rgba(89,56,162,.20),transparent 78%),#080b15;color:#f6f3fd;position:relative;isolation:isolate}
+.legal-refresh .premium-site{background:transparent!important;color:#f6f3fd!important;min-height:0}
+.legal-refresh .premium-site .marketing-header{max-width:1140px;border-bottom:1px solid rgba(190,177,227,.12);height:86px}
+.legal-refresh .premium-site .marketing-header a,.legal-refresh .premium-site .marketing-header nav{color:#e1dbf4}
+.legal-refresh .premium-site main{max-width:1060px;padding:28px clamp(22px,5vw,65px) 90px}
+.legal-refresh .premium-site .hero.content-hero{display:block;max-width:830px;min-height:0;padding:74px 0 48px;border-bottom:1px solid rgba(200,186,238,.15)}
+.legal-refresh .premium-site .hero-copy{max-width:850px}
+.legal-refresh .premium-site .hero h1{color:#fff;font-size:clamp(36px,6vw,66px);font-weight:720;line-height:1.08;letter-spacing:-.045em;max-width:820px}
+.legal-refresh .premium-site .hero-copy>p{color:#b5adc9;max-width:740px;font-size:15px;line-height:1.8}
+.legal-refresh .premium-site .eyebrow{color:#b993ff;letter-spacing:.2em}
+.legal-refresh .premium-site .how-section{border:1px solid rgba(186,164,236,.17);background:linear-gradient(135deg,rgba(27,29,52,.94),rgba(16,20,38,.93));border-radius:20px;margin:22px 0;padding:clamp(24px,4vw,42px);box-shadow:0 14px 40px #0002}
+.legal-refresh .premium-site .how-section h2,.legal-refresh .premium-site .closing-cta h2{color:#f7f3ff;font-size:clamp(20px,2.4vw,28px);letter-spacing:-.025em}
+.legal-refresh .premium-site .how-section p,.legal-refresh .premium-site .how-section li{color:#bbb7cb;line-height:1.8;font-size:14px}
+.legal-refresh .premium-site .pricing-section.closing-cta{background:rgba(24,23,44,.65);border:1px solid rgba(186,164,236,.14);border-radius:18px;padding:30px;margin:20px 0}
+.legal-refresh .premium-site .button.primary{background:#7955c7;color:#fff}
+.legal-refresh .premium-site footer{border-top:1px solid rgba(186,164,236,.14);background:#090c17;color:#aca7be}
+.legal-refresh .premium-site footer a{color:#aca7be}
+.legal-admin-access{max-width:1060px;margin:0 auto;padding:18px clamp(22px,5vw,65px) 32px;display:flex;align-items:center;justify-content:flex-end;gap:15px;border-top:1px solid rgba(190,177,227,.12);color:#817d98}
+.legal-admin-access span{font-size:9px;letter-spacing:.18em}
+.legal-admin-access a,.legal-admin-access button{border:0;background:transparent;padding:8px 0;font:inherit;font-size:11px;color:#a09ab5;text-decoration:none;cursor:pointer}
+.legal-admin-access a:hover,.legal-admin-access button:hover{color:#dfccff}
+@media(max-width:650px){.legal-refresh .premium-site .marketing-header{padding:0 22px}.legal-refresh .premium-site .hero.content-hero{padding:42px 0 30px}.legal-refresh .premium-site main{padding-bottom:48px}.legal-admin-access{justify-content:flex-start;flex-wrap:wrap}}
