@@ -97,9 +97,11 @@ export function StudioWizard({
             song: Asset | null;
             image: Asset | null;
             artistName: string;
+            projectName?: string;
             step: number;
           }>(`studio-drafts/${encodeURIComponent(requested)}`);
           if (!current) return;
+          setProjectName(saved.projectName || localStorage.getItem(`singmotion-project-name:${requested}`) || saved.artistName || "Untitled Project");
           setDraft({
             ...initial,
             ...saved.selection,
@@ -196,6 +198,7 @@ export function StudioWizard({
               id,
               selection,
               artistName: draft.artistName,
+              projectName,
               step,
             }),
           }),
