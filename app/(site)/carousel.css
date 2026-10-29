@@ -69,3 +69,18 @@
   }
 }
 .sm-carousel-card{transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1),border-color .28s ease,box-shadow .35s ease,background .3s ease}
+
+/* Compact floating pagination integrated with the 3D cards. */
+.sm-carousel-controls{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:calc(100vw - 24px);padding:6px 9px;margin-top:13px;border:1px solid rgba(147,121,204,.24);border-radius:999px;background:rgba(17,19,35,.77);box-shadow:0 9px 30px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.sm-carousel-controls .sm-carousel-nav-arrow{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:#bbb8ce;transition:color .25s,background .25s,transform .25s}
+.sm-carousel-controls .sm-carousel-nav-arrow:hover:not(:disabled),.sm-carousel-controls .sm-carousel-nav-arrow:focus-visible{background:rgba(146,85,242,.16);color:#c5a4ff;transform:scale(1.07)}
+.sm-carousel-controls .sm-carousel-nav-arrow:disabled{opacity:.26}
+.sm-carousel-indicators{display:flex;align-items:center;justify-content:center;gap:5px;min-height:26px}
+.sm-carousel-controls .sm-carousel-indicator{display:grid;place-items:center;width:auto;min-width:15px;height:26px;padding:0 3px;border:0;border-radius:8px;background:transparent;cursor:pointer;transition:background .25s}
+.sm-carousel-indicator span{display:block;width:6px;height:6px;border-radius:99px;background:#74728e;transition:width .26s cubic-bezier(.22,1,.36,1),background .26s,box-shadow .26s}
+.sm-carousel-indicator.is-current span{width:23px;height:6px;background:#a27bff;box-shadow:0 0 12px rgba(162,123,255,.25)}
+.sm-carousel-controls .sm-carousel-indicator:hover,.sm-carousel-controls .sm-carousel-indicator:focus-visible{background:rgba(146,85,242,.12)}
+.sm-carousel-indicator:hover span{background:#b8a5de}
+.sm-carousel-indicator.is-current:hover span{background:#b99aff}
+@media(max-width:690px){.sm-carousel-controls{margin-top:8px;padding:5px 7px;gap:5px}.sm-carousel-controls .sm-carousel-nav-arrow{width:26px;height:26px}}
+@media(prefers-reduced-motion:reduce){.sm-carousel-controls *,.sm-carousel-indicator span{transition:none!important}}
