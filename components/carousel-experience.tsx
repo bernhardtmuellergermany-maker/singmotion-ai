@@ -6,6 +6,7 @@ import { GlobalMenu } from "./home-collection";
 import { api, ensureSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
+import { showcase } from "@/lib/showcase";
 
 type Tile = { id:string; name:string; href:string; imageId?:string; state:string; created:number; videoUrl?:string; seconds:number };
 type Draft = { id:string; artistName:string; selection:{ songId?:string; imageId?:string; start:number; end:number } };
@@ -22,7 +23,7 @@ export function CarouselExperience(){
   const [dragging,setDragging]=useState(0);
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
-  const ids=["home","login",...tiles.map(t=>t.id)];
+  const ids=["showcase","home",...tiles.map(t=>t.id),...(current==="login"?["login"]:[])];
   const activeIndex=Math.max(0,ids.indexOf(current));
   const activeId=ids[activeIndex];
   const navigate=useCallback((id:string,replace=false)=>{
@@ -116,8 +117,8 @@ export function CarouselExperience(){
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
-          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":"is-inactive")} aria-label={id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={distance!==0} inert={distance!==0} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} onClick={()=>{if(distance!==0)navigate(id);}}>
-            {id==="home"?<div className="sm-carousel-home">
+          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":"is-inactive")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={distance!==0} inert={distance!==0} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} onClick={()=>{if(distance!==0)navigate(id);}}>
+            {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
               <p>Upload your song and bring your music to life with AI.</p>
@@ -145,7 +146,7 @@ export function CarouselExperience(){
         <div className="sm-carousel-indicators" role="group" aria-label="Select carousel card">
           {ids.slice(Math.max(0,Math.min(activeIndex-2,ids.length-5)),Math.max(0,Math.min(activeIndex-2,ids.length-5))+5).map(id=>{
             const i=ids.indexOf(id);
-            const label=id==="home"?"Home / Audio upload":id==="login"?"Login":tiles.find(t=>t.id===id)?.name||"Project";
+            const label=id==="showcase"?"SingMotion AI Showcase":id==="home"?"Home / Audio upload":id==="login"?"Login":tiles.find(t=>t.id===id)?.name||"Project";
             return <button key={id} className={"sm-carousel-indicator"+(i===activeIndex?" is-current":"")} type="button" aria-label={`Go to ${label}, card ${i+1} of ${ids.length}`} aria-current={i===activeIndex?"step":undefined} onClick={()=>navigate(id)}><span/></button>;
           })}
         </div>
@@ -183,6 +184,34 @@ function ProjectCarouselCard({tile,active}:{tile:Tile;active:boolean}){
     <div className="sm-carousel-project-footer">
       <strong title={tile.name}>{tile.name}</strong>
       <Link href={tile.href} className="sm-carousel-open" onClick={()=>{video.current?.pause();try{sessionStorage.setItem("singmotion-carousel-return",tile.id);}catch{}}}>Open project <ArrowRight size={16}/></Link>
+    </div>
+  </div>;
+}
+
+function ShowcaseCard({active,nearby,onCreate}:{active:boolean;nearby:boolean;onCreate:()=>void}){
+  const video=useRef<HTMLVideoElement>(null);
+  const [sound,setSound]=useState(false);
+  const [failed,setFailed]=useState(false);
+  const hasVideo=showcase.videoUrl.startsWith("https://") || showcase.videoUrl.startsWith("/");
+  useEffect(()=>{
+    const v=video.current;
+    if(!v)return;
+    if(!active){v.pause();v.muted=true;setSound(false);return;}
+    v.muted=true;setSound(false);
+    const sync=()=>{if(document.hidden)v.pause();else void v.play().catch(()=>{});};
+    sync();
+    document.addEventListener("visibilitychange",sync);
+    return()=>{document.removeEventListener("visibilitychange",sync);v.pause();};
+  },[active,nearby]);
+  return <div className="sm-showcase-card">
+    {showcase.posterUrl&&<img className="sm-showcase-poster" src={showcase.posterUrl} alt="" loading="eager"/>}
+    {hasVideo&&nearby&&!failed&&<video ref={video} className="sm-carousel-video" src={showcase.videoUrl} poster={showcase.posterUrl||undefined} muted playsInline loop preload={active?"metadata":"none"} onError={()=>setFailed(true)}/>}
+    {hasVideo&&nearby&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
+    {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
+    <span className="sm-showcase-label">Made with SingMotion AI</span>
+    <div className="sm-carousel-project-footer">
+      <strong>{showcase.title}</strong>
+      <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
   </div>;
 }
