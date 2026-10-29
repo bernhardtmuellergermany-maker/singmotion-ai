@@ -131,3 +131,21 @@
  .sm-carousel-side-zone.is-left{left:calc(50% - var(--sm-card-width) / 2 - 10px)}
  .sm-carousel-side-zone.is-right{left:calc(50% + var(--sm-card-width) / 2 + 10px)}
 }
+
+/* Floating global project search */
+.sm-carousel-search-trigger{display:grid;place-items:center;width:37px;height:37px;border:0;background:transparent;color:#c7c6db;border-radius:50%;cursor:pointer}
+.sm-carousel-search-trigger:hover,.sm-carousel-search-trigger:focus-visible{background:#302344;color:#d5b9ff}
+.sm-project-search-backdrop{position:fixed;inset:0;z-index:80;background:rgba(5,8,17,.4);display:flex;justify-content:center;align-items:flex-start;padding:clamp(75px,12vh,115px) 16px 30px}
+.sm-project-search{width:min(100%,470px);max-height:min(70svh,560px);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(173,131,232,.35);border-radius:18px;background:rgba(18,21,38,.97);color:#f4f1fe;box-shadow:0 25px 90px #000a,0 0 36px rgba(124,70,213,.10);backdrop-filter:blur(18px)}
+.sm-project-search-top{display:flex;align-items:center;gap:11px;padding:14px 17px;border-bottom:1px solid #ffffff17;color:#ab83ed}
+.sm-project-search-top input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#fff;font:inherit;font-size:14px}
+.sm-project-search-top input::placeholder{color:#8a89a4}
+.sm-project-search-top button{border:0;background:transparent;color:#aaa3be;cursor:pointer;display:grid;place-items:center;padding:5px;border-radius:6px}
+.sm-project-search-top button:hover{background:#382b51;color:white}
+.sm-project-search-list{overflow:auto;padding:8px;max-height:450px}
+.sm-project-search-result{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:10px 12px;text-align:left;border:0;border-radius:10px;background:transparent;color:#f2effb;cursor:pointer}
+.sm-project-search-result:hover,.sm-project-search-result.is-highlighted{background:rgba(147,100,220,.16)}
+.sm-project-search-result-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
+.sm-project-search-result-status{flex:none;font-size:11px;color:#a2a0bd;text-transform:capitalize}
+.sm-project-search-empty{margin:0;padding:20px 15px;color:#9ea0ba;font-size:13px;text-align:center}
+@media(max-width:650px){.sm-project-search-backdrop{padding:73px 12px 15px}.sm-project-search{border-radius:14px;max-height:70svh}.sm-carousel-search-trigger{width:33px;height:33px}}
