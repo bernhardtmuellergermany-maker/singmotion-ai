@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Trash2, Pause, Play, RefreshCw } from "lucide-react";
+import { Trash2, Pause, Play } from "lucide-react";
 import type { Asset } from "@/lib/domain";
 
 const time = (n: number) => {
@@ -111,9 +111,7 @@ export function HomeUploadedAudio({
       </div>
       <input ref={picker} className="sm-home-replace-input" type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4"
         aria-label="Replace audio file" disabled={replacing} onChange={e=>{onReplace(e.target.files?.[0]);e.currentTarget.value="";}}/>
-      <button type="button" className="sm-home-replace" disabled={replacing} onClick={()=>picker.current?.click()}>
-        <RefreshCw size={14}/>{replacing?"Uploading replacement…":"Replace audio"}
-      </button>
+
     </div>
   );
 }
