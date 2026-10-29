@@ -161,7 +161,7 @@ export function CarouselExperience(){
           const tile=tiles.find(t=>t.id===id);
           return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={Math.abs(distance)>1?true:undefined} inert={Math.abs(distance)>1} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
             {Math.abs(distance)===1&&<button type="button" className="sm-carousel-side-hit" aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
-            {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
+            {id==="showcase"?<ShowcaseCard active={distance===0} visible={visible} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
               <p>Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.</p>
@@ -243,7 +243,7 @@ function ProjectCarouselCard({tile,active}:{tile:Tile;active:boolean}){
   </div>;
 }
 
-function ShowcaseCard({active,nearby,onCreate,published,onPublish}:{active:boolean;nearby:boolean;onCreate:()=>void;published:{title:string;videoUrl:string}|null;onPublish:(value:{title:string;videoUrl:string})=>void}){
+function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:boolean;visible:boolean;onCreate:()=>void;published:{title:string;videoUrl:string}|null;onPublish:(value:{title:string;videoUrl:string})=>void}){
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [failed,setFailed]=useState(false);
@@ -265,15 +265,15 @@ function ShowcaseCard({active,nearby,onCreate,published,onPublish}:{active:boole
     sync();
     document.addEventListener("visibilitychange",sync);
     return()=>{document.removeEventListener("visibilitychange",sync);v.pause();};
-  },[active,nearby,videoUrl]);
+  },[active,visible,videoUrl]);
   return <div className="sm-showcase-card">
     {posterUrl&&<img className="sm-showcase-poster" src={posterUrl} alt="" loading="eager"/>}
-    {hasVideo&&nearby&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload="auto" onError={()=>setFailed(true)}/>}
+    {hasVideo&&visible&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload="auto" onError={()=>setFailed(true)}/>}
     {hasVideo&&nearby&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Made with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
-      <strong>{published?.title||showcase.title}</strong>
+      <strong>{showcase.title}</strong>
       {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.artist} · {p.id.slice(0,8)}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
