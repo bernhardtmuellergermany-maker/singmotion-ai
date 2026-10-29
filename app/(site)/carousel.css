@@ -239,3 +239,9 @@
 .sm-legal-search{width:36px;height:36px;display:grid;place-items:center;color:#c3bbd7;transition:color .2s}
 .sm-legal-search:hover,.sm-legal-search:focus-visible{color:#c19dff}
 .sm-legal .sm-legal-main{padding-top:clamp(35px,6vw,68px)}
+
+/* Keep showcase controls crisp above moving video/3D card compositing. */
+.sm-showcase-card .sm-carousel-project-footer{isolation:isolate;transform:translateZ(2px);-webkit-font-smoothing:antialiased}
+.sm-showcase-card .sm-carousel-project-footer>strong{font-weight:750;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:-.015em}
+.sm-showcase-card .sm-carousel-open{font-weight:750;text-shadow:none;backface-visibility:hidden;transform:translateZ(1px);box-shadow:0 2px 12px rgba(0,0,0,.22)}
+.sm-showcase-card .sm-showcase-label{backdrop-filter:none;background:rgba(9,13,24,.90);font-weight:650;text-shadow:none}
