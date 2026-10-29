@@ -1786,3 +1786,44 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.sm-confirm-simple h2{font-size:21px}
  .product-theme.sm-confirm-simple .sm-confirm-summary strong{font-size:15px}
 }
+
+/* Precise grabbing even when the Studio selection is five seconds or shorter. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+  position:relative;
+  overflow:visible!important;
+  touch-action:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  z-index:3;
+  cursor:grab!important;
+  touch-action:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection:active{
+  cursor:grabbing!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  position:absolute;
+  z-index:10!important;
+  width:28px!important;
+  min-width:28px!important;
+  height:100%!important;
+  margin-left:-14px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  cursor:ew-resize!important;
+  touch-action:none!important;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle:focus-visible{
+  outline:2px solid #cdb5ef;
+  outline-offset:-2px;
+  border-radius:8px;
+}
