@@ -1916,3 +1916,30 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   right:4px!important;
   left:auto!important;
 }
+
+/* Small destructive action on saved draft carousel cards. */
+.product-theme .sm-carousel-project{position:relative}
+.sm-carousel-project .sm-carousel-draft-delete{
+  position:absolute;
+  z-index:25;
+  top:12px;
+  right:12px;
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  padding:0;
+  border:1px solid rgba(196,178,216,.28);
+  border-radius:10px;
+  background:rgba(23,25,39,.78);
+  color:#c9badb;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.sm-carousel-project .sm-carousel-draft-delete:hover,
+.sm-carousel-project .sm-carousel-draft-delete:focus-visible{
+  color:#ffb3bb;
+  border-color:rgba(255,179,187,.65);
+  background:rgba(67,31,47,.85);
+}
+.sm-carousel-project .sm-carousel-draft-delete:disabled{opacity:.4;cursor:wait}
