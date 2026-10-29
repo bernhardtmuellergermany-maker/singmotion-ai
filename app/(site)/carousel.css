@@ -246,3 +246,20 @@
 .sm-showcase-card .sm-carousel-open{font-weight:750;text-shadow:none;backface-visibility:hidden;transform:translateZ(1px);box-shadow:0 2px 12px rgba(0,0,0,.22)}
 .sm-showcase-card .sm-showcase-label{backdrop-filter:none;background:rgba(9,13,24,.90);font-weight:650;text-shadow:none}
 
+
+/* FAQ uses the same global brand header, palette and page background as Legals/carousel. */
+.sm-help-faq .sm-legal-main{max-width:920px}
+.sm-help-group{margin:34px 0}
+.sm-help-group-header{padding:0 4px 14px}
+.sm-help-group-header h2{font-size:clamp(20px,2.5vw,27px);font-weight:700;letter-spacing:-.035em;margin:9px 0 0;color:#f6f2ff}
+.sm-help-questions{border:1px solid rgba(195,168,240,.23);border-radius:17px;overflow:hidden;background:linear-gradient(125deg,#1b1b33,#111525)}
+.sm-help-question+.sm-help-question{border-top:1px solid rgba(195,168,240,.15)}
+.sm-help-question summary{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:19px clamp(18px,3vw,28px);font-size:14px;font-weight:610;line-height:1.5;color:#f3efff;list-style:none;cursor:pointer;transition:background .2s,color .2s}
+.sm-help-question summary::-webkit-details-marker{display:none}
+.sm-help-question summary:hover{background:rgba(157,103,242,.095);color:#fff}
+.sm-help-question summary svg{flex:none;color:#b796ef;transition:transform .2s}
+.sm-help-question[open] summary svg{transform:rotate(180deg)}
+.sm-help-question p{padding:0 clamp(18px,3vw,28px) 23px;font-size:13px;line-height:1.82;color:#bdb8cf;max-width:800px}
+.sm-help-bottom{margin-top:40px;padding:24px 4px;border-top:1px solid rgba(195,168,240,.18);color:#aca6bf;font-size:13px;line-height:1.7}
+.sm-help-bottom a{color:#b99afa;text-decoration:underline;text-underline-offset:3px}
+.sm-help-bottom a:hover{color:#dec8ff}
