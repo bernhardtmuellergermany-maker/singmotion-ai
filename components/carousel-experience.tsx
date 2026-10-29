@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
+import { HomeUploadedAudio } from "./home-uploaded-audio";
 import { api, ensureSession, resetSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
@@ -196,13 +197,14 @@ export function CarouselExperience(){
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
               <p>Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.</p>
-              <label className="sm-carousel-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void selectAudio(e.dataTransfer.files?.[0]);}}>
-                <input type="file" disabled={uploading} accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Choose audio file" onChange={e=>{void selectAudio(e.target.files?.[0]);e.currentTarget.value="";}}/>
-                {uploading?<LoaderCircle className="sm-spinning" size={32}/>:<CloudUpload size={42}/>}
-                <strong>{uploading?"Uploading your song…":audio?"Replace uploaded audio":"Drop your audio here or click to browse"}</strong>
-                <small>MP3, WAV, M4A · up to 50 MB</small>
-              </label>
-              {audio&&<div className="sm-carousel-audio-ready"><CheckCircle2 size={16}/><span title={audio.name}>{audio.name}</span>{Number.isFinite(audio.duration)&&<small>{Math.round(audio.duration||0)}s</small>}</div>}
+              {audio
+                ? <HomeUploadedAudio key={audio.id} audio={audio} active={distance===0} replacing={uploading} onReplace={file=>void selectAudio(file)}/>
+                : <label className="sm-carousel-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void selectAudio(e.dataTransfer.files?.[0]);}}>
+                    <input type="file" disabled={uploading} accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Choose audio file" onChange={e=>{void selectAudio(e.target.files?.[0]);e.currentTarget.value="";}}/>
+                    {uploading?<LoaderCircle className="sm-spinning" size={32}/>:<CloudUpload size={42}/>}
+                    <strong>{uploading?"Uploading your song…":"Drop your audio here or click to browse"}</strong>
+                    <small>MP3, WAV, M4A · up to 50 MB</small>
+                  </label>}
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
             </div>:id==="login"?<div className="sm-carousel-login">
