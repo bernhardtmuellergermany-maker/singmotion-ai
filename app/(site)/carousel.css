@@ -944,3 +944,10 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 @media(max-width:690px){
   .product-theme.singmotion-flow .flow-image-field{width:84px;flex:0 0 84px}
 }
+
+/* Live estimate stays legible and aligned without changing Studio controls. */
+.product-theme.singmotion-flow .flow-create{gap:7px;white-space:nowrap}
+.product-theme.singmotion-flow .flow-generate-label{flex:0 1 auto;min-width:0}
+.product-theme.singmotion-flow .flow-generate-price{font-variant-numeric:tabular-nums;flex:none;font-size:11px;font-weight:650;padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.15)}
+@media(max-width:850px){.product-theme.singmotion-flow .flow-create{min-height:44px}}
+@media(max-width:520px){.product-theme.singmotion-flow .flow-create{font-size:11px}.product-theme.singmotion-flow .flow-generate-price{font-size:10px;padding:3px 5px}}
