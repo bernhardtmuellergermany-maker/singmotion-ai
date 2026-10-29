@@ -37,18 +37,13 @@ export async function validateAudio(file: string, provider = false) {
     )
   )
     throw new AppError("This file does not contain valid audio.");
-  if (
-    !["mp3", "wav"].some((format) =>
-      p.format.format_name?.split(",").includes(format),
-    ) &&
-    !(
-      p.format.format_name?.split(",").includes("mp4") &&
-      audio.codec_name === "aac"
-    )
-  )
-    throw new AppError(
-      "Audio must be an actual MP3, WAV or audio-only AAC/M4A file.",
-    );
+  const formats = new Set((p.format.format_name || "").split(","));
+  const isMp3 = formats.has("mp3") && audio.codec_name === "mp3";
+  const isWav = formats.has("wav") && /^(pcm_|adpcm_|alaw$|mulaw$|flac$)/.test(audio.codec_name);
+  const isM4a = (formats.has("mov") || formats.has("mp4") || formats.has("m4a") || formats.has("3gp"))
+    && ["aac", "alac"].includes(audio.codec_name);
+  if (!isMp3 && !isWav && !isM4a)
+    throw new AppError("Use an MP3, PCM WAV, or AAC/ALAC M4A audio file.");
   if (
     provider &&
     (audio.codec_name !== "mp3" ||
@@ -95,4 +90,13 @@ export async function trimAudio(
   if (Math.abs(trimmed - (end - start)) > 0.2)
     throw new AppError("Audio trim duration verification failed.");
   return trimmed;
+}
+
+/** Build a browser-compatible playback copy without modifying uploaded source. */
+export async function createAudioPreview(input: string, output: string) {
+  await exec("ffmpeg", [
+    "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
+    "-i", input, "-map", "0:a:0", "-vn", "-codec:a", "libmp3lame",
+    "-b:a", "128k", output,
+  ], { timeout: 120000, maxBuffer: 1024 * 1024 });
 }
