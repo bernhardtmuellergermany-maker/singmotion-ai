@@ -55,6 +55,7 @@ export interface StudioProject {
   prompt: string;
   imageId: string;
   artistName: string;
+  projectName: string;
   selection: StudioDraftExport;
   estimatedBaseMicroUsd: number;
   estimatedGeneratedSeconds: number;
@@ -93,6 +94,8 @@ export class StudioWorkflow {
     store.db.exec(
       `CREATE TABLE IF NOT EXISTS live_studio_projects (attempt_id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection_json TEXT NOT NULL, policy_json TEXT NOT NULL, artist_name TEXT NOT NULL, diagnostic TEXT, started_at INTEGER);`,
     );
+    const projectColumns = store.db.prepare("PRAGMA table_info(live_studio_projects)").all() as {name:string}[];
+    if (!projectColumns.some(column => column.name === "project_name")) store.db.exec("ALTER TABLE live_studio_projects ADD COLUMN project_name TEXT NOT NULL DEFAULT ''");
     store.db.exec(`CREATE TABLE IF NOT EXISTS live_studio_actions (
       id INTEGER PRIMARY KEY, attempt_id TEXT NOT NULL, action TEXT NOT NULL,
       actor TEXT NOT NULL, evidence TEXT NOT NULL, created_at INTEGER NOT NULL
@@ -193,6 +196,7 @@ export class StudioWorkflow {
       prompt: a.media.prompt,
       imageId: JSON.parse(row.selection_json).imageId,
       artistName: row.artist_name,
+      projectName: row.project_name || row.artist_name,
       selection: JSON.parse(row.selection_json),
       estimatedGeneratedSeconds,
       estimatedBaseMicroUsd: reportedBaseChargeMicroUsd(
@@ -564,6 +568,7 @@ export class StudioWorkflow {
     english: unknown,
     repeatOf?: unknown,
     requestKey?: unknown,
+    projectName?: unknown,
   ) {
     studioGate(this.config);
     if (consent !== true || english !== true)
@@ -715,7 +720,7 @@ export class StudioWorkflow {
     const a = this.store.prepare(media, null, null);
     this.store.db
       .prepare(
-        "INSERT OR IGNORE INTO live_studio_projects (attempt_id,owner,selection_json,policy_json,artist_name) VALUES (?,?,?,?,?)",
+        "INSERT OR IGNORE INTO live_studio_projects (attempt_id,owner,selection_json,policy_json,artist_name,project_name) VALUES (?,?,?,?,?,?)",
       )
       .run(
         a.id,
@@ -723,6 +728,7 @@ export class StudioWorkflow {
         JSON.stringify(selection),
         JSON.stringify(policy),
         typeof artistName === "string" ? artistName.slice(0, 80) : "My artist",
+        typeof projectName === "string" && projectName.trim() ? projectName.trim().slice(0, 100) : typeof artistName === "string" ? artistName.slice(0, 80) : "Untitled Project",
       );
     await this.operator(policy).price(a.id, owner);
     const result = await this.withCurrentBudget(this.view(a.id, owner));
