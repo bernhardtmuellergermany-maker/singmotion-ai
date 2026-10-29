@@ -1,3 +1,4 @@
+import { PageContentSearch } from "./page-content-search";
 import Link from "next/link";
 import { Search, UserRound, ChevronDown } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
@@ -24,7 +25,7 @@ const groups = [
 ];
 export function HelpFAQ(){
 return <div className="sm-legal sm-help-faq">
-<header className="home-gallery-header sm-carousel-header"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><div className="sm-header-actions"><Link className="sm-legal-search" href="/?search=1" aria-label="Search projects" title="Search projects"><Search size={19}/></Link><GlobalMenu/><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div></header>
+<header className="home-gallery-header sm-carousel-header"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><div className="sm-header-actions"><PageContentSearch/><GlobalMenu/><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div></header>
 <main id="content" className="sm-legal-main">
  <div className="sm-legal-intro"><span className="sm-legal-kicker">SUPPORT & GUIDANCE</span><h1>Help & FAQ<span>.</span></h1><p>Quick answers to common questions about creating videos, finding projects and using SingMotion AI.</p></div>
  {groups.map((group,index)=><section key={group.heading} className="sm-help-group"><div className="sm-help-group-header"><span className="sm-legal-num">0{index+1} / HELP</span><h2>{group.heading}</h2></div><div className="sm-help-questions">{group.items.map(([question,answer])=><details className="sm-help-question" key={question}><summary>{question}<ChevronDown size={18} aria-hidden="true"/></summary><p>{answer}</p></details>)}</div></section>)}
