@@ -84,3 +84,11 @@
 .sm-carousel-indicator.is-current:hover span{background:#b99aff}
 @media(max-width:690px){.sm-carousel-controls{margin-top:8px;padding:5px 7px;gap:5px}.sm-carousel-controls .sm-carousel-nav-arrow{width:26px;height:26px}}
 @media(prefers-reduced-motion:reduce){.sm-carousel-controls *,.sm-carousel-indicator span{transition:none!important}}
+
+/* Public showcase: identical full-bleed 9:16 carousel canvas, left of Home. */
+.sm-showcase-card{position:relative;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 40%,#3a275a,#12182b 67%)}
+.sm-showcase-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sm-showcase-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;color:#b69bdd;font-size:14px;text-align:center;padding:25px}
+.sm-showcase-fallback svg{filter:drop-shadow(0 0 15px #9355f266)}
+.sm-showcase-label{position:absolute;top:21px;left:17px;z-index:4;padding:7px 10px;border:1px solid #ffffff33;border-radius:999px;background:#0b1022a8;color:#e9e1ff;font-size:11px;letter-spacing:.025em;backdrop-filter:blur(8px)}
+.sm-showcase-card .sm-carousel-open{width:100%;border:0;cursor:pointer}
