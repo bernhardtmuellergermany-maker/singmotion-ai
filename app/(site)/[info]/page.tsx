@@ -1,3 +1,4 @@
+import { HelpFAQ } from "@/components/help-faq";
 import { LegalOverview } from "@/components/legal-overview";
 import { LegalAdminAccess } from "@/components/legal-admin-access";
 import { publishedPage } from "@/cms/content";
@@ -12,6 +13,7 @@ export default async function Page({
 }) {
   const slug = (await params).info;
   if (slug === "legal") return <LegalOverview />;
+  if (slug === "help") return <HelpFAQ />;
   const cms = await publishedPage(slug);
   if (cms) return slug === "legal" ? <div className="legal-refresh"><Website page={cms}/><LegalAdminAccess/></div> : <Website page={cms} />;
   const p = pages[(await params).info];
@@ -57,7 +59,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ info: string }>;
 }) {
-  if ((await params).info === "legal") return { title: "Legals & Imprint", description: "Impressum, Datenschutz und Nutzungsbedingungen von SingMotion AI." };
+  if ((await params).info === "legal") return { title: "Legals & Imprint", description: "Legal notice, privacy and terms of SingMotion AI." };
+  if ((await params).info === "help") return { title: "Help & FAQ", description: "Frequently asked questions about SingMotion AI." };
   const page = await publishedPage((await params).info);
   return page ? { title: page.title, description: page.description } : {};
 }
