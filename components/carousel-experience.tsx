@@ -28,6 +28,7 @@ export function CarouselExperience(){
   const priorCard=useRef("home");
   const searchInput=useRef<HTMLInputElement>(null);
   const searchButton=useRef<HTMLButtonElement>(null);
+  const searchContainer=useRef<HTMLDivElement>(null);
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
   const searching=searchOpen && searchQuery.trim().length>0;
@@ -36,6 +37,14 @@ export function CarouselExperience(){
   const activeIndex=Math.max(0,ids.indexOf(current));
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
+  useEffect(()=>{
+    if(!searchOpen)return;
+    const onOutside=(event:PointerEvent)=>{
+      if(searchContainer.current && !searchContainer.current.contains(event.target as Node))closeSearch();
+    };
+    document.addEventListener("pointerdown",onOutside);
+    return()=>document.removeEventListener("pointerdown",onOutside);
+  },[searchOpen,tiles]);
   const closeSearch=()=>{setSearchOpen(false);setSearchText("");setSearchQuery("");const restore=priorCard.current;window.setTimeout(()=>navigate(restore==="home"||tiles.some(t=>t.id===restore)?restore:"home"),0);searchButton.current?.focus();};
   const navigate=useCallback((id:string,replace=false)=>{
     currentRef.current=id;setCurrent(id);
@@ -120,7 +129,7 @@ export function CarouselExperience(){
     <header className="home-gallery-header sm-carousel-header">
       <a href="/" className="sm-wordmark" aria-label="SingMotion AI home" onClick={e=>{e.preventDefault();navigate("home");}}>SingMotion <span>AI</span></a>
       <div className="sm-header-actions">
-        <div className={"sm-inline-search"+(searchOpen?" is-open":"")}>
+        <div ref={searchContainer} className={"sm-inline-search"+(searchOpen?" is-open":"")}>
           <button ref={searchButton} type="button" className="sm-inline-search-icon" aria-label="Search projects" aria-expanded={searchOpen} onClick={()=>{if(searchOpen){searchInput.current?.focus();return;}priorCard.current=current;setSearchOpen(true);}}><Search size={19}/></button>
           <input ref={searchInput} type="search" tabIndex={searchOpen?0:-1} placeholder="Search projects..." aria-label="Search projects" value={searchText} onChange={e=>setSearchText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();closeSearch();}if(e.key==="Enter"&&matches.length){navigate(matches[0].id);}}}/>
           <button type="button" className="sm-inline-search-close" aria-label="Close search" tabIndex={searchOpen?0:-1} onClick={closeSearch}><X size={16}/></button>
