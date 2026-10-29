@@ -157,6 +157,8 @@ async function handler(
       db.exec(
         "CREATE TABLE IF NOT EXISTS studio_drafts (id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, artist_name TEXT NOT NULL, step INTEGER NOT NULL, updated INTEGER NOT NULL)",
       );
+      const draftColumns = db.prepare("PRAGMA table_info(studio_drafts)").all() as {name:string}[];
+      if (!draftColumns.some(column => column.name === "project_name")) db.exec("ALTER TABLE studio_drafts ADD COLUMN project_name TEXT NOT NULL DEFAULT ''");
       const view = (row: Record<string, unknown>) => {
         const selected = parseSavedStudioDraft(
           JSON.parse(String(row.selection)),
@@ -165,6 +167,7 @@ async function handler(
           id: row.id,
           selection: selected,
           artistName: row.artist_name,
+          projectName: row.project_name,
           step: row.step,
           updated: row.updated,
           song: selected.songId
@@ -215,7 +218,7 @@ async function handler(
           throw new AppError("Invalid draft step.");
         const result = db
           .prepare(
-            "INSERT INTO studio_drafts VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated WHERE studio_drafts.owner=excluded.owner",
+            "INSERT INTO studio_drafts (id,owner,selection,artist_name,step,updated,project_name) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated,project_name=excluded.project_name WHERE studio_drafts.owner=excluded.owner",
           )
           .run(
             key,
@@ -224,6 +227,7 @@ async function handler(
             string(input.artistName, 80),
             step,
             Date.now(),
+            string(input.projectName || input.artistName || "Untitled Project", 100),
           );
         if (result.changes !== 1) throw new AppError("Draft unavailable.", 403);
         return json({ id: key });
