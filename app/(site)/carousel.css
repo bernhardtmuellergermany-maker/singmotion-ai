@@ -502,3 +502,48 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
     transform:translateY(-5px);
   }
 }
+
+/* Studio finishing touches: clean rounded dropdown outlines and more breathing room. */
+.product-theme.singmotion-flow .flow-workspace{gap:38px}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu{
+  border:1px solid #393750;
+  border-radius:12px;
+  background:#121625;
+  background-clip:padding-box;
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{
+  border:0!important;
+  border-radius:11px;
+  background:transparent!important;
+  box-shadow:none!important;
+  outline-offset:2px;
+  overflow:hidden;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu:hover{
+  border-color:#a88ad7;
+  background:#222439;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu[open]{
+  border-color:#b492e3;
+  background:#222439;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary:focus-visible{
+  outline:2px solid #bd98f6;
+  outline-offset:2px;
+  border-radius:11px;
+}
+/* Let the textarea's native bottom-right resize handle work; the panel grows in flow. */
+.product-theme.singmotion-flow .flow-prompt-wrap{min-height:94px;overflow:visible}
+.product-theme.singmotion-flow textarea.flow-prompt{
+  flex:0 0 auto;
+  height:68px;
+  min-height:60px;
+  max-height:300px;
+  resize:vertical!important;
+  overflow:auto;
+  border-radius:6px;
+}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .flow-workspace{gap:32px}
+}
