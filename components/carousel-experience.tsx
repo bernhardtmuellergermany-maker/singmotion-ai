@@ -10,7 +10,7 @@ import type { StudioProject } from "@/lib/live/studio";
 type Tile = { id:string; name:string; href:string; imageId?:string; state:string; created:number; videoUrl?:string; seconds:number };
 type Draft = { id:string; artistName:string; selection:{ songId?:string; imageId?:string; start:number; end:number } };
 const cleanTitle=(name:string)=>!name.trim()||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
-const queryCard=()=>{if(typeof window==="undefined")return "home";return new URLSearchParams(location.search).get("card")||"home";};
+const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
 export function CarouselExperience(){
   const [tiles,setTiles]=useState<Tile[]>([]);
   const [current,setCurrent]=useState("home");
@@ -22,7 +22,7 @@ export function CarouselExperience(){
   const [dragging,setDragging]=useState(0);
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
-  const ids=["home","login",...tiles.map(t=>t.id)];
+  const ids=["home",...(current==="login"?["login"]:[]),...tiles.map(t=>t.id)];
   const activeIndex=Math.max(0,ids.indexOf(current));
   const activeId=ids[activeIndex];
   const navigate=useCallback((id:string,replace=false)=>{
