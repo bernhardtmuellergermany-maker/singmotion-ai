@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LockKeyhole, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
 import { api, ensureSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
@@ -164,7 +164,7 @@ export function CarouselExperience(){
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
             </div>:id==="login"?<div className="sm-carousel-login">
-              <span className="sm-carousel-song-icon"><LockKeyhole size={27}/></span>
+              <span className="sm-carousel-song-icon"><LogIn size={27}/></span>
               <h1>Under Construction</h1>
               <p>Your private music video workspace.</p>
               <p className="sm-login-explanation">Email sign-in is not active yet. Projects are currently linked to this browser's private demo session.</p>
