@@ -49,3 +49,7 @@
 @keyframes sm-carousel-spin{to{transform:rotate(360deg)}}
 @media(max-width:690px){.sm-carousel-main{min-height:calc(100svh - 68px);padding:10px 10px 25px}.sm-carousel-stage{height:min(75svh,680px);min-height:360px}.sm-carousel-card{height:min(70svh,630px);max-height:calc(100svh - 160px);border-radius:15px;transform:translate(-50%,-50%) translateX(calc(var(--distance) * 65vw + var(--drag) * 1px)) rotateY(calc(var(--distance) * -34deg)) scale(calc(1 - var(--depth) * .12))}.sm-carousel-home,.sm-carousel-login{padding:18px;gap:10px}.sm-carousel-song-icon{width:53px;height:53px}.sm-carousel-home h1,.sm-carousel-login h1{font-size:22px}.sm-carousel-drop{min-height:120px;padding:12px 8px;gap:8px}.sm-carousel-drop svg{width:30px;height:30px}.sm-carousel-drop strong{font-size:12px}.sm-carousel-drop small{font-size:10px}}
 @media(prefers-reduced-motion:reduce){.sm-carousel-card{transition:none!important}.sm-spinning{animation:none!important}}
+
+/* Preserve the exact 9:16 ratio even when the viewport is short or narrow. */
+.sm-carousel-card{width:min(90vw,400px,calc((100svh - 170px) * .5625));height:auto;max-height:none}
+@media(max-width:690px){.sm-carousel-card{width:min(88vw,calc((100svh - 160px) * .5625));height:auto;max-height:none}}
