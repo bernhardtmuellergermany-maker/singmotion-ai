@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, Scissors, Minus, Plus } from "lucide-react";
+import { Play, Pause, Scissors, Minus, Plus, Trash2 } from "lucide-react";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -8,12 +8,18 @@ export default function Waveform({
   start,
   end,
   onChange,
+  filename,
+  onRemove,
+  removeDisabled = false,
 }: {
   url: string;
   duration: number;
   start: number;
   end: number;
   onChange: (start: number, end: number) => void;
+  filename?: string;
+  onRemove?: () => void;
+  removeDisabled?: boolean;
 }) {
   const [peaks, setPeaks] = useState<number[]>([]),
     [playing, setPlaying] = useState(false),
@@ -164,6 +170,7 @@ export default function Waveform({
         role="region"
         aria-label="Audio waveform and selection"
       >
+        <div className="studio-wave-meta"><div className="studio-wave-filename"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div>{onRemove && <button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}</div>
         <div
           className={`wave-strip ${dragging ? "is-dragging" : ""}`}
           ref={strip}
