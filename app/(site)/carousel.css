@@ -1943,3 +1943,19 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   background:rgba(67,31,47,.85);
 }
 .sm-carousel-project .sm-carousel-draft-delete:disabled{opacity:.4;cursor:wait}
+
+/* Center both subtle trim grips vertically in the waveform and horizontally
+   exactly on their selection boundaries. Retain the full invisible hit target. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  top:50%!important;
+  bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-start::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-end::after{
+  top:50%!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translate(-50%,-50%)!important;
+}
