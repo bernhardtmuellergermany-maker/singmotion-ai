@@ -132,6 +132,7 @@ export default function Waveform({
       );
   }
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
+  const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
   const adjust=(which:"start"|"end",amount:number)=>which==="start"?onChange(Math.max(0,end-300,Math.min(end-.1,start+amount)),end):onChange(start,Math.max(start+.1,Math.min(duration,start+300,end+amount)));
   const bars = useMemo(() => {
     const count = Math.min(peaks.length || 220, 220);
@@ -343,7 +344,7 @@ export default function Waveform({
             }}
           /><button type="button" aria-label="Decrease end" onClick={()=>adjust("end",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase end" onClick={()=>adjust("end",1)}><Plus size={15}/></button></div>
         </label>
-        <strong className="wave-duration-badge" aria-label="Selected duration"><span>Duration</span> {formatTime(Math.max(0,end-start))}</strong>
+        <strong className="wave-duration-badge" aria-label="Selected duration"><span>Duration</span> {formatHundredths(Math.max(0,end-start))}</strong>
       </div>
       <audio
         ref={audio}
