@@ -20,7 +20,7 @@ export function CarouselExperience(){
     let mounted=true;
     fetch("/api/showcase",{cache:"no-store"})
       .then(async r=>r.ok?await r.json():null)
-      .then(data=>{if(mounted&&data?.videoUrl)setPublishedShowcase({title:data.title,videoUrl:data.videoUrl});})
+      .then(data=>{if(mounted&&data)setPublishedShowcase({title:data.title||showcase.title,videoUrl:data.videoUrl||showcase.videoUrl});})
       .catch(()=>{});
     return()=>{mounted=false;};
   },[]);
@@ -272,7 +272,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   const [adminProjects,setAdminProjects]=useState<{id:string;artist:string;selected:boolean}[]|null>(null);
   const [selecting,setSelecting]=useState(false);
   const [selectionError,setSelectionError]=useState("");
-  const videoUrl=published?.videoUrl||showcase.videoUrl;
+  // Begin fetching the already-public Showcase stream immediately, in parallel\n  // with its metadata. This avoids a network round trip before video buffering.\n  const videoUrl=published===null?"/api/showcase?video=1":published.videoUrl;
   const posterUrl=showcase.posterUrl;
   const hasVideo=videoUrl.startsWith("https://") || videoUrl.startsWith("/");
   useEffect(()=>{setFailed(false);},[videoUrl]);
