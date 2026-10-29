@@ -110,3 +110,24 @@
     background:linear-gradient(150deg,#211c38,#111522);
   }
 }
+
+/* Side hit zones sit outside the active card; independent of 3D hit testing. */
+.sm-carousel-stage{--sm-card-width:min(90vw,400px,calc((100svh - 170px) * .5625));transform-style:flat}
+.sm-carousel-side-zone{position:absolute;top:50%;z-index:20;width:clamp(35px,10vw,110px);height:62%;transform:translate(-50%,-50%);padding:0;border:0;background:transparent;cursor:pointer;border-radius:15px;touch-action:pan-y}
+.sm-carousel-side-zone.is-left{left:calc(50% - var(--sm-card-width) / 2 - clamp(18px,5vw,55px))}
+.sm-carousel-side-zone.is-right{left:calc(50% + var(--sm-card-width) / 2 + clamp(18px,5vw,55px))}
+.sm-carousel-side-zone:focus-visible{outline:2px solid #bd96ff;outline-offset:0}
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-neighbor.is-side-hovered{
+    transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-55px) rotateY(calc(var(--distance) * -24deg)) scale(.94);
+    filter:brightness(1);opacity:1;border-color:rgba(183,140,255,.85);
+    box-shadow:0 24px 65px rgba(0,0,0,.57),0 0 28px rgba(146,85,242,.24);
+    transition:transform .23s ease-out,filter .23s ease-out,opacity .23s ease-out,border-color .23s ease-out,box-shadow .23s ease-out;
+ }
+}
+@media(max-width:690px){
+ .sm-carousel-stage{--sm-card-width:min(88vw,calc((100svh - 160px) * .5625))}
+ .sm-carousel-side-zone{width:max(24px,7vw);height:60%}
+ .sm-carousel-side-zone.is-left{left:calc(50% - var(--sm-card-width) / 2 - 10px)}
+ .sm-carousel-side-zone.is-right{left:calc(50% + var(--sm-card-width) / 2 + 10px)}
+}
