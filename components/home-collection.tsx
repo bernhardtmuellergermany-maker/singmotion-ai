@@ -70,7 +70,7 @@ export function HomeCollection() {
     <div className="home-gallery">
       <header className="home-gallery-header">
         <Link href="/" className="home-gallery-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link>
-        <Link href="/settings" className="home-gallery-account" aria-label="Account settings"><UserRound size={21} /></Link>
+        <Link href="/login" className="home-gallery-account" aria-label="Login" title="Login"><UserRound size={21} /></Link>
       </header>
       <main id="content" className={loading || !tiles.length ? "home-gallery-empty" : "home-gallery-content"}>
         {error && <p className="home-gallery-error" role="alert">{error}</p>}
