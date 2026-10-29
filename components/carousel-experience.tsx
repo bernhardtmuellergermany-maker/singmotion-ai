@@ -48,6 +48,7 @@ export function CarouselExperience(){
   const activeIndex=Math.max(0,ids.indexOf(current));
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
+  useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";setSearchOpen(true);const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
   useEffect(()=>{
     if(!searchOpen)return;
     const onOutside=(event:PointerEvent)=>{
