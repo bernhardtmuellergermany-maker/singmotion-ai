@@ -163,7 +163,7 @@ export function CarouselExperience(){
             {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
-              <p>Upload your song and bring your music to life with AI.</p>
+              <p>Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.</p>
               <label className="sm-carousel-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void selectAudio(e.dataTransfer.files?.[0]);}}>
                 <input type="file" disabled={uploading} accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" aria-label="Choose audio file" onChange={e=>{void selectAudio(e.target.files?.[0]);e.currentTarget.value="";}}/>
                 {uploading?<LoaderCircle className="sm-spinning" size={32}/>:<CloudUpload size={42}/>}
