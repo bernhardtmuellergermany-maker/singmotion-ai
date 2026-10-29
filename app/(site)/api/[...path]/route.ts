@@ -14,6 +14,7 @@ import {
   demoOnly,
   session,
   createSession,
+  revokeMediaSession,
   grantAdmin,
   balance,
   list,
@@ -115,6 +116,13 @@ async function handler(
     if (method !== "GET") requireOrigin(req);
     const token = req.cookies.get("sm_session")?.value;
     let auth = session(token);
+    // Disconnect this browser's private demo workspace without deleting its data.
+    if (route === "session" && id === "logout" && method === "POST") {
+      if (token) revokeMediaSession(token);
+      const response = json({ signedOut: true });
+      response.cookies.delete("sm_session");
+      return response;
+    }
     if (route === "session" && method === "POST") {
       if (auth)
         return json({
