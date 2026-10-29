@@ -1020,5 +1020,5 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 
 /* Slightly narrower performance composition; keep image and inputs aligned. */
 .product-theme.singmotion-flow .flow-workspace>.flow-composer{
-  width:min(100%,680px);
+  width:min(100%,600px);
 }
