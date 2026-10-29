@@ -7,7 +7,7 @@ import { validateFile, type Asset } from "@/lib/domain";
 import type { Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
 
-type Draft = { id: string; artistName: string; selection: { imageId?: string; songId?: string; start: number; end: number } };
+type Draft = { id: string; artistName: string; updated?: number; selection: { imageId?: string; songId?: string; start: number; end: number } };
 const cleanTitle = (name: string) => { const s = name.trim(); return !s || /^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(s) ? "Untitled Project" : s; };
 type Tile = { id: string; name: string; href: string; imageId?: string; seconds: number; created: number; state?: string; videoUrl?: string };
 export function HomeCollection() {
@@ -22,7 +22,7 @@ export function HomeCollection() {
     let active = true;
     void (async () => {
       try {
-        await ensureSession();
+        const workspace = await ensureSession() as { owner?: string };
         const responses = await Promise.allSettled([
           api<Job[]>("jobs"),
           api<{ projects: StudioProject[] }>("studio-live"),
@@ -49,12 +49,12 @@ export function HomeCollection() {
             created: j.created, state: j.status,
             videoUrl: j.status === "completed" && j.outputId ? `/api/assets/${encodeURIComponent(j.outputId)}` : undefined,
           })),
-          ...drafts.filter(d => d.selection.songId && d.selection.imageId).map(d => ({
+          ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).map(d => ({
             id: "draft_" + d.id, name: cleanTitle(d.artistName || ""),
             href: "/studio?draft=" + encodeURIComponent(d.id),
             imageId: d.selection.imageId,
             seconds: d.selection.end - d.selection.start,
-            created: 0, state: "draft",
+            created: d.updated || 0, state: "draft",
           })),
         ];
         setTiles(items.sort((a, b) => b.created - a.created));
