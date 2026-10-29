@@ -104,7 +104,7 @@
 .sm-carousel-card .sm-carousel-side-hit:focus-visible{outline:3px solid #c7a4ff;outline-offset:-5px}
 @media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
   .sm-carousel-card.is-active:hover{
-    transform:translate(-50%,-50%) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1);
+    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1.015);
     border-color:#b78cff;
     box-shadow:0 28px 72px rgba(0,0,0,.56),0 0 30px rgba(146,85,242,.17);
     background:linear-gradient(150deg,#211c38,#111522);
@@ -245,3 +245,19 @@
 .sm-showcase-card .sm-carousel-project-footer>strong{font-weight:750;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:-.015em}
 .sm-showcase-card .sm-carousel-open{font-weight:750;text-shadow:none;backface-visibility:hidden;transform:translateZ(1px);box-shadow:0 2px 12px rgba(0,0,0,.22)}
 .sm-showcase-card .sm-showcase-label{backdrop-filter:none;background:rgba(9,13,24,.90);font-weight:650;text-shadow:none}
+
+/* Enlarge the active showcase card, while keeping its live text and controls
+   at their original raster size (inverse of the parent 1.015 scale). */
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active:hover .sm-showcase-label{
+    transform:scale(.985221675);
+    transform-origin:top left;
+  }
+  .sm-carousel-card.is-active:hover .sm-showcase-card .sm-carousel-project-footer{
+    transform:translateZ(2px) scale(.985221675);
+    transform-origin:bottom center;
+  }
+  .sm-carousel-card.is-active:hover .sm-showcase-card .sm-carousel-open{
+    transform:none;
+  }
+}
