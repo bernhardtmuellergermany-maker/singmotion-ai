@@ -223,3 +223,12 @@
 .sm-legal-footer{max-width:940px;margin:0 auto;padding:18px 26px 38px;border-top:1px solid #ffffff15;color:#858096;font-size:11px;display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:14px}
 .sm-legal-footer .legal-admin-access{border:0;margin:0;padding:0;gap:10px}
 @media(max-width:580px){.sm-legal-top{padding:0 18px;height:72px}.sm-legal-main{padding:44px 17px}.sm-legal-footer{padding:18px 17px 35px}.sm-legal-footer .legal-admin-access{justify-content:flex-start}}
+
+/* Legal access belongs to the document flow, not the site footer. */
+.sm-legal-meta{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:30px 0 12px;padding:21px 4px;border-top:1px solid rgba(192,177,228,.15);color:#9d97b3}
+.sm-legal-meta>p{margin:0;font-size:12px;color:#b6afc9}
+.sm-legal-meta .legal-admin-access{margin:0;max-width:none;padding:0;border:0;gap:12px}
+.sm-legal-meta .legal-admin-access span{display:none}
+.sm-legal-meta .legal-admin-access a,.sm-legal-meta .legal-admin-access button{font-size:12px;color:#b9a2d8}
+.sm-legal-copyright{margin:8px 4px 0;color:#69677f;font-size:10px}
+@media(max-width:560px){.sm-legal-meta{align-items:flex-start;flex-direction:column;gap:5px}}
