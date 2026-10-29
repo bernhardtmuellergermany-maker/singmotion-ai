@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { MoreVertical, Plus, UserRound, Trash2, Pencil, Download, Copy, Music2 } from "lucide-react";
+import { MoreVertical, Plus, UserRound, Trash2, Pencil, Download, Copy, Music2, CloudUpload } from "lucide-react";
 import { api, ensureSession, upload } from "@/lib/client";
 import { validateFile, type Asset } from "@/lib/domain";
 import type { Job } from "@/lib/domain";
@@ -148,9 +148,14 @@ function CreateTile() {
       <input type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={uploading}
         aria-label="Upload your song" onChange={e => { void selectAudio(e.target.files?.[0]); e.currentTarget.value = ""; }} />
       <span className="home-gallery-plus"><Music2 size={30} strokeWidth={1.7} /></span>
-      <strong>{uploading ? "Uploading your song…" : "Upload your song"}</strong>
-      <span>Drag & drop or click to choose audio</span>
-      <small>MP3, WAV, M4A · up to 50 MB</small>
+      <strong className="home-gallery-upload-headline">Turn your song<br/>into a music video</strong>
+      <span className="home-gallery-upload-subtitle">Upload your song and bring it to life with AI. Create a unique performance video in just a few steps.</span>
+      <span className="home-gallery-upload-drop">
+        <CloudUpload size={40} strokeWidth={1.7} />
+        <b>{uploading ? "Uploading your song…" : "Drag & drop your audio file here"}</b>
+        <em>or click to choose a file</em>
+        <small>MP3, WAV, M4A · up to 50 MB</small>
+      </span>
       <span className="sr-only">Start a new video by uploading audio</span>
     </label>
     {error && <p className="home-gallery-upload-error" role="alert">{error}</p>}
