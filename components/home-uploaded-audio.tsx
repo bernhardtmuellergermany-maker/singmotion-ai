@@ -19,7 +19,6 @@ export function HomeUploadedAudio({
 }) {
   const player = useRef<HTMLAudioElement>(null);
   const picker = useRef<HTMLInputElement>(null);
-  const wave = useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [peaks, setPeaks] = useState<number[]>([]);
@@ -85,7 +84,7 @@ export function HomeUploadedAudio({
           </div>
           <button type="button" className="sm-home-audio-delete" aria-label="Remove uploaded audio" disabled={replacing} onClick={() => { player.current?.pause(); onRemove(); }}><Trash2 size={19}/></button>
         </div>
-        <div ref={wave} className="sm-home-audio-wave" role="slider" tabIndex={0} aria-label="Seek within uploaded audio" aria-valuemin={0} aria-valuemax={Math.max(0,Math.floor(duration))} aria-valuenow={Math.round(position)} onPointerDown={e=>{e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*duration);e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{if(!e.currentTarget.hasPointerCapture(e.pointerId))return;const rect=e.currentTarget.getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*duration);}} onKeyDown={e=>{if(e.key==="Home"){e.preventDefault();seek(0);}else if(e.key==="End"){e.preventDefault();seek(duration);}else if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seek(position+(e.key==="ArrowRight"?1:-1));}}}>
+        <div className="sm-home-audio-wave" role="slider" tabIndex={0} aria-label="Seek within uploaded audio" aria-valuemin={0} aria-valuemax={Math.max(0,Math.floor(duration))} aria-valuenow={Math.round(position)} onPointerDown={e=>{e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*duration);e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{if(!e.currentTarget.hasPointerCapture(e.pointerId))return;const rect=e.currentTarget.getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*duration);}} onKeyDown={e=>{if(e.key==="Home"){e.preventDefault();seek(0);}else if(e.key==="End"){e.preventDefault();seek(duration);}else if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seek(position+(e.key==="ArrowRight"?1:-1));}}}>
           {(peaks.length ? peaks : Array.from({length:68},()=>.13)).map((peak,i) => (
             <i key={i} style={{
               height: Math.max(8,Math.min(96,peak*96))+"%",
@@ -100,6 +99,7 @@ export function HomeUploadedAudio({
           <div className="sm-home-audio-progress">
             <input type="range" min={0} max={Math.max(1,duration)} step={.01} value={position}
               aria-label="Audio playback position"
+              onPointerDown={e=>e.stopPropagation()} onPointerMove={e=>e.stopPropagation()}
               onChange={e=>seek(Number(e.target.value))}/>
             <span>{time(position)} / {time(duration)}</span>
           </div>
