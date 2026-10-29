@@ -81,3 +81,27 @@
 .home-gallery-empty-art .home-gallery-upload{aspect-ratio:9/16}
 .home-gallery-grid .home-gallery-upload-wrap{align-self:start}
 @media(max-width:650px){.home-gallery-upload small{font-size:10px}.home-gallery-upload>strong{font-size:15px}}
+
+/* All gallery covers and the upload tile share the same portrait 9:16 canvas. */
+.home-gallery-grid .home-gallery-upload-wrap,.home-gallery-grid .home-gallery-item{min-width:0;width:100%}
+.home-gallery-cover,.home-gallery-create,.home-gallery-upload{aspect-ratio:9 / 16}
+.home-gallery-upload{display:flex;align-items:center;justify-content:center;gap:clamp(6px,1.4vw,15px);padding:clamp(10px,1.8vw,26px);overflow:hidden}
+.home-gallery-upload .home-gallery-plus{flex:none;margin:0 0 3px}
+.home-gallery-upload-headline{font-size:clamp(12px,1.5vw,24px)!important;font-weight:750!important;line-height:1.19;letter-spacing:-.025em}
+.home-gallery-upload-subtitle{font-size:clamp(9px,.96vw,14px)!important;line-height:1.55!important;color:#abb0c7!important;max-width:350px}
+.home-gallery-upload-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(5px,.75vw,14px);border:1px dashed rgba(166,115,238,.47);border-radius:14px;background:rgba(24,26,49,.55);width:100%;padding:clamp(8px,1.5vw,24px) clamp(5px,1vw,16px);transition:border-color .2s,background .2s}
+.home-gallery-upload:hover .home-gallery-upload-drop,.home-gallery-upload:focus-within .home-gallery-upload-drop{border-color:#ad77ff;background:rgba(50,33,87,.45)}
+.home-gallery-upload-drop svg{color:#b58aff;filter:drop-shadow(0 0 9px rgba(146,85,242,.35));flex:none}
+.home-gallery-upload-drop b{color:#f5f1fc;font-size:clamp(9px,1.05vw,16px);font-weight:650;line-height:1.25}
+.home-gallery-upload-drop em{font-size:clamp(9px,1vw,15px);font-style:normal;color:#b57eff}
+.home-gallery-upload-drop small{font-size:clamp(8px,.8vw,12px);color:#9395ad}
+.home-gallery-empty-art{width:min(100%,390px)}
+.home-gallery-empty-art .home-gallery-upload{padding:24px;gap:15px}
+.home-gallery-empty-art .home-gallery-upload-headline{font-size:25px!important}
+.home-gallery-empty-art .home-gallery-upload-subtitle{font-size:13px!important}
+.home-gallery-empty-art .home-gallery-upload-drop{padding:19px 12px;gap:10px}
+.home-gallery-empty-art .home-gallery-upload-drop b{font-size:13px}
+.home-gallery-empty-art .home-gallery-upload-drop em{font-size:13px}
+.home-gallery-empty-art .home-gallery-upload-drop small{font-size:10px}
+@media(max-width:760px){.home-gallery-grid .home-gallery-upload{padding:10px;gap:8px}.home-gallery-grid .home-gallery-upload .home-gallery-plus{width:42px;height:42px}.home-gallery-grid .home-gallery-upload .home-gallery-plus svg{width:22px;height:22px}.home-gallery-grid .home-gallery-upload-drop{padding:9px 5px;gap:5px}.home-gallery-grid .home-gallery-upload-drop svg{width:24px;height:24px}.home-gallery-grid .home-gallery-upload-headline{font-size:13px!important}.home-gallery-grid .home-gallery-upload-subtitle{font-size:10px!important}.home-gallery-grid .home-gallery-upload-drop b,.home-gallery-grid .home-gallery-upload-drop em{font-size:9px}}
+@media(max-width:520px){.home-gallery-empty-art{width:min(88vw,355px)}.home-gallery-empty-art .home-gallery-upload{padding:18px;gap:10px}.home-gallery-empty-art .home-gallery-upload-headline{font-size:21px!important}.home-gallery-empty-art .home-gallery-upload-subtitle{font-size:12px!important}.home-gallery-empty-art .home-gallery-upload-drop{padding:12px 9px}}
