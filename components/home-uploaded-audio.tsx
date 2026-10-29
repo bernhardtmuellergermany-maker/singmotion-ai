@@ -9,16 +9,13 @@ const time = (n: number) => {
 };
 
 export function HomeUploadedAudio({
-  audio, active, replacing, onReplace, onRemove,
+  audio, active, onRemove,
 }: {
   audio: Asset;
   active: boolean;
-  replacing: boolean;
-  onReplace: (file?: File) => void;
   onRemove: () => void;
 }) {
   const player = useRef<HTMLAudioElement>(null);
-  const picker = useRef<HTMLInputElement>(null);
   const [playing, setPlaying] = useState(false);
   const [position, setPosition] = useState(0);
   const [peaks, setPeaks] = useState<number[]>([]);
@@ -82,7 +79,7 @@ export function HomeUploadedAudio({
             <strong title={audio.name}>{audio.name}</strong>
             <span>{time(duration)} total</span>
           </div>
-          <button type="button" className="sm-home-audio-delete" aria-label="Remove uploaded audio" disabled={replacing} onClick={() => { player.current?.pause(); onRemove(); }}><Trash2 size={19}/></button>
+          <button type="button" className="sm-home-audio-delete" aria-label="Remove uploaded audio" onClick={() => { player.current?.pause(); onRemove(); }}><Trash2 size={19}/></button>
         </div>
         <div className="sm-home-audio-wave" role="slider" tabIndex={0} aria-label="Seek within uploaded audio" aria-valuemin={0} aria-valuemax={Math.max(0,Math.floor(duration))} aria-valuenow={Math.round(position)} onPointerDown={e=>{e.stopPropagation();const rect=e.currentTarget.getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*duration);e.currentTarget.setPointerCapture(e.pointerId);}} onPointerMove={e=>{if(!e.currentTarget.hasPointerCapture(e.pointerId))return;const rect=e.currentTarget.getBoundingClientRect();seek(((e.clientX-rect.left)/rect.width)*duration);}} onKeyDown={e=>{if(e.key==="Home"){e.preventDefault();seek(0);}else if(e.key==="End"){e.preventDefault();seek(duration);}else if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();seek(position+(e.key==="ArrowRight"?1:-1));}}}>
           {(peaks.length ? peaks : Array.from({length:68},()=>.13)).map((peak,i) => (
@@ -109,8 +106,6 @@ export function HomeUploadedAudio({
           onTimeUpdate={e=>setPosition(e.currentTarget.currentTime)}
           onEnded={()=>setPlaying(false)} />
       </div>
-      <input ref={picker} className="sm-home-replace-input" type="file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4"
-        aria-label="Replace audio file" disabled={replacing} onChange={e=>{onReplace(e.target.files?.[0]);e.currentTarget.value="";}}/>
 
     </div>
   );
