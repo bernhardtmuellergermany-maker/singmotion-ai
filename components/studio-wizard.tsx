@@ -335,7 +335,7 @@ export function StudioWizard({
           </label>
         ) : (
           <section className="flow-audio">
-            <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name} onRemove={()=>update({song:null})} removeDisabled={busy}/>
+            <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name) ? "?playback=1" : ""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name} onRemove={()=>update({song:null})} removeDisabled={busy}/>
           </section>
         )}
           </div>
@@ -357,7 +357,7 @@ export function StudioWizard({
         </div>
         {error && <p className="flow-error" role="alert">{error}</p>}
       </main>
-      {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} onClose={()=>setConfirm(false)}/>}
+      {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} onClose={()=>setConfirm(false)}/>}
     </div>
   );
 }
