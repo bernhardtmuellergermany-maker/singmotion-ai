@@ -23,7 +23,7 @@ export function CarouselExperience(){
   const [dragging,setDragging]=useState(0);
   const touch=useRef<{x:number;y:number;t:number}|null>(null);
   const currentRef=useRef("home");
-  const ids=["showcase","home",...tiles.map(t=>t.id),...(current==="login"?["login"]:[])];
+  const ids=["showcase","home","login",...tiles.map(t=>t.id)];
   const activeIndex=Math.max(0,ids.indexOf(current));
   const activeId=ids[activeIndex];
   const navigate=useCallback((id:string,replace=false)=>{
