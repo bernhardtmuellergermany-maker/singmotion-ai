@@ -127,7 +127,7 @@ export function StudioWizard({
               if (stored) {
                 const song = JSON.parse(stored) as Asset;
                 if (song && song.kind === "audio" && typeof song.id === "string" && song.id) {
-                  fresh = { ...initial, song, start: 0, end: Math.min(10, song.duration || 10) };
+                  fresh = { ...initial, song, start: 0, end: Math.min(5, song.duration || 5) };
                 }
               }
             } catch { /* A broken handoff must never restore an old project. */ }
@@ -238,7 +238,7 @@ export function StudioWizard({
         update({
           song: asset,
           start: 0,
-          end: Math.min(10, asset.duration || 10),
+          end: Math.min(5, asset.duration || 5),
         });
       else {
         const detected = photoFormat(asset.width, asset.height);
