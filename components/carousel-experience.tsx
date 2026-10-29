@@ -117,7 +117,7 @@ export function CarouselExperience(){
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
-          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":"is-inactive")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={distance!==0} inert={distance!==0} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} onClick={()=>{if(distance!==0)navigate(id);}}>
+          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor":"is-distant")} role={Math.abs(distance)===1?"button":undefined} tabIndex={Math.abs(distance)===1?0:undefined} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={Math.abs(distance)>1?true:undefined} inert={Math.abs(distance)>1} onKeyDown={e=>{if(Math.abs(distance)===1&&(e.key==="Enter"||e.key===" ")){e.preventDefault();navigate(id);}}} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} onClick={()=>{if(distance!==0)navigate(id);}}>
             {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
