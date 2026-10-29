@@ -14,6 +14,7 @@ const cleanTitle=(name:string)=>!name.trim()||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?
 const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
 export function CarouselExperience(){
   const [tiles,setTiles]=useState<Tile[]>([]);
+  const [publishedShowcase,setPublishedShowcase]=useState<{title:string;videoUrl:string}|null>(null);
   const [current,setCurrent]=useState("home");
   const [loading,setLoading]=useState(true);
   const [error,setError]=useState("");
@@ -150,7 +151,7 @@ export function CarouselExperience(){
           const tile=tiles.find(t=>t.id===id);
           return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant")} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={Math.abs(distance)>1?true:undefined} inert={Math.abs(distance)>1} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
             {Math.abs(distance)===1&&<button type="button" className="sm-carousel-side-hit" aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
-            {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")} project={showcaseProject}/>:id==="home"?<div className="sm-carousel-home">
+            {id==="showcase"?<ShowcaseCard active={distance===0} nearby={Math.abs(distance)<=1} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
               <h1>Turn your song<br/>into a music video</h1>
               <p>Upload your song and bring your music to life with AI.</p>
@@ -232,14 +233,19 @@ function ProjectCarouselCard({tile,active}:{tile:Tile;active:boolean}){
   </div>;
 }
 
-function ShowcaseCard({active,nearby,onCreate,project}:{active:boolean;nearby:boolean;onCreate:()=>void;project?:Tile}){
+function ShowcaseCard({active,nearby,onCreate,published,onPublish}:{active:boolean;nearby:boolean;onCreate:()=>void;published:{title:string;videoUrl:string}|null;onPublish:(value:{title:string;videoUrl:string})=>void}){
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [failed,setFailed]=useState(false);
-  const videoUrl=project?.videoUrl||showcase.videoUrl;
-  const posterUrl=project?.imageId?"/api/assets/"+encodeURIComponent(project.imageId):showcase.posterUrl;
+  const [adminProjects,setAdminProjects]=useState<{id:string;artist:string;selected:boolean}[]|null>(null);
+  const [selecting,setSelecting]=useState(false);
+  const [selectionError,setSelectionError]=useState("");
+  const videoUrl=published?.videoUrl||showcase.videoUrl;
+  const posterUrl=showcase.posterUrl;
   const hasVideo=videoUrl.startsWith("https://") || videoUrl.startsWith("/");
   useEffect(()=>{setFailed(false);},[videoUrl]);
+  useEffect(()=>{fetch("/api/showcase?admin=1",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{if(data?.projects)setAdminProjects(data.projects);}).catch(()=>{});},[]);
+  const chooseShowcase=async(id:string)=>{setSelecting(true);setSelectionError("");try{const r=await fetch("/api/showcase",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Selection failed");onPublish({title:d.title,videoUrl:d.videoUrl+"#"+Date.now()});setAdminProjects(old=>old?.map(p=>({...p,selected:p.id===id}))||null);}catch(e){setSelectionError((e as Error).message);}finally{setSelecting(false);}};
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
@@ -257,7 +263,8 @@ function ShowcaseCard({active,nearby,onCreate,project}:{active:boolean;nearby:bo
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Made with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
-      <strong>{project?project.name:showcase.title}</strong>
+      <strong>{published?.title||showcase.title}</strong>
+      {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.artist} · {p.id.slice(0,8)}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
   </div>;
