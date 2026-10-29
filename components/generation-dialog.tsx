@@ -199,7 +199,7 @@ export function GenerationDialog({
         <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
-      <p className="sm-confirm-links">View <Link href="/legals" target="_blank">Terms, Privacy &amp; Legals</Link></p>
+      <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
       {pilot === false && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
       {blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
