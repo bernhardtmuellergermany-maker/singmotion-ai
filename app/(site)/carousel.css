@@ -1730,3 +1730,21 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   .product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration{min-width:119px}
   .product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:90px}
 }
+
+/* Home song player practical controls: clear audio and seek through the full track. */
+.sm-home-audio-heading{min-width:0}
+.sm-home-audio-delete{
+  flex:0 0 auto;display:grid;place-items:center;width:36px;height:36px;
+  padding:0;border:0;border-radius:9px;background:transparent;
+  color:#b5acc8;cursor:pointer;transition:color .18s,background-color .18s;
+}
+.sm-home-audio-delete:hover,.sm-home-audio-delete:focus-visible{
+  color:#ffadba;background:rgba(168,64,88,.13);
+}
+.sm-home-audio-delete:disabled{opacity:.5;cursor:not-allowed}
+.sm-home-audio-wave{cursor:pointer;touch-action:none;user-select:none}
+.sm-home-audio-wave:focus-visible{outline:2px solid #a579f8;outline-offset:4px;border-radius:5px}
+.sm-home-audio-progress input[type=range]{
+  display:block;box-sizing:border-box;width:100%;min-width:0;
+  margin:0;padding:0;touch-action:pan-x;cursor:pointer;
+}
