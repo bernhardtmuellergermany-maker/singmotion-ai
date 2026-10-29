@@ -10,12 +10,14 @@ export function GenerationDialog({
   selection,
   artistName,
   projectName,
+  songName,
   requestKey,
   onClose,
 }: {
   selection: StudioDraftExport;
   artistName: string;
   projectName: string;
+  songName: string;
   requestKey: string;
   onClose: () => void;
 }) {
@@ -177,165 +179,37 @@ export function GenerationDialog({
         !plan.ceilingMicroUsd ||
         plan.budgetBlocker)
     );
+  const selectedSeconds = Math.max(0, selection.end - selection.start);
+  const time = (seconds: number) => {
+    const centis = Math.round(Math.max(0, seconds) * 100);
+    return String(Math.floor(centis / 6000)).padStart(2, "0") + ":" +
+      String(Math.floor((centis % 6000) / 100)).padStart(2, "0") + "." +
+      String(centis % 100).padStart(2, "0");
+  };
   return (
-    <dialog
-      ref={dialog}
-      className="product-dialog product-theme"
-      onCancel={onClose}
-      onClose={onClose}
-      aria-labelledby="confirm-generation-title"
-    >
-      <h2 id="confirm-generation-title">Your performance</h2>
-      <p>
-        {(selection.end - selection.start).toFixed(3)}s audio ·{" "}
-        {selection.outputFormat || "Reviewed format"} · {artistName}
-      </p>
-      <p>
-        BytePlus base rate: USD 0.07 per billable generated second. The server
-        calculates the estimate after preparing your audio. Actual generated
-        duration, fees and taxes may differ.
-      </p>
-      <p>
-        {selection.start.toFixed(2)}–{selection.end.toFixed(2)} seconds ·{" "}
-        {plan?.prompt ||
-          selection.customPrompt ||
-          `${selection.performance} · ${selection.camera}`}
-      </p>
-      <p>
-        Local fitting may add borders; this is not a promise of native landscape
-        generation.
-      </p>
-      {pilot === null && <p role="status">Checking access and price…</p>}
-      {pilot === false && (
-        <div>
-          <p>
-            Customer checkout is not available yet. No payment or generation
-            will be started.
-          </p>
-          <Link href="/operator-signin">Private operator sign in</Link> ·{" "}
-          <Link href="/checkout">Guest checkout information</Link>
-        </div>
-      )}
-      {pilot && (
-        <>
-          <p>
-            Private operator generation. No customer payment or credit
-            deduction.
-          </p>
-          {plan ? (
-            <>
-              <p>Measured provider audio: {plan.durationSeconds.toFixed(3)}s</p>
-              <p>
-                BytePlus base estimate: {usd(plan.estimatedBaseMicroUsd)}. Based
-                on the reviewed generated-duration bound
-                {plan.estimatedGeneratedSeconds
-                  ? ` of ${plan.estimatedGeneratedSeconds.toFixed(3)}s`
-                  : ""}
-                , including the prepared audio duration. Support-reported
-                billing rounds generated seconds down, with a one-second
-                minimum. Actual billed duration, taxes and fees remain subject
-                to the provider invoice.
-              </p>
-              <p>
-                Reviewed reservation:{" "}
-                <strong>
-                  {plan.ceilingMicroUsd === null
-                    ? "Unavailable"
-                    : usd(plan.ceilingMicroUsd)}
-                </strong>
-                .
-              </p>
-              {plan.experimental && (
-                <p>
-                  Experimental: generated duration, fees and media properties
-                  remain unknown. This reservation is not a guaranteed invoice
-                  amount. Confirming accepts these reviewed risks.
-                </p>
-              )}
-              {plan.budgetBlocker && <p role="alert">{plan.budgetBlocker}</p>}
-              <Link href={`/projects/live_${plan.id}`}>
-                Saved project · {plan.state}
-              </Link>
-            </>
-          ) : (
-            <p>
-              The exact reservation is calculated on the server after media
-              preparation. Reviewing it makes no paid request.
-            </p>
-          )}
-        </>
-      )}
-      <label className="consent">
-        <input
-          type="checkbox"
-          checked={rights}
-          disabled={busy}
-          onChange={(e) => setRights(e.target.checked)}
-        />
-        <span>
-          I confirm that I own or have obtained all necessary rights and
-          permissions for the uploaded music, audio, image and depicted
-          person(s), and authorize their processing for this video. I accept the{" "}
-          <Link href="/terms" target="_blank">
-            Terms
-          </Link>{" "}
-          and{" "}
-          <Link href="/privacy" target="_blank">
-            Privacy notice
-          </Link>
-          .
-        </span>
+    <dialog ref={dialog} className="product-dialog product-theme sm-confirm-simple"
+      onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
+      <h2 id="confirm-generation-title">Confirm generation</h2>
+      <div className="sm-confirm-summary">
+        <div><span>Price</span><strong>{plan ? usd(plan.estimatedBaseMicroUsd) : `$${(selectedSeconds * 0.07).toFixed(2)}`}</strong></div>
+        <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
+        <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
+      </div>
+      <label className="consent sm-confirm-consent">
+        <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
+        <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
-      {blockers.length > 0 && (
-        <p role="status">
-          {blockers.join(" ")}{" "}
-          <Link href="/operator">Operator settings and recovery</Link>
-        </p>
-      )}
-      {error && (
-        <p role="alert">
-          {error} <Link href="/operator">Operator review</Link>
-        </p>
-      )}
-      {blocked && pilot && (
-        <p className="field-note">
-          {busy
-            ? "Processing your request…"
-            : !rights
-              ? "Confirm your rights before continuing."
-              : !terms
-                ? "Current Terms are unavailable."
-                : plan && plan.state !== "prepared"
-                  ? "This project already has a status. Open the saved project; do not submit it again."
-                  : "Resolve the displayed operator authorization or provider policy requirements before generating."}
-        </p>
-      )}
-      {plan && ["completed", "failed"].includes(plan.state) && (
-        <button
-          className="product-secondary"
-          disabled={busy || !rights || blockers.length > 0}
-          onClick={() => void act(plan.id)}
-        >
-          Review another performance with these inputs
-        </button>
-      )}
+      <p className="sm-confirm-links">View <Link href="/terms" target="_blank">Terms</Link> &amp; <Link href="/privacy" target="_blank">Privacy Policy</Link></p>
+      {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
+      {pilot === false && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
+      {blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
+      {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
+      {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
       <div className="product-actions">
-        <button className="product-secondary" onClick={onClose} disabled={busy}>
-          Cancel
+        <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
+        <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>
+          {busy ? "Working…" : "Generate video"}
         </button>
-        {pilot && (
-          <button
-            className="product-primary"
-            disabled={blocked}
-            onClick={() => void act()}
-          >
-            {busy
-              ? "Working…"
-              : plan
-                ? "Confirm & generate"
-                : "Preparing cost estimate…"}
-          </button>
-        )}
       </div>
     </dialog>
   );
