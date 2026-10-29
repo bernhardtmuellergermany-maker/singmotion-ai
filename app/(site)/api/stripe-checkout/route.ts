@@ -35,14 +35,15 @@ export async function POST(req: NextRequest) {
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const accountId = store.session(req.cookies.get("sm_customer")?.value || "");
     const order = store.ownedOrder(input.orderId, accountId, req.cookies.get(`sm_guest_${input.orderId}`)?.value);
+    const cents = Number(order.price_cents);
     if (order.status !== "awaiting_payment" || order.currency !== "EUR" ||
-        !Number.isSafeInteger(order.price_cents) || order.price_cents <= 0 ||
+        !Number.isSafeInteger(cents) || cents <= 0 ||
         typeof order.quote_evidence !== "string" || order.quote_evidence.length < 20)
       return reply({ error: "Order is not eligible for Checkout." }, 409);
     const form = new URLSearchParams({
       mode: "payment",
       "line_items[0][price_data][currency]": "eur",
-      "line_items[0][price_data][unit_amount]": String(order.price_cents),
+      "line_items[0][price_data][unit_amount]": String(cents),
       "line_items[0][price_data][product_data][name]": "SingMotion AI music video",
       "line_items[0][quantity]": "1",
       "metadata[orderId]": String(order.id),
