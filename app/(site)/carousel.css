@@ -1857,3 +1857,23 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   bottom:0!important;
   height:40px!important;
 }
+
+/* Minimal trim edges: keyboard-accessible hit targets remain, but no bulky grips. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::before,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  content:none!important;
+  display:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  border-left:1px solid #b978ff!important;
+  border-right:1px solid #b978ff!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  width:20px!important;
+  min-width:20px!important;
+  margin-left:-10px!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  border:0!important;
+  border-radius:0!important;
+}
