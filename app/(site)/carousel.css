@@ -232,3 +232,10 @@
 .sm-legal-meta .legal-admin-access a,.sm-legal-meta .legal-admin-access button{font-size:12px;color:#b9a2d8}
 .sm-legal-copyright{margin:8px 4px 0;color:#69677f;font-size:10px}
 @media(max-width:560px){.sm-legal-meta{align-items:flex-start;flex-direction:column;gap:5px}}
+
+/* Legals reuses the homepage background, header, wordmark, menus, and hover styles. */
+.sm-legal{background:radial-gradient(ellipse 65% 56% at 50% 54%,rgba(67,33,108,.15),transparent 74%),#090d16;color:#faf9ff}
+.sm-legal .home-gallery-header{position:relative;z-index:30}
+.sm-legal-search{width:36px;height:36px;display:grid;place-items:center;color:#c3bbd7;transition:color .2s}
+.sm-legal-search:hover,.sm-legal-search:focus-visible{color:#c19dff}
+.sm-legal .sm-legal-main{padding-top:clamp(35px,6vw,68px)}
