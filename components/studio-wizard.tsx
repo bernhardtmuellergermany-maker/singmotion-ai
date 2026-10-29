@@ -61,6 +61,7 @@ export function StudioWizard({
   content?: StudioContent;
 }) {
   const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
+  const performanceInput = useRef<HTMLTextAreaElement>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
     [projectKey, setProjectKey] = useState("");
@@ -214,6 +215,13 @@ export function StudioWizard({
       clearTimeout(timer);
     };
   }, [draft, step, owner, ready, projectKey]);
+  // Grow with the content (including restored drafts), capped to keep the composer compact.
+  useEffect(() => {
+    const field = performanceInput.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(240, Math.max(68, field.scrollHeight))}px`;
+  }, [draft.customPrompt]);
   function update(patch: Partial<typeof initial>) {
     setDraft((previous) => ({ ...previous, ...patch }));
     setError("");
@@ -337,7 +345,7 @@ export function StudioWizard({
           <div className="flow-composer-top">
             {draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
               <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}
-            <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
+            <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
           </div>
           <div className="flow-composer-bottom">
             <div className="flow-settings-group" role="group" aria-label="Video settings">
