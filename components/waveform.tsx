@@ -25,7 +25,8 @@ export default function Waveform({
     [playing, setPlaying] = useState(false),
     [error, setError] = useState(""),
     [position, setPosition] = useState(0),
-    [dragging, setDragging] = useState(false);
+    [dragging, setDragging] = useState(false),
+    [editingTime, setEditingTime] = useState<"start" | "end" | null>(null);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
     segment = useRef(false),
@@ -163,7 +164,31 @@ export default function Waveform({
         role="region"
         aria-label="Audio waveform and selection"
       >
-        <div className="studio-wave-meta"><div className="studio-wave-filename"><Music2 size={18} aria-hidden="true"/><div className="studio-wave-file-text"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div></div><div className="studio-wave-actions"><button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>{onRemove && <button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}</div></div>
+        <div className="studio-wave-meta studio-unified-toolbar">
+          <div className="studio-wave-filename"><Music2 size={18} aria-hidden="true"/><div className="studio-wave-file-text"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div></div>
+          <div className="studio-wave-actions studio-unified-actions">
+            <button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
+            {(["start","end"] as const).map(which => (
+              <div key={which} className={"studio-inline-time "+(editingTime===which?"is-editing":"")}>
+                <span>{which==="start"?"Start":"End"}</span>
+                <button type="button" className="studio-inline-time-trigger" aria-label={`Edit ${which} time`} aria-expanded={editingTime===which} onClick={()=>setEditingTime(editingTime===which?null:which)}>{formatHundredths(which==="start"?start:end)}</button>
+                {editingTime===which&&<div className="studio-inline-time-popover">
+                  <input aria-label={which==="start"?"Start seconds":"End seconds"} autoFocus type="number" step="0.001" min={which==="start"?0:start+0.1} max={which==="start"?end-0.1:duration} value={Number((which==="start"?start:end).toFixed(3))} onChange={e=>{
+                    const value=e.target.valueAsNumber;
+                    if(!Number.isFinite(value))return;
+                    if(which==="start")onChange(Math.max(0,end-300,Math.min(value,end-.1)),end);
+                    else onChange(start,Math.max(start+.1,Math.min(duration,start+300,value)));
+                  }}/>
+                  <button type="button" aria-label={`Decrease ${which}`} onClick={()=>adjust(which,-1)}><Minus size={14}/></button>
+                  <button type="button" aria-label={`Increase ${which}`} onClick={()=>adjust(which,1)}><Plus size={14}/></button>
+                  <button type="button" className="studio-inline-time-done" onClick={()=>setEditingTime(null)}>Done</button>
+                </div>}
+              </div>
+            ))}
+            <div className="studio-inline-duration"><span>Duration</span><strong>{formatHundredths(Math.max(0,end-start))}</strong></div>
+            {onRemove&&<button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}
+          </div>
+        </div>
         <div
           className={`wave-strip ${dragging ? "is-dragging" : ""}`}
           ref={strip}
@@ -294,51 +319,6 @@ export default function Waveform({
             <span key={i}>{formatTime((duration * i) / 6)}</span>
           ))}
         </div>
-      </div>
-      <div className="time-inputs studio-timing-row">
-        <div className="studio-timing-edits">
-        <label className="studio-timing-field">
-          <span>Start</span>
-          <div className="wave-time-adjust"><input
-            aria-label="Start seconds"
-            type="number"
-            step="0.001"
-            min="0"
-            max={end - 0.1}
-            value={Number(start.toFixed(3))}
-            onChange={(e) => {
-              const value = e.target.valueAsNumber;
-              if (Number.isFinite(value))
-                onChange(
-                  Math.max(0, end - 300, Math.min(value, end - 0.1)),
-                  end,
-                );
-            }}
-          /><button type="button" aria-label="Decrease start" onClick={()=>adjust("start",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase start" onClick={()=>adjust("start",1)}><Plus size={15}/></button></div>
-        </label>
-
-        <label className="studio-timing-field">
-          <span>End</span>
-          <div className="wave-time-adjust"><input
-            aria-label="End seconds"
-            type="number"
-            step="0.001"
-            min={start + 0.1}
-            max={duration}
-            value={Number(end.toFixed(3))}
-            onChange={(e) => {
-              const value =
-                e.target.value.valueOf() === "" ? NaN : e.target.valueAsNumber;
-              if (Number.isFinite(value))
-                onChange(
-                  start,
-                  Math.max(start + 0.1, Math.min(duration, start + 300, value)),
-                );
-            }}
-          /><button type="button" aria-label="Decrease end" onClick={()=>adjust("end",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase end" onClick={()=>adjust("end",1)}><Plus size={15}/></button></div>
-        </label>
-        </div>
-        <div className="studio-duration-field"><span className="studio-timing-label">Selected duration</span><strong className="wave-duration-badge" aria-label="Selected duration"><span className="wave-duration-value">{formatHundredths(Math.max(0,end-start))}</span></strong></div>
       </div>
       <audio
         ref={audio}
