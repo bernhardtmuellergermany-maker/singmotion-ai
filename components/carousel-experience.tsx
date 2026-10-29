@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
-import { api, ensureSession, upload } from "@/lib/client";
+import { api, ensureSession, resetSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
 import { showcase } from "@/lib/showcase";
@@ -141,6 +141,15 @@ export function CarouselExperience(){
     }catch(e){setUploadError((e as Error).message||"Audio upload failed. Try again.");}
     finally{setUploading(false);}
   }
+  async function disconnectDemoWorkspace(){
+    try{
+      await api("session/logout",{method:"POST"});
+      resetSession();
+      setTiles([]);
+      navigate("home");
+      setError("");
+    }catch(e){setError((e as Error).message||"Could not disconnect this browser's demo session.");}
+  }
   function continueToStudio(){
     if(!audio)return;
     sessionStorage.setItem("singmotion-home-audio-handoff",JSON.stringify(audio));
@@ -202,6 +211,7 @@ export function CarouselExperience(){
               <p>Your private music video workspace.</p>
               <p className="sm-login-explanation">Email sign-in is not active yet. Projects are currently linked to this browser's private demo session.</p>
               <button type="button" className="sm-carousel-primary" onClick={()=>{if(audio)continueToStudio();else navigate("home");}}>Continue to workspace <ArrowRight size={17}/></button>
+              <button type="button" className="sm-carousel-demo-disconnect" onClick={()=>void disconnectDemoWorkspace()}>Disconnect this browser’s demo projects</button>
             </div>:tile?<ProjectCarouselCard tile={tile} active={distance===0}/>:null}
           </section>;
         })}
