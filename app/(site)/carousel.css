@@ -1118,3 +1118,117 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  .product-theme.singmotion-flow .studio-modern-wave .time-inputs label{width:190px}
  .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{grid-column:1}
 }
+
+/* Studio timing row: compact editing tools at left, primary duration at right. */
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:row;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  width:max-content;
+  max-width:100%;
+  gap:18px;
+  padding:0;
+  margin:0 auto;
+}
+.product-theme.singmotion-flow .studio-timing-edits{
+  display:flex;
+  flex:0 0 auto;
+  gap:14px;
+  align-items:center;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  display:flex;
+  flex:0 0 auto;
+  width:auto;
+  max-width:none;
+  gap:7px;
+  align-items:center;
+  font-size:12px;
+  color:#b6b8c8;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  display:grid;
+  flex:none;
+  width:166px;
+  height:38px;
+  grid-template-columns:minmax(0,1fr) 30px 30px;
+  border:1px solid rgba(129,139,171,.28);
+  border-radius:9px;
+  background:#151a29;
+  overflow:hidden;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust input{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  height:38px;
+  min-height:0;
+  padding:0 5px;
+  text-align:center;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+  color:#eceaf5;
+  background:transparent;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button{
+  box-sizing:border-box;
+  width:30px;
+  height:38px;
+  padding:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-row>.wave-duration-badge{
+  box-sizing:border-box;
+  display:flex;
+  flex:0 0 auto;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  min-width:168px;
+  min-height:64px;
+  gap:3px;
+  padding:9px 15px;
+  border:1px solid rgba(156,96,235,.43);
+  border-radius:12px;
+  background:rgba(119,62,188,.12);
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-row>.wave-duration-badge>span:first-child{
+  font-size:12px;
+  font-weight:500;
+  color:#bfb2d8;
+  line-height:1.25;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-row .wave-duration-value{
+  font-size:24px;
+  font-weight:650;
+  line-height:1.15;
+  color:#c69cff;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.01em;
+}
+@media(max-width:760px){
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{
+  width:100%;
+  gap:12px;
+ }
+ .product-theme.singmotion-flow .studio-timing-edits{
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px 14px;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-row>.wave-duration-badge{
+  align-items:center;
+ }
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-timing-edits{width:100%;gap:9px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  width:auto;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  width:158px;
+ }
+}
