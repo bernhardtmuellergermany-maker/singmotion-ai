@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, Scissors, Minus, Plus, Trash2 } from "lucide-react";
+import { Play, Pause, Minus, Plus, Trash2, Music2 } from "lucide-react";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -158,20 +158,12 @@ export default function Waveform({
   }, [peaks, duration, start, end]);
   return (
     <div className="wave-editor studio-modern-wave">
-      <div className="wave-toolbar">
-        <span>
-          <Scissors size={14} /> Find your moment
-        </span>
-        <button type="button" className="text-button" onClick={toggle}>
-          {playing ? <Pause size={21} /> : <Play size={21} />}<span className="sr-only">{playing?"Pause":"Preview selection"}</span>
-        </button>
-      </div>
       <div
         className="wave-viewport"
         role="region"
         aria-label="Audio waveform and selection"
       >
-        <div className="studio-wave-meta"><div className="studio-wave-filename"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div>{onRemove && <button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}</div>
+        <div className="studio-wave-meta"><div className="studio-wave-filename"><Music2 size={17} aria-hidden="true"/><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div><div className="studio-wave-actions"><button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>{onRemove && <button type="button" className="studio-wave-remove" aria-label="Remove audio" disabled={removeDisabled} onClick={onRemove}><Trash2 size={17}/></button>}</div></div>
         <div
           className={`wave-strip ${dragging ? "is-dragging" : ""}`}
           ref={strip}
@@ -344,7 +336,7 @@ export default function Waveform({
             }}
           /><button type="button" aria-label="Decrease end" onClick={()=>adjust("end",-1)}><Minus size={15}/></button><button type="button" aria-label="Increase end" onClick={()=>adjust("end",1)}><Plus size={15}/></button></div>
         </label>
-        <strong className="wave-duration-badge" aria-label="Selected duration"><span>Duration</span> {formatHundredths(Math.max(0,end-start))}</strong>
+        <strong className="wave-duration-badge" aria-label="Selected duration"><span>Selected duration</span> <span className="wave-duration-value">{formatHundredths(Math.max(0,end-start))}</span></strong>
       </div>
       <audio
         ref={audio}
