@@ -30,10 +30,15 @@ export function GenerationDialog({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [pilot, setPilot] = useState<boolean | null>(null),
-    [blockers, setBlockers] = useState<string[]>([]);
+    [blockers, setBlockers] = useState<string[]>([]),
+    [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false);
   useEffect(() => {
     dialog.current?.showModal();
     let current = true;
+    void fetch("/api/customer-orders", { cache: "no-store" })
+      .then(async r => r.ok ? r.json() : null)
+      .then(v => { if (current) setCustomerOrdersAvailable(v?.available === true); })
+      .catch(() => {});
     void Promise.all([
       api<{ version: string }>("rights"),
       api<{
@@ -109,6 +114,26 @@ export function GenerationDialog({
     projectName,
     requestKey,
   ]);
+  async function prepareCustomerOrder() {
+    if (busy || !rights || !customerOrdersAvailable || !terms) return;
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/customer-orders", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({projectId: requestKey, requestKey, draft: selection}),
+      });
+      const result = await response.json() as {orderId?:string;error?:string};
+      if (!response.ok || !result.orderId) throw Error(result.error || "Order preparation failed.");
+      router.push(`/orders/${result.orderId}`);
+    } catch (cause) {
+      setError((cause as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function act(repeatOf?: string) {
     if (lock.current || !rights || !terms || !pilot || blockers.length) return;
     lock.current = true;
@@ -201,15 +226,16 @@ export function GenerationDialog({
       </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
-      {pilot === false && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
+      {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
+      {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Review and save your order. Payment is not available yet.</p>}
       {blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>
-          {busy ? "Working…" : "Generate video"}
-        </button>
+        {customerOrdersAvailable ?
+          <button type="button" className="product-primary" disabled={busy || !rights || !terms} onClick={()=>void prepareCustomerOrder()}>{busy ? "Working…" : "Review order"}</button> :
+          <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>
   );
