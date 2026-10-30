@@ -128,3 +128,15 @@
 .singmotion-flow .sm-timeline-card-header input{box-sizing:border-box;width:48px;min-width:0;height:30px;font-size:11px;padding:3px 2px}
 .singmotion-flow .sm-timeline-card-header>button{width:24px;min-width:24px;display:grid;place-items:center}
 @media(max-width:450px){.singmotion-flow .sm-timeline-card-header{grid-template-columns:11px minmax(55px,1fr) auto auto 22px;gap:3px}.singmotion-flow .sm-timeline-card-header input{width:42px}}
+
+
+/* Card drag grip: dedicated hit target, without disturbing inline time fields. */
+.singmotion-flow .sm-timeline-card-header{position:relative;padding-left:20px}
+.singmotion-flow .sm-timeline-card-header>.sm-timeline-card-grip{
+ position:absolute;left:-4px;top:50%;transform:translateY(-50%);
+ width:20px;min-width:20px;height:30px;display:grid;place-items:center;
+ border:0;background:transparent;color:#bfa6e8;cursor:grab;
+ touch-action:none;user-select:none;padding:0
+}
+.singmotion-flow .sm-timeline-card-header>.sm-timeline-card-grip:active{cursor:grabbing}
+.singmotion-flow .sm-timeline-card-header>.sm-timeline-card-grip:focus-visible{outline:2px solid #ad62ef;border-radius:4px}
