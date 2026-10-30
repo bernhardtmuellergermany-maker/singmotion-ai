@@ -57,3 +57,17 @@
 /* Center the photo settings composer in the available Studio viewport. */
 .singmotion-flow .flow-main:has(.sm-studio-original-composer) .sm-studio-original-composer{margin:auto auto 0;align-self:center;flex-shrink:0}
 .singmotion-flow .flow-main:has(.sm-studio-original-composer) .sm-studio-navigation{margin-top:auto}
+
+
+/* Photo step: override legacy flex alignment that pushed the composer right. */
+.singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-original-composer{
+  position:relative;
+  left:auto;
+  right:auto;
+  transform:none;
+  width:min(540px,94%);
+  max-width:540px;
+  margin:auto auto 0;
+  align-self:center;
+  justify-self:center;
+}
