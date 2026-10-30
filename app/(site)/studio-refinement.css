@@ -355,3 +355,17 @@
 .singmotion-flow .sm-timeline-cards article.is-dragging{opacity:.55;transform:none;box-shadow:0 0 0 2px #b77dff}
 .singmotion-flow .sm-timeline-segment.is-dragging{opacity:.5;transform:none;box-shadow:0 0 0 2px #e9ddffb0}
 .singmotion-flow .sm-timeline-card-grip{touch-action:none}
+
+
+/* Explicit insertion position for dragged performance sections. */
+.singmotion-flow .sm-timeline-cards article.is-insert-before{box-shadow:inset 4px 0 0 #e6caff, -7px 0 14px #ad6bff55}
+.singmotion-flow .sm-timeline-cards article.is-insert-after{box-shadow:inset -4px 0 0 #e6caff, 7px 0 14px #ad6bff55}
+.singmotion-flow .sm-timeline-track>.sm-timeline-drop-marker{
+ position:absolute;top:-7px;bottom:-7px;width:3px;overflow:visible;display:block;z-index:25;
+ background:#ffeb9a;border:0;border-radius:4px;pointer-events:none;box-shadow:0 0 11px #ffd477;
+}
+.singmotion-flow .sm-timeline-drop-marker span{
+ position:absolute;left:50%;top:-27px;transform:translateX(-50%);
+ padding:3px 7px;border-radius:5px;background:#29203f;color:#ffe6a3;
+ font-size:10px;font-weight:700;white-space:nowrap;
+}
