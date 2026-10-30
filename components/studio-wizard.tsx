@@ -370,7 +370,7 @@ export function StudioWizard({
         </div>
       </header>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
-        {step!==0&&<div className="sm-studio-step-title"><h1>{["Audio selection","Performance Timeline","Photo & Video Format","Generate Video"][step]}</h1></div>}
+        
         {step===0&&<div className="flow-workspace sm-studio-audio-step"><div className="flow-workspace-media">
           {!draft.song?<label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
             <FileMusic className="flow-upload-symbol" size={47}/><strong>{busy?"Uploading your song…":"Upload audio"}</strong><span>Click to add your song</span><small>MP3, WAV, M4A · up to 50 MB</small>
