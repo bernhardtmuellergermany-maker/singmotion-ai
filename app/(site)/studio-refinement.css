@@ -303,35 +303,27 @@
 }
 
 
-/* Center every Studio step inside the available area, keeping navigation bottom aligned. */
+/* Center Studio content horizontally; retain the original flex bottom navigation layout. */
 .singmotion-flow .flow-main{
-  display:grid;
-  grid-template-rows:minmax(0,1fr) auto;
-  grid-template-columns:minmax(0,1fr);
+  display:flex;
+  flex-direction:column;
   align-items:stretch;
-  justify-items:center;
 }
 .singmotion-flow .flow-main>.sm-studio-audio-step,
 .singmotion-flow .flow-main>.sm-timeline,
 .singmotion-flow .flow-main>.sm-studio-original-composer,
 .singmotion-flow .flow-main>.sm-studio-review{
-  grid-column:1;
-  grid-row:1;
+  position:relative;
+  left:auto;
+  right:auto;
+  transform:none;
   align-self:center;
-  justify-self:center;
-  margin:18px auto !important;
-  min-width:0;
+  margin-left:auto !important;
+  margin-right:auto !important;
 }
 .singmotion-flow .flow-main>.sm-studio-navigation{
-  grid-column:1;
-  grid-row:2;
-  align-self:end;
-  justify-self:center;
-  margin:0 auto 28px !important;
-}
-.singmotion-flow .flow-main>.flow-error{
-  grid-column:1;
-  justify-self:center;
+  align-self:center;
+  margin:auto auto 28px !important;
 }
 @media(max-width:650px){
   .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
