@@ -53,5 +53,6 @@ test("trusted checkout preparation is atomic for validated media and reviewed qu
     assert.equal(store.reviewedOrderReadyForCheckout(created.id),true);
     assert.throws(() => store.preparedVideoOrder({...request,media:{...media,prompt:"Different camera"}}),/conflict/);
     assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,1);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_order_inputs").get()?.n,1);
   } finally {store.close();}
 });
