@@ -100,3 +100,24 @@ test("trusted worker dispatches verified paid media exactly once", async () => {
     assert.equal(store.paidProviderJob(id)?.jobId,"provider_job_123");
   } finally {store.close();}
 });
+
+test("ambiguous paid provider response never triggers automatic retry", async () => {
+  const store=new CommerceStore(":memory:");
+  try {
+    const id=store.preparedVideoOrder({account:null,email:"buyer@example.test",
+      project:"uncertain-worker",cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"uncertain-worker",media}).id;
+    store.bindStripeCheckout(id,"cs_test_uncertain");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_uncertain",orderId:id,cents:1250,
+      currency:"EUR" as const,evidence:"cs_test_uncertain",
+    };}});
+    let calls=0;
+    const ops={prepare:async()=>media,submit:async()=>{calls++;throw Error("response lost");}};
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"submission-uncertain");
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
+    assert.equal(calls,1);
+    assert.equal(store.paidSubmissionStatus(id),"submitted_or_unknown");
+    assert.equal(store.paidProviderJob(id),null);
+  } finally {store.close();}
+});
