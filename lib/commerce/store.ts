@@ -39,6 +39,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS payment_events(event_key TEXT PRIMARY KEY,receipt_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS stripe_checkout_sessions(order_id TEXT PRIMARY KEY,session_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
   private tx<T>(fn: () => T): T {
@@ -407,6 +408,34 @@ export class CommerceStore {
       this.audit("fulfillment-worker", "claim-paid-order", orderId);
       return true;
     });
+  }
+  /** Persist an acknowledged provider job exactly once, after exclusive claim.
+   * Never call the provider here. An ambiguous submission remains processing for manual review. */
+  recordPaidProviderJob(orderId: string, provider: string, jobId: string): boolean {
+    if (provider !== "byteplus" || !/^[A-Za-z0-9_-]{1,512}$/.test(jobId))
+      throw Error("Invalid provider job reference");
+    return this.tx(() => {
+      const current = this.db.prepare("SELECT provider,job_id FROM customer_provider_jobs WHERE order_id=?").get(orderId);
+      if (current) {
+        if (current.provider !== provider || current.job_id !== jobId)
+          throw Error("Provider job conflict");
+        return false;
+      }
+      const eligible = this.db.prepare(`
+        SELECT 1 FROM customer_fulfillment_queue q
+        JOIN customer_orders o ON o.id=q.order_id
+        WHERE q.order_id=? AND q.state='processing' AND o.status='paid'
+      `).get(orderId);
+      if (!eligible) throw Error("Paid fulfillment claim required");
+      this.db.prepare("INSERT INTO customer_provider_jobs(order_id,provider,job_id,created) VALUES(?,?,?,?)")
+        .run(orderId,provider,jobId,Date.now());
+      this.audit("fulfillment-worker","provider-job-recorded",orderId);
+      return true;
+    });
+  }
+  paidProviderJob(orderId: string): { provider: string; jobId: string } | null {
+    const row = this.db.prepare("SELECT provider,job_id FROM customer_provider_jobs WHERE order_id=?").get(orderId);
+    return row ? { provider: String(row.provider), jobId: String(row.job_id) } : null;
   }
   /** Only a claimed job may be finalized. Never silently retry a failed/unknown provider outcome. */
   finalizePaidFulfillment(
