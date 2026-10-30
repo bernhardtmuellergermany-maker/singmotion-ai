@@ -11,6 +11,7 @@ export async function submitReviewedPaidVideo(
   operations: {
     prepare: (orderId: string) => Promise<PreparedMedia>;
     submit: (media: PreparedMedia, orderId: string) => Promise<string>;
+    verify?: (media: PreparedMedia) => Promise<void>;
   },
 ): Promise<"already-claimed" | "submitted" | "submission-uncertain"> {
   if (!/^[a-f0-9-]{36}$/.test(orderId)) throw Error("Invalid paid order reference");
@@ -19,7 +20,7 @@ export async function submitReviewedPaidVideo(
   // leaves a claimed order for manual inspection, never auto-resubmits.
   const media = await operations.prepare(orderId);
   store.assertPaidOrderMediaUnchanged(orderId, media);
-  await verifyPrivatePaidMediaSnapshot(media);
+  await (operations.verify ?? verifyPrivatePaidMediaSnapshot)(media);
   // Check the immutable order commitment before crossing the paid provider boundary.
   if (!store.beginPaidProviderSubmission(orderId)) return "submission-uncertain";
   try {
