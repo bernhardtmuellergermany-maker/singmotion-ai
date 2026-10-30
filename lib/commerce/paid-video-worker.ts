@@ -18,9 +18,11 @@ export async function submitReviewedPaidVideo(
   // leaves a claimed order for manual inspection, never auto-resubmits.
   const media = await operations.prepare(orderId);
   store.assertPaidOrderMediaUnchanged(orderId, media);
+  // Check the immutable order commitment before crossing the paid provider boundary.
   if (!store.beginPaidProviderSubmission(orderId)) return "submission-uncertain";
   try {
     const jobId = await operations.submit(media, orderId);
+    // A malformed provider ID is uncertain, not proof that nothing was billed.
     store.recordPaidProviderJob(orderId, "byteplus", jobId);
     return "submitted";
   } catch {
