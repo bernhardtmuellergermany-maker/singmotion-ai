@@ -92,7 +92,16 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     const delta=round((e.clientX-d.x)/d.width*seconds);
     if(d.mode==="move")setGhost({id:d.id,x:e.clientX,y:e.clientY,kind:"timeline"});
     if(d.mode==="move"&&track.current){const bounds=track.current.getBoundingClientRect();const cursor=Math.max(0,Math.min(seconds,(e.clientX-bounds.left)/bounds.width*seconds));const candidate=latest.current.find(item=>item.id!==d.id&&cursor>=item.start&&cursor<=item.end);setDropTarget(candidate?.id??null);setDropIndex(destinationAt(e.clientX,e.clientY,false,d.id));}
-    if(d.mode==="move")return;
+    if(d.mode==="move"){
+      const others=latest.current.filter(item=>item.id!==d.id);
+      const prev=Math.max(0,...others.filter(item=>item.end<=d.start+0.00001).map(item=>item.end));
+      const next=Math.min(seconds,...others.filter(item=>item.start>=d.end-0.00001).map(item=>item.start));
+      const length=d.end-d.start;
+      const start=round(Math.max(prev,Math.min(next-length,d.start+delta)));
+      const end=round(start+length);
+      if(validInterval(latest.current,d.id,start,end,seconds))update(d.id,{start,end});
+      return;
+    }
     const sorted=latest.current.filter(s=>s.id!==d.id);
     const prev=Math.max(0,...sorted.filter(s=>s.end<=d.start+0.0001).map(s=>s.end));
     const next=Math.min(seconds,...sorted.filter(s=>s.start>=d.end-0.0001).map(s=>s.start));
