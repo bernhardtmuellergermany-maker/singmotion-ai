@@ -80,6 +80,9 @@ test("paid fulfillment terminal states require evidence, are one-way and do not 
     await deliver(store, receipt(id, "evt_completed", "cs_test_completed"));
     assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"short"}), /evidence/);
     assert.equal(store.claimPaidFulfillment(id), true);
+    assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), /provider job/);
+    assert.equal(store.beginPaidProviderSubmission(id), true);
+    assert.equal(store.recordPaidProviderJob(id, "byteplus", "task-test-delivered"), true);
     assert.equal(store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), true);
     assert.equal(store.finalizePaidFulfillment(id, {state:"failed",failureEvidence:"later-provider-error-123456789"}), false);
     assert.equal(store.claimPaidFulfillment(id), false);
