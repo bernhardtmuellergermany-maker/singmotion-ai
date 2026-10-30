@@ -57,3 +57,16 @@ test("Stripe cannot pay a different order using another order's Checkout Session
     assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n, 0);
   } finally { store.close(); }
 });
+
+test("paid fulfillment may be claimed only once and is never auto-reclaimed", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = order(store, "single-fulfillment-claim");
+    assert.equal(store.claimPaidFulfillment(id), false);
+    store.bindStripeCheckout(id, "cs_test_once");
+    await deliver(store, receipt(id, "evt_paid_once", "cs_test_once"));
+    assert.equal(store.claimPaidFulfillment(id), true);
+    assert.equal(store.claimPaidFulfillment(id), false);
+    assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state, "processing");
+  } finally { store.close(); }
+});
