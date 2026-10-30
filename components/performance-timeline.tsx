@@ -4,11 +4,11 @@ import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardE
 import { Plus, Trash2, Clock3, Play, Pause, RotateCcw, GripHorizontal, ChevronDown } from "lucide-react";
 import { cameras, cameraHelp } from "../lib/domain";
 
-export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string};
+export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string;color?:string};
 const cameraModes=["Static","Orbit left","Orbit right","Push-in","Pull-out","Pan left","Pan right"];
 const emotions=["Neutral","Emotional","Smile","Happy","Sad","Intense","Calm"];
 const palette=["#a43afb","#64748b","#00c6eb","#e89047","#e66ca3"];
-const colorFor=(id:string)=>palette[Array.from(id).reduce((hash,char)=>((hash*31+char.charCodeAt(0))>>>0),0)%palette.length];
+
 const round=(n:number)=>Math.round(n*10)/10;
 const MIN=0.5;
 export function timelinePrompt(sections:PerformanceSection[]) {
@@ -44,6 +44,12 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   const drag=useRef<Drag|null>(null);
   const track=useRef<HTMLDivElement>(null);
   const latest=useRef(sections);latest.current=sections;
+  const colors=useRef<Record<string,string>>({});
+  for(const item of [...sections].sort((a,b)=>a.start-b.start)){
+    if(!colors.current[item.id]){const used=new Set(Object.values(colors.current));colors.current[item.id]=item.color||palette.find(color=>!used.has(color))||palette[Object.keys(colors.current).length%palette.length];}
+  }
+  const colorFor=(id:string)=>colors.current[id]||palette[0];
+  const orderedSections=[...sections].sort((a,b)=>a.start-b.start);
   const update=(id:string,patch:Partial<PerformanceSection>)=>{
     const next=latest.current.map(s=>s.id===id?{...s,...patch}:s);
     latest.current=next;onChange(next);
@@ -56,7 +62,8 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   function add(){
     const free=findFreeSection(latest.current,seconds);
     if(!free){setNotice("No free time section available.");return;}
-    const next={id:crypto.randomUUID(),...free,camera:"Static",emotion:"Neutral",instructions:""};
+    const id=crypto.randomUUID();const used=new Set(Object.values(colors.current));const color=palette.find(value=>!used.has(value))||palette[Object.keys(colors.current).length%palette.length];colors.current[id]=color;
+    const next={id,...free,camera:"Static",emotion:"Neutral",instructions:"",color};
     latest.current=[...latest.current,next];onChange(latest.current);setSelected(next.id);setNotice("");
   }
   function onDown(e:ReactPointerEvent<HTMLDivElement>,s:PerformanceSection,mode:Drag["mode"]){
@@ -88,15 +95,9 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   function onCardMove(e:ReactPointerEvent<HTMLButtonElement>){
     if(!drag.current)return;
     const beneath=document.elementFromPoint(e.clientX,e.clientY)?.closest("[data-performance-section-id]");
-    setDropTarget(beneath?.getAttribute("data-performance-section-id")!==drag.current.id?beneath?.getAttribute("data-performance-section-id")??null:null);
-    const d=drag.current;
-    const delta=round((e.clientX-d.x)/d.width*seconds);
-    const others=latest.current.filter(s=>s.id!==d.id);
-    const prev=Math.max(0,...others.filter(s=>s.end<=d.start+0.0001).map(s=>s.end));
-    const next=Math.min(seconds,...others.filter(s=>s.start>=d.end-0.0001).map(s=>s.start));
-    const start=round(Math.max(prev,Math.min(next-(d.end-d.start),d.start+delta)));
-    const end=round(start+d.end-d.start);
-    if(validInterval(latest.current,d.id,start,end,seconds))update(d.id,{start,end});
+    const target=beneath?.getAttribute("data-performance-section-id")??null;
+    setDropTarget(target===drag.current.id?null:target);
+    // Keep card and timeline stable while dragging; commit both only on drop.
   }
   function finishMove(clientX:number,clientY:number,fromCard:boolean){
     const current=drag.current;
@@ -133,7 +134,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     let cursor=0;
     const packed=remaining.map(item=>{
       const length=item.end-item.start;
-      const next={...item,start:round(cursor),end:round(cursor+length)};
+      const next={...item,color:colorFor(item.id),start:round(cursor),end:round(cursor+length)};
       cursor+=length;
       return next;
     });
@@ -195,7 +196,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     <div className="sm-timeline-heading"><Clock3 size={29}/><div><h2>Performance Timeline <span>Optional</span></h2><p>Define camera movements, emotions, actions and instructions for each time section.</p></div><div className="sm-timeline-playback">{audioUrl&&<><audio ref={player} src={audioUrl} preload="metadata"/><button type="button" aria-label={playing?"Pause selected audio":"Play selected audio"} onClick={()=>void togglePlayback()}>{playing?<Pause size={17}/>:<Play size={17}/>}</button><button type="button" aria-label="Replay selected audio from start" title="Replay from start" onClick={()=>void replay()}><RotateCcw size={17}/></button></>}<strong>Duration: {seconds.toFixed(2)} seconds</strong></div></div>
     <div className="sm-timeline-ruler">{ticks.map((t,i)=><span key={i}>{t}s</span>)}</div>
     <div className="sm-timeline-track" ref={track} aria-label="Editable timeline">
-      {sections.map((s,i)=><div key={s.id} className={"sm-timeline-segment"+(selected===s.id?" is-selected":"")+(dragging===s.id?" is-dragging":"")+(dropTarget===s.id?" is-drop-target":"")} style={{left:`${100*s.start/seconds}%`,width:`${100*(s.end-s.start)/seconds}%`,background:colorFor(s.id)}} title={`${s.start.toFixed(1)}–${s.end.toFixed(1)}s`}>
+      {orderedSections.map((s,i)=><div key={s.id} className={"sm-timeline-segment"+(selected===s.id?" is-selected":"")+(dragging===s.id?" is-dragging":"")+(dropTarget===s.id?" is-drop-target":"")} style={{left:`${100*s.start/seconds}%`,width:`${100*(s.end-s.start)/seconds}%`,background:colorFor(s.id)}} title={`${s.start.toFixed(1)}–${s.end.toFixed(1)}s`}>
         <div className="sm-timeline-handle" role="slider" tabIndex={0} aria-label={`Resize start of section ${i+1}`} aria-valuemin={0} aria-valuemax={s.end-MIN} aria-valuenow={s.start} onPointerDown={e=>onDown(e,s,"left")} onPointerMove={onMove} onPointerUp={()=>{drag.current=null;setDragging(null);setDropTarget(null);}} onPointerCancel={()=>{drag.current=null;setDragging(null);setDropTarget(null);}} onKeyDown={e=>onKey(e,s,"left")}/>
         <div className="sm-timeline-segment-body" role="slider" tabIndex={0} aria-label={`Move section ${i+1}`} aria-valuemin={0} aria-valuemax={seconds-(s.end-s.start)} aria-valuenow={s.start} onPointerDown={e=>onDown(e,s,"move")} onPointerMove={onMove} onPointerUp={e=>finishMove(e.clientX,e.clientY,false)} onPointerCancel={()=>drag.current=null} onKeyDown={e=>onKey(e,s,"move")}><span>{s.camera}{s.emotion!=="Neutral"?" + "+s.emotion:""} · {s.start.toFixed(1)}–{s.end.toFixed(1)}s</span></div>
         <div className="sm-timeline-handle" role="slider" tabIndex={0} aria-label={`Resize end of section ${i+1}`} aria-valuemin={s.start+MIN} aria-valuemax={seconds} aria-valuenow={s.end} onPointerDown={e=>onDown(e,s,"right")} onPointerMove={onMove} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null} onKeyDown={e=>onKey(e,s,"right")}/>
