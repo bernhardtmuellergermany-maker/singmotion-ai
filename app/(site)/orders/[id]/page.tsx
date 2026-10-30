@@ -17,6 +17,8 @@ export default async function Page({
 }) {
   const { id } = await params;
   let order: Record<string, unknown> | null = null,
+    fulfillmentState: string | null = null,
+    videoReady = false,
     store: CommerceStore | undefined;
   if (
     process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
@@ -26,7 +28,11 @@ export default async function Page({
       const c = await cookies();
       store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
       const account = store.session(c.get("sm_customer")?.value || "");
-      order = store.ownedOrder(id, account, c.get(`sm_guest_${id}`)?.value);
+      const guestToken = c.get(`sm_guest_${id}`)?.value;
+      order = store.ownedOrder(id, account, guestToken);
+      const fulfillment = store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id);
+      fulfillmentState = fulfillment ? String(fulfillment.state) : null;
+      videoReady = store.ownedDeliveredVideoAsset(id, account, guestToken) !== null;
     } catch {
     } finally {
       store?.close();
@@ -42,10 +48,9 @@ export default async function Page({
             <p>
               Recorded total: EUR {(Number(order.price_cents) / 100).toFixed(2)}
             </p>
-            <p>
-              Customer generation and result delivery are not activated. A
-              payment record alone does not start a provider task.
-            </p>
+            <p>Video order: {fulfillmentState === "pending" ? "Awaiting processing" : fulfillmentState === "processing" ? "Processing or under review" : fulfillmentState === "delivered" ? "Delivered" : fulfillmentState === "failed" ? "Needs support review" : "Not started"}</p>
+            <p>Video ready: {videoReady ? "Yes" : "No"}</p>
+            <p>Customer generation and secure video downloads are not yet activated. Payment confirmation alone does not start BytePlus generation.</p>
           </>
         ) : (
           <GuestOrderAccess id={id} />
