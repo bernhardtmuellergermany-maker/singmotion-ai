@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
+import { PerformanceTimeline, timelinePrompt, type PerformanceSection } from "./performance-timeline";
 import { api, ensureSession, upload } from "@/lib/client";
 import {
   composePrompt,
@@ -71,6 +72,7 @@ export function StudioWizard({
     [editingName, setEditingName] = useState(false),
     [draft, setDraft] = useState(initial),
     [step, setStep] = useState(0),
+    [timeline, setTimeline] = useState<PerformanceSection[]>([]),
     [owner, setOwner] = useState(""),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
@@ -113,6 +115,7 @@ export function StudioWizard({
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
           setStep(Math.max(0, Math.min(3, saved.step)));
+          try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
           setDetectedFormat(
             photoFormat(
               saved.image?.width ?? null,
@@ -233,6 +236,20 @@ export function StudioWizard({
     field.style.height = "auto";
     field.style.height = `${Math.min(240, Math.max(68, field.scrollHeight))}px`;
   }, [draft.customPrompt]);
+  function updateTimeline(next: PerformanceSection[]) {
+    // Reject overlaps and out-of-range sections before they can alter the final prompt.
+    const ordered=[...next].sort((a,b)=>a.start-b.start);
+    const duration=Math.max(0,draft.end-draft.start);
+    if(ordered.some((section,i)=>!Number.isFinite(section.start)||!Number.isFinite(section.end)||
+      section.start<0||section.end>Math.ceil(duration)||section.end-section.start<0.5||
+      (i>0&&section.start<ordered[i-1].end))) {
+      setError("Sections must not overlap and must stay within the selected audio duration.");
+      return;
+    }
+    setTimeline(next);
+    update({customPrompt:timelinePrompt(next),performance:next.length?"Custom":"Natural"});
+    if(projectKey)localStorage.setItem(`singmotion-timeline:${projectKey}`,JSON.stringify(next));
+  }
   function update(patch: Partial<typeof initial>) {
     setDraft((previous) => ({ ...previous, ...patch }));
     setError("");
@@ -351,38 +368,28 @@ export function StudioWizard({
         </div>
       </header>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
-        <div className="flow-workspace" aria-label="Studio creation workspace">
-          <div className="flow-workspace-media">
-        {!draft.song ? (
-          <label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
-            <FileMusic className="flow-upload-symbol" size={47} strokeWidth={1.65} aria-hidden="true" />
-            <strong>{busy ? "Uploading your song…" : "Upload audio"}</strong>
-            <span>Click to add your song</span>
-            <small>MP3, WAV, M4A · up to 50 MB</small>
+        <div className="sm-studio-step-title"><span>Step {step+1} of 4</span><h1>{["Audio selection","Performance Timeline","Photo & Video Format","Generate Video"][step]}</h1></div>
+        {step===0&&<div className="flow-workspace sm-studio-audio-step"><div className="flow-workspace-media">
+          {!draft.song?<label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
+            <FileMusic className="flow-upload-symbol" size={47}/><strong>{busy?"Uploading your song…":"Upload audio"}</strong><span>Click to add your song</span><small>MP3, WAV, M4A · up to 50 MB</small>
             <input type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"audio")}/>
-          </label>
-        ) : (
-          <section className="flow-audio">
-            <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name) ? "?playback=1" : ""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name} onRemove={()=>update({song:null})} removeDisabled={busy}/>
-          </section>
-        )}
-          </div>
-        <section className="flow-composer" aria-label="Video settings">
-          <div className="flow-composer-top">
-            <div className="flow-image-field">{draft.imageId ? <div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div> :
-              <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}</div>
-            <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
-          </div>
-          <div className="flow-composer-bottom">
-            <div className="flow-settings-group" role="group" aria-label="Video settings">
-            <details className="flow-camera-menu"><summary aria-label="Camera mode"><Camera size={16}/><span>{draft.camera}</span><ChevronDown className="flow-chevron" size={16} aria-hidden="true"/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option as keyof typeof cameraHelp] || option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp] || ""}</small></button>)}</div></details>
-            <details className="flow-camera-menu flow-format-menu"><summary aria-label="Video format">{draft.outputFormat==="9:16"?<Smartphone size={18}/>:<Monitor size={18}/>}<span>{draft.outputFormat}</span><ChevronDown className="flow-chevron" size={16} aria-hidden="true"/></summary><div className="flow-camera-options flow-format-options" role="group" aria-label="Video aspect ratio">{(["9:16","16:9"] as const).map(format=><button type="button" key={format} className={draft.outputFormat===format?"is-active":""} title={format==="9:16"?"Portrait — vertical video":"Landscape — horizontal video"} onClick={e=>{update({outputFormat:format,formatMode:format});e.currentTarget.closest("details")!.open=false;}}>{format==="9:16"?<Smartphone size={17}/>:<Monitor size={17}/>}<span>{format}</span><small>{format==="9:16"?"Portrait":"Landscape"}</small></button>)}</div></details>
-            </div>
-            <button className="flow-create" disabled={!available} title={!draft.song?"Add a song":!draft.imageId?"Add an artist photo":!audioValid?"Select a valid audio segment":!prompt?"Add a description":"Create video"} onClick={()=>setConfirm(true)}><Sparkles size={19}/><span className="flow-generate-label">Generate Video</span>{draft.song && <span className="flow-generate-price" aria-label="Estimated video price in US dollars">${(Math.max(0,draft.end-draft.start)*0.07).toFixed(2)}</span>}<ArrowRight size={19}/></button>
-          </div>
-        </section>
-        {!available && !!draft.song && !!draft.imageId && <p className="flow-missing" role="status">{busy ? "Uploading…" : !audioValid ? "Select a valid audio segment" : !prompt ? "Check performance settings" : ""}</p>}
-        </div>
+          </label>:<section className="flow-audio"><Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name} onRemove={()=>update({song:null})} removeDisabled={busy}/></section>}
+        </div></div>}
+        {step===1&&<PerformanceTimeline duration={Math.max(1,draft.end-draft.start)} sections={timeline} onChange={updateTimeline}/>}
+        {step===2&&<div className="sm-studio-photo-step"><h2>Upload your artist photo</h2><p>Choose the reference image and output format for your music video.</p>
+          <div className="sm-studio-photo-card">{draft.imageId?<div className="flow-photo"><img alt="Uploaded artist" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button type="button" aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={16}/></button></div>:
+            <label className="flow-photo-add"><ImagePlus size={38}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}</div>
+          <div className="sm-studio-formats" role="group" aria-label="Video aspect ratio">{(["9:16","16:9"] as const).map(format=><button type="button" key={format} aria-pressed={draft.outputFormat===format} onClick={()=>update({outputFormat:format,formatMode:format})}>{format==="9:16"?<Smartphone size={25}/>:<Monitor size={25}/>}<strong>{format}</strong><span>{format==="9:16"?"Portrait":"Landscape"}</span></button>)}</div>
+        </div>}
+        {step===3&&<section className="sm-studio-review"><Sparkles size={38}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
+          <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div><div><span>Duration</span><strong>{Math.max(0,draft.end-draft.start).toFixed(1)} seconds</strong></div><div><span>Performance</span><strong>{timeline.length} timeline sections</strong></div><div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
+          <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={20}/></button>
+          <p>After generation, your project page shows the preview and result when available.</p>
+        </section>}
+        <nav className="sm-studio-navigation" aria-label="Studio steps">
+          {step===0?<Link href="/" className="sm-studio-back"><ArrowLeft size={19}/> Back</Link>:<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
+          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===2&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+        </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} onClose={()=>setConfirm(false)}/>}
