@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
     if (!session.id?.startsWith("cs_test_") ||
         !session.url?.startsWith("https://checkout.stripe.com/"))
       return reply({ error: "Invalid test Checkout response." }, 502);
+    store.bindStripeCheckout(String(order.id), session.id);
     return reply({ url: session.url });
   } catch {
     return reply({ error: "Order unavailable or Checkout could not be created." }, 403);
