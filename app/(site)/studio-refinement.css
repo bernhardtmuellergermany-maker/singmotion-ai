@@ -53,3 +53,7 @@
 
 /* Reuse the original compact composer on the photo-upload screen only. */
 .singmotion-flow .sm-studio-original-composer{width:min(540px,94%);margin:clamp(30px,10vh,110px) auto 24px;flex-shrink:0}
+
+/* Center the photo settings composer in the available Studio viewport. */
+.singmotion-flow .flow-main:has(.sm-studio-original-composer) .sm-studio-original-composer{margin:auto auto 0;align-self:center;flex-shrink:0}
+.singmotion-flow .flow-main:has(.sm-studio-original-composer) .sm-studio-navigation{margin-top:auto}
