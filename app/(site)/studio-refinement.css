@@ -328,3 +328,30 @@
 @media(max-width:650px){
   .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
 }
+
+
+/* Pointer-following drag preview; the real card remains in place until drop. */
+.singmotion-flow .sm-section-drag-ghost{
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:13px 17px;
+  max-width:300px;
+  min-width:170px;
+  border:2px solid;
+  border-radius:12px;
+  color:#f7f4ff;
+  box-shadow:0 20px 45px #000b,0 0 22px #ae60f755;
+  opacity:.96;
+  transform:translate(-30px,-50%) rotate(-2deg) scale(1.03);
+  user-select:none;
+  white-space:nowrap;
+}
+.singmotion-flow .sm-section-drag-ghost-timeline{min-width:140px;padding:10px 12px}
+.singmotion-flow .sm-section-drag-ghost span:last-child{overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.singmotion-flow .sm-timeline-cards article.is-dragging{opacity:.55;transform:none;box-shadow:0 0 0 2px #b77dff}
+.singmotion-flow .sm-timeline-segment.is-dragging{opacity:.5;transform:none;box-shadow:0 0 0 2px #e9ddffb0}
+.singmotion-flow .sm-timeline-card-grip{touch-action:none}
