@@ -393,10 +393,15 @@ export function StudioWizard({
             <button type="button" className="flow-create" disabled={!available} onClick={()=>setStep(3)}><Sparkles size={19}/><span className="flow-generate-label">Generate Video</span><ArrowRight size={19}/></button>
           </div>
         </section>}
-        {step===3&&<section className="sm-studio-review"><Sparkles size={38}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
-          <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div><div><span>Duration</span><strong>{Math.max(0,draft.end-draft.start).toFixed(1)} seconds</strong></div><div><span>Performance</span><strong>{timeline.length} timeline sections</strong></div>{timeline.length>0&&<div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" readOnly rows={6} value={timelinePrompt(timeline)}/><small>Timing instructions guide OmniHuman; exact timing is not guaranteed.</small></div>}<div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
+        {step===3&&<section className="sm-studio-review"><Sparkles size={30}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
+          <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div>
+          <div><span>Duration</span><strong>{Math.max(0,draft.end-draft.start).toFixed(2)} seconds</strong></div>
+          <div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
+          <section className="sm-studio-review-media" aria-label="Photo and final instructions">
+            {draft.imageId&&<img className="sm-studio-review-photo" alt="Uploaded artist reference" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/>}
+            <div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" readOnly rows={5} value={draft.customPrompt}/><small>Timing instructions guide OmniHuman; exact timing is not guaranteed.</small></div>
+          </section>
           <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={20}/></button>
-          <p>After generation, your project page shows the preview and result when available.</p>
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
