@@ -11,6 +11,16 @@ export const dynamic = "force-dynamic";
 const respond = (body: unknown, status = 200) =>
   NextResponse.json(body, {status, headers:{"Cache-Control":"private, no-store","Referrer-Policy":"no-referrer"}});
 
+export async function GET(req: NextRequest) {
+  const denied = stagingDenial(req.headers.get("authorization"));
+  if (denied) return denied;
+  return respond({
+    available: process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
+      process.env.CUSTOMER_ORDER_PREPARATION_ENABLED === "true",
+    checkoutEnabled: false,
+  });
+}
+
 /** Customer-only preparation. No Checkout, BytePlus request or paid worker start. */
 export async function POST(req: NextRequest) {
   const denied = stagingDenial(req.headers.get("authorization"));
