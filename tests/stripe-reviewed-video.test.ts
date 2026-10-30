@@ -30,7 +30,9 @@ test("server-owned quote controls binding of actual prepared media to customer o
       account:null,email:"customer@example.test",project:"studio-reviewed-project",
       cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"prepared-media-binding",
     }).id;
+    assert.equal(store.reviewedOrderReadyForCheckout(id), false);
     assert.equal(store.bindPreparedOrderMedia(id, media), true);
+    assert.equal(store.reviewedOrderReadyForCheckout(id), true);
     assert.equal(store.bindPreparedOrderMedia(id, media), false);
     assert.throws(() => store.bindPreparedOrderMedia(id, {...media,prompt:"different performance"}), /conflict/);
     const actual = store.db.prepare("SELECT input_digest,review_digest FROM customer_order_inputs WHERE order_id=?").get(id);
