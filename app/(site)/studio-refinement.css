@@ -97,3 +97,8 @@
 .sm-timeline-cards article.is-selected{box-shadow:0 0 0 1px #bf83ff77}
 @media(max-width:1100px){.singmotion-flow .sm-timeline-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:700px){.singmotion-flow .sm-timeline-cards{grid-template-columns:minmax(0,1fr)}.singmotion-flow .sm-timeline-card-header{gap:5px}}
+
+.singmotion-flow .sm-studio-final-prompt{display:block;text-align:left;margin:14px 0;padding:10px;border:1px solid #354765;border-radius:10px}
+.singmotion-flow .sm-studio-final-prompt label{display:block;font-weight:600;font-size:12px;margin-bottom:8px}
+.singmotion-flow .sm-studio-final-prompt textarea{display:block;width:100%;min-height:100px;background:#111b2d;color:#dce9ff;border:1px solid #354765;padding:10px;border-radius:8px;resize:vertical}
+.singmotion-flow .sm-studio-final-prompt small{display:block;color:#a8b8d1;margin-top:7px}
