@@ -153,13 +153,13 @@ test("paid worker defaults to saved customer snapshot without browser-provided m
       provider:"stripe",eventId:"evt_saved_worker",orderId:id,cents:1250,
       currency:"EUR" as const,evidence:"cs_test_saved_worker",
     };}});
-    let observed: PreparedMedia | null = null;
+    const observed: PreparedMedia[] = [];
     assert.equal(await submitReviewedPaidVideo(store,id,{
       verify:async()=>{},
-      submit:async(prepared)=>{observed=prepared;return "provider_saved_001";},
+      submit:async(prepared)=>{observed.push(prepared);return "provider_saved_001";},
     }),"submitted");
-    assert.equal(observed?.imageSha256,media.imageSha256);
-    assert.equal(observed?.audioPath,media.audioPath);
+    assert.equal(observed[0]?.imageSha256,media.imageSha256);
+    assert.equal(observed[0]?.audioPath,media.audioPath);
     assert.equal(store.paidProviderJob(id)?.jobId,"provider_saved_001");
   } finally {store.close();}
 });
