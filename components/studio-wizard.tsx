@@ -370,7 +370,7 @@ export function StudioWizard({
         </div>
       </header>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
-        <div className="sm-studio-step-title"><h1>{["Audio selection","Performance Timeline","Photo & Video Format","Generate Video"][step]}</h1></div>
+        {step!==0&&<div className="sm-studio-step-title"><h1>{["Audio selection","Performance Timeline","Photo & Video Format","Generate Video"][step]}</h1></div>}
         {step===0&&<div className="flow-workspace sm-studio-audio-step"><div className="flow-workspace-media">
           {!draft.song?<label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
             <FileMusic className="flow-upload-symbol" size={47}/><strong>{busy?"Uploading your song…":"Upload audio"}</strong><span>Click to add your song</span><small>MP3, WAV, M4A · up to 50 MB</small>
@@ -389,7 +389,7 @@ export function StudioWizard({
           <p>After generation, your project page shows the preview and result when available.</p>
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
-          {step===0?<Link href="/" className="sm-studio-back"><ArrowLeft size={19}/> Back</Link>:<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
+          {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===2&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
