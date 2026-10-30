@@ -119,3 +119,12 @@
 .sm-timeline-playback strong{font-size:12px;background:#18253c;padding:9px;border-radius:8px;white-space:nowrap}
 .sm-timeline-playhead{position:absolute!important;top:0!important;bottom:0!important;width:2px!important;background:#f3f7ff!important;box-shadow:0 0 5px #ffffffaa;z-index:4;pointer-events:none;border-radius:0!important}
 @media(max-width:700px){.sm-timeline-playback{margin-left:0}.singmotion-flow .sm-timeline{width:96%;padding:12px}}
+
+
+/* Prevent start/end controls from jumping between rows as card width changes. */
+.singmotion-flow .sm-timeline-card-header{display:grid;grid-template-columns:11px minmax(65px,1fr) auto auto 24px;align-items:center;gap:5px;flex-wrap:nowrap}
+.singmotion-flow .sm-timeline-card-header>strong{min-width:0;white-space:nowrap;font-size:11px;margin:0}
+.singmotion-flow .sm-timeline-card-header>label{display:flex;align-items:center;gap:3px;white-space:nowrap;min-width:0;margin:0;font-size:10px}
+.singmotion-flow .sm-timeline-card-header input{box-sizing:border-box;width:48px;min-width:0;height:30px;font-size:11px;padding:3px 2px}
+.singmotion-flow .sm-timeline-card-header>button{width:24px;min-width:24px;display:grid;place-items:center}
+@media(max-width:450px){.singmotion-flow .sm-timeline-card-header{grid-template-columns:11px minmax(55px,1fr) auto auto 22px;gap:3px}.singmotion-flow .sm-timeline-card-header input{width:42px}}
