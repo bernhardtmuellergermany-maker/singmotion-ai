@@ -382,6 +382,19 @@ export class CommerceStore {
       this.audit(receipt.provider, "verified-payment", receipt.orderId);
     });
   }
+  /** Reserve a paid job once. Never reclaim an ambiguous processing job automatically. */
+  claimPaidFulfillment(orderId: string): boolean {
+    return this.tx(() => {
+      const changed = this.db.prepare(`
+        UPDATE customer_fulfillment_queue SET state='processing'
+        WHERE order_id=? AND state='pending'
+          AND EXISTS (SELECT 1 FROM customer_orders WHERE id=? AND status='paid')
+      `).run(orderId, orderId);
+      if (changed.changes !== 1) return false;
+      this.audit("fulfillment-worker", "claim-paid-order", orderId);
+      return true;
+    });
+  }
   close() {
     this.db.close();
   }
