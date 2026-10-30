@@ -390,7 +390,7 @@ export function StudioWizard({
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
-          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===2&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+          {step<3&&(step!==0||Boolean(draft.song&&audioValid))&&<button type="button" className="sm-studio-next" disabled={busy||(step===2&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>
