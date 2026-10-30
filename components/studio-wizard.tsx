@@ -242,7 +242,7 @@ export function StudioWizard({
     const ordered=[...next].sort((a,b)=>a.start-b.start);
     const duration=Math.max(0,draft.end-draft.start);
     if(ordered.some((section,i)=>!Number.isFinite(section.start)||!Number.isFinite(section.end)||
-      section.start<0||section.end>Math.ceil(duration)||section.end-section.start<0.5||
+      section.start<0||section.end>duration+0.00001||section.end-section.start<0.5||
       (i>0&&section.start<ordered[i-1].end))) {
       setError("Sections must not overlap and must stay within the selected audio duration.");
       return;
@@ -393,7 +393,7 @@ export function StudioWizard({
           </div>
         </section>}
         {step===3&&<section className="sm-studio-review"><Sparkles size={38}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
-          <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div><div><span>Duration</span><strong>{Math.max(0,draft.end-draft.start).toFixed(1)} seconds</strong></div><div><span>Performance</span><strong>{timeline.length} timeline sections</strong></div><div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
+          <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div><div><span>Duration</span><strong>{Math.max(0,draft.end-draft.start).toFixed(1)} seconds</strong></div><div><span>Performance</span><strong>{timeline.length} timeline sections</strong></div>{timeline.length>0&&<div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" readOnly rows={6} value={timelinePrompt(timeline)}/><small>Timing instructions guide OmniHuman; exact timing is not guaranteed.</small></div>}<div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
           <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={20}/></button>
           <p>After generation, your project page shows the preview and result when available.</p>
         </section>}
