@@ -41,3 +41,17 @@ test("server-owned quote controls binding of actual prepared media to customer o
     assert.equal(actual?.review_digest, reviewedVideoQuoteDigest(digest,1250,"verified-inclusive-price-2026"));
   } finally { store.close(); }
 });
+
+test("trusted checkout preparation is atomic for validated media and reviewed quote", () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const request = {account:null,email:"buyer@example.test",project:"verified-project",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"atomic-prepared-order",media};
+    assert.throws(() => store.preparedVideoOrder({...request,media:{...media,audioSha256:"invalid"}}),/prepared/);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,0);
+    const created = store.preparedVideoOrder(request);
+    assert.equal(store.reviewedOrderReadyForCheckout(created.id),true);
+    assert.throws(() => store.preparedVideoOrder({...request,media:{...media,prompt:"Different camera"}}),/conflict/);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,1);
+  } finally {store.close();}
+});
