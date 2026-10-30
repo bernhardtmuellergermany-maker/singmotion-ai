@@ -163,3 +163,24 @@
 .singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{min-height:96px;font-size:12px}
 .singmotion-flow .sm-studio-review .sm-studio-generate{margin:15px auto 4px}
 @media(max-width:550px){.singmotion-flow .sm-studio-review-media{grid-template-columns:1fr}.singmotion-flow .sm-studio-review-photo{height:150px;object-fit:contain}}
+
+
+/* Shared bottom navigation baseline: review card height must not move Back. */
+.singmotion-flow .flow-main{
+  box-sizing:border-box;
+  min-height:calc(100dvh - 72px);
+  display:flex;
+  flex-direction:column;
+}
+.singmotion-flow .flow-main>.sm-studio-navigation{
+  position:relative;
+  flex:none;
+  width:min(1120px,94%);
+  margin: auto auto 28px !important;
+  padding-top:18px;
+  align-self:center;
+}
+@media(max-width:650px){
+  .singmotion-flow .flow-main{min-height:calc(100dvh - 66px)}
+  .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
+}
