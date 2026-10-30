@@ -70,3 +70,30 @@ test("paid fulfillment may be claimed only once and is never auto-reclaimed", as
     assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state, "processing");
   } finally { store.close(); }
 });
+
+test("paid fulfillment terminal states require evidence, are one-way and do not retry", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = order(store, "fulfilled-terminal-state");
+    assert.equal(store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), false);
+    store.bindStripeCheckout(id, "cs_test_completed");
+    await deliver(store, receipt(id, "evt_completed", "cs_test_completed"));
+    assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"short"}), /evidence/);
+    assert.equal(store.claimPaidFulfillment(id), true);
+    assert.equal(store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), true);
+    assert.equal(store.finalizePaidFulfillment(id, {state:"failed",failureEvidence:"later-provider-error-123456789"}), false);
+    assert.equal(store.claimPaidFulfillment(id), false);
+    assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state, "delivered");
+  } finally {store.close();}
+});
+test("failed fulfillment cannot be automatically claimed again", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = order(store, "failed-terminal-state");
+    store.bindStripeCheckout(id, "cs_test_failed");
+    await deliver(store, receipt(id, "evt_failed", "cs_test_failed"));
+    assert.equal(store.claimPaidFulfillment(id), true);
+    assert.equal(store.finalizePaidFulfillment(id, {state:"failed",failureEvidence:"diagnostic-reference-123456789"}), true);
+    assert.equal(store.claimPaidFulfillment(id), false);
+  } finally {store.close();}
+});
