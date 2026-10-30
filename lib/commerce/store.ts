@@ -44,6 +44,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
  CREATE TABLE IF NOT EXISTS customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT UNIQUE NOT NULL,evidence_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
@@ -242,6 +243,12 @@ export class CommerceStore {
       reviewedVideoInputDigest(media);
       const created = this.order(orderInput);
       this.bindPreparedOrderMedia(created.id, media);
+      const snapshot = JSON.stringify(media);
+      if (snapshot.length > 16000 || !media.audioPath || !media.imagePath || !media.owner)
+        throw Error("Private prepared media snapshot required");
+      const prior = this.db.prepare("SELECT media_json FROM customer_prepared_media WHERE order_id=?").get(created.id);
+      if (prior && prior.media_json !== snapshot) throw Error("Prepared media snapshot conflict");
+      if (!prior) this.db.prepare("INSERT INTO customer_prepared_media VALUES(?,?,?)").run(created.id,snapshot,Date.now());
       return created;
     });
   }
@@ -469,6 +476,20 @@ export class CommerceStore {
     } catch {
       return false;
     }
+  }
+  /** Private paid worker reads the exact reviewed source snapshot, never client input.
+   * Original local files must still be revalidated and rehashed before network submission. */
+  paidPreparedMedia(orderId: string): PreparedMedia {
+    const row = this.db.prepare(`
+      SELECT m.media_json FROM customer_prepared_media m
+      JOIN customer_orders o ON o.id=m.order_id
+      JOIN customer_fulfillment_queue q ON q.order_id=m.order_id
+      WHERE m.order_id=? AND o.status='paid' AND q.state='processing'
+    `).get(orderId);
+    if (!row) throw Error("Claimed paid media snapshot unavailable");
+    const media = JSON.parse(String(row.media_json)) as PreparedMedia;
+    this.assertPaidOrderMediaUnchanged(orderId,media);
+    return media;
   }
   /** Revalidate privately prepared media against the paid order before provider submission.
    * A changed file, prompt, trim or format must never consume a paid BytePlus call. */
