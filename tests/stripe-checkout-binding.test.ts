@@ -83,6 +83,10 @@ test("paid fulfillment terminal states require evidence, are one-way and do not 
     assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), /provider job/);
     assert.equal(store.beginPaidProviderSubmission(id), true);
     assert.equal(store.recordPaidProviderJob(id, "byteplus", "task-test-delivered"), true);
+    assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), /private video delivery/);
+    assert.equal(store.recordPaidVideoDelivery(id,"private_video_asset_123456","validated-private-asset-reference-123456"),true);
+    assert.equal(store.recordPaidVideoDelivery(id,"private_video_asset_123456","validated-private-asset-reference-123456"),false);
+    assert.throws(() => store.recordPaidVideoDelivery(id,"private_video_asset_changed","validated-private-asset-reference-123456"),/conflict/);
     assert.equal(store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), true);
     assert.equal(store.finalizePaidFulfillment(id, {state:"failed",failureEvidence:"later-provider-error-123456789"}), false);
     assert.equal(store.claimPaidFulfillment(id), false);
