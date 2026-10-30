@@ -417,6 +417,27 @@ export class CommerceStore {
     const reviewDigest = reviewedVideoQuoteDigest(inputDigest, Number(order.price_cents), String(order.quote_evidence));
     return this.bindReviewedOrderInputs(orderId, inputDigest, reviewDigest);
   }
+  /** Verify the reviewed price commitment against the current stored order before Checkout.
+   * Fail closed for old, missing or tampered review records. */
+  reviewedOrderReadyForCheckout(orderId: string): boolean {
+    const row = this.db.prepare(`
+      SELECT o.status,o.currency,o.price_cents,o.quote_evidence,
+             i.input_digest,i.review_digest
+      FROM customer_orders o
+      LEFT JOIN customer_order_inputs i ON i.order_id=o.id
+      WHERE o.id=?
+    `).get(orderId);
+    if (!row || row.status !== "awaiting_payment" || row.currency !== "EUR" ||
+        typeof row.input_digest !== "string" || typeof row.review_digest !== "string")
+      return false;
+    try {
+      return row.review_digest === reviewedVideoQuoteDigest(
+        String(row.input_digest), Number(row.price_cents), String(row.quote_evidence),
+      );
+    } catch {
+      return false;
+    }
+  }
   /** Read-only queue discovery for a future authorized fulfillment worker.
    * Only verified-paid orders are eligible. This method never dispatches a provider task. */
   pendingPaidFulfillment(limit = 25): string[] {
