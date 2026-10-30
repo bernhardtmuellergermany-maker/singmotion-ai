@@ -85,8 +85,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     const prev=Math.max(0,...sorted.filter(s=>s.end<=d.start+0.0001).map(s=>s.end));
     const next=Math.min(seconds,...sorted.filter(s=>s.start>=d.end-0.0001).map(s=>s.start));
     let start=d.start,end=d.end;
-    if(d.mode==="move"){const pos=Math.max(prev,Math.min(next-(d.end-d.start),round(d.start+delta)));start=round(pos);end=round(pos+d.end-d.start);}
-    else if(d.mode==="left")start=round(Math.max(prev,Math.min(d.end-MIN,d.start+delta)));
+    if(d.mode==="left")start=round(Math.max(prev,Math.min(d.end-MIN,d.start+delta)));
     else end=round(Math.min(next,Math.max(d.start+MIN,d.end+delta)));
     if(validInterval(latest.current,d.id,start,end,seconds))update(d.id,{start,end});
   }
