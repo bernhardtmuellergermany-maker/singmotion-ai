@@ -40,6 +40,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS stripe_checkout_sessions(order_id TEXT PRIMARY KEY,session_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
+ CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
   private tx<T>(fn: () => T): T {
@@ -409,6 +410,29 @@ export class CommerceStore {
       return true;
     });
   }
+  /** Write the durable submission barrier BEFORE any paid provider network request.
+   * An unknown outcome is NEVER automatically eligible for a second submission. */
+  beginPaidProviderSubmission(orderId: string): boolean {
+    return this.tx(() => {
+      const eligible = this.db.prepare(`
+        SELECT 1 FROM customer_fulfillment_queue q
+        JOIN customer_orders o ON o.id=q.order_id
+        WHERE q.order_id=? AND q.state='processing' AND o.status='paid'
+      `).get(orderId);
+      if (!eligible) throw Error("Paid fulfillment claim required");
+      const changed = this.db.prepare(`
+        INSERT OR IGNORE INTO customer_provider_submissions(order_id,provider,state,created)
+        VALUES(?,'byteplus','submitted_or_unknown',?)
+      `).run(orderId, Date.now());
+      if (changed.changes !== 1) return false;
+      this.audit("fulfillment-worker","provider-submission-barrier",orderId);
+      return true;
+    });
+  }
+  paidSubmissionStatus(orderId: string): "submitted_or_unknown" | "acknowledged" | null {
+    const row = this.db.prepare("SELECT state FROM customer_provider_submissions WHERE order_id=?").get(orderId);
+    return row ? String(row.state) as "submitted_or_unknown" | "acknowledged" : null;
+  }
   /** Persist an acknowledged provider job exactly once, after exclusive claim.
    * Never call the provider here. An ambiguous submission remains processing for manual review. */
   recordPaidProviderJob(orderId: string, provider: string, jobId: string): boolean {
@@ -421,14 +445,11 @@ export class CommerceStore {
           throw Error("Provider job conflict");
         return false;
       }
-      const eligible = this.db.prepare(`
-        SELECT 1 FROM customer_fulfillment_queue q
-        JOIN customer_orders o ON o.id=q.order_id
-        WHERE q.order_id=? AND q.state='processing' AND o.status='paid'
-      `).get(orderId);
-      if (!eligible) throw Error("Paid fulfillment claim required");
+      const barrier = this.db.prepare("SELECT state FROM customer_provider_submissions WHERE order_id=? AND provider='byteplus'").get(orderId);
+      if (!barrier) throw Error("Provider submission barrier required");
       this.db.prepare("INSERT INTO customer_provider_jobs(order_id,provider,job_id,created) VALUES(?,?,?,?)")
         .run(orderId,provider,jobId,Date.now());
+      this.db.prepare("UPDATE customer_provider_submissions SET state='acknowledged' WHERE order_id=?").run(orderId);
       this.audit("fulfillment-worker","provider-job-recorded",orderId);
       return true;
     });
