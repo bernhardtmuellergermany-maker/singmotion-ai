@@ -139,3 +139,27 @@ test("paid worker reads the stored immutable media snapshot instead of browser i
    assert.equal(store.paidPreparedMedia(id).audioPath,media.audioPath);
  } finally {store.close();}
 });
+
+test("paid worker defaults to saved customer snapshot without browser-provided media", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = store.preparedVideoOrder({
+      account:null,email:"buyer@example.test",project:"saved-worker-media",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"saved-worker-media",media,
+    }).id;
+    store.bindStripeCheckout(id,"cs_test_saved_worker");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_saved_worker",orderId:id,cents:1250,
+      currency:"EUR" as const,evidence:"cs_test_saved_worker",
+    };}});
+    let observed: PreparedMedia | null = null;
+    assert.equal(await submitReviewedPaidVideo(store,id,{
+      verify:async()=>{},
+      submit:async(prepared)=>{observed=prepared;return "provider_saved_001";},
+    }),"submitted");
+    assert.equal(observed?.imageSha256,media.imageSha256);
+    assert.equal(observed?.audioPath,media.audioPath);
+    assert.equal(store.paidProviderJob(id)?.jobId,"provider_saved_001");
+  } finally {store.close();}
+});
