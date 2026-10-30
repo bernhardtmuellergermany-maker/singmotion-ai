@@ -410,7 +410,7 @@ export class CommerceStore {
           AND EXISTS (SELECT 1 FROM customer_orders WHERE id=? AND status='paid')
       `).run(outcome.state, orderId, orderId);
       if (changed.changes !== 1) return false;
-      this.audit("fulfillment-worker", `fulfillment-${outcome.state}`, orderId + ":" + evidence);
+      this.audit("fulfillment-worker", `fulfillment-${outcome.state}`, orderId + ":" + hash(evidence));
       return true;
     });
   }
