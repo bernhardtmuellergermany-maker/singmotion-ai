@@ -369,3 +369,37 @@
  padding:3px 7px;border-radius:5px;background:#29203f;color:#ffe6a3;
  font-size:10px;font-weight:700;white-space:nowrap;
 }
+
+
+/* One vertical centerline for all wizard panels; preserve fixed bottom navigation.
+   Both auto margins on the active panel share remaining space equally. */
+.singmotion-flow .flow-main{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  align-items:stretch;
+}
+.singmotion-flow .flow-main>.sm-studio-audio-step,
+.singmotion-flow .flow-main>.sm-timeline,
+.singmotion-flow .flow-main>.sm-studio-review,
+.singmotion-flow .flow-main>.sm-studio-original-composer,
+.singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-original-composer{
+  align-self:center;
+  flex-shrink:0;
+  margin-top:auto !important;
+  margin-bottom:auto !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+}
+.singmotion-flow .flow-main>.sm-studio-navigation,
+.singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
+  flex-shrink:0;
+  margin:0 auto 28px !important;
+  padding-top:18px;
+}
+@media(max-width:650px){
+  .singmotion-flow .flow-main>.sm-studio-navigation,
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
+    margin-bottom:18px !important;
+  }
+}
