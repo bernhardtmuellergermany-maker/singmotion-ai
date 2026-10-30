@@ -11,6 +11,7 @@ import {
   Smartphone,
   Monitor,
   Sparkles,
+  Plus,
   X,
   House,
   MoreVertical,
