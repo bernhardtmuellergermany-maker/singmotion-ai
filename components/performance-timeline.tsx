@@ -68,6 +68,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   function onMove(e:ReactPointerEvent<HTMLDivElement>){
     const d=drag.current;if(!d||d.width<=0)return;
     const delta=round((e.clientX-d.x)/d.width*seconds);
+    if(d.mode==="move"&&track.current){const bounds=track.current.getBoundingClientRect();const cursor=Math.max(0,Math.min(seconds,(e.clientX-bounds.left)/bounds.width*seconds));const candidate=latest.current.find(item=>item.id!==d.id&&cursor>=item.start&&cursor<=item.end);setDropTarget(candidate?.id??null);}
     const sorted=latest.current.filter(s=>s.id!==d.id);
     const prev=Math.max(0,...sorted.filter(s=>s.end<=d.start+0.0001).map(s=>s.end));
     const next=Math.min(seconds,...sorted.filter(s=>s.start>=d.end-0.0001).map(s=>s.start));
