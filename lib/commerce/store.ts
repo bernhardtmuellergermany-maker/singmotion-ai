@@ -1,5 +1,7 @@
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
+import type { PreparedMedia } from "../live/store.ts";
+import { reviewedVideoInputDigest, reviewedVideoQuoteDigest } from "./reviewed-video.ts";
 import {
   randomBytes,
   randomUUID,
@@ -405,6 +407,15 @@ export class CommerceStore {
       this.audit("checkout-preparation","reviewed-order-inputs",orderId);
       return true;
     });
+  }
+  /** Only a trusted server flow can bind actual prepared media to the stored order quote.
+   * The customer cannot override the paid amount or reviewed quote evidence. */
+  bindPreparedOrderMedia(orderId: string, media: PreparedMedia): boolean {
+    const order = this.db.prepare("SELECT price_cents,quote_evidence,status FROM customer_orders WHERE id=?").get(orderId);
+    if (!order || order.status !== "awaiting_payment") throw Error("Order is not awaiting payment");
+    const inputDigest = reviewedVideoInputDigest(media);
+    const reviewDigest = reviewedVideoQuoteDigest(inputDigest, Number(order.price_cents), String(order.quote_evidence));
+    return this.bindReviewedOrderInputs(orderId, inputDigest, reviewDigest);
   }
   /** Read-only queue discovery for a future authorized fulfillment worker.
    * Only verified-paid orders are eligible. This method never dispatches a provider task. */
