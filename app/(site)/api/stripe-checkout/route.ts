@@ -41,6 +41,10 @@ export async function POST(req: NextRequest) {
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const accountId = store.session(req.cookies.get("sm_customer")?.value || "");
     const order = store.ownedOrder(input.orderId, accountId, req.cookies.get(`sm_guest_${input.orderId}`)?.value);
+    // Payment cannot open until the reviewed input snapshot is permanently bound.
+    const reviewedInputs = store.db.prepare("SELECT 1 FROM customer_order_inputs WHERE order_id=?").get(order.id);
+    if (!reviewedInputs)
+      return reply({ error: "Video inputs must be reviewed before Checkout." }, 409);
     const cents = Number(order.price_cents);
     if (order.status !== "awaiting_payment" || order.currency !== "EUR" ||
         !Number.isSafeInteger(cents) || cents <= 0 ||
