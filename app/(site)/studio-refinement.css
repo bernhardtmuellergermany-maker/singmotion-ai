@@ -184,3 +184,29 @@
   .singmotion-flow .flow-main{min-height:calc(100dvh - 66px)}
   .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
 }
+
+
+/* Subtle hover feedback for fixed Studio navigation. */
+.singmotion-flow .sm-studio-navigation .sm-studio-back,
+.singmotion-flow .sm-studio-navigation .sm-studio-next{
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,filter .18s ease,transform .18s ease;
+}
+@media (hover:hover){
+  .singmotion-flow .sm-studio-navigation .sm-studio-back:hover:not(:disabled){
+    background-color:#1b2942;
+    border-color:#546889;
+    box-shadow:0 3px 14px #07101e55;
+    transform:translateY(-1px);
+  }
+  .singmotion-flow .sm-studio-navigation .sm-studio-next:hover:not(:disabled){
+    filter:brightness(1.12);
+    box-shadow:0 4px 18px #9c32f544;
+    transform:translateY(-1px);
+  }
+}
+.singmotion-flow .sm-studio-navigation .sm-studio-back:active:not(:disabled),
+.singmotion-flow .sm-studio-navigation .sm-studio-next:active:not(:disabled){transform:translateY(0)}
+@media (prefers-reduced-motion:reduce){
+  .singmotion-flow .sm-studio-navigation .sm-studio-back,
+  .singmotion-flow .sm-studio-navigation .sm-studio-next{transition:none}
+}
