@@ -56,3 +56,26 @@ test("trusted checkout preparation is atomic for validated media and reviewed qu
     assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_order_inputs").get()?.n,1);
   } finally {store.close();}
 });
+
+test("paid customer media cannot be changed after review before BytePlus dispatch", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const created = store.preparedVideoOrder({
+      account:null,email:"buyer@example.test",project:"verified-video",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"verified-paid-dispatch",media,
+    });
+    const id = created.id;
+    assert.throws(() => store.assertPaidOrderMediaUnchanged(id,media),/Claimed/);
+    store.bindStripeCheckout(id,"cs_test_verified_dispatch");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_verified_dispatch",orderId:id,
+      cents:1250,currency:"EUR" as const,evidence:"cs_test_verified_dispatch",
+    };}});
+    assert.equal(store.claimPaidFulfillment(id),true);
+    assert.doesNotThrow(() => store.assertPaidOrderMediaUnchanged(id,media));
+    assert.throws(() => store.assertPaidOrderMediaUnchanged(id,{...media,prompt:"Modified camera"}),/changed/);
+    assert.throws(() => store.assertPaidOrderMediaUnchanged(id,{...media,imageSha256:"c".repeat(64)}),/changed/);
+    assert.equal(store.paidSubmissionStatus(id),null);
+  } finally {store.close();}
+});
