@@ -486,6 +486,18 @@ export class CommerceStore {
       return true;
     });
   }
+  /** Authorize access to the delivered asset by the order's account or guest token.
+   * Never expose the provider URL, storage path or unsigned download location. */
+  ownedDeliveredVideoAsset(orderId: string, account: string | null, guestToken?: string): string | null {
+    this.ownedOrder(orderId, account, guestToken);
+    const row = this.db.prepare(`
+      SELECT d.asset_id FROM customer_video_deliveries d
+      JOIN customer_fulfillment_queue q ON q.order_id=d.order_id
+      JOIN customer_orders o ON o.id=d.order_id
+      WHERE d.order_id=? AND q.state='delivered' AND o.status='paid'
+    `).get(orderId);
+    return row ? String(row.asset_id) : null;
+  }
   /** Only a claimed job may be finalized. Never silently retry a failed/unknown provider outcome. */
   finalizePaidFulfillment(
     orderId: string,
