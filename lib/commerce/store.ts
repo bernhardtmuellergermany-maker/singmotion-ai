@@ -470,6 +470,21 @@ export class CommerceStore {
       return false;
     }
   }
+  /** Revalidate privately prepared media against the paid order before provider submission.
+   * A changed file, prompt, trim or format must never consume a paid BytePlus call. */
+  assertPaidOrderMediaUnchanged(orderId: string, media: PreparedMedia): void {
+    const row = this.db.prepare(`
+      SELECT o.status,o.price_cents,o.quote_evidence,i.input_digest,i.review_digest
+      FROM customer_orders o JOIN customer_order_inputs i ON i.order_id=o.id
+      JOIN customer_fulfillment_queue q ON q.order_id=o.id
+      WHERE o.id=? AND o.status='paid' AND q.state='processing'
+    `).get(orderId);
+    if (!row) throw Error("Claimed paid order and reviewed inputs required");
+    const actual = reviewedVideoInputDigest(media);
+    const review = reviewedVideoQuoteDigest(actual, Number(row.price_cents), String(row.quote_evidence));
+    if (actual !== row.input_digest || review !== row.review_digest)
+      throw Error("Paid order media changed after review");
+  }
   /** Read-only queue discovery for a future authorized fulfillment worker.
    * Only verified-paid orders are eligible. This method never dispatches a provider task. */
   pendingPaidFulfillment(limit = 25): string[] {
