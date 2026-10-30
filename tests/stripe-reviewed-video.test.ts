@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { reviewedVideoInputDigest, reviewedVideoQuoteDigest } from "../lib/commerce/reviewed-video.ts";
 import type { PreparedMedia } from "../lib/live/store.ts";
 import { CommerceStore } from "../lib/commerce/store.ts";
+import { submitReviewedPaidVideo } from "../lib/commerce/paid-video-worker.ts";
 
 const media = {
   audioSha256: "a".repeat(64), imageSha256: "b".repeat(64),
@@ -77,5 +78,25 @@ test("paid customer media cannot be changed after review before BytePlus dispatc
     assert.throws(() => store.assertPaidOrderMediaUnchanged(id,{...media,prompt:"Modified camera"}),/changed/);
     assert.throws(() => store.assertPaidOrderMediaUnchanged(id,{...media,imageSha256:"c".repeat(64)}),/changed/);
     assert.equal(store.paidSubmissionStatus(id),null);
+  } finally {store.close();}
+});
+
+test("trusted worker dispatches verified paid media exactly once", async () => {
+  const store=new CommerceStore(":memory:");
+  try {
+    const id=store.preparedVideoOrder({account:null,email:"buyer@example.test",
+      project:"verified-worker",cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"verified-worker",media}).id;
+    store.bindStripeCheckout(id,"cs_test_worker");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_worker",orderId:id,cents:1250,
+      currency:"EUR" as const,evidence:"cs_test_worker",
+    };}});
+    let submits=0;
+    const ops={prepare:async()=>media,submit:async()=>{submits++;return "provider_job_123";}};
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"submitted");
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
+    assert.equal(submits,1);
+    assert.equal(store.paidProviderJob(id)?.jobId,"provider_job_123");
   } finally {store.close();}
 });
