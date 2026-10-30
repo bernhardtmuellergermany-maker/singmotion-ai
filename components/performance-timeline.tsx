@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Plus, Trash2, Clock3, Play, Pause, RotateCcw } from "lucide-react";
+import { Plus, Trash2, Clock3, Play, Pause, RotateCcw, GripHorizontal } from "lucide-react";
 
 export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string};
 const cameraModes=["Static","Orbit left","Orbit right","Push-in","Pull-out","Pan left","Pan right"];
@@ -73,6 +73,24 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     else end=round(Math.min(next,Math.max(d.start+MIN,d.end+delta)));
     if(validInterval(latest.current,d.id,start,end,seconds))update(d.id,{start,end});
   }
+  function onCardDown(e:ReactPointerEvent<HTMLButtonElement>,s:PerformanceSection){
+    if(e.button!==0||!track.current)return;
+    e.preventDefault();
+    setSelected(s.id);
+    drag.current={id:s.id,mode:"move",x:e.clientX,start:s.start,end:s.end,width:track.current.getBoundingClientRect().width};
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function onCardMove(e:ReactPointerEvent<HTMLButtonElement>){
+    if(!drag.current)return;
+    const d=drag.current;
+    const delta=round((e.clientX-d.x)/d.width*seconds);
+    const others=latest.current.filter(s=>s.id!==d.id);
+    const prev=Math.max(0,...others.filter(s=>s.end<=d.start+0.0001).map(s=>s.end));
+    const next=Math.min(seconds,...others.filter(s=>s.start>=d.end-0.0001).map(s=>s.start));
+    const start=round(Math.max(prev,Math.min(next-(d.end-d.start),d.start+delta)));
+    const end=round(start+d.end-d.start);
+    if(validInterval(latest.current,d.id,start,end,seconds))update(d.id,{start,end});
+  }
   function onKey(e:ReactKeyboardEvent<HTMLDivElement>,s:PerformanceSection,mode:Drag["mode"]){
     if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;
     e.preventDefault();const delta=e.key==="ArrowRight"?0.1:-0.1;
@@ -135,7 +153,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     </div>
     {!sections.length?<div className="sm-timeline-empty"><Plus size={32}/><strong>No sections yet</strong><p>Add a section to direct the performance, or continue without one.</p><button type="button" onClick={add}><Plus size={17}/> Add Section</button></div>:
     <div className="sm-timeline-cards">{sections.map((s,i)=><article key={s.id} className={selected===s.id?"is-selected":""} style={{borderColor:palette[i%palette.length]}} onClick={()=>setSelected(s.id)}>
-      <header className="sm-timeline-card-header"><span className="sm-timeline-dot" style={{background:palette[i%palette.length]}}/><strong>{s.start.toFixed(1)}–{s.end.toFixed(1)}s</strong><label>Start<input aria-label={`Section ${i+1} start`} type="number" min={0} max={s.end-MIN} step="0.1" value={s.start} onChange={e=>changeTime(s.id,Number(e.target.value),s.end)}/></label><label>End<input aria-label={`Section ${i+1} end`} type="number" min={s.start+MIN} max={seconds} step="0.1" value={s.end} onChange={e=>changeTime(s.id,s.start,Number(e.target.value))}/></label><button type="button" aria-label="Remove section" onClick={()=>{const next=latest.current.filter(x=>x.id!==s.id);latest.current=next;onChange(next);}}><Trash2 size={16}/></button></header>
+      <header className="sm-timeline-card-header"><button type="button" className="sm-timeline-card-grip" title="Drag to move section in timeline" aria-label={`Drag section ${i+1} horizontally to change its time`} onPointerDown={e=>onCardDown(e,s)} onPointerMove={onCardMove} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null}><GripHorizontal size={14}/></button><span className="sm-timeline-dot" style={{background:palette[i%palette.length]}}/><strong>{s.start.toFixed(1)}–{s.end.toFixed(1)}s</strong><label>Start<input aria-label={`Section ${i+1} start`} type="number" min={0} max={s.end-MIN} step="0.1" value={s.start} onChange={e=>changeTime(s.id,Number(e.target.value),s.end)}/></label><label>End<input aria-label={`Section ${i+1} end`} type="number" min={s.start+MIN} max={seconds} step="0.1" value={s.end} onChange={e=>changeTime(s.id,s.start,Number(e.target.value))}/></label><button type="button" aria-label="Remove section" onClick={()=>{const next=latest.current.filter(x=>x.id!==s.id);latest.current=next;onChange(next);}}><Trash2 size={16}/></button></header>
       <label>Camera Movement<select value={s.camera} onChange={e=>update(s.id,{camera:e.target.value})}>{cameraModes.map(x=><option key={x}>{x}</option>)}</select></label>
       <label>Emotion / Expression<select value={s.emotion} onChange={e=>update(s.id,{emotion:e.target.value})}>{emotions.map(x=><option key={x}>{x}</option>)}</select></label>
       <label>Custom Instructions<textarea maxLength={500} rows={2} value={s.instructions} placeholder="Describe what the singer or speaker should do..." onChange={e=>update(s.id,{instructions:e.target.value})}/><small className="sm-timeline-counter">{s.instructions.length}/500</small></label>
