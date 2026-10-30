@@ -210,3 +210,21 @@
   .singmotion-flow .sm-studio-navigation .sm-studio-back,
   .singmotion-flow .sm-studio-navigation .sm-studio-next{transition:none}
 }
+
+
+/* Square reference thumbnail on the final generation summary. */
+.singmotion-flow .sm-studio-review-media{align-items:start}
+.singmotion-flow .sm-studio-review-photo{
+  aspect-ratio:1 / 1;
+  width:100%;
+  height:auto;
+  max-height:none;
+  object-fit:contain;
+}
+@media(max-width:550px){
+  .singmotion-flow .sm-studio-review-photo{
+    width:min(150px,100%);
+    height:auto;
+    aspect-ratio:1 / 1;
+  }
+}
