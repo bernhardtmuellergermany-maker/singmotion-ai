@@ -382,6 +382,19 @@ export class CommerceStore {
       this.audit(receipt.provider, "verified-payment", receipt.orderId);
     });
   }
+  /** Read-only queue discovery for a future authorized fulfillment worker.
+   * Only verified-paid orders are eligible. This method never dispatches a provider task. */
+  pendingPaidFulfillment(limit = 25): string[] {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw Error("Invalid fulfillment batch size");
+    const rows = this.db.prepare(`
+      SELECT q.order_id FROM customer_fulfillment_queue q
+      JOIN customer_orders o ON o.id=q.order_id
+      WHERE q.state='pending' AND o.status='paid'
+      ORDER BY q.created ASC, q.order_id ASC LIMIT ?
+    `).all(limit);
+    return rows.map(row => String(row.order_id));
+  }
   /** Reserve a paid job once. Never reclaim an ambiguous processing job automatically. */
   claimPaidFulfillment(orderId: string): boolean {
     return this.tx(() => {
