@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Plus, Trash2, Clock3, Play, Pause } from "lucide-react";
+import { Plus, Trash2, Clock3, Play, Pause, RotateCcw } from "lucide-react";
 
 export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string};
 const cameraModes=["Static","Orbit left","Orbit right","Push-in","Pull-out","Pan left","Pan right"];
@@ -103,9 +103,27 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
       playbackFrame.current=requestAnimationFrame(tick);
     }catch{setNotice("Audio playback is unavailable.");}
   }
+  async function replay(){
+    const audio=player.current;if(!audio)return;
+    if(playbackFrame.current!==null)cancelAnimationFrame(playbackFrame.current);
+    playbackFrame.current=null;
+    audio.pause();
+    audio.currentTime=audioStart;
+    setPosition(0);
+    try{
+      await audio.play();setPlaying(true);
+      const tick=()=>{
+        const at=Math.max(0,Math.min(seconds,audio.currentTime-audioStart));
+        setPosition(at);
+        if(at>=seconds-0.015){audio.pause();setPlaying(false);playbackFrame.current=null;return;}
+        if(!audio.paused)playbackFrame.current=requestAnimationFrame(tick);
+      };
+      playbackFrame.current=requestAnimationFrame(tick);
+    }catch{setPlaying(false);setNotice("Audio playback is unavailable.");}
+  }
   const ticks=Array.from({length:Math.min(Math.ceil(seconds),15)+1},(_,i)=>round(i*seconds/Math.min(Math.ceil(seconds),15)));
   return <section className="sm-timeline" aria-label="Performance Timeline">
-    <div className="sm-timeline-heading"><Clock3 size={29}/><div><h2>Performance Timeline <span>Optional</span></h2><p>Define camera movements, emotions, actions and instructions for each time section.</p></div><div className="sm-timeline-playback">{audioUrl&&<><audio ref={player} src={audioUrl} preload="metadata"/><button type="button" aria-label={playing?"Pause selected audio":"Play selected audio"} onClick={()=>void togglePlayback()}>{playing?<Pause size={17}/>:<Play size={17}/>}</button></>}<strong>Duration: {seconds.toFixed(2)} seconds</strong></div></div>
+    <div className="sm-timeline-heading"><Clock3 size={29}/><div><h2>Performance Timeline <span>Optional</span></h2><p>Define camera movements, emotions, actions and instructions for each time section.</p></div><div className="sm-timeline-playback">{audioUrl&&<><audio ref={player} src={audioUrl} preload="metadata"/><button type="button" aria-label={playing?"Pause selected audio":"Play selected audio"} onClick={()=>void togglePlayback()}>{playing?<Pause size={17}/>:<Play size={17}/>}</button><button type="button" aria-label="Replay selected audio from start" title="Replay from start" onClick={()=>void replay()}><RotateCcw size={17}/></button></>}<strong>Duration: {seconds.toFixed(2)} seconds</strong></div></div>
     <div className="sm-timeline-ruler">{ticks.map((t,i)=><span key={i}>{t}s</span>)}</div>
     <div className="sm-timeline-track" ref={track} aria-label="Editable timeline">
       {sections.map((s,i)=><div key={s.id} className={"sm-timeline-segment"+(selected===s.id?" is-selected":"")} style={{left:`${100*s.start/seconds}%`,width:`${100*(s.end-s.start)/seconds}%`,background:palette[i%palette.length]}} title={`${s.start.toFixed(1)}–${s.end.toFixed(1)}s`}>
