@@ -94,6 +94,7 @@ export function StudioWizard({
           crypto.randomUUID();
         localStorage.setItem("singmotion-draft-id", draftId.current);
         setProjectKey(draftId.current);
+        try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${draftId.current}`)||"[]")); } catch {}
         setProjectName(localStorage.getItem(`singmotion-project-name:${draftId.current}`) || new Date().toLocaleString("en-US", { month:"short", day:"numeric", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }));
         if (requested) {
           const saved = await api<{
@@ -345,6 +346,7 @@ export function StudioWizard({
       localStorage.removeItem("singmotion-studio");
       localStorage.removeItem("singmotion-draft-id");
       localStorage.removeItem(`singmotion-project-name:${projectKey}`);
+      localStorage.removeItem(`singmotion-timeline:${projectKey}`);
       window.location.assign("/");
     } catch (cause) {
       deletingDraft.current = false;
