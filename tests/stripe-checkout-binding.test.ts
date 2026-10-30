@@ -97,3 +97,23 @@ test("failed fulfillment cannot be automatically claimed again", async () => {
     assert.equal(store.claimPaidFulfillment(id), false);
   } finally {store.close();}
 });
+
+test("worker discovery returns only paid pending jobs and never dispatches them", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const unpaid = order(store, "discovery-unpaid");
+    const first = order(store, "discovery-first");
+    const second = order(store, "discovery-second");
+    store.bindStripeCheckout(first, "cs_test_discovery_first");
+    store.bindStripeCheckout(second, "cs_test_discovery_second");
+    await deliver(store, receipt(first, "evt_discovery_first", "cs_test_discovery_first"));
+    await deliver(store, receipt(second, "evt_discovery_second", "cs_test_discovery_second"));
+    assert.deepEqual(store.pendingPaidFulfillment(), [first, second]);
+    assert.deepEqual(store.pendingPaidFulfillment(1), [first]);
+    assert.throws(() => store.pendingPaidFulfillment(0), /batch size/);
+    assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(unpaid)?.status, "awaiting_payment");
+    assert.equal(store.claimPaidFulfillment(first), true);
+    assert.deepEqual(store.pendingPaidFulfillment(), [second]);
+    assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(second)?.state, "pending");
+  } finally { store.close(); }
+});
