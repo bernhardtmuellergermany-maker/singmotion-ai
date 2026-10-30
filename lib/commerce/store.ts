@@ -41,6 +41,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
  CREATE TABLE IF NOT EXISTS customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT UNIQUE NOT NULL,evidence_hash TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
@@ -383,6 +384,26 @@ export class CommerceStore {
       this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)")
         .run(receipt.orderId, Date.now());
       this.audit(receipt.provider, "verified-payment", receipt.orderId);
+    });
+  }
+  /** Immutable server-reviewed input snapshot commitment. This does not authorize
+   * the browser to supply hashes: only a trusted server preparation flow may call it. */
+  bindReviewedOrderInputs(orderId: string, inputDigest: string, reviewDigest: string): boolean {
+    if (!/^[a-f0-9]{64}$/.test(inputDigest) || !/^[a-f0-9]{64}$/.test(reviewDigest))
+      throw Error("Invalid reviewed input digest");
+    return this.tx(() => {
+      const order = this.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(orderId);
+      if (!order || order.status !== "awaiting_payment")
+        throw Error("Order is not awaiting payment");
+      const prior = this.db.prepare("SELECT input_digest,review_digest FROM customer_order_inputs WHERE order_id=?").get(orderId);
+      if (prior) {
+        if (prior.input_digest !== inputDigest || prior.review_digest !== reviewDigest)
+          throw Error("Reviewed order inputs conflict");
+        return false;
+      }
+      this.db.prepare("INSERT INTO customer_order_inputs VALUES(?,?,?,?)").run(orderId,inputDigest,reviewDigest,Date.now());
+      this.audit("checkout-preparation","reviewed-order-inputs",orderId);
+      return true;
     });
   }
   /** Read-only queue discovery for a future authorized fulfillment worker.
