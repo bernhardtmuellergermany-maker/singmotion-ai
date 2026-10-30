@@ -44,6 +44,13 @@ const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
 });
+const sourceTimestamp = (seconds: number) => {
+  const ms = Math.max(0,Math.round(seconds*1000));
+  const min = Math.floor(ms/60000);
+  const sec = Math.floor(ms%60000/1000);
+  const milli = String(ms%1000).padStart(3,"0");
+  return `${String(min).padStart(2,"0")}:${String(sec).padStart(2,"0")}.${milli}`;
+};
 const steps = productCopy.en.steps;
 const initial = {
   song: null as Asset | null,
@@ -395,7 +402,8 @@ export function StudioWizard({
         </section>}
         {step===3&&<section className="sm-studio-review"><Sparkles size={30}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
           <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div>
-          <div><span>Duration</span><strong>{Math.max(0,draft.end-draft.start).toFixed(2)} seconds</strong></div>
+          <div><span>Source audio cut</span><strong>Start {sourceTimestamp(draft.start)} · End {sourceTimestamp(draft.end)}</strong></div>
+          <div><span>Clip duration</span><strong>{sourceTimestamp(Math.max(0,draft.end-draft.start))}</strong></div>
           <div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
           <section className="sm-studio-review-media" aria-label="Photo and final instructions">
             {draft.imageId&&<img className="sm-studio-review-photo" alt="Uploaded artist reference" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/>}
