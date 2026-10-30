@@ -395,6 +395,25 @@ export class CommerceStore {
       return true;
     });
   }
+  /** Only a claimed job may be finalized. Never silently retry a failed/unknown provider outcome. */
+  finalizePaidFulfillment(
+    orderId: string,
+    outcome: { state: "delivered"; deliveryEvidence: string } | { state: "failed"; failureEvidence: string },
+  ): boolean {
+    const evidence = outcome.state === "delivered" ? outcome.deliveryEvidence : outcome.failureEvidence;
+    if (typeof evidence !== "string" || evidence.trim().length < 20 || evidence.length > 2048)
+      throw Error("Verified fulfillment evidence required");
+    return this.tx(() => {
+      const changed = this.db.prepare(`
+        UPDATE customer_fulfillment_queue SET state=?
+        WHERE order_id=? AND state='processing'
+          AND EXISTS (SELECT 1 FROM customer_orders WHERE id=? AND status='paid')
+      `).run(outcome.state, orderId, orderId);
+      if (changed.changes !== 1) return false;
+      this.audit("fulfillment-worker", `fulfillment-${outcome.state}`, orderId + ":" + evidence);
+      return true;
+    });
+  }
   close() {
     this.db.close();
   }
