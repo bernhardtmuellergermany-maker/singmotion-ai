@@ -162,7 +162,7 @@ function CreateTile() {
   </div>;
 }
 
-export function GlobalMenu() {
+export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } = {}) {
   const menu = useRef<HTMLDetailsElement>(null);
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
@@ -181,8 +181,9 @@ export function GlobalMenu() {
   return <details ref={menu} className="sm-global-menu">
     <summary aria-label="More options" title="More options"><MoreVertical size={19}/></summary>
     <nav className="sm-global-menu-list" aria-label="More options">
-      <Link href="/help" onClick={() => { if (menu.current) menu.current.open = false; }}>Help</Link>
-      <Link href="/legal" onClick={() => { if (menu.current) menu.current.open = false; }}>Legals</Link>
+      {([{ href: "/help", label: "Help" }, { href: "/legal", label: "Legals" }] as const).map(item => (
+        <Link key={item.href} href={item.href} target={openInNewTab ? "_blank" : undefined} rel={openInNewTab ? "noopener noreferrer" : undefined} onClick={() => { if (menu.current) menu.current.open = false; }}>{item.label}</Link>
+      ))}
     </nav>
   </details>;
 }
