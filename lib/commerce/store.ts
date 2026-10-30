@@ -38,6 +38,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_holds(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,cents INTEGER NOT NULL,state TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS payment_events(event_key TEXT PRIMARY KEY,receipt_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS stripe_checkout_sessions(order_id TEXT PRIMARY KEY,session_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
   private tx<T>(fn: () => T): T {
@@ -375,6 +376,9 @@ export class CommerceStore {
       this.db
         .prepare("UPDATE customer_orders SET status='paid' WHERE id=?")
         .run(receipt.orderId);
+      // Enqueue atomically with payment reconciliation. No provider call is made here.
+      this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)")
+        .run(receipt.orderId, Date.now());
       this.audit(receipt.provider, "verified-payment", receipt.orderId);
     });
   }
