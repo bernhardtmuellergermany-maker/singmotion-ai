@@ -213,6 +213,26 @@ export class CommerceStore {
       return { id, guestToken: token };
     });
   }
+  /** Trusted customer checkout preparation: create an order and bind the actual
+   * validated media to its server-reviewed price as one database transaction. */
+  preparedVideoOrder(input: {
+    account: string | null;
+    email: string;
+    project: string;
+    cents: number;
+    quoteEvidence: string;
+    key: string;
+    media: PreparedMedia;
+  }) {
+    return this.tx(() => {
+      const { media, ...orderInput } = input;
+      // Reject unprepared inputs before writing any order.
+      reviewedVideoInputDigest(media);
+      const created = this.order(orderInput);
+      this.bindPreparedOrderMedia(created.id, media);
+      return created;
+    });
+  }
   ownedOrder(id: string, account: string | null, guestToken?: string) {
     const o = this.db
       .prepare("SELECT * FROM customer_orders WHERE id=?")
