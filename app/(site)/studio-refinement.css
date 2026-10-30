@@ -102,3 +102,20 @@
 .singmotion-flow .sm-studio-final-prompt label{display:block;font-weight:600;font-size:12px;margin-bottom:8px}
 .singmotion-flow .sm-studio-final-prompt textarea{display:block;width:100%;min-height:100px;background:#111b2d;color:#dce9ff;border:1px solid #354765;padding:10px;border-radius:8px;resize:vertical}
 .singmotion-flow .sm-studio-final-prompt small{display:block;color:#a8b8d1;margin-top:7px}
+
+
+/* Performance editor: 20% tighter footprint while retaining the 3/2/1 card grid. */
+.singmotion-flow .sm-timeline{width:min(1180px,94%);padding:16px;margin:10px auto}
+.singmotion-flow .sm-timeline-heading{gap:12px}
+.singmotion-flow .sm-timeline-heading h2{font-size:20px}
+.singmotion-flow .sm-timeline-heading p{font-size:12px}
+.singmotion-flow .sm-timeline-cards{gap:12px}
+.singmotion-flow .sm-timeline-cards article{padding:10px}
+.singmotion-flow .sm-timeline-cards article>label{margin-top:7px}
+.singmotion-flow .sm-timeline-empty{padding:25px 10px}
+.singmotion-flow .sm-timeline-track{margin-bottom:14px}
+.sm-timeline-playback{display:flex;align-items:center;gap:9px;margin-left:auto}
+.sm-timeline-playback button{width:32px;height:32px;display:grid;place-items:center;background:#273653;border:1px solid #8b54ce;color:#e8d7ff;border-radius:9px;cursor:pointer}
+.sm-timeline-playback strong{font-size:12px;background:#18253c;padding:9px;border-radius:8px;white-space:nowrap}
+.sm-timeline-playhead{position:absolute!important;top:0!important;bottom:0!important;width:2px!important;background:#f3f7ff!important;box-shadow:0 0 5px #ffffffaa;z-index:4;pointer-events:none;border-radius:0!important}
+@media(max-width:700px){.sm-timeline-playback{margin-left:0}.singmotion-flow .sm-timeline{width:96%;padding:12px}}
