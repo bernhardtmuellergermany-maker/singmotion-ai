@@ -50,3 +50,6 @@
 .singmotion-flow .sm-studio-navigation .sm-studio-back{grid-column:1;justify-self:start}
 .singmotion-flow .sm-studio-navigation .sm-studio-next{grid-column:2;justify-self:end;margin-left:0}
 @media(max-width:650px){.singmotion-flow .flow-main{min-height:calc(100dvh - 70px)}}
+
+/* Reuse the original compact composer on the photo-upload screen only. */
+.singmotion-flow .sm-studio-original-composer{width:min(540px,94%);margin:clamp(30px,10vh,110px) auto 24px;flex-shrink:0}
