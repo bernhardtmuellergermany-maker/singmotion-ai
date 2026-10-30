@@ -94,7 +94,7 @@ test("trusted worker dispatches verified paid media exactly once", async () => {
       currency:"EUR" as const,evidence:"cs_test_worker",
     };}});
     let submits=0;
-    const ops={prepare:async()=>media,submit:async()=>{submits++;return "provider_job_123";}};
+    const ops={prepare:async()=>media,verify:async()=>{},submit:async()=>{submits++;return "provider_job_123";}};
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"submitted");
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
     assert.equal(submits,1);
