@@ -41,6 +41,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   const [selected,setSelected]=useState<string|null>(null);
   const [dragging,setDragging]=useState<string|null>(null);
   const [dropTarget,setDropTarget]=useState<string|null>(null);
+  const [dropIndex,setDropIndex]=useState<number|null>(null);
   const [ghost,setGhost]=useState<{id:string;x:number;y:number;kind:"card"|"timeline"}|null>(null);
   const drag=useRef<Drag|null>(null);
   const track=useRef<HTMLDivElement>(null);
@@ -52,6 +53,17 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   const colorFor=(id:string)=>colors.current[id]||palette[0];
   const orderedSections=[...sections].sort((a,b)=>a.start-b.start);
   const ghostSection=ghost?sections.find(section=>section.id===ghost.id):undefined;
+  const dropSections=orderedSections.filter(section=>section.id!==dragging);
+  const dropTime=dropIndex===null?null:dropIndex<dropSections.length?dropSections[dropIndex].start:dropSections.length?dropSections[dropSections.length-1].end:0;
+  function destinationAt(x:number,y:number,fromCard:boolean,id:string){
+    const remaining=[...latest.current].filter(item=>item.id!==id).sort((a,b)=>a.start-b.start);
+    if(!fromCard&&track.current){const rect=track.current.getBoundingClientRect();const time=Math.max(0,Math.min(seconds,(x-rect.left)/rect.width*seconds));return remaining.filter(item=>(item.start+item.end)/2<time).length;}
+    const cards=Array.from(document.querySelectorAll<HTMLElement>("[data-performance-section-id]")).filter(element=>element.dataset.performanceSectionId!==id);
+    if(!cards.length)return 0;
+    let best=0,distance=Infinity;
+    cards.forEach((card,i)=>{const rect=card.getBoundingClientRect();const center=rect.left+rect.width/2;const middle=rect.top+rect.height/2;const before=Math.hypot(x-center,y-middle+rect.height/4);const after=Math.hypot(x-center,y-middle-rect.height/4);if(before<distance){distance=before;best=i;}if(after<distance){distance=after;best=i+1;}});
+    return best;
+  }
   const update=(id:string,patch:Partial<PerformanceSection>)=>{
     const next=latest.current.map(s=>s.id===id?{...s,...patch}:s);
     latest.current=next;onChange(next);
@@ -79,7 +91,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     const d=drag.current;if(!d||d.width<=0)return;
     const delta=round((e.clientX-d.x)/d.width*seconds);
     if(d.mode==="move")setGhost({id:d.id,x:e.clientX,y:e.clientY,kind:"timeline"});
-    if(d.mode==="move"&&track.current){const bounds=track.current.getBoundingClientRect();const cursor=Math.max(0,Math.min(seconds,(e.clientX-bounds.left)/bounds.width*seconds));const candidate=latest.current.find(item=>item.id!==d.id&&cursor>=item.start&&cursor<=item.end);setDropTarget(candidate?.id??null);}
+    if(d.mode==="move"&&track.current){const bounds=track.current.getBoundingClientRect();const cursor=Math.max(0,Math.min(seconds,(e.clientX-bounds.left)/bounds.width*seconds));const candidate=latest.current.find(item=>item.id!==d.id&&cursor>=item.start&&cursor<=item.end);setDropTarget(candidate?.id??null);setDropIndex(destinationAt(e.clientX,e.clientY,false,d.id));}
     if(d.mode==="move")return;
     const sorted=latest.current.filter(s=>s.id!==d.id);
     const prev=Math.max(0,...sorted.filter(s=>s.end<=d.start+0.0001).map(s=>s.end));
@@ -100,37 +112,23 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   function onCardMove(e:ReactPointerEvent<HTMLButtonElement>){
     if(!drag.current)return;
     setGhost({id:drag.current.id,x:e.clientX,y:e.clientY,kind:"card"});
-    const beneath=document.elementFromPoint(e.clientX,e.clientY)?.closest("[data-performance-section-id]");
-    const target=beneath?.getAttribute("data-performance-section-id")??null;
-    setDropTarget(target===drag.current.id?null:target);
+    const index=destinationAt(e.clientX,e.clientY,true,drag.current.id);
+    setDropIndex(index);
+    const others=orderedSections.filter(item=>item.id!==drag.current?.id);
+    setDropTarget(others[index]?.id??null);
     // Keep card and timeline stable while dragging; commit both only on drop.
   }
   function finishMove(clientX:number,clientY:number,fromCard:boolean){
     const current=drag.current;
     drag.current=null;
-    setDragging(null);setDropTarget(null);setGhost(null);
+    setDragging(null);setDropTarget(null);setGhost(null);setDropIndex(null);
     if(!current||current.mode!=="move"||!track.current)return;
     const ordered=[...latest.current].sort((a,b)=>a.start-b.start);
     const moving=ordered.find(item=>item.id===current.id);
     if(!moving)return;
     const before=ordered.findIndex(item=>item.id===current.id);
     const remaining=ordered.filter(item=>item.id!==current.id);
-    let destination=before;
-    if(fromCard){
-      const element=document.elementFromPoint(clientX,clientY);
-      const target=element?.closest("[data-performance-section-id]")?.getAttribute("data-performance-section-id");
-      const index=remaining.findIndex(item=>item.id===target);
-      if(index>=0)destination=index;
-      else {
-        // Card drags can end outside another card: fall back to horizontal movement.
-        const dx=clientX-current.x;
-        destination=Math.max(0,Math.min(remaining.length,before+Math.round(dx/180)));
-      }
-    }else{
-      const rect=track.current.getBoundingClientRect();
-      const time=Math.max(0,Math.min(seconds,(clientX-rect.left)/rect.width*seconds));
-      destination=remaining.filter(item=>(item.start+item.end)/2<time).length;
-    }
+    const destination=destinationAt(clientX,clientY,fromCard,current.id);
     if(destination===before)return;
     remaining.splice(destination,0,moving);
     // Preserve each section's duration and instructions; repack chronologically.
@@ -207,10 +205,11 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
         <div className="sm-timeline-segment-body" role="slider" tabIndex={0} aria-label={`Move section ${i+1}`} aria-valuemin={0} aria-valuemax={seconds-(s.end-s.start)} aria-valuenow={s.start} onPointerDown={e=>onDown(e,s,"move")} onPointerMove={onMove} onPointerUp={e=>finishMove(e.clientX,e.clientY,false)} onPointerCancel={()=>{drag.current=null;setDragging(null);setDropTarget(null);setGhost(null);}} onKeyDown={e=>onKey(e,s,"move")}><span>{s.camera}{s.emotion!=="Neutral"?" + "+s.emotion:""} · {s.start.toFixed(1)}–{s.end.toFixed(1)}s</span></div>
         <div className="sm-timeline-handle" role="slider" tabIndex={0} aria-label={`Resize end of section ${i+1}`} aria-valuemin={s.start+MIN} aria-valuemax={seconds} aria-valuenow={s.end} onPointerDown={e=>onDown(e,s,"right")} onPointerMove={onMove} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null} onKeyDown={e=>onKey(e,s,"right")}/>
       </div>)}
+      {dragging&&dropTime!==null&&<div className="sm-timeline-drop-marker" style={{left:`${100*dropTime/seconds}%`}} aria-hidden="true"><span>Drop here</span></div>}
       {audioUrl&&<div className="sm-timeline-playhead" aria-hidden="true" style={{left:`${100*position/seconds}%`}}/>}
     </div>
     {!sections.length?<div className="sm-timeline-empty"><Plus size={32}/><strong>No sections yet</strong><p>Add a section to direct the performance, or continue without one.</p><button type="button" onClick={add}><Plus size={17}/> Add Section</button></div>:
-    <div className="sm-timeline-cards">{orderedSections.map((s,i)=><article key={s.id} data-performance-section-id={s.id} className={(selected===s.id?"is-selected ":"")+(dragging===s.id?"is-dragging ":"")+(dropTarget===s.id?"is-drop-target":"")} style={{borderColor:colorFor(s.id)}} onClick={()=>setSelected(s.id)}>
+    <div className="sm-timeline-cards">{orderedSections.map((s,i)=><article key={s.id} data-performance-section-id={s.id} className={(dropIndex!==null&&dragging!==null&&dropSections[dropIndex]?.id===s.id?"is-insert-before ":"")+(dropIndex!==null&&dragging!==null&&dropIndex===dropSections.length&&dropSections[dropSections.length-1]?.id===s.id?"is-insert-after ":"")+(selected===s.id?"is-selected ":"")+(dragging===s.id?"is-dragging ":"")+(dropTarget===s.id?"is-drop-target":"")} style={{borderColor:colorFor(s.id)}} onClick={()=>setSelected(s.id)}>
       <header className="sm-timeline-card-header"><button type="button" className="sm-timeline-card-grip" title="Drag to move section in timeline" aria-label={`Drag section ${i+1} to reorder it`} onPointerDown={e=>onCardDown(e,s)} onPointerMove={onCardMove} onPointerUp={e=>finishMove(e.clientX,e.clientY,true)} onPointerCancel={()=>drag.current=null}><GripHorizontal size={14}/></button><span className="sm-timeline-dot" style={{background:colorFor(s.id)}}/><strong>{s.start.toFixed(1)}–{s.end.toFixed(1)}s</strong><label>Start<input aria-label={`Section ${i+1} start`} type="number" min={0} max={s.end-MIN} step="0.1" value={s.start} onChange={e=>changeTime(s.id,Number(e.target.value),s.end)}/></label><label>End<input aria-label={`Section ${i+1} end`} type="number" min={s.start+MIN} max={seconds} step="0.1" value={s.end} onChange={e=>changeTime(s.id,s.start,Number(e.target.value))}/></label><button type="button" aria-label="Remove section" onClick={()=>{const next=latest.current.filter(x=>x.id!==s.id);latest.current=next;onChange(next);}}><Trash2 size={16}/></button></header>
       <div className="sm-timeline-add-camera"><details className="flow-camera-menu"><summary aria-label="Add camera movement"><Plus size={15}/><span>Add camera</span><ChevronDown size={14}/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameras.map(option=><button key={option} type="button" onClick={e=>{const field=e.currentTarget.closest("article")?.querySelector<HTMLTextAreaElement>("textarea");const pos=field?.selectionStart??s.instructions.length;const insert=`Camera movement: ${option}.`;const before=s.instructions.slice(0,pos),after=s.instructions.slice(pos);const next=(before+(before&&!before.endsWith("\n")?"\n":"")+insert+(after&&!after.startsWith("\n")?"\n":"")+after);if(next.length>500){setNotice("Section instructions cannot exceed 500 characters.");return;}update(s.id,{camera:option,instructions:next});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option]}><strong>{option}</strong><small>{cameraHelp[option]}</small></button>)}</div></details></div>
       <label>Emotion / Expression<select value={s.emotion} onChange={e=>update(s.id,{emotion:e.target.value})}>{emotions.map(x=><option key={x}>{x}</option>)}</select></label>
