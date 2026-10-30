@@ -467,6 +467,13 @@ export class CommerceStore {
     if (typeof evidence !== "string" || evidence.trim().length < 20 || evidence.length > 2048)
       throw Error("Verified fulfillment evidence required");
     return this.tx(() => {
+      if (outcome.state === "delivered") {
+        const job = this.db.prepare(`
+          SELECT 1 FROM customer_provider_jobs
+          WHERE order_id=? AND provider='byteplus'
+        `).get(orderId);
+        if (!job) throw Error("Confirmed provider job required before delivery");
+      }
       const changed = this.db.prepare(`
         UPDATE customer_fulfillment_queue SET state=?
         WHERE order_id=? AND state='processing'
