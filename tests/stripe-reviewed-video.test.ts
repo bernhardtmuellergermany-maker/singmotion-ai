@@ -6,6 +6,7 @@ import { CommerceStore } from "../lib/commerce/store.ts";
 import { submitReviewedPaidVideo } from "../lib/commerce/paid-video-worker.ts";
 
 const media = {
+  owner:"test-owner",audioPath:"/private/audio.wav",imagePath:"/private/image.png",
   audioSha256: "a".repeat(64), imageSha256: "b".repeat(64),
   durationSeconds: 8.1234, prompt: "Sing naturally, camera static.", outputFormat: "9:16",
 } as PreparedMedia;
@@ -120,4 +121,21 @@ test("ambiguous paid provider response never triggers automatic retry", async ()
     assert.equal(store.paidSubmissionStatus(id),"submitted_or_unknown");
     assert.equal(store.paidProviderJob(id),null);
   } finally {store.close();}
+});
+
+test("paid worker reads the stored immutable media snapshot instead of browser input", async () => {
+ const store = new CommerceStore(":memory:");
+ try {
+   const id=store.preparedVideoOrder({account:null,email:"buyer@example.test",project:"snapshot",
+     cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"snapshot-test",media}).id;
+   assert.throws(()=>store.paidPreparedMedia(id),/Claimed/);
+   store.bindStripeCheckout(id,"cs_test_snapshot");
+   await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+     provider:"stripe",eventId:"evt_snapshot",orderId:id,cents:1250,
+     currency:"EUR" as const,evidence:"cs_test_snapshot",
+   };}});
+   assert.equal(store.claimPaidFulfillment(id),true);
+   assert.equal(store.paidPreparedMedia(id).imageSha256,media.imageSha256);
+   assert.equal(store.paidPreparedMedia(id).audioPath,media.audioPath);
+ } finally {store.close();}
 });
