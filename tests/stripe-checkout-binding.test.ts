@@ -169,3 +169,28 @@ test("unknown BytePlus submission after network timeout stays permanently blocke
     assert.equal(store.paidProviderJob(id),null);
   } finally {store.close();}
 });
+
+test("delivered video asset is visible only to its authorized guest", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const created = store.order({
+      account: null, email: "viewer@example.test", project: "viewer-project",
+      cents: 1250, quoteEvidence: "reviewed-quote-evidence-2026", key: "owner-delivery-access",
+    });
+    const id = created.id;
+    const token = created.guestToken;
+    assert.ok(token);
+    assert.throws(() => store.ownedDeliveredVideoAsset(id,null,"wrong-guest-token"), /unavailable/);
+    assert.equal(store.ownedDeliveredVideoAsset(id,null,token!),null);
+    store.bindStripeCheckout(id,"cs_test_delivered_owner");
+    await deliver(store,receipt(id,"evt_delivered_owner","cs_test_delivered_owner"));
+    assert.equal(store.claimPaidFulfillment(id),true);
+    assert.equal(store.beginPaidProviderSubmission(id),true);
+    assert.equal(store.recordPaidProviderJob(id,"byteplus","task-owner-access"),true);
+    assert.equal(store.recordPaidVideoDelivery(id,"private_video_ownership_001","validated-private-video-ownership-001"),true);
+    assert.equal(store.ownedDeliveredVideoAsset(id,null,token!),null);
+    assert.equal(store.finalizePaidFulfillment(id,{state:"delivered",deliveryEvidence:"private-video-delivery-complete-001"}),true);
+    assert.equal(store.ownedDeliveredVideoAsset(id,null,token!),"private_video_ownership_001");
+    assert.throws(() => store.ownedDeliveredVideoAsset(id,null,"wrong-guest-token"), /unavailable/);
+  } finally {store.close();}
+});
