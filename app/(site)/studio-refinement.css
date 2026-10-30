@@ -260,3 +260,44 @@
   .singmotion-flow .sm-timeline-segment,
   .singmotion-flow .sm-timeline-cards article{transition:none}
 }
+
+
+/* Higher specificity overrides the legacy flex header; fixed tracks prevent time fields drifting. */
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+  display:grid;
+  justify-content:stretch;
+  align-items:center;
+  grid-template-columns:11px minmax(0,1fr) 76px 76px 24px;
+  column-gap:5px;
+  padding-left:20px;
+  width:100%;
+  box-sizing:border-box;
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{
+  display:grid;
+  grid-template-columns:24px 48px;
+  gap:3px;
+  align-items:center;
+  width:76px;
+  margin:0;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{
+  display:block;
+  width:48px;
+  margin:0;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum";
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+  min-width:0;
+}
+@media(max-width:450px){
+ .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{grid-template-columns:11px minmax(0,1fr) 70px 70px 22px;column-gap:3px}
+ .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{grid-template-columns:23px 44px;gap:3px;width:70px}
+ .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{width:44px}
+}
