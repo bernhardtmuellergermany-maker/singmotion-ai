@@ -71,3 +71,29 @@
   align-self:center;
   justify-self:center;
 }
+
+
+/* Responsive editor: compact cards and accessible pointer handles. */
+.singmotion-flow .sm-timeline{width:min(1480px,96%);padding:20px;margin:14px auto}
+.singmotion-flow .sm-timeline-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.singmotion-flow .sm-timeline-cards article{padding:12px;min-width:0}
+.singmotion-flow .sm-timeline-cards article>label{display:block;margin-top:9px;font-size:12px}
+.singmotion-flow .sm-timeline-cards article select,.singmotion-flow .sm-timeline-cards article textarea{padding:8px;margin-top:4px}
+.singmotion-flow .sm-timeline-cards article textarea{min-height:56px;max-height:120px;resize:vertical}
+.singmotion-flow .sm-timeline-card-header{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.singmotion-flow .sm-timeline-card-header>strong{font-size:12px;white-space:nowrap;margin-right:auto}
+.singmotion-flow .sm-timeline-card-header>label{display:flex;align-items:center;gap:3px;font-size:11px;margin:0;color:#bdc9df}
+.singmotion-flow .sm-timeline-card-header input{width:47px;min-width:0;padding:4px 2px;margin:0;font-size:11px;text-align:center}
+.singmotion-flow .sm-timeline-card-header button{padding:3px}
+.sm-timeline-dot{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none}
+.sm-timeline-counter{display:block;text-align:right;color:#9baccc;font-size:10px}
+.sm-timeline-notice{font-size:12px;color:#e7b8ff}
+.singmotion-flow .sm-timeline-track>.sm-timeline-segment{display:flex;align-items:stretch;justify-content:stretch;overflow:visible;touch-action:none;user-select:none}
+.sm-timeline-segment-body{min-width:0;flex:1;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;user-select:none}
+.sm-timeline-segment-body:active{cursor:grabbing}
+.sm-timeline-segment-body span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.sm-timeline-handle{width:11px;min-width:11px;position:relative;cursor:ew-resize;background:#ffffff33;border-left:1px solid #ffffff60;border-right:1px solid #ffffff60;touch-action:none}
+.sm-timeline-segment [role=slider]:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.sm-timeline-cards article.is-selected{box-shadow:0 0 0 1px #bf83ff77}
+@media(max-width:1100px){.singmotion-flow .sm-timeline-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.singmotion-flow .sm-timeline-cards{grid-template-columns:minmax(0,1fr)}.singmotion-flow .sm-timeline-card-header{gap:5px}}
