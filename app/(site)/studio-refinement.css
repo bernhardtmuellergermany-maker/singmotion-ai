@@ -42,3 +42,11 @@
 
 /* Keep Continue right-aligned when the first page has no Back action. */
 .sm-studio-navigation .sm-studio-next{margin-left:auto}
+
+
+/* Fixed wizard navigation positions, independent of step content and missing buttons. */
+.singmotion-flow .flow-main{min-height:calc(100dvh - 82px);display:flex;flex-direction:column}
+.singmotion-flow .sm-studio-navigation{margin-top:auto;padding-top:28px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;align-items:center}
+.singmotion-flow .sm-studio-navigation .sm-studio-back{grid-column:1;justify-self:start}
+.singmotion-flow .sm-studio-navigation .sm-studio-next{grid-column:2;justify-self:end;margin-left:0}
+@media(max-width:650px){.singmotion-flow .flow-main{min-height:calc(100dvh - 70px)}}
