@@ -9,7 +9,7 @@ export async function submitReviewedPaidVideo(
   store: CommerceStore,
   orderId: string,
   operations: {
-    prepare: (orderId: string) => Promise<PreparedMedia>;
+    prepare?: (orderId: string) => Promise<PreparedMedia>;
     submit: (media: PreparedMedia, orderId: string) => Promise<string>;
     verify?: (media: PreparedMedia) => Promise<void>;
   },
@@ -18,7 +18,8 @@ export async function submitReviewedPaidVideo(
   if (!store.claimPaidFulfillment(orderId)) return "already-claimed";
   // Prepare before opening the network submission barrier. An invalid input
   // leaves a claimed order for manual inspection, never auto-resubmits.
-  const media = await operations.prepare(orderId);
+  // Default to the sealed, private order snapshot; never reconstruct from browser input.
+  const media = operations.prepare ? await operations.prepare(orderId) : store.paidPreparedMedia(orderId);
   store.assertPaidOrderMediaUnchanged(orderId, media);
   await (operations.verify ?? verifyPrivatePaidMediaSnapshot)(media);
   // Check the immutable order commitment before crossing the paid provider boundary.
