@@ -194,3 +194,20 @@ test("delivered video asset is visible only to its authorized guest", async () =
     assert.throws(() => store.ownedDeliveredVideoAsset(id,null,"wrong-guest-token"), /unavailable/);
   } finally {store.close();}
 });
+
+test("reviewed customer video inputs are immutable and bound before payment", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = order(store, "reviewed-inputs");
+    const inputDigest = "a".repeat(64);
+    const reviewDigest = "b".repeat(64);
+    assert.throws(() => store.bindReviewedOrderInputs(id, "bad", reviewDigest), /digest/);
+    assert.equal(store.bindReviewedOrderInputs(id, inputDigest, reviewDigest), true);
+    assert.equal(store.bindReviewedOrderInputs(id, inputDigest, reviewDigest), false);
+    assert.throws(() => store.bindReviewedOrderInputs(id, "c".repeat(64), reviewDigest), /conflict/);
+    store.bindStripeCheckout(id, "cs_test_reviewed");
+    await deliver(store, receipt(id, "evt_reviewed", "cs_test_reviewed"));
+    assert.throws(() => store.bindReviewedOrderInputs(id, inputDigest, reviewDigest), /awaiting payment/);
+    assert.equal(store.db.prepare("SELECT input_digest FROM customer_order_inputs WHERE order_id=?").get(id)?.input_digest, inputDigest);
+  } finally { store.close(); }
+});
