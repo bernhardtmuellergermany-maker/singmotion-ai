@@ -51,6 +51,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   }
   const colorFor=(id:string)=>colors.current[id]||palette[0];
   const orderedSections=[...sections].sort((a,b)=>a.start-b.start);
+  const ghostSection=ghost?sections.find(section=>section.id===ghost.id):undefined;
   const update=(id:string,patch:Partial<PerformanceSection>)=>{
     const next=latest.current.map(s=>s.id===id?{...s,...patch}:s);
     latest.current=next;onChange(next);
@@ -217,7 +218,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
       <label>Custom Instructions<textarea maxLength={500} rows={2} value={s.instructions} placeholder="Describe what the singer or speaker should do..." onChange={e=>update(s.id,{instructions:e.target.value})}/><small className="sm-timeline-counter">{s.instructions.length}/500</small></label>
     </article>)}</div>}
     {!!sections.length&&<button type="button" className="sm-timeline-add" onClick={add}><Plus size={17}/> Add Section</button>}
-    {ghost&&(()=>{const item=latest.current.find(section=>section.id===ghost.id);return item?<div className={"sm-section-drag-ghost sm-section-drag-ghost-"+ghost.kind} style={{left:ghost.x,top:ghost.y,borderColor:colorFor(item.id),backgroundColor:"#15213a"}} aria-hidden="true"><span className="sm-timeline-dot" style={{background:colorFor(item.id)}}/><GripHorizontal size={16}/><strong>{item.start.toFixed(1)}–{item.end.toFixed(1)}s</strong><span>{item.camera}</span></div>:null;})()}
+    {ghost&&ghostSection&&<div className={"sm-section-drag-ghost sm-section-drag-ghost-"+ghost.kind} style={{left:ghost.x,top:ghost.y,borderColor:colorFor(ghostSection.id),backgroundColor:"#15213a"}} aria-hidden="true"><span className="sm-timeline-dot" style={{background:colorFor(ghostSection.id)}}/><GripHorizontal size={16}/><strong>{ghostSection.start.toFixed(1)}–{ghostSection.end.toFixed(1)}s</strong><span>{ghostSection.camera}</span></div>}
     {notice&&<p role="status" className="sm-timeline-notice">{notice}</p>}
   </section>;
 }
