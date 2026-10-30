@@ -130,13 +130,35 @@ test("provider job reference is unique, immutable and requires paid exclusive cl
     await deliver(store,receipt(second,"evt_job_second","cs_test_job_second"));
     assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-123"), /claim/);
     assert.equal(store.claimPaidFulfillment(first),true);
+    assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-123"), /barrier/);
+    assert.equal(store.beginPaidProviderSubmission(first),true);
+    assert.equal(store.beginPaidProviderSubmission(first),false);
+    assert.equal(store.paidSubmissionStatus(first),"submitted_or_unknown");
     assert.equal(store.recordPaidProviderJob(first,"byteplus","task-123"),true);
+    assert.equal(store.paidSubmissionStatus(first),"acknowledged");
     assert.deepEqual(store.paidProviderJob(first),{provider:"byteplus",jobId:"task-123"});
     assert.equal(store.recordPaidProviderJob(first,"byteplus","task-123"),false);
     assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-456"), /conflict/);
     assert.equal(store.claimPaidFulfillment(second),true);
+    assert.equal(store.beginPaidProviderSubmission(second),true);
     assert.throws(() => store.recordPaidProviderJob(second,"byteplus","task-123"), /UNIQUE/);
     assert.equal(store.paidProviderJob(second),null);
     assert.equal(store.claimPaidFulfillment(first),false);
   } finally { store.close(); }
+});
+
+test("unknown BytePlus submission after network timeout stays permanently blocked", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = order(store, "unknown-submission");
+    store.bindStripeCheckout(id,"cs_test_unknown");
+    await deliver(store,receipt(id,"evt_unknown","cs_test_unknown"));
+    assert.throws(() => store.beginPaidProviderSubmission(id),/claim/);
+    assert.equal(store.claimPaidFulfillment(id),true);
+    assert.equal(store.beginPaidProviderSubmission(id),true);
+    assert.equal(store.paidSubmissionStatus(id),"submitted_or_unknown");
+    assert.equal(store.beginPaidProviderSubmission(id),false);
+    assert.equal(store.claimPaidFulfillment(id),false);
+    assert.equal(store.paidProviderJob(id),null);
+  } finally {store.close();}
 });
