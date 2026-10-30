@@ -117,3 +117,26 @@ test("worker discovery returns only paid pending jobs and never dispatches them"
     assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(second)?.state, "pending");
   } finally { store.close(); }
 });
+
+test("provider job reference is unique, immutable and requires paid exclusive claim", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const first = order(store, "provider-job-first");
+    const second = order(store, "provider-job-second");
+    assert.throws(() => store.recordPaidProviderJob(first, "byteplus", "task-123"), /claim/);
+    store.bindStripeCheckout(first,"cs_test_job_first");
+    store.bindStripeCheckout(second,"cs_test_job_second");
+    await deliver(store,receipt(first,"evt_job_first","cs_test_job_first"));
+    await deliver(store,receipt(second,"evt_job_second","cs_test_job_second"));
+    assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-123"), /claim/);
+    assert.equal(store.claimPaidFulfillment(first),true);
+    assert.equal(store.recordPaidProviderJob(first,"byteplus","task-123"),true);
+    assert.deepEqual(store.paidProviderJob(first),{provider:"byteplus",jobId:"task-123"});
+    assert.equal(store.recordPaidProviderJob(first,"byteplus","task-123"),false);
+    assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-456"), /conflict/);
+    assert.equal(store.claimPaidFulfillment(second),true);
+    assert.throws(() => store.recordPaidProviderJob(second,"byteplus","task-123"), /UNIQUE/);
+    assert.equal(store.paidProviderJob(second),null);
+    assert.equal(store.claimPaidFulfillment(first),false);
+  } finally { store.close(); }
+});
