@@ -37,6 +37,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_credits(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,delta INTEGER NOT NULL,kind TEXT NOT NULL,evidence TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_holds(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,cents INTEGER NOT NULL,state TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS payment_events(event_key TEXT PRIMARY KEY,receipt_hash TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS stripe_checkout_sessions(order_id TEXT PRIMARY KEY,session_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
   private tx<T>(fn: () => T): T {
@@ -315,6 +316,23 @@ export class CommerceStore {
       this.audit(actor.id, "credit-refund", id);
     });
   }
+  /** Bind the exact Stripe-created Checkout Session before accepting any payment. */
+  bindStripeCheckout(orderId: string, sessionId: string) {
+    if (!/^cs_test_[A-Za-z0-9_]+$/.test(sessionId))
+      throw Error("Invalid Stripe sandbox Checkout Session");
+    return this.tx(() => {
+      const order = this.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(orderId);
+      if (!order || order.status !== "awaiting_payment")
+        throw Error("Checkout order is not awaiting payment");
+      const prior = this.db.prepare("SELECT session_id FROM stripe_checkout_sessions WHERE order_id=?").get(orderId);
+      if (prior) {
+        if (prior.session_id !== sessionId) throw Error("Checkout Session conflict");
+        return;
+      }
+      this.db.prepare("INSERT INTO stripe_checkout_sessions VALUES(?,?,?)")
+        .run(orderId, sessionId, Date.now());
+    });
+  }
   async webhook(raw: Uint8Array, signature: string, adapter: PaymentAdapter) {
     const receipt = await adapter.verify(raw, signature);
     amount(receipt.cents);
@@ -335,6 +353,11 @@ export class CommerceStore {
         if (prior.receipt_hash !== digest)
           throw Error("Conflicting payment event");
         return;
+      }
+      if (receipt.provider === "stripe") {
+        const checkout = this.db.prepare("SELECT session_id FROM stripe_checkout_sessions WHERE order_id=?").get(receipt.orderId);
+        if (!checkout || checkout.session_id !== receipt.evidence)
+          throw Error("Stripe Checkout Session does not match order");
       }
       const o = this.db
         .prepare("SELECT * FROM customer_orders WHERE id=?")
