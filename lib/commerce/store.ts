@@ -47,15 +47,27 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
+  private txDepth = 0;
   private tx<T>(fn: () => T): T {
-    this.db.exec("BEGIN IMMEDIATE");
+    // Nested order preparation must be atomic: SQLite cannot BEGIN within BEGIN.
+    const nested = this.txDepth > 0;
+    const savepoint = `commerce_nested_${this.txDepth}`;
+    this.db.exec(nested ? `SAVEPOINT ${savepoint}` : "BEGIN IMMEDIATE");
+    this.txDepth++;
     try {
-      const r = fn();
-      this.db.exec("COMMIT");
-      return r;
-    } catch (e) {
-      this.db.exec("ROLLBACK");
-      throw e;
+      const result = fn();
+      this.db.exec(nested ? `RELEASE SAVEPOINT ${savepoint}` : "COMMIT");
+      return result;
+    } catch (error) {
+      if (nested) {
+        this.db.exec(`ROLLBACK TO SAVEPOINT ${savepoint}`);
+        this.db.exec(`RELEASE SAVEPOINT ${savepoint}`);
+      } else {
+        this.db.exec("ROLLBACK");
+      }
+      throw error;
+    } finally {
+      this.txDepth--;
     }
   }
   private audit(actor: string, action: string, record: string) {
