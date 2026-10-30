@@ -346,7 +346,7 @@ export function StudioWizard({
           <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
         </div>
         <div className="flow-header-right">
-          <GlobalMenu />
+          <GlobalMenu openInNewTab />
           <Link href="/login" className="flow-profile" aria-label="Login"><UserRound size={21}/></Link>
         </div>
       </header>
