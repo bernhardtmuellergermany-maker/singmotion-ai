@@ -34,6 +34,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   const [playing,setPlaying]=useState(false);
   const [position,setPosition]=useState(0);
   const player=useRef<HTMLAudioElement>(null);
+  const playbackFrame=useRef<number|null>(null);
   const [notice,setNotice]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
   const drag=useRef<Drag|null>(null);
@@ -81,28 +82,25 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   }
   useEffect(()=>{
     const audio=player.current;
-    if(!audio)return;
-    let frame=0;
-    const tick=()=>{
-      const at=Math.max(0,Math.min(seconds,audio.currentTime-audioStart));
-      setPosition(at);
-      if(at>=seconds-0.015){audio.pause();setPlaying(false);return;}
-      if(!audio.paused)frame=requestAnimationFrame(tick);
+    return ()=>{
+      if(playbackFrame.current!==null)cancelAnimationFrame(playbackFrame.current);
+      playbackFrame.current=null;
+      audio?.pause();
     };
-    const stopped=()=>{cancelAnimationFrame(frame);setPlaying(false);};
-    audio.addEventListener("ended",stopped);
-    audio.addEventListener("pause",stopped);
-    return ()=>{cancelAnimationFrame(frame);audio.pause();audio.removeEventListener("ended",stopped);audio.removeEventListener("pause",stopped);};
   },[audioUrl,audioStart,seconds]);
   async function togglePlayback(){
     const audio=player.current;if(!audio)return;
-    if(!audio.paused){audio.pause();setPlaying(false);return;}
+    if(!audio.paused){audio.pause();setPlaying(false);if(playbackFrame.current!==null)cancelAnimationFrame(playbackFrame.current);return;}
     if(position>=seconds-0.015||audio.currentTime<audioStart||audio.currentTime>=audioStart+seconds)audio.currentTime=audioStart;
-    try{await audio.play();setPlaying(true);
-      const tick=()=>{const at=Math.max(0,Math.min(seconds,audio.currentTime-audioStart));setPosition(at);
-        if(at>=seconds-0.015){audio.pause();setPlaying(false);}
-        else if(!audio.paused)requestAnimationFrame(tick);};
-      requestAnimationFrame(tick);
+    try{
+      await audio.play();setPlaying(true);
+      const tick=()=>{
+        const at=Math.max(0,Math.min(seconds,audio.currentTime-audioStart));
+        setPosition(at);
+        if(at>=seconds-0.015){audio.pause();setPlaying(false);playbackFrame.current=null;return;}
+        if(!audio.paused)playbackFrame.current=requestAnimationFrame(tick);
+      };
+      playbackFrame.current=requestAnimationFrame(tick);
     }catch{setNotice("Audio playback is unavailable.");}
   }
   const ticks=Array.from({length:Math.min(Math.ceil(seconds),15)+1},(_,i)=>round(i*seconds/Math.min(Math.ceil(seconds),15)));
