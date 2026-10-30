@@ -301,3 +301,38 @@
  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{grid-template-columns:23px 44px;gap:3px;width:70px}
  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{width:44px}
 }
+
+
+/* Center every Studio step inside the available area, keeping navigation bottom aligned. */
+.singmotion-flow .flow-main{
+  display:grid;
+  grid-template-rows:minmax(0,1fr) auto;
+  grid-template-columns:minmax(0,1fr);
+  align-items:stretch;
+  justify-items:center;
+}
+.singmotion-flow .flow-main>.sm-studio-audio-step,
+.singmotion-flow .flow-main>.sm-timeline,
+.singmotion-flow .flow-main>.sm-studio-original-composer,
+.singmotion-flow .flow-main>.sm-studio-review{
+  grid-column:1;
+  grid-row:1;
+  align-self:center;
+  justify-self:center;
+  margin:18px auto !important;
+  min-width:0;
+}
+.singmotion-flow .flow-main>.sm-studio-navigation{
+  grid-column:1;
+  grid-row:2;
+  align-self:end;
+  justify-self:center;
+  margin:0 auto 28px !important;
+}
+.singmotion-flow .flow-main>.flow-error{
+  grid-column:1;
+  justify-self:center;
+}
+@media(max-width:650px){
+  .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
+}
