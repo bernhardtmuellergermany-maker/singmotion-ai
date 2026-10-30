@@ -1,7 +1,7 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Plus, Trash2, Clock3 } from "lucide-react";
+import { Plus, Trash2, Clock3, Play, Pause } from "lucide-react";
 
 export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string};
 const cameraModes=["Static","Orbit left","Orbit right","Push-in","Pull-out","Pan left","Pan right"];
@@ -27,10 +27,13 @@ export function validInterval(sections:PerformanceSection[],id:string,start:numb
     end-start>=MIN-0.00001&&sections.every(s=>s.id===id||end<=s.start+0.00001||start>=s.end-0.00001);
 }
 type Drag={id:string;mode:"move"|"left"|"right";x:number;start:number;end:number;width:number};
-export function PerformanceTimeline({duration,sections,onChange}:{
-  duration:number;sections:PerformanceSection[];onChange:(value:PerformanceSection[])=>void;
+export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioStart=0}:{
+  duration:number;sections:PerformanceSection[];onChange:(value:PerformanceSection[])=>void;audioUrl?:string;audioStart?:number;
 }) {
-  const seconds=round(Math.max(0.5,Math.min(300,duration)));
+  const seconds=Math.max(0.5,Math.min(300,duration));
+  const [playing,setPlaying]=useState(false);
+  const [position,setPosition]=useState(0);
+  const player=useRef<HTMLAudioElement>(null);
   const [notice,setNotice]=useState("");
   const [selected,setSelected]=useState<string|null>(null);
   const drag=useRef<Drag|null>(null);
@@ -76,9 +79,35 @@ export function PerformanceTimeline({duration,sections,onChange}:{
     else if(mode==="left")changeTime(s.id,s.start+delta,s.end);
     else changeTime(s.id,s.start,s.end+delta);
   }
+  useEffect(()=>{
+    const audio=player.current;
+    if(!audio)return;
+    let frame=0;
+    const tick=()=>{
+      const at=Math.max(0,Math.min(seconds,audio.currentTime-audioStart));
+      setPosition(at);
+      if(at>=seconds-0.015){audio.pause();setPlaying(false);return;}
+      if(!audio.paused)frame=requestAnimationFrame(tick);
+    };
+    const stopped=()=>{cancelAnimationFrame(frame);setPlaying(false);};
+    audio.addEventListener("ended",stopped);
+    audio.addEventListener("pause",stopped);
+    return ()=>{cancelAnimationFrame(frame);audio.pause();audio.removeEventListener("ended",stopped);audio.removeEventListener("pause",stopped);};
+  },[audioUrl,audioStart,seconds]);
+  async function togglePlayback(){
+    const audio=player.current;if(!audio)return;
+    if(!audio.paused){audio.pause();setPlaying(false);return;}
+    if(position>=seconds-0.015||audio.currentTime<audioStart||audio.currentTime>=audioStart+seconds)audio.currentTime=audioStart;
+    try{await audio.play();setPlaying(true);
+      const tick=()=>{const at=Math.max(0,Math.min(seconds,audio.currentTime-audioStart));setPosition(at);
+        if(at>=seconds-0.015){audio.pause();setPlaying(false);}
+        else if(!audio.paused)requestAnimationFrame(tick);};
+      requestAnimationFrame(tick);
+    }catch{setNotice("Audio playback is unavailable.");}
+  }
   const ticks=Array.from({length:Math.min(Math.ceil(seconds),15)+1},(_,i)=>round(i*seconds/Math.min(Math.ceil(seconds),15)));
   return <section className="sm-timeline" aria-label="Performance Timeline">
-    <div className="sm-timeline-heading"><Clock3 size={29}/><div><h2>Performance Timeline <span>Optional</span></h2><p>Define camera movements, emotions, actions and instructions for each time section.</p></div><strong>Duration: {seconds.toFixed(1)} seconds</strong></div>
+    <div className="sm-timeline-heading"><Clock3 size={29}/><div><h2>Performance Timeline <span>Optional</span></h2><p>Define camera movements, emotions, actions and instructions for each time section.</p></div><div className="sm-timeline-playback">{audioUrl&&<><audio ref={player} src={audioUrl} preload="metadata"/><button type="button" aria-label={playing?"Pause selected audio":"Play selected audio"} onClick={()=>void togglePlayback()}>{playing?<Pause size={17}/>:<Play size={17}/>}</button></>}<strong>Duration: {seconds.toFixed(2)} seconds</strong></div></div>
     <div className="sm-timeline-ruler">{ticks.map((t,i)=><span key={i}>{t}s</span>)}</div>
     <div className="sm-timeline-track" ref={track} aria-label="Editable timeline">
       {sections.map((s,i)=><div key={s.id} className={"sm-timeline-segment"+(selected===s.id?" is-selected":"")} style={{left:`${100*s.start/seconds}%`,width:`${100*(s.end-s.start)/seconds}%`,background:palette[i%palette.length]}} title={`${s.start.toFixed(1)}–${s.end.toFixed(1)}s`}>
@@ -86,6 +115,7 @@ export function PerformanceTimeline({duration,sections,onChange}:{
         <div className="sm-timeline-segment-body" role="slider" tabIndex={0} aria-label={`Move section ${i+1}`} aria-valuemin={0} aria-valuemax={seconds-(s.end-s.start)} aria-valuenow={s.start} onPointerDown={e=>onDown(e,s,"move")} onPointerMove={onMove} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null} onKeyDown={e=>onKey(e,s,"move")}><span>{s.camera}{s.emotion!=="Neutral"?" + "+s.emotion:""} · {s.start.toFixed(1)}–{s.end.toFixed(1)}s</span></div>
         <div className="sm-timeline-handle" role="slider" tabIndex={0} aria-label={`Resize end of section ${i+1}`} aria-valuemin={s.start+MIN} aria-valuemax={seconds} aria-valuenow={s.end} onPointerDown={e=>onDown(e,s,"right")} onPointerMove={onMove} onPointerUp={()=>drag.current=null} onPointerCancel={()=>drag.current=null} onKeyDown={e=>onKey(e,s,"right")}/>
       </div>)}
+      {audioUrl&&<div className="sm-timeline-playhead" aria-hidden="true" style={{left:`${100*position/seconds}%`}}/>}
     </div>
     {!sections.length?<div className="sm-timeline-empty"><Plus size={32}/><strong>No sections yet</strong><p>Add a section to direct the performance, or continue without one.</p><button type="button" onClick={add}><Plus size={17}/> Add Section</button></div>:
     <div className="sm-timeline-cards">{sections.map((s,i)=><article key={s.id} className={selected===s.id?"is-selected":""} style={{borderColor:palette[i%palette.length]}} onClick={()=>setSelected(s.id)}>
