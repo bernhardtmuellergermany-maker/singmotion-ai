@@ -328,7 +328,7 @@ function AccountPanel(){
    if(mode==="preview")setGuestPreview(data);else{setGuestPreview(null);setImportMessage("Guest projects imported successfully.");window.location.reload()}
   }catch(e){setImportMessage((e as Error).message)}finally{setBusy(false)}
  }
- const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register"|"staff">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{fetch("/api/customer-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.authenticated){setAccount(d.email);setStaff(d.kind==="staff")}}).catch(()=>{});},[]);
  async function act(action:"login"|"register"|"logout"){
   setBusy(true);setError("");
@@ -339,20 +339,21 @@ function AccountPanel(){
     await fetch("/api/session/logout",{method:"POST",headers:{"Content-Type":"application/json"}});
     setAccount(null);window.location.reload();return;
    }
-   const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,email,password})});
+   const res=await fetch(mode==="staff"?"/api/cms/staff/login":"/api/customer-auth",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(mode==="staff"?{email,password}:{action,email,password})});
    const d=await res.json();if(!res.ok)throw Error(d.error||"Sign-in failed");
    setPassword("");setAccount(action==="logout"?null:d.email);window.location.reload();
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
  return <div className="sm-carousel-login">
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
-  <h1>{account?"Your account":mode==="login"?"Sign in":"Create account"}</h1>
+  <h1>{account?"Your account":mode==="login"?"Sign in":mode==="staff"?"Staff sign in":"Create account"}</h1>
   {account?<><p>{account}</p>{!staff&&<button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>}{!staff&&guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}{importMessage&&<p role="status">{importMessage}</p>}<button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
   <form onSubmit={e=>{e.preventDefault();void act(mode)}} style={{display:"grid",gap:12,width:"100%"}}>
    <input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{padding:12,borderRadius:8}}/>
    <input aria-label="Password" type="password" required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"Password (20+ characters)":"Password"} style={{padding:12,borderRadius:8}}/>
-   <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
-   <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
+   <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":mode==="staff"?"Staff sign in":"Create account"}</button>
+   <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to customer sign in"}</button>
+   <button type="button" onClick={()=>{setMode(mode==="staff"?"login":"staff");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="staff"?"Customer login":"Admin / Staff login"}</button>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
  </div>;
