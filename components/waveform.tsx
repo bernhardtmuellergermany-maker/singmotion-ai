@@ -111,11 +111,11 @@ export default function Waveform({
         ) * 100,
       ) / 100;
     if (handle === "start")
-      onChange(Math.max(0, end - 300, Math.min(val, end - 0.1)), end);
+      onChange(Math.max(0, end - 300, Math.min(val, end - 5)), end);
     else
       onChange(
         start,
-        Math.max(start + 0.1, Math.min(val, start + 300, duration)),
+        Math.max(start + 5, Math.min(val, start + 300, duration)),
       );
   }
   function toggle() {
@@ -144,7 +144,7 @@ export default function Waveform({
   }
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
   const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
-  const adjust=(which:"start"|"end",amount:number)=>which==="start"?onChange(Math.max(0,end-300,Math.min(end-.1,start+amount)),end):onChange(start,Math.max(start+.1,Math.min(duration,start+300,end+amount)));
+  const adjust=(which:"start"|"end",amount:number)=>which==="start"?onChange(Math.max(0,end-300,Math.min(end-5,start+amount)),end):onChange(start,Math.max(start+5,Math.min(duration,start+300,end+amount)));
   const bars = useMemo(() => {
     const count = Math.min(peaks.length || 220, 220);
     const values = Array.from({ length: count }, (_, i) => {
@@ -187,8 +187,8 @@ export default function Waveform({
                   <input aria-label={which==="start"?"Start seconds":"End seconds"} autoFocus type="number" step="0.001" min={which==="start"?0:start+0.1} max={which==="start"?end-0.1:duration} value={Number((which==="start"?start:end).toFixed(3))} onChange={e=>{
                     const value=e.target.valueAsNumber;
                     if(!Number.isFinite(value))return;
-                    if(which==="start")onChange(Math.max(0,end-300,Math.min(value,end-.1)),end);
-                    else onChange(start,Math.max(start+.1,Math.min(duration,start+300,value)));
+                    if(which==="start")onChange(Math.max(0,end-300,Math.min(value,end-5)),end);
+                    else onChange(start,Math.max(start+5,Math.min(duration,start+300,value)));
                   }}/>
                   <button type="button" aria-label={`Decrease ${which}`} onClick={()=>adjust(which,-1)}><Minus size={14}/></button>
                   <button type="button" aria-label={`Increase ${which}`} onClick={()=>adjust(which,1)}><Plus size={14}/></button>
@@ -286,9 +286,9 @@ export default function Waveform({
               type="button"
               role="slider"
               aria-label={`${handle === "start" ? "Start" : "End"} of selection`}
-              aria-valuemin={handle === "start" ? 0 : start + 0.1}
+              aria-valuemin={handle === "start" ? 0 : start + 5}
               aria-valuemax={
-                handle === "start" ? end - 0.1 : Math.min(duration, start + 300)
+                handle === "start" ? end - 5 : Math.min(duration, start + 300)
               }
               aria-valuenow={handle === "start" ? start : end}
               key={handle}
@@ -309,14 +309,14 @@ export default function Waveform({
                   (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 0.01);
                 if (handle === "start")
                   onChange(
-                    Math.max(0, end - 300, Math.min(end - 0.1, start + delta)),
+                    Math.max(0, end - 300, Math.min(end - 5, start + delta)),
                     end,
                   );
                 else
                   onChange(
                     start,
                     Math.max(
-                      start + 0.1,
+                      start + 5,
                       Math.min(duration, start + 300, end + delta),
                     ),
                   );
