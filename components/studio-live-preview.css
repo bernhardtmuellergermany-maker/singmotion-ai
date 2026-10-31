@@ -103,3 +103,13 @@
 .sm-output-page .sm-output-stage .sm-output-pending-footer button.sm-output-poll-button,.sm-output-page .sm-output-stage .sm-output-pending-footer button.sm-output-poll-button:disabled{appearance:none!important;background-color:#4a437b!important;background-image:none!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;border:1px solid #7162a5!important;box-shadow:none!important;text-shadow:none!important;opacity:1!important}
 .sm-output-page .sm-output-stage .sm-output-pending-footer button.sm-output-poll-button:disabled{background-color:#332f49!important;color:#c8c2d7!important;-webkit-text-fill-color:#c8c2d7!important;border-color:#554d6a!important;cursor:not-allowed}
 .sm-output-page .sm-output-stage .sm-output-pending-footer button.sm-output-poll-button:not(:disabled):hover{background-color:#65559e!important}
+
+/* Finished video output only: showcase-inspired uncluttered controls. */
+.sm-output-stage .sm-output-completed-tag{display:inline-flex;padding:7px 11px;border:1px solid rgba(103,219,145,.45);border-radius:9px;background:rgba(19,99,54,.6);color:#dcffe7;font-weight:750;backdrop-filter:blur(7px);text-shadow:none}
+.sm-output-stage .sm-output-sound{position:absolute;z-index:6;right:17px;top:17px;width:39px;height:39px;display:grid;place-items:center;border:1px solid rgba(255,255,255,.33);border-radius:50%;background:rgba(11,14,24,.7);color:white;cursor:pointer;backdrop-filter:blur(8px);font-size:17px}
+.sm-output-stage .sm-output-sound:hover{background:rgba(55,35,88,.87)}
+.sm-output-stage .sm-output-completed-footer{position:absolute;z-index:6;bottom:0;left:0;right:0;display:flex;flex-direction:column;gap:12px;padding:75px 22px 25px;background:linear-gradient(transparent,rgba(5,6,14,.92) 80%)}
+.sm-output-stage .sm-output-completed-footer>strong{color:white;font-size:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sm-output-stage .sm-output-download{display:flex;align-items:center;justify-content:space-between;padding:13px 15px;border-radius:10px;background:#9255f2;color:white;font-size:13px;font-weight:750;text-decoration:none}
+.sm-output-stage .sm-output-download:hover{background:#a779ff}
+.sm-output-stage .sm-live-viewport video::-webkit-media-controls{display:none!important}
