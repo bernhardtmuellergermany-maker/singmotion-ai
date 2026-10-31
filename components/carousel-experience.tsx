@@ -328,6 +328,15 @@ function AccountPanel(){
    if(mode==="preview")setGuestPreview(data);else{setGuestPreview(null);setImportMessage("Guest projects imported successfully.");window.location.reload()}
   }catch(e){setImportMessage((e as Error).message)}finally{setBusy(false)}
  }
+ const [passwordOpen,setPasswordOpen]=useState(false),[currentPassword,setCurrentPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[passwordMessage,setPasswordMessage]=useState("");
+ async function changePassword(e:React.FormEvent<HTMLFormElement>){
+  e.preventDefault();setBusy(true);setPasswordMessage("");
+  try{
+   const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"change-password",password:currentPassword,newPassword})});
+   const data=await res.json();if(!res.ok)throw Error(data.error||"Password change failed");
+   setCurrentPassword("");setNewPassword("");setPasswordOpen(false);setPasswordMessage("Password updated. Other sessions were signed out.");
+  }catch(err){setPasswordMessage((err as Error).message)}finally{setBusy(false)}
+ }
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{
   let live=true;
@@ -361,7 +370,11 @@ function AccountPanel(){
  return <div className="sm-carousel-login">
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create account"}</h1>
-  {account?<><p>{account}</p>{!staff&&<button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>}{!staff&&guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}{importMessage&&<p role="status">{importMessage}</p>}<button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
+  {account?<><p>{account}</p>{!staff&&<button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>}{!staff&&guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}{importMessage&&<p role="status">{importMessage}</p>}{!staff&&<><button type="button" disabled={busy} onClick={()=>setPasswordOpen(!passwordOpen)}>Change password</button>{passwordOpen&&<form onSubmit={e=>void changePassword(e)} style={{display:"grid",gap:8}}>
+ <input type="password" aria-label="Current password" required autoComplete="current-password" placeholder="Current password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/>
+ <input type="password" aria-label="New password" required minLength={20} maxLength={256} autoComplete="new-password" placeholder="New password (20+ characters)" value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>
+ <button disabled={busy} type="submit">Save new password</button></form>}{passwordMessage&&<p role="status">{passwordMessage}</p>}</>}
+ <button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
   <form onSubmit={e=>{e.preventDefault();void act(mode)}} style={{display:"grid",gap:12,width:"100%"}}>
    <input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{padding:12,borderRadius:8}}/>
    <input aria-label="Password" type="password" required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"Password (20+ characters)":"Password"} style={{padding:12,borderRadius:8}}/>
