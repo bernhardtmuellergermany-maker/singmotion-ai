@@ -7,6 +7,7 @@ import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
 import { StudioRecordingReview } from "./studio-recording-review";
 import { StudioBudgetReview } from "./studio-budget";
+import "./studio-live-preview.css";
 import type { offerStudioBudget } from "@/lib/live/studio-budget-review";
 // Explicit field order: object insertion order is not selection identity.
 function selectionIdentity(s: StudioDraftExport | null) {
@@ -495,103 +496,54 @@ export function LiveProject({ id }: { id: string }) {
       setBusy(false);
     }
   }
+  const ratio = project?.selection.outputFormat === "16:9" ? "landscape" : "portrait";
+  const complete = project?.outputReady === true;
+  const failed = project?.state === "failed";
+  const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Generating video" : "Preparing project";
   return (
-    <div id="content">
-      <div className="page-heading">
-        <h1>
-          {project?.outputReady
-            ? "Your video is ready."
-            : "Your OmniHuman project"}
-        </h1>
+    <div id="content" className="sm-live-page">
+      <div className="sm-live-heading">
+        <h1>{complete ? "Your video is ready" : failed ? "Video generation failed" : "Creating your video"}</h1>
+        <p>{complete ? "Watch your result and download the MP4." : "Your saved project remains available while the provider processes the video."}</p>
       </div>
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      {project && (
-        <div className="result-layout">
-          <div className="content-card">
-            <p role="status">{project.stage}</p>
-            {project.outputReady ? (
-              <>
-                <video
-                  className="result-player"
-                  controls
-                  playsInline
-                  src={`/api/studio-live?id=${id}&video=1`}
-                />
-                <a
-                  className="button primary"
-                  href={`/api/studio-live?id=${id}&video=1&download=1`}
-                  download
-                >
-                  Download MP4
-                </a>
-              </>
-            ) : (
-              <>
-                <p>
-                  No new task is submitted when checking status. Background
-                  retrieval requires the recovery worker; resume this task
-                  promptly within the provider URL lifetime.
-                </p>
-                <button
-                  className="button outline"
-                  disabled={
-                    busy || !["submitted", "processing"].includes(project.state)
-                  }
-                  onClick={() => void poll()}
-                >
-                  Resume status / retrieve same task
-                </button>
-              </>
-            )}
-          </div>
-          <div className="content-card">
-            <h2>{project.artistName}</h2>
-            <p>
-              {project.durationSeconds.toFixed(3)}s MP3 · {project.state}
-            </p>
-            <p>{project.prompt}</p>
-            <p>
-              Reservation:{" "}
-              {project.ceilingMicroUsd === null
-                ? "Unpriced"
-                : usd(project.ceilingMicroUsd)}
-              ; actual invoice not yet reconciled.
-            </p>
-            {project.experimental && (
-              <p role="alert">
-                Experimental planning policy: duration, fees and media
-                properties are unknown. The reservation is not a guaranteed
-                inclusive charge. Strict output validation and no automatic paid
-                retries still apply.
-              </p>
-            )}
-            <p>Provider task: {project.providerJobId || "Not assigned"}</p>
-            {project.hidden ? (
-              <p>
-                Hidden from My Projects. This saved link still provides
-                recovery; locks and reservations are unchanged.
-              </p>
-            ) : (
-              <button
-                className="button outline"
-                disabled={busy}
-                onClick={() => {
-                  if (
-                    window.confirm(
-                      "Hide project from My Videos? Files, billing records and active task locks are retained. Save this page link for recovery.",
-                    )
-                  )
-                    void action("hide", { confirmation: `HIDE ${id}` });
-                }}
-              >
-                Hide project
-              </button>
-            )}
-            {project.providerJobId &&
+      {error && <p role="alert" className="error">{error}</p>}
+      {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
+        <div className="sm-live-layout">
+          <section className="sm-live-preview-card" aria-label="Video preview and status">
+            <div className="sm-live-status" role="status" aria-live="polite"><span className={"sm-live-status-dot"+(complete?" ready":failed?" failed":"")}/><strong>{statusLabel}</strong><span className="sm-live-small">· {project.selection.outputFormat || "9:16"}</span></div>
+            <div className={"sm-live-viewport "+ratio}>
+              {complete ? <video controls playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
+                <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
+                <div className="sm-live-animated">
+                  {!failed && <><div className="sm-live-scan"/><div className="sm-live-orbit"/></>}
+                  <strong>{failed?"Generation stopped":project.state==="submitted"?"Waiting for provider":"Creating your performance"}</strong>
+                  <span>{failed?"Review the project status.":"Preview will appear here when the video is ready."}</span>
+                </div>
+              </>}
+            </div>
+            <p className="sm-live-small" role="status">{project.stage}</p>
+            <div className="sm-live-actions">
+              {complete ? <a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a> : <button type="button" className="button outline" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button>}
+              <Link href="/projects" className="button outline">My videos</Link>
+            </div>
+            {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
+          </section>
+          <aside className="sm-live-details" aria-label="Project details">
+            <h2 style={{marginTop:0,fontSize:21}}>Project details</h2>
+            <dl>
+              <div className="sm-live-meta"><dt>Project</dt><dd>{project.artistName}</dd></div>
+              <div className="sm-live-meta"><dt>Video format</dt><dd>{project.selection.outputFormat || "9:16"}</dd></div>
+              <div className="sm-live-meta"><dt>Audio length</dt><dd>{project.durationSeconds.toFixed(3)} seconds</dd></div>
+              <div className="sm-live-meta"><dt>Status</dt><dd>{project.state}</dd></div>
+              <div className="sm-live-meta"><dt>Provider task</dt><dd>{project.providerJobId||"Pending"}</dd></div>
+              <div className="sm-live-meta"><dt>Reservation</dt><dd>{project.ceilingMicroUsd===null?"Unpriced":usd(project.ceilingMicroUsd)} · actual invoice not reconciled</dd></div>
+            </dl>
+            <details className="sm-live-operation"><summary>Performance instructions</summary><p className="sm-live-prompt">{project.prompt}</p></details>
+            {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
+            <div className="sm-live-operation">
+              {project.hidden ? <p className="sm-live-small">Hidden from My Videos. This saved page remains accessible.</p> : <button className="button outline" disabled={busy} onClick={()=>{if(window.confirm("Hide project from My Videos? Files, billing records and active task locks are retained."))void action("hide",{confirmation:`HIDE ${id}`});}}>Hide project</button>}
+              <details style={{marginTop:16}}><summary>Operator tools</summary>
+                {project.providerJobId &&
               ["submitted", "processing"].includes(project.state) && (
                 <details>
                   <summary>
@@ -656,8 +608,10 @@ export function LiveProject({ id }: { id: string }) {
                   </form>
                 </details>
               )}
-            <Link href="/studio">Back to Studio</Link>
-          </div>
+              </details>
+            </div>
+            <p style={{marginTop:20}}><Link href="/studio">Back to Studio</Link></p>
+          </aside>
         </div>
       )}
     </div>
