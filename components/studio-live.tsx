@@ -523,13 +523,6 @@ export function LiveProject({ id }: { id: string }) {
           step:0
         })
       });
-      try{
-        const originalId=localStorage.getItem("singmotion-draft-id");
-        if(originalId){
-          const sections=localStorage.getItem("singmotion-timeline:"+originalId);
-          if(sections) localStorage.setItem("singmotion-timeline:"+draftId,sections);
-        }
-      }catch{}
       router.push("/studio?draft="+encodeURIComponent(draftId));
     }catch(e){setError((e as Error).message);setBusy(false)}
   }
