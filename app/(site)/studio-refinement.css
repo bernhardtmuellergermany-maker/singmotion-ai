@@ -683,3 +683,29 @@
   .singmotion-flow .sm-studio-original-composer .sm-photo-controls{grid-column:1;max-width:180px;justify-self:center}
   .singmotion-flow .sm-studio-original-composer .flow-prompt-wrap{grid-column:1;grid-row:2}
 }
+
+
+/* Timeline menus open in the card's normal layout, never above the ruler or heading. */
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-menu{
+  position:relative;
+  width:100%;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-options{
+  position:static !important;
+  inset:auto !important;
+  transform:none !important;
+  display:none;
+  width:100%;
+  min-width:0;
+  max-height:220px;
+  overflow-y:auto;
+  box-sizing:border-box;
+  margin-top:5px;
+  z-index:auto;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-menu[open]>.flow-camera-options{
+  display:block;
+}
+.singmotion-flow .sm-timeline-cards article{
+  height:auto;
+}
