@@ -79,6 +79,16 @@ export function createCustomerMediaSession(accountId: string) {
   );
   return { token, owner };
 }
+/** Persistent media identity for an authenticated account; does not create demo credits. */
+export function createAccountMediaSession(owner: string) {
+  if (!/^(?:customer-[a-f0-9-]{36}|cms-staff-[a-zA-Z0-9_-]{1,100})$/.test(owner))
+    throw new AppError("Invalid account identity.", 403);
+  const token = randomUUID() + randomUUID();
+  db.prepare("INSERT INTO sessions VALUES (?,?,?,0)").run(
+    hash(token), owner, Date.now() + 30 * 86400000,
+  );
+  return { token, owner };
+}
 export function revokeMediaSession(token: string) {
   db.prepare("DELETE FROM sessions WHERE token=?").run(hash(token));
 }
