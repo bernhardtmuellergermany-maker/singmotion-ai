@@ -406,7 +406,7 @@ export function StudioWizard({
           <div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
           <section className="sm-studio-review-media" aria-label="Photo and final instructions">
             {draft.imageId&&<img className="sm-studio-review-photo" alt="Uploaded artist reference" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/>}
-            <div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" rows={5} maxLength={1000} value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/><small>Timing instructions guide OmniHuman; exact timing is not guaranteed.</small></div>
+            <div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" rows={5} readOnly aria-readonly="true" value={draft.customPrompt}/><small>Timing instructions guide OmniHuman; exact timing is not guaranteed.</small></div>
           </section>
           <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={20}/></button>
         </section>}
