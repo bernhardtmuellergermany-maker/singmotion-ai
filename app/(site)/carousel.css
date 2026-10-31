@@ -2022,9 +2022,3 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .sm-carousel-login{overflow-y:auto;max-height:100%;scrollbar-width:thin}
 
 .sm-carousel-login .sm-account-showcase-link{display:block;text-align:center;color:#dbc3ff;text-decoration:underline;font-size:12px;padding:7px}
-
-/* Completed carousel projects: showcase-like playback without native controls. */
-.sm-carousel-project.has-video .sm-carousel-completed-badge{position:absolute;top:18px;left:18px;z-index:5;padding:6px 11px;border:1px solid rgba(103,219,145,.48);border-radius:9px;background:rgba(19,99,54,.62);color:#dcffe7;font-size:12px;font-weight:750;box-shadow:0 3px 14px #0003;backdrop-filter:blur(7px)}
-.sm-carousel-project.has-video .sm-carousel-video::-webkit-media-controls{display:none!important}
-.sm-carousel-project.has-video .sm-carousel-open{border:0;width:100%;cursor:pointer;font-family:inherit}
-.sm-carousel-project.has-video .sm-carousel-open:disabled{opacity:.7;cursor:progress}
