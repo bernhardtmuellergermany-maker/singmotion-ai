@@ -509,6 +509,7 @@ export function LiveProject({ id }: { id: string }) {
     }catch{}
     setProjectLabel(value);setEditingProjectName(false);
   };
+  const [frontCard,setFrontCard]=useState<"video"|"details">("video");
   const sourceTimestamp=(value:number)=>{const ms=Math.round(Math.max(0,value)*1000);return String(Math.floor(ms/60000)).padStart(2,"0")+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0")+"."+String(ms%1000).padStart(3,"0");};
   const ratio = project?.selection.outputFormat === "16:9" ? "landscape" : "portrait";
   const complete = project?.outputReady === true;
@@ -518,9 +519,9 @@ export function LiveProject({ id }: { id: string }) {
     <div id="content" className="sm-live-page">
       {error && <p role="alert" className="error">{error}</p>}
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
-        <div className="sm-live-layout">
-          <section className="sm-live-preview-card" aria-label="Video preview and status">
-            <div className="sm-live-status" role="status" aria-live="polite"><span className={"sm-live-status-dot"+(complete?" ready":failed?" failed":"")}/><strong>{statusLabel}</strong></div>
+        <div className={"sm-live-layout sm-live-deck "+(frontCard==="details"?"show-details":"show-video")}>
+          <section className="sm-live-preview-card" aria-label="Video preview and status" onClick={()=>{if(frontCard!=="video")setFrontCard("video")}}>
+            <div className="sm-live-card-top"><span className="sm-live-card-kicker">YOUR VIDEO</span><button type="button" onClick={e=>{e.stopPropagation();setFrontCard("details")}}>View details ↗</button></div><div className="sm-live-status" role="status" aria-live="polite"><span className={"sm-live-status-dot"+(complete?" ready":failed?" failed":"")}/><strong>{statusLabel}</strong></div>
             <div className={"sm-live-viewport "+ratio}>
               {complete ? <video controls playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
                 <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
@@ -538,8 +539,8 @@ export function LiveProject({ id }: { id: string }) {
             </div>
             {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
           </section>
-          <aside className="sm-live-details" aria-label="Project details">
-            <h2 style={{marginTop:0,fontSize:21}}>Project details</h2>
+          <aside className="sm-live-details" aria-label="Project details" onClick={()=>{if(frontCard!=="details")setFrontCard("details")}}>
+            <div className="sm-live-card-top"><h2 style={{marginTop:0,fontSize:21}}>Project details</h2><button type="button" onClick={(e)=>{e.stopPropagation();setFrontCard(frontCard==="details"?"video":"details")}} aria-label={frontCard==="details"?"Show video":"Show project details"}>{frontCard==="details"?"View video":"Open details"} ↗</button></div>
             <dl>
               <div className="sm-live-meta"><dt>Project</dt><dd>{editingProjectName?<input autoFocus aria-label="Project name" maxLength={80} value={projectLabel} placeholder={project.artistName} onChange={e=>setProjectLabel(e.target.value)} onBlur={()=>saveProjectName(projectLabel||project.artistName)} onKeyDown={e=>{if(e.key==="Enter")saveProjectName(projectLabel||project.artistName);if(e.key==="Escape")setEditingProjectName(false);}}/>:<span>{projectLabel||project.artistName} <button type="button" className="sm-live-rename" onClick={()=>setEditingProjectName(true)} aria-label="Rename project">Edit</button></span>}</dd></div>
               <div className="sm-live-meta"><dt>Video format</dt><dd>{project.selection.outputFormat || "9:16"}</dd></div>
