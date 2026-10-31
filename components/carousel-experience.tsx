@@ -422,7 +422,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Lip-Synced with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
-      <strong>{showcase.title}</strong>
+      <strong>{published?.title || showcase.title}</strong>
       {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
