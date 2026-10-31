@@ -541,3 +541,37 @@
   object-fit:cover;
   object-position:center;
 }
+
+
+/* Keep the remove-photo control legible on any uploaded image. */
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo{
+  position:relative;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>button{
+  position:absolute;
+  top:8px;
+  right:8px;
+  left:auto;
+  width:30px;
+  height:30px;
+  min-width:30px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  color:#fff;
+  background:#101827;
+  border:1px solid #d2def7;
+  border-radius:50%;
+  box-shadow:0 2px 10px #000b;
+  z-index:5;
+  cursor:pointer;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>button svg{
+  width:17px;
+  height:17px;
+  stroke-width:2.5;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>button:hover{
+  background:#6e2940;
+  border-color:#fff;
+}
