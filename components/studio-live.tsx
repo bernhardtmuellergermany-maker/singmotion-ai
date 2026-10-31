@@ -538,7 +538,7 @@ export function LiveProject({ id }: { id: string }) {
             <p className="sm-live-small" role="status">{project.stage}</p>
             <div className="sm-live-actions">
               {complete ? <a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a> : <button type="button" className="button outline" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button>}
-              <Link href="/projects" className="button outline">My videos</Link>
+              
             </div>
             {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
           </section>
