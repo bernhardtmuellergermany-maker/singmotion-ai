@@ -5,9 +5,10 @@ export default async function Page({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
   return (
-    <Shell hideWorkspaceNav>
-      <Project id={(await params).id} />
+    <Shell hideWorkspaceNav projectId={id}>
+      <Project id={id} />
     </Shell>
   );
 }
