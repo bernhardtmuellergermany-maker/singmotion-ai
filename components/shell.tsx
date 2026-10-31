@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { ProductHeader } from "./product-header";
 import { GlobalMenu } from "./home-collection";
-import { UserRound } from "lucide-react";
+import { UserRound, Search } from "lucide-react";
 import { ProjectHeaderName } from "./project-header-name";
 export function Shell({ children, hideWorkspaceNav = false, projectId }: { children: React.ReactNode; hideWorkspaceNav?: boolean; projectId?: string }) {
   return (
     <div className="product-theme unified-app">
-      {hideWorkspaceNav ? <header className="flow-header sm-output-header">
-        <div className="flow-header-left"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><span className="flow-divider"/>{projectId && <ProjectHeaderName id={projectId}/>}</div>
-        <div className="flow-header-right"><GlobalMenu openInNewTab /><Link href="/?card=login" className="flow-profile" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div>
+      {hideWorkspaceNav ? <header className="home-gallery-header sm-carousel-header sm-output-header">
+        <div className="sm-output-header-left"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><span className="flow-divider"/>{projectId && <ProjectHeaderName id={projectId}/>}</div>
+        <div className="sm-header-actions sm-output-header-right"><Link href="/?search=1" className="sm-output-search" aria-label="Search projects" title="Search projects"><Search size={19}/></Link><GlobalMenu /><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div>
       </header> : <ProductHeader />}
       {!hideWorkspaceNav && <nav className="product-workspace-links" aria-label="Workspace">
         <Link href="/studio">Studio</Link>
