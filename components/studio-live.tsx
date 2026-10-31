@@ -496,6 +496,19 @@ export function LiveProject({ id }: { id: string }) {
       setBusy(false);
     }
   }
+  const [editingProjectName,setEditingProjectName]=useState(false);
+  const [projectLabel,setProjectLabel]=useState("");
+  useEffect(()=>{try{setProjectLabel(localStorage.getItem("sm-live-project-name:"+id)||"");}catch{}},[id]);
+  const saveProjectName=(name:string)=>{
+    const value=name.trim().slice(0,80);
+    if(!value){setEditingProjectName(false);return;}
+    try{
+      localStorage.setItem("sm-live-project-name:"+id,value);
+      const prior=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}") as Record<string,string>;
+      localStorage.setItem("sm-gallery-labels",JSON.stringify({...prior,["live_"+id]:value}));
+    }catch{}
+    setProjectLabel(value);setEditingProjectName(false);
+  };
   const ratio = project?.selection.outputFormat === "16:9" ? "landscape" : "portrait";
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
@@ -531,7 +544,7 @@ export function LiveProject({ id }: { id: string }) {
           <aside className="sm-live-details" aria-label="Project details">
             <h2 style={{marginTop:0,fontSize:21}}>Project details</h2>
             <dl>
-              <div className="sm-live-meta"><dt>Project</dt><dd>{project.artistName}</dd></div>
+              <div className="sm-live-meta"><dt>Project</dt><dd>{editingProjectName?<input autoFocus aria-label="Project name" maxLength={80} value={projectLabel} placeholder={project.artistName} onChange={e=>setProjectLabel(e.target.value)} onBlur={()=>saveProjectName(projectLabel||project.artistName)} onKeyDown={e=>{if(e.key==="Enter")saveProjectName(projectLabel||project.artistName);if(e.key==="Escape")setEditingProjectName(false);}}/>:<span>{projectLabel||project.artistName} <button type="button" className="sm-live-rename" onClick={()=>setEditingProjectName(true)} aria-label="Rename project">Edit</button></span>}</dd></div>
               <div className="sm-live-meta"><dt>Video format</dt><dd>{project.selection.outputFormat || "9:16"}</dd></div>
               <div className="sm-live-meta"><dt>Audio length</dt><dd>{project.durationSeconds.toFixed(3)} seconds</dd></div>
               <div className="sm-live-meta"><dt>Status</dt><dd>{project.state}</dd></div>
@@ -541,7 +554,6 @@ export function LiveProject({ id }: { id: string }) {
             <details className="sm-live-operation"><summary>Performance instructions</summary><p className="sm-live-prompt">{project.prompt}</p></details>
             {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
             <div className="sm-live-operation">
-              {project.hidden ? <p className="sm-live-small">Hidden from My Videos. This saved page remains accessible.</p> : <button className="button outline" disabled={busy} onClick={()=>{if(window.confirm("Hide project from My Videos? Files, billing records and active task locks are retained."))void action("hide",{confirmation:`HIDE ${id}`});}}>Hide project</button>}
               <details style={{marginTop:16}}><summary>Operator tools</summary>
                 {project.providerJobId &&
               ["submitted", "processing"].includes(project.state) && (
