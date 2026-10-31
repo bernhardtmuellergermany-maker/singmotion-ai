@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MoreVertical } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
@@ -12,6 +12,8 @@ export function ProjectHeaderName({id}:{id:string}){
  const [draft,setDraft]=useState("");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
+ const menu=useRef<HTMLDetailsElement>(null);
+ useEffect(()=>{const dismiss=(e:PointerEvent)=>{if(menu.current&&!menu.current.contains(e.target as Node))menu.current.open=false};const escape=(e:KeyboardEvent)=>{if(e.key==="Escape"&&menu.current)menu.current.open=false};document.addEventListener("pointerdown",dismiss);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("pointerdown",dismiss);document.removeEventListener("keydown",escape)}},[]);
  useEffect(()=>{
   if(!id.startsWith("live_"))return;
   let active=true;const key=id.slice(5);
@@ -44,7 +46,7 @@ export function ProjectHeaderName({id}:{id:string}){
  return <div className="sm-header-project-name sm-output-project-name">
   {edit?<input className="flow-project-input" aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save();if(e.key==="Escape")setEdit(false)}}/>:<>
    <button type="button" className="flow-project-name" title="Click to rename project" onClick={startEdit}>{name||"Project"}</button>
-   <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={19}/></summary>
+   <details ref={menu} className="flow-menu"><summary aria-label="Project options"><MoreVertical size={19}/></summary>
     <div className="flow-popover"><button type="button" onClick={e=>{e.currentTarget.closest("details")!.open=false;startEdit()}}>Rename project</button><button type="button" disabled={busy} onClick={()=>void remove()}>{busy?"Deleting…":"Delete project"}</button></div>
    </details>
   </>}
