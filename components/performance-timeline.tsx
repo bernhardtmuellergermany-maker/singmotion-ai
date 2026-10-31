@@ -234,7 +234,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
       <div className="sm-timeline-add-camera">
         <details className="flow-camera-menu">
           <summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown size={14}/></summary>
-          <div className="flow-camera-options" role="group" aria-label="Camera movements">{cameras.map(option=><button key={option} type="button" onClick={e=>{appendInstruction(s,`Camera movement: ${option}. ${cameraHelp[option]} ${cameraPrompt[option]||""}`,{camera:option});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option]}><strong>{option}</strong><small>{cameraHelp[option]}</small></button>)}</div>
+          <div className="flow-camera-options" role="group" aria-label="Camera movements">{cameras.map(option=><button key={option} type="button" onClick={e=>{appendInstruction(s,`Camera movement: ${option}. ${cameraPrompt[option]||cameraHelp[option]}`,{camera:option});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option]}><strong>{option}</strong><small>{cameraHelp[option]}</small></button>)}</div>
         </details>
       </div>
       <div className="sm-timeline-add-camera sm-timeline-add-emotion">
