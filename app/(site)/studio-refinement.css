@@ -444,3 +444,28 @@
   .singmotion-flow .sm-studio-original-composer{grid-template-columns:104px minmax(0,1fr);column-gap:10px}
   .singmotion-flow .sm-studio-original-composer .flow-settings-group>.flow-camera-menu>summary{padding-inline:6px;font-size:11px;gap:4px}
 }
+
+
+/* Final review: square image viewport and readable, resizable instructions. */
+.singmotion-flow .sm-studio-review-media .sm-studio-review-photo{
+  display:block;
+  width:100%;
+  aspect-ratio:1 / 1;
+  height:auto;
+  max-height:none;
+  object-fit:cover;
+  object-position:center;
+}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{
+  resize:both;
+  overflow:auto;
+  min-height:100px;
+  min-width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  cursor:default;
+}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea[readonly]:focus{
+  outline:1px solid #526482;
+  outline-offset:0;
+}
