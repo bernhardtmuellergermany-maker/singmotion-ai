@@ -329,7 +329,21 @@ function AccountPanel(){
   }catch(e){setImportMessage((e as Error).message)}finally{setBusy(false)}
  }
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
- useEffect(()=>{fetch("/api/customer-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.authenticated){setAccount(d.email);setStaff(d.kind==="staff")}}).catch(()=>{});},[]);
+ useEffect(()=>{
+  let live=true;
+  const refresh=()=>{
+   if(document.visibilityState==="hidden")return;
+   fetch("/api/customer-auth",{cache:"no-store",credentials:"same-origin"})
+    .then(r=>r.ok?r.json():null)
+    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email:null);setStaff(d.authenticated&&d.kind==="staff");})
+    .catch(()=>{});
+  };
+  refresh();
+  window.addEventListener("focus",refresh);
+  document.addEventListener("visibilitychange",refresh);
+  window.addEventListener("pageshow",refresh);
+  return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
+ },[]);
  async function act(action:"login"|"register"|"logout"){
   setBusy(true);setError("");
   try{
