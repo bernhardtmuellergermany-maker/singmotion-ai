@@ -551,7 +551,7 @@ export function LiveProject({ id }: { id: string }) {
               <div className="sm-live-meta"><dt>Audio length</dt><dd>{project.durationSeconds.toFixed(3)} seconds</dd></div>
               <div className="sm-live-meta"><dt>Status</dt><dd>{project.state}</dd></div>
               <div className="sm-live-meta"><dt>Provider task</dt><dd>{project.providerJobId||"Pending"}</dd></div>
-              <div className="sm-live-meta"><dt>Reservation</dt><dd>{project.ceilingMicroUsd===null?"Unpriced":usd(project.ceilingMicroUsd)} · actual invoice not reconciled</dd></div>
+              <div className="sm-live-meta"><dt>Costs</dt><dd>Actual costs not yet available</dd></div>
             </dl>
             <details className="sm-live-operation"><summary>Performance instructions</summary><p className="sm-live-prompt">{project.prompt}</p></details>
             {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
