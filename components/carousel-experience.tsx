@@ -11,7 +11,7 @@ import { showcase } from "@/lib/showcase";
 
 type Tile = { id:string; name:string; href:string; imageId?:string; state:string; created:number; videoUrl?:string; seconds:number };
 type Draft = { id:string; artistName:string; projectName?:string; updated?:number; selection:{ songId?:string; imageId?:string; start:number; end:number } };
-const cleanTitle=(name:string)=>!name.trim()||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
+const cleanTitle=(name:string)=>!name.trim()||name.trim().toLowerCase()==="my artist"||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
 const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
 export function CarouselExperience(){
   const [tiles,setTiles]=useState<Tile[]>([]);
@@ -131,7 +131,7 @@ export function CarouselExperience(){
         try{
           const labels=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}") as Record<string,string>;
           for(const tile of cards){
-            const saved=labels[tile.id]||(tile.id.startsWith("live_")?localStorage.getItem("sm-live-project-name:"+tile.id.slice(5)):null);
+            const saved=labels[tile.id]||(tile.id.startsWith("live_")?localStorage.getItem("sm-live-project-name:"+tile.id.slice(5)):tile.id.startsWith("draft_")?localStorage.getItem("singmotion-project-name:"+tile.id.slice(6)):null);
             if(saved?.trim())tile.name=saved.trim();
           }
         }catch{}
