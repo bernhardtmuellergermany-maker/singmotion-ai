@@ -535,7 +535,7 @@ export function LiveProject({ id }: { id: string }) {
                 </div>
               </>}
             </div>
-            <p className="sm-live-small" role="status">{project.stage}</p>
+            {!complete && <p className="sm-live-small" role="status">{project.stage}</p>}
             <div className="sm-live-actions">
               {complete ? <a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a> : <button type="button" className="button outline" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button>}
               
