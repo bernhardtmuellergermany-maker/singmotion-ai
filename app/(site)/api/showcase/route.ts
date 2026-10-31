@@ -13,7 +13,7 @@ import { Readable } from "node:stream";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cache-Control":"no-store"}});
-type Selected={attempt_id:string;owner:string;artist_name:string};
+type Selected={attempt_id:string;owner:string;artist_name:string;project_name?:string};
 async function store(){
   const s=await openStudioStore(dataDir);
   s.db.exec("CREATE TABLE IF NOT EXISTS live_studio_projects (attempt_id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection_json TEXT NOT NULL, policy_json TEXT NOT NULL, artist_name TEXT NOT NULL, diagnostic TEXT, started_at INTEGER)");
@@ -57,8 +57,8 @@ async function handler(req:NextRequest){
     if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin"))return json({title:selected?.artist_name||"SingMotion AI Showcase",videoUrl:selected?"/api/showcase?video=1":""});
     if(!await admin(req))return json({error:"Super-admin authorization required"},403);
     if(req.method==="GET"){
-      const rows=s.db.prepare("SELECT attempt_id,owner,artist_name FROM live_studio_projects ORDER BY rowid DESC LIMIT 500").all() as Selected[];
-      const projects=rows.flatMap(row=>{try{const a=s.get(row.attempt_id);return a.state==="completed"&&a.outputPath?[{id:row.attempt_id,artist:row.artist_name,owner:row.owner,selected:selected?.attempt_id===row.attempt_id}]:[]}catch{return [];}});
+      const rows=s.db.prepare("SELECT attempt_id,owner,artist_name,project_name FROM live_studio_projects ORDER BY rowid DESC LIMIT 500").all() as Selected[];
+      const projects=rows.flatMap(row=>{try{const a=s.get(row.attempt_id);return a.state==="completed"&&a.outputPath?[{id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,selected:selected?.attempt_id===row.attempt_id}]:[]}catch{return [];}});
       return json({projects,selectedId:selected?.attempt_id||null});
     }
     if(req.method==="POST"){
