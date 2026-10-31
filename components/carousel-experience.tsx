@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, Trash2, AlertCircle, LoaderCircle, CheckCircle2, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, Trash2, AlertCircle, LoaderCircle, CheckCircle2 } from "lucide-react";
 import { GlobalMenu } from "./home-collection";
 import { HomeUploadedAudio } from "./home-uploaded-audio";
 import { api, ensureSession, resetSession, upload } from "@/lib/client";
@@ -289,8 +289,6 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [mediaError,setMediaError]=useState(false);
-  const [downloading,setDownloading]=useState(false);
-  async function downloadVideo(){if(!tile.videoUrl||downloading)return;setDownloading(true);try{const response=await fetch(tile.videoUrl,{credentials:"same-origin"});if(!response.ok)throw Error("Download unavailable");const blob=await response.blob();const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(tile.name.replace(/[\\/:*?"<>|]/g,"_")||"SingMotion")+".mp4";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}catch{setMediaError(true);}finally{setDownloading(false)}}
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
@@ -309,14 +307,13 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
     {tile.id.startsWith("draft_")&&<button type="button" className="sm-carousel-draft-delete" aria-label={`Delete draft ${tile.name}`} title="Delete draft" disabled={deleting} onPointerDown={e=>e.stopPropagation()} onTouchStart={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onDelete();}}><Trash2 size={16} aria-hidden="true"/></button>}
     {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading="lazy"/>}
     {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
-    {complete&&<span className="sm-carousel-completed-badge">Completed</span>}
     {complete&&!mediaError?<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const v=video.current;if(!v)return;v.muted=sound;setSound(!sound);}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>:<div className="sm-carousel-status">
       {label==="Failed"?<AlertCircle size={35}/>:label==="Prepared"||label==="Draft"?<CheckCircle2 size={35}/>:<LoaderCircle className={label==="Pending"||label==="Processing"?"sm-spinning":""} size={35}/>}
       <strong>{label}</strong><p>{mediaError?"Video preview unavailable. Open the project to inspect it.":explanation}</p>
     </div>}
     <div className="sm-carousel-project-footer">
       <strong title={tile.name}>{tile.name}</strong>
-      {complete?<button type="button" className="sm-carousel-open" disabled={downloading} onClick={e=>{e.stopPropagation();void downloadVideo();}}>{downloading?"Preparing download…":"Download video"} <Download size={16}/></button>:<Link href={tile.href} className="sm-carousel-open" onClick={()=>{video.current?.pause();try{sessionStorage.setItem("singmotion-carousel-return",tile.id);}catch{}}}>Open project <ArrowRight size={16}/></Link>}
+      <Link href={tile.href} className="sm-carousel-open" onClick={()=>{video.current?.pause();try{sessionStorage.setItem("singmotion-carousel-return",tile.id);}catch{}}}>Open project <ArrowRight size={16}/></Link>
     </div>
   </div>;
 }
