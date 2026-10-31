@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, Minus, Plus, Trash2, Music2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Minus, Plus, Trash2, Music2 } from "lucide-react";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -133,6 +133,15 @@ export default function Waveform({
         setError("Playback could not start. Try the audio controls."),
       );
   }
+  function replay() {
+    const a=audio.current;
+    if(!a)return;
+    segment.current=true;
+    a.pause();
+    a.currentTime=start;
+    setPosition(start);
+    void a.play().catch(()=>setError("Playback could not start. Try the audio controls."));
+  }
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
   const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
   const adjust=(which:"start"|"end",amount:number)=>which==="start"?onChange(Math.max(0,end-300,Math.min(end-.1,start+amount)),end):onChange(start,Math.max(start+.1,Math.min(duration,start+300,end+amount)));
@@ -169,6 +178,7 @@ export default function Waveform({
           <div className="studio-wave-filename"><Music2 size={18} aria-hidden="true"/><div className="studio-wave-file-text"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div></div>
           <div className="studio-wave-actions studio-unified-actions">
             <button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
+            <button type="button" className="studio-wave-play" onClick={replay} aria-label="Replay selected audio from start" title="Replay selected audio"><RotateCcw size={18}/></button>
             {(["start","end"] as const).map(which => (
               <div key={which} className={"studio-inline-time "+(editingTime===which?"is-editing":"")}>
                 <span>{which==="start"?"Start":"End"}</span>
