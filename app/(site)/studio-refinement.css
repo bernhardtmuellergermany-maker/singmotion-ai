@@ -497,3 +497,16 @@
 .singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu[open]>summary{
   border-color:#9255f2;
 }
+
+
+/* Review instructions: one visible frame, not a box inside a box. */
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt{
+  border:0;
+  box-shadow:none;
+  background:transparent;
+  padding:0;
+  border-radius:0;
+}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{
+  margin:0;
+}
