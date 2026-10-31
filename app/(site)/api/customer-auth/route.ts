@@ -36,11 +36,22 @@ export async function POST(req:NextRequest){
  if(!origin||req.headers.get("origin")!==origin)return json({error:"Invalid origin"},403);
  if(Number(req.headers.get("content-length"))>2048)return json({error:"Request too large"},413);
  const raw=await req.text();if(Buffer.byteLength(raw)>2048)return json({error:"Request too large"},413);
- let input:{action?:string;email?:string;password?:string};
+ let input:{action?:string;email?:string;password?:string;newPassword?:string};
  try{input=JSON.parse(raw)}catch{return json({error:"Invalid request"},400)}
  limit("customer-auth:"+req.headers.get("x-forwarded-for"),8,60000);
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
+  if(input.action==="change-password"){
+   const oldToken=req.cookies.get("sm_customer")?.value||"";
+   const accountId=store.session(oldToken);
+   if(!accountId)return json({error:"Customer login required"},401);
+   if(typeof input.password!=="string"||typeof input.newPassword!=="string")
+    return json({error:"Both passwords required"},400);
+   const token=store.changePassword(accountId,input.password,input.newPassword);
+   const response=json({changed:true});
+   response.cookies.set("sm_customer",token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
+   return response;
+  }
   if(input.action==="logout"){
    const token=req.cookies.get("sm_customer")?.value||"";
    if(token)store.logout(token);
