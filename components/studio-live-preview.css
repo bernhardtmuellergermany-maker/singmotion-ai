@@ -175,3 +175,11 @@
 .sm-output-header .sm-header-project-name{color:#f3edff}
 .sm-output-header .sm-header-project-options{z-index:100}
 @media(max-width:760px){.sm-output-stage>.sm-output-card{height:min(72vh,690px);max-width:min(90vw,400px)}}
+
+/* Full-width output workspace uses the same stage centering as the home page. */
+.unified-app:has(.sm-output-stage)>.app-main{padding:18px 18px 34px;min-height:calc(100svh - 76px);display:flex;align-items:center;justify-content:center}
+.unified-app:has(.sm-output-stage) .sm-live-page{width:100%;max-width:none;margin:0}
+.sm-output-header .sm-output-project-name{display:flex;align-items:center;gap:4px}
+.sm-output-header .sm-output-project-name .flow-project-name{font-size:inherit;color:inherit;font-weight:inherit}
+.sm-output-header .sm-output-project-name .flow-menu{position:relative}
+.sm-output-header .sm-output-project-name .flow-popover{z-index:100}
