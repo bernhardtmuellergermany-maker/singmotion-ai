@@ -15,6 +15,7 @@ import {
   demoOnly,
   session,
   createSession,
+  createAccountMediaSession,
   revokeMediaSession,
   grantAdmin,
   balance,
@@ -125,6 +126,43 @@ async function handler(
       return response;
     }
     if (route === "session" && method === "POST") {
+      // Only verified account cookies may activate a durable account workspace.
+      // Existing guest workspaces are never silently claimed or reassigned.
+      let accountOwner: string | null = null;
+      if (process.env.CUSTOMER_ACCOUNTS_ENABLED === "true") {
+        const customerToken = req.cookies.get("sm_customer")?.value;
+        if (customerToken) {
+          const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
+          try {
+            const accountId = store.session(customerToken);
+            if (accountId) accountOwner = "customer-" + accountId;
+          } finally { store.close(); }
+        }
+      }
+      if (!accountOwner && process.env.CMS_ENABLED === "true") {
+        const { getPayload } = await import("payload");
+        const { default: payloadConfig } = await import("@payload-config");
+        const { hasRole } = await import("@/cms/policy");
+        const payload = await getPayload({ config: payloadConfig });
+        const identity = await payload.auth({ headers: req.headers });
+        const user = identity.user as { id?: string | number } | null;
+        if (user && hasRole(user, ["super-admin", "editor"]) &&
+            /^[a-zA-Z0-9_-]{1,100}$/.test(String(user.id))) {
+          accountOwner = "cms-staff-" + String(user.id);
+        }
+      }
+      if (accountOwner && auth?.owner !== accountOwner) {
+        // Save the guest session cookie until an explicit migration exists.
+        // Switching identity does not transfer any projects or modify their ownership.
+        const created = createAccountMediaSession(accountOwner);
+        const response = json({owner: created.owner, demo: false, account: true,
+          previousGuestProjectsPreserved: !!auth && !auth.owner.startsWith("customer-") && !auth.owner.startsWith("cms-staff-")});
+        response.cookies.set("sm_session", created.token, {
+          httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+          sameSite: "strict", path: "/", maxAge: 30 * 86400,
+        });
+        return response;
+      }
       if (auth)
         return json({
           owner: auth.owner,
