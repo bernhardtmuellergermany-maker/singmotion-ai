@@ -131,3 +131,14 @@
 .sm-header-project-options button{display:block;width:100%;text-align:left;padding:10px;color:#f2eafd;white-space:nowrap}
 .sm-header-project-options button:hover{background:#563c78}
 .sm-header-project-error{position:absolute;top:100%;left:0;z-index:101;background:#331622;padding:8px;border-radius:8px;font-size:12px;max-width:300px}
+
+/* Project detail rows and expandable instructions share the same typography. */
+.sm-live-deck .sm-live-instructions{border-bottom:1px solid #30405c;padding:12px 0;margin:0}
+.sm-live-deck .sm-live-instructions summary{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#a8b8d2;font-size:13px;line-height:1.4;cursor:pointer;list-style:none}
+.sm-live-deck .sm-live-instructions summary::-webkit-details-marker{display:none}
+.sm-live-deck .sm-live-instructions summary span{font-size:17px;color:#cdb3ff;line-height:1}
+.sm-live-deck .sm-live-instructions[open] summary span{color:#fff}
+.sm-live-deck .sm-live-instructions .sm-live-prompt{font-size:13px;margin:12px 0 0}
+.sm-live-deck .sm-live-final-actions{display:flex;align-items:stretch;gap:10px;margin-top:22px}
+.sm-live-deck .sm-live-final-actions>.button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;text-align:center;padding:11px 8px;font-size:12px;line-height:1.3;white-space:normal;cursor:pointer}
+.sm-live-deck .sm-live-final-actions button:disabled{opacity:.6;cursor:wait}
