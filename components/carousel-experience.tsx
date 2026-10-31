@@ -337,7 +337,7 @@ function AccountPanel(){
    setCurrentPassword("");setNewPassword("");setPasswordOpen(false);setPasswordMessage("Password updated. Other sessions were signed out.");
   }catch(err){setPasswordMessage((err as Error).message)}finally{setBusy(false)}
  }
- const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false),[acceptedTerms,setAcceptedTerms]=useState(false);
+ const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false);
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{
   let live=true;
@@ -355,7 +355,7 @@ function AccountPanel(){
   return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
  async function act(action:"login"|"register"|"logout"){
-  if(action==="register" && (password!==confirmPassword || !acceptedTerms)){setError(password!==confirmPassword?"Passwords do not match.":"Please accept the Terms and Privacy Policy.");return;}
+  if(action==="register" && (password!==confirmPassword)){setError("Passwords do not match.");return;}
   setBusy(true);setError("");
   try{
    if(action==="logout" && staff){
@@ -381,7 +381,7 @@ function AccountPanel(){
   <form onSubmit={e=>{e.preventDefault();void act(mode)}} className="sm-account-form">
    <label className="sm-account-label">Email address<input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" maxLength={254}/></label>
    <label className="sm-account-label">Password<input aria-label="Password" type={showPassword?"text":"password"} required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"At least 20 characters":"Your password"} maxLength={256}/></label>
-   {mode==="register"&&<><label className="sm-account-label">Confirm password<input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/></label><p className="sm-account-hint">Use at least 20 characters. Your projects remain private to your account.</p><label className="sm-account-consent"><input type="checkbox" checked={acceptedTerms} onChange={e=>setAcceptedTerms(e.target.checked)} required/> I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</label></>}
+   {mode==="register"&&<><label className="sm-account-label">Confirm password<input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/></label><p className="sm-account-hint">Use at least 20 characters. Your projects remain private to your account.</p><p className="sm-account-hint">STAGING test account. Email verification is not yet available; please do not use a password from another service.</p></>}
    <label className="sm-account-consent"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/> Show password</label>
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
