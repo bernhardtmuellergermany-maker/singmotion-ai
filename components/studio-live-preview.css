@@ -42,3 +42,17 @@
 .sm-output-header .sm-header-project-error{position:absolute;top:100%;left:0;padding:8px;background:#391622;max-width:260px;border-radius:8px}
 @media(max-width:650px){.sm-output-header{padding:0 13px;gap:8px}.sm-output-header .flow-header-left{gap:8px}.sm-output-header .sm-output-project-name .flow-project-name{max-width:115px;font-size:12px}.sm-output-header .flow-divider{height:22px}.sm-output-details{padding:15px}.sm-live-final-actions>.button{font-size:11px}}
 @media(prefers-reduced-motion:reduce){.sm-live-orbit,.sm-live-scan{animation:none}}
+
+/* Actual home header structure; no wrap or detached account controls. */
+.unified-app .sm-output-header{display:flex!important;flex-direction:row!important;justify-content:space-between!important;align-items:center!important;flex-wrap:nowrap!important;width:100%;min-height:76px;height:76px;padding:0 clamp(20px,3vw,52px)!important;box-sizing:border-box;gap:16px;overflow:visible;position:relative;z-index:50}
+.unified-app .sm-output-header-left{display:flex;flex:1;align-items:center;gap:18px;min-width:0}
+.unified-app .sm-output-header-left>.sm-wordmark{flex-shrink:0}
+.unified-app .sm-output-header-right{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center;gap:22px;flex-shrink:0;margin-left:auto}
+.unified-app .sm-output-header .sm-output-project-name{display:flex;align-items:center;gap:5px;min-width:0}
+.unified-app .sm-output-header .sm-output-project-name .flow-project-name{max-width:min(27vw,310px);white-space:nowrap;text-overflow:ellipsis;overflow:hidden}
+.unified-app .sm-output-header .flow-divider{flex-shrink:0}
+.unified-app .sm-output-header .flow-menu{position:relative;z-index:60}
+.unified-app .sm-output-header .flow-menu .flow-popover{position:absolute;top:calc(100% + 5px);left:0;z-index:100;min-width:190px}
+.sm-output-search{color:#ddd7e9;display:inline-flex;align-items:center;justify-content:center}
+.sm-output-search:hover{color:#fff}
+@media(max-width:650px){.unified-app .sm-output-header{padding:0 13px!important;gap:8px}.unified-app .sm-output-header-left{gap:7px}.unified-app .sm-output-header-right{gap:11px}.unified-app .sm-output-header .sm-output-project-name .flow-project-name{max-width:100px}.unified-app .sm-output-header .flow-divider{height:22px}}
