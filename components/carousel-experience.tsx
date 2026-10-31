@@ -329,7 +329,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [failed,setFailed]=useState(false);
-  const [adminProjects,setAdminProjects]=useState<{id:string;artist:string;selected:boolean}[]|null>(null);
+  const [adminProjects,setAdminProjects]=useState<{id:string;name:string;selected:boolean}[]|null>(null);
   const [selecting,setSelecting]=useState(false);
   const [selectionError,setSelectionError]=useState("");
   // Start buffering the public Showcase stream in parallel with its metadata.
@@ -357,7 +357,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
     <span className="sm-showcase-label">Lip-Synced with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
       <strong>{showcase.title}</strong>
-      {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.artist} · {p.id.slice(0,8)}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
+      {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
   </div>;
