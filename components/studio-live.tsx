@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Volume2, VolumeX } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
@@ -562,7 +563,7 @@ export function LiveProject({ id }: { id: string }) {
                 </div>
               </>}
             </div>
-            {complete&&<><button className="sm-output-sound" type="button" aria-label={outputSound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const video=completedVideoRef.current;if(!video)return;video.muted=outputSound;setOutputSound(!outputSound)}}>{outputSound?"🔊":"🔇"}</button>
+            {complete&&<><button className="sm-output-sound" type="button" aria-label={outputSound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const video=completedVideoRef.current;if(!video)return;video.muted=outputSound;setOutputSound(!outputSound)}}>{outputSound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>
             <div className="sm-output-completed-footer"><strong title={projectLabel||project.projectName||project.artistName}>{projectLabel||project.projectName||project.artistName||"Untitled Project"}</strong><a className="sm-output-download" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download onClick={e=>e.stopPropagation()}>Download video ↓</a></div></>}
             {!complete && <div className="sm-output-pending-footer"><p className="sm-output-pending-stage" role="status">{project.stage}</p><button type="button" className="sm-output-poll-button" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button></div>}
           </section>
