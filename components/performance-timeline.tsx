@@ -1,12 +1,13 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
-import { Plus, Trash2, Clock3, Play, Pause, RotateCcw, GripHorizontal, ChevronDown } from "lucide-react";
-import { cameras, cameraHelp } from "../lib/domain";
+import { Plus, Trash2, Clock3, Play, Pause, RotateCcw, GripHorizontal, ChevronDown, Camera, Smile } from "lucide-react";
+import { cameras, cameraHelp, cameraPrompt } from "../lib/domain";
 
 export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string;color?:string};
 const cameraModes=["Static","Orbit left","Orbit right","Push-in","Pull-out","Pan left","Pan right"];
 const emotions=["Neutral","Emotional","Smile","Happy","Sad","Intense","Calm"];
+const emotionHelp:Record<string,string>={Neutral:"Maintain a natural, relaxed facial expression throughout the performance.",Emotional:"Show heartfelt emotion with expressive eyes and natural facial movements.",Smile:"Smile warmly and naturally while performing.",Happy:"Show a joyful, upbeat expression with lively eyes and positive energy.",Sad:"Show a subdued, melancholic expression with gentle, reflective movements.",Intense:"Perform with strong focus, dramatic emotional intensity, and expressive facial movements.",Calm:"Keep a peaceful, composed expression with soft and controlled movements."};
 const palette=["#a43afb","#64748b","#00c6eb","#e89047","#e66ca3"];
 
 const round=(n:number)=>Math.round(n*10)/10;
@@ -109,6 +110,11 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     if(d.mode==="left")start=round(Math.max(prev,Math.min(d.end-MIN,d.start+delta)));
     else end=round(Math.min(next,Math.max(d.start+MIN,d.end+delta)));
     if(validInterval(latest.current,d.id,start,end,seconds))update(d.id,{start,end});
+  }
+  function appendInstruction(s:PerformanceSection,text:string,patch:Partial<PerformanceSection>){
+    const next=[s.instructions.trim(),text].filter(Boolean).join("\n");
+    if(next.length>500){setNotice("Section instructions cannot exceed 500 characters.");return;}
+    setNotice("");update(s.id,{...patch,instructions:next});
   }
   function onCardDown(e:ReactPointerEvent<HTMLButtonElement>,s:PerformanceSection){
     if(e.button!==0||!track.current)return;
@@ -225,8 +231,18 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     {!sections.length?<div className="sm-timeline-empty"><Plus size={32}/><strong>No sections yet</strong><p>Add a section to direct the performance, or continue without one.</p><button type="button" onClick={add}><Plus size={17}/> Add Section</button></div>:
     <div className="sm-timeline-cards">{orderedSections.map((s,i)=><article key={s.id} data-performance-section-id={s.id} className={(dropIndex!==null&&dragging!==null&&dropSections[dropIndex]?.id===s.id?"is-insert-before ":"")+(dropIndex!==null&&dragging!==null&&dropIndex===dropSections.length&&dropSections[dropSections.length-1]?.id===s.id?"is-insert-after ":"")+(selected===s.id?"is-selected ":"")+(dragging===s.id?"is-dragging ":"")+(dropTarget===s.id?"is-drop-target":"")} style={{borderColor:colorFor(s.id)}} onClick={()=>setSelected(s.id)}>
       <header className="sm-timeline-card-header"><button type="button" className="sm-timeline-card-grip" title="Drag to move section in timeline" aria-label={`Drag section ${i+1} to reorder it`} onPointerDown={e=>onCardDown(e,s)} onPointerMove={onCardMove} onPointerUp={e=>finishMove(e.clientX,e.clientY,true)} onPointerCancel={()=>drag.current=null}><GripHorizontal size={14}/></button><span className="sm-timeline-dot" style={{background:colorFor(s.id)}}/><strong>{s.start.toFixed(1)}–{s.end.toFixed(1)}s</strong><label>Start<input aria-label={`Section ${i+1} start`} type="number" min={0} max={s.end-MIN} step="0.1" value={s.start} onChange={e=>changeTime(s.id,Number(e.target.value),s.end)}/></label><label>End<input aria-label={`Section ${i+1} end`} type="number" min={s.start+MIN} max={seconds} step="0.1" value={s.end} onChange={e=>changeTime(s.id,s.start,Number(e.target.value))}/></label><button type="button" aria-label="Remove section" onClick={()=>{const next=latest.current.filter(x=>x.id!==s.id);latest.current=next;onChange(next);}}><Trash2 size={16}/></button></header>
-      <div className="sm-timeline-add-camera"><details className="flow-camera-menu"><summary aria-label="Add camera movement"><Plus size={15}/><span>Add camera</span><ChevronDown size={14}/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameras.map(option=><button key={option} type="button" onClick={e=>{const field=e.currentTarget.closest("article")?.querySelector<HTMLTextAreaElement>("textarea");const pos=field?.selectionStart??s.instructions.length;const insert=`Camera movement: ${option}.`;const before=s.instructions.slice(0,pos),after=s.instructions.slice(pos);const next=(before+(before&&!before.endsWith("\n")?"\n":"")+insert+(after&&!after.startsWith("\n")?"\n":"")+after);if(next.length>500){setNotice("Section instructions cannot exceed 500 characters.");return;}update(s.id,{camera:option,instructions:next});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option]}><strong>{option}</strong><small>{cameraHelp[option]}</small></button>)}</div></details></div>
-      <label>Emotion / Expression<select value={s.emotion} onChange={e=>update(s.id,{emotion:e.target.value})}>{emotions.map(x=><option key={x}>{x}</option>)}</select></label>
+      <div className="sm-timeline-add-camera">
+        <details className="flow-camera-menu">
+          <summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown size={14}/></summary>
+          <div className="flow-camera-options" role="group" aria-label="Camera movements">{cameras.map(option=><button key={option} type="button" onClick={e=>{appendInstruction(s,`Camera movement: ${option}. ${cameraHelp[option]} ${cameraPrompt[option]||""}`,{camera:option});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option]}><strong>{option}</strong><small>{cameraHelp[option]}</small></button>)}</div>
+        </details>
+      </div>
+      <div className="sm-timeline-add-camera sm-timeline-add-emotion">
+        <details className="flow-camera-menu">
+          <summary aria-label="Add emotion or expression"><Smile size={16}/><span>Add emotion</span><ChevronDown size={14}/></summary>
+          <div className="flow-camera-options" role="group" aria-label="Emotions and expressions">{emotions.map(option=><button key={option} type="button" onClick={e=>{appendInstruction(s,`Emotion / Expression: ${option}. ${emotionHelp[option]}`,{emotion:option});e.currentTarget.closest("details")!.open=false;}} title={emotionHelp[option]}><strong>{option}</strong><small>{emotionHelp[option]}</small></button>)}</div>
+        </details>
+      </div>
       <label>Custom Instructions<textarea maxLength={500} rows={2} value={s.instructions} placeholder="Describe what the singer or speaker should do..." onChange={e=>update(s.id,{instructions:e.target.value})}/><small className="sm-timeline-counter">{s.instructions.length}/500</small></label>
     </article>)}</div>}
     {!!sections.length&&<button type="button" className="sm-timeline-add" onClick={add}><Plus size={17}/> Add Section</button>}
