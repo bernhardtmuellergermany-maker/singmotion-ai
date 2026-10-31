@@ -397,7 +397,6 @@ export function StudioWizard({
               <details className="flow-camera-menu"><summary aria-label="Add camera movement"><Plus size={16}/><span>Add camera</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{const sentence=`Camera movement: ${option}.`;const field=performanceInput.current;const at=field?.selectionStart??draft.customPrompt.length;const before=draft.customPrompt.slice(0,at),after=draft.customPrompt.slice(at);const combined=before+(before&&!before.endsWith("\n")?"\n":"")+sentence+(after&&!after.startsWith("\n")?"\n":"")+after;if(combined.length>1000){setError("Performance description cannot exceed 1,000 characters.");return;}update({camera:option,customPrompt:combined,performance:"Custom"});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option as keyof typeof cameraHelp]||option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp]||""}</small></button>)}</div></details>
               <details className="flow-camera-menu flow-format-menu"><summary aria-label="Video format">{draft.outputFormat==="9:16"?<Smartphone size={18}/>:<Monitor size={18}/>}<span>{draft.outputFormat}</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options flow-format-options" role="group" aria-label="Video aspect ratio">{(["9:16","16:9"] as const).map(format=><button type="button" key={format} className={draft.outputFormat===format?"is-active":""} onClick={e=>{update({outputFormat:format,formatMode:format});e.currentTarget.closest("details")!.open=false;}}>{format==="9:16"?<Smartphone size={17}/>:<Monitor size={17}/>}<span>{format}</span></button>)}</div></details>
             </div>
-            <button type="button" className="flow-create" disabled={!available} onClick={()=>setStep(3)}><Sparkles size={19}/><span className="flow-generate-label">Generate Video</span><ArrowRight size={19}/></button>
           </div>
         </section>}
         {step===3&&<section className="sm-studio-review"><Sparkles size={30}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
@@ -413,7 +412,8 @@ export function StudioWizard({
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
-          {step<2&&(step!==0||Boolean(draft.song&&audioValid))&&<button type="button" className="sm-studio-next" disabled={busy||(step===2&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+          {step<2&&(step!==0||Boolean(draft.song&&audioValid))&&<button type="button" className="sm-studio-next" disabled={busy} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+          {step===2&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setStep(3)}>Review Project <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>
