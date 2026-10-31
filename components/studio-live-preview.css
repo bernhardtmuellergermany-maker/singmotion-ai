@@ -6,7 +6,6 @@
 .sm-output-stage>.sm-output-card{padding:0;min-width:0}
 .sm-output-stage>.sm-output-card.is-inactive>*:not(.sm-carousel-side-hit){pointer-events:none}
 .sm-output-stage>.sm-output-card.is-inactive>.sm-carousel-side-hit{pointer-events:auto}
-.sm-output-stage>.sm-output-card.is-inactive:hover{filter:brightness(.88);opacity:.9}
 .sm-output-stage>.sm-output-card .sm-live-viewport,.sm-output-stage>.sm-output-card .sm-live-viewport.portrait,.sm-output-stage>.sm-output-card .sm-live-viewport.landscape{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;border-radius:0;box-shadow:none;overflow:hidden;background:#070a12}
 .sm-output-stage>.sm-output-card .sm-live-viewport video{width:100%;height:100%;object-fit:cover;display:block}
 .sm-output-stage .sm-live-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(8px) brightness(.45);transform:scale(1.06)}
@@ -80,7 +79,6 @@
 .sm-output-page .sm-output-search-results a:hover{background:#493665}
 .sm-output-page .sm-output-header .sm-output-project-name .flow-project-name{font-size:13px!important;font-weight:500;line-height:1.3}
 .sm-output-page .sm-output-header .sm-output-project-name .flow-project-input{font-size:13px!important;line-height:1.3;height:34px}
-.sm-output-page .sm-output-stage>.sm-output-card.is-neighbor:hover{transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-98px) rotateY(calc(var(--distance) * -32deg)) scale(.90);filter:brightness(.9);opacity:.9;border-color:rgba(183,140,255,.65);box-shadow:0 21px 58px rgba(0,0,0,.55),0 0 16px rgba(146,85,242,.13)}
 .sm-output-page .sm-live-final-actions>.button.outline{background:#141a2b!important;color:#f5efff!important;border:1px solid #9471ca!important}
 .sm-output-page .sm-live-final-actions>.button.outline:hover{background:#43325e!important;color:white!important}
 @media(max-width:650px){.sm-output-page .sm-output-stage>.sm-output-card{height:min(72vh,690px);max-width:min(90vw,400px)}.sm-output-page .sm-output-header .sm-output-project-name .flow-project-name{font-size:12px!important}}
