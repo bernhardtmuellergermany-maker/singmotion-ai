@@ -15,7 +15,9 @@ const guestSql="owner GLOB '[0-9a-f]*' AND length(owner)=36 AND owner NOT LIKE '
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  if(process.env.RAILWAY_ENVIRONMENT_ID!==stagingId)return reply({error:"Staging only"},403);
- if(req.headers.get("origin")!==new URL(req.url).origin)return reply({error:"Origin mismatch"},403);
+ const origin=req.headers.get("origin");
+ const expected="https://singmotion-ai-staging.up.railway.app";
+ if(origin!==expected)return reply({error:"Origin mismatch"},403);
  const payload=await getPayload({config:payloadConfig});
  const {user}=await payload.auth({headers:req.headers});
  if(!user||!hasRole(user,["super-admin"])||!/^[a-zA-Z0-9_-]{1,100}$/.test(String(user.id)))return reply({error:"Super admin required"},403);
