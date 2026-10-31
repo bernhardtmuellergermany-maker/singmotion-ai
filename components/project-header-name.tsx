@@ -13,6 +13,7 @@ export function ProjectHeaderName({id}:{id:string}){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const menu=useRef<HTMLDetailsElement>(null);
+ const cancelEdit=useRef(false);
  useEffect(()=>{const dismiss=(e:PointerEvent)=>{if(menu.current&&!menu.current.contains(e.target as Node))menu.current.open=false};const escape=(e:KeyboardEvent)=>{if(e.key==="Escape"&&menu.current)menu.current.open=false};document.addEventListener("pointerdown",dismiss);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("pointerdown",dismiss);document.removeEventListener("keydown",escape)}},[]);
  useEffect(()=>{
   if(!id.startsWith("live_"))return;
@@ -23,8 +24,9 @@ export function ProjectHeaderName({id}:{id:string}){
   return()=>{active=false};
  },[id]);
  if(!id.startsWith("live_"))return null;
- const startEdit=()=>{setDraft(name);setEdit(true);setError("")};
+ const startEdit=()=>{cancelEdit.current=false;setDraft(name);setEdit(true);setError("")};
  const save=()=>{
+  if(cancelEdit.current){cancelEdit.current=false;setEdit(false);return;}
   const value=draft.trim().slice(0,80);
   if(value){setName(value);try{
     localStorage.setItem("sm-live-project-name:"+id.slice(5),value);
@@ -44,7 +46,7 @@ export function ProjectHeaderName({id}:{id:string}){
   }catch(e){setError((e as Error).message);setBusy(false)}
  };
  return <div className="sm-header-project-name sm-output-project-name">
-  {edit?<input className="flow-project-input" aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save();if(e.key==="Escape")setEdit(false)}}/>:<>
+  {edit?<input className="flow-project-input" aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save();if(e.key==="Escape"){cancelEdit.current=true;setEdit(false)}}}/>:<>
    <button type="button" className="flow-project-name" title="Click to rename project" onClick={startEdit}>{name||"Project"}</button>
    <details ref={menu} className="flow-menu"><summary aria-label="Project options"><MoreVertical size={19}/></summary>
     <div className="flow-popover"><button type="button" onClick={e=>{e.currentTarget.closest("details")!.open=false;startEdit()}}>Rename project</button><button type="button" disabled={busy} onClick={()=>void remove()}>{busy?"Deleting…":"Delete project"}</button></div>
