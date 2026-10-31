@@ -524,7 +524,7 @@ export function LiveProject({ id }: { id: string }) {
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
         <div className="sm-live-layout">
           <section className="sm-live-preview-card" aria-label="Video preview and status">
-            <div className="sm-live-status" role="status" aria-live="polite"><span className={"sm-live-status-dot"+(complete?" ready":failed?" failed":"")}/><strong>{statusLabel}</strong><span className="sm-live-small">· {project.selection.outputFormat || "9:16"}</span></div>
+            <div className="sm-live-status" role="status" aria-live="polite"><span className={"sm-live-status-dot"+(complete?" ready":failed?" failed":"")}/><strong>{statusLabel}</strong></div>
             <div className={"sm-live-viewport "+ratio}>
               {complete ? <video controls playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
                 <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
