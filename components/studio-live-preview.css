@@ -39,3 +39,32 @@
 .sm-live-deck .sm-live-viewport.portrait{width:min(100%,275px)}
 }
 @media(prefers-reduced-motion:reduce){.sm-live-deck>.sm-live-preview-card,.sm-live-deck>.sm-live-details{transition:none}}
+
+/* Match the actual homepage carousel card dimensions and proportions. */
+.sm-live-page{max-width:none;width:100%;padding:0 20px 40px}
+.sm-live-deck{height:min(75vh,710px);min-height:430px;max-height:none;perspective:1100px;min-height:min(75vh,710px)}
+.sm-live-deck>.sm-live-preview-card,.sm-live-deck>.sm-live-details{
+ top:50%;left:50%;width:auto;max-width:min(90vw,400px);
+ height:min(72vh,690px);max-height:calc(100svh - 160px);
+ aspect-ratio:9/16;min-height:0;border-radius:19px;
+ border-color:rgba(147,121,204,.36);
+ box-shadow:0 18px 55px rgba(0,0,0,.5);
+ transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1);
+}
+.sm-live-deck>.sm-live-preview-card{transform:translate(-50%,-50%);filter:none}
+.sm-live-deck>.sm-live-details{transform:translate(calc(-50% + min(36vw,335px)),-50%) translateZ(-110px) rotateY(-35deg) scale(.88);filter:brightness(.78)}
+.sm-live-deck.show-details>.sm-live-preview-card{transform:translate(calc(-50% - min(36vw,335px)),-50%) translateZ(-110px) rotateY(35deg) scale(.88);filter:brightness(.78)}
+.sm-live-deck.show-details>.sm-live-details{transform:translate(-50%,-50%);filter:none}
+.sm-live-deck.show-video>.sm-live-details:hover{transform:translate(calc(-50% + min(34vw,310px)),-50%) translateZ(-85px) rotateY(-30deg) scale(.91);filter:brightness(.88)}
+.sm-live-deck.show-details>.sm-live-preview-card:hover{transform:translate(calc(-50% - min(34vw,310px)),-50%) translateZ(-85px) rotateY(30deg) scale(.91);filter:brightness(.88)}
+.sm-live-deck .sm-live-viewport.portrait{width:min(100%,285px)}
+@media(max-width:750px){
+ .sm-live-page{padding:0 8px 28px}
+ .sm-live-deck{height:min(75vh,710px);min-height:430px}
+ .sm-live-deck>.sm-live-preview-card,.sm-live-deck>.sm-live-details{
+  top:50%;width:auto;max-width:min(90vw,400px);height:min(72vh,690px);max-height:calc(100svh - 160px);aspect-ratio:9/16;min-height:0
+ }
+ .sm-live-deck.show-video>.sm-live-details,.sm-live-deck.show-video>.sm-live-details:hover{transform:translate(calc(-50% + 48px),-50%) scale(.88);filter:brightness(.78)}
+ .sm-live-deck.show-details>.sm-live-preview-card,.sm-live-deck.show-details>.sm-live-preview-card:hover{transform:translate(calc(-50% - 48px),-50%) scale(.88);filter:brightness(.78)}
+ .sm-live-deck.show-video>.sm-live-preview-card,.sm-live-deck.show-details>.sm-live-details{transform:translate(-50%,-50%);filter:none}
+}
