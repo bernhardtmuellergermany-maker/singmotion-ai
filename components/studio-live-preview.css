@@ -68,3 +68,32 @@
 .sm-output-page .sm-output-header .flow-popover{position:absolute;top:calc(100% + 5px);left:0;z-index:100;min-width:190px}
 .sm-output-page .sm-output-search{display:inline-flex;align-items:center;color:#e5e3ee}
 @media(max-width:650px){.sm-output-page .sm-output-header{gap:8px;padding:0 13px}.sm-output-page .sm-output-header-left{gap:8px}.sm-output-page .sm-output-header-right{gap:12px}.sm-output-page .sm-output-header .flow-project-name{max-width:90px}}
+
+/* Final output refinements: card scale, Studio title typography and search. */
+.sm-output-page .sm-output-header .sm-output-project-name .flow-project-name{
+  font-family:inherit;font-size:14px!important;font-weight:500!important;
+  line-height:1.2;letter-spacing:normal;max-width:min(27vw,270px);
+  padding:6px 4px;background:transparent;border:0;box-shadow:none;
+}
+.sm-output-page .sm-output-header .sm-output-project-name .flow-project-input{
+  font-size:14px;line-height:1.2;max-width:270px;
+}
+.sm-output-page .sm-output-stage{height:min(82vh,770px);min-height:500px}
+.sm-output-page .sm-output-stage>.sm-output-card{
+  height:min(78vh,740px);max-height:calc(100svh - 120px);max-width:min(92vw,430px)
+}
+.sm-output-page .sm-output-stage>.sm-output-card.is-neighbor:hover{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-55px) rotateY(calc(var(--distance) * -24deg)) scale(.94);
+  filter:brightness(1);opacity:1;border-color:rgba(183,140,255,.85);
+  box-shadow:0 28px 70px #000a,0 0 22px #a274e344;
+}
+.sm-output-page .sm-output-search-wrap{position:relative;display:flex;align-items:center;flex-shrink:0}
+.sm-output-page .sm-output-search-wrap .sm-inline-search-icon{display:grid;place-items:center;background:transparent;border:0;color:#ded7ec;cursor:pointer;padding:8px}
+.sm-output-page .sm-output-search-panel{position:absolute;right:0;top:calc(100% + 14px);width:min(360px,85vw);padding:12px;background:#13192b;border:1px solid #554673;border-radius:13px;box-shadow:0 20px 55px #000a;z-index:120}
+.sm-output-page .sm-output-search-field{display:flex;align-items:center;gap:6px}
+.sm-output-page .sm-output-search-field input{min-width:0;flex:1;background:#0b1221;color:#fff;border:1px solid #6c5b8a;border-radius:8px;padding:10px;font-size:13px}
+.sm-output-page .sm-output-search-field button{background:transparent;color:#fff;border:0;cursor:pointer}
+.sm-output-page .sm-output-search-results{display:flex;flex-direction:column;gap:3px;max-height:270px;overflow:auto;margin-top:10px}
+.sm-output-page .sm-output-search-results a,.sm-output-page .sm-output-search-results span{color:#e4def3;padding:10px;border-radius:7px;text-decoration:none;font-size:13px}
+.sm-output-page .sm-output-search-results a:hover{background:#493665}
+@media(max-width:650px){.sm-output-page .sm-output-stage>.sm-output-card{height:min(75vh,690px);max-width:90vw}.sm-output-page .sm-output-header .sm-output-project-name .flow-project-name{max-width:95px;font-size:12px!important}}
