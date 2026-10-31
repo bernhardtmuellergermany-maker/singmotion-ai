@@ -473,3 +473,27 @@
   outline:1px solid #526482;
   outline-offset:0;
 }
+
+
+/* Performance cards: camera selector matches the emotion dropdown. */
+.singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu>summary{
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
+  min-height:37px;
+  padding:8px 11px;
+  border:1px solid #36465e;
+  border-radius:8px;
+  background:#1b2840;
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+}
+.singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu>summary:hover{
+  border-color:#627596;
+}
+.singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu[open]>summary{
+  border-color:#9255f2;
+}
