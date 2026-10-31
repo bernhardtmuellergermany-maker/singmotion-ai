@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
-import {dataDir,limit,createAccountMediaSession,revokeMediaSession} from "@/lib/db";
+import {dataDir,limit,createAccountMediaSession,revokeMediaSession,session} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
@@ -36,8 +36,12 @@ export async function POST(req:NextRequest){
    const response=json({authenticated:false});
    response.cookies.delete("sm_customer");
    const media=req.cookies.get("sm_session")?.value;
-   if(media)revokeMediaSession(media);
-   response.cookies.delete("sm_session");
+   if(media && session(media)?.owner.startsWith("customer-"))revokeMediaSession(media);
+   const guest=req.cookies.get("sm_guest_session")?.value;
+   if(guest && session(guest) && !session(guest)?.owner.startsWith("customer-") && !session(guest)?.owner.startsWith("cms-staff-")){
+    response.cookies.set("sm_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
+    response.cookies.delete("sm_guest_session");
+   }else response.cookies.delete("sm_session");
    return response;
   }
   if(!["login","register"].includes(input.action||"")||typeof input.email!=="string"||typeof input.password!=="string")return json({error:"Invalid request"},400);
@@ -46,7 +50,12 @@ export async function POST(req:NextRequest){
   const id=store.session(token);
   if(!id)throw Error("Account session unavailable");
   const media=createAccountMediaSession("customer-"+id);
+  const previous=req.cookies.get("sm_session")?.value;
+  const previousOwner=session(previous)?.owner;
+  const guest=previousOwner && !previousOwner.startsWith("customer-") && !previousOwner.startsWith("cms-staff-") ? previous : null;
+  if(previous && previousOwner?.startsWith("customer-"))revokeMediaSession(previous);
   const response=json({authenticated:true,email:input.email.trim().toLowerCase(),owner:media.owner});
+  if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   for(const [name,value] of [["sm_customer",token],["sm_session",media.token]]){
    response.cookies.set(name,value,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
   }
