@@ -538,7 +538,7 @@ export function LiveProject({ id }: { id: string }) {
       {error && <p role="alert" className="error">{error}</p>}
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
         <div className="sm-carousel-stage sm-output-stage">
-          <section className={"sm-carousel-card sm-output-card "+(frontCard==="video"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="video"?" is-side-hovered":""))} style={{"--distance":frontCard==="video"?0:-1,"--depth":frontCard==="video"?0:1,"--drag":0} as React.CSSProperties} aria-label="Video preview and status">
+          <section className={"sm-carousel-card sm-output-card "+(!complete?"sm-output-pending ":"")+(frontCard==="video"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="video"?" is-side-hovered":""))} style={{"--distance":frontCard==="video"?0:-1,"--depth":frontCard==="video"?0:1,"--drag":0} as React.CSSProperties} aria-label="Video preview and status">
             {frontCard!=="video" && <button type="button" className="sm-carousel-side-hit" aria-label="Show video" onPointerEnter={()=>setHoveredSide("video")} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide("video")} onBlur={()=>setHoveredSide(null)} onClick={()=>{setHoveredSide(null);setFrontCard("video")}}/>}
             <div className="sm-live-card-top sm-live-video-overlay"><span className="sm-live-card-kicker">{statusLabel}</span></div>
             <div className={"sm-live-viewport "+ratio}>
@@ -551,12 +551,7 @@ export function LiveProject({ id }: { id: string }) {
                 </div>
               </>}
             </div>
-            {!complete && <p className="sm-live-small" role="status">{project.stage}</p>}
-            <div className="sm-live-actions">
-              {!complete && <button type="button" className="button outline" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button>}
-              
-            </div>
-            {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
+            {!complete && <div className="sm-output-pending-footer"><p className="sm-output-pending-stage" role="status">{project.stage}</p><button type="button" className="sm-output-poll-button" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button></div>}
           </section>
           <aside className={"sm-carousel-card sm-output-card sm-output-details "+(frontCard==="details"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="details"?" is-side-hovered":""))} style={{"--distance":frontCard==="details"?0:1,"--depth":frontCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
             {frontCard!=="details" && <button type="button" className="sm-carousel-side-hit" aria-label="Show project details" onPointerEnter={()=>setHoveredSide("details")} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide("details")} onBlur={()=>setHoveredSide(null)} onClick={()=>{setHoveredSide(null);setFrontCard("details")}}/>}
