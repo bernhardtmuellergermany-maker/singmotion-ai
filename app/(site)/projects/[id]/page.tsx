@@ -6,7 +6,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   return (
-    <Shell>
+    <Shell hideWorkspaceNav>
       <Project id={(await params).id} />
     </Shell>
   );
