@@ -509,6 +509,30 @@ export function LiveProject({ id }: { id: string }) {
     }catch{}
     setProjectLabel(value);setEditingProjectName(false);
   };
+  async function createAnotherVersion(){
+    if(!project||busy)return;
+    setBusy(true);setError("");
+    try{
+      await ensureSession();
+      const draftId=crypto.randomUUID();
+      await api("studio-drafts",{
+        method:"POST",
+        body:JSON.stringify({
+          id:draftId,selection:project.selection,artistName:project.artistName,
+          projectName:(projectLabel||project.projectName||project.artistName||"Project")+" · New version",
+          step:0
+        })
+      });
+      try{
+        const originalId=localStorage.getItem("singmotion-draft-id");
+        if(originalId){
+          const sections=localStorage.getItem("singmotion-timeline:"+originalId);
+          if(sections) localStorage.setItem("singmotion-timeline:"+draftId,sections);
+        }
+      }catch{}
+      router.push("/studio?draft="+encodeURIComponent(draftId));
+    }catch(e){setError((e as Error).message);setBusy(false)}
+  }
   const [frontCard,setFrontCard]=useState<"video"|"details">("video");
   const sourceTimestamp=(value:number)=>{const ms=Math.round(Math.max(0,value)*1000);return String(Math.floor(ms/60000)).padStart(2,"0")+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0")+"."+String(ms%1000).padStart(3,"0");};
   const ratio = project?.selection.outputFormat === "16:9" ? "landscape" : "portrait";
@@ -521,7 +545,7 @@ export function LiveProject({ id }: { id: string }) {
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
         <div className={"sm-live-layout sm-live-deck "+(frontCard==="details"?"show-details":"show-video")}>
           <section className="sm-live-preview-card" aria-label="Video preview and status" onClick={()=>{if(frontCard!=="video")setFrontCard("video")}}>
-            <div className="sm-live-card-top sm-live-video-overlay"><span className="sm-live-card-kicker">{statusLabel}</span><button type="button" onClick={e=>{e.stopPropagation();setFrontCard("details")}}>Details ↗</button></div>
+            <div className="sm-live-card-top sm-live-video-overlay"><span className="sm-live-card-kicker">{statusLabel}</span></div>
             <div className={"sm-live-viewport "+ratio}>
               {complete ? <video controls playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
                 <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
@@ -540,19 +564,17 @@ export function LiveProject({ id }: { id: string }) {
             {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
           </section>
           <aside className="sm-live-details" aria-label="Project details" onClick={()=>{if(frontCard!=="details")setFrontCard("details")}}>
-            <div className="sm-live-card-top"><h2 style={{marginTop:0,fontSize:21}}>Project details</h2><button type="button" onClick={(e)=>{e.stopPropagation();setFrontCard(frontCard==="details"?"video":"details")}} aria-label={frontCard==="details"?"Show video":"Show project details"}>{frontCard==="details"?"View video":"Open details"} ↗</button></div>
+            <div className="sm-live-card-top"><h2 style={{marginTop:0,fontSize:21}}>Project details</h2></div>
             <dl>
-              <div className="sm-live-meta"><dt>Project</dt><dd>{editingProjectName?<input autoFocus aria-label="Project name" maxLength={80} value={projectLabel} placeholder={project.artistName} onChange={e=>setProjectLabel(e.target.value)} onBlur={()=>saveProjectName(projectLabel||project.artistName)} onKeyDown={e=>{if(e.key==="Enter")saveProjectName(projectLabel||project.artistName);if(e.key==="Escape")setEditingProjectName(false);}}/>:<span>{projectLabel||project.artistName} <button type="button" className="sm-live-rename" onClick={()=>setEditingProjectName(true)} aria-label="Rename project">Edit</button></span>}</dd></div>
               <div className="sm-live-meta"><dt>Video format</dt><dd>{project.selection.outputFormat || "9:16"}</dd></div>
               <div className="sm-live-meta"><dt>Source audio cut</dt><dd>Start {sourceTimestamp(project.selection.start)} · End {sourceTimestamp(project.selection.end)}</dd></div>
               <div className="sm-live-meta"><dt>Audio length</dt><dd>{project.durationSeconds.toFixed(3)} seconds</dd></div>
               <div className="sm-live-meta"><dt>Status</dt><dd>{project.state}</dd></div>
-              <div className="sm-live-meta"><dt>Provider task</dt><dd>{project.providerJobId||"Pending"}</dd></div>
               <div className="sm-live-meta"><dt>Costs</dt><dd>Actual costs not yet available</dd></div>
             </dl>
-            <details className="sm-live-operation"><summary>Performance instructions</summary><p className="sm-live-prompt">{project.prompt}</p></details>
+            <details className="sm-live-instructions"><summary>Performance instructions <span aria-hidden="true">ⓘ</span></summary><p className="sm-live-prompt">{project.prompt}</p></details>
             {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
-            {complete && <div className="sm-live-actions"><a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a></div>}
+            {complete && <div className="sm-live-final-actions"><a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a><button type="button" className="button outline" disabled={busy} onClick={e=>{e.stopPropagation();void createAnotherVersion()}}>{busy?"Preparing…":"Create another version"}</button></div>}
           </aside>
         </div>
       )}
