@@ -510,3 +510,34 @@
 .singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{
   margin:0;
 }
+
+
+/* Step 3: upload tile and uploaded photo share the controls' full square width. */
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls>.flow-image-field{
+  width:100%;
+  height:auto;
+  aspect-ratio:1 / 1;
+  flex:0 0 auto;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-image-field>.flow-photo,
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-image-field>.flow-photo-add{
+  display:flex;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  max-width:none;
+  max-height:none;
+  aspect-ratio:1 / 1;
+  box-sizing:border-box;
+  overflow:hidden;
+  border-radius:12px;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>img{
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  object-fit:cover;
+  object-position:center;
+}
