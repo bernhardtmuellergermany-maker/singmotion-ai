@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { ProductHeader } from "./product-header";
 import { GlobalMenu } from "./home-collection";
-import { UserRound, Search } from "lucide-react";
+import { UserRound } from "lucide-react";
+import { OutputProjectSearch } from "./output-project-search";
 import { ProjectHeaderName } from "./project-header-name";
 export function Shell({ children, hideWorkspaceNav = false, projectId }: { children: React.ReactNode; hideWorkspaceNav?: boolean; projectId?: string }) {
   if (hideWorkspaceNav) return (
@@ -12,7 +13,7 @@ export function Shell({ children, hideWorkspaceNav = false, projectId }: { child
           {projectId && <><span className="flow-divider"/><ProjectHeaderName id={projectId}/></>}
         </div>
         <div className="sm-header-actions sm-output-header-right">
-          <Link href="/?search=1" className="sm-output-search" aria-label="Search projects"><Search size={19}/></Link>
+          <OutputProjectSearch />
           <GlobalMenu />
           <Link href="/?card=login" className="home-gallery-account" aria-label="Login or account"><UserRound size={21}/></Link>
         </div>
