@@ -6,9 +6,9 @@ import { ProjectHeaderName } from "./project-header-name";
 export function Shell({ children, hideWorkspaceNav = false, projectId }: { children: React.ReactNode; hideWorkspaceNav?: boolean; projectId?: string }) {
   return (
     <div className="product-theme unified-app">
-      {hideWorkspaceNav ? <header className="home-gallery-header sm-carousel-header">
-        <div className="sm-header-brand-and-project"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link>{projectId && <ProjectHeaderName id={projectId}/>}</div>
-        <div className="sm-header-actions"><GlobalMenu /><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div>
+      {hideWorkspaceNav ? <header className="flow-header sm-output-header">
+        <div className="flow-header-left"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><span className="flow-divider"/>{projectId && <ProjectHeaderName id={projectId}/>}</div>
+        <div className="flow-header-right"><GlobalMenu openInNewTab /><Link href="/?card=login" className="flow-profile" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div>
       </header> : <ProductHeader />}
       {!hideWorkspaceNav && <nav className="product-workspace-links" aria-label="Workspace">
         <Link href="/studio">Studio</Link>
