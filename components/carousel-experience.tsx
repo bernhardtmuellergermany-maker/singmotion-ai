@@ -254,14 +254,7 @@ export function CarouselExperience(){
                   </label>}
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
-            </div>:id==="login"?<div className="sm-carousel-login">
-              <span className="sm-carousel-song-icon"><LogIn size={27}/></span>
-              <h1>Under Construction</h1>
-              <p>Your private music video workspace.</p>
-              <p className="sm-login-explanation">Email sign-in is not active yet. Projects are currently linked to this browser's private demo session.</p>
-              <button type="button" className="sm-carousel-primary" onClick={()=>{if(audio)continueToStudio();else navigate("home");}}>Continue to workspace <ArrowRight size={17}/></button>
-              <button type="button" className="sm-carousel-demo-disconnect" onClick={()=>void disconnectDemoWorkspace()}>Disconnect this browser’s demo projects</button>
-            </div>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
+            </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
         })}
         {([-1,1] as const).map(direction=>{
@@ -325,6 +318,30 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   </div>;
 }
 
+function AccountPanel(){
+ const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ useEffect(()=>{fetch("/api/customer-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.authenticated)setAccount(d.email)}).catch(()=>{});},[]);
+ async function act(action:"login"|"register"|"logout"){
+  setBusy(true);setError("");
+  try{
+   const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,email,password})});
+   const d=await res.json();if(!res.ok)throw Error(d.error||"Sign-in failed");
+   setPassword("");setAccount(action==="logout"?null:d.email);window.location.reload();
+  }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+ }
+ return <div className="sm-carousel-login">
+  <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
+  <h1>{account?"Your account":mode==="login"?"Sign in":"Create account"}</h1>
+  {account?<><p>{account}</p><button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
+  <form onSubmit={e=>{e.preventDefault();void act(mode)}} style={{display:"grid",gap:12,width:"100%"}}>
+   <input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{padding:12,borderRadius:8}}/>
+   <input aria-label="Password" type="password" required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"Password (20+ characters)":"Password"} style={{padding:12,borderRadius:8}}/>
+   <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
+   <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
+  </form>}
+  {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
+ </div>;
+}
 function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:boolean;visible:boolean;onCreate:()=>void;published:{title:string;videoUrl:string}|null;onPublish:(value:{title:string;videoUrl:string})=>void}){
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
