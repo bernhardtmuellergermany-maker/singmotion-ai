@@ -15,7 +15,7 @@ export function moveSelection(
   const length = end - start;
   const next = Math.max(
     0,
-    Math.min(duration - length, Math.round((start + delta) * 100) / 100),
+    Math.min(Math.max(0,duration - length), Math.round((start + delta) * 1000) / 1000),
   );
   // Do not round the endpoint independently: even fractional source durations
   // must retain precisely the same selected interval at either boundary.
