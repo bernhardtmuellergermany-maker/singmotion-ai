@@ -87,3 +87,14 @@
 .sm-output-page .sm-live-final-actions>.button.outline{background:rgba(130,104,175,.09)!important;color:#c7bddb!important;border:1px solid rgba(156,139,190,.18)!important;box-shadow:none!important;outline:none!important;font-weight:500}
 .sm-output-page .sm-live-final-actions>.button.outline:hover{background:rgba(130,104,175,.19)!important;color:#e8def8!important;border-color:rgba(156,139,190,.3)!important;box-shadow:none!important}
 .sm-output-page .sm-live-final-actions>.button.outline:focus-visible{outline:2px solid #a37cdb!important;outline-offset:3px!important}
+
+/* Pending generation: clean status/footer, never overlap media placeholder. */
+.sm-output-stage>.sm-output-pending .sm-live-animated{padding:30px 24px 164px;gap:14px;justify-content:center}
+.sm-output-stage>.sm-output-pending .sm-live-animated strong{font-size:18px;line-height:1.35;color:#fff}
+.sm-output-stage>.sm-output-pending .sm-live-animated span{font-size:13px;line-height:1.45;color:#ded9e8}
+.sm-output-stage>.sm-output-pending .sm-output-pending-footer{position:absolute;bottom:14px;left:15px;right:15px;z-index:7;display:grid;gap:10px;background:linear-gradient(0deg,#0b0d18f5,#0b0d18e9);padding:12px;border-radius:12px;border:1px solid rgba(173,140,217,.16)}
+.sm-output-stage>.sm-output-pending .sm-output-pending-stage{font-size:12px;line-height:1.45;color:#d2cbe0;margin:0;max-height:66px;overflow:auto}
+.sm-output-stage>.sm-output-pending .sm-output-poll-button{display:block;width:100%;min-height:42px;border-radius:9px;background:#4e4b99;color:#fff;border:1px solid #7a72c3;font-weight:600;font-size:13px;cursor:pointer;white-space:normal}
+.sm-output-stage>.sm-output-pending .sm-output-poll-button:hover:not(:disabled){background:#605bb0}
+.sm-output-stage>.sm-output-pending .sm-output-poll-button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-height:650px){.sm-output-stage>.sm-output-pending .sm-live-animated{padding-bottom:130px}.sm-output-stage>.sm-output-pending .sm-output-pending-footer{bottom:8px;padding:8px}.sm-output-stage>.sm-output-pending .sm-output-pending-stage{max-height:40px}}
