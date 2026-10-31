@@ -337,6 +337,7 @@ function AccountPanel(){
    setCurrentPassword("");setNewPassword("");setPasswordOpen(false);setPasswordMessage("Password updated. Other sessions were signed out.");
   }catch(err){setPasswordMessage((err as Error).message)}finally{setBusy(false)}
  }
+ const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false),[acceptedTerms,setAcceptedTerms]=useState(false);
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{
   let live=true;
@@ -354,6 +355,7 @@ function AccountPanel(){
   return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
  async function act(action:"login"|"register"|"logout"){
+  if(action==="register" && (password!==confirmPassword || !acceptedTerms)){setError(password!==confirmPassword?"Passwords do not match.":"Please accept the Terms and Privacy Policy.");return;}
   setBusy(true);setError("");
   try{
    if(action==="logout" && staff){
@@ -369,17 +371,20 @@ function AccountPanel(){
  }
  return <div className="sm-carousel-login">
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
-  <h1>{account?"Your account":mode==="login"?"Sign in":"Create account"}</h1>
+  <h1>{account?"Your account":mode==="login"?"Welcome back":"Create your account"}</h1>
+  {!account&&<p className="sm-account-intro">{mode==="register"?"Save your videos and drafts in your own private workspace.":"Sign in to access your videos and projects from this account."}</p>}
   {account?<><p>{account}</p>{!staff&&<button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>}{!staff&&guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}{importMessage&&<p role="status">{importMessage}</p>}{!staff&&<><button type="button" disabled={busy} onClick={()=>setPasswordOpen(!passwordOpen)}>Change password</button>{passwordOpen&&<form onSubmit={e=>void changePassword(e)} style={{display:"grid",gap:8}}>
  <input type="password" aria-label="Current password" required autoComplete="current-password" placeholder="Current password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/>
  <input type="password" aria-label="New password" required minLength={20} maxLength={256} autoComplete="new-password" placeholder="New password (20+ characters)" value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>
  <button disabled={busy} type="submit">Save new password</button></form>}{passwordMessage&&<p role="status">{passwordMessage}</p>}</>}
  <button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
-  <form onSubmit={e=>{e.preventDefault();void act(mode)}} style={{display:"grid",gap:12,width:"100%"}}>
-   <input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{padding:12,borderRadius:8}}/>
-   <input aria-label="Password" type="password" required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"Password (20+ characters)":"Password"} style={{padding:12,borderRadius:8}}/>
+  <form onSubmit={e=>{e.preventDefault();void act(mode)}} className="sm-account-form">
+   <label className="sm-account-label">Email address<input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" maxLength={254}/></label>
+   <label className="sm-account-label">Password<input aria-label="Password" type={showPassword?"text":"password"} required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"At least 20 characters":"Your password"} maxLength={256}/></label>
+   {mode==="register"&&<><label className="sm-account-label">Confirm password<input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/></label><p className="sm-account-hint">Use at least 20 characters. Your projects remain private to your account.</p><label className="sm-account-consent"><input type="checkbox" checked={acceptedTerms} onChange={e=>setAcceptedTerms(e.target.checked)} required/> I agree to the <a href="/terms" target="_blank" rel="noopener noreferrer">Terms</a> and <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>.</label></>}
+   <label className="sm-account-consent"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/> Show password</label>
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
-   <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
+   <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
    <a href="/admin" style={{display:"block",textAlign:"center",color:"#d4c1ef",padding:"8px"}}>Admin / Staff login</a>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
