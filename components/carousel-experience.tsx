@@ -365,7 +365,14 @@ function AccountPanel(){
     setAccount(null);window.location.reload();return;
    }
    const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,email,password})});
-   const d=await res.json();if(!res.ok)throw Error(d.error||"Sign-in failed");
+   const d=await res.json();
+   if(!res.ok){
+    if(action==="login" && res.status===401){
+     const staffRes=await fetch("/api/cms/staff/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
+     if(staffRes.ok){setPassword("");window.location.reload();return;}
+    }
+    throw Error(d.error||"Sign-in failed");
+   }
    setPassword("");setAccount(action==="logout"?null:d.email);window.location.reload();
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
@@ -385,8 +392,6 @@ function AccountPanel(){
    <label className="sm-account-consent"><input type="checkbox" checked={showPassword} onChange={e=>setShowPassword(e.target.checked)}/> Show password</label>
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
-   <a href="/admin" style={{display:"block",textAlign:"center",color:"#d4c1ef",padding:"8px"}}>Admin / Staff login</a>
-   <a href="/?card=showcase" className="sm-account-showcase-link">Watch showcase without signing in</a>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
  </div>;
