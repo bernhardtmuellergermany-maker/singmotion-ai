@@ -84,3 +84,8 @@
 .sm-output-page .sm-live-final-actions>.button.outline{background:#141a2b!important;color:#f5efff!important;border:1px solid #9471ca!important}
 .sm-output-page .sm-live-final-actions>.button.outline:hover{background:#43325e!important;color:white!important}
 @media(max-width:650px){.sm-output-page .sm-output-stage>.sm-output-card{height:min(72vh,690px);max-width:min(90vw,400px)}.sm-output-page .sm-output-header .sm-output-project-name .flow-project-name{font-size:12px!important}}
+
+/* Quiet secondary action beside the primary download. */
+.sm-output-page .sm-live-final-actions>.button.outline{background:rgba(130,104,175,.09)!important;color:#c7bddb!important;border:1px solid rgba(156,139,190,.18)!important;box-shadow:none!important;outline:none!important;font-weight:500}
+.sm-output-page .sm-live-final-actions>.button.outline:hover{background:rgba(130,104,175,.19)!important;color:#e8def8!important;border-color:rgba(156,139,190,.3)!important;box-shadow:none!important}
+.sm-output-page .sm-live-final-actions>.button.outline:focus-visible{outline:2px solid #a37cdb!important;outline-offset:3px!important}
