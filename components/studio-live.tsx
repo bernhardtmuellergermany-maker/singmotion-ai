@@ -509,6 +509,7 @@ export function LiveProject({ id }: { id: string }) {
     }catch{}
     setProjectLabel(value);setEditingProjectName(false);
   };
+  const sourceTimestamp=(value:number)=>{const ms=Math.round(Math.max(0,value)*1000);return String(Math.floor(ms/60000)).padStart(2,"0")+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0")+"."+String(ms%1000).padStart(3,"0");};
   const ratio = project?.selection.outputFormat === "16:9" ? "landscape" : "portrait";
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
@@ -546,6 +547,7 @@ export function LiveProject({ id }: { id: string }) {
             <dl>
               <div className="sm-live-meta"><dt>Project</dt><dd>{editingProjectName?<input autoFocus aria-label="Project name" maxLength={80} value={projectLabel} placeholder={project.artistName} onChange={e=>setProjectLabel(e.target.value)} onBlur={()=>saveProjectName(projectLabel||project.artistName)} onKeyDown={e=>{if(e.key==="Enter")saveProjectName(projectLabel||project.artistName);if(e.key==="Escape")setEditingProjectName(false);}}/>:<span>{projectLabel||project.artistName} <button type="button" className="sm-live-rename" onClick={()=>setEditingProjectName(true)} aria-label="Rename project">Edit</button></span>}</dd></div>
               <div className="sm-live-meta"><dt>Video format</dt><dd>{project.selection.outputFormat || "9:16"}</dd></div>
+              <div className="sm-live-meta"><dt>Source audio cut</dt><dd>Start {sourceTimestamp(project.selection.start)} · End {sourceTimestamp(project.selection.end)}</dd></div>
               <div className="sm-live-meta"><dt>Audio length</dt><dd>{project.durationSeconds.toFixed(3)} seconds</dd></div>
               <div className="sm-live-meta"><dt>Status</dt><dd>{project.state}</dd></div>
               <div className="sm-live-meta"><dt>Provider task</dt><dd>{project.providerJobId||"Pending"}</dd></div>
