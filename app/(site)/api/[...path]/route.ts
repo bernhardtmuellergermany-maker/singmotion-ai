@@ -119,6 +119,18 @@ async function handler(
     const token = req.cookies.get("sm_session")?.value;
     let auth = session(token);
     // Disconnect this browser's private demo workspace without deleting its data.
+    if (route === "session" && id === "guest" && method === "POST") {
+      const guestToken = req.cookies.get("sm_guest_session")?.value;
+      const guest = session(guestToken);
+      if (!guest || guest.owner.startsWith("customer-") || guest.owner.startsWith("cms-staff-"))
+        throw new AppError("No preserved guest workspace.", 404);
+      const response = json({ owner: guest.owner, demo: true, restored: true });
+      response.cookies.set("sm_session", guestToken!, {
+        httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+        sameSite: "strict", path: "/", maxAge: 30 * 86400,
+      });
+      return response;
+    }
     if (route === "session" && id === "logout" && method === "POST") {
       if (token) revokeMediaSession(token);
       const response = json({ signedOut: true });
@@ -157,6 +169,12 @@ async function handler(
         const created = createAccountMediaSession(accountOwner);
         const response = json({owner: created.owner, demo: false, account: true,
           previousGuestProjectsPreserved: !!auth && !auth.owner.startsWith("customer-") && !auth.owner.startsWith("cms-staff-")});
+        if (auth && token && !auth.owner.startsWith("customer-") && !auth.owner.startsWith("cms-staff-")) {
+          response.cookies.set("sm_guest_session", token, {
+            httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+            sameSite: "strict", path: "/", maxAge: 30 * 86400,
+          });
+        }
         response.cookies.set("sm_session", created.token, {
           httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
           sameSite: "strict", path: "/", maxAge: 30 * 86400,
