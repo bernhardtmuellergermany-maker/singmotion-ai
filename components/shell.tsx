@@ -12,11 +12,11 @@ export function Shell({ children, hideWorkspaceNav = false }: { children: React.
         <Link href="/settings">Settings</Link>
       </nav>}
       <main className="app-main">{children}</main>
-      <footer className="wizard-footer">
+      {!hideWorkspaceNav && <footer className="wizard-footer">
         <Link href="/terms">Terms</Link>
         <Link href="/privacy">Privacy</Link>
         <Link href="/help">Help</Link>
-      </footer>
+      </footer>}
     </div>
   );
 }
