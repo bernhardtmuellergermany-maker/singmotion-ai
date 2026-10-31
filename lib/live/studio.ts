@@ -470,7 +470,7 @@ export class StudioWorkflow {
     if (confirmation !== `DELETE ${id}`)
       throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm permanent deletion of this project.",400);
     const attempt = this.store.get(id);
-    if (!["completed","failed"].includes(attempt.state))
+    if (!["prepared","completed","failed"].includes(attempt.state))
       throw new StudioLiveError("ACTIVE_TASK","Active or uncertain provider jobs cannot be deleted.",409);
     const file = attempt.outputPath;
     // Keep billing/authorization ledger and immutable provider task evidence
