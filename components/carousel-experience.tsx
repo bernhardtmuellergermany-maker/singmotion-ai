@@ -334,7 +334,7 @@ function AccountPanel(){
   setBusy(true);setError("");
   try{
    if(action==="logout" && staff){
-    const reply=await fetch("/api/users/logout",{method:"POST",credentials:"same-origin"});
+    const reply=await fetch("/api/cms/staff/logout",{method:"POST",credentials:"same-origin"});
     if(!reply.ok)throw Error("Staff logout failed");
     await fetch("/api/session/logout",{method:"POST",headers:{"Content-Type":"application/json"}});
     setAccount(null);window.location.reload();return;
