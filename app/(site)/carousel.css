@@ -2020,3 +2020,5 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .sm-carousel-login .sm-account-consent a{color:#d6bbff;text-decoration:underline}
 .sm-carousel-login .sm-account-form>.sm-carousel-primary{width:100%;min-height:44px}
 .sm-carousel-login{overflow-y:auto;max-height:100%;scrollbar-width:thin}
+
+.sm-carousel-login .sm-account-showcase-link{display:block;text-align:center;color:#dbc3ff;text-decoration:underline;font-size:12px;padding:7px}
