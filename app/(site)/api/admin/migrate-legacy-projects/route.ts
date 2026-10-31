@@ -10,7 +10,6 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const reply=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cache-Control":"no-store"}});
 const stagingId="dfaeabed-03df-43ed-aa71-50f343a75041";
-const guest="^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 const guestSql="owner GLOB '[0-9a-f]*' AND length(owner)=36 AND owner NOT LIKE 'customer-%' AND owner NOT LIKE 'cms-staff-%'";
 /** One-time, auditable ownership migration of legacy guest workspaces in STAGING only. */
 export async function POST(req:NextRequest){
@@ -28,6 +27,7 @@ export async function POST(req:NextRequest){
  let attached=false;
  try{
   db.prepare("ATTACH DATABASE ? AS live_migration").run(liveFile);attached=true;
+  db.exec("CREATE TABLE IF NOT EXISTS studio_drafts (id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, artist_name TEXT NOT NULL, step INTEGER NOT NULL, updated INTEGER NOT NULL)");
   const count=(sql:string)=>Number((db.prepare(sql).get() as {n:number}).n);
   const metrics={
    liveProjects:count("SELECT count(*) n FROM live_migration.live_studio_projects WHERE "+guestSql),
