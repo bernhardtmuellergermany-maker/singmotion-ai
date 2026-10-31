@@ -109,10 +109,23 @@ export function CarouselExperience(){
         const jobs=results[0].status==="fulfilled"?results[0].value:[];
         const live=results[1].status==="fulfilled"?results[1].value.projects:[];
         const drafts=results[2].status==="fulfilled"?results[2].value:[];
+        // A generated video replaces its source draft's gallery card, not its
+        // saved draft data. Match the exact media cut and instructions so that
+        // unrelated drafts sharing an image or title remain visible.
+        const generatedSelections=live.filter(p=>p.state!=="prepared").map(p=>p.selection);
+        const visibleDrafts=drafts.filter(d=>!generatedSelections.some(s=>
+          s.songId===d.selection.songId &&
+          s.imageId===d.selection.imageId &&
+          s.start===d.selection.start &&
+          s.end===d.selection.end &&
+          "performance" in d.selection && s.performance===(d.selection as typeof s).performance &&
+          "camera" in d.selection && s.camera===(d.selection as typeof s).camera &&
+          "customPrompt" in d.selection && s.customPrompt===(d.selection as typeof s).customPrompt
+        ));
         const cards:Tile[]=[
           ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.projectName||p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
           ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
-          ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"draft"}))
+          ...(workspace.owner?.startsWith("customer-")||workspace.owner?.startsWith("cms-staff-") ? visibleDrafts : visibleDrafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"draft"}))
         ].sort((a,b)=>b.created-a.created);
         // Display names edited on the output page stay in sync with the home carousel.
         try{
