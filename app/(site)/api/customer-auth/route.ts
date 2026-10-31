@@ -13,9 +13,20 @@ export async function GET(req:NextRequest){
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
-  if(!id)return json({authenticated:false});
+  if(!id){
+   if(process.env.CMS_ENABLED==="true"){
+    const {getPayload}=await import("payload");
+    const {default:config}=await import("@payload-config");
+    const {hasRole}=await import("@/cms/policy");
+    const payload=await getPayload({config});
+    const {user}=await payload.auth({headers:req.headers});
+    if(user && hasRole(user,["super-admin","editor"]))
+     return json({authenticated:true,email:typeof user.email==="string"?user.email:"Staff account",kind:"staff"});
+   }
+   return json({authenticated:false});
+  }
   const row=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(id) as {email:string}|undefined;
-  return json({authenticated:!!row,email:row?.email||null});
+  return json({authenticated:!!row,email:row?.email||null,kind:"customer"});
  }finally{store.close()}
 }
 export async function POST(req:NextRequest){
