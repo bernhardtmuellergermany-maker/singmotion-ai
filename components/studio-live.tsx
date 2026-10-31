@@ -537,7 +537,8 @@ export function LiveProject({ id }: { id: string }) {
       {error && <p role="alert" className="error">{error}</p>}
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
         <div className="sm-carousel-stage sm-output-stage">
-          <section className={"sm-carousel-card sm-output-card "+(frontCard==="video"?"is-active":"is-inactive")} style={{"--distance":frontCard==="video"?0:-1,"--depth":frontCard==="video"?0:1,"--drag":0} as React.CSSProperties} aria-label="Video preview and status" onClick={()=>{if(frontCard!=="video")setFrontCard("video")}}>
+          <section className={"sm-carousel-card sm-output-card "+(frontCard==="video"?"is-active":"is-inactive")} style={{"--distance":frontCard==="video"?0:-1,"--depth":frontCard==="video"?0:1,"--drag":0} as React.CSSProperties} aria-label="Video preview and status">
+            {frontCard!=="video" && <button type="button" className="sm-carousel-side-hit" aria-label="Show video" onClick={()=>setFrontCard("video")}/>}
             <div className="sm-live-card-top sm-live-video-overlay"><span className="sm-live-card-kicker">{statusLabel}</span></div>
             <div className={"sm-live-viewport "+ratio}>
               {complete ? <video controls playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
@@ -556,7 +557,8 @@ export function LiveProject({ id }: { id: string }) {
             </div>
             {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
           </section>
-          <aside className={"sm-carousel-card sm-output-card sm-output-details "+(frontCard==="details"?"is-active":"is-inactive")} style={{"--distance":frontCard==="details"?0:1,"--depth":frontCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details" onClick={()=>{if(frontCard!=="details")setFrontCard("details")}}>
+          <aside className={"sm-carousel-card sm-output-card sm-output-details "+(frontCard==="details"?"is-active":"is-inactive")} style={{"--distance":frontCard==="details"?0:1,"--depth":frontCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
+            {frontCard!=="details" && <button type="button" className="sm-carousel-side-hit" aria-label="Show project details" onClick={()=>setFrontCard("details")}/>}
             <div className="sm-live-card-top"><h2 style={{marginTop:0,fontSize:21}}>Project details</h2></div>
             <dl>
               <div className="sm-live-meta"><dt>Video format</dt><dd>{project.selection.outputFormat || "9:16"}</dd></div>
