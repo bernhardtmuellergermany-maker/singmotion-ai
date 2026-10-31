@@ -614,3 +614,72 @@
   .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:1 / 3}
   .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:3}
 }
+
+
+/* Small screens: content grows naturally, navigation stays in a stable full-width row. */
+@media(max-width:700px){
+  .singmotion-flow,.singmotion-flow .flow-main{min-width:0;max-width:100%;box-sizing:border-box}
+  .singmotion-flow .flow-main{
+    width:100%;min-height:calc(100dvh - 66px);
+    height:auto;overflow:visible;
+    padding:16px 12px 20px;
+  }
+  .singmotion-flow .flow-main>.sm-studio-audio-step,
+  .singmotion-flow .flow-main>.sm-timeline,
+  .singmotion-flow .flow-main>.sm-studio-original-composer,
+  .singmotion-flow .flow-main>.sm-studio-review{
+    width:100%;max-width:100%;min-width:0;
+    box-sizing:border-box;flex-shrink:0;
+  }
+  .singmotion-flow .flow-main>.sm-studio-navigation,
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
+    width:100%;min-width:0;max-width:100%;
+    box-sizing:border-box;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    margin:0 auto 12px !important;
+    padding-top:20px;
+    gap:10px;
+  }
+  .singmotion-flow .sm-studio-navigation .sm-studio-back{grid-column:1;justify-self:start}
+  .singmotion-flow .sm-studio-navigation .sm-studio-next{grid-column:2;justify-self:end}
+  .singmotion-flow .sm-studio-navigation button{
+    min-width:0;max-width:100%;white-space:nowrap;
+    padding:12px 14px;
+  }
+  .singmotion-flow .sm-timeline-cards article{width:100%;box-sizing:border-box;min-width:0}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+    grid-template-columns:11px minmax(0,1fr) 24px;
+    grid-template-rows:auto auto;
+    row-gap:8px;
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>strong{grid-column:2;grid-row:1}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>button:last-child{grid-column:3;grid-row:1}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{
+    grid-row:2;grid-column:auto;min-width:0;width:100%;
+    grid-template-columns:auto minmax(70px,1fr);
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:1 / 3}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:3 / 4}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{grid-template-columns:11px minmax(0,1fr) minmax(110px,1fr) 24px}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>button:last-child{grid-column:4}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:2}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:3}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{min-width:0;width:100%}
+  .singmotion-flow .sm-studio-original-composer{
+    grid-template-columns:minmax(120px,38%) minmax(0,1fr);
+  }
+  .singmotion-flow .sm-studio-original-composer .flow-prompt-wrap{min-width:0}
+}
+@media(max-width:400px){
+  .singmotion-flow .flow-main{padding-inline:9px}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+    grid-template-columns:11px minmax(0,1fr) 24px;
+    grid-template-rows:auto auto auto;
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>button:last-child{grid-column:3;grid-row:1}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:2 / 4;grid-row:2}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:2 / 4;grid-row:3}
+  .singmotion-flow .sm-studio-original-composer{grid-template-columns:1fr}
+  .singmotion-flow .sm-studio-original-composer .sm-photo-controls{grid-column:1;max-width:180px;justify-self:center}
+  .singmotion-flow .sm-studio-original-composer .flow-prompt-wrap{grid-column:1;grid-row:2}
+}
