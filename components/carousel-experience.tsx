@@ -145,7 +145,8 @@ export function CarouselExperience(){
   },[]);
   useEffect(()=>{
     if(!loading&&!searching&&!ids.includes(current)){
-      navigate("home",true);
+      // Keep the user in the project carousel when a card disappears.
+      navigate(tiles[0]?.id || "home",true);
     }
   },[loading,tiles,current,navigate,searching]);
   const deleteDraft=async(tile:Tile)=>{
@@ -161,8 +162,14 @@ export function CarouselExperience(){
         localStorage.removeItem("singmotion-studio");
       }
       localStorage.removeItem(`singmotion-project-name:${id}`);
+      if(currentRef.current===tile.id){
+        // Prefer the next project; when deleting the last one, use the previous.
+        const projectIds=tiles.map(t=>t.id);
+        const index=projectIds.indexOf(tile.id);
+        const next=projectIds[index+1] || projectIds[index-1] || "home";
+        navigate(next,true);
+      }
       setTiles(old=>old.filter(t=>t.id!==tile.id));
-      if(currentRef.current===tile.id)navigate("home",true);
     }catch(cause){setError((cause as Error).message||"Draft could not be deleted.");}
     finally{setDeletingDraft(null);}
   };
