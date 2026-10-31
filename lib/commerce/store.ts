@@ -113,6 +113,24 @@ export class CommerceStore {
       .run(hash(token), row.id, Date.now() + 86400000);
     return token;
   }
+  changePassword(accountId: string, currentPassword: string, newPassword: string) {
+    if (newPassword.length < 20 || newPassword.length > 256 || currentPassword.length > 256)
+      throw Error("Invalid password");
+    const row=this.db.prepare("SELECT password_hash FROM customer_accounts WHERE id=?").get(accountId) as {password_hash:string}|undefined;
+    if(!row)throw Error("Invalid credentials");
+    const [salt,digest]=row.password_hash.split(":");
+    if(!timingSafeEqual(scryptSync(currentPassword,salt,64),Buffer.from(digest,"hex")))
+      throw Error("Invalid credentials");
+    const nextSalt=randomBytes(16).toString("hex");
+    const nextHash=scryptSync(newPassword,nextSalt,64).toString("hex");
+    this.tx(()=>{
+      this.db.prepare("UPDATE customer_accounts SET password_hash=? WHERE id=?").run(nextSalt+":"+nextHash,accountId);
+      this.db.prepare("DELETE FROM customer_sessions WHERE account_id=?").run(accountId);
+    });
+    const token=randomBytes(32).toString("base64url");
+    this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),accountId,Date.now()+86400000);
+    return token;
+  }
   session(token: string, now = Date.now()) {
     const s = this.db
       .prepare(
