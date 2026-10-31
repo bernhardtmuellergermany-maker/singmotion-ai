@@ -114,6 +114,14 @@ export function CarouselExperience(){
           ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
           ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"draft"}))
         ].sort((a,b)=>b.created-a.created);
+        // Display names edited on the output page stay in sync with the home carousel.
+        try{
+          const labels=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}") as Record<string,string>;
+          for(const tile of cards){
+            const saved=labels[tile.id]||(tile.id.startsWith("live_")?localStorage.getItem("sm-live-project-name:"+tile.id.slice(5)):null);
+            if(saved?.trim())tile.name=saved.trim();
+          }
+        }catch{}
         setTiles(cards);setError("");
       }catch(e){if(mounted)setError((e as Error).message);}
       finally{if(mounted)setLoading(false);}
