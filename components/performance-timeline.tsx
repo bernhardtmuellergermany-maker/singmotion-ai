@@ -139,22 +139,27 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
     const remaining=ordered.filter(item=>item.id!==current.id);
     const destination=destinationAt(clientX,clientY,fromCard,current.id);
     if(destination===before)return;
-    remaining.splice(destination,0,moving);
-    // Preserve each section's duration and instructions; repack chronologically.
-    // When the destination gap is too small, adjacent sections move as a group.
-    const total=remaining.reduce((sum,item)=>sum+(item.end-item.start),0);
-    if(total>seconds+0.00001){setNotice("Not enough audio duration to reorder these sections.");return;}
-    let cursor=0;
-    const packed=remaining.map(item=>{
-      const length=item.end-item.start;
-      const next={...item,color:colorFor(item.id),start:round(cursor),end:round(cursor+length)};
-      cursor+=length;
-      return next;
-    });
-    latest.current=packed;
-    onChange(packed);
+    // Never change existing sections when reordering: only fit the dragged one.
+    const previousEnd=destination===0?0:remaining[destination-1]?.end??0;
+    const followingStart=destination===remaining.length?seconds:remaining[destination]?.start??seconds;
+    const free=round(followingStart-previousEnd);
+    if(free<MIN-0.00001){
+      setNotice("Not enough free space here (minimum 0.5 seconds). Other sections were not changed.");
+      return;
+    }
+    const originalLength=round(moving.end-moving.start);
+    const length=round(Math.min(originalLength,free));
+    // Keep the original duration whenever the gap permits it.
+    const start=round(previousEnd);
+    const moved={...moving,color:colorFor(moving.id),start,end:round(start+length)};
+    if(!validInterval(remaining,moved.id,moved.start,moved.end,seconds)){
+      setNotice("Cannot place the section in this gap.");return;
+    }
+    const next=[...remaining,moved].sort((a,b)=>a.start-b.start);
+    latest.current=next;
+    onChange(next);
     setSelected(current.id);
-    setNotice("Sections reordered. Times updated to fit the selected audio.");
+    setNotice(length<originalLength?"Section shortened to fit the available gap.":"Section moved. Other sections kept their positions.");
   }
   function onKey(e:ReactKeyboardEvent<HTMLDivElement>,s:PerformanceSection,mode:Drag["mode"]){
     if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;
