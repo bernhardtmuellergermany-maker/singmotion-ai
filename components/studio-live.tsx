@@ -516,10 +516,6 @@ export function LiveProject({ id }: { id: string }) {
   const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Generating video" : "Preparing project";
   return (
     <div id="content" className="sm-live-page">
-      <div className="sm-live-heading">
-        <h1>{complete ? "Your video is ready" : failed ? "Video generation failed" : "Creating your video"}</h1>
-        <p>{complete ? "Watch your result and download the MP4." : "Your saved project remains available while the provider processes the video."}</p>
-      </div>
       {error && <p role="alert" className="error">{error}</p>}
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
         <div className="sm-live-layout">
@@ -537,7 +533,7 @@ export function LiveProject({ id }: { id: string }) {
             </div>
             {!complete && <p className="sm-live-small" role="status">{project.stage}</p>}
             <div className="sm-live-actions">
-              {complete ? <a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a> : <button type="button" className="button outline" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button>}
+              {!complete && <button type="button" className="button outline" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button>}
               
             </div>
             {!complete && <p className="sm-live-small">Status updates automatically from the saved project every 5 seconds while this page is visible. Checking status does not submit a new generation. Video retrieval may require the recovery worker before the provider URL expires.</p>}
@@ -554,6 +550,7 @@ export function LiveProject({ id }: { id: string }) {
               <div className="sm-live-meta"><dt>Costs</dt><dd>Actual costs not yet available</dd></div>
             </dl>
             <details className="sm-live-operation"><summary>Performance instructions</summary><p className="sm-live-prompt">{project.prompt}</p></details>
+            {complete && <div className="sm-live-actions"><a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a></div>}
             {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
           </aside>
         </div>
