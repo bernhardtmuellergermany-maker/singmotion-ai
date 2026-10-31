@@ -386,6 +386,7 @@ function AccountPanel(){
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
    <a href="/admin" style={{display:"block",textAlign:"center",color:"#d4c1ef",padding:"8px"}}>Admin / Staff login</a>
+   <a href="/?card=showcase" className="sm-account-showcase-link">Watch showcase without signing in</a>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
  </div>;
