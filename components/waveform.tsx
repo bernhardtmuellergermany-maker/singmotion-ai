@@ -126,7 +126,8 @@ export default function Waveform({
       return;
     }
     segment.current = true;
-    a.currentTime = start;
+    // Resume a paused selection; restart only after reaching its end or leaving it.
+    if (a.currentTime < start || a.currentTime >= end - 0.015) a.currentTime = start;
     void a
       .play()
       .catch(() =>
