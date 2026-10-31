@@ -107,12 +107,12 @@ export function validateSelection(
   if (
     ![start, end, duration].every(Number.isFinite) ||
     start < 0 ||
-    end <= start ||
+    end - start < 5 - 0.00001 ||
     end > duration + 0.02 ||
-    end - start > 300
+    end - start > 300 + 0.00001
   )
     throw new AppError(
-      "Select a valid segment within the song, up to 300 seconds.",
+      "Select an audio segment between 5 and 300 seconds within the song.",
     );
   return Math.round((end - start) * 1000) / 1000;
 }
