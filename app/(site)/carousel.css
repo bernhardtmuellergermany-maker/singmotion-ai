@@ -2006,3 +2006,17 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   border-radius:3px!important;
   box-shadow:0 0 5px rgba(255,255,255,.28)!important;
 }
+
+/* Account registration – clear hierarchy inside the existing carousel card. */
+.sm-carousel-login .sm-account-intro{max-width:320px;margin:0 auto 12px;color:#c7c2d7;font-size:13px;line-height:1.5;text-align:center}
+.sm-carousel-login .sm-account-form{display:grid;gap:10px;width:100%;max-width:340px;margin:0 auto;text-align:left}
+.sm-carousel-login .sm-account-label{display:grid;gap:5px;color:#e8e1f8;font-size:12px;font-weight:600}
+.sm-carousel-login .sm-account-label input{width:100%;min-width:0;padding:12px;border-radius:10px;border:1px solid #65577f;background:#17182c;color:#fff;font-size:14px;outline:none}
+.sm-carousel-login .sm-account-label input:focus-visible{border-color:#ba8fff;box-shadow:0 0 0 2px #b68df23d}
+.sm-carousel-login .sm-account-label input::placeholder{color:#aaa0bd}
+.sm-carousel-login .sm-account-hint{font-size:11px;color:#bbb1cd;line-height:1.4;margin:0}
+.sm-carousel-login .sm-account-consent{display:flex;gap:9px;align-items:flex-start;font-size:11px;color:#cfc7de;line-height:1.45}
+.sm-carousel-login .sm-account-consent input{flex:none;margin:2px 0 0;accent-color:#ae8bea}
+.sm-carousel-login .sm-account-consent a{color:#d6bbff;text-decoration:underline}
+.sm-carousel-login .sm-account-form>.sm-carousel-primary{width:100%;min-height:44px}
+.sm-carousel-login{overflow-y:auto;max-height:100%;scrollbar-width:thin}
