@@ -530,6 +530,17 @@ export function LiveProject({ id }: { id: string }) {
   const [hoveredSide,setHoveredSide]=useState<"video"|"details"|null>(null);
   const sourceTimestamp=(value:number)=>{const ms=Math.round(Math.max(0,value)*1000);return String(Math.floor(ms/60000)).padStart(2,"0")+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0")+"."+String(ms%1000).padStart(3,"0");};
   const ratio = project?.selection.outputFormat === "16:9" ? "landscape" : "portrait";
+  const completedVideoRef=useRef<HTMLVideoElement>(null);
+  const [outputSound,setOutputSound]=useState(false);
+  useEffect(()=>{
+    const video=completedVideoRef.current;
+    if(!video)return;
+    video.muted=true;setOutputSound(false);
+    if(frontCard!=="video"){video.pause();return;}
+    const play=()=>{if(document.hidden)video.pause();else void video.play().catch(()=>{});};
+    play();document.addEventListener("visibilitychange",play);
+    return()=>{document.removeEventListener("visibilitychange",play);video.pause();};
+  },[frontCard,project?.outputReady,id]);
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
   const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Generating video" : "Preparing project";
@@ -540,9 +551,9 @@ export function LiveProject({ id }: { id: string }) {
         <div className="sm-carousel-stage sm-output-stage">
           <section className={"sm-carousel-card sm-output-card "+(!complete?"sm-output-pending ":"")+(frontCard==="video"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="video"?" is-side-hovered":""))} style={{"--distance":frontCard==="video"?0:-1,"--depth":frontCard==="video"?0:1,"--drag":0} as React.CSSProperties} aria-label="Video preview and status">
             {frontCard!=="video" && <button type="button" className="sm-carousel-side-hit" aria-label="Show video" onPointerEnter={()=>setHoveredSide("video")} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide("video")} onBlur={()=>setHoveredSide(null)} onClick={()=>{setHoveredSide(null);setFrontCard("video")}}/>}
-            <div className="sm-live-card-top sm-live-video-overlay"><span className="sm-live-card-kicker">{statusLabel}</span></div>
+            <div className="sm-live-card-top sm-live-video-overlay"><span className={"sm-live-card-kicker "+(complete?"sm-output-completed-tag":"")}>{statusLabel}</span></div>
             <div className={"sm-live-viewport "+ratio}>
-              {complete ? <video controls playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
+              {complete ? <video ref={completedVideoRef} autoPlay muted loop playsInline preload="metadata" src={`/api/studio-live?id=${encodeURIComponent(id)}&video=1`} aria-label="Generated video preview"/> : <>
                 <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
                 <div className="sm-live-animated">
                   {!failed && <><div className="sm-live-scan"/><div className="sm-live-orbit"/></>}
@@ -551,6 +562,8 @@ export function LiveProject({ id }: { id: string }) {
                 </div>
               </>}
             </div>
+            {complete&&<><button className="sm-output-sound" type="button" aria-label={outputSound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const video=completedVideoRef.current;if(!video)return;video.muted=outputSound;setOutputSound(!outputSound)}}>{outputSound?"🔊":"🔇"}</button>
+            <div className="sm-output-completed-footer"><strong title={projectLabel||project.projectName||project.artistName}>{projectLabel||project.projectName||project.artistName||"Untitled Project"}</strong><a className="sm-output-download" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download onClick={e=>e.stopPropagation()}>Download video ↓</a></div></>}
             {!complete && <div className="sm-output-pending-footer"><p className="sm-output-pending-stage" role="status">{project.stage}</p><button type="button" className="sm-output-poll-button" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button></div>}
           </section>
           <aside className={"sm-carousel-card sm-output-card sm-output-details "+(frontCard==="details"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="details"?" is-side-hovered":""))} style={{"--distance":frontCard==="details"?0:1,"--depth":frontCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
