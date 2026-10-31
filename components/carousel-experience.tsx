@@ -319,6 +319,15 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
 }
 
 function AccountPanel(){
+ const [guestPreview,setGuestPreview]=useState<{counts:{uploads:number;artists:number;drafts:number;jobs:number;videoProjects:number};pendingProjects:number}|null>(null),[importMessage,setImportMessage]=useState("");
+ async function importGuest(mode:"preview"|"execute"){
+  setBusy(true);setImportMessage("");
+  try{
+   const res=await fetch("/api/customer-guest-import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,confirmation:mode==="execute"?"IMPORT MY GUEST PROJECTS":undefined})});
+   const data=await res.json();if(!res.ok)throw Error(data.error||"Import failed");
+   if(mode==="preview")setGuestPreview(data);else{setGuestPreview(null);setImportMessage("Guest projects imported successfully.");window.location.reload()}
+  }catch(e){setImportMessage((e as Error).message)}finally{setBusy(false)}
+ }
  const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{fetch("/api/customer-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>{if(d?.authenticated)setAccount(d.email)}).catch(()=>{});},[]);
  async function act(action:"login"|"register"|"logout"){
@@ -332,7 +341,7 @@ function AccountPanel(){
  return <div className="sm-carousel-login">
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create account"}</h1>
-  {account?<><p>{account}</p><button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
+  {account?<><p>{account}</p><button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>{guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}{importMessage&&<p role="status">{importMessage}</p>}<button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
   <form onSubmit={e=>{e.preventDefault();void act(mode)}} style={{display:"grid",gap:12,width:"100%"}}>
    <input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="Email" style={{padding:12,borderRadius:8}}/>
    <input aria-label="Password" type="password" required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"Password (20+ characters)":"Password"} style={{padding:12,borderRadius:8}}/>
