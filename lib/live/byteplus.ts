@@ -154,7 +154,7 @@ export class BytePlusProtocol {
         image_urls: [input.imageUrl],
         audio_url: input.audioUrl,
         ...(input.prompt ? { prompt: input.prompt } : {}),
-        // Retain the documented watermark default; no undocumented idempotency field.
+        // STAGING pilot: explicitly request no visible watermark for new OmniHuman jobs.\n        // This option is documented by OmniHuman resellers; direct BytePlus\n        // acceptance still requires validation before Production rollout.\n        ...(process.env.RAILWAY_ENVIRONMENT_ID === "dfaeabed-03df-43ed-aa71-50f343a75041" ? { enable_watermark: false } : {}),
       },
       signal,
     );
