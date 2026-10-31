@@ -550,8 +550,8 @@ export function LiveProject({ id }: { id: string }) {
               <div className="sm-live-meta"><dt>Costs</dt><dd>Actual costs not yet available</dd></div>
             </dl>
             <details className="sm-live-operation"><summary>Performance instructions</summary><p className="sm-live-prompt">{project.prompt}</p></details>
-            {complete && <div className="sm-live-actions"><a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a></div>}
             {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
+            {complete && <div className="sm-live-actions"><a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a></div>}
           </aside>
         </div>
       )}
