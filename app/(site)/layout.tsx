@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   },
   description:
     "Create a singing performance from your own music and photo in your private SingMotion studio.",
+  icons: { icon: [{ url: "/api/brand-favicon?v=20261031", type: "image/png", sizes: "32x32" }], shortcut: "/api/brand-favicon?v=20261031", apple: "/api/brand-favicon?v=20261031" },
 };
 export default function RootLayout({
   children,
