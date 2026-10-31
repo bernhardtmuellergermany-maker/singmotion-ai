@@ -41,11 +41,11 @@ export function ProjectHeaderName({id}:{id:string}){
    router.push("/?card=home");router.refresh();
   }catch(e){setError((e as Error).message);setBusy(false)}
  };
- return <div className="sm-header-project-name">
-  {edit?<form onSubmit={e=>{e.preventDefault();save()}}><input aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onKeyDown={e=>{if(e.key==="Escape")setEdit(false)}}/><button type="submit">Save</button><button type="button" onClick={()=>setEdit(false)}>Cancel</button></form>:<>
-   <button type="button" className="sm-header-project-title" title="Click to rename project" onClick={startEdit}>{name||"Project"}</button>
-   <details className="sm-header-project-menu"><summary aria-label="Project options"><MoreVertical size={19}/></summary>
-    <div className="sm-header-project-options"><button type="button" onClick={e=>{e.currentTarget.closest("details")!.open=false;startEdit()}}>Rename project</button><button type="button" disabled={busy} onClick={()=>void remove()}>{busy?"Deleting…":"Delete project"}</button></div>
+ return <div className="sm-header-project-name sm-output-project-name">
+  {edit?<input className="flow-project-input" aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save();if(e.key==="Escape")setEdit(false)}}/>:<>
+   <button type="button" className="flow-project-name" title="Click to rename project" onClick={startEdit}>{name||"Project"}</button>
+   <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={19}/></summary>
+    <div className="flow-popover"><button type="button" onClick={e=>{e.currentTarget.closest("details")!.open=false;startEdit()}}>Rename project</button><button type="button" disabled={busy} onClick={()=>void remove()}>{busy?"Deleting…":"Delete project"}</button></div>
    </details>
   </>}
   {error&&<span role="alert" className="sm-header-project-error">{error}</span>}
