@@ -155,6 +155,9 @@ export class CommerceStore {
       .get(hash(token), now);
     return s ? String(s.account_id) : null;
   }
+  logoutAll(accountId: string) {
+    this.db.prepare("DELETE FROM customer_sessions WHERE account_id=?").run(accountId);
+  }
   logout(token: string) {
     this.db
       .prepare("DELETE FROM customer_sessions WHERE token_hash=?")
