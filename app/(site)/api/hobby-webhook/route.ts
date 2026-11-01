@@ -45,9 +45,9 @@ export async function POST(req:NextRequest){
   if(!exists)return NextResponse.json({received:true});
   // A delayed webhook for a previous subscription must not overwrite a newer
   // Stripe subscription or reinstate an expired billing period.
-  const previous=store.db.prepare("SELECT provider_subscription_id,current_period_start,current_period_end FROM customer_subscriptions WHERE account_id=?").get(accountId) as {provider_subscription_id:string|null;current_period_start:number;current_period_end:number}|undefined;
+  const previous=store.db.prepare("SELECT provider_subscription_id,current_period_start,current_period_end,status FROM customer_subscriptions WHERE account_id=?").get(accountId) as {provider_subscription_id:string|null;current_period_start:number;current_period_end:number;status:string}|undefined;
   if(previous){
-   if(previous.provider_subscription_id!==current.id && previous.current_period_end>Date.now())
+   if(previous.provider_subscription_id!==current.id && previous.status==="active" && previous.current_period_end>Date.now())
      return NextResponse.json({received:true});
    if(previous.provider_subscription_id===current.id && previous.current_period_start>periodStart)
      return NextResponse.json({received:true});
