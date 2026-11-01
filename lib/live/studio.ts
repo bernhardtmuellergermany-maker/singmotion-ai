@@ -868,6 +868,16 @@ export class StudioWorkflow {
     await workflow.submit(id, owner, token, this.config.operatorSecret);
     return this.withCurrentBudget(this.view(id, owner));
   }
+  private reconcileHobbyUsage(id: string, owner: string, state: string, failureCode?: string | null) {
+    if (this.superAdmin || !owner.startsWith("customer-") ||
+        process.env.RAILWAY_ENVIRONMENT_ID !== "dfaeabed-03df-43ed-aa71-50f343a75041") return;
+    // Never refund unknown provider outcomes: a failed task may still be billable.
+    if (state !== "completed" && !(state === "failed" && failureCode === "CONTENT_PREFILTER_REJECTED")) return;
+    const accountStore = new CommerceStore(path.join(this.root, "commerce.sqlite"));
+    try {
+      new PlanLedger(accountStore.db).settle(id, state === "completed");
+    } finally { accountStore.close(); }
+  }
   async poll(id: string, owner: string) {
     const row = this.row(id, owner),
       a = this.store.get(id);
@@ -942,6 +952,8 @@ export class StudioWorkflow {
         )
         .run(safe.message, id);
     }
+    const latest = this.store.get(id);
+    this.reconcileHobbyUsage(id, owner, latest.state, latest.failureCode);
     return this.withCurrentBudget(this.view(id, owner));
   }
   async output(id: string, owner: string) {
