@@ -181,7 +181,7 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
   return <details ref={menu} className="sm-global-menu">
     <summary aria-label="More options" title="More options"><MoreVertical size={19}/></summary>
     <nav className="sm-global-menu-list" aria-label="More options">
-      {([{ href: "/help", label: "Help" }, { href: "/legal", label: "Legals" }] as const).map(item => (
+      {([{ href: "/plans", label: "Plans & Pricing" }, { href: "/help", label: "Help" }, { href: "/legal", label: "Legals" }] as const).map(item => (
         <Link key={item.href} href={item.href} target={openInNewTab ? "_blank" : undefined} rel={openInNewTab ? "noopener noreferrer" : undefined} onClick={() => { if (menu.current) menu.current.open = false; }}>{item.label}</Link>
       ))}
     </nav>
