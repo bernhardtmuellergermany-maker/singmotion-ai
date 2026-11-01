@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, Trash2, AlertCircle, LoaderCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
-import { GlobalMenu } from "./home-collection";
+import { SiteHeader } from "./site-header";
 import { HomeUploadedAudio } from "./home-uploaded-audio";
 import { api, ensureSession, resetSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
@@ -217,18 +217,11 @@ export function CarouselExperience(){
     if(Math.abs(delta)>55||(Math.abs(delta)>25&&velocity>.5))step(delta<0?1:-1);
   }
   return <div className="sm-carousel-page">
-    <header className="home-gallery-header sm-carousel-header">
-      <a href="/" className="sm-wordmark" aria-label="SingMotion AI home" onClick={e=>{e.preventDefault();navigate("home");}}>SingMotion <span>AI</span></a>
-      <div className="sm-header-actions">
-        <div ref={searchContainer} className={"sm-inline-search"+(searchOpen?" is-open":"")}>
+    <SiteHeader onBrandClick={()=>navigate("home")} onAccountClick={()=>{setSearchOpen(false);setSearchText("");setSearchQuery("");currentRef.current="login";navigate("login");}} search={<>        <div ref={searchContainer} className={"sm-inline-search"+(searchOpen?" is-open":"")}>
           <button ref={searchButton} type="button" className="sm-inline-search-icon" aria-label="Search projects" aria-expanded={searchOpen} onClick={()=>{if(searchOpen){searchInput.current?.focus();return;}priorCard.current=current;setSearchOpen(true);}}><Search size={19}/></button>
           <input ref={searchInput} type="search" tabIndex={searchOpen?0:-1} placeholder="Search cards, projects, dates..." aria-label="Search projects" value={searchText} onChange={e=>setSearchText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();closeSearch();}if(e.key==="Enter"&&ids.length){navigate(ids[0]);}}}/>
           <button type="button" className="sm-inline-search-close" aria-label="Close search" tabIndex={searchOpen?0:-1} onClick={closeSearch}><X size={16}/></button>
-        </div>
-        <GlobalMenu/>
-        <a href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account" onClick={e=>{e.preventDefault();setSearchOpen(false);setSearchText("");setSearchQuery("");currentRef.current="login";navigate("login");}}><UserRound size={21}/></a>
-      </div>
-    </header>
+        </div></>} />
     {searching&&ids.length===0&&<div className="sm-carousel-search-empty" role="status"><strong>No matching cards or projects</strong><span>Try another name.</span></div>}
     <main id="content" className="sm-carousel-main">
       {error&&<p className="sm-carousel-error" role="alert">{error}</p>}
