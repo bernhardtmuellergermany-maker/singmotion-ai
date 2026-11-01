@@ -36,3 +36,11 @@
 .sm-plans .sm-plans-header .sm-plans-back{color:#d4d0e7;text-decoration:none;display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:13px}
 .sm-plans .sm-plans-header .home-gallery-account{display:grid;width:42px;height:42px;border:1px solid #3b3c57;border-radius:50%;place-items:center;padding:0}
 @media(max-width:680px){.sm-plans .sm-plans-header.sm-site-header{height:72px}.sm-plans .sm-plans-header .sm-header-actions{gap:9px}}
+
+/* Pricing lives inside the exact same visual canvas as the carousel. */
+.sm-plans{background:radial-gradient(ellipse 65% 56% at 50% 54%,rgba(67,33,108,.15),transparent 74%),#090d16!important;min-height:100svh;padding-top:0!important;isolation:auto}
+.sm-plans .sm-plans-glow{display:none!important}
+.sm-plans>.sm-site-header{position:sticky!important;top:0!important;left:auto!important;right:auto!important;inset:auto!important;z-index:1000;max-width:none!important;width:calc(100% + 48px)!important;margin:0 -24px!important;padding:0 clamp(22px,3vw,52px)!important;height:88px!important;border-bottom:0!important;background:#090d16!important;backdrop-filter:none!important}
+.sm-plans .sm-site-header .sm-header-actions{display:flex;align-items:center;gap:12px}
+.sm-plans .sm-plans-intro{margin-top:58px}
+@media(max-width:680px){.sm-plans>.sm-site-header{height:72px!important;width:calc(100% + 36px)!important;margin:0 -18px!important}.sm-plans .sm-plans-intro{margin-top:40px}}
