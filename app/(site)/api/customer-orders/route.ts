@@ -63,7 +63,9 @@ export async function POST(req: NextRequest) {
       draft:payload.draft,projectId:payload.projectId,requestKey:payload.requestKey,
     });
     return respond({orderId:order.id,checkoutReady:store.reviewedOrderReadyForCheckout(order.id)},201);
-  } catch {
+  } catch (error) {
+    if(error instanceof Error && error.message==="PROJECT_LIMIT_REACHED")
+      return respond({error:"Project limit reached for the current plan.",code:"PROJECT_LIMIT_REACHED"},409);
     return respond({error:"Studio order could not be prepared."},422);
   } finally {
     store?.close();
