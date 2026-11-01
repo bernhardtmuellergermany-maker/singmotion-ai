@@ -28,3 +28,11 @@
  .sm-plans-header .sm-plans-brand{font-size:16px}
  .sm-plans-intro{margin-top:42px}
 }
+
+/* Shared header takes precedence over earlier one-off pricing header rules. */
+.sm-plans .sm-plans-header.sm-site-header{position:fixed;inset:0 0 auto;z-index:1000;height:88px;width:100%;max-width:none;min-height:0;margin:0;padding:0 clamp(22px,3vw,52px);background:rgba(9,13,22,.96);border-bottom:1px solid #ffffff23;display:flex;align-items:center;justify-content:space-between}
+.sm-plans .sm-plans-header .sm-wordmark{color:#faf9ff;text-decoration:none}
+.sm-plans .sm-plans-header .sm-header-actions{display:flex;align-items:center;gap:16px}
+.sm-plans .sm-plans-header .sm-plans-back{color:#d4d0e7;text-decoration:none;display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:13px}
+.sm-plans .sm-plans-header .home-gallery-account{display:grid;width:42px;height:42px;border:1px solid #3b3c57;border-radius:50%;place-items:center;padding:0}
+@media(max-width:680px){.sm-plans .sm-plans-header.sm-site-header{height:72px}.sm-plans .sm-plans-header .sm-header-actions{gap:9px}}
