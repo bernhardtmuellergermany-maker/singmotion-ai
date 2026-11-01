@@ -1,7 +1,7 @@
 import { PageContentSearch } from "./page-content-search";
 import Link from "next/link";
-import { Search, UserRound, ChevronDown } from "lucide-react";
-import { GlobalMenu } from "./home-collection";
+import { ChevronDown } from "lucide-react";
+import { SiteHeader } from "./site-header";
 
 export type FAQGroup = {heading:string;items:[string,string][]};
 const defaultGroups:FAQGroup[] = [
@@ -26,7 +26,7 @@ const defaultGroups:FAQGroup[] = [
 ];
 export function HelpFAQ({groups=defaultGroups}:{groups?:FAQGroup[]}){
 return <div className="sm-legal sm-help-faq">
-<header className="home-gallery-header sm-carousel-header"><Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link><div className="sm-header-actions"><PageContentSearch/><GlobalMenu/><Link href="/?card=login" className="home-gallery-account" aria-label="Login or account" title="Login or account"><UserRound size={21}/></Link></div></header>
+<SiteHeader search={<PageContentSearch/>}/>
 <main id="content" className="sm-legal-main">
  <div className="sm-legal-intro"><span className="sm-legal-kicker">SUPPORT & GUIDANCE</span><h1>Help & FAQ<span>.</span></h1><p>Quick answers to common questions about creating videos, finding projects and using SingMotion AI.</p></div>
  {groups.map((group,index)=><section key={group.heading} className="sm-help-group"><div className="sm-help-group-header"><span className="sm-legal-num">0{index+1} / HELP</span><h2>{group.heading}</h2></div><div className="sm-help-questions">{group.items.map(([question,answer])=><details className="sm-help-question" key={question}><summary>{question}<ChevronDown size={18} aria-hidden="true"/></summary><p>{answer}</p></details>)}</div></section>)}
