@@ -847,7 +847,7 @@ export class StudioWorkflow {
         if (plan.code !== "hobby")
           throw new StudioLiveError("VIDEO_PLAN_REQUIRED", "Free accounts have no included video seconds. A verified paid purchase or subscription is required.", 402);
         const seconds = Math.ceil(a.media.durationSeconds);
-        if (seconds < 5 || seconds > plan.secondsRemaining)
+        if (seconds < 5 || seconds > 30)
           throw new StudioLiveError("VIDEO_SECONDS_EXCEEDED", `This video requires ${seconds} seconds; ${plan.secondsRemaining} seconds remain this month.`, 402);
         try { ledger.reserve(accountId, id, seconds); }
         catch { throw new StudioLiveError("VIDEO_SECONDS_EXCEEDED", "Monthly video seconds are already reserved or exhausted.", 402); }
