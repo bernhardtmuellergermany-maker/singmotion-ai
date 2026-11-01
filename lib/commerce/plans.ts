@@ -16,10 +16,11 @@ CREATE TABLE IF NOT EXISTS customer_plan_usage(id TEXT PRIMARY KEY,account_id TE
 CREATE INDEX IF NOT EXISTS idx_customer_plan_usage ON customer_plan_usage(account_id,period,state);`);
   const columns=db.prepare("PRAGMA table_info(customer_subscriptions)").all() as {name:string}[];
   if(!columns.some(c=>c.name==="current_period_start"))db.exec("ALTER TABLE customer_subscriptions ADD COLUMN current_period_start INTEGER NOT NULL DEFAULT 0");
+  if(!columns.some(c=>c.name==="paid_through"))db.exec("ALTER TABLE customer_subscriptions ADD COLUMN paid_through INTEGER NOT NULL DEFAULT 0");
  }
  activePlan(accountId:string,now=Date.now()):PlanCode{
-  const row=this.db.prepare("SELECT plan,status,current_period_end FROM customer_subscriptions WHERE account_id=?").get(accountId) as {plan:string;status:string;current_period_end:number}|undefined;
-  return row?.plan==="hobby"&&["active","trialing"].includes(row.status)&&row.current_period_end>now?"hobby":"free";
+  const row=this.db.prepare("SELECT plan,status,current_period_start,current_period_end,paid_through FROM customer_subscriptions WHERE account_id=?").get(accountId) as {plan:string;status:string;current_period_start:number;current_period_end:number;paid_through:number}|undefined;
+  return row?.plan==="hobby"&&row.status==="active"&&row.current_period_start>0&&row.current_period_start<=now&&row.current_period_end>now&&row.paid_through>=row.current_period_end?"hobby":"free";
  }
  snapshot(accountId:string,now=Date.now()){
   const plan=this.activePlan(accountId,now),rules=PLAN_RULES[plan];
