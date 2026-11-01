@@ -15,6 +15,7 @@ export const metadata: Metadata = {
   },
   description:
     "Create a singing performance from your own music and photo in your private SingMotion studio.",
+  robots: process.env.RAILWAY_ENVIRONMENT_ID === "dfaeabed-03df-43ed-aa71-50f343a75041" ? { index: false, follow: false } : undefined,
   icons: { icon: [{ url: "/api/brand-favicon?v=20261101", type: "image/png", sizes: "32x32" }], shortcut: "/api/brand-favicon?v=20261101", apple: "/api/brand-favicon?v=20261101" },
 };
 export default function RootLayout({
