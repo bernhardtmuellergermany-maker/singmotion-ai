@@ -2039,3 +2039,6 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 
 .sm-carousel-login .sm-account-signout-all{display:block;width:100%;max-width:340px;margin:0 auto;padding:10px 12px;border:1px solid rgba(189,169,225,.38);border-radius:10px;color:#ded0f5;background:rgba(37,30,53,.65);font-size:12px;font-weight:600;cursor:pointer}
 .sm-carousel-login .sm-account-signout-all:hover:not(:disabled){background:rgba(77,48,110,.75)}
+
+.sm-carousel-login .sm-account-settings-link{display:block;width:100%;max-width:340px;margin:0 auto;padding:12px;text-align:center;border-radius:10px;background:rgba(146,85,242,.22);border:1px solid rgba(173,135,240,.5);color:#f0e8ff;text-decoration:none;font-weight:700;font-size:13px;box-sizing:border-box}
+.sm-carousel-login .sm-account-settings-link:hover{background:rgba(146,85,242,.38)}
