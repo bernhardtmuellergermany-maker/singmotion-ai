@@ -44,3 +44,6 @@
 .sm-plans .sm-site-header .sm-header-actions{display:flex;align-items:center;gap:12px}
 .sm-plans .sm-plans-intro{margin-top:58px}
 @media(max-width:680px){.sm-plans>.sm-site-header{height:72px!important;width:calc(100% + 36px)!important;margin:0 -18px!important}.sm-plans .sm-plans-intro{margin-top:40px}}
+
+/* Match the homepage header divider instead of removing it on pricing. */
+.sm-plans>.sm-site-header{border-bottom:1px solid rgba(145,102,195,.18)!important}
