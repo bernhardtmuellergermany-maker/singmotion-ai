@@ -254,7 +254,6 @@ export function CarouselExperience(){
                   </label>}
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
-              <p className="sm-carousel-plan-note">Free: up to 5 projects. Hobby: €4.99/month for up to 10 projects and 30 included video seconds per paid billing period (minimum 5 seconds per video). Hobby subscriptions are not available yet. <Link href="/account/settings">See account &amp; plan details</Link>.</p>
             </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
         })}
