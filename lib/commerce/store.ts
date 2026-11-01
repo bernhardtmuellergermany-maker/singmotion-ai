@@ -155,6 +155,31 @@ export class CommerceStore {
       .get(hash(token), now);
     return s ? String(s.account_id) : null;
   }
+  createPasswordReset(email: string) {
+    this.db.exec("CREATE TABLE IF NOT EXISTS customer_password_resets(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL)");
+    this.db.prepare("DELETE FROM customer_password_resets WHERE expires<?").run(Date.now());
+    const row=this.db.prepare("SELECT id,password_hash FROM customer_accounts WHERE email=?").get(email.trim().toLowerCase()) as {id:string;password_hash:string}|undefined;
+    if(!row||row.password_hash.startsWith("google-only:"))return null;
+    const token=randomBytes(32).toString("base64url");
+    this.db.prepare("DELETE FROM customer_password_resets WHERE account_id=?").run(row.id);
+    this.db.prepare("INSERT INTO customer_password_resets VALUES(?,?,?)").run(hash(token),row.id,Date.now()+30*60*1000);
+    return token;
+  }
+  invalidatePasswordReset(token:string){
+    this.db.prepare("DELETE FROM customer_password_resets WHERE token_hash=?").run(hash(token));
+  }
+  finishPasswordReset(token:string,newPassword:string){
+    if(typeof token!=="string"||token.length>256||typeof newPassword!=="string"||newPassword.length<20||newPassword.length>256)throw Error("Invalid reset request");
+    this.db.exec("CREATE TABLE IF NOT EXISTS customer_password_resets(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL)");
+    const row=this.db.prepare("SELECT account_id FROM customer_password_resets WHERE token_hash=? AND expires>?").get(hash(token),Date.now()) as {account_id:string}|undefined;
+    if(!row)throw Error("Reset link expired or invalid");
+    const salt=randomBytes(16).toString("hex"),digest=scryptSync(newPassword,salt,64).toString("hex");
+    this.tx(()=>{
+      this.db.prepare("UPDATE customer_accounts SET password_hash=? WHERE id=?").run(salt+":"+digest,row.account_id);
+      this.db.prepare("DELETE FROM customer_password_resets WHERE account_id=?").run(row.account_id);
+      this.db.prepare("DELETE FROM customer_sessions WHERE account_id=?").run(row.account_id);
+    });
+  }
   logoutAll(accountId: string) {
     this.db.prepare("DELETE FROM customer_sessions WHERE account_id=?").run(accountId);
   }
