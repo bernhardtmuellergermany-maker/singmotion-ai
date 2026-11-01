@@ -6,6 +6,22 @@ export const PLAN_RULES=Object.freeze({
  free:{code:"free" as const,monthlyPriceCents:0,maxProjects:3,monthlySeconds:0,minSecondsPerVideo:5,extraSecondCents:25},
  hobby:{code:"hobby" as const,monthlyPriceCents:499,maxProjects:10,monthlySeconds:30,minSecondsPerVideo:5,extraSecondCents:20}
 });
+/**
+ * Display/quote helper only: not a payment authorization or a quota reservation.
+ * Full-second units are used conservatively; actual BytePlus output billing may
+ * differ, so the provider settlement path must reconcile the final duration.
+ */
+export function quotePlanSeconds(plan: PlanCode, remainingSeconds: number, requestedSeconds: number) {
+ if (!Number.isSafeInteger(remainingSeconds) || remainingSeconds < 0 ||
+     !Number.isFinite(requestedSeconds) || requestedSeconds < 5 || requestedSeconds > 30)
+   throw Error("Invalid video quote");
+ const seconds = Math.ceil(requestedSeconds);
+ const available = plan === "hobby" ? Math.min(PLAN_RULES.hobby.monthlySeconds, remainingSeconds) : 0;
+ const includedSeconds = Math.min(available, seconds);
+ const extraSeconds = seconds - includedSeconds;
+ const extraCents = extraSeconds * PLAN_RULES[plan].extraSecondCents;
+ return {seconds, includedSeconds, extraSeconds, extraCents, currency:"EUR" as const};
+}
 const period=(now:number)=>new Date(now).toISOString().slice(0,7);
 export class PlanLedger{
  readonly db:DatabaseSync;
