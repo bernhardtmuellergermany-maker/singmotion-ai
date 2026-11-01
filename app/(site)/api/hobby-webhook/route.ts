@@ -43,6 +43,15 @@ export async function POST(req:NextRequest){
   new PlanLedger(store.db);
   const exists=store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(accountId);
   if(!exists)return NextResponse.json({received:true});
+  // A delayed webhook for a previous subscription must not overwrite a newer
+  // Stripe subscription or reinstate an expired billing period.
+  const previous=store.db.prepare("SELECT provider_subscription_id,current_period_start,current_period_end FROM customer_subscriptions WHERE account_id=?").get(accountId) as {provider_subscription_id:string|null;current_period_start:number;current_period_end:number}|undefined;
+  if(previous){
+   if(previous.provider_subscription_id!==current.id && previous.current_period_end>Date.now())
+     return NextResponse.json({received:true});
+   if(previous.provider_subscription_id===current.id && previous.current_period_start>periodStart)
+     return NextResponse.json({received:true});
+  }
   store.db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_end,updated_at,current_period_start,paid_through) VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET plan=excluded.plan,provider=excluded.provider,provider_subscription_id=excluded.provider_subscription_id,status=excluded.status,current_period_end=excluded.current_period_end,current_period_start=excluded.current_period_start,paid_through=excluded.paid_through,updated_at=excluded.updated_at").run(accountId,"hobby","stripe",current.id,status,periodEnd,Date.now(),periodStart,paidThrough);
   return NextResponse.json({received:true});
  }finally{store.close()}
