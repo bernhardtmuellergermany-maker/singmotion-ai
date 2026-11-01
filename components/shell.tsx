@@ -1,23 +1,13 @@
 import Link from "next/link";
 import { ProductHeader } from "./product-header";
-import { GlobalMenu } from "./home-collection";
+import { SiteHeader } from "./site-header";
 import { UserRound } from "lucide-react";
 import { OutputProjectSearch } from "./output-project-search";
 import { ProjectHeaderName } from "./project-header-name";
 export function Shell({ children, hideWorkspaceNav = false, projectId }: { children: React.ReactNode; hideWorkspaceNav?: boolean; projectId?: string }) {
   if (hideWorkspaceNav) return (
     <div className="sm-carousel-page sm-output-page">
-      <header className="home-gallery-header sm-carousel-header sm-output-header">
-        <div className="sm-output-header-left">
-          <Link href="/" className="sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link>
-          {projectId && <><span className="flow-divider"/><ProjectHeaderName id={projectId}/></>}
-        </div>
-        <div className="sm-header-actions sm-output-header-right">
-          <OutputProjectSearch />
-          <GlobalMenu />
-          <Link href="/?card=login" className="home-gallery-account" aria-label="Login or account"><UserRound size={21}/></Link>
-        </div>
-      </header>
+      <SiteHeader navigation={projectId ? <ProjectHeaderName id={projectId}/> : undefined} search={<OutputProjectSearch/>}/>
       <main className="sm-carousel-main">{children}</main>
     </div>
   );
