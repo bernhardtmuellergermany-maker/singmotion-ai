@@ -38,7 +38,15 @@ export async function POST(req:NextRequest){
  const raw=await req.text();if(Buffer.byteLength(raw)>2048)return json({error:"Request too large"},413);
  let input:{action?:string;email?:string;password?:string;newPassword?:string};
  try{input=JSON.parse(raw)}catch{return json({error:"Invalid request"},400)}
- limit("customer-auth:"+req.headers.get("x-forwarded-for"),8,60000);
+ // Return a proper 429 rather than an unhandled 500 when signup/login is throttled.
+ // Do not trust client-supplied IP headers as an authentication boundary.
+ try{
+  limit("customer-auth:"+req.headers.get("x-forwarded-for"),8,60000);
+  if((input.action==="login"||input.action==="register")&&typeof input.email==="string"){
+   const normalized=input.email.trim().toLowerCase();
+   if(normalized.length<=254)limit("customer-auth-email:"+normalized,12,15*60000);
+  }
+ }catch{return json({error:"Too many attempts. Please try again later."},429)}
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   if(input.action==="change-password"){
