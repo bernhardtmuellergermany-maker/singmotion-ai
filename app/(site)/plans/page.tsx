@@ -24,7 +24,7 @@ export default function PlansPage(){
     <h2>Free</h2><p className="sm-plan-caption">Your creative starting point.</p>
     <div className="sm-plan-price">€0 <span>/ month</span></div>
     <div className="sm-plan-rule"/>
-    <ul><li><Check size={18}/> Up to 5 projects</li><li><Check size={18}/> Private project workspace</li><li><Check size={18}/> No included subscription video seconds</li></ul>
+    <ul><li><Check size={18}/> Up to 3 projects</li><li><Check size={18}/> Private project workspace</li><li><Check size={18}/> No included subscription video seconds</li><li><Check size={18}/> Video generation: €0.25 per generated second (pay as you go, VAT included)</li></ul>
     <Link className="sm-plan-action sm-plan-action-outline" href="/">Start with Free</Link>
    </article>
    <article className="sm-plan-card sm-plan-featured">
