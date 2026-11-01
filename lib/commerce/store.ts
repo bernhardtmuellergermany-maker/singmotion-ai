@@ -313,6 +313,9 @@ export class CommerceStore {
         }
       }
 
+      // Never persist media prepared for another customer, even from a trusted caller.
+      if(input.account && media.owner!==`customer-${input.account}`)
+        throw Error("Customer media ownership mismatch");
       // Reject unprepared inputs before writing any order.
       reviewedVideoInputDigest(media);
       const created = this.order(orderInput);
