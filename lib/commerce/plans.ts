@@ -3,8 +3,8 @@ import {DatabaseSync} from "node:sqlite";
 import {randomUUID} from "node:crypto";
 export type PlanCode="free"|"hobby";
 export const PLAN_RULES=Object.freeze({
- free:{code:"free" as const,monthlyPriceCents:0,maxProjects:5,monthlySeconds:0,minSecondsPerVideo:5},
- hobby:{code:"hobby" as const,monthlyPriceCents:499,maxProjects:10,monthlySeconds:30,minSecondsPerVideo:5}
+ free:{code:"free" as const,monthlyPriceCents:0,maxProjects:3,monthlySeconds:0,minSecondsPerVideo:5,extraSecondCents:25},
+ hobby:{code:"hobby" as const,monthlyPriceCents:499,maxProjects:10,monthlySeconds:30,minSecondsPerVideo:5,extraSecondCents:20}
 });
 const period=(now:number)=>new Date(now).toISOString().slice(0,7);
 export class PlanLedger{
