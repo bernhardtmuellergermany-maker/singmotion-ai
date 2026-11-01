@@ -709,3 +709,12 @@
 .singmotion-flow .sm-timeline-cards article{
   height:auto;
 }
+
+/* Performance Timeline popovers overlay the editor instead of expanding/reflowing the card. */
+.singmotion-flow .sm-timeline-cards article{overflow:visible}
+.singmotion-flow .sm-timeline-add-camera{position:relative;min-width:0}
+.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu{position:relative;z-index:1;min-width:0}
+.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu[open]{z-index:80}
+.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu>.flow-camera-options{position:absolute!important;top:calc(100% + 5px)!important;bottom:auto!important;left:0!important;right:0!important;width:100%!important;min-width:0!important;max-width:100%!important;max-height:210px!important;overflow-y:auto!important;box-sizing:border-box;z-index:100;box-shadow:0 14px 35px #000a}
+.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu>.flow-camera-options button{width:100%;min-width:0;white-space:normal}
+.singmotion-flow .sm-timeline-cards article:has(details.flow-camera-menu[open]){position:relative;z-index:50}
