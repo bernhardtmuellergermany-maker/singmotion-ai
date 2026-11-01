@@ -94,6 +94,22 @@ export class CommerceStore {
       .run(id, email, `${salt}:${digest}`, Date.now());
     return id;
   }
+  googleLogin(subject:string,email:string){
+    email=email.trim().toLowerCase();
+    if(!/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(email)||!/^\d{8,32}$/.test(subject))throw Error("Invalid Google account");
+    this.db.exec("CREATE TABLE IF NOT EXISTS customer_google_identities(google_sub TEXT PRIMARY KEY,account_id TEXT UNIQUE NOT NULL)");
+    const existing=this.db.prepare("SELECT account_id FROM customer_google_identities WHERE google_sub=?").get(subject) as {account_id:string}|undefined;
+    let id=existing?.account_id;
+    if(!id){
+      if(this.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email))throw Error("An account with this email already exists. Sign in with its password.");
+      id=randomUUID();
+      this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());
+      this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,id);
+    }
+    const token=randomBytes(32).toString("base64url");
+    this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
+    return {id,token};
+  }
   login(email: string, password: string) {
     if (password.length > 256) throw Error("Invalid credentials");
     const row = this.db
