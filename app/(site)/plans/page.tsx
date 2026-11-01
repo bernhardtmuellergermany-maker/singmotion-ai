@@ -1,6 +1,7 @@
 import type {Metadata} from "next";
 import Link from "next/link";
-import {ArrowLeft, Check, Music2, Sparkles, ShieldCheck, UserRound} from "lucide-react";
+import {Check, Music2, Sparkles, ShieldCheck} from "lucide-react";
+import {OutputProjectSearch} from "@/components/output-project-search";
 import {SiteHeader} from "@/components/site-header";
 import "./plans.css";
 export const metadata:Metadata={
@@ -10,7 +11,7 @@ export const metadata:Metadata={
 export default function PlansPage(){
  return <main className="sm-plans">
   <div className="sm-plans-glow" aria-hidden="true"/>
-  <SiteHeader className="sm-plans-header" navigation={<Link href="/" className="sm-plans-back"><ArrowLeft size={17}/> Studio</Link>} />
+  <SiteHeader search={<OutputProjectSearch/>} />
   <section className="sm-plans-intro">
    <span className="sm-plans-kicker"><Sparkles size={15}/> YOUR MUSIC. YOUR PERFORMANCE.</span>
    <h1>Find your rhythm.</h1>
