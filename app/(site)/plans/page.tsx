@@ -9,7 +9,7 @@ export const metadata:Metadata={
  description:"Compare SingMotion AI Free and the planned Hobby subscription. Clear project limits and monthly included video seconds."
 };
 export default function PlansPage(){
- return <>
+ return <div className="sm-carousel-page sm-plans-page">
   <SiteHeader search={<OutputProjectSearch/>} />
   <main className="sm-plans">
   <div className="sm-plans-glow" aria-hidden="true"/>
@@ -38,5 +38,5 @@ export default function PlansPage(){
   </section>
   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Hobby is not available for purchase yet. Generation depends on available seconds, and the included allowance resets with the paid Stripe billing period, not the calendar month.</div>
   <footer className="sm-plans-footer"><Link href="/">Home</Link><Link href="/help">Help</Link><Link href="/legal">Legal</Link></footer>
- </main></>;
+ </main></div>;
 }
