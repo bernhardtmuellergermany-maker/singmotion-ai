@@ -25,19 +25,20 @@ export async function POST(req:NextRequest){
  // Read fresh state from Stripe, not a potentially outdated out-of-order webhook payload.
  const response=await fetch("https://api.stripe.com/v1/subscriptions/"+encodeURIComponent(sub.id),{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
  if(!response.ok)return NextResponse.json({error:"Subscription verification unavailable"},{status:503});
- const current=await response.json() as {id:string;livemode:boolean;status:string;metadata?:Record<string,string>;items?:{data?:{price?:{id?:string}}[]};current_period_end?:number;cancel_at_period_end?:boolean};
+ const current=await response.json() as {id:string;livemode:boolean;status:string;metadata?:Record<string,string>;items?:{data?:{price?:{id?:string}}[]};current_period_start?:number;current_period_end?:number;cancel_at_period_end?:boolean};
  if(current.livemode!==false||current.id!==sub.id)return NextResponse.json({error:"Invalid Stripe subscription"},{status:400});
  const accountId=current.metadata?.singmotionAccountId;
  if(typeof accountId!=="string"||!accountId||current.metadata?.singmotionPlan!=="hobby"||!current.items?.data?.some(x=>x.price?.id===process.env.STRIPE_HOBBY_PRICE_ID))return NextResponse.json({received:true});
- const item=current.items?.data?.[0] as {current_period_end?:number}|undefined;
+ const item=current.items?.data?.[0] as {current_period_start?:number;current_period_end?:number}|undefined;
  const periodEnd=Number(item?.current_period_end||current.current_period_end||0)*1000;
- const status=current.status==="active"&&periodEnd>Date.now()?"active":"inactive";
+ const periodStart=Number(item?.current_period_start||current.current_period_start||0)*1000;
+ const status=current.status==="active"&&periodStart>0&&periodStart<=Date.now()&&periodEnd>Date.now()?"active":"inactive";
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   new PlanLedger(store.db);
   const exists=store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(accountId);
   if(!exists)return NextResponse.json({received:true});
-  store.db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_end,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET plan=excluded.plan,provider=excluded.provider,provider_subscription_id=excluded.provider_subscription_id,status=excluded.status,current_period_end=excluded.current_period_end,updated_at=excluded.updated_at").run(accountId,"hobby","stripe",current.id,status,periodEnd,Date.now());
+  store.db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_end,updated_at,current_period_start) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET plan=excluded.plan,provider=excluded.provider,provider_subscription_id=excluded.provider_subscription_id,status=excluded.status,current_period_end=excluded.current_period_end,current_period_start=excluded.current_period_start,updated_at=excluded.updated_at").run(accountId,"hobby","stripe",current.id,status,periodEnd,Date.now(),periodStart);
   return NextResponse.json({received:true});
  }finally{store.close()}
 }
