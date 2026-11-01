@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
+import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 export const runtime="nodejs";export const dynamic="force-dynamic";
@@ -18,6 +19,11 @@ export async function POST(req:NextRequest){
   if(!accountId)return NextResponse.json({error:"Sign in to subscribe"},{status:401});
   const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId) as {email:string}|undefined;
   if(!account)return NextResponse.json({error:"Account missing"},{status:404});
+  // Avoid double subscriptions: a customer with any recorded Stripe subscription
+  // must manage/reconcile it first, not open a new checkout.
+  new PlanLedger(store.db);
+  const existing=store.db.prepare("SELECT provider_subscription_id FROM customer_subscriptions WHERE account_id=? AND provider='stripe'").get(accountId) as {provider_subscription_id:string}|undefined;
+  if(existing?.provider_subscription_id)return NextResponse.json({error:"Existing Stripe subscription: manage billing before subscribing again."},{status:409});
   const form=new URLSearchParams({"mode":"subscription","line_items[0][price]":process.env.STRIPE_HOBBY_PRICE_ID!,"line_items[0][quantity]":"1","client_reference_id":accountId,"customer_email":account.email,"subscription_data[metadata][singmotionAccountId]":accountId,"subscription_data[metadata][singmotionPlan]":"hobby","metadata[singmotionAccountId]":accountId,"success_url":origin+"/account/settings?checkout=success","cancel_url":origin+"/account/settings?checkout=cancelled"});
   const res=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":"sm-hobby-"+accountId+"-"+new Date().toISOString().slice(0,13)},body:form,cache:"no-store",signal:AbortSignal.timeout(12000)});
   if(!res.ok)return NextResponse.json({error:"Stripe Checkout unavailable"},{status:502});
