@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { SiteHeader } from "./site-header";
 import { MoreVertical, Plus, UserRound, Trash2, Pencil, Download, Copy, Music2, CloudUpload } from "lucide-react";
 import { api, ensureSession, upload } from "@/lib/client";
 import { validateFile, type Asset } from "@/lib/domain";
@@ -69,10 +70,7 @@ export function HomeCollection() {
   }, []);
   return (
     <div className="home-gallery">
-      <header className="home-gallery-header">
-        <Link href="/" className="home-gallery-wordmark sm-wordmark" aria-label="SingMotion AI home">SingMotion <span>AI</span></Link>
-        <div className="sm-header-actions"><GlobalMenu /><Link href="/login" className="home-gallery-account" aria-label="Login" title="Login"><UserRound size={21} /></Link></div>
-      </header>
+      <SiteHeader accountHref="/login" />
       <main id="content" className={loading || !tiles.length ? "home-gallery-empty" : "home-gallery-content"}>
         {error && <p className="home-gallery-error" role="alert">{error}</p>}
         {loading ? <p className="home-gallery-loading">Loading your projects…</p> : tiles.length ? (
