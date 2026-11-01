@@ -34,8 +34,18 @@ export async function POST(req:NextRequest){
   // in each browser tab before Stripe's first webhook arrives.
   store.db.exec("CREATE TABLE IF NOT EXISTS hobby_pending_checkouts(account_id TEXT PRIMARY KEY,session_id TEXT NOT NULL,url TEXT NOT NULL,expires_at INTEGER NOT NULL)");
   const existingCheckout=store.db.prepare("SELECT url,expires_at FROM hobby_pending_checkouts WHERE account_id=?").get(accountId) as {url:string;expires_at:number}|undefined;
-  if(existingCheckout && existingCheckout.expires_at>Date.now() && existingCheckout.url.startsWith("https://checkout.stripe.com/"))
-    return NextResponse.json({url:existingCheckout.url},{headers:{"Cache-Control":"no-store"}});
+  if(existingCheckout && existingCheckout.expires_at>Date.now() && existingCheckout.url.startsWith("https://checkout.stripe.com/")){
+    const pending=store.db.prepare("SELECT session_id FROM hobby_pending_checkouts WHERE account_id=?").get(accountId) as {session_id:string}|undefined;
+    if(pending?.session_id.startsWith("cs_test_")){
+      const verify=await fetch("https://api.stripe.com/v1/checkout/sessions/"+encodeURIComponent(pending.session_id),{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
+      if(!verify.ok)return NextResponse.json({error:"Pending Checkout verification unavailable"},{status:503});
+      const session=await verify.json() as {id?:string;status?:string;livemode?:boolean;url?:string;expires_at?:number;client_reference_id?:string};
+      if(session.id===pending.session_id&&session.livemode===false&&session.client_reference_id===accountId&&session.status==="open"&&
+         typeof session.expires_at==="number"&&session.expires_at*1000>Date.now()+60000&&session.url===existingCheckout.url)
+        return NextResponse.json({url:session.url},{headers:{"Cache-Control":"no-store"}});
+      if(session.status==="complete")return NextResponse.json({error:"Checkout completed; waiting for subscription confirmation."},{status:409});
+    }
+  }
   // Verify the authoritative Stripe Price before any Checkout session is created.
   // A misconfigured test Price must never silently charge a different amount.
   const priceResponse=await fetch("https://api.stripe.com/v1/prices/"+encodeURIComponent(process.env.STRIPE_HOBBY_PRICE_ID!),{
@@ -51,9 +61,9 @@ export async function POST(req:NextRequest){
   const form=new URLSearchParams({"mode":"subscription","line_items[0][price]":process.env.STRIPE_HOBBY_PRICE_ID!,"line_items[0][quantity]":"1","client_reference_id":accountId,"customer_email":account.email,"subscription_data[metadata][singmotionAccountId]":accountId,"subscription_data[metadata][singmotionPlan]":"hobby","metadata[singmotionAccountId]":accountId,"success_url":origin+"/account/settings?checkout=success","cancel_url":origin+"/account/settings?checkout=cancelled"});
   const res=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":"sm-hobby-"+accountId+"-"+new Date().toISOString().slice(0,13)},body:form,cache:"no-store",signal:AbortSignal.timeout(12000)});
   if(!res.ok)return NextResponse.json({error:"Stripe Checkout unavailable"},{status:502});
-  const checkout=await res.json() as {url?:string;id?:string;livemode?:boolean};
-  if(!checkout.id?.startsWith("cs_test_")||!checkout.url?.startsWith("https://checkout.stripe.com/")||checkout.livemode!==false)return NextResponse.json({error:"Unexpected Stripe Checkout session"},{status:502});
-  store.db.prepare("INSERT INTO hobby_pending_checkouts(account_id,session_id,url,expires_at) VALUES(?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET session_id=excluded.session_id,url=excluded.url,expires_at=excluded.expires_at").run(accountId,checkout.id,checkout.url,Date.now()+55*60*1000);
+  const checkout=await res.json() as {url?:string;id?:string;livemode?:boolean;expires_at?:number};
+  if(!checkout.id?.startsWith("cs_test_")||!checkout.url?.startsWith("https://checkout.stripe.com/")||checkout.livemode!==false||!Number.isFinite(checkout.expires_at)||Number(checkout.expires_at)*1000<=Date.now()+60000)return NextResponse.json({error:"Unexpected Stripe Checkout session"},{status:502});
+  store.db.prepare("INSERT INTO hobby_pending_checkouts(account_id,session_id,url,expires_at) VALUES(?,?,?,?) ON CONFLICT(account_id) DO UPDATE SET session_id=excluded.session_id,url=excluded.url,expires_at=excluded.expires_at").run(accountId,checkout.id,checkout.url,Number(checkout.expires_at)*1000-30000);
   return NextResponse.json({url:checkout.url},{headers:{"Cache-Control":"no-store"}});
  }catch{return NextResponse.json({error:"Checkout temporarily unavailable"},{status:503})}finally{store.close()}
 }
