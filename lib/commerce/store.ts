@@ -1,3 +1,4 @@
+import { PlanLedger } from "./plans.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
 import type { PreparedMedia } from "../live/store.ts";
@@ -301,6 +302,17 @@ export class CommerceStore {
   }) {
     return this.tx(() => {
       const { media, ...orderInput } = input;
+      // Definitive quota check inside the same SQLite write transaction as
+      // order creation. The HTTP precheck is advisory and can race.
+      if(input.account && process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"){
+        const cap=new PlanLedger(this.db).snapshot(input.account).maxProjects;
+        const already=this.db.prepare("SELECT 1 FROM customer_orders WHERE account_id=? AND project_id=? LIMIT 1").get(input.account,input.project);
+        if(!already){
+          const count=this.db.prepare("SELECT COUNT(DISTINCT project_id) AS n FROM customer_orders WHERE account_id=?").get(input.account) as {n:number};
+          if(count.n>=cap)throw Error("PROJECT_LIMIT_REACHED");
+        }
+      }
+
       // Reject unprepared inputs before writing any order.
       reviewedVideoInputDigest(media);
       const created = this.order(orderInput);
