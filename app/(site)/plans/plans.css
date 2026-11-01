@@ -47,3 +47,5 @@
 
 /* Match the homepage header divider instead of removing it on pricing. */
 .sm-plans>.sm-site-header{border-bottom:1px solid rgba(145,102,195,.18)!important}
+
+.sm-plans>.sm-site-header{border:0!important;border-bottom:0!important;box-shadow:none!important}
