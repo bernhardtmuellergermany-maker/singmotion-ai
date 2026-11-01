@@ -10,7 +10,19 @@ export async function GET(req:NextRequest){
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
-  if(!id)return NextResponse.json({error:"Customer login required"},{status:401});
+  if(!id){
+   if(process.env.CMS_ENABLED==="true"){
+    const {getPayload}=await import("payload");
+    const {default:config}=await import("@payload-config");
+    const {hasRole}=await import("@/cms/policy");
+    const payload=await getPayload({config});
+    const {user}=await payload.auth({headers:req.headers});
+    if(user&&hasRole(user,["super-admin"])){
+     return NextResponse.json({staffPreview:true,profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Date.now()},orders:[],sessions:0,credits:0,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+    }
+   }
+   return NextResponse.json({error:"Customer login required"},{status:401});
+  }
   const profile=store.db.prepare("SELECT email,created FROM customer_accounts WHERE id=?").get(id) as {email:string;created:number}|undefined;
   if(!profile)return NextResponse.json({error:"Account unavailable"},{status:404});
   const orders=store.db.prepare("SELECT id,project_id,price_cents,currency,status,created FROM customer_orders WHERE account_id=? ORDER BY created DESC LIMIT 50").all(id);
