@@ -2055,3 +2055,12 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 
 /* Original seamless SingMotion header: no horizontal rule on any shared-header route. */
 .sm-site-header{border:0!important;border-bottom:0!important;box-shadow:none!important}
+
+/* Homepage is the visual source of truth: header has no separate tinted layer. */
+.sm-carousel-page > .sm-site-header, .sm-plans-page > .sm-site-header, .home-gallery > .sm-site-header{
+ background:transparent!important;
+ backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important;
+ border:0!important;
+ box-shadow:none!important;
+}
