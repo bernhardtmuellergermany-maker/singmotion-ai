@@ -1,7 +1,7 @@
 import type {ReactNode} from "react";
 import Link from "next/link";
 import {UserRound} from "lucide-react";
-import {GlobalMenu} from "./home-collection";
+import {GlobalMenu} from "./global-menu";
 /** Shared navigation geometry for SingMotion pages. */
 export function SiteHeader({navigation,actions,search,onBrandClick,onAccountClick,accountHref="/?card=login",className=""}:{navigation?:ReactNode;actions?:ReactNode;search?:ReactNode;onBrandClick?:()=>void;onAccountClick?:()=>void;accountHref?:string;className?:string}){
  return <header className={["home-gallery-header","sm-carousel-header","sm-site-header",className].filter(Boolean).join(" ")}>
