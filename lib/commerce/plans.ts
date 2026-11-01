@@ -28,7 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_customer_plan_usage ON customer_plan_usage(accoun
   const start=sub?.current_period_start&&sub.current_period_start<=now?sub.current_period_start:0;
   const month=start?"stripe:"+String(start):period(now);
   const row=this.db.prepare("SELECT COALESCE(SUM(seconds),0) AS used FROM customer_plan_usage WHERE account_id=? AND period=? AND state IN ('reserved','consumed')").get(accountId,month) as {used:number};
-  return {...rules,period:month,secondsUsed:row.used,secondsRemaining:Math.max(0,rules.monthlySeconds-row.used)};
+  return {...rules,period:month,renewsAt:sub?.current_period_end||null,secondsUsed:row.used,secondsRemaining:Math.max(0,rules.monthlySeconds-row.used)};
  }
  /** Reserve before provider submission. Unique provider attempt IDs prevent double billing. */
  reserve(accountId:string,attemptId:string,seconds:number,now=Date.now()){
