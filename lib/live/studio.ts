@@ -835,6 +835,24 @@ export class StudioWorkflow {
       JSON.parse(row.selection_json),
     );
     await this.dependencies.ready?.();
+    // STAGING customer entitlements are checked at the last gate before any provider approval.
+    // Keep operational staff workflows independent of consumer billing.
+    if (!this.superAdmin && owner.startsWith("customer-") &&
+        process.env.RAILWAY_ENVIRONMENT_ID === "dfaeabed-03df-43ed-aa71-50f343a75041") {
+      const customerStore = new CommerceStore(path.join(this.root, "commerce.sqlite"));
+      try {
+        const ledger = new PlanLedger(customerStore.db);
+        const accountId = owner.slice("customer-".length);
+        const plan = ledger.snapshot(accountId);
+        if (plan.code !== "hobby")
+          throw new StudioLiveError("VIDEO_PLAN_REQUIRED", "Free accounts have no included video seconds. A verified paid purchase or subscription is required.", 402);
+        const seconds = Math.ceil(a.media.durationSeconds);
+        if (seconds < 5 || seconds > plan.secondsRemaining)
+          throw new StudioLiveError("VIDEO_SECONDS_EXCEEDED", `This video requires ${seconds} seconds; ${plan.secondsRemaining} seconds remain this month.`, 402);
+        try { ledger.reserve(accountId, id, seconds); }
+        catch { throw new StudioLiveError("VIDEO_SECONDS_EXCEEDED", "Monthly video seconds are already reserved or exhausted.", 402); }
+      } finally { customerStore.close(); }
+    }
     const workflow = this.operator({ ...policy, eurBudget: current.eurBudget });
     const token = await workflow.approve(
       id,
