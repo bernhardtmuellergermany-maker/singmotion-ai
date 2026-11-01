@@ -17,5 +17,5 @@ export async function GET(req:NextRequest){
   customerFulfillment:process.env.CUSTOMER_FULFILLMENT_ENABLED==="true",
   customerDelivery:process.env.CUSTOMER_DELIVERY_ENABLED==="true",
  };
- return NextResponse.json({environment:"staging",checks,checkoutConfigured:checks.customerAccounts&&checks.stripeTestKey&&checks.stripeHobbyPrice&&checks.stripeHobbyWebhook&&checks.subscriptionSwitch,productionAffected:false},{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+ return NextResponse.json({environment:"staging",checks,checkoutConfigured:checks.customerAccounts&&checks.stripeTestKey&&checks.stripeHobbyPrice&&checks.stripeHobbyWebhook&&checks.subscriptionSwitch&&checks.customerGeneration&&checks.customerFulfillment&&checks.customerDelivery,productionAffected:false},{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
