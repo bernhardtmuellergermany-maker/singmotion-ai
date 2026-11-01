@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { prepareStudioDraft } from "../live/media.ts";
 import { reviewedVideoInputDigest } from "./reviewed-video.ts";
 import { CommerceStore } from "./store.ts";
-import { PlanLedger } from "./plans.ts";
+import { PlanLedger, quotePlanSeconds } from "./plans.ts";
 
 /** Server-only Studio -> commerce gateway. No public endpoint, no charge and no
  * BytePlus request. Caller must authenticate the account AND media owner. */
@@ -36,10 +36,14 @@ export async function prepareCustomerStudioOrder(
   const billableSeconds = Math.ceil(media.durationSeconds);
   if (!Number.isSafeInteger(billableSeconds) || billableSeconds < 5)
     throw Error("Invalid video duration");
-  if (plan.code === "hobby" && plan.secondsRemaining >= billableSeconds)
-    throw Error("Use the included Hobby-seconds fulfillment path; do not charge again");
+  const quote = quotePlanSeconds(plan.code, plan.secondsRemaining, billableSeconds);
+  // The current Checkout route cannot atomically reserve part of the monthly
+  // allowance together with a paid overage. Fail closed rather than bill the
+  // included part again or silently grant an unreserved discount.
+  if (quote.includedSeconds > 0)
+    throw Error("Hobby included seconds require atomic allowance reservation before Checkout");
   // Fixed VAT-inclusive tariff. Do not trust a browser-supplied price.
-  const cents = billableSeconds * plan.extraSecondCents;
+  const cents = quote.extraCents;
   const reviewedInput = reviewedVideoInputDigest(media);
   const quoteEvidence = "reviewed-studio-eur-v1:" + createHash("sha256")
     .update(JSON.stringify({accountId: input.accountId, project: input.projectId,
