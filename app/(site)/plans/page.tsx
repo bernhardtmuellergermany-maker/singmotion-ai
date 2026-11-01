@@ -1,6 +1,7 @@
 import type {Metadata} from "next";
 import Link from "next/link";
-import {ArrowLeft, Check, Music2, Sparkles, ShieldCheck} from "lucide-react";
+import {ArrowLeft, Check, Music2, Sparkles, ShieldCheck, UserRound} from "lucide-react";
+import {GlobalMenu} from "@/components/home-collection";
 import "./plans.css";
 export const metadata:Metadata={
  title:"Plans & Pricing — SingMotion AI",
@@ -9,9 +10,9 @@ export const metadata:Metadata={
 export default function PlansPage(){
  return <main className="sm-plans">
   <div className="sm-plans-glow" aria-hidden="true"/>
-  <header className="sm-plans-header">
+  <header className="sm-plans-header home-gallery-header sm-carousel-header">
    <Link href="/" className="sm-plans-brand" aria-label="SingMotion AI home"><Music2 size={23}/> <span>SingMotion <em>AI</em></span></Link>
-   <nav aria-label="Pricing navigation"><Link href="/" className="sm-plans-back"><ArrowLeft size={17}/> Back to Studio</Link><Link href="/account/settings" className="sm-plans-account">My account</Link></nav>
+   <nav aria-label="Pricing navigation"><Link href="/" className="sm-plans-back"><ArrowLeft size={17}/> Studio</Link><Link href="/account/settings" className="sm-plans-account" aria-label="My account"><UserRound size={19}/></Link><GlobalMenu/></nav>
   </header>
   <section className="sm-plans-intro">
    <span className="sm-plans-kicker"><Sparkles size={15}/> YOUR MUSIC. YOUR PERFORMANCE.</span>
