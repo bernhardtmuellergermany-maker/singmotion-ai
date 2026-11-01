@@ -1,4 +1,5 @@
 import { cameraHelp, cameras } from "@/lib/domain";
+import { SiteHeader } from "@/components/site-header";
 
 export const metadata = {
   title: "Camera movements help · SingMotion AI",
@@ -7,6 +8,8 @@ export const metadata = {
 
 export default function CameraMovementsHelp() {
   return (
+    <>
+    <SiteHeader />
     <main id="content" style={{ maxWidth: 760, margin: "3rem auto", padding: "0 1.25rem", lineHeight: 1.7 }}>
       <a href="/studio">← Back to Studio</a>
       <h1>Camera movements</h1>
@@ -22,5 +25,6 @@ export default function CameraMovementsHelp() {
       <h2>Tips</h2>
       <p>A reference image with visible space around the singer may give the model more room to simulate camera motion. Keep one main camera direction per clip. Optional custom performance instructions are combined with the selected camera direction, not substituted for it.</p>
     </main>
+    </>
   );
 }
