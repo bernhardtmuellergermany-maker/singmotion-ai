@@ -19,11 +19,17 @@ export async function POST(req:NextRequest){
   if(!accountId)return NextResponse.json({error:"Sign in to subscribe"},{status:401});
   const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId) as {email:string}|undefined;
   if(!account)return NextResponse.json({error:"Account missing"},{status:404});
-  // Avoid double subscriptions: a customer with any recorded Stripe subscription
-  // must manage/reconcile it first, not open a new checkout.
+  // Prevent duplicate active subscriptions, but permit a new checkout after a
+  // fully canceled one. Re-check Stripe instead of trusting a stale local row.
   new PlanLedger(store.db);
   const existing=store.db.prepare("SELECT provider_subscription_id FROM customer_subscriptions WHERE account_id=? AND provider='stripe'").get(accountId) as {provider_subscription_id:string}|undefined;
-  if(existing?.provider_subscription_id)return NextResponse.json({error:"Existing Stripe subscription: manage billing before subscribing again."},{status:409});
+  if(existing?.provider_subscription_id){
+   const check=await fetch("https://api.stripe.com/v1/subscriptions/"+encodeURIComponent(existing.provider_subscription_id),{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
+   if(!check.ok)return NextResponse.json({error:"Could not verify existing subscription"},{status:503});
+   const sub=await check.json() as {livemode?:boolean;status?:string;metadata?:Record<string,string>};
+   if(sub.livemode!==false||sub.metadata?.singmotionAccountId!==accountId)return NextResponse.json({error:"Existing subscription verification failed"},{status:403});
+   if(sub.status!=="canceled"&&sub.status!=="incomplete_expired")return NextResponse.json({error:"Existing Stripe subscription: manage billing before subscribing again."},{status:409});
+  }
   const form=new URLSearchParams({"mode":"subscription","line_items[0][price]":process.env.STRIPE_HOBBY_PRICE_ID!,"line_items[0][quantity]":"1","client_reference_id":accountId,"customer_email":account.email,"subscription_data[metadata][singmotionAccountId]":accountId,"subscription_data[metadata][singmotionPlan]":"hobby","metadata[singmotionAccountId]":accountId,"success_url":origin+"/account/settings?checkout=success","cancel_url":origin+"/account/settings?checkout=cancelled"});
   const res=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":"sm-hobby-"+accountId+"-"+new Date().toISOString().slice(0,13)},body:form,cache:"no-store",signal:AbortSignal.timeout(12000)});
   if(!res.ok)return NextResponse.json({error:"Stripe Checkout unavailable"},{status:502});
