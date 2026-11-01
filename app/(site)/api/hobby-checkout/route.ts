@@ -6,7 +6,7 @@ import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const origin="https://singmotion-ai-staging.up.railway.app";
-const ready=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"&&process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"&&process.env.HOBBY_SUBSCRIPTIONS_ENABLED==="true"&&!!process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")&&!!process.env.STRIPE_HOBBY_PRICE_ID?.startsWith("price_")&&!!process.env.STRIPE_HOBBY_WEBHOOK_SECRET?.startsWith("whsec_");
+const ready=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"&&process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"&&process.env.HOBBY_SUBSCRIPTIONS_ENABLED==="true"&&!!process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_")&&!!process.env.STRIPE_HOBBY_PRICE_ID?.startsWith("price_")&&!!process.env.STRIPE_HOBBY_WEBHOOK_SECRET?.startsWith("whsec_");
 export async function GET(){return NextResponse.json({enabled:ready()},{headers:{"Cache-Control":"no-store"}})}
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
