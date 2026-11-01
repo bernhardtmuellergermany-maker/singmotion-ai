@@ -29,8 +29,8 @@ CREATE INDEX IF NOT EXISTS idx_customer_plan_usage ON customer_plan_usage(accoun
   if(!Number.isInteger(seconds)||seconds<5||seconds>30||!/^[\w-]{8,128}$/.test(attemptId))throw Error("Invalid video reservation");
   this.db.exec("BEGIN IMMEDIATE");
   try{
-   const previous=this.db.prepare("SELECT account_id,seconds FROM customer_plan_usage WHERE provider_attempt_id=?").get(attemptId) as {account_id:string;seconds:number}|undefined;
-   if(previous){if(previous.account_id!==accountId||previous.seconds!==seconds)throw Error("Reservation mismatch");this.db.exec("COMMIT");return this.snapshot(accountId,now)}
+   const previous=this.db.prepare("SELECT account_id,seconds,state FROM customer_plan_usage WHERE provider_attempt_id=?").get(attemptId) as {account_id:string;seconds:number;state:string}|undefined;
+   if(previous){if(previous.account_id!==accountId||previous.seconds!==seconds||previous.state==="released")throw Error("Reservation mismatch or already released");this.db.exec("COMMIT");return this.snapshot(accountId,now)}
    const state=this.snapshot(accountId,now);
    if(state.secondsRemaining<seconds)throw Error("Monthly video seconds exceeded");
    this.db.prepare("INSERT INTO customer_plan_usage VALUES(?,?,?,?,?,?,?)").run(randomUUID(),accountId,state.period,seconds,"reserved",attemptId,now);
