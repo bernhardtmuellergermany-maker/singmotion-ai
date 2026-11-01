@@ -34,7 +34,7 @@ export async function POST(req:NextRequest){
   // in each browser tab before Stripe's first webhook arrives.
   store.db.exec("CREATE TABLE IF NOT EXISTS hobby_pending_checkouts(account_id TEXT PRIMARY KEY,session_id TEXT NOT NULL,url TEXT NOT NULL,expires_at INTEGER NOT NULL)");
   const existingCheckout=store.db.prepare("SELECT url,expires_at FROM hobby_pending_checkouts WHERE account_id=?").get(accountId) as {url:string;expires_at:number}|undefined;
-  if(existingCheckout?.expires_at>Date.now() && existingCheckout.url.startsWith("https://checkout.stripe.com/"))
+  if(existingCheckout && existingCheckout.expires_at>Date.now() && existingCheckout.url.startsWith("https://checkout.stripe.com/"))
     return NextResponse.json({url:existingCheckout.url},{headers:{"Cache-Control":"no-store"}});
   // Verify the authoritative Stripe Price before any Checkout session is created.
   // A misconfigured test Price must never silently charge a different amount.
