@@ -1,0 +1,32 @@
+"use client";
+import {useEffect,useState} from "react";
+import Link from "next/link";
+import {UserRound,ShieldCheck,CreditCard,FileText,Trash2} from "lucide-react";
+import "./account-settings.css";
+type Data={profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
+export default function AccountSettings(){
+ const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
+ useEffect(()=>{fetch("/api/customer-settings",{cache:"no-store"}).then(async r=>{if(r.status===401)throw Error("Please sign in with your customer account first.");if(!r.ok)throw Error("Could not load account settings.");return r.json()}).then(setData).catch(e=>setError(e.message));},[]);
+ async function action(kind:"change-password"|"logout-all"){
+  setNotice("");
+  if(kind==="change-password"&&(newPassword.length<20||newPassword!==confirm)){setNotice("Use at least 20 characters and matching passwords.");return;}
+  if(kind==="logout-all"&&!window.confirm("Sign out on every device, including this one?"))return;
+  setBusy(true);
+  try{const response=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:kind,password:oldPassword,newPassword})});const json=await response.json();if(!response.ok)throw Error(json.error||"Request failed");if(kind==="logout-all"){location.href="/?card=login";return;}setOldPassword("");setNewPassword("");setConfirm("");setNotice("Password updated. Other customer sessions have been signed out.");}
+  catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
+ }
+ return <main className="sm-settings-page">
+ <header className="sm-settings-header"><Link href="/?card=login">← Back to account</Link><h1>Account settings</h1><p>Manage your SingMotion AI customer account.</p></header>
+ <div className="sm-settings-layout">
+  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
+  <div className="sm-settings-content">
+   {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
+   {data&&<>
+    <section id="profile" className="sm-settings-section"><h2>Account information</h2><label>Email address<input readOnly value={data.profile.email}/></label><p className="sm-settings-muted">Member since {new Date(data.profile.created).toLocaleDateString("en-GB")}. Email changes will require verification and are not enabled yet.</p></section>
+    <section id="security" className="sm-settings-section"><h2>Security</h2><p className="sm-settings-muted">Active customer sessions: {data.sessions}</p><form onSubmit={e=>{e.preventDefault();void action("change-password");}}><label>Current password<input type="password" autoComplete="current-password" required value={oldPassword} onChange={e=>setOldPassword(e.target.value)}/></label><label>New password<input type="password" autoComplete="new-password" minLength={20} maxLength={256} required value={newPassword} onChange={e=>setNewPassword(e.target.value)}/></label><label>Confirm new password<input type="password" autoComplete="new-password" required value={confirm} onChange={e=>setConfirm(e.target.value)}/></label><button disabled={busy} type="submit">Change password</button></form><button className="sm-settings-secondary" disabled={busy} onClick={()=>void action("logout-all")}>Sign out on all devices</button>{notice&&<p role="status">{notice}</p>}</section>
+    <section id="billing" className="sm-settings-section"><h2>Payments & credits</h2><p>Recorded credit balance: <strong>{data.credits}</strong></p><p className="sm-settings-muted">SingMotion uses project-based generation planning. Payment features are still in preparation; amounts below represent recorded account orders, not guaranteed settled charges.</p>{data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span></div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}</section>
+    <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2><p className="sm-settings-muted">Invoice download is not available yet. No invoices are generated from this page. Billing addresses, tax information, and downloadable receipts are planned for the verified payment flow.</p></section>
+    <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2><p className="sm-settings-muted">Account deletion is not yet available. A safe deletion process must handle your videos, drafts, uploads, credits and legally required billing records. Nothing will be deleted automatically.</p></section>
+   </>}
+  </div></div></main>;
+}
