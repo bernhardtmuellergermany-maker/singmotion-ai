@@ -10,3 +10,9 @@
 .sm-plans-page{overflow:visible;min-height:100svh}
 .sm-plans-page .sm-plans{background:transparent}
 .sm-plans-page .sm-plans-glow{display:none}
+
+/* Pricing disclosure: keep the recurring fee and per-second rate prominent. */
+.sm-plan-price{line-height:1.2;margin-bottom:10px}
+.sm-plan-price span{display:inline-block;line-height:1.5;vertical-align:baseline}
+.sm-plan-price-note{font-size:13px;line-height:1.6;color:#e4d5f6;margin:0 0 22px;min-height:42px}
+@media(max-width:680px){.sm-plan-price{font-size:34px}.sm-plan-price-note{min-height:0}}
