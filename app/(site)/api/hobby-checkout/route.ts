@@ -34,7 +34,7 @@ export async function POST(req:NextRequest){
   // in each browser tab before Stripe's first webhook arrives.
   store.db.exec("CREATE TABLE IF NOT EXISTS hobby_pending_checkouts(account_id TEXT PRIMARY KEY,session_id TEXT NOT NULL,url TEXT NOT NULL,expires_at INTEGER NOT NULL)");
   const existingCheckout=store.db.prepare("SELECT url,expires_at FROM hobby_pending_checkouts WHERE account_id=?").get(accountId) as {url:string;expires_at:number}|undefined;
-  if(existingCheckout && existingCheckout.expires_at>Date.now() && existingCheckout.url.startsWith("https://checkout.stripe.com/")){
+  if(existingCheckout && existingCheckout.url.startsWith("https://checkout.stripe.com/")){
     const pending=store.db.prepare("SELECT session_id FROM hobby_pending_checkouts WHERE account_id=?").get(accountId) as {session_id:string}|undefined;
     if(pending?.session_id.startsWith("cs_test_")){
       const verify=await fetch("https://api.stripe.com/v1/checkout/sessions/"+encodeURIComponent(pending.session_id),{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
