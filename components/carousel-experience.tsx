@@ -346,6 +346,15 @@ function AccountPanel(){
   window.addEventListener("pageshow",refresh);
   return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
+ async function logoutAll(){
+  if(!window.confirm("Sign out this account on all devices?"))return;
+  setBusy(true);setError("");
+  try{
+   const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout-all"})});
+   if(!res.ok)throw Error("Could not sign out all sessions");
+   window.location.reload();
+  }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+ }
  async function act(action:"login"|"register"|"logout"){
   if(action==="register" && (password!==confirmPassword)){setError("Passwords do not match.");return;}
   setBusy(true);setError("");
@@ -376,6 +385,7 @@ function AccountPanel(){
  <input type="password" aria-label="Current password" required autoComplete="current-password" placeholder="Current password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/>
  <input type="password" aria-label="New password" required minLength={20} maxLength={256} autoComplete="new-password" placeholder="New password (20+ characters)" value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>
  <button disabled={busy} type="submit">Save new password</button></form>}{passwordMessage&&<p role="status">{passwordMessage}</p>}</>}
+ {!staff&&<button type="button" className="sm-account-signout-all" disabled={busy} onClick={()=>void logoutAll()}>Sign out on all devices</button>}
  <button type="button" className="sm-carousel-primary" disabled={busy} onClick={()=>void act("logout")}>Sign out</button></>:
   <form onSubmit={e=>{e.preventDefault();void act(mode)}} className="sm-account-form">
    <label className="sm-account-label">Email address<input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" maxLength={254}/></label>
