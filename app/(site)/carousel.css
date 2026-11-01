@@ -2052,3 +2052,6 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 .sm-site-header .sm-wordmark{text-decoration:none;white-space:nowrap}
 .sm-site-header .home-gallery-account{flex-shrink:0}
 @media(max-width:650px){.sm-site-header .sm-header-actions{gap:7px}}
+
+/* Original seamless SingMotion header: no horizontal rule on any shared-header route. */
+.sm-site-header{border:0!important;border-bottom:0!important;box-shadow:none!important}
