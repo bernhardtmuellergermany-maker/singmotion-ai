@@ -2064,3 +2064,34 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
  border:0!important;
  box-shadow:none!important;
 }
+
+/* Fixed site navigation everywhere SiteHeader is used.
+   Reserve exactly the header height so content never slides underneath. */
+.sm-site-header,
+.sm-carousel-page > .sm-site-header,
+.sm-plans-page > .sm-site-header,
+.home-gallery > .sm-site-header {
+  position:fixed!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  z-index:1000!important;
+  width:100%!important;
+  height:88px!important;
+  margin:0!important;
+  padding:0 clamp(22px,3vw,52px)!important;
+}
+.sm-carousel-page:has(> .sm-site-header),
+.home-gallery:has(> .sm-site-header),
+.product-theme:has(> .sm-site-header) {
+  padding-top:88px;
+}
+@media(max-width:650px){
+  .sm-site-header,
+  .sm-carousel-page > .sm-site-header,
+  .sm-plans-page > .sm-site-header,
+  .home-gallery > .sm-site-header {height:72px!important}
+  .sm-carousel-page:has(> .sm-site-header),
+  .home-gallery:has(> .sm-site-header),
+  .product-theme:has(> .sm-site-header) {padding-top:72px}
+}
