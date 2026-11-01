@@ -30,6 +30,18 @@ export async function POST(req:NextRequest){
    if(sub.livemode!==false||sub.metadata?.singmotionAccountId!==accountId)return NextResponse.json({error:"Existing subscription verification failed"},{status:403});
    if(sub.status!=="canceled"&&sub.status!=="incomplete_expired")return NextResponse.json({error:"Existing Stripe subscription: manage billing before subscribing again."},{status:409});
   }
+  // Verify the authoritative Stripe Price before any Checkout session is created.
+  // A misconfigured test Price must never silently charge a different amount.
+  const priceResponse=await fetch("https://api.stripe.com/v1/prices/"+encodeURIComponent(process.env.STRIPE_HOBBY_PRICE_ID!),{
+   headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)
+  });
+  if(!priceResponse.ok)return NextResponse.json({error:"Hobby pricing verification unavailable"},{status:503});
+  const price=await priceResponse.json() as {id?:string;livemode?:boolean;active?:boolean;currency?:string;unit_amount?:number;tax_behavior?:string;recurring?:{interval?:string;interval_count?:number;usage_type?:string}};
+  if(price.livemode!==false||price.id!==process.env.STRIPE_HOBBY_PRICE_ID||price.active!==true||
+     price.currency!=="eur"||price.unit_amount!==499||price.tax_behavior!=="inclusive"||
+     price.recurring?.interval!=="month"||price.recurring?.interval_count!==1||
+     price.recurring?.usage_type!=="licensed")
+   return NextResponse.json({error:"Configured Hobby Stripe price does not match the advertised plan"},{status:503});
   const form=new URLSearchParams({"mode":"subscription","line_items[0][price]":process.env.STRIPE_HOBBY_PRICE_ID!,"line_items[0][quantity]":"1","client_reference_id":accountId,"customer_email":account.email,"subscription_data[metadata][singmotionAccountId]":accountId,"subscription_data[metadata][singmotionPlan]":"hobby","metadata[singmotionAccountId]":accountId,"success_url":origin+"/account/settings?checkout=success","cancel_url":origin+"/account/settings?checkout=cancelled"});
   const res=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":"sm-hobby-"+accountId+"-"+new Date().toISOString().slice(0,13)},body:form,cache:"no-store",signal:AbortSignal.timeout(12000)});
   if(!res.ok)return NextResponse.json({error:"Stripe Checkout unavailable"},{status:502});
