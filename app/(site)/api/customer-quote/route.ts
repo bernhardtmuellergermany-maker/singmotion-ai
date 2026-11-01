@@ -22,7 +22,7 @@ export async function GET(req:NextRequest) {
     process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
    return reply({error:"Unavailable"},403);
  const raw=new URL(req.url).searchParams.get("seconds");
- if(!raw || !/^(?:[5-9]|[12][0-9]|30)(?:\\.\\d{1,3})?$/.test(raw))
+ if(!raw || !/^(?:[5-9]|[12][0-9]|30)(?:\.\d{1,3})?$/.test(raw))
    return reply({error:"Expected video duration between 5 and 30 seconds (up to three decimals)."},400);
  const seconds=Number(raw);
  if(seconds<5 || seconds>30)return reply({error:"Invalid duration"},400);
