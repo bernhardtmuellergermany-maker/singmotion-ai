@@ -52,9 +52,12 @@ export async function POST(req:NextRequest){
    response.cookies.set("sm_customer",token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
    return response;
   }
-  if(input.action==="logout"){
+  if(input.action==="logout"||input.action==="logout-all"){
    const token=req.cookies.get("sm_customer")?.value||"";
-   if(token)store.logout(token);
+   const accountId=store.session(token);
+   if(input.action==="logout-all" && !accountId)return json({error:"Customer login required"},401);
+   if(input.action==="logout-all" && accountId)store.logoutAll(accountId);
+   else if(token)store.logout(token);
    const response=json({authenticated:false});
    response.cookies.delete("sm_customer");
    const media=req.cookies.get("sm_session")?.value;
