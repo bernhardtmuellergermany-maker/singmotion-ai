@@ -25,6 +25,11 @@ export async function prepareCustomerStudioOrder(
       !/^[A-Za-z0-9_-]{1,160}$/.test(input.projectId) ||
       !/^[A-Za-z0-9_-]{8,160}$/.test(input.requestKey))
     throw Error("Authenticated account and Studio selection required");
+  // The caller must never select a different customer's private uploads.
+  if(input.mediaOwner!==`customer-${input.accountId}`)
+    throw Error("Customer media owner mismatch");
+  // This existing order path is pay-per-video. Subscription fulfillment
+  // must use its own reviewed, seconds-reserved pipeline.
   const centsPerTenSeconds = Number(env.CUSTOMER_CENTS_PER_TEN_SECONDS);
   if (!Number.isSafeInteger(centsPerTenSeconds) ||
       centsPerTenSeconds < 1 || centsPerTenSeconds > 10000000)
