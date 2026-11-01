@@ -1,0 +1,14 @@
+import {test} from "node:test";
+import assert from "node:assert/strict";
+import {DatabaseSync} from "node:sqlite";
+import {PlanLedger} from "../lib/commerce/plans.ts";
+const create=()=>{const db=new DatabaseSync(":memory:");const ledger=new PlanLedger(db);return {db,ledger}};
+const activate=(db:DatabaseSync,account="customer-1",start=Date.UTC(2026,9,20),end=Date.UTC(2026,10,20),paidThrough=end)=>{
+ db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_start,current_period_end,updated_at,paid_through) VALUES(?,?,?,?,?,?,?,?,?)").run(account,"hobby","stripe","sub_test_1","active",start,end,Date.now(),paidThrough);
+};
+const NOW=Date.UTC(2026,10,1);
+test("Free accounts cannot reserve any inclusive video seconds",()=>{const {db,ledger}=create();assert.equal(ledger.snapshot("free-user",NOW).maxProjects,5);assert.equal(ledger.snapshot("free-user",NOW).secondsRemaining,0);assert.throws(()=>ledger.reserve("free-user","attempt-12345",5,NOW));db.close()});
+test("Hobby requires a paid invoice covering the current Stripe billing period",()=>{const {db,ledger}=create();activate(db,"a",undefined,undefined,0);assert.equal(ledger.snapshot("a",NOW).code,"free");db.prepare("UPDATE customer_subscriptions SET paid_through=current_period_end WHERE account_id='a'").run();assert.equal(ledger.snapshot("a",NOW).code,"hobby");assert.equal(ledger.snapshot("a",NOW).maxProjects,10);db.close()});
+test("Hobby quota is 30 seconds across multiple videos, idempotently",()=>{const {db,ledger}=create();activate(db,"a");assert.equal(ledger.reserve("a","attempt-12345",10,NOW).secondsRemaining,20);assert.equal(ledger.reserve("a","attempt-12345",10,NOW).secondsRemaining,20);assert.equal(ledger.reserve("a","attempt-54321",20,NOW).secondsRemaining,0);assert.throws(()=>ledger.reserve("a","attempt-aaaaa",5,NOW));ledger.settle("attempt-12345",true);assert.equal(ledger.snapshot("a",NOW).secondsRemaining,0);db.close()});
+test("Only provider-confirmed nonbillable failure releases the reserved allowance",()=>{const {db,ledger}=create();activate(db,"a");ledger.reserve("a","attempt-12345",10,NOW);ledger.settle("attempt-12345",false);assert.equal(ledger.snapshot("a",NOW).secondsRemaining,30);assert.throws(()=>ledger.reserve("a","attempt-12345",10,NOW));db.close()});
+test("Quota resets on Stripe renewal, not a calendar month boundary",()=>{const {db,ledger}=create();activate(db,"a");ledger.reserve("a","attempt-12345",20,NOW);assert.equal(ledger.snapshot("a",NOW).secondsRemaining,10);db.prepare("UPDATE customer_subscriptions SET current_period_start=?,current_period_end=?,paid_through=? WHERE account_id='a'").run(Date.UTC(2026,10,20),Date.UTC(2026,11,20),Date.UTC(2026,11,20));assert.equal(ledger.snapshot("a",Date.UTC(2026,10,21)).secondsRemaining,30);db.close()});
