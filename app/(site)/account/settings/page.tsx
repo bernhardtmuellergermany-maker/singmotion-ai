@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import Link from "next/link";
+import {Shell} from "@/components/shell";
 import {UserRound,ShieldCheck,CreditCard,FileText,Trash2} from "lucide-react";
 import "./account-settings.css";
 type Data={staffPreview?:boolean;profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
@@ -15,7 +16,7 @@ export default function AccountSettings(){
   try{const response=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:kind,password:oldPassword,newPassword})});const json=await response.json();if(!response.ok)throw Error(json.error||"Request failed");if(kind==="logout-all"){location.href="/?card=login";return;}setOldPassword("");setNewPassword("");setConfirm("");setNotice("Password updated. Other customer sessions have been signed out.");}
   catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
  }
- return <main className="sm-settings-page">
+ return <Shell hideWorkspaceNav><div className="sm-settings-page">
  <header className="sm-settings-header"><Link href="/?card=login">← Back to account</Link><h1>Account settings</h1><p>Manage your SingMotion AI customer account.</p></header>
  <div className="sm-settings-layout">
   <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
@@ -29,5 +30,5 @@ export default function AccountSettings(){
     <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2><p className="sm-settings-muted">Invoice download is not available yet. No invoices are generated from this page. Billing addresses, tax information, and downloadable receipts are planned for the verified payment flow.</p></section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2><p className="sm-settings-muted">Account deletion is not yet available. A safe deletion process must handle your videos, drafts, uploads, credits and legally required billing records. Nothing will be deleted automatically.</p></section>
    </>}
-  </div></div></main>;
+  </div></div></div></Shell>;
 }
