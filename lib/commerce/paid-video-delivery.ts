@@ -28,10 +28,14 @@ export async function deliverReviewedPaidVideo(
  const root=path.join(dataDir,"media");
  await mkdir(root,{recursive:true,mode:0o700});
  const file=path.join(root,`paid-${orderId}.mp4`);
+ // A verified local file may remain after a crash between download and DB commit.
+ // Never overwrite or trust it without revalidation; retain for operator review.
  // Exclusive create in downloadValidatedOutput prevents silent replacement.
  await downloadValidatedOutput(providerUrl,file,media.durationSeconds,contract,transport);
  const details=await stat(file);
  const assetId=`customer-video-${orderId}`;
+ const existing=store.db.prepare("SELECT 1 FROM customer_video_deliveries WHERE order_id=?").get(orderId);
+ if(existing)throw Error("Existing private delivery requires operator reconciliation");
  putAsset({id:assetId,owner:`customer-${order.account_id}`,kind:"video",
   name:"singmotion.mp4",path:file,mime:"video/mp4",bytes:details.size,
   duration:media.durationSeconds,width:null,height:null,created:Date.now()});
