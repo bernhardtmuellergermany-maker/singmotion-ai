@@ -648,8 +648,7 @@ export class CommerceStore {
       // be acknowledged idempotently, never re-authorize fulfillment.
       if (o.status === "refunded" && receipt.provider === "stripe") {
         const refunded=this.db.prepare("SELECT order_id FROM customer_stripe_refunds WHERE order_id=?").get(receipt.orderId);
-        const paidBefore=this.db.prepare("SELECT 1 FROM payment_events WHERE event_key LIKE 'stripe:%' AND event_key<>? AND receipt_hash IS NOT NULL LIMIT 1").get(key);
-        if(!refunded || !paidBefore)throw Error("Refunded payment needs reconciliation");
+        if(!refunded)throw Error("Refunded payment needs reconciliation");
         this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
         return;
       }
