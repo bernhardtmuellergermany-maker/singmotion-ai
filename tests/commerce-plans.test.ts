@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
-import {PlanLedger} from "../lib/commerce/plans.ts";
+import {PlanLedger,quotePlanSeconds} from "../lib/commerce/plans.ts";
 const create=()=>{const db=new DatabaseSync(":memory:");const ledger=new PlanLedger(db);return {db,ledger}};
 const activate=(db:DatabaseSync,account="customer-1",start=Date.UTC(2026,9,20),end=Date.UTC(2026,10,20),paidThrough=end)=>{
  db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_start,current_period_end,updated_at,paid_through) VALUES(?,?,?,?,?,?,?,?,?)").run(account,"hobby","stripe","sub_test_1","active",start,end,Date.now(),paidThrough);
@@ -53,4 +53,13 @@ test("A failed inconsistent allowance settlement rolls back its quote state",()=
  assert.throws(()=>ledger.settleSplitQuote("order-123456","consumed"),/mismatch/);
  assert.equal((db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id='order-123456'").get() as {state:string}).state,"reserved");
  db.close();
+});
+
+test("300-second video bills only seconds beyond the Hobby monthly allowance",()=>{
+ const hobby=quotePlanSeconds("hobby",30,300);
+ assert.deepEqual(hobby,{seconds:300,includedSeconds:30,extraSeconds:270,extraCents:5400,currency:"EUR"});
+ const free=quotePlanSeconds("free",0,300);
+ assert.equal(free.extraCents,7500);
+ assert.equal(quotePlanSeconds("hobby",8,15).extraCents,140);
+ assert.throws(()=>quotePlanSeconds("hobby",30,301),/Invalid video quote/);
 });
