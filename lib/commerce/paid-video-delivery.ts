@@ -24,6 +24,8 @@ export async function deliverReviewedPaidVideo(
  if(queue?.state==="delivered")return "already-delivered";
  if(queue?.state!=="processing"||store.paidProviderJob(orderId)?.provider!=="byteplus")
   throw Error("Acknowledged, claimed BytePlus job required");
+ if(store.db.prepare("SELECT 1 FROM customer_video_deliveries WHERE order_id=?").get(orderId))
+  throw Error("Existing private delivery requires operator reconciliation");
  const media=store.paidPreparedMedia(orderId);
  const root=path.join(dataDir,"media");
  await mkdir(root,{recursive:true,mode:0o700});
@@ -34,8 +36,6 @@ export async function deliverReviewedPaidVideo(
  await downloadValidatedOutput(providerUrl,file,media.durationSeconds,contract,transport);
  const details=await stat(file);
  const assetId=`customer-video-${orderId}`;
- const existing=store.db.prepare("SELECT 1 FROM customer_video_deliveries WHERE order_id=?").get(orderId);
- if(existing)throw Error("Existing private delivery requires operator reconciliation");
  putAsset({id:assetId,owner:`customer-${order.account_id}`,kind:"video",
   name:"singmotion.mp4",path:file,mime:"video/mp4",bytes:details.size,
   duration:media.durationSeconds,width:null,height:null,created:Date.now()});
