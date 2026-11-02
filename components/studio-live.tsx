@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
+import { outputNotice } from "@/lib/live/output-notices";
 import { StudioRecordingReview } from "./studio-recording-review";
 import { StudioBudgetReview } from "./studio-budget";
 import "./studio-live-preview.css";
@@ -544,6 +545,7 @@ export function LiveProject({ id }: { id: string }) {
   },[frontCard,project?.outputReady,id]);
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
+  const notice = project ? outputNotice(project.state, project.stage, project.createdAt) : null;
   const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Generating video" : "Preparing project";
   return (
     <div id="content" className="sm-live-page">
@@ -565,7 +567,7 @@ export function LiveProject({ id }: { id: string }) {
             </div>
             {complete&&<><button className="sm-output-sound" type="button" aria-label={outputSound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const video=completedVideoRef.current;if(!video)return;video.muted=outputSound;setOutputSound(!outputSound)}}>{outputSound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>
             <div className="sm-output-completed-footer"><strong title={projectLabel||project.projectName||project.artistName}>{projectLabel||project.projectName||project.artistName||"Untitled Project"}</strong><a className="sm-output-download" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download onClick={e=>e.stopPropagation()}>Download video ↓</a></div></>}
-            {!complete && <div className="sm-output-pending-footer"><p className="sm-output-pending-stage" role="status">{project.stage}</p><button type="button" className="sm-output-poll-button" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button></div>}
+            {!complete && <div className="sm-output-pending-footer">{notice ? <div className={`sm-output-customer-notice sm-output-customer-notice-${notice.kind}`} role={notice.kind==="failed"||notice.kind==="policy"?"alert":"status"}><strong>{notice.title}</strong><p>{notice.message}</p><p>{notice.action}</p></div> : <p className="sm-output-pending-stage" role="status">{project.stage}</p>}<button type="button" className="sm-output-poll-button" disabled={busy || !["submitted","processing"].includes(project.state)} onClick={()=>void poll()}>{busy?"Checking status…":"Check status / retrieve video"}</button></div>}
           </section>
           <aside className={"sm-carousel-card sm-output-card sm-output-details "+(frontCard==="details"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="details"?" is-side-hovered":""))} style={{"--distance":frontCard==="details"?0:1,"--depth":frontCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
             {frontCard!=="details" && <button type="button" className="sm-carousel-side-hit" aria-label="Show project details" onPointerEnter={()=>setHoveredSide("details")} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide("details")} onBlur={()=>setHoveredSide(null)} onClick={()=>{setHoveredSide(null);setFrontCard("details")}}/>}
