@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
-    "build": "node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/paid-video-delivery.test.ts tests/paid-output-recovery.test.ts tests/paid-customer-recovery.test.ts tests/paid-recovery-batch.test.ts && next build",
+    "build": "node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/paid-video-delivery.test.ts tests/paid-output-recovery.test.ts tests/paid-customer-recovery.test.ts tests/paid-recovery-batch.test.ts tests/inspect-paid-recovery.test.ts && next build",
     "start": "next start --hostname 0.0.0.0 -p ${PORT:-3000}",
     "worker": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/worker.ts",
     "lint": "eslint .",
@@ -32,7 +32,8 @@
     "test:cms": "tsx --test --test-force-exit tests/cms.integration.ts",
     "cms:seed": "tsx scripts/cms-seed.ts",
     "test:cms:browser": "tsx tests/cms.browser.ts",
-    "cms:recover-admin": "tsx scripts/cms-recover-admin.ts"
+    "cms:recover-admin": "tsx scripts/cms-recover-admin.ts",
+    "inspect:paid-recovery": "node --experimental-strip-types scripts/inspect-paid-recovery.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",
