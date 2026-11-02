@@ -15,6 +15,26 @@ const respond = (body: unknown, status = 200) =>
 export async function GET(req: NextRequest) {
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
+  if (req.nextUrl.searchParams.get("view") === "mine") {
+    if (process.env.CUSTOMER_ACCOUNTS_ENABLED !== "true")
+      return respond({error:"Customer accounts unavailable."},503);
+    const store = new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+    try {
+      const accountId=store.session(req.cookies.get("sm_customer")?.value || "");
+      if (!accountId) return respond({error:"Customer login required."},401);
+      // Read-only status: never expose provider identifiers, input paths, payment
+      // evidence or another account's order. This endpoint does not dispatch work.
+      const orders=store.db.prepare(`SELECT o.id AS orderId,o.project_id AS projectId,
+        o.price_cents AS priceCents,o.currency,o.status,o.created,
+        q.state AS fulfillmentState,
+        CASE WHEN q.state='delivered' AND d.asset_id IS NOT NULL THEN 1 ELSE 0 END AS videoReady
+        FROM customer_orders o
+        LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id
+        LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
+        WHERE o.account_id=? ORDER BY o.created DESC,o.id DESC LIMIT 50`).all(accountId);
+      return respond({orders});
+    } finally {store.close();}
+  }
   return respond({
     available: process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
       process.env.CUSTOMER_ORDER_PREPARATION_ENABLED === "true",
