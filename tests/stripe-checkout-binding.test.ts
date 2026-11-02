@@ -299,3 +299,33 @@ test("an opened Stripe Checkout prevents unsafe allowance release",()=>{
   assert.equal((store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id) as {state:string}).state,"reserved");
  }finally{store.close()}
 });
+
+test("verified full Stripe refund before provider claim releases reserved allowance once",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"refundable-song",cents:250,quoteEvidence:"reviewed-refund-evidence-2026",key:"refund-order-123"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  store.bindStripeCheckout(id,"cs_test_refundable");
+  await deliver(store,receipt(id,"evt_refundable","cs_test_refundable"));
+  const proof={orderId:id,stripeCheckoutId:"cs_test_refundable",refundId:"re_test_refundable",refundedCents:250,evidence:"stripe-refund-verified-by-trusted-worker"};
+  assert.throws(()=>store.reconcileVerifiedStripeRefund({...proof,refundedCents:200}),/mismatch/);
+  assert.equal(store.reconcileVerifiedStripeRefund(proof),true);
+  assert.equal(store.reconcileVerifiedStripeRefund(proof),false);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"refunded");
+  assert.equal(store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id)?.state,"released");
+  assert.equal(store.claimPaidFulfillment(id),false);
+ }finally{store.close()}
+});
+test("refund after paid worker claim requires manual reconciliation",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const id=order(store,"claimed-refund");
+  store.bindStripeCheckout(id,"cs_test_claimed");
+  await deliver(store,receipt(id,"evt_claimed","cs_test_claimed"));
+  assert.equal(store.claimPaidFulfillment(id),true);
+  assert.throws(()=>store.reconcileVerifiedStripeRefund({orderId:id,stripeCheckoutId:"cs_test_claimed",refundId:"re_test_claimed",refundedCents:1250,evidence:"stripe-refund-verified-by-trusted-worker"}),/manual provider reconciliation/);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"paid");
+ }finally{store.close()}
+});
