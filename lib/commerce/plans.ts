@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS customer_split_quotes(attempt_id TEXT PRIMARY KEY,acc
   * payment and final provider-duration reconciliation before fulfillment.
   */
  reserveSplitQuote(accountId:string,attemptId:string,requestedSeconds:number,now=Date.now()){
-  if(!/^[a-f0-9-]{36}$/.test(accountId)||!/^[\\w-]{8,128}$/.test(attemptId))
+  if(!/^[a-f0-9-]{36}$/.test(accountId)||!/^[\w-]{8,128}$/.test(attemptId))
    throw Error("Invalid account or attempt");
   this.db.exec("BEGIN IMMEDIATE");
   try {
