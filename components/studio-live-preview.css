@@ -117,3 +117,11 @@
 /* Keep output carousel card geometry in sync with homepage cards. */
 .sm-output-page .sm-output-stage>.sm-output-card{width:min(90vw,400px,calc((100svh - 170px) * .5625));height:auto;max-height:none;aspect-ratio:9/16}
 @media(max-width:690px){.sm-output-page .sm-output-stage>.sm-output-card{width:min(88vw,calc((100svh - 160px) * .5625));height:auto;max-height:none}}
+
+
+/* Customer-facing output notices: readable over the dark preview on mobile. */
+.sm-output-customer-notice{display:grid;gap:6px;padding:13px 15px;border:1px solid rgba(192,164,255,.45);border-radius:12px;background:#201a33;color:#f7f2ff;text-align:left;line-height:1.45;max-width:100%}
+.sm-output-customer-notice strong{font-size:15px;line-height:1.35}
+.sm-output-customer-notice p{font-size:13px;line-height:1.5;margin:0;color:#e1d8ed;overflow-wrap:anywhere}
+.sm-output-customer-notice-policy,.sm-output-customer-notice-failed{border-color:#ca9aa6;background:#33202c}
+.sm-output-customer-notice-delayed,.sm-output-customer-notice-review{border-color:#9983c9}
