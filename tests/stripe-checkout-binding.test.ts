@@ -40,7 +40,9 @@ test("Stripe signed receipt marks the matched order paid exactly once", async ()
     const queued = store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id);
     assert.equal(queued?.state, "pending");
     assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n, 1);
-    await assert.rejects(deliver(store, receipt(id, "evt_second")), /reconciliation/);
+    await deliver(store, receipt(id, "evt_second"));
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM payment_events").get()?.n, 2);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n, 1);
     await assert.rejects(deliver(store, {...payment, cents: 1200}), /Conflicting/);
   } finally { store.close(); }
 });
