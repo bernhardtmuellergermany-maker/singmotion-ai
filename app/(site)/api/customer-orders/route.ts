@@ -64,6 +64,10 @@ export async function POST(req: NextRequest) {
     });
     return respond({orderId:order.id,checkoutReady:store.reviewedOrderReadyForCheckout(order.id)},201);
   } catch (error) {
+    if(error instanceof Error && error.message==="PRICE_CHANGED_REVIEW_AGAIN")
+      return respond({error:"Your included seconds or price changed. Please review the current price again.",code:"PRICE_CHANGED_REVIEW_AGAIN"},409);
+    if(error instanceof Error && error.message==="INCLUDED_HOBBY_REQUIRES_SUBSCRIPTION_FULFILLMENT")
+      return respond({error:"This video is covered by your Hobby allowance. Paid Checkout is not applicable.",code:"HOBBY_INCLUDED_ONLY"},409);
     if(error instanceof Error && error.message==="PROJECT_LIMIT_REACHED")
       return respond({error:"Project limit reached for the current plan.",code:"PROJECT_LIMIT_REACHED"},409);
     return respond({error:"Studio order could not be prepared."},422);
