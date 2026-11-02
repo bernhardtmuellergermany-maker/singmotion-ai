@@ -163,3 +163,27 @@ test("paid worker defaults to saved customer snapshot without browser-provided m
     assert.equal(store.paidProviderJob(id)?.jobId,"provider_saved_001");
   } finally {store.close();}
 });
+
+test("customer quote reservation is idempotent and rejects different media",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const owned={...media,owner:"customer-"+account,durationSeconds:10};
+  const request={account,email:"buyer@example.test",project:"song-1",cents:250,
+    quoteEvidence:"verified-inclusive-price-2026",key:"idempotent-quote-001",media:owned};
+  const a=store.preparedVideoOrder(request);
+  const b=store.preparedVideoOrder(request);
+  assert.equal(a.id,b.id);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_split_quotes").get()?.n,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,1);
+  assert.throws(()=>store.preparedVideoOrder({...request,media:{...owned,prompt:"Changed performance"}}),/conflict/);
+ }finally{store.close()}
+});
+test("first-time guest checkout prepares without missing subscription tables",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const a=store.preparedVideoOrder({account:null,email:"buyer@example.test",project:"guest-song",
+    cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"guest-no-plan-001",media});
+  assert.ok(a.id);
+ }finally{store.close()}
+});
