@@ -3,6 +3,7 @@ import { SavedDrafts } from "./saved-drafts";
 import Link from "next/link";
 import { LiveProjects, LiveProject } from "./studio-live";
 import { CustomerPaidOutput } from "./customer-paid-output";
+import { CustomerPaidOrders } from "./customer-paid-orders";
 import { useEffect, useState } from "react";
 import {
   Download,
@@ -45,6 +46,7 @@ export function Projects() {
       )}
       <SavedDrafts />
       <LiveProjects />
+      <CustomerPaidOrders />
       {loading ? (
         <p className="quiet">Loading your projects…</p>
       ) : jobs.length ? (
