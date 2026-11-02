@@ -487,6 +487,19 @@ export class CommerceStore {
         .get(receipt.orderId);
       if (!o || o.price_cents !== receipt.cents || o.currency !== receipt.currency)
         throw Error("Payment requires reconciliation");
+      // A mixed Hobby quote, when present, must be bound to this exact order
+      // before a signed payment can advance fulfillment. The reservation and
+      // payment confirmation share this SQLite transaction.
+      const split = this.db.prepare("SELECT account_id,extra_cents,state,included_seconds,period FROM customer_split_quotes WHERE attempt_id=?").get(receipt.orderId) as {account_id:string;extra_cents:number;state:string;included_seconds:number;period:string}|undefined;
+      if(split){
+        if(!o.account_id||split.account_id!==o.account_id||split.extra_cents!==receipt.cents||split.state!=="reserved")
+          throw Error("Split payment reservation mismatch");
+        if(split.included_seconds>0){
+          const usage=this.db.prepare("SELECT account_id,seconds,period,state FROM customer_plan_usage WHERE provider_attempt_id=?").get(receipt.orderId) as {account_id:string;seconds:number;period:string;state:string}|undefined;
+          if(!usage||usage.account_id!==o.account_id||usage.seconds!==split.included_seconds||usage.period!==split.period||usage.state!=="reserved")
+            throw Error("Split allowance reservation mismatch");
+        }
+      }
       // Separate signed events can describe one already-verified Checkout.
       // They must never enqueue a second fulfillment.
       if (o.status === "paid") {
