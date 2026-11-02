@@ -31,7 +31,7 @@ export async function prepareCustomerStudioOrder(
     throw Error("Customer media owner mismatch");
   // Pay-per-video preparation only. Included Hobby seconds require the
   // separately reserved subscription fulfillment pipeline, never Checkout.
-  const media = await prepareStudioDraft(input.draft, input.mediaOwner, 10);
+  const media = await prepareStudioDraft(input.draft, input.mediaOwner, 30);
   const plan = new PlanLedger(store.db).snapshot(input.accountId);
   const billableSeconds = Math.ceil(media.durationSeconds);
   if (!Number.isSafeInteger(billableSeconds) || billableSeconds < 5)
