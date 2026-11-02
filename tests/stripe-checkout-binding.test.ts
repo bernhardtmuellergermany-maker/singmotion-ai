@@ -224,7 +224,7 @@ test("Stripe rejects a mismatched reserved split quote before marking an order p
   ledger.reserveSplitQuote(account,id,10);
   store.bindStripeCheckout(id,"cs_test_split");
   store.db.prepare("UPDATE customer_split_quotes SET extra_cents=200 WHERE attempt_id=?").run(id);
-  await assert.rejects(deliver(store,receipt(id,"evt_split","cs_test_split")) ,/reservation mismatch/);
+  await assert.rejects(deliver(store,{...receipt(id,"evt_split","cs_test_split"),cents:250}) ,/reservation mismatch/);
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"awaiting_payment");
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM payment_events").get()?.n,0);
   store.db.prepare("UPDATE customer_split_quotes SET extra_cents=250 WHERE attempt_id=?").run(id);
