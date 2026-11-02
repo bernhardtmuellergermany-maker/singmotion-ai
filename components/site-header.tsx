@@ -8,7 +8,7 @@ export function SiteHeader({navigation,actions,search,onBrandClick,onAccountClic
   <Link href="/" className="sm-wordmark" aria-label="SingMotion AI home" onClick={onBrandClick?e=>{e.preventDefault();onBrandClick();}:undefined}>SingMotion <span>AI</span></Link>
   <nav className="sm-header-actions" aria-label="Main navigation">
    {navigation}{search}{actions}<GlobalMenu/>
-   <HeaderAccountMenu/>
+   <HeaderAccountMenu onLoginClick={onAccountClick}/>
   </nav>
  </header><div className="sm-site-header-space" aria-hidden="true" /></>;
 }
