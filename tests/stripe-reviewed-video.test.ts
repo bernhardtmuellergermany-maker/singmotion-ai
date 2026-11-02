@@ -115,7 +115,7 @@ test("ambiguous paid provider response never triggers automatic retry", async ()
       currency:"EUR" as const,evidence:"cs_test_uncertain",
     };}});
     let calls=0;
-    const ops={prepare:async()=>media,submit:async()=>{calls++;throw Error("response lost");}};
+    const ops={prepare:async()=>media,verify:async()=>{},submit:async()=>{calls++;throw Error("response lost");}};
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"submission-uncertain");
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
     assert.equal(calls,1);
