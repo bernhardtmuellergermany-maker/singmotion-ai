@@ -302,6 +302,9 @@ export class CommerceStore {
   }) {
     return this.tx(() => {
       const { media, ...orderInput } = input;
+      // Initialize subscription and reservation schema before every lookup,
+      // including first-time and guest order attempts.
+      new PlanLedger(this.db);
       // Definitive quota check inside the same SQLite write transaction as
       // order creation. The HTTP precheck is advisory and can race.
       if(input.account && process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"){
