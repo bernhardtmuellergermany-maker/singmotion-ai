@@ -38,7 +38,14 @@ async function reconcileReversal(store:CommerceStore,event:Record<string,any>){
  if(!Array.isArray(sessions.data)||sessions.data.length!==1)throw Error("Checkout reconciliation ambiguous");
  const session=sessions.data[0];
  if(session.livemode!==false||session.mode!=="payment"||
-   !/^cs_test_[A-Za-z0-9_]+$/.test(session.id))throw Error("Invalid Checkout");
+   !/^cs_test_[A-Za-z0-9_]+$/.test(session.id)||
+   session.payment_status!=="paid"||
+   session.payment_intent!==charge.payment_intent||
+   session.currency!=="eur"||
+   !Number.isSafeInteger(session.amount_total)||
+   session.amount_total!==charge.amount||
+   charge.currency!=="eur")
+   throw Error("Checkout payment and charge mismatch");
  const bound=store.db.prepare("SELECT order_id FROM stripe_checkout_sessions WHERE session_id=?").get(session.id) as {order_id:string}|undefined;
  if(!bound)throw Error("Checkout is not bound to an order");
  const evidence="verified-stripe-"+event.id+"-"+verified.id;
