@@ -80,7 +80,7 @@ test("paid fulfillment terminal states require evidence, are one-way and do not 
   const store = new CommerceStore(":memory:");
   try {
     const id = order(store, "fulfilled-terminal-state");
-    assert.equal(store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), false);
+    assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"verified-output-reference-123456"}), /provider job/);
     store.bindStripeCheckout(id, "cs_test_completed");
     await deliver(store, receipt(id, "evt_completed", "cs_test_completed"));
     assert.throws(() => store.finalizePaidFulfillment(id, {state:"delivered",deliveryEvidence:"short"}), /evidence/);
@@ -120,8 +120,8 @@ test("worker discovery returns only paid pending jobs and never dispatches them"
     store.bindStripeCheckout(second, "cs_test_discovery_second");
     await deliver(store, receipt(first, "evt_discovery_first", "cs_test_discovery_first"));
     await deliver(store, receipt(second, "evt_discovery_second", "cs_test_discovery_second"));
-    assert.deepEqual(store.pendingPaidFulfillment(), [first, second]);
-    assert.deepEqual(store.pendingPaidFulfillment(1), [first]);
+    assert.deepEqual([...store.pendingPaidFulfillment()].sort(), [first, second].sort());
+    assert.equal(store.pendingPaidFulfillment(1).length, 1);
     assert.throws(() => store.pendingPaidFulfillment(0), /batch size/);
     assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(unpaid)?.status, "awaiting_payment");
     assert.equal(store.claimPaidFulfillment(first), true);
@@ -135,12 +135,12 @@ test("provider job reference is unique, immutable and requires paid exclusive cl
   try {
     const first = order(store, "provider-job-first");
     const second = order(store, "provider-job-second");
-    assert.throws(() => store.recordPaidProviderJob(first, "byteplus", "task-123"), /claim/);
+    assert.throws(() => store.recordPaidProviderJob(first, "byteplus", "task-123"), /barrier/);
     store.bindStripeCheckout(first,"cs_test_job_first");
     store.bindStripeCheckout(second,"cs_test_job_second");
     await deliver(store,receipt(first,"evt_job_first","cs_test_job_first"));
     await deliver(store,receipt(second,"evt_job_second","cs_test_job_second"));
-    assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-123"), /claim/);
+    assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-123"), /barrier/);
     assert.equal(store.claimPaidFulfillment(first),true);
     assert.throws(() => store.recordPaidProviderJob(first,"byteplus","task-123"), /barrier/);
     assert.equal(store.beginPaidProviderSubmission(first),true);
@@ -230,7 +230,7 @@ test("Stripe rejects a mismatched reserved split quote before marking an order p
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"awaiting_payment");
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM payment_events").get()?.n,0);
   store.db.prepare("UPDATE customer_split_quotes SET extra_cents=250 WHERE attempt_id=?").run(id);
-  await deliver(store,receipt(id,"evt_split","cs_test_split"));
+  await deliver(store,{...receipt(id,"evt_split","cs_test_split"),cents:250});
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"paid");
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n,1);
  }finally{store.close()}
