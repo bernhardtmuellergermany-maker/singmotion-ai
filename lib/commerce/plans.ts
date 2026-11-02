@@ -75,17 +75,31 @@ CREATE TABLE IF NOT EXISTS customer_split_quotes(attempt_id TEXT PRIMARY KEY,acc
    return {...quote,period:state.period,state:"reserved" as const};
   }catch(error){this.db.exec("ROLLBACK");throw error}
  }
- /** Only release once provider non-submission is confirmed. */
- releaseSplitQuote(attemptId:string){
+ /**
+  * Trusted settlement, after verified payment and output reconciliation.
+  * Uncertain provider attempts stay reserved; finalized outcomes cannot reverse.
+  */
+ settleSplitQuote(attemptId:string,outcome:"consumed"|"released"){
   this.db.exec("BEGIN IMMEDIATE");
-  try {
-   const quote=this.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(attemptId) as {state:string}|undefined;
-   if(!quote||quote.state!=="reserved")throw Error("Split quote is not releasable");
-   this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=?").run(attemptId);
-   this.db.prepare("UPDATE customer_plan_usage SET state='released' WHERE provider_attempt_id=? AND state='reserved'").run(attemptId);
+  try{
+   const quote=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(attemptId) as {state:string;included_seconds:number}|undefined;
+   if(!quote)throw Error("Unknown split quote");
+   if(quote.state===outcome){this.db.exec("COMMIT");return}
+   if(quote.state!=="reserved")throw Error("Already finalized");
+   const usage=this.db.prepare("SELECT seconds,state FROM customer_plan_usage WHERE provider_attempt_id=?").get(attemptId) as {seconds:number;state:string}|undefined;
+   if(quote.included_seconds>0&&(!usage||usage.seconds!==quote.included_seconds||usage.state!=="reserved"))throw Error("Allowance mismatch");
+   if(quote.included_seconds===0&&usage)throw Error("Unexpected allowance");
+   const updated=this.db.prepare("UPDATE customer_split_quotes SET state=? WHERE attempt_id=? AND state='reserved'").run(outcome,attemptId);
+   if(updated.changes!==1)throw Error("Concurrent settlement");
+   if(quote.included_seconds>0){
+    const changed=this.db.prepare("UPDATE customer_plan_usage SET state=? WHERE provider_attempt_id=? AND state='reserved'").run(outcome,attemptId);
+    if(changed.changes!==1)throw Error("Concurrent allowance settlement");
+   }
    this.db.exec("COMMIT");
   }catch(error){this.db.exec("ROLLBACK");throw error}
  }
+ /** Use only after independently verifying the task was never submitted. */
+ releaseSplitQuote(attemptId:string){this.settleSplitQuote(attemptId,"released")}
  /** Reserve before provider submission. Unique provider attempt IDs prevent double billing. */
  reserve(accountId:string,attemptId:string,seconds:number,now=Date.now()){
   if(!Number.isInteger(seconds)||seconds<5||seconds>30||!/^[\w-]{8,128}$/.test(attemptId))throw Error("Invalid video reservation");
