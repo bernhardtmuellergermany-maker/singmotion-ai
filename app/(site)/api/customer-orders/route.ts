@@ -24,6 +24,9 @@ export async function GET(req: NextRequest) {
       if (!accountId) return respond({error:"Customer login required."},401);
       // Read-only status: never expose provider identifiers, input paths, payment
       // evidence or another account's order. This endpoint does not dispatch work.
+      const projectId=req.nextUrl.searchParams.get("projectId");
+      if (projectId !== null && !/^[A-Za-z0-9_-]{1,160}$/.test(projectId))
+        return respond({error:"Invalid project reference."},400);
       const orders=store.db.prepare(`SELECT o.id AS orderId,o.project_id AS projectId,
         o.price_cents AS priceCents,o.currency,o.status,o.created,
         q.state AS fulfillmentState,
@@ -31,7 +34,8 @@ export async function GET(req: NextRequest) {
         FROM customer_orders o
         LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id
         LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
-        WHERE o.account_id=? ORDER BY o.created DESC,o.id DESC LIMIT 50`).all(accountId);
+        WHERE o.account_id=? AND (? IS NULL OR o.project_id=?)
+        ORDER BY o.created DESC,o.id DESC LIMIT 50`).all(accountId,projectId,projectId);
       return respond({orders});
     } finally {store.close();}
   }
