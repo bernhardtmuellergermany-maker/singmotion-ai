@@ -37,6 +37,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_orders(id TEXT PRIMARY KEY,account_id TEXT,guest_hash TEXT,guest_expiry INTEGER,email TEXT NOT NULL,project_id TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,quote_evidence TEXT NOT NULL,request_key TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_stripe_disputes(order_id TEXT PRIMARY KEY,dispute_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_stripe_refunds(order_id TEXT PRIMARY KEY,refund_id TEXT UNIQUE NOT NULL,amount_cents INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_credits(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,delta INTEGER NOT NULL,kind TEXT NOT NULL,evidence TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_holds(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,cents INTEGER NOT NULL,state TEXT NOT NULL);
@@ -558,6 +559,39 @@ export class CommerceStore {
       this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(input.orderId);
       this.db.prepare("INSERT INTO customer_stripe_refunds VALUES(?,?,?,?)").run(input.orderId,input.refundId,input.refundedCents,Date.now());
       this.audit("stripe-refund-reconciliation","verified-full-refund",input.orderId+":"+hash(input.evidence));
+      return true;
+    });
+  }
+  /** Trusted, externally verified Stripe dispute notification. This never
+   * releases reserved allowance or issues a refund: card disputes can reverse.
+   * Stop only work still pending; submitted work requires manual reconciliation. */
+  reconcileVerifiedStripeDispute(input:{
+    orderId:string;stripeCheckoutId:string;disputeId:string;evidence:string;
+  }):boolean {
+    if(!/^cs_test_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
+       !/^dp_[A-Za-z0-9_]+$/.test(input.disputeId)||
+       typeof input.evidence!=="string"||input.evidence.length<20||input.evidence.length>2048)
+      throw Error("Verified Stripe dispute evidence required");
+    return this.tx(()=>{
+      const checkout=this.db.prepare("SELECT session_id FROM stripe_checkout_sessions WHERE order_id=?").get(input.orderId) as {session_id:string}|undefined;
+      if(!checkout||checkout.session_id!==input.stripeCheckoutId)throw Error("Dispute Checkout mismatch");
+      const previous=this.db.prepare("SELECT dispute_id FROM customer_stripe_disputes WHERE order_id=?").get(input.orderId) as {dispute_id:string}|undefined;
+      if(previous){
+        if(previous.dispute_id!==input.disputeId)throw Error("Dispute identity conflict");
+        return false;
+      }
+      const order=this.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(input.orderId) as {status:string}|undefined;
+      if(order?.status!=="paid")throw Error("Dispute requires payment reconciliation");
+      const queue=this.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(input.orderId) as {state:string}|undefined;
+      if(!queue)throw Error("Paid fulfillment record required");
+      // Never turn processing, delivered, or uncertain work into a retryable job.
+      if(queue.state==="pending"){
+        const changed=this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(input.orderId);
+        if(changed.changes!==1)throw Error("Dispute queue race");
+      }
+      this.db.prepare("UPDATE customer_orders SET status='disputed' WHERE id=? AND status='paid'").run(input.orderId);
+      this.db.prepare("INSERT INTO customer_stripe_disputes VALUES(?,?,?)").run(input.orderId,input.disputeId,Date.now());
+      this.audit("stripe-dispute-reconciliation","verified-dispute",input.orderId+":"+hash(input.evidence));
       return true;
     });
   }
