@@ -329,3 +329,23 @@ test("refund after paid worker claim requires manual reconciliation",async()=>{
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"paid");
  }finally{store.close()}
 });
+
+test("verified dispute blocks pending fulfillment without releasing Hobby quota",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"disputed-song",cents:250,
+   quoteEvidence:"reviewed-dispute-evidence-2026",key:"dispute-order-001"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  store.bindStripeCheckout(id,"cs_test_disputed");
+  await deliver(store,{...receipt(id,"evt_disputed","cs_test_disputed"),cents:250});
+  const proof={orderId:id,stripeCheckoutId:"cs_test_disputed",disputeId:"dp_test_disputed",evidence:"verified-card-dispute-source-record"};
+  assert.equal(store.reconcileVerifiedStripeDispute(proof),true);
+  assert.equal(store.reconcileVerifiedStripeDispute(proof),false);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"disputed");
+  assert.equal(store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id)?.state,"reserved");
+  assert.equal(store.claimPaidFulfillment(id),false);
+  await assert.rejects(deliver(store,{...receipt(id,"evt_after_dispute","cs_test_disputed"),cents:250}),/reconciliation/);
+ }finally{store.close()}
+});
