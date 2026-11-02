@@ -250,7 +250,7 @@ export function GenerationDialog({
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !rights || !terms} onClick={()=>void prepareCustomerOrder()}>{busy ? "Working…" : "Review order"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !rights || !terms || !customerQuote || quotePending} onClick={()=>void prepareCustomerOrder()}>{busy ? "Working…" : "Review order"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>
