@@ -37,11 +37,10 @@ export async function prepareCustomerStudioOrder(
   if (!Number.isSafeInteger(billableSeconds) || billableSeconds < 5)
     throw Error("Invalid video duration");
   const quote = quotePlanSeconds(plan.code, plan.secondsRemaining, billableSeconds);
-  // The current Checkout route cannot atomically reserve part of the monthly
-  // allowance together with a paid overage. Fail closed rather than bill the
-  // included part again or silently grant an unreserved discount.
-  if (quote.includedSeconds > 0)
-    throw Error("Hobby included seconds require atomic allowance reservation before Checkout");
+  // Fully included Hobby videos must never be sent through paid Checkout.
+  // Mixed paid/allowance orders are reserved atomically by preparedVideoOrder.
+  if (quote.extraCents === 0)
+    throw Error("Hobby fully included videos require the separate subscription fulfillment path");
   // Fixed VAT-inclusive tariff. Do not trust a browser-supplied price.
   const cents = quote.extraCents;
   const reviewedInput = reviewedVideoInputDigest(media);
