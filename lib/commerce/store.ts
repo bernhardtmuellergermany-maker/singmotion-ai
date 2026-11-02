@@ -252,7 +252,8 @@ export class CommerceStore {
     quoteEvidence: string;
     key: string;
   }) {
-    amount(input.cents);
+    if(input.cents!==0)amount(input.cents);
+    else if(!input.account)throw Error("Zero-price order requires authenticated customer");
     if (input.quoteEvidence.trim().length < 20 || !input.project || !input.key)
       throw Error("Reviewed inclusive sale quote required");
     return this.tx(() => {
@@ -344,8 +345,8 @@ export class CommerceStore {
       const split=plan?quotePlanSeconds(plan.code,plan.secondsRemaining,media.durationSeconds):null;
       if(split && split.extraCents!==input.cents)
         throw Error("PRICE_CHANGED_REVIEW_AGAIN");
-      if(split && split.extraCents===0)
-        throw Error("INCLUDED_HOBBY_REQUIRES_SUBSCRIPTION_FULFILLMENT");
+      if(split && split.extraCents===0 && (plan?.code!=="hobby" || split.includedSeconds!==split.seconds))
+        throw Error("Hobby allowance verification required");
       const created = this.order(orderInput);
       if(split && input.account){
         const prior=this.db.prepare("SELECT * FROM customer_split_quotes WHERE attempt_id=?").get(created.id) as {account_id:string;seconds:number;included_seconds:number;extra_cents:number;state:string}|undefined;
@@ -365,6 +366,14 @@ export class CommerceStore {
       const prior = this.db.prepare("SELECT media_json FROM customer_prepared_media WHERE order_id=?").get(created.id);
       if (prior && prior.media_json !== snapshot) throw Error("Prepared media snapshot conflict");
       if (!prior) this.db.prepare("INSERT INTO customer_prepared_media VALUES(?,?,?)").run(created.id,snapshot,Date.now());
+      // A fully included Hobby order is authorized by reserved paid-period
+      // allowance, not a fictitious zero-euro Stripe Checkout.
+      if(split && split.extraCents===0 && input.account){
+        const updated=this.db.prepare("UPDATE customer_orders SET status='paid' WHERE id=? AND status='awaiting_payment' AND price_cents=0").run(created.id);
+        if(updated.changes!==1)throw Error("Included order authorization conflict");
+        this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)").run(created.id,Date.now());
+        this.audit("hobby-allowance","included-order-authorized",created.id);
+      }
       return created;
     });
   }
