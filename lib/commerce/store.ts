@@ -786,6 +786,22 @@ export class CommerceStore {
     `).all(limit);
     return rows.map(row => String(row.order_id));
   }
+  /** Recovery discovery only: confirmed provider tasks belonging to paid orders.
+   * Does not reclaim unknown submissions or queue fresh provider requests. */
+  acknowledgedPaidRecovery(limit = 25): string[] {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+      throw Error("Invalid recovery batch size");
+    const rows = this.db.prepare(`
+      SELECT q.order_id FROM customer_fulfillment_queue q
+      JOIN customer_orders o ON o.id=q.order_id
+      JOIN customer_provider_jobs j ON j.order_id=q.order_id AND j.provider='byteplus'
+      JOIN customer_provider_submissions s ON s.order_id=q.order_id
+        AND s.provider='byteplus' AND s.state='acknowledged'
+      WHERE q.state='processing' AND o.status='paid'
+      ORDER BY q.created ASC,q.order_id ASC LIMIT ?
+    `).all(limit);
+    return rows.map(row=>String(row.order_id));
+  }
   /** Reserve a paid job once. Never reclaim an ambiguous processing job automatically. */
   claimPaidFulfillment(orderId: string): boolean {
     return this.tx(() => {
