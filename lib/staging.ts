@@ -72,3 +72,8 @@ export function stagingDenial(
     },
   );
 }
+
+/** Only Stripe-signed server POST endpoints bypass browser Basic Auth. */
+export function isSignedStripeWebhookRoute(method:string,pathname:string):boolean {
+  return method==="POST" && (pathname==="/api/stripe-webhook" || pathname==="/api/hobby-webhook");
+}
