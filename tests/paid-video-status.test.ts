@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import type {PreparedMedia} from "../lib/live/store.ts";
-import {pollPaidVideoStatus} from "../lib/commerce/paid-video-status.ts";
+import {pollPaidVideoStatus,pollReviewedBytePlusJob} from "../lib/commerce/paid-video-status.ts";
 
 test("paid status lookup never calls BytePlus without acknowledged job", async()=>{
  const store=new CommerceStore(":memory:");
@@ -35,5 +35,15 @@ test("read-only paid status reports uncertainty without dispatching or recording
   assert.equal(await pollPaidVideoStatus(store,id,async()=>{throw Error("network unavailable")}),"outcome-unverified");
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"processing");
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_video_deliveries").get()?.n,0);
+ }finally{store.close()}
+});
+
+test("BytePlus adapter cannot send any network request for an unacknowledged order",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  let calls=0;
+  const result=await pollReviewedBytePlusJob(store,"11111111-1111-4111-8111-111111111111",async()=>{calls++;throw Error("unexpected network");},new AbortController().signal);
+  assert.equal(result,"awaiting-submission-review");
+  assert.equal(calls,0);
  }finally{store.close()}
 });
