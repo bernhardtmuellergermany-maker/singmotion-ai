@@ -15,17 +15,14 @@ test("customer Studio order preparation fails closed without launch flag", async
  } finally {store.close();}
 });
 
-test("customer Studio order preparation rejects non-integer or missing inclusive prices", async()=>{
+test("customer Studio order preparation refuses media belonging to another customer before any checkout", async()=>{
  const store=new CommerceStore(":memory:");
  try {
-   const base={accountId:"11111111-1111-4111-8111-111111111111",email:"buyer@example.test",
-     mediaOwner:"studio-owner",projectId:"studio-project",requestKey:"request_12345678",draft:{}};
-   for (const price of [undefined,"0","1.5","NaN"]) {
-     await assert.rejects(prepareCustomerStudioOrder(store,base,{
-       CUSTOMER_ACCOUNTS_ENABLED:"true",CUSTOMER_ORDER_PREPARATION_ENABLED:"true",
-       CUSTOMER_CENTS_PER_TEN_SECONDS:price,
-     }),/pricing is unavailable/);
-   }
+   const accountId="11111111-1111-4111-8111-111111111111";
+   await assert.rejects(prepareCustomerStudioOrder(store,{
+     accountId,email:"buyer@example.test",mediaOwner:"studio-owner",
+     projectId:"studio-project",requestKey:"request_12345678",draft:{}
+   },{CUSTOMER_ACCOUNTS_ENABLED:"true",CUSTOMER_ORDER_PREPARATION_ENABLED:"true"}),/media owner mismatch/);
    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,0);
- } finally {store.close();}
+ } finally {store.close()}
 });
