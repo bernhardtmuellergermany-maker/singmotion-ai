@@ -527,6 +527,14 @@ export class CommerceStore {
         .get(receipt.orderId);
       if (!o || o.price_cents !== receipt.cents || o.currency !== receipt.currency)
         throw Error("Payment requires reconciliation");
+      // After fulfillment, allowance settlement may already be consumed.
+      // Distinct valid Stripe events must remain idempotent even then.
+      if (o.status === "paid") {
+        const existing = this.db.prepare("SELECT order_id FROM customer_fulfillment_queue WHERE order_id=?").get(receipt.orderId);
+        if (!existing) throw Error("Paid order missing fulfillment record");
+        this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
+        return;
+      }
       // A mixed Hobby quote, when present, must be bound to this exact order
       // before a signed payment can advance fulfillment. The reservation and
       // payment confirmation share this SQLite transaction.
@@ -539,14 +547,6 @@ export class CommerceStore {
           if(!usage||usage.account_id!==o.account_id||usage.seconds!==split.included_seconds||usage.period!==split.period||usage.state!=="reserved")
             throw Error("Split allowance reservation mismatch");
         }
-      }
-      // Separate signed events can describe one already-verified Checkout.
-      // They must never enqueue a second fulfillment.
-      if (o.status === "paid") {
-        const existing = this.db.prepare("SELECT order_id FROM customer_fulfillment_queue WHERE order_id=?").get(receipt.orderId);
-        if (!existing) throw Error("Paid order missing fulfillment record");
-        this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
-        return;
       }
       if (o.status !== "awaiting_payment") throw Error("Payment requires reconciliation");
       this.db
