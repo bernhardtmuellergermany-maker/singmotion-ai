@@ -37,7 +37,7 @@ export function HeaderAccountMenu(){
   <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
    {identity==="loading"?<span className="sm-account-menu-info">Checking login…</span>:
-    identity==="guest"?<Link href="/signin" onClick={()=>{if(menu.current)menu.current.open=false}}>Login</Link>:
+    identity==="guest"?<Link href="/?card=login" onClick={()=>{if(menu.current)menu.current.open=false}}>Login</Link>:
     <>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Upgrade</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
