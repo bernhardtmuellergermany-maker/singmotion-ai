@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CommerceStore, type VerifiedPayment } from "../lib/commerce/store.ts";
+import { PlanLedger } from "../lib/commerce/plans.ts";
 
 const order = (store: CommerceStore, key: string) => store.order({
   account: null, email: "buyer@example.test", project: "project-" + key,
@@ -212,4 +213,23 @@ test("reviewed customer video inputs are immutable and bound before payment", as
     assert.throws(() => store.bindReviewedOrderInputs(id, inputDigest, reviewDigest), /awaiting payment/);
     assert.equal(store.db.prepare("SELECT input_digest FROM customer_order_inputs WHERE order_id=?").get(id)?.input_digest, inputDigest);
   } finally { store.close(); }
+});
+
+test("Stripe rejects a mismatched reserved split quote before marking an order paid",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"split-project",cents:250,quoteEvidence:"reviewed-quote-evidence-2026",key:"split-test-01"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  store.bindStripeCheckout(id,"cs_test_split");
+  store.db.prepare("UPDATE customer_split_quotes SET extra_cents=200 WHERE attempt_id=?").run(id);
+  await assert.rejects(deliver(store,receipt(id,"evt_split","cs_test_split")) ,/reservation mismatch/);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"awaiting_payment");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM payment_events").get()?.n,0);
+  store.db.prepare("UPDATE customer_split_quotes SET extra_cents=250 WHERE attempt_id=?").run(id);
+  await deliver(store,receipt(id,"evt_split","cs_test_split"));
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"paid");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n,1);
+ }finally{store.close()}
 });
