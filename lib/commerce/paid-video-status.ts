@@ -1,4 +1,6 @@
 import { CommerceStore } from "./store.ts";
+import { BytePlusProtocol } from "../live/byteplus.ts";
+import type { Transport } from "../live/byteplus.ts";
 
 /** Read-only customer fulfillment polling: never submits a second paid task.
  * A provider-reported completion is not delivery; a separate verified private
@@ -24,4 +26,19 @@ export async function pollPaidVideoStatus(
     // A read failure never proves the paid job failed or may be resubmitted.
     return "outcome-unverified";
   }
+}
+
+/** Explicit, injected BytePlus read-only adapter for trusted workers.
+ * Does not construct a network client, submit, cancel, or deliver a video. */
+export async function pollReviewedBytePlusJob(
+  store: CommerceStore,
+  orderId: string,
+  transport: Transport,
+  signal: AbortSignal,
+) {
+  const protocol = new BytePlusProtocol(transport);
+  return pollPaidVideoStatus(store, orderId, async (jobId) => {
+    const result = await protocol.status(jobId, signal);
+    return result.status;
+  });
 }
