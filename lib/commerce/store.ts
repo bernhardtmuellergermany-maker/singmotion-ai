@@ -485,13 +485,17 @@ export class CommerceStore {
       const o = this.db
         .prepare("SELECT * FROM customer_orders WHERE id=?")
         .get(receipt.orderId);
-      if (
-        !o ||
-        o.price_cents !== receipt.cents ||
-        o.currency !== receipt.currency ||
-        o.status !== "awaiting_payment"
-      )
+      if (!o || o.price_cents !== receipt.cents || o.currency !== receipt.currency)
         throw Error("Payment requires reconciliation");
+      // Separate signed events can describe one already-verified Checkout.
+      // They must never enqueue a second fulfillment.
+      if (o.status === "paid") {
+        const existing = this.db.prepare("SELECT order_id FROM customer_fulfillment_queue WHERE order_id=?").get(receipt.orderId);
+        if (!existing) throw Error("Paid order missing fulfillment record");
+        this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
+        return;
+      }
+      if (o.status !== "awaiting_payment") throw Error("Payment requires reconciliation");
       this.db
         .prepare("INSERT INTO payment_events VALUES(?,?,?)")
         .run(key, digest, Date.now());
