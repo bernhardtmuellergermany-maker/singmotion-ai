@@ -350,6 +350,8 @@ test("verified dispute blocks pending fulfillment without releasing Hobby quota"
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"disputed");
   assert.equal(store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id)?.state,"reserved");
   assert.equal(store.claimPaidFulfillment(id),false);
-  await assert.rejects(deliver(store,{...receipt(id,"evt_after_dispute","cs_test_disputed"),cents:250}),/reconciliation/);
+  await deliver(store,{...receipt(id,"evt_after_dispute","cs_test_disputed"),cents:250});
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"disputed");
+  assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"failed");
  }finally{store.close()}
 });
