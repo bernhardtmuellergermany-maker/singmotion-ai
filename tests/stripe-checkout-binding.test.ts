@@ -2,6 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { CommerceStore, type VerifiedPayment } from "../lib/commerce/store.ts";
 import { PlanLedger } from "../lib/commerce/plans.ts";
+import { stripeCheckoutAdapter } from "../lib/commerce/stripe-webhook.ts";
+import { createHmac } from "node:crypto";
 
 const order = (store: CommerceStore, key: string) => store.order({
   account: null, email: "buyer@example.test", project: "project-" + key,
@@ -353,5 +355,36 @@ test("verified dispute blocks pending fulfillment without releasing Hobby quota"
   await deliver(store,{...receipt(id,"evt_after_dispute","cs_test_disputed"),cents:250});
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"disputed");
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"failed");
+ }finally{store.close()}
+});
+
+test("signed sandbox checkout, reserved overage, verified refund, and delayed event reconcile end to end offline",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"sandbox-flow",
+    cents:250,quoteEvidence:"reviewed-sandbox-flow-evidence-2026",key:"signed-sandbox-flow-001"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  store.bindStripeCheckout(id,"cs_test_offline_flow");
+  const secret="whsec_offline_test_secret";
+  async function signed(eventId:string){
+   const event={id:eventId,type:"checkout.session.completed",livemode:false,
+    data:{object:{object:"checkout.session",id:"cs_test_offline_flow",mode:"payment",
+      payment_status:"paid",currency:"eur",amount_total:250,metadata:{orderId:id}}}};
+   const raw=Buffer.from(JSON.stringify(event)),timestamp=String(Math.floor(Date.now()/1000));
+   const signature="t="+timestamp+",v1="+createHmac("sha256",secret).update(Buffer.concat([Buffer.from(timestamp+"."),raw])).digest("hex");
+   await store.webhook(raw,signature,stripeCheckoutAdapter(secret));
+  }
+  await signed("evt_offline_flow_paid");
+  assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"pending");
+  const proof={orderId:id,stripeCheckoutId:"cs_test_offline_flow",refundId:"re_test_offline_flow",
+    refundedCents:250,evidence:"independently-verified-sandbox-refund-test"};
+  assert.equal(store.reconcileVerifiedStripeRefund(proof),true);
+  await signed("evt_offline_flow_delayed");
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"refunded");
+  assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"failed");
+  assert.equal(store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id)?.state,"released");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n,1);
  }finally{store.close()}
 });
