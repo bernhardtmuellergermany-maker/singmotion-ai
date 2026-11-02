@@ -308,7 +308,7 @@ test("verified full Stripe refund before provider claim releases reserved allowa
   const ledger=new PlanLedger(store.db);
   ledger.reserveSplitQuote(account,id,10);
   store.bindStripeCheckout(id,"cs_test_refundable");
-  await deliver(store,receipt(id,"evt_refundable","cs_test_refundable"));
+  await deliver(store,{...receipt(id,"evt_refundable","cs_test_refundable"),cents:250});
   const proof={orderId:id,stripeCheckoutId:"cs_test_refundable",refundId:"re_test_refundable",refundedCents:250,evidence:"stripe-refund-verified-by-trusted-worker"};
   assert.throws(()=>store.reconcileVerifiedStripeRefund({...proof,refundedCents:200}),/mismatch/);
   assert.equal(store.reconcileVerifiedStripeRefund(proof),true);
