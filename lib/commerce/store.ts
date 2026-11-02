@@ -37,6 +37,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_orders(id TEXT PRIMARY KEY,account_id TEXT,guest_hash TEXT,guest_expiry INTEGER,email TEXT NOT NULL,project_id TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,quote_evidence TEXT NOT NULL,request_key TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_stripe_refunds(order_id TEXT PRIMARY KEY,refund_id TEXT UNIQUE NOT NULL,amount_cents INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_credits(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,delta INTEGER NOT NULL,kind TEXT NOT NULL,evidence TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_holds(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,cents INTEGER NOT NULL,state TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS payment_events(event_key TEXT PRIMARY KEY,receipt_hash TEXT NOT NULL,created INTEGER NOT NULL);
@@ -510,6 +511,53 @@ export class CommerceStore {
       }
       this.db.prepare("UPDATE customer_orders SET status='cancelled' WHERE id=? AND status='awaiting_payment'").run(orderId);
       this.audit(accountId,"customer-unstarted-order-cancelled",orderId);
+      return true;
+    });
+  }
+  /** Record an externally verified full Stripe refund before provider submission.
+   * This method does not issue a Stripe refund. Only a trusted reconciliation
+   * process may call it after checking Stripe's refund and charge identities.
+   * Ambiguous/submitted jobs are deliberately excluded.
+   */
+  reconcileVerifiedStripeRefund(input:{
+    orderId:string;stripeCheckoutId:string;refundId:string;refundedCents:number;
+    evidence:string;
+  }):boolean {
+    if(!/^cs_test_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
+       !/^re_[A-Za-z0-9_]+$/.test(input.refundId)||
+       !Number.isSafeInteger(input.refundedCents)||input.refundedCents<=0||
+       typeof input.evidence!=="string"||input.evidence.length<20||input.evidence.length>2048)
+      throw Error("Verified Stripe refund evidence required");
+    return this.tx(()=>{
+      new PlanLedger(this.db);
+      const order=this.db.prepare("SELECT status,price_cents FROM customer_orders WHERE id=?").get(input.orderId) as {status:string;price_cents:number}|undefined;
+      const checkout=this.db.prepare("SELECT session_id FROM stripe_checkout_sessions WHERE order_id=?").get(input.orderId) as {session_id:string}|undefined;
+      if(!order||!checkout||checkout.session_id!==input.stripeCheckoutId||
+         order.price_cents!==input.refundedCents)
+        throw Error("Refund amount or Checkout mismatch");
+      const prior=this.db.prepare("SELECT refund_id FROM customer_stripe_refunds WHERE order_id=?").get(input.orderId) as {refund_id:string}|undefined;
+      if(prior){
+        if(prior.refund_id!==input.refundId)throw Error("Refund identity conflict");
+        return false;
+      }
+      // A provider job might already have been submitted, even if its receipt was lost.
+      // Do not release the allowance or reopen the job in that state.
+      const fulfillment=this.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(input.orderId) as {state:string}|undefined;
+      if(order.status!=="paid"||fulfillment?.state!=="pending"||
+         this.db.prepare("SELECT 1 FROM customer_provider_submissions WHERE order_id=?").get(input.orderId)||
+         this.db.prepare("SELECT 1 FROM customer_provider_jobs WHERE order_id=?").get(input.orderId))
+        throw Error("Refund requires manual provider reconciliation");
+      const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(input.orderId) as {state:string;included_seconds:number}|undefined;
+      if(split && split.state!=="reserved")throw Error("Allowance requires reconciliation");
+      if(split?.included_seconds){
+        const change=this.db.prepare("UPDATE customer_plan_usage SET state='released' WHERE provider_attempt_id=? AND state='reserved' AND seconds=?").run(input.orderId,split.included_seconds);
+        if(change.changes!==1)throw Error("Allowance mismatch");
+      }
+      if(split)this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=? AND state='reserved'").run(input.orderId);
+      this.db.prepare("UPDATE customer_orders SET status='refunded' WHERE id=? AND status='paid'").run(input.orderId);
+      this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(input.orderId);
+      this.db.prepare("INSERT INTO customer_stripe_refunds VALUES(?,?,?,?)").run(input.orderId,input.refundId,input.refundedCents,Date.now());
+      this.audit("stripe-refund-reconciliation","verified-full-refund",input.orderId+":"+hash(input.evidence));
       return true;
     });
   }
