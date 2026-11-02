@@ -25,7 +25,7 @@ export function reviewedVideoInputDigest(media: PreparedMedia): string {
 /** Review evidence must be independently computed by trusted server code. */
 export function reviewedVideoQuoteDigest(inputDigest: string, priceCents: number, quoteEvidence: string): string {
   if (!validHash(inputDigest) || !Number.isSafeInteger(priceCents) ||
-      priceCents <= 0 || priceCents > 10000000 ||
+      priceCents < 0 || priceCents > 10000000 ||
       typeof quoteEvidence !== "string" || quoteEvidence.trim().length < 20)
     throw Error("Server-reviewed price and input evidence required");
   return sha256(JSON.stringify({version: 1,inputDigest,priceCents,currency:"EUR",quoteEvidence}));
