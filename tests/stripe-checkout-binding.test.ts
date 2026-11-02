@@ -316,6 +316,8 @@ test("verified full Stripe refund before provider claim releases reserved allowa
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"refunded");
   assert.equal(store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id)?.state,"released");
   assert.equal(store.claimPaidFulfillment(id),false);
+  await assert.rejects(deliver(store,{...receipt(id,"evt_refund_replay","cs_test_refundable"),cents:250}),/reconciliation/);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"refunded");
  }finally{store.close()}
 });
 test("refund after paid worker claim requires manual reconciliation",async()=>{
