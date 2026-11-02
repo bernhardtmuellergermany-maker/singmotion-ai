@@ -6,6 +6,7 @@ import { prepareCustomerStudioOrder } from "@/lib/commerce/prepare-studio-order"
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
+import { privateCustomerVideoLinks } from "@/lib/commerce/customer-video-links";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,15 +37,7 @@ export async function GET(req: NextRequest) {
         LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
         WHERE o.account_id=? AND (? IS NULL OR o.project_id=?)
         ORDER BY o.created DESC,o.id DESC LIMIT 50`).all(accountId,projectId,projectId);
-      const safeOrders=orders.map((item:Record<string,unknown>)=>({
-        ...item,
-        videoUrl:item.videoReady===1 && item.status==="paid"
-          ? `/api/customer-video?orderId=${encodeURIComponent(String(item.orderId))}`
-          : null,
-        downloadUrl:item.videoReady===1 && item.status==="paid"
-          ? `/api/customer-video?orderId=${encodeURIComponent(String(item.orderId))}&download=1`
-          : null,
-      }));
+      const safeOrders=orders.map((item:Record<string,unknown>)=>({...item,...privateCustomerVideoLinks(item)}));
       return respond({orders:safeOrders});
     } finally {store.close();}
   }
