@@ -652,6 +652,14 @@ export class CommerceStore {
         this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
         return;
       }
+      // Disputed payments may still receive earlier, signed Checkout events.
+      // A matching recorded dispute is authoritative; never reopen the order.
+      if(o.status==="disputed" && receipt.provider==="stripe"){
+        const dispute=this.db.prepare("SELECT dispute_id FROM customer_stripe_disputes WHERE order_id=?").get(receipt.orderId);
+        if(!dispute)throw Error("Disputed payment needs reconciliation");
+        this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
+        return;
+      }
       // After fulfillment, allowance settlement may already be consumed.
       // Distinct valid Stripe events must remain idempotent even then.
       if (o.status === "paid") {
