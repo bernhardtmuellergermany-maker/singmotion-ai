@@ -39,8 +39,8 @@ export async function prepareCustomerStudioOrder(
   const quote = quotePlanSeconds(plan.code, plan.secondsRemaining, billableSeconds);
   // Fully included Hobby videos must never be sent through paid Checkout.
   // Mixed paid/allowance orders are reserved atomically by preparedVideoOrder.
-  if (quote.extraCents === 0)
-    throw Error("Hobby fully included videos require the separate subscription fulfillment path");
+  if (quote.extraCents === 0 && plan.code !== "hobby")
+    throw Error("Hobby allowance required for zero-price order");
   // Fixed VAT-inclusive tariff. Do not trust a browser-supplied price.
   const cents = quote.extraCents;
   const reviewedInput = reviewedVideoInputDigest(media);
