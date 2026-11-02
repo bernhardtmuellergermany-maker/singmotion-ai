@@ -644,6 +644,15 @@ export class CommerceStore {
         .get(receipt.orderId);
       if (!o || o.price_cents !== receipt.cents || o.currency !== receipt.currency)
         throw Error("Payment requires reconciliation");
+      // A delayed signed Checkout notification after a verified refund must
+      // be acknowledged idempotently, never re-authorize fulfillment.
+      if (o.status === "refunded" && receipt.provider === "stripe") {
+        const refunded=this.db.prepare("SELECT order_id FROM customer_stripe_refunds WHERE order_id=?").get(receipt.orderId);
+        const paidBefore=this.db.prepare("SELECT 1 FROM payment_events WHERE event_key LIKE 'stripe:%' AND event_key<>? AND receipt_hash IS NOT NULL LIMIT 1").get(key);
+        if(!refunded || !paidBefore)throw Error("Refunded payment needs reconciliation");
+        this.db.prepare("INSERT INTO payment_events VALUES(?,?,?)").run(key,digest,Date.now());
+        return;
+      }
       // After fulfillment, allowance settlement may already be consumed.
       // Distinct valid Stripe events must remain idempotent even then.
       if (o.status === "paid") {
