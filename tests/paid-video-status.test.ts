@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {CommerceStore} from "../lib/commerce/store.ts";
+import type {PreparedMedia} from "../lib/live/store.ts";
 import {pollPaidVideoStatus} from "../lib/commerce/paid-video-status.ts";
 
 test("paid status lookup never calls BytePlus without acknowledged job", async()=>{
@@ -19,7 +20,7 @@ test("read-only paid status reports uncertainty without dispatching or recording
     owner:"sample",audioPath:"/private/audio.mp3",imagePath:"/private/image.png",
     audioSha256:"a".repeat(64),imageSha256:"b".repeat(64),
     durationSeconds:5,prompt:"natural performance",outputFormat:"9:16"
-  }}).id;
+  } as PreparedMedia}).id;
   store.bindStripeCheckout(id,"cs_test_readonly");
   await store.webhook(new Uint8Array(),"signed",{async verify(){return {
    provider:"stripe",eventId:"evt_readonly",orderId:id,cents:1250,
@@ -33,6 +34,6 @@ test("read-only paid status reports uncertainty without dispatching or recording
   assert.equal(await pollPaidVideoStatus(store,id,async()=> "expired"),"outcome-unverified");
   assert.equal(await pollPaidVideoStatus(store,id,async()=>{throw Error("network unavailable")}),"outcome-unverified");
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"processing");
-  assert.equal(store.ownedDeliveredVideoAsset(id,null,undefined),null);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_video_deliveries").get()?.n,0);
  }finally{store.close()}
 });
