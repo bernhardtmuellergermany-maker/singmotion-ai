@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { reviewedVideoInputDigest, reviewedVideoQuoteDigest } from "../lib/commerce/reviewed-video.ts";
 import type { PreparedMedia } from "../lib/live/store.ts";
 import { CommerceStore } from "../lib/commerce/store.ts";
+import { PlanLedger } from "../lib/commerce/plans.ts";
 import { submitReviewedPaidVideo } from "../lib/commerce/paid-video-worker.ts";
 
 const media = {
@@ -185,5 +186,24 @@ test("first-time guest checkout prepares without missing subscription tables",()
   const a=store.preparedVideoOrder({account:null,email:"buyer@example.test",project:"guest-song",
     cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"guest-no-plan-001",media});
   assert.ok(a.id);
+ }finally{store.close()}
+});
+
+test("fully included paid-period Hobby order queues once without a Stripe charge",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const now=Date.now(),start=now-60000,end=now+86400000;
+  new PlanLedger(store.db);
+  store.db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_start,current_period_end,updated_at,paid_through) VALUES(?,?,?,?,?,?,?,?,?)").run(account,"hobby","stripe","sub_test_allowance","active",start,end,now,end);
+  const owned={...media,owner:"customer-"+account,durationSeconds:5};
+  const request={account,email:"buyer@example.test",project:"included-song",cents:0,quoteEvidence:"verified-hobby-included-quote-2026",key:"included-hobby-001",media:owned};
+  const first=store.preparedVideoOrder(request);
+  const second=store.preparedVideoOrder(request);
+  assert.equal(first.id,second.id);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(first.id)?.status,"paid");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue WHERE order_id=?").get(first.id)?.n,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM stripe_checkout_sessions WHERE order_id=?").get(first.id)?.n,0);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_plan_usage WHERE provider_attempt_id=? AND state='reserved'").get(first.id)?.n,1);
  }finally{store.close()}
 });
