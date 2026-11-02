@@ -31,7 +31,9 @@ export function GenerationDialog({
     [busy, setBusy] = useState(false),
     [pilot, setPilot] = useState<boolean | null>(null),
     [blockers, setBlockers] = useState<string[]>([]),
-    [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false);
+    [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
+    [customerQuote, setCustomerQuote] = useState<{plan:string;includedBalanceSeconds:number;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number}|null>(null),
+    [quotePending, setQuotePending] = useState(true);
   useEffect(() => {
     dialog.current?.showModal();
     let current = true;
@@ -62,6 +64,18 @@ export function GenerationDialog({
       current = false;
     };
   }, []);
+  useEffect(() => {
+    let active = true;
+    const seconds = selection.end - selection.start;
+    setQuotePending(true);
+    setCustomerQuote(null);
+    void fetch(`/api/customer-quote?seconds=${encodeURIComponent(seconds.toFixed(3))}`,{credentials:"same-origin",cache:"no-store"})
+      .then(async response => response.ok ? response.json() : null)
+      .then(value => {if(active)setCustomerQuote(value?.estimateOnly===true ? value : null)})
+      .catch(()=>{})
+      .finally(()=>{if(active)setQuotePending(false)});
+    return ()=>{active=false};
+  },[selection.start,selection.end]);
   // Prepare and price server-side inside the same dialog once the operator
   // accepts the media rights. This is NOT a paid provider submission.
   useEffect(() => {
@@ -216,10 +230,12 @@ export function GenerationDialog({
       onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
       <h2 id="confirm-generation-title">Confirm generation</h2>
       <div className="sm-confirm-summary">
-        <div><span>Price</span><strong>{plan ? usd(plan.estimatedBaseMicroUsd) : `$${(selectedSeconds * 0.07).toFixed(2)}`}</strong></div>
+        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : pilot === true ? "Estimated provider base cost (not customer price)" : "Customer price"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(customerQuote.estimatedExtraPriceCents/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : "Being calculated") : "Not available yet"}</strong></div>
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
+      {customerQuote && <p className="sm-confirm-notice" role="status">Your {customerQuote.plan==="hobby"?"Hobby":"pay-as-you-go"} estimate: {customerQuote.estimatedBillableSeconds} chargeable seconds, {customerQuote.includedSeconds} included, {customerQuote.extraSeconds} payable. {customerQuote.plan==="hobby"?`${customerQuote.includedBalanceSeconds} included seconds currently available. `:""}This is not a final charge. Generated output duration may differ; the binding total must be confirmed before payment or generation.</p>}
+      {!customerQuote && !quotePending && customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Your personal price is currently unavailable. No payment can be made here.</p>}
       <label className="consent sm-confirm-consent">
         <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
