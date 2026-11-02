@@ -37,6 +37,6 @@ export default function PlansPage(){
    </article>
   </section>
   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Creating an account without a subscription is free, but AI video generation is not free. The price depends on the charged video seconds and is shown before purchase; no generation is charged without a separate payment step. Hobby is not available for purchase yet. Its 30 included seconds reset each paid billing period; for example, they cover up to six 5-second videos. Additional seconds are charged separately. All displayed prices include VAT.</div>
-  <footer className="sm-plans-footer"><Link href="/">Home</Link><Link href="/help">Help</Link><Link href="/legal">Legal</Link></footer>
+  
  </main></div>;
 }
