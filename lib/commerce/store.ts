@@ -777,6 +777,20 @@ export class CommerceStore {
           AND EXISTS (SELECT 1 FROM customer_orders WHERE id=? AND status='paid')
       `).run(outcome.state, orderId, orderId);
       if (changed.changes !== 1) return false;
+      // Final verified private delivery consumes the reserved Hobby allowance
+      // atomically with the terminal fulfillment state. Failure does not
+      // automatically release it: an uncertain provider job may be billable.
+      if(outcome.state==="delivered"){
+        const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(orderId) as {state:string;included_seconds:number}|undefined;
+        if(split && split.state==="reserved"){
+          if(split.included_seconds>0){
+            const used=this.db.prepare("UPDATE customer_plan_usage SET state='consumed' WHERE provider_attempt_id=? AND state='reserved' AND seconds=?").run(orderId,split.included_seconds);
+            if(used.changes!==1)throw Error("Hobby allowance settlement mismatch");
+          }
+          const committed=this.db.prepare("UPDATE customer_split_quotes SET state='consumed' WHERE attempt_id=? AND state='reserved'").run(orderId);
+          if(committed.changes!==1)throw Error("Hobby quote settlement mismatch");
+        }else if(split && split.state!=="consumed")throw Error("Hobby reservation was released");
+      }
       this.audit("fulfillment-worker", `fulfillment-${outcome.state}`, orderId + ":" + hash(evidence));
       return true;
     });
