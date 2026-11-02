@@ -251,3 +251,23 @@ test("another signed Stripe event after consumed Hobby allowance never enqueues 
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM payment_events").get()?.n,2);
  }finally{store.close()}
 });
+
+test("verified delivery atomically consumes reserved Hobby seconds",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"hobby-delivery",
+    cents:250,quoteEvidence:"reviewed-quote-evidence-2026",key:"hobby-delivery-01"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  store.bindStripeCheckout(id,"cs_test_hobbydelivery");
+  await deliver(store,{...receipt(id,"evt_hobbydelivery","cs_test_hobbydelivery"),cents:250});
+  assert.equal(store.claimPaidFulfillment(id),true);
+  assert.equal(store.beginPaidProviderSubmission(id),true);
+  assert.equal(store.recordPaidProviderJob(id,"byteplus","task-hobby-delivery"),true);
+  assert.equal(store.recordPaidVideoDelivery(id,"hobby_private_asset_001","verified-hobby-private-asset-evidence"),true);
+  assert.equal(store.finalizePaidFulfillment(id,{state:"delivered",deliveryEvidence:"private-delivery-verified-001"}),true);
+  assert.equal((store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id) as {state:string}).state,"consumed");
+  assert.equal(store.finalizePaidFulfillment(id,{state:"delivered",deliveryEvidence:"private-delivery-verified-001"}),false);
+ }finally{store.close()}
+});
