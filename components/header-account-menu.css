@@ -1,0 +1,10 @@
+.sm-account-menu{position:relative;flex-shrink:0}
+.sm-account-menu>summary{display:grid;place-items:center;width:44px;height:44px;border:1px solid #55506e;border-radius:50%;color:#f7f3ff;cursor:pointer;list-style:none;background:transparent}
+.sm-account-menu>summary::-webkit-details-marker{display:none}
+.sm-account-menu>summary:hover,.sm-account-menu[open]>summary{border-color:#a783e1;background:#29203d}
+.sm-account-menu>.sm-global-menu-list{position:absolute;top:calc(100% + 10px);right:0;left:auto;z-index:250;min-width:210px;display:flex;flex-direction:column;gap:2px;padding:8px;border:1px solid #625375;border-radius:14px;background:#1a1a2c;box-shadow:0 14px 35px #0009}
+.sm-account-menu>.sm-global-menu-list>a,.sm-account-menu>.sm-global-menu-list>button,.sm-account-menu-info{display:block;width:100%;box-sizing:border-box;padding:12px 13px;border:0;border-radius:9px;background:transparent;color:#f5f0ff;text-align:left;text-decoration:none;font:inherit;font-size:14px;cursor:pointer}
+.sm-account-menu>.sm-global-menu-list>a:hover,.sm-account-menu>.sm-global-menu-list>button:hover{background:#352744}
+.sm-account-menu>.sm-global-menu-list>button:disabled{opacity:.65;cursor:wait}
+.sm-account-menu-info{color:#beb5cd;cursor:default}
+.sm-account-menu-error{margin:7px 0 0;padding:10px;color:#ffb8c2;font-size:12px}
