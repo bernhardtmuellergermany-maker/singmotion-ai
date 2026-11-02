@@ -1,4 +1,4 @@
-import { PlanLedger } from "./plans.ts";
+import { PlanLedger, quotePlanSeconds } from "./plans.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
 import type { PreparedMedia } from "../live/store.ts";
@@ -318,7 +318,28 @@ export class CommerceStore {
         throw Error("Customer media ownership mismatch");
       // Reject unprepared inputs before writing any order.
       reviewedVideoInputDigest(media);
+      // Price and reserve the split inside this SAME write transaction:
+      // parallel requests cannot spend the same Hobby seconds twice.
+      const ledger=input.account?new PlanLedger(this.db):null;
+      const plan=input.account?ledger!.snapshot(input.account):null;
+      const seconds=Math.ceil(media.durationSeconds);
+      const split=plan?quotePlanSeconds(plan.code,plan.secondsRemaining,media.durationSeconds):null;
+      if(split && split.extraCents!==input.cents)
+        throw Error("PRICE_CHANGED_REVIEW_AGAIN");
+      if(split && split.extraCents===0)
+        throw Error("INCLUDED_HOBBY_REQUIRES_SUBSCRIPTION_FULFILLMENT");
       const created = this.order(orderInput);
+      if(split && input.account){
+        const prior=this.db.prepare("SELECT * FROM customer_split_quotes WHERE attempt_id=?").get(created.id) as {account_id:string;seconds:number;included_seconds:number;extra_cents:number;state:string}|undefined;
+        if(prior){
+          if(prior.account_id!==input.account||prior.seconds!==split.seconds||prior.extra_cents!==split.extraCents||prior.included_seconds!==split.includedSeconds||prior.state!=="reserved")
+            throw Error("Existing order reservation conflict");
+        }else{
+          this.db.prepare("INSERT INTO customer_split_quotes VALUES(?,?,?,?,?,?,?,?,?)").run(created.id,input.account,plan!.period,split.seconds,split.includedSeconds,split.extraSeconds,split.extraCents,"reserved",Date.now());
+          if(split.includedSeconds>0)
+            this.db.prepare("INSERT INTO customer_plan_usage VALUES(?,?,?,?,?,?,?)").run(randomUUID(),input.account,plan!.period,split.includedSeconds,"reserved",created.id,Date.now());
+        }
+      }
       this.bindPreparedOrderMedia(created.id, media);
       const snapshot = JSON.stringify(media);
       if (snapshot.length > 16000 || !media.audioPath || !media.imagePath || !media.owner)
