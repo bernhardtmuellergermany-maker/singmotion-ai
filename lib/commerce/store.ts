@@ -478,6 +478,32 @@ export class CommerceStore {
       this.audit(actor.id, "credit-refund", id);
     });
   }
+  /** Cancel a prepared order only when Stripe Checkout was never opened.
+   * A Checkout session can be paid later, so never release its allowance here. */
+  cancelUnstartedCustomerOrder(orderId:string,accountId:string):boolean {
+    return this.tx(()=>{
+      new PlanLedger(this.db);
+      const order=this.db.prepare("SELECT account_id,status FROM customer_orders WHERE id=?").get(orderId) as {account_id:string|null;status:string}|undefined;
+      if(!order||order.account_id!==accountId)throw Error("Order unavailable");
+      if(order.status==="cancelled")return false;
+      if(order.status!=="awaiting_payment"||
+        this.db.prepare("SELECT 1 FROM stripe_checkout_sessions WHERE order_id=?").get(orderId)||
+        this.db.prepare("SELECT 1 FROM customer_fulfillment_queue WHERE order_id=?").get(orderId))
+        throw Error("Order requires payment reconciliation");
+      const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(orderId) as {state:string;included_seconds:number}|undefined;
+      if(split){
+        if(split.state!=="reserved")throw Error("Allowance requires reconciliation");
+        if(split.included_seconds>0){
+          const usage=this.db.prepare("UPDATE customer_plan_usage SET state='released' WHERE provider_attempt_id=? AND state='reserved' AND seconds=?").run(orderId,split.included_seconds);
+          if(usage.changes!==1)throw Error("Allowance mismatch");
+        }
+        this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=? AND state='reserved'").run(orderId);
+      }
+      this.db.prepare("UPDATE customer_orders SET status='cancelled' WHERE id=? AND status='awaiting_payment'").run(orderId);
+      this.audit(accountId,"customer-unstarted-order-cancelled",orderId);
+      return true;
+    });
+  }
   /** Bind the exact Stripe-created Checkout Session before accepting any payment. */
   bindStripeCheckout(orderId: string, sessionId: string) {
     if (!/^cs_test_[A-Za-z0-9_]+$/.test(sessionId))
