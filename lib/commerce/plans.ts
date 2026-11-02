@@ -13,7 +13,7 @@ export const PLAN_RULES=Object.freeze({
  */
 export function quotePlanSeconds(plan: PlanCode, remainingSeconds: number, requestedSeconds: number) {
  if (!Number.isSafeInteger(remainingSeconds) || remainingSeconds < 0 ||
-     !Number.isFinite(requestedSeconds) || requestedSeconds < 5 || requestedSeconds > 30)
+     !Number.isFinite(requestedSeconds) || requestedSeconds < 5 || requestedSeconds > 300)
    throw Error("Invalid video quote");
  const seconds = Math.ceil(requestedSeconds);
  const available = plan === "hobby" ? Math.min(PLAN_RULES.hobby.monthlySeconds, remainingSeconds) : 0;
@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS customer_split_quotes(attempt_id TEXT PRIMARY KEY,acc
  releaseSplitQuote(attemptId:string){this.settleSplitQuote(attemptId,"released")}
  /** Reserve before provider submission. Unique provider attempt IDs prevent double billing. */
  reserve(accountId:string,attemptId:string,seconds:number,now=Date.now()){
-  if(!Number.isInteger(seconds)||seconds<5||seconds>30||!/^[\w-]{8,128}$/.test(attemptId))throw Error("Invalid video reservation");
+  if(!Number.isInteger(seconds)||seconds<5||seconds>300||!/^[\w-]{8,128}$/.test(attemptId))throw Error("Invalid video reservation");
   this.db.exec("BEGIN IMMEDIATE");
   try{
    const previous=this.db.prepare("SELECT account_id,seconds,state FROM customer_plan_usage WHERE provider_attempt_id=?").get(attemptId) as {account_id:string;seconds:number;state:string}|undefined;
