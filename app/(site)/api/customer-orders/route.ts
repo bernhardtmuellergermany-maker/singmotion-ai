@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
       accountId,email:String(account.email),mediaOwner:`customer-${accountId}`,
       draft:payload.draft,projectId:payload.projectId,requestKey:payload.requestKey,
     });
-    return respond({orderId:order.id,checkoutReady:store.reviewedOrderReadyForCheckout(order.id)},201);
+    return respond({orderId:order.id,checkoutReady:store.reviewedOrderReadyForCheckout(order.id) && order.checkoutRequired !== false, includedOnly:store.db.prepare("SELECT price_cents FROM customer_orders WHERE id=?").get(order.id)?.price_cents===0},201);
   } catch (error) {
     if(error instanceof Error && error.message==="PRICE_CHANGED_REVIEW_AGAIN")
       return respond({error:"Your included seconds or price changed. Please review the current price again.",code:"PRICE_CHANGED_REVIEW_AGAIN"},409);
