@@ -318,6 +318,21 @@ export class CommerceStore {
         throw Error("Customer media ownership mismatch");
       // Reject unprepared inputs before writing any order.
       reviewedVideoInputDigest(media);
+      // An idempotent retry must reuse the committed quote, not reprice
+      // against the allowance already reserved by this same request.
+      const previous=this.db.prepare("SELECT id,account_id,project_id,price_cents,quote_evidence,status FROM customer_orders WHERE request_key=?").get(input.key) as {id:string;account_id:string|null;project_id:string;price_cents:number;quote_evidence:string;status:string}|undefined;
+      if(previous){
+        const bound=this.db.prepare("SELECT media_json FROM customer_prepared_media WHERE order_id=?").get(previous.id) as {media_json:string}|undefined;
+        const reserved=this.db.prepare("SELECT account_id,seconds,extra_cents,state FROM customer_split_quotes WHERE attempt_id=?").get(previous.id) as {account_id:string;seconds:number;extra_cents:number;state:string}|undefined;
+        if(previous.account_id!==input.account||previous.project_id!==input.project||
+           previous.price_cents!==input.cents||previous.quote_evidence!==input.quoteEvidence||
+           !bound||bound.media_json!==JSON.stringify(media)||
+           (input.account && (!reserved||reserved.account_id!==input.account||
+             reserved.seconds!==Math.ceil(media.durationSeconds)||reserved.extra_cents!==input.cents||
+             reserved.state==="released")))
+          throw Error("Idempotency conflict");
+        return {id:previous.id,guestToken:null};
+      }
       // Price and reserve the split inside this SAME write transaction:
       // parallel requests cannot spend the same Hobby seconds twice.
       const ledger=input.account?new PlanLedger(this.db):null;
