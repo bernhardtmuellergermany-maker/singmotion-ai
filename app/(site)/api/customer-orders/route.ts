@@ -36,7 +36,16 @@ export async function GET(req: NextRequest) {
         LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
         WHERE o.account_id=? AND (? IS NULL OR o.project_id=?)
         ORDER BY o.created DESC,o.id DESC LIMIT 50`).all(accountId,projectId,projectId);
-      return respond({orders});
+      const safeOrders=orders.map((item:Record<string,unknown>)=>({
+        ...item,
+        videoUrl:item.videoReady===1 && item.status==="paid"
+          ? `/api/customer-video?orderId=${encodeURIComponent(String(item.orderId))}`
+          : null,
+        downloadUrl:item.videoReady===1 && item.status==="paid"
+          ? `/api/customer-video?orderId=${encodeURIComponent(String(item.orderId))}&download=1`
+          : null,
+      }));
+      return respond({orders:safeOrders});
     } finally {store.close();}
   }
   return respond({
