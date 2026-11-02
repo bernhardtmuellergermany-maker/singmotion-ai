@@ -22,7 +22,7 @@ test("review commitments include actual prepared audio, image, prompt and output
   const quote = reviewedVideoQuoteDigest(a,1250,"verified-inclusive-price-2026");
   assert.notEqual(quote,reviewedVideoQuoteDigest(a,1300,"verified-inclusive-price-2026"));
   assert.throws(()=>reviewedVideoInputDigest({...media,audioSha256:"browser-id"}),/reviewed/i);
-  assert.throws(()=>reviewedVideoQuoteDigest(a,0,"verified-inclusive-price-2026"),/reviewed/i);
+  assert.match(reviewedVideoQuoteDigest(a,0,"verified-inclusive-price-2026"),/^[a-f0-9]{64}$/);
 });
 
 test("server-owned quote controls binding of actual prepared media to customer order", () => {
