@@ -271,3 +271,31 @@ test("verified delivery atomically consumes reserved Hobby seconds",async()=>{
   assert.equal(store.finalizePaidFulfillment(id,{state:"delivered",deliveryEvidence:"private-delivery-verified-001"}),false);
  }finally{store.close()}
 });
+
+test("unstarted customer order cancellation releases reserved seconds only once",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"cancelled-order",
+    cents:250,quoteEvidence:"reviewed-quote-evidence-2026",key:"cancel-order-test-01"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  assert.equal(store.cancelUnstartedCustomerOrder(id,account),true);
+  assert.equal(store.cancelUnstartedCustomerOrder(id,account),false);
+  assert.equal((store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id) as {state:string}).state,"released");
+  assert.equal((store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id) as {status:string}).status,"cancelled");
+ }finally{store.close()}
+});
+test("an opened Stripe Checkout prevents unsafe allowance release",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const id=store.order({account,email:"buyer@example.test",project:"checkout-started",
+    cents:250,quoteEvidence:"reviewed-quote-evidence-2026",key:"checkout-started-01"}).id;
+  const ledger=new PlanLedger(store.db);
+  ledger.reserveSplitQuote(account,id,10);
+  store.bindStripeCheckout(id,"cs_test_safety");
+  assert.throws(()=>store.cancelUnstartedCustomerOrder(id,account),/reconciliation/);
+  assert.equal((store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id) as {state:string}).state,"reserved");
+ }finally{store.close()}
+});
