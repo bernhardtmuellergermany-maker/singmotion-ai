@@ -17,7 +17,7 @@ export async function verifyPrivatePaidMediaSnapshot(media: PreparedMedia): Prom
   const audio = await stat(media.audioPath);
   if (!audio.isFile()) throw Error("Invalid prepared audio asset");
   validateOmniAudio({format:"mp3",bytes:audio.size,duration:media.durationSeconds});
-  validateEncodedDuration(media.durationSeconds,30);
+  validateEncodedDuration(media.durationSeconds,300);
   await validateReference(media.imagePath);
   const [audioHash,imageHash] = await Promise.all([
     sha256File(media.audioPath),sha256File(media.imagePath),
