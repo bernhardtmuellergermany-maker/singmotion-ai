@@ -466,6 +466,7 @@ export class CommerceStore {
       !receipt.evidence
     )
       throw Error("Invalid verified receipt");
+    new PlanLedger(this.db); // Ensure split-quote schema exists for legacy customer stores.
     return this.tx(() => {
       const key = `${receipt.provider}:${receipt.eventId}`,
         digest = hash(JSON.stringify(receipt));
