@@ -5,7 +5,7 @@ import {UserRound} from "lucide-react";
 import "./header-account-menu.css";
 
 /** Shared account menu. Authentication is verified server-side, never inferred from cookies in JS. */
-export function HeaderAccountMenu(){
+export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const menu=useRef<HTMLDetailsElement>(null);
  const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff">("loading");
  const [busy,setBusy]=useState(false);
@@ -37,7 +37,7 @@ export function HeaderAccountMenu(){
   <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
    {identity==="loading"?<span className="sm-account-menu-info">Checking login…</span>:
-    identity==="guest"?<Link href="/?card=login" onClick={()=>{if(menu.current)menu.current.open=false}}>Login</Link>:
+    identity==="guest"?<Link href="/?card=login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>:
     <>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Upgrade</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
