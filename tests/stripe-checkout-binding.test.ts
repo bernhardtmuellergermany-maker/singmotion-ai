@@ -316,7 +316,9 @@ test("verified full Stripe refund before provider claim releases reserved allowa
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"refunded");
   assert.equal(store.db.prepare("SELECT state FROM customer_split_quotes WHERE attempt_id=?").get(id)?.state,"released");
   assert.equal(store.claimPaidFulfillment(id),false);
-  await assert.rejects(deliver(store,{...receipt(id,"evt_refund_replay","cs_test_refundable"),cents:250}),/reconciliation/);
+  await deliver(store,{...receipt(id,"evt_refund_replay","cs_test_refundable"),cents:250});
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.n,1);
+  assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id)?.state,"failed");
   assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status,"refunded");
  }finally{store.close()}
 });
