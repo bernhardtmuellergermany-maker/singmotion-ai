@@ -2,6 +2,7 @@
 import { SavedDrafts } from "./saved-drafts";
 import Link from "next/link";
 import { LiveProjects, LiveProject } from "./studio-live";
+import { CustomerPaidOutput } from "./customer-paid-output";
 import { useEffect, useState } from "react";
 import {
   Download,
@@ -97,7 +98,9 @@ export function Projects() {
   );
 }
 export function Project({ id }: { id: string }) {
-  return id.startsWith("live_") ? (
+  return /^paid_[a-f0-9-]{36}$/.test(id) ? (
+    <CustomerPaidOutput orderId={id.slice(5)} />
+  ) : id.startsWith("live_") ? (
     <LiveProject id={id.slice(5)} />
   ) : (
     <DemoProject id={id} />
