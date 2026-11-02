@@ -3,9 +3,15 @@ import { stagingDenial, stagingEnabled } from "./lib/staging";
 
 // No matcher exclusions: APIs, public media, Next assets and RSC requests are private.
 export function proxy(request: NextRequest) {
-  const denied = stagingDenial(request.headers.get("authorization"));
-  if (denied) return denied;
   const pathname = request.nextUrl.pathname;
+  // Stripe cannot provide browser Basic Auth. Only these exact POST endpoints
+  // bypass the outer gate; both handlers verify signed Stripe payloads.
+  const signedStripeWebhook = request.method === "POST" &&
+    (pathname === "/api/stripe-webhook" || pathname === "/api/hobby-webhook");
+  if (!signedStripeWebhook) {
+    const denied = stagingDenial(request.headers.get("authorization"));
+    if (denied) return denied;
+  }
   if (
     pathname === "/admin" ||
     pathname.startsWith("/admin/") ||
