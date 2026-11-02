@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
-    "build": "node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/paid-video-delivery.test.ts && next build",
+    "build": "node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/paid-video-delivery.test.ts tests/paid-output-recovery.test.ts && next build",
     "start": "next start --hostname 0.0.0.0 -p ${PORT:-3000}",
     "worker": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/worker.ts",
     "lint": "eslint .",
