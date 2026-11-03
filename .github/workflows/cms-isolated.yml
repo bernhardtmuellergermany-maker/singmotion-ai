@@ -61,6 +61,17 @@ jobs:
         run: npm run test:cms:compat
       - name: Run real Payload PostgreSQL migrations and CMS integration suite
         run: npm run test:cms
+      - name: Install Chromium for isolated CMS browser verification
+        run: |
+          npx playwright install --with-deps chromium
+          echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$(node -e \"console.log(require('playwright').chromium.executablePath())\")" >> "$GITHUB_ENV"
+      - name: Build Next.js for real CMS HTTP and browser verification
+        env:
+          NODE_ENV: production
+        run: npx next build
+      - name: Verify real CMS admin login, preview, publishing and role isolation in Chromium
+        timeout-minutes: 6
+        run: npm run test:cms:browser
       - name: Confirm no real payments or BytePlus operations were activated
         if: always()
         run: |
