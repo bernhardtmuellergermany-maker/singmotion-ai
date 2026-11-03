@@ -27,3 +27,21 @@ export function customerVideoByteRange(header:string|null,size:number):
  if(!Number.isSafeInteger(suffix)||suffix<1)return null;
  return {start:Math.max(0,size-suffix),end:size-1,status:206};
 }
+
+/** Customer-safe display text for the existing output card, not a payment claim.
+ * Refunds/disputes must never be presented as unpaid or processing videos. */
+export function customerPaidVideoLabel(
+ order:{status:string;fulfillmentState:string|null;videoReady:number}|null,
+ loaded:boolean,
+):string {
+ if(!loaded)return "Loading video";
+ if(!order)return "Video unavailable";
+ if(order.status==="refunded")return "Payment refunded";
+ if(order.status==="disputed")return "Payment requires review";
+ if(order.status==="paid"&&order.fulfillmentState==="delivered"&&order.videoReady===1)
+  return "Completed";
+ if(order.fulfillmentState==="failed")return "Requires review";
+ if(order.status==="paid")return "Preparing video";
+ if(order.status==="awaiting_payment")return "Awaiting payment";
+ return "Video unavailable";
+}
