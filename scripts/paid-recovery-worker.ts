@@ -10,10 +10,10 @@ import { dataDir } from "../lib/db.ts";
 import { runPaidRecoveryBatch } from "../lib/commerce/paid-recovery-batch.ts";
 import { createSignedTransport } from "../lib/live/signed-transport.ts";
 import { privateOutputTransport } from "../lib/live/output-transport.ts";
-import { outputTransferLimits, type OutputValidationContract } from "../lib/live/output.ts";
+import { outputTransferLimits, validateOutputUrl, type OutputValidationContract } from "../lib/live/output.ts";
 import type { Transport } from "../lib/live/byteplus.ts";
 
-function reviewedPolicy(raw: unknown): OutputValidationContract {
+export function reviewedPolicy(raw: unknown): OutputValidationContract {
   if (!raw || typeof raw !== "object") throw Error("Output review missing");
   const p = raw as Partial<OutputValidationContract>;
   const o = p.output;
@@ -30,6 +30,14 @@ function reviewedPolicy(raw: unknown): OutputValidationContract {
       o.durationToleranceSeconds < 0 || o.durationToleranceSeconds > 2 ||
       !["h264","hevc"].includes(o.videoCodec ?? "") ||
       o.audioCodec !== "aac" || !o.transfer) throw Error("Output review incomplete");
+  // The customer delivery contract must be an explicitly reviewed final 720p
+  // export, not a discovery policy that accepts arbitrary provider dimensions.
+  if (p.discover720p === true ||
+      !((o.width === 720 && o.height === 1280) ||
+        (o.width === 1280 && o.height === 720)))
+    throw Error("Only reviewed 720p customer output is eligible");
+  for (const host of p.outputHosts)
+    validateOutputUrl(`https://${host}/result.mp4`,[host]);
   outputTransferLimits(p as OutputValidationContract);
   return p as OutputValidationContract;
 }
