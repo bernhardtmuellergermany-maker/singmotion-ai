@@ -3,6 +3,8 @@ FROM node:24.22.1-bookworm-slim AS builder
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
+# The pinned local security patch must exist before npm resolves dependencies.
+COPY vendor/deepmerge ./vendor/deepmerge
 RUN npm ci
 COPY . .
 RUN npm run build
