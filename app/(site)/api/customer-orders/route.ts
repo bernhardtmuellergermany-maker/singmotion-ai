@@ -109,3 +109,30 @@ export async function POST(req: NextRequest) {
     store?.close();
   }
 }
+
+/** Authenticated, same-origin cancellation of an order never sent to Stripe or a worker.
+ * Releases split-quote and voucher reservation in the same SQLite transaction. */
+export async function DELETE(req: NextRequest) {
+  const denied=stagingDenial(req.headers.get("authorization"));
+  if(denied)return denied;
+  if(process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
+    return respond({error:"Customer accounts unavailable."},503);
+  const origin=applicationOrigin(req.url,req.headers.get("host"));
+  if(!origin || req.headers.get("origin")!==origin)
+    return respond({error:"Request origin is not allowed."},403);
+  const orderId=req.nextUrl.searchParams.get("orderId")||"";
+  if(!/^[a-f0-9-]{36}$/.test(orderId))
+    return respond({error:"Invalid order reference."},400);
+  let store:CommerceStore|undefined;
+  try{
+    limit("customer-order-cancel",20,60000);
+    store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+    const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
+    if(!accountId)return respond({error:"Customer login required."},401);
+    const cancelled=store.cancelUnstartedCustomerOrder(orderId,accountId);
+    return respond({cancelled,status:"cancelled"});
+  }catch{
+    // Never reveal another account's order or whether its payment exists.
+    return respond({error:"Order cannot be cancelled automatically. Contact support if Checkout has started."},409);
+  }finally{store?.close();}
+}
