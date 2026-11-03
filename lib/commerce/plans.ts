@@ -3,8 +3,8 @@ import {DatabaseSync} from "node:sqlite";
 import {randomUUID} from "node:crypto";
 export type PlanCode="free"|"hobby";
 export const PLAN_RULES=Object.freeze({
- free:{code:"free" as const,monthlyPriceCents:0,maxProjects:3,monthlySeconds:0,minSecondsPerVideo:5,extraSecondCents:25},
- hobby:{code:"hobby" as const,monthlyPriceCents:499,maxProjects:10,monthlySeconds:30,minSecondsPerVideo:5,extraSecondCents:20}
+ free:{code:"free" as const,monthlyPriceCents:0,monthlySeconds:0,minSecondsPerVideo:5,extraSecondCents:25,uploadStorageBytes:1024**3},
+ hobby:{code:"hobby" as const,monthlyPriceCents:499,monthlySeconds:30,minSecondsPerVideo:5,extraSecondCents:20,uploadStorageBytes:10*1024**3}
 });
 /**
  * Display/quote helper only: not a payment authorization or a quota reservation.
