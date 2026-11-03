@@ -8,13 +8,15 @@ import {createHash} from "node:crypto";
 import {realpath,stat,writeFile,link,unlink,open} from "node:fs/promises";
 import path from "node:path";
 import type {Asset} from "./domain.ts";
-import {db,dataDir} from "./db.ts";
+// Load the workspace DB only when R2 recovery is actually requested.
+// Offline tests set DATA_DIR before their existing dynamic DB import.
 import {customerR2Enabled,readMirroredPrivateSource,sourceAssetLimit,validCloudRecord,type CloudMediaRecord} from "./cloud-media.ts";
 
 export async function ensureLocalAsset(asset:Asset):Promise<string>{
  // Keep the existing offline/demo fixture path contract unchanged. Only an
  // actively configured R2 workspace requires cloud-aware cache hydration.
  if(!customerR2Enabled())return asset.path;
+ const {db,dataDir}=await import("./db.ts");
  const root=await realpath(path.join(dataDir,"media"));
  const destination=path.resolve(asset.path);
  if(!destination.startsWith(root+path.sep)||path.dirname(destination)!==root||
@@ -70,6 +72,7 @@ export async function ensureLocalMediaPath(owner:string,filename:string):Promise
   if((e as NodeJS.ErrnoException).code!=="ENOENT")throw e;
  }
  if(!customerR2Enabled())return;
+ const {db,dataDir}=await import("./db.ts");
  const root=path.resolve(dataDir,"media");
  const target=path.resolve(filename);
  if(path.dirname(target)!==root)throw Error("Private media path outside scratch");
