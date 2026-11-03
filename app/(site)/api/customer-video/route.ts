@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { CommerceStore } from "@/lib/commerce/store";
 import { asset, dataDir } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
+import { customerVideoByteRange } from "@/lib/commerce/customer-video-links";
 import { constants } from "node:fs";
 import { open, realpath, type FileHandle } from "node:fs/promises";
 import { Readable } from "node:stream";
@@ -40,16 +41,10 @@ export async function GET(req: NextRequest) {
     const info=await fileHandle.stat();
     if(!info.isFile()||info.size<1||info.size!==video.bytes)return deniedVideo();
 
-    const range=req.headers.get("range");
-    let start=0,end=info.size-1,status=200;
-    if(range){
-      const match=/^bytes=(\\d+)-(\\d*)$/.exec(range);
-      if(!match)return new Response(null,{status:416,headers:{...headers,"Content-Range":`bytes */${info.size}`}});
-      start=Number(match[1]);end=match[2]?Number(match[2]):info.size-1;
-      if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=info.size)
-        return new Response(null,{status:416,headers:{...headers,"Content-Range":`bytes */${info.size}`}});
-      status=206;
-    }
+    const range=customerVideoByteRange(req.headers.get("range"),info.size);
+    if(!range)return new Response(null,{status:416,
+      headers:{...headers,"Content-Range":`bytes */${info.size}`}});
+    const {start,end,status}=range;
     const stream=fileHandle.createReadStream({start,end,autoClose:true});
     const body=Readable.toWeb(stream) as ReadableStream;
     streaming=true;
