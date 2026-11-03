@@ -1,40 +1,21 @@
-/** Read-only dependency audit during the Docker builder stage.
- * Advisory lookup does not mutate the lockfile or install dependencies.
- * Network failures never masquerade as a clean audit. */
+/** Read-only npm production-dependency audit inside the Docker builder.
+ * Fail closed if registry access, the audit response or policy verification fails. */
 import {spawnSync} from "node:child_process";
-{
- const run=spawnSync("npm",["audit","--json","--omit=dev"],{
-  encoding:"utf8",timeout:30000,maxBuffer:8*1024*1024
- });
- if(run.error||!run.stdout){
-  console.error("DEPENDENCY_AUDIT unavailable; registry or audit invocation failed");
+import {assessProductionDependencyAudit} from "./audit-policy.mjs";
+
+const run=spawnSync("npm",["audit","--json","--omit=dev"],{
+ encoding:"utf8",timeout:30000,maxBuffer:8*1024*1024
+});
+try {
+ if(run.error||!run.stdout||run.signal||![0,1].includes(run.status))
+  throw new Error("npm audit process unavailable");
+ const {summary,blocked}=assessProductionDependencyAudit(JSON.parse(run.stdout));
+ console.log("DEPENDENCY_AUDIT production-only",JSON.stringify(summary));
+ if(blocked){
+  console.error("DEPENDENCY_AUDIT gate failed: production high/critical advisories");
   process.exitCode=1;
- }else{
-  try{
-   const report=JSON.parse(run.stdout);
-   if(!report.metadata?.vulnerabilities||typeof report.vulnerabilities!=="object")
-    throw Error("No audit metadata");
-   const counts=report.metadata.vulnerabilities;
-   if(!["critical","high","moderate","low","total"].every(key => Number.isSafeInteger(counts[key]) && counts[key]>=0))
-    throw Error("Incomplete severity counts");
-   const exposed=Object.entries(report.vulnerabilities)
-    .filter(([,value])=>value&&typeof value==="object")
-    .map(([name,value])=>({name,severity:value.severity,direct:!!value.isDirect,
-      fixAvailable:value.fixAvailable===true?"patch":value.fixAvailable?"review":"none"}))
-    .sort((a,b)=>({critical:0,high:1,moderate:2,low:3}[a.severity]??4)-
-                 ({critical:0,high:1,moderate:2,low:3}[b.severity]??4))
-    .slice(0,20);
-   console.log("DEPENDENCY_AUDIT production-only",JSON.stringify({
-    total:counts.total,critical:counts.critical,high:counts.high,
-    moderate:counts.moderate,low:counts.low,top:exposed
-   }));
-   if(counts.critical>0||counts.high>0){
-    console.error("DEPENDENCY_AUDIT gate failed: production high/critical advisories");
-    process.exitCode=1;
-   }
-  }catch{
-   console.error("DEPENDENCY_AUDIT unavailable; unparseable or incomplete audit");
-   process.exitCode=1;
-  }
  }
+} catch {
+ console.error("DEPENDENCY_AUDIT unavailable; registry failure or invalid report");
+ process.exitCode=1;
 }
