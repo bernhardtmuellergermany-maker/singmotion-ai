@@ -41,6 +41,8 @@ jobs:
           ffprobe -version
       - name: Install locked dependencies
         run: npm ci
+      - name: Promotion unit and redemption regression tests
+        run: node --experimental-strip-types --test tests/promotions.test.ts
       - name: TypeScript checks
         run: npm run typecheck
       - name: Lint
