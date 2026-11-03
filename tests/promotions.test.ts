@@ -77,6 +77,29 @@ test("global capacity, idempotency and release require an actual order state",()
   assert.equal(ledger.list()[0].reserved,1);
   database.close();
 });
+test("super-admin report includes daily count and money totals without customer secrets",()=>{
+  const database=db(),ledger=new PromotionLedger(database);
+  ledger.create({code:"REPORT20",kind:"percent",percent:20,startsAt:start,endsAt:end,maxUses:5},at);
+  order(database,"report-order-1",800);
+  const args={code:"REPORT20",orderId:"report-order-1",accountId:"customer0001",originalCents:1000,durationSeconds:10};
+  ledger.reserveForOrder(args,at);
+  assert.equal(ledger.report("REPORT20").summary.reserved,1);
+  database.prepare("UPDATE customer_orders SET status='paid' WHERE id='report-order-1'").run();
+  ledger.settle("report-order-1",at);
+  const result=ledger.report("REPORT20");
+  assert.equal(result.totals.redeemedDiscountCents,200);
+  assert.equal(result.totals.committedDiscountCents,200);
+  assert.deepEqual(result.daily[0],{day:"2026-11-03",reserved:0,redeemed:1,released:0,redeemedDiscountCents:200});
+  assert.equal(result.activity[0].orderId,"report-order-1");
+  assert.equal(result.activity[0].discountCents,200);
+  assert.equal(JSON.stringify(result).includes("customer0001"),false);
+  assert.throws(()=>ledger.report("MISSING"),/not found/);
+  database.prepare("UPDATE customer_orders SET status='refunded' WHERE id='report-order-1'").run();
+  ledger.release("report-order-1",at);
+  assert.equal(ledger.report("REPORT20").totals.redeemedDiscountCents,0);
+  assert.equal(ledger.report("REPORT20").summary.released,1);
+  database.close();
+});
 test("discount cannot be reserved for changed or unowned price",()=>{
   const database=db(),ledger=new PromotionLedger(database);
   ledger.create({code:"OWNER20",kind:"percent",percent:20,startsAt:start,endsAt:end,maxUses:10},at);
