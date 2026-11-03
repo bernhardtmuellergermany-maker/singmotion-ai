@@ -5,6 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { createHmac } from "node:crypto";
+import { stripeCheckoutAdapter } from "../lib/commerce/stripe-webhook.ts";
+import { customerOrderStatusFilter,ownedCustomerOrderStatuses } from "../lib/commerce/customer-orders-query.ts";
+import { privateCustomerVideoLinks,customerPaidVideoLabel,customerVideoByteRange } from "../lib/commerce/customer-video-links.ts";
+import { openVerifiedPaidVideoFile,streamVerifiedPaidVideoRange } from "../lib/commerce/private-video-file.ts";
 
 // No remote HTTP, Stripe charge or BytePlus generation is performed here.
 test("offline sandbox payment -> acknowledged status -> validated private MP4 -> owned delivery", async () => {
@@ -19,7 +24,15 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
       import("../lib/db.ts"),
     ]);
     store = new CommerceStore(path.join(root, "commerce.sqlite"));
-    const owner = "11111111-1111-4111-8111-111111111111";
+    // Real password account and session instead of a preselected fixture owner.
+    const owner=store.register("Buyer@Example.Test","correct horse battery staple 2026");
+    const other=store.register("another@example.test","a second unrelated secure password 2026");
+    const token=store.login("buyer@example.test","correct horse battery staple 2026");
+    assert.equal(store.session(token),owner);
+    assert.notEqual(store.session("invalid-login-session"),owner);
+    assert.throws(()=>store.login("buyer@example.test","wrong password"));
+    assert.notEqual(owner,other);
+
     const media = {
       sourceJobId: "offline-prepared-source", promptLanguageConfirmed: true,
       owner: "customer-" + owner,
@@ -34,10 +47,23 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
       key: "offline-sandbox-e2e", media,
     }).id;
     store.bindStripeCheckout(id, "cs_test_offline_e2e");
-    const receipt = { provider: "stripe", eventId: "evt_offline_e2e", orderId: id,
-      cents: 125, currency: "EUR" as const, evidence: "cs_test_offline_e2e" };
-    await store.webhook(new Uint8Array(), "signed", { async verify() { return receipt; } });
-    await store.webhook(new Uint8Array(), "signed", { async verify() { return receipt; } });
+    // A real HMAC-verified Stripe TEST event. No Stripe HTTP request or charge.
+    const secret="whsec_offline_e2e_test_only";
+    const event={
+      id:"evt_offline_e2e",type:"checkout.session.completed",livemode:false,
+      data:{object:{object:"checkout.session",id:"cs_test_offline_e2e",
+        mode:"payment",payment_status:"paid",currency:"eur",amount_total:125,
+        metadata:{orderId:id}}},
+    };
+    const raw=Buffer.from(JSON.stringify(event));
+    const timestamp=String(Math.floor(Date.now()/1000));
+    const signature="t="+timestamp+",v1="+createHmac("sha256",secret)
+      .update(timestamp+".").update(raw).digest("hex");
+    const adapter=stripeCheckoutAdapter(secret);
+    await store.webhook(raw,signature,adapter);
+    await store.webhook(raw,signature,adapter); // duplicate webhook is idempotent
+    await assert.rejects(store.webhook(raw,signature.slice(0,-1)+(signature.endsWith("0")?"1":"0"),adapter));
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM payment_events").get()?.n,1);
     assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status, "paid");
     assert.equal(store.pendingPaidFulfillment().length, 1);
     assert.equal(store.claimPaidFulfillment(id), true);
@@ -83,6 +109,27 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
     const video = asset(privateAssetId!, "customer-" + owner);
     assert.equal(video.mime, "video/mp4");
     assert.equal(video.bytes, bytes.length);
+    // Same customer projection that feeds the existing output card.
+    const rows=ownedCustomerOrderStatuses(store.db,store.session(token)!,
+      customerOrderStatusFilter(id,null));
+    assert.equal(rows.length,1);
+    assert.equal(rows[0].fulfillmentState,"delivered");
+    assert.equal(customerPaidVideoLabel(rows[0] as {status:string;fulfillmentState:string;videoReady:number},true),"Completed");
+    const links=privateCustomerVideoLinks(rows[0]);
+    assert.deepEqual(links,{
+      videoUrl:`/api/customer-video?orderId=${id}`,
+      downloadUrl:`/api/customer-video?orderId=${id}&download=1`,
+    });
+    assert.equal(ownedCustomerOrderStatuses(store.db,other,
+      customerOrderStatusFilter(id,null)).length,0);
+    assert.throws(()=>store!.ownedDeliveredVideoAsset(id,other),/Order unavailable/);
+    const verified=await openVerifiedPaidVideoFile(path.join(root,"media"),video.path,id,video.bytes);
+    const range=customerVideoByteRange("bytes=16-511",verified.size);
+    assert.deepEqual(range,{start:16,end:511,status:206});
+    const preview=await new Response(streamVerifiedPaidVideoRange(
+      verified.handle,range!.start,range!.end)).arrayBuffer();
+    assert.deepEqual(Buffer.from(preview),bytes.subarray(16,512));
+
     assert.deepEqual(await runPaidRecoveryBatch(store, root, contract, statusTransport,
       outputTransport, new AbortController().signal, 10), []);
     assert.equal(statusReads, 1);
@@ -116,6 +163,23 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
     assert.equal(store.ownedDeliveredVideoAsset(resumedId,owner),`customer-video-${resumedId}`);
     assert.equal(statusReads,2);
     assert.equal(downloads,1);
+    // A verified dispute after delivery revokes the link and authorization,
+    // without leaking the private file or silently redispatching BytePlus.
+    assert.equal(store.reconcileVerifiedStripeDispute({
+      orderId:id,stripeCheckoutId:"cs_test_offline_e2e",
+      disputeId:"dp_offline_e2e",evidence:"verified test dispute evidence for offline e2e",
+    }),true);
+    const disputed=ownedCustomerOrderStatuses(store.db,owner,
+      customerOrderStatusFilter(id,null));
+    assert.equal(disputed[0].status,"disputed");
+    assert.equal(customerPaidVideoLabel(disputed[0] as {status:string;fulfillmentState:string;videoReady:number},true),"Payment requires review");
+    assert.deepEqual(privateCustomerVideoLinks(disputed[0]),{videoUrl:null,downloadUrl:null});
+    assert.equal(store.ownedDeliveredVideoAsset(id,owner),null);
+    assert.equal(await runPaidRecoveryBatch(store,root,contract,statusTransport,
+      outputTransport,new AbortController().signal,10).then(x=>x.length),0);
+    assert.equal(downloads,1);
+    store.logout(token);
+    assert.equal(store.session(token),null);
     db.close();
   } finally {
     store?.close();
