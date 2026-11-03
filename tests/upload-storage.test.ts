@@ -12,8 +12,8 @@ function make(){
 }
 const asset=(id:string,owner:string,bytes:number):Asset=>({id,owner,bytes,kind:"audio",name:"demo.mp3",path:"/private/demo.mp3",mime:"audio/mpeg",duration:5,width:null,height:null,created:Date.now()});
 test("Free and Hobby use upload bytes, not project counts",()=>{
- assert.equal(uploadStorageLimit("free"),1024**3);
- assert.equal(uploadStorageLimit("hobby"),10*1024**3);
+ assert.equal(uploadStorageLimit("free"),250*1024**2);
+ assert.equal(uploadStorageLimit("hobby"),2*1024**3);
  assert.equal(PLAN_RULES.free.monthlySeconds,0);
  assert.equal(uploadStorageLimit("guest"),250*1024*1024);
 });
