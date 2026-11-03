@@ -12,7 +12,7 @@
     "worker": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/worker.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test": "node --experimental-strip-types --test --test-concurrency=2 tests/*.test.ts",
     "test:e2e": "playwright test",
     "cleanup": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/cleanup.ts",
     "format": "prettier --write .",
