@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { customerLaunchReadiness } from "@/lib/commerce/readiness";
+import { verifiedStripeTestCheckoutSession } from "@/lib/commerce/stripe-webhook";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -70,15 +71,18 @@ export async function POST(req: NextRequest) {
       },
       body: form,
       cache: "no-store",
+      signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {
       console.error("Stripe Checkout session request failed", response.status);
       return reply({ error: "Checkout is temporarily unavailable." }, 502);
     }
-    const session = await response.json() as { url?: string; id?: string };
-    if (!session.id?.startsWith("cs_test_") ||
-        !session.url?.startsWith("https://checkout.stripe.com/"))
+    let session: { id: string; url: string };
+    try {
+      session = verifiedStripeTestCheckoutSession(await response.json(),String(order.id),cents);
+    } catch {
       return reply({ error: "Invalid test Checkout response." }, 502);
+    }
     store.bindStripeCheckout(String(order.id), session.id);
     return reply({ url: session.url });
   } catch {
