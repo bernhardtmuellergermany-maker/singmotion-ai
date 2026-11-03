@@ -184,7 +184,7 @@ export class PromotionLedger {
     `).all(normalized) as {order_id:string;state:"reserved"|"redeemed"|"released";
       original_cents:number;discount_cents:number;created_at:number;updated_at:number}[];
     const daily = this.db.prepare(`
-      SELECT strftime('%Y-%m-%d',created_at/1000,'unixepoch') AS day,
+      SELECT strftime('%Y-%m-%d',updated_at/1000,'unixepoch') AS day,
              SUM(CASE WHEN state='reserved' THEN 1 ELSE 0 END) AS reserved,
              SUM(CASE WHEN state='redeemed' THEN 1 ELSE 0 END) AS redeemed,
              SUM(CASE WHEN state='released' THEN 1 ELSE 0 END) AS released,
