@@ -10,6 +10,7 @@ export default defineConfig([
     ".data/**",
     "playwright-report/**",
     "test-results/**",
+    "vendor/**", // vendored third-party declaration files are not authored here
   ]),
   { rules: { "@next/next/no-img-element": "off" } },
 ]);
