@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createHmac} from "node:crypto";
-import {verifyStripeSandboxEvent,stripeCheckoutAdapter} from "../lib/commerce/stripe-webhook.ts";
+import {verifyStripeSandboxEvent,stripeCheckoutAdapter,readBoundedStripeWebhookBody,StripeWebhookPayloadTooLarge} from "../lib/commerce/stripe-webhook.ts";
 
 const secret="whsec_test_signing_secret_2026";
 const event=(livemode=false)=>({id:"evt_test_signed_1",type:"checkout.session.completed",livemode,
@@ -33,4 +33,35 @@ test("a signed unpaid checkout is not a verified payment",async()=>{
  unpaid.data.object.payment_status="unpaid";
  const {raw,signature}=signed(unpaid);
  await assert.rejects(stripeCheckoutAdapter(secret).verify(raw,signature),/not eligible/);
+});
+
+test("bounded Stripe webhook reader rejects oversized or dishonest content-length before processing",async()=>{
+ const large=Buffer.alloc(128*1024+1,0x61);
+ await assert.rejects(readBoundedStripeWebhookBody(new Request("https://example.test/webhook",{
+  method:"POST",body:large
+ })),StripeWebhookPayloadTooLarge);
+ const claimed=new Request("https://example.test/webhook",{method:"POST",body:"small",
+  headers:{"content-length":String(128*1024+1)}});
+ await assert.rejects(readBoundedStripeWebhookBody(claimed),StripeWebhookPayloadTooLarge);
+ const malformed=new Request("https://example.test/webhook",{method:"POST",body:"small",
+  headers:{"content-length":"untrusted"}});
+ await assert.rejects(readBoundedStripeWebhookBody(malformed),StripeWebhookPayloadTooLarge);
+ const payload=Buffer.from("signed-stripe-sandbox-fixture");
+ assert.deepEqual(Buffer.from(await readBoundedStripeWebhookBody(new Request(
+  "https://example.test/webhook",{method:"POST",body:payload
+ }))),payload);
+});
+test("Stripe webhook streamed body limit holds without content-length",async()=>{
+ let cancelled=false;
+ const stream=new ReadableStream<Uint8Array>({
+  start(controller){
+   controller.enqueue(new Uint8Array(80000));
+   controller.enqueue(new Uint8Array(80000));
+  },
+  cancel(){cancelled=true;}
+ });
+ await assert.rejects(readBoundedStripeWebhookBody(new Request(
+  "https://example.test/webhook",{method:"POST",body:stream,duplex:"half"} as RequestInit
+ )),StripeWebhookPayloadTooLarge);
+ assert.equal(cancelled,true);
 });
