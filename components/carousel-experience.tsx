@@ -72,7 +72,7 @@ export function CarouselExperience(){
   const activeIndex=Math.max(0,ids.indexOf(current));
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
-  useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";setSearchOpen(true);const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
+  useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";void Promise.resolve().then(()=>setSearchOpen(true));const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
   useEffect(()=>{
     if(!searchOpen)return;
     const onOutside=(event:PointerEvent)=>{
@@ -90,10 +90,10 @@ export function CarouselExperience(){
   },[]);
   useEffect(()=>{
     if(!searching)return;
-    if(ids.length && !ids.includes(current))navigate(ids[0],true);
+    if(ids.length && !ids.includes(current))void Promise.resolve().then(()=>navigate(ids[0],true));
   },[searchQuery,tiles,searchOpen]);
   useEffect(()=>{
-    const id=queryCard();currentRef.current=id;setCurrent(id);
+    const id=queryCard();currentRef.current=id;void Promise.resolve().then(()=>setCurrent(id));
     const onPop=()=>{const next=queryCard();currentRef.current=next;setCurrent(next);};
     window.addEventListener("popstate",onPop);
     return ()=>window.removeEventListener("popstate",onPop);
@@ -290,8 +290,8 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
-    if(!active){v.pause();v.muted=true;setSound(false);return;}
-    v.muted=true;setSound(false);
+    if(!active){v.pause();v.muted=true;void Promise.resolve().then(()=>setSound(false));return;}
+    v.muted=true;void Promise.resolve().then(()=>setSound(false));
     const play=()=>{if(!document.hidden)void v.play().catch(()=>{});else v.pause();};
     play();
     document.addEventListener("visibilitychange",play);
@@ -339,8 +339,9 @@ function AccountPanel(){
  const [recoveryAvailable,setRecoveryAvailable]=useState(false);
  useEffect(()=>{fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[]);
  const [googleAvailable,setGoogleAvailable]=useState(false);
- useEffect(()=>{fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)setError(reason);},[]);
+
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ useEffect(()=>{fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[]);
  useEffect(()=>{
   let live=true;
   const refresh=()=>{
@@ -420,14 +421,14 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   const videoUrl=published===null?"/api/showcase?video=1":published.videoUrl;
   const posterUrl=showcase.posterUrl;
   const hasVideo=videoUrl.startsWith("https://") || videoUrl.startsWith("/");
-  useEffect(()=>{setFailed(false);},[videoUrl]);
+  useEffect(()=>{void Promise.resolve().then(()=>setFailed(false));},[videoUrl]);
   useEffect(()=>{fetch("/api/showcase?admin=1",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{if(data?.projects)setAdminProjects(data.projects);}).catch(()=>{});},[]);
   const chooseShowcase=async(id:string)=>{setSelecting(true);setSelectionError("");try{const r=await fetch("/api/showcase",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Selection failed");onPublish({title:d.title,videoUrl:d.videoUrl+"#"+Date.now()});setAdminProjects(old=>old?.map(p=>({...p,selected:p.id===id}))||null);}catch(e){setSelectionError((e as Error).message);}finally{setSelecting(false);}};
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
-    if(!active){v.pause();v.muted=true;setSound(false);return;}
-    v.muted=true;setSound(false);
+    if(!active){v.pause();v.muted=true;void Promise.resolve().then(()=>setSound(false));return;}
+    v.muted=true;void Promise.resolve().then(()=>setSound(false));
     const sync=()=>{if(document.hidden)v.pause();else void v.play().catch(()=>{});};
     sync();
     document.addEventListener("visibilitychange",sync);
