@@ -32,7 +32,7 @@ export default async function Page({
       const account = store.session(c.get("sm_customer")?.value || "");
       const guestToken = c.get(`sm_guest_${id}`)?.value;
       order = store.ownedOrder(id, account, guestToken);
-      authenticatedOwner = Boolean(account && order.account_id === account);
+      authenticatedOwner = Boolean(account && order && order.account_id === account);
       const fulfillment = store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id);
       fulfillmentState = fulfillment ? String(fulfillment.state) : null;
       videoReady = store.ownedDeliveredVideoAsset(id, account, guestToken) !== null;
