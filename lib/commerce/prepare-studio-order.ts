@@ -3,6 +3,7 @@ import { prepareStudioDraft } from "../live/media.ts";
 import { reviewedVideoInputDigest } from "./reviewed-video.ts";
 import { CommerceStore } from "./store.ts";
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
+import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
 
 /** Server-only Studio -> commerce gateway. No public endpoint, no charge and no
  * BytePlus request. Caller must authenticate the account AND media owner. */
@@ -15,6 +16,7 @@ export async function prepareCustomerStudioOrder(
     draft: unknown;
     projectId: string;
     requestKey: string;
+    promoCode?: string;
   },
   env: Record<string, string | undefined> = process.env,
 ) {
@@ -42,16 +44,25 @@ export async function prepareCustomerStudioOrder(
   if (quote.extraCents === 0 && plan.code !== "hobby")
     throw Error("Hobby allowance required for zero-price order");
   // Fixed VAT-inclusive tariff. Do not trust a browser-supplied price.
-  const cents = quote.extraCents;
+  const promoCode = input.promoCode ? normalizePromoCode(input.promoCode) : undefined;
+  // Only the server-calculated, VAT-inclusive excess is discountable. Never
+  // apply coupons to BytePlus costs or silently deduct Hobby subscriptions.
+  const promotion = promoCode
+    ? new PromotionLedger(store.db).preview(promoCode,input.accountId,quote.extraCents,media.durationSeconds)
+    : null;
+  const cents = promotion?.finalCents ?? quote.extraCents;
   const reviewedInput = reviewedVideoInputDigest(media);
   const quoteEvidence = "reviewed-studio-eur-v1:" + createHash("sha256")
     .update(JSON.stringify({accountId: input.accountId, project: input.projectId,
-      cents, billableSeconds, plan: plan.code, inputDigest: reviewedInput, currency: "EUR"})).digest("hex");
+      cents, originalCents: quote.extraCents, promoCode: promoCode || null,
+      billableSeconds, plan: plan.code, inputDigest: reviewedInput, currency: "EUR"})).digest("hex");
   return store.preparedVideoOrder({
     account: input.accountId,
     email: input.email,
     project: input.projectId,
     cents,
+    originalCents: promoCode ? quote.extraCents : undefined,
+    promoCode,
     quoteEvidence,
     key: input.requestKey,
     media,
