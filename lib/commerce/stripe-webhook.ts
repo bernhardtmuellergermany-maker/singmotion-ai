@@ -1,6 +1,41 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { PaymentAdapter, VerifiedPayment } from "@/lib/commerce/store";
 
+/** Strict streaming bound: a malicious caller cannot force the webhook to buffer
+ * an unbounded body before the Stripe signature is checked. */
+export class StripeWebhookPayloadTooLarge extends Error {
+ constructor(){super("Stripe webhook payload too large");}
+}
+export async function readBoundedStripeWebhookBody(request: Request, maxBytes = 128 * 1024): Promise<Uint8Array> {
+ if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw Error("Invalid webhook body limit");
+ const length = request.headers.get("content-length");
+ if (length !== null) {
+  if (!/^\d+$/.test(length) || !Number.isSafeInteger(Number(length)))
+   throw new StripeWebhookPayloadTooLarge();
+  if (Number(length) > maxBytes) throw new StripeWebhookPayloadTooLarge();
+ }
+ if (!request.body) return new Uint8Array();
+ const reader = request.body.getReader();
+ const chunks: Uint8Array[] = [];
+ let bytes = 0;
+ try {
+  while (true) {
+   const {done,value} = await reader.read();
+   if (done) break;
+   bytes += value.byteLength;
+   if (bytes > maxBytes) throw new StripeWebhookPayloadTooLarge();
+   chunks.push(value);
+  }
+  // Reassemble once, only after verifying the entire streamed length.
+  return Buffer.concat(chunks,bytes);
+ } catch (error) {
+  await reader.cancel().catch(()=>{});
+  throw error;
+ } finally {
+  reader.releaseLock();
+ }
+}
+
 /** Stripe's signed payload must be verified before interpreting any payment data. */
 export function verifyStripeSandboxEvent(raw:Uint8Array,signature:string,secret:string):Record<string,any>{
  if(!secret.startsWith("whsec_"))throw Error("Stripe secret unavailable");
