@@ -14,7 +14,7 @@ function ensureReservations(db:DatabaseSync){
  db.exec("CREATE TABLE IF NOT EXISTS pending_upload_storage (id TEXT PRIMARY KEY, owner TEXT NOT NULL, bytes INTEGER NOT NULL CHECK(bytes>0), created INTEGER NOT NULL)");
 }
 export function uploadedBytes(db:DatabaseSync,owner:string):number{
- const row=db.prepare("SELECT COALESCE(SUM(CAST(json_extract(data, '$.bytes') AS INTEGER)),0) AS total FROM assets WHERE owner=?").get(owner) as {total:number};
+ const row=db.prepare("SELECT COALESCE(SUM(CAST(json_extract(data, '$.bytes') AS INTEGER)),0) AS total FROM assets WHERE owner=? AND json_extract(data, '$.kind') IN ('audio','image')").get(owner) as {total:number};
  return row.total;
 }
 /** Take a brief SQLite write lock to avoid parallel uploads passing the same budget. */
