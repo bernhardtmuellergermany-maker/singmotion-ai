@@ -44,7 +44,7 @@ test("customer status rejects malformed IDs and project filters before querying"
  assert.equal(customerOrderStatusFilter(id(0),null).limit,1);
  for(const candidate of ["","../etc/passwd","0".repeat(36),id(0).replace("-4111-","-0111-"),
   id(0)+"' OR 1=1 --","11111111-1111-1111-1111-111111111111"])
-  assert.throws(()=>customerOrderStatusFilter(candidate,null),undefined,candidate);
+  assert.throws(()=>customerOrderStatusFilter(candidate,null),/Invalid order/,candidate);
  for(const candidate of ["../secret","","a".repeat(161),"project?a=1","owner/other"])
-  assert.throws(()=>customerOrderStatusFilter(null,candidate),undefined,candidate);
+  assert.throws(()=>customerOrderStatusFilter(null,candidate),/Invalid project/,candidate);
 });
