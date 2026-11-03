@@ -73,13 +73,13 @@ export function CarouselExperience(){
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
   useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";void Promise.resolve().then(()=>setSearchOpen(true));const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
-  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
   const navigate=useCallback((id:string,replace=false)=>{
     currentRef.current=id;setCurrent(id);
     const u=new URL(window.location.href);
     if(id==="home")u.searchParams.delete("card");else u.searchParams.set("card",id);
     window.history[replace?"replaceState":"pushState"]({ ...window.history.state, carouselCard:id },"",u.pathname+u.search+u.hash);
   },[]);
+  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
   useEffect(()=>{
     if(!searchOpen)return;
     const onOutside=(event:PointerEvent)=>{
