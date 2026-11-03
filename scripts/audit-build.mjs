@@ -7,13 +7,16 @@ import {spawnSync} from "node:child_process";
   encoding:"utf8",timeout:30000,maxBuffer:8*1024*1024
  });
  if(run.error||!run.stdout){
-  console.warn("DEPENDENCY_AUDIT unavailable; registry or audit invocation failed");
+  console.error("DEPENDENCY_AUDIT unavailable; registry or audit invocation failed");
+  process.exitCode=1;
  }else{
   try{
    const report=JSON.parse(run.stdout);
    if(!report.metadata?.vulnerabilities||typeof report.vulnerabilities!=="object")
     throw Error("No audit metadata");
    const counts=report.metadata.vulnerabilities;
+   if(!["critical","high","moderate","low","total"].every(key => Number.isSafeInteger(counts[key]) && counts[key]>=0))
+    throw Error("Incomplete severity counts");
    const exposed=Object.entries(report.vulnerabilities)
     .filter(([,value])=>value&&typeof value==="object")
     .map(([name,value])=>({name,severity:value.severity,direct:!!value.isDirect,
@@ -25,8 +28,13 @@ import {spawnSync} from "node:child_process";
     total:counts.total,critical:counts.critical,high:counts.high,
     moderate:counts.moderate,low:counts.low,top:exposed
    }));
+   if(counts.critical>0||counts.high>0){
+    console.error("DEPENDENCY_AUDIT gate failed: production high/critical advisories");
+    process.exitCode=1;
+   }
   }catch{
-   console.warn("DEPENDENCY_AUDIT unavailable; unparseable or incomplete audit");
+   console.error("DEPENDENCY_AUDIT unavailable; unparseable or incomplete audit");
+   process.exitCode=1;
   }
  }
 }
