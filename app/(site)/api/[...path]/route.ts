@@ -241,7 +241,7 @@ async function handler(
           return json(
             db
               .prepare(
-                "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC LIMIT 100",
+                "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC",
               )
               .all(owner)
               .map(view),
