@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createHmac} from "node:crypto";
-import {verifyStripeSandboxEvent,stripeCheckoutAdapter,readBoundedStripeWebhookBody,StripeWebhookPayloadTooLarge} from "../lib/commerce/stripe-webhook.ts";
+import {verifyStripeSandboxEvent,stripeCheckoutAdapter,readBoundedStripeWebhookBody,StripeWebhookPayloadTooLarge,verifiedStripeTestCheckoutSession} from "../lib/commerce/stripe-webhook.ts";
 
 const secret="whsec_test_signing_secret_2026";
 const event=(livemode=false)=>({id:"evt_test_signed_1",type:"checkout.session.completed",livemode,
@@ -64,4 +64,26 @@ test("Stripe webhook streamed body limit holds without content-length",async()=>
   "https://example.test/webhook",{method:"POST",body:stream,duplex:"half"} as RequestInit
  )),StripeWebhookPayloadTooLarge);
  assert.equal(cancelled,true);
+});
+
+test("Stripe sandbox Checkout creation response must match reviewed amount, order and Stripe host",()=>{
+ const orderId="11111111-1111-4111-8111-111111111111";
+ const valid={id:"cs_test_verified_1",url:"https://checkout.stripe.com/c/pay/cs_test_verified_1#fid",
+  livemode:false,mode:"payment",currency:"eur",amount_total:125,
+  metadata:{orderId}};
+ assert.deepEqual(verifiedStripeTestCheckoutSession(valid,orderId,125),{
+  id:valid.id,url:valid.url
+ });
+ for(const bad of [
+  {...valid,livemode:true},
+  {...valid,id:"cs_live_wrong"},
+  {...valid,mode:"subscription"},
+  {...valid,currency:"usd"},
+  {...valid,amount_total:250},
+  {...valid,metadata:{orderId:"22222222-2222-4222-8222-222222222222"}},
+  {...valid,url:"https://checkout.stripe.com.evil.test/pay"},
+  {...valid,url:"https://checkout.stripe.com@evil.test/pay"},
+  {...valid,url:"http://checkout.stripe.com/pay"},
+  {...valid,url:"https://checkout.stripe.com:8443/pay"},
+ ])assert.throws(()=>verifiedStripeTestCheckoutSession(bad,orderId,125));
 });
