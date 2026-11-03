@@ -60,7 +60,8 @@ try{
  const id=store.preparedVideoOrder({
   account,email:buyer,project:"browser-paid-output",key:"browser-"+randomUUID(),
   cents:125,quoteEvidence:"reviewed-offline-browser-price-2026",
-  media:{owner:"customer-"+account,audioPath:"/private/audio.wav",imagePath:"/private/image.png",
+  media:{sourceJobId:"offline-browser-prepared-source",promptLanguageConfirmed:true,
+   owner:"customer-"+account,audioPath:"/private/audio.wav",imagePath:"/private/image.png",
    audioSha256:"a".repeat(64),imageSha256:"b".repeat(64),durationSeconds:5,
    prompt:"Sing naturally",outputFormat:"9:16"},
  }).id;
