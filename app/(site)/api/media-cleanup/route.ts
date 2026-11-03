@@ -2,6 +2,9 @@ import { NextRequest } from "next/server";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { db, dataDir, session, limit } from "@/lib/db";
+import { CommerceStore } from "@/lib/commerce/store";
+import { PlanLedger } from "@/lib/commerce/plans";
+import {uploadStorageLimit} from "@/lib/upload-storage";
 import { stagingDenial } from "@/lib/staging";
 import { openStudioStore } from "@/lib/live/studio";
 export const runtime="nodejs";
@@ -41,7 +44,16 @@ export async function POST(req:NextRequest){
    return {id:r.id,bytes:Number(a.bytes)||0,name:a.name||"Upload",kind:a.kind||"media",unused:!referenceText.includes(r.id)};
   });
   const unused=safe.filter(a=>a.unused);
-  const report={totalBytes:safe.reduce((s,a)=>s+a.bytes,0),limitBytes:250*1024*1024,
+  let storagePlan:"guest"|"free"|"hobby"="guest";
+  if(auth.owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
+   const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+   try{
+    const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
+    storagePlan=accountId && auth.owner===`customer-${accountId}`
+      ? new PlanLedger(customer.db).activePlan(accountId) : "free";
+   }finally{customer.close()}
+  }
+  const report={totalBytes:safe.reduce((s,a)=>s+a.bytes,0),limitBytes:uploadStorageLimit(storagePlan),
    unusedBytes:unused.reduce((s,a)=>s+a.bytes,0),unusedCount:unused.length,
    protectedCount:safe.length-unused.length,
    unused:unused.map(({id,bytes,name,kind})=>({id,bytes,name,kind}))};
