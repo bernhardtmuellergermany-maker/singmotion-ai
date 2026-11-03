@@ -36,6 +36,7 @@ jobs:
         run: |
           npx eslint lib/commerce/promotions.ts tests/promotions.test.ts \
             components/promotion-admin.tsx 'app/(site)/promo-admin/page.tsx' \
-            'app/(site)/api/promo-admin/route.ts' 'app/(site)/checkout/page.tsx'
+            'app/(site)/api/promo-admin/route.ts' 'app/(site)/checkout/page.tsx' \
+            'app/(site)/api/customer-quote/route.ts' components/promo-quote-preview.tsx
       - name: Build application and run security audits
         run: npm run build
