@@ -33,8 +33,8 @@ const child=spawn(process.execPath,["node_modules/next/dist/bin/next","start","-
  stdio:["ignore","pipe","pipe"],
 });
 let serverLogs="";
-child.stdout.on("data",v=>serverLogs+=v.toString());
-child.stderr.on("data",v=>serverLogs+=v.toString());
+child.stdout?.on("data",v=>serverLogs+=v.toString());
+child.stderr?.on("data",v=>serverLogs+=v.toString());
 let browser:Awaited<ReturnType<typeof chromium.launch>>|undefined;
 let store:InstanceType<typeof CommerceStore>|undefined;
 try{
