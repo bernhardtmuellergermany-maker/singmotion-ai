@@ -48,3 +48,32 @@ test("Drizzle legacy loader resolves only patched esbuild, with a functional nat
  const out=await esbuild.transform("const amount: number = 42",{loader:"ts"});
  assert.match(out.code,/amount\s*=\s*42/);
 });
+
+test("vendored Payload deepmerge blocks prototype poisoning while preserving merge semantics",async()=>{
+ const pkg=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"utf8"));
+ const lock=JSON.parse(readFileSync(new URL("../package-lock.json",import.meta.url),"utf8"));
+ assert.equal(pkg.dependencies.deepmerge,"file:vendor/deepmerge");
+ assert.equal(pkg.overrides.deepmerge,"$deepmerge");
+ assert.equal(lock.packages["node_modules/deepmerge"].link,true);
+ assert.equal(lock.packages["vendor/deepmerge"].version,"4.3.1-singmotion.1");
+ const {createRequire}=await import("node:module");
+ const req=createRequire(import.meta.url);
+ const merge=req("deepmerge") as typeof import("../vendor/deepmerge/index.js");
+ assert.equal(typeof merge,"function");
+ const attacker=JSON.parse('{"__proto__":{"isAdmin":true},"constructor":{"prototype":{"isAdmin":true}},"prototype":{"polluted":true}}');
+ const out=merge({settings:{enabled:true},roles:["member"]},attacker);
+ assert.equal(Object.getPrototypeOf(out),Object.prototype);
+ assert.equal(Object.hasOwn(out,"__proto__"),false);
+ assert.equal(Object.hasOwn(out,"constructor"),false);
+ assert.equal(Object.hasOwn(out,"prototype"),false);
+ assert.equal((out as Record<string,unknown>).isAdmin,undefined);
+ assert.equal(({} as Record<string,unknown>).isAdmin,undefined);
+ assert.deepEqual(out.settings,{enabled:true});
+ assert.deepEqual(out.roles,["member"]);
+ assert.deepEqual(merge({nested:{left:true},items:[1]}, {nested:{right:true},items:[2]}),
+  {nested:{left:true,right:true},items:[1,2]});
+ assert.deepEqual(merge.all([{a:1},{b:2}]),{a:1,b:2});
+ const inherited=Object.create(null) as Record<string,unknown>;
+ Object.defineProperty(inherited,"__proto__",{value:{isAdmin:true},enumerable:true});
+ assert.equal(Object.hasOwn(merge({},inherited),"__proto__"),false);
+});
