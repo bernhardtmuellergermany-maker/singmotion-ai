@@ -386,7 +386,9 @@ async function handler(
           height,
           created: Date.now(),
         };
-        const mirrored=await mirrorPrivateSource(a);
+        let mirrored:CloudMediaRecord|null;
+        try{mirrored=await mirrorPrivateSource(a)}
+        catch{throw new AppError("Private cloud storage is temporarily unavailable. Please retry the upload later.",503)}
         commitUploadedAsset(db,a,mirrored);
         return json(safeAsset(a), 201);
       } catch (e) {
