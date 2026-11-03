@@ -36,7 +36,7 @@ export function PromotionAdmin(){
       setCodes(result.codes);setAllowed(true);setError("");
     }catch(e){setAllowed(false);setError((e as Error).message);}
   },[]);
-  useEffect(()=>{void load();},[load]);
+  useEffect(()=>{void Promise.resolve().then(load);},[load]);
   const update=<K extends keyof FormValues>(key:K,value:FormValues[K])=>
     setValues(prev=>({...prev,[key]:value}));
   async function submit(event:React.FormEvent){
@@ -120,7 +120,7 @@ export function PromotionAdmin(){
             <td>{new Date(p.endsAt).toLocaleString()}</td>
             <td>{p.redeemed}</td><td>{p.reserved}</td><td>{p.released}</td>
             <td>{p.maxUses}</td>
-            <td>{!p.enabled?"Disabled":Date.now()<p.startsAt?"Scheduled":Date.now()>=p.endsAt?"Expired":"Active"}</td>
+            <td>{p.status}</td>
             <td><button type="button" disabled={busy}
               onClick={()=>void toggle(p.code,!p.enabled)}>
               {p.enabled?"Disable":"Enable"}</button></td>
