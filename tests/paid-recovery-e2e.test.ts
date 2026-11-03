@@ -30,7 +30,7 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
     const token=store.login("buyer@example.test","correct horse battery staple 2026");
     assert.equal(store.session(token),owner);
     assert.notEqual(store.session("invalid-login-session"),owner);
-    assert.throws(()=>store.login("buyer@example.test","wrong password"));
+    assert.throws(()=>store!.login("buyer@example.test","wrong password"));
     assert.notEqual(owner,other);
 
     const media = {
