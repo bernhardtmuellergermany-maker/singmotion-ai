@@ -5,6 +5,7 @@ import { db, dataDir, session, limit } from "@/lib/db";
 import { CommerceStore } from "@/lib/commerce/store";
 import { PlanLedger } from "@/lib/commerce/plans";
 import {uploadStorageLimit} from "@/lib/upload-storage";
+import {deleteMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import { stagingDenial } from "@/lib/staging";
 import { openStudioStore } from "@/lib/live/studio";
 export const runtime="nodejs";
@@ -45,6 +46,7 @@ export async function POST(req:NextRequest){
   });
   // Paid output files are immutable customer deliveries, never unused uploads.
   const unused=safe.filter(a=>a.unused && (a.kind==="audio" || a.kind==="image"));
+  const cloudTable=!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get();
   let storagePlan:"guest"|"free"|"hobby"="guest";
   if(auth.owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
    const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
@@ -60,6 +62,15 @@ export async function POST(req:NextRequest){
    unused:unused.map(({id,bytes,name,kind})=>({id,bytes,name,kind}))};
   if(body.mode==="preview")return respond(report);
   if(body.confirmation!=="DELETE UNUSED UPLOADS")return respond({error:"Confirmation required"},400);
+  // The private cloud object must be deleted and verified before local
+  // metadata is removed; uncertain R2 outcomes preserve local originals.
+  for(const item of unused){
+   if(!cloudTable)break;
+   const record=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(item.id,auth.owner) as CloudMediaRecord|undefined;
+   if(!record)continue;
+   try{await deleteMirroredPrivateSource(auth.owner,item.id,record)}
+   catch{return respond({error:"Cloud deletion could not be confirmed. Existing uploads were preserved; contact support before retrying."},503)}
+  }
   const removed:string[]=[];
   // Recheck under the SQLite write transaction for concurrent updates.
   db.exec("BEGIN IMMEDIATE");
@@ -67,6 +78,7 @@ export async function POST(req:NextRequest){
    for(const item of unused){
     const still=db.prepare("SELECT 1 FROM assets WHERE id=? AND owner=?").get(item.id,auth.owner);
     if(!still)continue;
+    if(cloudTable)db.prepare("DELETE FROM cloud_source_media WHERE asset_id=? AND owner=?").run(item.id,auth.owner);
     db.prepare("DELETE FROM assets WHERE id=? AND owner=?").run(item.id,auth.owner);
     removed.push(item.id);
    }
