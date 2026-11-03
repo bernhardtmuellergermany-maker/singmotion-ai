@@ -528,11 +528,14 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
       .get(broken.id)!.reserved_micro_usd,
     cost,
   );
-  assert.ok(
-    !(await readdir(path.join(root, "live-output"))).some(
-      (f) => f.includes("partial") || f.startsWith(broken.id),
-    ),
-  );
+  // No finalized customer output or partial MP4 may remain. A validated
+  // provider-source capture is intentionally kept for manual, idempotent
+  // recovery without a second paid provider submission.
+  const outputFiles = await readdir(path.join(root, "live-output"));
+  assert.ok(!outputFiles.includes(`${broken.id}.mp4`));
+  assert.ok(!outputFiles.some(f=>f.startsWith(broken.id + ".") && f.includes(".partial")));
+  const sourceCapture = path.join(root, "live-output", `${broken.id}.provider-source.mp4`);
+  assert.equal((await stat(sourceCapture)).mode & 0o777,0o600);
   process.env.AUDIO_TEMPO_ENABLED = "true";
   assert.deepEqual(await readFile(original), before);
   assert.deepEqual(await readFile(source), sourceBefore);
