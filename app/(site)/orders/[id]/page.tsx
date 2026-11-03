@@ -5,6 +5,7 @@ import { dataDir } from "@/lib/db";
 import { ProductHeader } from "@/components/product-header";
 import { GuestOrderAccess } from "@/components/guest-order-access";
 import { CustomerPaidOutput } from "@/components/customer-paid-output";
+import { CancelUnstartedOrder } from "@/components/cancel-unstarted-order";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Private order",
@@ -66,6 +67,7 @@ export default async function Page({
             </p>}
             <p>Video order: {fulfillmentState === "pending" ? "Awaiting processing" : fulfillmentState === "processing" ? "Processing or under review" : fulfillmentState === "delivered" ? "Delivered" : fulfillmentState === "failed" ? "Needs support review" : "Not started"}</p>
             <p>Video ready: {videoReady ? "Yes" : "No"}</p>
+            {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
             {authenticatedOwner && <CustomerPaidOutput orderId={id} />}
             {!videoReady && <p>Payment confirmation alone does not start BytePlus generation. The video will appear in the output card only after verified delivery.</p>}
           </>
