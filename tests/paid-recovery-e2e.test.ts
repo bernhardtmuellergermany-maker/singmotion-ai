@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -13,7 +13,7 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
   process.env.DATA_DIR = root;
   let store: import("../lib/commerce/store.ts").CommerceStore | undefined;
   try {
-    const [{ CommerceStore }, { runPaidRecoveryBatch }, { asset, db }] = await Promise.all([
+    const [{ CommerceStore }, { runPaidRecoveryBatch }, { asset, db, putAsset }] = await Promise.all([
       import("../lib/commerce/store.ts"),
       import("../lib/commerce/paid-recovery-batch.ts"),
       import("../lib/db.ts"),
@@ -87,6 +87,34 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
       outputTransport, new AbortController().signal, 10), []);
     assert.equal(statusReads, 1);
     assert.equal(downloads, 1);
+
+    // Crash simulation: a provider output was already verified and registered
+    // privately, but the commerce delivery row was never committed.
+    const resumedId=store.preparedVideoOrder({
+      account:owner,email:"customer@example.test",project:"offline-crash-resume",
+      cents:125,quoteEvidence:"verified-offline-resume-quote-2026",
+      key:"offline-crash-resume",media
+    }).id;
+    store.bindStripeCheckout(resumedId,"cs_test_offline_resume");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_offline_resume",orderId:resumedId,
+      cents:125,currency:"EUR" as const,evidence:"cs_test_offline_resume"
+    }}});
+    assert.equal(store.claimPaidFulfillment(resumedId),true);
+    assert.equal(store.beginPaidProviderSubmission(resumedId),true);
+    store.recordPaidProviderJob(resumedId,"byteplus","task_offline_resume");
+    const saved=path.join(root,"media",`paid-${resumedId}.mp4`);
+    await copyFile(fixture,saved);
+    putAsset({id:`customer-video-${resumedId}`,owner:"customer-"+owner,
+      kind:"video",name:"singmotion.mp4",path:saved,mime:"video/mp4",
+      bytes:bytes.length,duration:5,width:null,height:null,created:Date.now()});
+    const resumed=await runPaidRecoveryBatch(store,root,contract,statusTransport,
+      async()=>{throw Error("Existing verified output must not be downloaded again");},
+      new AbortController().signal,10);
+    assert.deepEqual(resumed,[{orderId:resumedId,state:"delivered"}]);
+    assert.equal(store.ownedDeliveredVideoAsset(resumedId,owner),`customer-video-${resumedId}`);
+    assert.equal(statusReads,2);
+    assert.equal(downloads,1);
     db.close();
   } finally {
     store?.close();
