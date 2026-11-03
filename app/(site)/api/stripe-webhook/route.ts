@@ -1,11 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
-import { stripeCheckoutAdapter, verifyStripeSandboxEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge } from "@/lib/commerce/stripe-webhook";
+import { stripeCheckoutAdapter, verifyStripeSandboxEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+type StripeLookup = Record<string, unknown> & {
+  id?: string;livemode?: boolean;status?: string;charge?: string;
+  payment_intent?: string;currency?:string;mode?:string;payment_status?:string;
+  amount?:number;amount_total?:number;data?:StripeLookup[];
+};
+
 
 async function stripeGet(resource:string,key:string){
  if(!/^sk_test_[A-Za-z0-9_]+$/.test(key))throw Error("Stripe sandbox key required");
@@ -13,9 +19,9 @@ async function stripeGet(resource:string,key:string){
    headers:{Authorization:"Bearer "+key},cache:"no-store",signal:AbortSignal.timeout(8000),
  });
  if(!response.ok)throw Error("Stripe verification request failed");
- return await response.json() as Record<string,any>;
+ return await response.json() as StripeLookup;
 }
-async function reconcileReversal(store:CommerceStore,event:Record<string,any>){
+async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
  const key=process.env.STRIPE_SECRET_KEY||"";
  const object=event.data?.object;
  if(!object||typeof object.id!=="string")throw Error("Missing reversal object");
