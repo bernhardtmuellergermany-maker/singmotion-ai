@@ -42,7 +42,7 @@ export function reviewedPolicy(raw: unknown): OutputValidationContract {
   return p as OutputValidationContract;
 }
 
-export async function runPaidRecoveryCommand(args: readonly string[], env = process.env) {
+export async function runPaidRecoveryCommand(args: readonly string[], env: Record<string,string|undefined> = process.env) {
   if (args.length === 0 || (args.length === 1 && args[0] === "--dry-run")) {
     const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     try {
