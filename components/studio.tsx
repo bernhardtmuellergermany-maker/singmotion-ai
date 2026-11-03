@@ -1,5 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { StudioLiveControl } from "./studio-live";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -483,7 +484,7 @@ export function Studio() {
                   <ChevronDown size={14} />
                 </div>
               </label>
-              <p className="quiet" role="status" title={cameraHelp[camera]}>ⓘ {cameraHelp[camera]} <a href="/help/camera-movements">Camera movement help</a></p>
+              <p className="quiet" role="status" title={cameraHelp[camera]}>ⓘ {cameraHelp[camera]} <Link href="/help/camera-movements">Camera movement help</Link></p>
               <label htmlFor="custom-prompt">
                 Custom Performance Prompt <span>Optional</span>
               </label>
