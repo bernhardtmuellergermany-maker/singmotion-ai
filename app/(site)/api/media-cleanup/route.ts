@@ -43,7 +43,8 @@ export async function POST(req:NextRequest){
    const a=JSON.parse(r.data) as {bytes?:number;name?:string;kind?:string};
    return {id:r.id,bytes:Number(a.bytes)||0,name:a.name||"Upload",kind:a.kind||"media",unused:!referenceText.includes(r.id)};
   });
-  const unused=safe.filter(a=>a.unused);
+  // Paid output files are immutable customer deliveries, never unused uploads.
+  const unused=safe.filter(a=>a.unused && (a.kind==="audio" || a.kind==="image"));
   let storagePlan:"guest"|"free"|"hobby"="guest";
   if(auth.owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
    const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
