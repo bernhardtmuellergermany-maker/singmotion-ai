@@ -1,6 +1,6 @@
 FROM node:24.22.1-bookworm-slim AS builder
 # End-to-end MP4 validation tests require ffmpeg/ffprobe during build.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates chromium && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
 # The pinned local security patch must exist before npm resolves dependencies.
@@ -8,6 +8,9 @@ COPY vendor/deepmerge ./vendor/deepmerge
 RUN npm ci
 COPY . .
 RUN npm run build
+# Run actual local HTTP + Chromium buyer journey inside the disposable build stage.
+# It uses temp SQLite/media and offline Stripe/BytePlus fixtures; Chromium is NOT copied to runtime.
+RUN PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:customer:browser
 
 FROM node:24.22.1-bookworm-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
