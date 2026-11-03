@@ -1,6 +1,13 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import type { Promotion, PromotionKind } from "@/lib/commerce/promotions";
+type PromotionReport = {
+  summary: Promotion;
+  totals: {redeemedDiscountCents:number;committedDiscountCents:number};
+  activity: {orderId:string;state:string;originalCents:number;discountCents:number;createdAt:number;updatedAt:number}[];
+  daily: {day:string;reserved:number;redeemed:number;released:number;redeemedDiscountCents:number}[];
+  truncated:boolean;
+};
 type FormValues = {
   code:string;kind:PromotionKind;percent:number;startsAt:string;endsAt:string;
   maxUses:number;perCustomerLimit:number;
@@ -14,8 +21,8 @@ function initial():FormValues {
   return {code:"",kind:"percent",percent:20,startsAt:dateValue(start),
     endsAt:dateValue(end),maxUses:100,perCustomerLimit:1};
 }
-async function request(method:"GET"|"POST",body?:unknown){
-  const response=await fetch("/api/promo-admin",{
+async function request(method:"GET"|"POST",body?:unknown,code?:string){
+  const response=await fetch("/api/promo-admin"+(code?"?code="+encodeURIComponent(code):""),{
     method,credentials:"same-origin",cache:"no-store",
     ...(body?{headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}:{}),
   });
@@ -30,6 +37,7 @@ export function PromotionAdmin(){
   const [message,setMessage]=useState("");
   const [busy,setBusy]=useState(false);
   const [allowed,setAllowed]=useState(false);
+  const [report,setReport]=useState<PromotionReport|null>(null);
   const load=useCallback(async()=>{
     try {
       const result=await request("GET");
@@ -63,6 +71,27 @@ export function PromotionAdmin(){
     try {await request("POST",{action:"toggle",code,enabled});await load();}
     catch(e){setError((e as Error).message);}
     finally{setBusy(false);}
+  }
+  async function details(code:string){
+    setBusy(true);setError("");
+    try {
+      const result=await request("GET",undefined,code) as {report:PromotionReport};
+      setReport(result.report);
+    }catch(e){setError((e as Error).message);}
+    finally{setBusy(false);}
+  }
+  function exportCsv(){
+    if(!report)return;
+    const heading=["orderId","state","originalCents","discountCents","createdAtUtc","updatedAtUtc"];
+    const lines=report.activity.map(a=>[
+      a.orderId,a.state,String(a.originalCents),String(a.discountCents),
+      new Date(a.createdAt).toISOString(),new Date(a.updatedAt).toISOString()
+    ].join(","));
+    const csv=[heading.join(","),...lines].join("\n")+"\n";
+    const href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+    const link=document.createElement("a");
+    link.href=href;link.download="singmotion-promo-"+report.summary.code+".csv";
+    document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(href);
   }
   return <section style={{maxWidth:1050,margin:"2rem auto",padding:"1.5rem"}}>
     <h1>Promotion codes</h1>
@@ -121,13 +150,50 @@ export function PromotionAdmin(){
             <td>{p.redeemed}</td><td>{p.reserved}</td><td>{p.released}</td>
             <td>{p.maxUses}</td>
             <td>{p.status}</td>
-            <td><button type="button" disabled={busy}
-              onClick={()=>void toggle(p.code,!p.enabled)}>
-              {p.enabled?"Disable":"Enable"}</button></td>
+            <td>
+              <button type="button" disabled={busy} onClick={()=>void toggle(p.code,!p.enabled)}>
+                {p.enabled?"Disable":"Enable"}</button>
+              {" "}
+              <button type="button" disabled={busy} onClick={()=>void details(p.code)}>
+                Details</button>
+            </td>
           </tr>)}</tbody>
         </table>
         {codes.length===0&&<p>No codes yet.</p>}
       </div>
+      {report && <section aria-labelledby="promo-details" style={{marginTop:28}}>
+        <h3 id="promo-details">Usage details: <code>{report.summary.code}</code></h3>
+        <p>Redeemed discount value: €{(report.totals.redeemedDiscountCents/100).toFixed(2)}.
+          {" "}Reserved + redeemed value: €{(report.totals.committedDiscountCents/100).toFixed(2)}.</p>
+        <p>Amounts shown are promotional reductions, not Stripe revenue or provider cost.</p>
+        <button type="button" onClick={exportCsv}>Export recent activity (CSV)</button>
+        {" "}
+        <button type="button" onClick={()=>setReport(null)}>Close details</button>
+        <h4>Usage by UTC day</h4>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",textAlign:"left"}}>
+            <thead><tr><th>Day</th><th>Reserved</th><th>Redeemed</th><th>Released</th><th>Redeemed discounts</th></tr></thead>
+            <tbody>{report.daily.map(d=><tr key={d.day}>
+              <td>{d.day}</td><td>{d.reserved}</td><td>{d.redeemed}</td>
+              <td>{d.released}</td><td>€{(d.redeemedDiscountCents/100).toFixed(2)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        <h4>Latest order activity</h4>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",textAlign:"left"}}>
+            <thead><tr><th>Order</th><th>Status</th><th>Original</th><th>Discount</th><th>Reserved at</th><th>Updated at</th></tr></thead>
+            <tbody>{report.activity.map(a=><tr key={a.orderId}>
+              <td><code>{a.orderId}</code></td><td>{a.state}</td>
+              <td>€{(a.originalCents/100).toFixed(2)}</td>
+              <td>€{(a.discountCents/100).toFixed(2)}</td>
+              <td>{new Date(a.createdAt).toLocaleString()}</td>
+              <td>{new Date(a.updatedAt).toLocaleString()}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        {report.truncated && <p role="status">Large report: only the newest 500 activity rows and 365 UTC days are shown.</p>}
+      </section>}
       <p>“Reserved” counts orders awaiting verified settlement. “Redeemed” counts settled orders.
         Free-video allowance is counted per completed redemption, not on code lookup.</p>
     </>}
