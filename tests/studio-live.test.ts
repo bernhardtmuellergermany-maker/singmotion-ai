@@ -261,7 +261,7 @@ test("real WAV trim, immutable owned image/MP3, prompts, review and duplicate pr
       true,
       true,
     ),
-    /at least 4/,
+    /between 5 and 300 seconds/,
   );
   await assert.rejects(
     f.service.prepare(f.selection, owner, "Singer", false, true),
@@ -1134,7 +1134,7 @@ test("experimental Studio needs distinct paid confirmation and retains finite cu
       fps: 25,
       videoCodec: "h264",
       audioCodec: "aac",
-      toleranceSeconds: 2,
+      toleranceSeconds: 1,
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
     },
     "staff",
@@ -1260,7 +1260,7 @@ test("changed experimental 5–15s review creates a new idempotent unapproved pr
       fps: 25,
       videoCodec: "h264",
       audioCodec: "aac",
-      toleranceSeconds: 2,
+      toleranceSeconds: 1,
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
     },
     "staff",
@@ -1445,7 +1445,7 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
         ...f.selection,
         songId,
         start: 0.25,
-        end: 4.75,
+        end: 5.75,
         customPrompt: `Independent tempo test ${i}`,
       };
       const service = makeService();
@@ -1659,7 +1659,7 @@ test("independent new recording reaches private cost review despite unresolved l
   const selected = {
     ...f.selection,
     start: 0,
-    end: 4.5,
+    end: 5.5,
     customPrompt: "New independent recording review",
   };
   process.env.AUDIO_TEMPO_ENABLED = "true";
