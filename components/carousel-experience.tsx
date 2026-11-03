@@ -183,19 +183,7 @@ export function CarouselExperience(){
     setUploading(true);setUploadError("");
     try{
       validateFile(file.name,file.size,"audio");
-      // Customer plan is server-owned. Check BEFORE transferring large files.
-      // A missing customer account response must not be mistaken for Free.
-      const planResponse=await fetch("/api/customer-plan",{credentials:"same-origin",cache:"no-store"});
-      if(planResponse.ok){
-        const access=await planResponse.json() as {plan?:{code?:string;maxProjects?:number};projects?:{used?:number}};
-        if(access.plan?.code==="free" && access.plan.maxProjects===3 &&
-           Math.max(access.projects?.used??0,tiles.filter(t=>t.id.startsWith("draft_")||t.id.startsWith("job_")||t.id.startsWith("live_")).length)>=3){
-          setUploadError("PROJECT_LIMIT_REACHED");
-          return;
-        }
-      }else if(planResponse.status!==401&&planResponse.status!==403){
-        throw Error("Project limit could not be checked. Please try again.");
-      }
+      // Storage quota is checked by the server; historical orders do not consume project slots.
       await ensureSession();
       const result=await upload(file,"audio") as Asset;
       setAudio(result);
@@ -258,9 +246,7 @@ export function CarouselExperience(){
                     <strong>{uploading?"Uploading your song…":"Drop your audio here or click to browse"}</strong>
                     <small>MP3, WAV, M4A · up to 50 MB</small>
                   </label>}
-              {uploadError==="PROJECT_LIMIT_REACHED"
-                ? <div className="sm-carousel-inline-error" role="alert"><strong>Project limit reached</strong><p>Your plan allows a maximum of 3 projects. Delete an existing project before uploading another song, or switch to Hobby for up to 10 projects.</p><p><Link href="/projects">Manage projects</Link> · <Link href="/plans">View Hobby plan</Link></p></div>
-                : uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
+              {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
             </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
