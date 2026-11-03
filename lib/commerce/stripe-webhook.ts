@@ -1,5 +1,30 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import type { PaymentAdapter, VerifiedPayment } from "@/lib/commerce/store";
+/** Parsed Stripe JSON remains untrusted until each required field is checked. */
+export type StripeTestEvent = {
+  livemode?: boolean;
+  id?: string;
+  type?: string;
+  data?: {object?: {
+    id?: string;
+    object?: string;
+    mode?: string;
+    payment_status?: string;
+    currency?: string;
+    amount_total?: number;
+    metadata?: {orderId?: string};
+  }};
+};
+type StripeCheckoutResponse = Record<string, unknown> & {
+  livemode?: boolean;
+  id?: string;
+  mode?: string;
+  currency?: string;
+  amount_total?: number;
+  metadata?: {orderId?: string};
+  url?: string;
+};
+
 
 /** Strict streaming bound: a malicious caller cannot force the webhook to buffer
  * an unbounded body before the Stripe signature is checked. */
@@ -37,7 +62,7 @@ export async function readBoundedStripeWebhookBody(request: Request, maxBytes = 
 }
 
 /** Stripe's signed payload must be verified before interpreting any payment data. */
-export function verifyStripeSandboxEvent(raw:Uint8Array,signature:string,secret:string):Record<string,any>{
+export function verifyStripeSandboxEvent(raw:Uint8Array,signature:string,secret:string):StripeTestEvent{
  if(!secret.startsWith("whsec_"))throw Error("Stripe secret unavailable");
  const fields=signature.split(",").map(x=>x.trim().split("="));
  const t=fields.find(x=>x[0]==="t")?.[1]||"";
@@ -84,7 +109,7 @@ export function verifiedStripeTestCheckoutSession(
  value:unknown,orderId:string,priceCents:number
 ):{id:string;url:string}{
  if(!value||typeof value!=="object")throw Error("Invalid Stripe Checkout Session");
- const session=value as Record<string,any>;
+ const session=value as StripeCheckoutResponse;
  if(session.livemode!==false||session.mode!=="payment"||
     session.currency!=="eur"||session.amount_total!==priceCents||
     session.metadata?.orderId!==orderId||
