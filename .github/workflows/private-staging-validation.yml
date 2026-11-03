@@ -1,0 +1,55 @@
+name: Validate private staging without paid services
+
+on:
+  pull_request:
+    branches:
+      - fix/tempo-distinguish-provider-errors-20261028
+  push:
+    branches:
+      - fix/tempo-distinguish-provider-errors-20261028
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-staging-validation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  offline-validation:
+    name: Offline tests, build and staging security
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "true"
+    steps:
+      - name: Check out exact revision
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install FFmpeg for synthetic media fixtures
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+      - name: Install locked dependencies
+        run: npm ci
+      - name: TypeScript checks
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Offline unit and integration tests
+        run: npm test
+      - name: CMS compatibility checks without a live database
+        run: npm run test:cms:compat
+      - name: Production build and security audit
+        run: npm run build
+      - name: Private staging authorization and worker smoke test
+        run: npm run test:staging
