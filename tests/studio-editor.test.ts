@@ -28,7 +28,7 @@ test("orientation has a defined square fallback and manual format mode survives 
     songId: "song",
     imageId: "image",
     start: 1.25,
-    end: 5.25,
+    end: 6.25,
     performance: "Natural",
     camera: "Static Close-Up",
     customPrompt: "",
