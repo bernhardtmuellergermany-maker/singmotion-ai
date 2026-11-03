@@ -105,3 +105,14 @@ test("R2 source replication is opt-in and never starts in production",()=>{
   if(oldEnv===undefined)delete process.env.RAILWAY_ENVIRONMENT_ID;else process.env.RAILWAY_ENVIRONMENT_ID=oldEnv;
  }
 });
+
+test("generated immutable Studio snapshots do not reduce customers' upload storage",()=>{
+ const db=make(),owner="customer-snapshots",id=randomUUID();
+ reserveUploadStorage(db,owner,id,50,100);
+ commitUploadedAsset(db,asset(id,owner,50));
+ const derived={...asset("job-abc-audio-"+("f".repeat(64)),owner,99),path:"/private/job-abc-"+("f".repeat(64))+".mp3"};
+ db.prepare("INSERT INTO assets(id,owner,data) VALUES(?,?,?)").run(derived.id,owner,JSON.stringify(derived));
+ assert.equal(uploadedBytes(db,owner),50);
+ reserveUploadStorage(db,owner,randomUUID(),50,100);
+ db.close();
+});
