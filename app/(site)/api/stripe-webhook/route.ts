@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
-import { stripeCheckoutAdapter, verifyStripeSandboxEvent } from "@/lib/commerce/stripe-webhook";
+import { stripeCheckoutAdapter, verifyStripeSandboxEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 
 export const runtime = "nodejs";
@@ -67,11 +67,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Stripe Checkout is disabled." }, { status: 503 });
   const signature = req.headers.get("stripe-signature");
   if (!signature) return NextResponse.json({ error: "Missing signature." }, { status: 400 });
-  const raw = new Uint8Array(await req.arrayBuffer());
-  if (raw.byteLength > 128 * 1024)
-    return NextResponse.json({ error: "Webhook payload too large." }, { status: 413 });
   let store: CommerceStore | undefined;
   try {
+    const raw = await readBoundedStripeWebhookBody(req);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const event=verifyStripeSandboxEvent(raw,signature,secret);
     if(event.type==="checkout.session.completed")
@@ -81,6 +79,8 @@ export async function POST(req: NextRequest) {
     // Other signed Stripe events are unrelated to single-video settlement.
     return NextResponse.json({ received: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
+    if (error instanceof StripeWebhookPayloadTooLarge)
+      return NextResponse.json({ error: "Webhook payload too large." }, { status: 413 });
     // Never leak private payment or account details into the HTTP response.
     console.error("Stripe webhook reconciliation failed:", error instanceof Error ? error.message : "unknown error");
     return NextResponse.json({ error: "Stripe webhook verification or reconciliation failed." }, { status: 400 });
