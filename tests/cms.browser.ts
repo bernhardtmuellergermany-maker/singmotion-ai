@@ -286,8 +286,13 @@ try {
     ).status,
     404,
   );
+  // This browser is confined to a loopback-only TLS proxy with a throwaway
+  // self-signed test certificate. Some newer Chromium builds still reject
+  // this certificate despite Playwright's ignoreHTTPSErrors context setting.
+  // The launch exception applies to this isolated test process only.
   browser = await chromium.launch({
     headless: true,
+    args: ["--ignore-certificate-errors"],
     executablePath:
       process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH || "/usr/bin/chromium",
   });
