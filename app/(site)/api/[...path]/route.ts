@@ -274,25 +274,8 @@ async function handler(
         const step = Number(input.step);
         if (!Number.isInteger(step) || step < 0 || step > 4)
           throw new AppError("Invalid draft step.");
-        // Guest limit applies only when creating a new draft, never while editing.
-        const exists = db.prepare("SELECT 1 FROM studio_drafts WHERE id=? AND owner=?").get(key, owner);
-        if (!exists) {
-          let authenticatedCustomer = false;
-          const customerToken = req.cookies.get("sm_customer")?.value;
-          if (process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" && customerToken) {
-            const customerStore = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
-            try {
-              const accountId = customerStore.session(customerToken);
-              authenticatedCustomer = !!accountId && owner === `customer-${accountId}`;
-            } finally {
-              customerStore.close();
-            }
-          }
-          if (!authenticatedCustomer) {
-            const count = db.prepare("SELECT COUNT(*) AS total FROM studio_drafts WHERE owner=?").get(owner) as { total: number };
-            if (count.total >= 3) throw new AppError("You have reached the limit of 3 drafts. Log in to create more drafts.", 403);
-          }
-        }
+        // Draft count is unlimited for both guests and customers. Upload bytes
+        // are independently metered, and the write rate limit still applies.
         const result = db
           .prepare(
             "INSERT INTO studio_drafts (id,owner,selection,artist_name,step,updated,project_name) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated,project_name=excluded.project_name WHERE studio_drafts.owner=excluded.owner",
@@ -340,7 +323,6 @@ async function handler(
       }
       const assetId = randomUUID();
       reserveUploadStorage(db,owner,assetId,file.size,uploadStorageLimit(plan));
-      const bytes = Buffer.from(await file.arrayBuffer());
       const dest = path.join(dataDir, "media", assetId);
       const preview = path.join(dataDir, "media", `${assetId}.preview.mp3`);
       let duration: number | null = null,
@@ -348,6 +330,7 @@ async function handler(
         height: number | null = null,
         mime = "";
       try {
+        const bytes = Buffer.from(await file.arrayBuffer());
         await writeFile(dest, bytes, { mode: 0o600, flag: "wx" });
         if (kind === "audio") {
           duration = await validateAudio(dest);
