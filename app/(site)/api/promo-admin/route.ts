@@ -30,7 +30,15 @@ async function handler(req: NextRequest) {
     limit(`promo-admin:${actor}`,30,60000);
     store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     const ledger=new PromotionLedger(store.db);
-    if(req.method==="GET") return json({codes:ledger.list(),checkoutEnabled:false});
+    if(req.method==="GET") {
+      const requested=req.nextUrl.searchParams.get("code");
+      if(requested !== null) {
+        if(requested.length>40)return json({error:"Invalid promotion code"},400);
+        try { return json({report:ledger.report(requested)}); }
+        catch { return json({error:"Promotion not found"},404); }
+      }
+      return json({codes:ledger.list(),checkoutEnabled:false});
+    }
     if(req.method!=="POST") return json({error:"Method not allowed"},405);
     const reader=req.body?.getReader();
     if(!reader) return json({error:"Request body required"},400);
