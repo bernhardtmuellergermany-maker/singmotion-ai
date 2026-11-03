@@ -32,7 +32,7 @@ export default function PlansPage(){
     <h2>Hobby</h2><p className="sm-plan-caption">Subscription with 30 included video seconds per paid billing period.</p>
     <div className="sm-plan-price">€4.99 <span>/ month · incl. VAT</span></div><p className="sm-plan-price-note">30 seconds included; extra seconds cost €0.20 each (incl. VAT).</p>
     <div className="sm-plan-rule"/>
-    <ul><li><Check size={18}/> Up to 10 projects</li><li><Check size={18}/> 30 video seconds included per paid billing period</li><li><Check size={18}/> 5–300 seconds per video</li><li><Check size={18}/> Extra video seconds after your allowance: €0.20 per second (VAT included)</li></ul>
+    <ul><li><Check size={18}/> Unlimited projects · 10 GB upload storage</li><li><Check size={18}/> 30 video seconds included per paid billing period</li><li><Check size={18}/> 5–300 seconds per video</li><li><Check size={18}/> Extra video seconds after your allowance: €0.20 per second (VAT included)</li></ul>
     <span className="sm-plan-action sm-plan-action-disabled" aria-disabled="true">Subscriptions coming soon</span>
    </article>
   </section>
