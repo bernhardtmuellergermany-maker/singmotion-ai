@@ -1,4 +1,6 @@
 FROM node:24.22.1-bookworm-slim AS builder
+# End-to-end MP4 validation tests require ffmpeg/ffprobe during build.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
