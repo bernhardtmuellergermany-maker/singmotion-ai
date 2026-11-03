@@ -21,6 +21,7 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
     store = new CommerceStore(path.join(root, "commerce.sqlite"));
     const owner = "11111111-1111-4111-8111-111111111111";
     const media = {
+      sourceJobId: "offline-prepared-source", promptLanguageConfirmed: true,
       owner: "customer-" + owner,
       audioPath: "/private/input-audio.wav",
       imagePath: "/private/input-image.png",
