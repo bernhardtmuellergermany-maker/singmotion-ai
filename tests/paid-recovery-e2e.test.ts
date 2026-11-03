@@ -18,6 +18,12 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
       import("../lib/commerce/paid-recovery-batch.ts"),
       import("../lib/db.ts"),
     ]);
+    const { runPaidRecoveryCommand } = await import("../scripts/paid-recovery-worker.ts");
+    await assert.rejects(runPaidRecoveryCommand(["--once","--review-file","/never-read",
+      "--confirm-sha256","a".repeat(64)], {}), /staging environment/);
+    assert.deepEqual(await runPaidRecoveryCommand(["--dry-run"]), {
+      mode:"dry-run", acknowledged:0, networkRequests:0, generatedTasks:0,
+    });
     store = new CommerceStore(path.join(root, "commerce.sqlite"));
     const owner = "11111111-1111-4111-8111-111111111111";
     const media = {
