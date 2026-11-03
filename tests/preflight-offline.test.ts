@@ -329,7 +329,7 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
     );
     await assert.rejects(
       prepareStudioDraft({ ...exported, end: 4 }, owner, 6),
-      /audio limits/,
+      /Select an audio segment between 5 and 300 seconds/,
     );
     const rejected = spawnSync(
       process.execPath,
