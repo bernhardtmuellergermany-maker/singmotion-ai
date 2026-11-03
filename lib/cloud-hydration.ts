@@ -4,6 +4,7 @@
  */
 import {randomUUID} from "node:crypto";
 import {constants} from "node:fs";
+import {createHash} from "node:crypto";
 import {realpath,stat,writeFile,link,unlink,open} from "node:fs/promises";
 import path from "node:path";
 import type {Asset} from "./domain.ts";
@@ -21,6 +22,17 @@ export async function ensureLocalAsset(asset:Asset):Promise<string>{
   try{
    const info=await handle.stat();
    if(!info.isFile()||info.size!==asset.bytes)throw Error("Existing media failed size verification");
+   if(customerR2Enabled()&&db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get()){
+    const record=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(asset.id,asset.owner) as CloudMediaRecord|undefined;
+    if(record){
+     if(!validCloudRecord(asset.owner,asset.id,record)||record.bytes!==asset.bytes)
+      throw Error("Private cache manifest owner or size mismatch");
+     const digest=createHash("sha256");
+     for await(const chunk of handle.createReadStream({autoClose:false})){digest.update(chunk)}
+     if(digest.digest("hex")!==record.sha256)
+      throw Error("Cached local file differs from authoritative R2 content");
+    }
+   }
    return destination;
   }finally{await handle.close()}
  }catch(error){
