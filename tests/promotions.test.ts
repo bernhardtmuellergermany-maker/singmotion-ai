@@ -172,6 +172,26 @@ test("zero-price promotional video never automatically receives paid status or f
     assert.equal(ledger.list()[0].released,1);
   }finally{store.close();}
 });
+test("customer cancellation releases reserved percentage voucher and global capacity",()=>{
+  const store=new CommerceStore(":memory:");
+  try {
+    const account=store.register("cancelpromos@example.test","long-unique-test-password-12345");
+    const ledger=new PromotionLedger(store.db);
+    ledger.create({code:"CANCEL20",kind:"percent",percent:20,startsAt:start,endsAt:end,maxUses:1},at);
+    const media={owner:"customer-"+account,audioPath:"/private/audio.wav",
+      imagePath:"/private/image.png",audioSha256:"a".repeat(64),imageSha256:"b".repeat(64),
+      durationSeconds:8.2,prompt:"Approved studio test.",outputFormat:"9:16"} as PreparedMedia;
+    const id=store.preparedVideoOrder({account,email:"cancelpromos@example.test",
+      project:"cancellable-1",cents:180,originalCents:225,promoCode:"CANCEL20",
+      quoteEvidence:"reviewed-price-cancel-promo-12345",key:"cancel-promo-order-1",media}).id;
+    assert.equal(ledger.list()[0].reserved,1);
+    assert.equal(store.cancelUnstartedCustomerOrder(id,account),true);
+    assert.equal(store.cancelUnstartedCustomerOrder(id,account),false);
+    assert.equal(ledger.list()[0].reserved,0);
+    assert.equal(ledger.list()[0].released,1);
+    assert.equal(ledger.preview("CANCEL20",account,225,8.2).finalCents,180);
+  }finally{store.close();}
+});
 test("price mismatch aborts order and coupon capacity together",()=>{
   const store=new CommerceStore(":memory:");
   try{
