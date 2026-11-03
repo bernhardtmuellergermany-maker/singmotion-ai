@@ -11,6 +11,7 @@ import sharp from "sharp";
 import { trimAudio, validateAudio } from "../media.ts";
 import { IMAGE_LIMIT, composePrompt } from "../domain.ts";
 import { parseStudioDraft } from "../studio-draft.ts";
+import {ensureLocalAsset,ensureLocalMediaPath} from "../cloud-hydration.ts";
 import type { PreparedMedia } from "./store.ts";
 
 export async function sha256File(filename: string): Promise<string> {
@@ -111,6 +112,8 @@ async function prepareOwnedSelection(
     throw new Error(
       "A composed performance prompt is required (at most 1,500 characters).",
     );
+  await ensureLocalAsset(source);
+  await ensureLocalAsset(image);
   const sourcePath = await privateAsset(source.path, dataDir),
     imagePath = await privateAsset(image.path, dataDir);
   const sourceSha256 = await sha256File(sourcePath);
@@ -213,6 +216,8 @@ export async function revalidateMedia(media: PreparedMedia) {
     throw new Error(
       "Confirm the composed prompt is English before authorizing a live test.",
     );
+  await ensureLocalMediaPath(media.owner,media.audioPath);
+  await ensureLocalMediaPath(media.owner,media.imagePath);
   const duration = await validateAudio(media.audioPath, true);
   validateOmniAudio({
     format: "mp3",
