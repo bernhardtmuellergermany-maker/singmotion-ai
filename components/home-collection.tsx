@@ -19,7 +19,7 @@ export function HomeCollection() {
   const [error, setError] = useState("");
   const [deleting, setDeleting] = useState<string | null>(null);
   const [renames, setRenames] = useState<Record<string,string>>({});
-  useEffect(() => { try { setRenames(JSON.parse(localStorage.getItem("sm-gallery-labels") || "{}")); } catch {} }, []);
+  useEffect(() => { try { const saved=JSON.parse(localStorage.getItem("sm-gallery-labels") || "{}"); void Promise.resolve().then(()=>setRenames(saved)); } catch {} }, []);
   const rename = (tile: Tile) => { const next = window.prompt("Project display name", renames[tile.id] || tile.name); if (next === null) return; const value = next.trim().slice(0,80) || "Untitled Project"; setRenames(old => { const updated={...old,[tile.id]:value}; localStorage.setItem("sm-gallery-labels",JSON.stringify(updated)); return updated; }); };
   useEffect(() => {
     let active = true;
