@@ -101,13 +101,16 @@ export class PromotionLedger {
     `);
   }
   private transaction<T>(work: () => T): T {
-    this.db.exec("BEGIN IMMEDIATE");
+    // SAVEPOINT also works inside CommerceStore's BEGIN IMMEDIATE transaction.
+    // That allows pricing, quota reservation and order creation to commit together.
+    this.db.exec("SAVEPOINT promo_redemption");
     try {
       const result = work();
-      this.db.exec("COMMIT");
+      this.db.exec("RELEASE SAVEPOINT promo_redemption");
       return result;
     } catch (error) {
-      this.db.exec("ROLLBACK");
+      this.db.exec("ROLLBACK TO SAVEPOINT promo_redemption");
+      this.db.exec("RELEASE SAVEPOINT promo_redemption");
       throw error;
     }
   }
