@@ -35,7 +35,8 @@ export async function deliverReviewedPaidVideo(
   const info=await lstat(file);
   // An interrupted worker may leave a fully validated output. Do not overwrite
   // it or trust it blindly: reject links, misplaced files and out-of-policy sizes.
-  if(!info.isFile()||info.nlink!==1||info.size<1||info.size>limits.maxBytes||
+  if(!info.isFile()||info.nlink!==1||(info.mode & 0o077)!==0||
+     info.size<1||info.size>limits.maxBytes||
      await realpath(file)!==file)
    throw Error("Existing output requires operator reconciliation");
   existing=true;
