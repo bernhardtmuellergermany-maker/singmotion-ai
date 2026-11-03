@@ -86,7 +86,7 @@ export function stripeCheckoutAdapter(secret: string): PaymentAdapter {
       const checkout = event.data?.object;
       if (checkout?.object !== "checkout.session" || checkout.mode !== "payment" ||
           checkout.payment_status !== "paid" || checkout.currency?.toLowerCase() !== "eur" ||
-          !Number.isSafeInteger(checkout.amount_total) || checkout.amount_total <= 0 ||
+          typeof checkout.amount_total !== "number" || !Number.isSafeInteger(checkout.amount_total) || checkout.amount_total <= 0 ||
           typeof checkout.metadata?.orderId !== "string" || !/^[a-f0-9-]{36}$/.test(checkout.metadata.orderId) ||
           typeof checkout.id !== "string" || !checkout.id.startsWith("cs_test_") ||
           typeof event.id !== "string" || !event.id.startsWith("evt_"))
