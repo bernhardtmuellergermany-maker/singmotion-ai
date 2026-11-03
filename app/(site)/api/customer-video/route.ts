@@ -4,8 +4,7 @@ import { asset, dataDir } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { customerVideoByteRange } from "@/lib/commerce/customer-video-links";
 import { type FileHandle } from "node:fs/promises";
-import { openVerifiedPaidVideoFile } from "@/lib/commerce/private-video-file";
-import { Readable } from "node:stream";
+import { openVerifiedPaidVideoFile, streamVerifiedPaidVideoRange } from "@/lib/commerce/private-video-file";
 import path from "node:path";
 
 export const runtime = "nodejs";
@@ -39,8 +38,7 @@ export async function GET(req: NextRequest) {
     if(!range)return new Response(null,{status:416,
       headers:{...headers,"Content-Range":`bytes */${verified.size}`}});
     const {start,end,status}=range;
-    const stream=fileHandle.createReadStream({start,end,autoClose:true});
-    const body=Readable.toWeb(stream) as ReadableStream;
+    const body=streamVerifiedPaidVideoRange(fileHandle,start,end,req.signal);
     streaming=true;
     return new Response(body,{status,headers:{...headers,
       "Content-Type":"video/mp4","Accept-Ranges":"bytes",
