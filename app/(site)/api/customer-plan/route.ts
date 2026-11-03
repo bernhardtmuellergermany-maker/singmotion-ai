@@ -15,7 +15,7 @@ export async function GET(req:NextRequest){
   const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
   if(!accountId)return NextResponse.json({error:"Customer sign-in required"},{status:401,headers:{"Cache-Control":"private, no-store"}});
   const plan=new PlanLedger(store.db).snapshot(accountId);
-  const row=store.db.prepare("SELECT COUNT(DISTINCT project_id) AS count FROM customer_orders WHERE account_id=?").get(accountId) as {count:number};
-  return NextResponse.json({plan,projects:{used:row.count,limit:plan.maxProjects,remaining:Math.max(0,plan.maxProjects-row.count)},video:{includedSeconds:plan.monthlySeconds,remainingSeconds:plan.secondsRemaining,minimumSeconds:5,canGenerateFromSubscription:plan.code==="hobby"&&plan.secondsRemaining>=5&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"}},{headers:{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
+  // Orders represent purchases, not a quota of currently editable projects.
+  return NextResponse.json({plan,projects:{unlimited:true},video:{includedSeconds:plan.monthlySeconds,remainingSeconds:plan.secondsRemaining,minimumSeconds:5,canGenerateFromSubscription:plan.code==="hobby"&&plan.secondsRemaining>=5&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"}},{headers:{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
  }finally{store.close()}
 }
