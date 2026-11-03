@@ -434,13 +434,13 @@ async function handler(
           });
         headers["Content-Range"] = `bytes ${start}-${end}/${content.length}`;
         headers["Content-Length"] = String(end - start + 1);
-        return new Response(content.subarray(start, end + 1), {
+        return new Response(new Uint8Array(content.subarray(start, end + 1)), {
           status: 206,
           headers,
         });
       }
       headers["Content-Length"] = String(content.length);
-      return new Response(content, { headers });
+      return new Response(new Uint8Array(content), { headers });
     }
     if (route === "artists" && method === "GET")
       return json(list<Artist>("artists", owner));
