@@ -64,6 +64,8 @@ jobs:
       - name: Install Chromium for isolated CMS browser verification
         run: |
           npx playwright install --with-deps chromium
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
           CHROME_PATH=$(node -p 'require("playwright").chromium.executablePath()')
           echo "PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=$CHROME_PATH" >> "$GITHUB_ENV"
       - name: Build Next.js for real CMS HTTP and browser verification
