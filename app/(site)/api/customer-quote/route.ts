@@ -3,7 +3,7 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger, quotePlanSeconds} from "@/lib/commerce/plans";
 import {PromotionLedger} from "@/lib/commerce/promotions";
-import {dataDir} from "@/lib/db";
+import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 
 export const runtime = "nodejs";
@@ -36,6 +36,7 @@ export async function GET(req:NextRequest) {
    const promoCode=req.nextUrl.searchParams.get("promo");
    let promotion=null;
    if(promoCode){
+     try{limit(`promo-preview:${accountId}`,20,60000);}catch{return reply({error:"Too many promotion checks. Please try again later."},429);}
      if(promoCode.length>40)return reply({error:"Invalid promotion code"},400);
      try {
        if(quote.extraCents<=0)return reply({error:"No extra price to discount."},409);
