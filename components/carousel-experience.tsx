@@ -73,6 +73,13 @@ export function CarouselExperience(){
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
   useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";void Promise.resolve().then(()=>setSearchOpen(true));const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
+  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
+  const navigate=useCallback((id:string,replace=false)=>{
+    currentRef.current=id;setCurrent(id);
+    const u=new URL(window.location.href);
+    if(id==="home")u.searchParams.delete("card");else u.searchParams.set("card",id);
+    window.history[replace?"replaceState":"pushState"]({ ...window.history.state, carouselCard:id },"",u.pathname+u.search+u.hash);
+  },[]);
   useEffect(()=>{
     if(!searchOpen)return;
     const onOutside=(event:PointerEvent)=>{
@@ -81,13 +88,6 @@ export function CarouselExperience(){
     document.addEventListener("pointerdown",onOutside);
     return()=>document.removeEventListener("pointerdown",onOutside);
   },[searchOpen,tiles]);
-  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
-  const navigate=useCallback((id:string,replace=false)=>{
-    currentRef.current=id;setCurrent(id);
-    const u=new URL(window.location.href);
-    if(id==="home")u.searchParams.delete("card");else u.searchParams.set("card",id);
-    window.history[replace?"replaceState":"pushState"]({ ...window.history.state, carouselCard:id },"",u.pathname+u.search+u.hash);
-  },[]);
   useEffect(()=>{
     if(!searching)return;
     if(ids.length && !ids.includes(current))void Promise.resolve().then(()=>navigate(ids[0],true));
@@ -259,7 +259,7 @@ export function CarouselExperience(){
                     <small>MP3, WAV, M4A · up to 50 MB</small>
                   </label>}
               {uploadError==="PROJECT_LIMIT_REACHED"
-                ? <div className="sm-carousel-inline-error" role="alert"><strong>Project limit reached</strong><p>Your plan allows a maximum of 3 projects. Delete an existing project before uploading another song, or switch to Hobby for up to 10 projects.</p><p><a href="/projects">Manage projects</a> · <a href="/plans">View Hobby plan</a></p></div>
+                ? <div className="sm-carousel-inline-error" role="alert"><strong>Project limit reached</strong><p>Your plan allows a maximum of 3 projects. Delete an existing project before uploading another song, or switch to Hobby for up to 10 projects.</p><p><Link href="/projects">Manage projects</Link> · <Link href="/plans">View Hobby plan</Link></p></div>
                 : uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
             </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
@@ -404,7 +404,7 @@ function AccountPanel(){
    {mode==="register"&&<><label className="sm-account-label">Confirm password<span className="sm-account-password-wrap"><input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label><p className="sm-account-hint">Use at least 20 characters. Your projects remain private to your account.</p><p className="sm-account-hint">STAGING test account. Email verification is not yet available; please do not use a password from another service.</p></>}
    {mode==="login"&&(recoveryAvailable?<Link className="sm-account-recovery-link" href="/account/reset-password">Forgot password?</Link>:<p className="sm-account-hint">Password recovery will be available after email setup.</p>)}
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
-   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><a className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</a></>}
+   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
