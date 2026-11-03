@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
-import { PlanLedger } from "@/lib/commerce/plans";
 import { prepareCustomerStudioOrder } from "@/lib/commerce/prepare-studio-order";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
@@ -69,15 +68,7 @@ export async function POST(req: NextRequest) {
     const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId);
     if (!account || typeof account.email!=="string")
       return respond({error:"Customer account unavailable."},403);
-    // Enforce the same Free/Hobby project quota in the customer commerce entry.
-    // Revisions to an existing owned project do not consume another slot.
-    const plan=new PlanLedger(store.db).snapshot(accountId);
-    const known=store.db.prepare("SELECT 1 FROM customer_orders WHERE account_id=? AND project_id=? LIMIT 1").get(accountId,payload.projectId);
-    if(!known){
-      const existing=store.db.prepare("SELECT COUNT(DISTINCT project_id) AS count FROM customer_orders WHERE account_id=?").get(accountId) as {count:number};
-      if(existing.count>=plan.maxProjects)
-        return respond({error:`Your ${plan.code} plan allows at most ${plan.maxProjects} customer video projects.`,code:"PROJECT_LIMIT_REACHED",limit:plan.maxProjects},409);
-    }
+    // Historical purchases never count toward an artificial project ceiling.
     // Never accept media owner, price or email from the browser.
     if(payload.promoCode!==undefined &&
        (typeof payload.promoCode!=="string" || payload.promoCode.length>40))
@@ -102,8 +93,6 @@ export async function POST(req: NextRequest) {
       return respond({error:"This video is covered by your Hobby allowance. Paid Checkout is not applicable.",code:"HOBBY_INCLUDED_ONLY"},409);
     if(error instanceof Error && (/^Promotion |^Customer promotion |^VIDEO_TOO_LONG_FOR_PROMO$|^Authenticated paid customer price/.test(error.message)))
       return respond({error:"Promotion is unavailable, expired, exhausted or incompatible with this video.",code:"PROMOTION_UNAVAILABLE"},409);
-    if(error instanceof Error && error.message==="PROJECT_LIMIT_REACHED")
-      return respond({error:"Project limit reached for the current plan.",code:"PROJECT_LIMIT_REACHED"},409);
     return respond({error:"Studio order could not be prepared."},422);
   } finally {
     store?.close();
