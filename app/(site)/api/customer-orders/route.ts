@@ -79,16 +79,29 @@ export async function POST(req: NextRequest) {
         return respond({error:`Your ${plan.code} plan allows at most ${plan.maxProjects} customer video projects.`,code:"PROJECT_LIMIT_REACHED",limit:plan.maxProjects},409);
     }
     // Never accept media owner, price or email from the browser.
+    if(payload.promoCode!==undefined &&
+       (typeof payload.promoCode!=="string" || payload.promoCode.length>40))
+      return respond({error:"Invalid promotion code."},400);
     const order=await prepareCustomerStudioOrder(store,{
       accountId,email:String(account.email),mediaOwner:`customer-${accountId}`,
       draft:payload.draft,projectId:payload.projectId,requestKey:payload.requestKey,
+      promoCode:typeof payload.promoCode==="string" ? payload.promoCode : undefined,
     });
-    return respond({orderId:order.id,checkoutReady:store.reviewedOrderReadyForCheckout(order.id), includedOnly:store.db.prepare("SELECT price_cents FROM customer_orders WHERE id=?").get(order.id)?.price_cents===0},201);
+    const saved=store.db.prepare("SELECT price_cents FROM customer_orders WHERE id=?").get(order.id) as {price_cents:number}|undefined;
+    const freePromo=store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get()
+      ? store.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=? AND discount_cents>0").get(order.id)
+      : undefined;
+    return respond({orderId:order.id,
+      checkoutReady:saved?.price_cents!==0 && store.reviewedOrderReadyForCheckout(order.id),
+      includedOnly:saved?.price_cents===0 && !freePromo,
+      promotionAwaitingActivation:saved?.price_cents===0 && !!freePromo},201);
   } catch (error) {
     if(error instanceof Error && error.message==="PRICE_CHANGED_REVIEW_AGAIN")
       return respond({error:"Your included seconds or price changed. Please review the current price again.",code:"PRICE_CHANGED_REVIEW_AGAIN"},409);
     if(error instanceof Error && error.message==="INCLUDED_HOBBY_REQUIRES_SUBSCRIPTION_FULFILLMENT")
       return respond({error:"This video is covered by your Hobby allowance. Paid Checkout is not applicable.",code:"HOBBY_INCLUDED_ONLY"},409);
+    if(error instanceof Error && (/^Promotion |^Customer promotion |^VIDEO_TOO_LONG_FOR_PROMO$|^Authenticated paid customer price/.test(error.message)))
+      return respond({error:"Promotion is unavailable, expired, exhausted or incompatible with this video.",code:"PROMOTION_UNAVAILABLE"},409);
     if(error instanceof Error && error.message==="PROJECT_LIMIT_REACHED")
       return respond({error:"Project limit reached for the current plan.",code:"PROJECT_LIMIT_REACHED"},409);
     return respond({error:"Studio order could not be prepared."},422);
