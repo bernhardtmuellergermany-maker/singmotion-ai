@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {assertDisposableCmsTestDatabase} from "../cms/test-database-guard.mjs";
+import {assertDisposableCmsTestDatabase,assertSafeCmsLocalTestRunner} from "../cms/test-database-guard.mjs";
 
 const local="postgresql://cms_test_user:local_only@127.0.0.1:5432/singmotion_cms_test";
 test("CMS migration preflight only permits explicitly isolated local *_test database",()=>{
@@ -35,4 +35,17 @@ test("CMS migration preflight refuses Railway, production, live database reuse, 
   assert.throws(()=>assertDisposableCmsTestDatabase({
    CMS_TEST_DATABASE_URL:local,...override
   }),undefined,JSON.stringify(override));
+});
+
+test("isolated CMS launcher refuses inherited database and deployed service settings",()=>{
+ assert.equal(assertSafeCmsLocalTestRunner({NODE_ENV:"test"}),true);
+ for(const env of [
+  {NODE_ENV:"production"},
+  {RAILWAY_PROJECT_ID:"any-project"},
+  {RAILWAY_ENVIRONMENT_ID:"staging"},
+  {RAILWAY_SERVICE_ID:"app"},
+  {CMS_DATABASE_URL:local},
+  {CMS_TEST_DATABASE_URL:local},
+  {DATABASE_URL:local}
+ ])assert.throws(()=>assertSafeCmsLocalTestRunner(env),/refuses|Railway|production/,JSON.stringify(env));
 });
