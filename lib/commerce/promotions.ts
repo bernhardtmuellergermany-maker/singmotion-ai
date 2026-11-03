@@ -78,7 +78,9 @@ export function calculatePromotion(
  * its own verified order transaction; preview never spends a promotion.
  * No route in this module can authorize payments or provider work. */
 export class PromotionLedger {
-  constructor(readonly db: DatabaseSync) {
+  readonly db: DatabaseSync;
+  constructor(db: DatabaseSync) {
+    this.db = db;
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS promo_codes (
         code TEXT PRIMARY KEY, kind TEXT NOT NULL CHECK(kind IN ('percent','free_videos')),
