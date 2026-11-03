@@ -358,7 +358,6 @@ export class CommerceStore {
       // parallel requests cannot spend the same Hobby seconds twice.
       const ledger=input.account?new PlanLedger(this.db):null;
       const plan=input.account?ledger!.snapshot(input.account):null;
-      const seconds=Math.ceil(media.durationSeconds);
       const split=plan?quotePlanSeconds(plan.code,plan.secondsRemaining,media.durationSeconds):null;
       const originalPrice = normalizedPromo ? originalCents : input.cents;
       if(split && split.extraCents!==originalPrice)
