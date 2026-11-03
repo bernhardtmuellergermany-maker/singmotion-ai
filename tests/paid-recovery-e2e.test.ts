@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
+import { chmod, copyFile, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { execFile } from "node:child_process";
@@ -105,6 +105,7 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
     store.recordPaidProviderJob(resumedId,"byteplus","task_offline_resume");
     const saved=path.join(root,"media",`paid-${resumedId}.mp4`);
     await copyFile(fixture,saved);
+    await chmod(saved,0o600);
     putAsset({id:`customer-video-${resumedId}`,owner:"customer-"+owner,
       kind:"video",name:"singmotion.mp4",path:saved,mime:"video/mp4",
       bytes:bytes.length,duration:5,width:null,height:null,created:Date.now()});
