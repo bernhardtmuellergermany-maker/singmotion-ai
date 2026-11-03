@@ -2,8 +2,8 @@ import { NextRequest } from "next/server";
 import { CommerceStore } from "@/lib/commerce/store";
 import { asset, dataDir } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
-import { createReadStream } from "node:fs";
-import { realpath, stat } from "node:fs/promises";
+import { constants } from "node:fs";
+import { open, realpath, type FileHandle } from "node:fs/promises";
 import { Readable } from "node:stream";
 import path from "node:path";
 
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
   const orderId=req.nextUrl.searchParams.get("orderId");
   if(!orderId||!/^[a-f0-9-]{36}$/.test(orderId))return deniedVideo();
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
-  let videoPath:string;
+  let fileHandle:FileHandle|undefined;
+  let streaming=false;
   try{
     const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
     if(!accountId)return deniedVideo(401);
@@ -32,26 +33,36 @@ export async function GET(req: NextRequest) {
     const root=await realpath(path.join(dataDir,"media"));
     const file=await realpath(video.path);
     if(!file.startsWith(root+path.sep))return deniedVideo();
-    const info=await stat(file);
+
+    // Open once, without following a final symlink. The same verified inode is
+    // used for metadata checks and streaming; no second path-based open.
+    fileHandle=await open(file,constants.O_RDONLY|constants.O_NOFOLLOW);
+    const info=await fileHandle.stat();
     if(!info.isFile()||info.size<1||info.size!==video.bytes)return deniedVideo();
-    videoPath=file;
-  }catch{return deniedVideo();}
-  finally{store.close();}
-  const info=await stat(videoPath);
-  const range=req.headers.get("range");
-  let start=0,end=info.size-1,status=200;
-  if(range){
-    const match=/^bytes=(\d+)-(\d*)$/.exec(range);
-    if(!match)return new Response(null,{status:416,headers:{...headers,"Content-Range":`bytes */${info.size}`}});
-    start=Number(match[1]);end=match[2]?Number(match[2]):info.size-1;
-    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=info.size)
-      return new Response(null,{status:416,headers:{...headers,"Content-Range":`bytes */${info.size}`}});
-    status=206;
-  }
-  return new Response(Readable.toWeb(createReadStream(videoPath,{start,end})) as ReadableStream,{
-    status,headers:{...headers,"Content-Type":"video/mp4","Accept-Ranges":"bytes",
+
+    const range=req.headers.get("range");
+    let start=0,end=info.size-1,status=200;
+    if(range){
+      const match=/^bytes=(\\d+)-(\\d*)$/.exec(range);
+      if(!match)return new Response(null,{status:416,headers:{...headers,"Content-Range":`bytes */${info.size}`}});
+      start=Number(match[1]);end=match[2]?Number(match[2]):info.size-1;
+      if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=info.size)
+        return new Response(null,{status:416,headers:{...headers,"Content-Range":`bytes */${info.size}`}});
+      status=206;
+    }
+    const stream=fileHandle.createReadStream({start,end,autoClose:true});
+    const body=Readable.toWeb(stream) as ReadableStream;
+    streaming=true;
+    return new Response(body,{status,headers:{...headers,
+      "Content-Type":"video/mp4","Accept-Ranges":"bytes",
       "Content-Length":String(end-start+1),
       ...(status===206?{"Content-Range":`bytes ${start}-${end}/${info.size}`}:{}),
-      "Content-Disposition":`${req.nextUrl.searchParams.has("download")?"attachment":"inline"}; filename="singmotion.mp4"`},
-  });
+      "Content-Disposition":`${req.nextUrl.searchParams.has("download")?"attachment":"inline"}; filename="singmotion.mp4"`
+    }});
+  }catch{
+    return deniedVideo();
+  }finally{
+    store.close();
+    if(!streaming)await fileHandle?.close();
+  }
 }
