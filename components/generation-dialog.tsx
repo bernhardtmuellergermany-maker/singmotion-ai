@@ -70,8 +70,7 @@ export function GenerationDialog({
   useEffect(() => {
     let active = true;
     const seconds = selection.end - selection.start;
-    setQuotePending(true);
-    setCustomerQuote(null);
+    void Promise.resolve().then(()=>{if(active){setQuotePending(true);setCustomerQuote(null);}});
     const query = new URLSearchParams({seconds:seconds.toFixed(3)});
     if(appliedPromo)query.set("promo",appliedPromo);
     void fetch(`/api/customer-quote?${query.toString()}`,{credentials:"same-origin",cache:"no-store"})
