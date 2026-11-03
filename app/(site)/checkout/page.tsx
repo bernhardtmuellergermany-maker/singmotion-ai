@@ -18,6 +18,21 @@ export default function Page() {
             <p>We are preparing secure payment, order processing, and private video delivery for customers.</p>
           </section>
         ) : null}
+        <section aria-labelledby="promo-heading" style={{marginBlock:"1.5rem"}}>
+          <h2 id="promo-heading">Have a promotion code?</h2>
+          <label htmlFor="promotion-code">Promotion code</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            <input id="promotion-code" type="text" placeholder="Enter your code"
+              autoComplete="off" maxLength={40} disabled={!readiness.readyForPaidOrders}
+              aria-describedby="promotion-status"/>
+            <button type="button" disabled>Apply code</button>
+          </div>
+          <p id="promotion-status">
+            {readiness.readyForPaidOrders
+              ? "Promotional checkout validation is not yet activated."
+              : "Promotion codes can be created by the Super Admin, but cannot be redeemed until secure checkout opens."}
+          </p>
+        </section>
         <p><Link href="/studio">Prepare a video in Studio</Link></p>
         <p><Link href="/signin">Customer account</Link> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link></p>
       </main>
