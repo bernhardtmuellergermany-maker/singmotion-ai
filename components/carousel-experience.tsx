@@ -146,7 +146,7 @@ export function CarouselExperience(){
   useEffect(()=>{
     if(!loading&&!searching&&!ids.includes(current)){
       // Keep the user in the project carousel when a card disappears.
-      navigate(tiles[0]?.id || "home",true);
+      void Promise.resolve().then(()=>navigate(tiles[0]?.id || "home",true));
     }
   },[loading,tiles,current,navigate,searching]);
   const deleteDraft=async(tile:Tile)=>{
