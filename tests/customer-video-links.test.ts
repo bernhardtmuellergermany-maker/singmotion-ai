@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {privateCustomerVideoLinks,customerVideoByteRange} from "../lib/commerce/customer-video-links.ts";
+import {privateCustomerVideoLinks,customerVideoByteRange,customerPaidVideoLabel} from "../lib/commerce/customer-video-links.ts";
 const id="11111111-1111-4111-8111-111111111111";
 test("customer MP4 links only appear for a paid and delivered UUID order",()=>{
  assert.deepEqual(privateCustomerVideoLinks({orderId:id,status:"paid",videoReady:1}),{
@@ -29,4 +29,22 @@ test("customer MP4 supports ordinary, open-ended and suffix HTTP byte ranges",()
  }
  assert.equal(customerVideoByteRange(null,0),null);
  assert.equal(customerVideoByteRange(null,NaN),null);
+});
+
+test("refunded and disputed customer videos never appear unpaid or in progress",()=>{
+ const label=(status:string,fulfillmentState:string|null="pending",videoReady=0)=>
+  customerPaidVideoLabel({status,fulfillmentState,videoReady},true);
+ assert.equal(customerPaidVideoLabel(null,false),"Loading video");
+ assert.equal(customerPaidVideoLabel(null,true),"Video unavailable");
+ assert.equal(label("awaiting_payment",null),"Awaiting payment");
+ assert.equal(label("paid","pending"),"Preparing video");
+ assert.equal(label("paid","processing"),"Preparing video");
+ assert.equal(label("paid","failed"),"Requires review");
+ assert.equal(label("paid","delivered",1),"Completed");
+ assert.equal(label("paid","delivered",0),"Preparing video");
+ assert.equal(label("refunded","failed"),"Payment refunded");
+ assert.equal(label("refunded","delivered",1),"Payment refunded");
+ assert.equal(label("disputed","pending"),"Payment requires review");
+ assert.equal(label("disputed","processing",1),"Payment requires review");
+ assert.equal(label("unknown",null),"Video unavailable");
 });
