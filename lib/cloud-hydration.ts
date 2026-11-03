@@ -12,6 +12,9 @@ import {db,dataDir} from "./db.ts";
 import {customerR2Enabled,readMirroredPrivateSource,sourceAssetLimit,validCloudRecord,type CloudMediaRecord} from "./cloud-media.ts";
 
 export async function ensureLocalAsset(asset:Asset):Promise<string>{
+ // Keep the existing offline/demo fixture path contract unchanged. Only an
+ // actively configured R2 workspace requires cloud-aware cache hydration.
+ if(!customerR2Enabled())return asset.path;
  const root=await realpath(path.join(dataDir,"media"));
  const destination=path.resolve(asset.path);
  if(!destination.startsWith(root+path.sep)||path.dirname(destination)!==root||
