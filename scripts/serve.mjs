@@ -32,6 +32,14 @@ try {
   );
 }
 console.log(`Persistent storage ready (UID ${process.getuid?.()}).`);
+if (process.env.R2_MIGRATE_TEST_DATA === "true") {
+  // Explicit staging-only one-shot pass on the mounted persistent volume.
+  // Failure prevents starting new web/worker instances with partial records.
+  const {migrateTestAssetsToR2}=await import("./migrate-test-assets-to-r2.ts");
+  const result=await migrateTestAssetsToR2();
+  console.log("R2_MIGRATION_VERIFIED "+JSON.stringify(result));
+}
+
 import { spawn } from "node:child_process";
 const web = spawn(
   process.execPath,
