@@ -1,0 +1,28 @@
+import type {DatabaseSync} from "node:sqlite";
+
+/** Owner-scoped, read-only projection for the existing customer output card.
+ * Single-order lookup bypasses the 50 newest-order page without widening access. */
+export function customerOrderStatusFilter(orderId:string|null,projectId:string|null){
+ if(orderId!==null && !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(orderId))
+  throw new Error("Invalid order reference.");
+ if(projectId!==null && !/^[A-Za-z0-9_-]{1,160}$/.test(projectId))
+  throw new Error("Invalid project reference.");
+ return {orderId,projectId,limit:orderId===null?50:1};
+}
+
+export function ownedCustomerOrderStatuses(
+ db:DatabaseSync,accountId:string,filter:{orderId:string|null;projectId:string|null;limit:number}
+):Record<string,unknown>[] {
+ // The owner predicate is mandatory for both the paginated list and direct lookup.
+ return db.prepare(`SELECT o.id AS orderId,o.project_id AS projectId,
+   o.price_cents AS priceCents,o.currency,o.status,o.created,
+   q.state AS fulfillmentState,
+   CASE WHEN q.state='delivered' AND d.asset_id IS NOT NULL THEN 1 ELSE 0 END AS videoReady
+   FROM customer_orders o
+   LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id
+   LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
+   WHERE o.account_id=? AND (? IS NULL OR o.project_id=?) AND (? IS NULL OR o.id=?)
+   ORDER BY o.created DESC,o.id DESC LIMIT ?`).all(
+    accountId,filter.projectId,filter.projectId,filter.orderId,filter.orderId,filter.limit
+   ) as Record<string,unknown>[];
+}
