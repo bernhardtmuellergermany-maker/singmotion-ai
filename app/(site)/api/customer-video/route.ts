@@ -3,8 +3,8 @@ import { CommerceStore } from "@/lib/commerce/store";
 import { asset, dataDir } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { customerVideoByteRange } from "@/lib/commerce/customer-video-links";
-import { constants } from "node:fs";
-import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
+import { type FileHandle } from "node:fs/promises";
+import { openVerifiedPaidVideoFile } from "@/lib/commerce/private-video-file";
 import { Readable } from "node:stream";
 import path from "node:path";
 
@@ -31,23 +31,13 @@ export async function GET(req: NextRequest) {
     if(!assetId)return deniedVideo();
     const video=asset(assetId,`customer-${accountId}`);
     if(video.kind!=="video"||video.mime!=="video/mp4")return deniedVideo();
-    const root=await realpath(path.join(dataDir,"media"));
-    const file=await realpath(video.path);
-    if(!file.startsWith(root+path.sep))return deniedVideo();
-    const beforeOpen=await lstat(video.path);
-    if(!beforeOpen.isFile()||beforeOpen.nlink!==1)return deniedVideo();
-
-    // Open the ORIGINAL path once with O_NOFOLLOW (not the resolved path).
-    // Check the inode after opening: swapping the file between lstat and open
-    // must not allow a different or linked file into the customer stream.
-    fileHandle=await open(video.path,constants.O_RDONLY|constants.O_NOFOLLOW);
-    const info=await fileHandle.stat();
-    if(!info.isFile()||info.nlink!==1||info.dev!==beforeOpen.dev||
-       info.ino!==beforeOpen.ino||info.size<1||info.size!==video.bytes)return deniedVideo();
-
-    const range=customerVideoByteRange(req.headers.get("range"),info.size);
+    const verified=await openVerifiedPaidVideoFile(
+      path.join(dataDir,"media"),video.path,orderId,video.bytes
+    );
+    fileHandle=verified.handle;
+    const range=customerVideoByteRange(req.headers.get("range"),verified.size);
     if(!range)return new Response(null,{status:416,
-      headers:{...headers,"Content-Range":`bytes */${info.size}`}});
+      headers:{...headers,"Content-Range":`bytes */${verified.size}`}});
     const {start,end,status}=range;
     const stream=fileHandle.createReadStream({start,end,autoClose:true});
     const body=Readable.toWeb(stream) as ReadableStream;
@@ -55,7 +45,7 @@ export async function GET(req: NextRequest) {
     return new Response(body,{status,headers:{...headers,
       "Content-Type":"video/mp4","Accept-Ranges":"bytes",
       "Content-Length":String(end-start+1),
-      ...(status===206?{"Content-Range":`bytes ${start}-${end}/${info.size}`}:{}),
+      ...(status===206?{"Content-Range":`bytes ${start}-${end}/${verified.size}`}:{}),
       "Content-Disposition":`${req.nextUrl.searchParams.has("download")?"attachment":"inline"}; filename="singmotion.mp4"`
     }});
   }catch{
