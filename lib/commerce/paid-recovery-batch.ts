@@ -16,6 +16,9 @@ export async function runPaidRecoveryBatch(
  signal:AbortSignal,
  limit=10,
 ){
+ if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+  throw new Error("Invalid recovery batch size");
+ if (signal.aborted) return [];
  const ids=store.acknowledgedPaidRecovery(limit);
  const results: {orderId:string;state:string}[]=[];
  for(const orderId of ids){
