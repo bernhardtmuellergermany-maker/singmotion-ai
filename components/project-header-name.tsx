@@ -18,7 +18,7 @@ export function ProjectHeaderName({id}:{id:string}){
  useEffect(()=>{
   if(!id.startsWith("live_"))return;
   let active=true;const key=id.slice(5);
-  try{const local=localStorage.getItem("sm-live-project-name:"+key);if(local)setName(local);}catch{}
+  try{const local=localStorage.getItem("sm-live-project-name:"+key);if(local)void Promise.resolve().then(()=>{if(active)setName(local)});}catch{}
   void ensureSession().then(()=>api<StudioProject>("studio-live?id="+encodeURIComponent(key)))
    .then(p=>{if(active)setName(old=>old||p.projectName||p.artistName||"Untitled Project")}).catch(()=>{});
   return()=>{active=false};
