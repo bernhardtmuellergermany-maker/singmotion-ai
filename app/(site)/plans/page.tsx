@@ -21,7 +21,7 @@ export default function PlansPage(){
   <section className="sm-plans-grid" aria-label="Compare subscriptions">
    <article className="sm-plan-card">
     <div className="sm-plan-top"><span className="sm-plan-icon"><Music2 size={24}/></span><span className="sm-plan-status">Account available</span></div>
-    <h2>Pay as you go</h2><p className="sm-plan-caption">No subscription. Create up to 3 projects; pay when you generate a video.</p>
+    <h2>Pay as you go</h2><p className="sm-plan-caption">No subscription. Create unlimited projects; pay when you generate a video.</p>
     <div className="sm-plan-price">€0.25 <span>/ generated video second · incl. VAT</span></div><p className="sm-plan-price-note">No monthly fee. Example: 10 seconds cost €2.50; 30 seconds cost €7.50.</p>
     <div className="sm-plan-rule"/>
     <ul><li><Check size={18}/> Up to 3 projects</li><li><Check size={18}/> No subscription or monthly charge</li><li><Check size={18}/> No free video generation included</li><li><Check size={18}/> Video generation is charged separately by the second</li><li><Check size={18}/> 5–300 seconds per video</li></ul>
