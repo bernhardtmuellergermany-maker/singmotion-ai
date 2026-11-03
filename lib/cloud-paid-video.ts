@@ -37,12 +37,23 @@ export async function mirrorPrivatePaidVideo(accountId:string,orderId:string,fil
  const record={key:privatePaidVideoKey(accountId,orderId,digest.sha256),sha256:digest.sha256,bytes:expectedBytes};
  const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
  try{
-  await client.send(new PutObjectCommand({
-   Bucket:config.bucket,Key:record.key,Body:createReadStream(file),
-   ContentLength:expectedBytes,ContentType:"video/mp4",ContentMD5:digest.md5,
-   CacheControl:"private, no-store",IfNoneMatch:"*",
-   Metadata:{"singmotion-sha256":digest.sha256},
-  }));
+  let already=false;
+  try{
+   const existing=await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}));
+   if(existing.ContentLength!==expectedBytes||existing.Metadata?.["singmotion-sha256"]!==digest.sha256)
+    throw Error("Existing paid archive differs from validated MP4");
+   already=true;
+  }catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==404)throw e}
+  if(!already){
+   try{
+    await client.send(new PutObjectCommand({
+     Bucket:config.bucket,Key:record.key,Body:createReadStream(file),
+     ContentLength:expectedBytes,ContentType:"video/mp4",ContentMD5:digest.md5,
+     CacheControl:"private, no-store",IfNoneMatch:"*",
+     Metadata:{"singmotion-sha256":digest.sha256},
+    }));
+   }catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e}
+  }
   const head=await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}));
   if(head.ContentLength!==expectedBytes||head.Metadata?.["singmotion-sha256"]!==digest.sha256)
    throw Error("Paid R2 object verification failed");
