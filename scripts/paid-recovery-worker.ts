@@ -56,8 +56,9 @@ export async function runPaidRecoveryCommand(args: readonly string[], env = proc
   // Exclusive process lock; no overlap and no automatic stale-lock removal.
   const lock = path.join(dataDir,"paid-recovery-execution.lock");
   const handle = await open(lock,"wx",0o600);
-  const store = new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+  let store: CommerceStore | undefined;
   try {
+    store = new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     const signed = createSignedTransport(fetch);
     const statusOnly: Transport = (request, signal) => {
       const url = new URL(request.url);
@@ -73,7 +74,7 @@ export async function runPaidRecoveryCommand(args: readonly string[], env = proc
     return {mode:"once", examined:results.length, outcomes:counts,
       generatedTasks:0};
   } finally {
-    store.close();
+    store?.close();
     await handle.close();
     await unlink(lock);
   }
