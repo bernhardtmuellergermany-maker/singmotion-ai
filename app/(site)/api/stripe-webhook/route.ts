@@ -31,9 +31,9 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
  if(!new RegExp(refund?"^re_[A-Za-z0-9_]+$":"^dp_[A-Za-z0-9_]+$").test(object.id))
    throw Error("Invalid reversal ID");
  const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key);
- if(verified.livemode!==false||verified.id!==object.id)throw Error("Reversal mismatch");
+ if(verified.livemode!==false||typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
  if(refund&&verified.status!=="succeeded")return; // No release on pending/failed refunds.
- if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status))
+ if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status||""))
    return;
  if(typeof verified.charge!=="string"||!/^ch_[A-Za-z0-9_]+$/.test(verified.charge))
    throw Error("Charge reference missing");
@@ -44,6 +44,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
  if(!Array.isArray(sessions.data)||sessions.data.length!==1)throw Error("Checkout reconciliation ambiguous");
  const session=sessions.data[0];
  if(session.livemode!==false||session.mode!=="payment"||
+   typeof session.id!=="string"||
    !/^cs_test_[A-Za-z0-9_]+$/.test(session.id)||
    session.payment_status!=="paid"||
    session.payment_intent!==charge.payment_intent||
@@ -56,7 +57,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
  if(!bound)throw Error("Checkout is not bound to an order");
  const evidence="verified-stripe-"+event.id+"-"+verified.id;
  if(refund){
-   if(!Number.isSafeInteger(verified.amount)||verified.amount!==charge.amount||
+   if(typeof verified.amount!=="number"||!Number.isSafeInteger(verified.amount)||verified.amount!==charge.amount||
      verified.currency!=="eur")throw Error("Full-refund verification required");
    store.reconcileVerifiedStripeRefund({orderId:bound.order_id,stripeCheckoutId:session.id,
      refundId:verified.id,refundedCents:verified.amount,evidence});
@@ -80,7 +81,7 @@ export async function POST(req: NextRequest) {
     const event=verifyStripeSandboxEvent(raw,signature,secret);
     if(event.type==="checkout.session.completed")
       await store.webhook(raw,signature,stripeCheckoutAdapter(secret));
-    else if(["refund.created","refund.updated","charge.dispute.created"].includes(event.type))
+    else if(["refund.created","refund.updated","charge.dispute.created"].includes(event.type||""))
       await reconcileReversal(store,event);
     // Other signed Stripe events are unrelated to single-video settlement.
     return NextResponse.json({ received: true }, { headers: { "Cache-Control": "no-store" } });
