@@ -50,3 +50,14 @@ test("expiry releases stuck reservations but never deletes purchased or uploaded
  assert.throws(()=>commitUploadedAsset(db,asset(old,"customer-a",90)),/reservation missing/);
  db.close();
 });
+
+test("Hobby downgrade to Free preserves existing assets and blocks only new over-quota uploads",()=>{
+ const db=make(),owner="customer-downgrade",id=randomUUID();
+ reserveUploadStorage(db,owner,id,2*1024**3,uploadStorageLimit("hobby"));
+ commitUploadedAsset(db,asset(id,owner,2*1024**3));
+ assert.equal(uploadedBytes(db,owner),2*1024**3);
+ assert.throws(()=>reserveUploadStorage(db,owner,randomUUID(),1,uploadStorageLimit("free")) ,/Upload storage full/);
+ assert.equal(uploadedBytes(db,owner),2*1024**3);
+ assert.ok(db.prepare("SELECT id FROM assets WHERE id=?").get(id));
+ db.close();
+});
