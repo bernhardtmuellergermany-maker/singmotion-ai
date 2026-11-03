@@ -1456,7 +1456,7 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
         true,
         true,
       );
-      assert.ok(plan.durationSeconds > 5); // cap/quote uses encoded slowed audio, not 4.5 seconds
+      assert.ok(plan.durationSeconds > 5); // cap/quote uses measured encoded slowed audio, not the source duration
       const confirm = `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}`;
       await service.submit(
         plan.id,
