@@ -1,0 +1,69 @@
+name: CMS isolated PostgreSQL integration
+
+on:
+  push:
+    branches:
+      - fix/tempo-distinguish-provider-errors-20261028
+    paths:
+      - ".github/workflows/cms-isolated.yml"
+      - "cms/**"
+      - "payload.config.ts"
+      - "tests/cms.integration.ts"
+      - "tests/cms.browser.ts"
+      - "tests/cms-database-guard.test.mjs"
+      - "scripts/test-cms-isolated.mjs"
+      - "package.json"
+      - "package-lock.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cms-isolated-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payload-postgres-integration:
+    name: Payload migrations, roles, publishing, media and audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      NODE_ENV: test
+      CMS_TEST_DATABASE_URL: postgresql://cms_test_user:disposable_only_not_railway@127.0.0.1:5432/singmotion_cms_test
+      GENERATIONS_ENABLED: "false"
+      BYTEPLUS_LIVE_TEST_ENABLED: "false"
+      BYTEPLUS_FIRST_TEST_ENABLED: "false"
+      STRIPE_LIVE_ENABLED: "false"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cms_test_user
+          POSTGRES_PASSWORD: disposable_only_not_railway
+          POSTGRES_DB: singmotion_cms_test
+        ports:
+          - 127.0.0.1:5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cms_test_user -d singmotion_cms_test"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci
+      - name: Validate CMS DB guard before touching the disposable database
+        run: npm run test:cms:compat
+      - name: Run real Payload PostgreSQL migrations and CMS integration suite
+        run: npm run test:cms
+      - name: Confirm no real payments or BytePlus operations were activated
+        if: always()
+        run: |
+          test "${GENERATIONS_ENABLED}" = false
+          test "${BYTEPLUS_LIVE_TEST_ENABLED}" = false
+          test "${STRIPE_LIVE_ENABLED}" = false
