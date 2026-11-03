@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProductHeader } from "@/components/product-header";
+import { PromoQuotePreview } from "@/components/promo-quote-preview";
 import { customerLaunchReadiness } from "@/lib/commerce/readiness";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "SingMotion · Checkout", robots: { index: false, follow: false } };
@@ -33,6 +34,7 @@ export default function Page() {
               : "Promotion codes can be created by the Super Admin, but cannot be redeemed until secure checkout opens."}
           </p>
         </section>
+        {process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" ? <PromoQuotePreview/> : null}
         <p><Link href="/studio">Prepare a video in Studio</Link></p>
         <p><Link href="/signin">Customer account</Link> · <Link href="/terms">Terms</Link> · <Link href="/privacy">Privacy</Link></p>
       </main>
