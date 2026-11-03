@@ -4,7 +4,7 @@
  */
 import {randomUUID} from "node:crypto";
 import {constants} from "node:fs";
-import {realpath,stat,writeFile,rename,unlink,open} from "node:fs/promises";
+import {realpath,stat,writeFile,link,unlink,open} from "node:fs/promises";
 import path from "node:path";
 import type {Asset} from "./domain.ts";
 import {db,dataDir} from "./db.ts";
