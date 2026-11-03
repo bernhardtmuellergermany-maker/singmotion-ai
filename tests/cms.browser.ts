@@ -303,9 +303,11 @@ try {
   const page = await context.newPage();
   // Studio session/quote must work behind TLS termination without APP_ORIGIN.
   await page.goto(origin + "/studio");
-  await page
-    .getByRole("heading", { name: "Add your song", exact: true })
-    .waitFor();
+  // The current four-step Studio renders an audio upload instead of the
+  // retired "Add your song" heading from the previous product design.
+  await page.locator('input[aria-label="Choose audio file"]').waitFor({
+    state: "attached",
+  });
   await page.waitForFunction(
     () =>
       !document.querySelector<HTMLInputElement>(
