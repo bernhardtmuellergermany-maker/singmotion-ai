@@ -11,11 +11,10 @@ export function PageContentSearch(){
  useEffect(()=>{if(open)input.current?.focus();},[open]);
  useEffect(()=>{
   const root=document.querySelector<HTMLElement>(".sm-legal-main");
-  if(!root||!query.trim()){setHits([]);setIndex(-1);return;}
+  if(!root||!query.trim()){void Promise.resolve().then(()=>{setHits([]);setIndex(-1);});return;}
   const needle=query.trim().toLocaleLowerCase();
   const elements=Array.from(root.querySelectorAll<HTMLElement>(".sm-legal-panel h2,.sm-legal-panel p,.sm-legal-panel address,.sm-help-group h2,.sm-help-question summary,.sm-help-question p"));
-  setHits(elements.filter(el=>el.textContent?.toLocaleLowerCase().includes(needle)));
-  setIndex(-1);
+  void Promise.resolve().then(()=>{setHits(elements.filter(el=>el.textContent?.toLocaleLowerCase().includes(needle)));setIndex(-1);});
  },[query]);
  function jump(next:number){
   if(!hits.length)return;
