@@ -228,9 +228,7 @@ export function StudioWizard({
         .catch((cause) => {
           if (current)
             setError(
-              (cause as Error).message.includes("limit of 3 drafts")
-                ? "You have used all 3 guest drafts. Log in to create more drafts."
-                : "Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
+"Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
             );
         });
     }, delay);
