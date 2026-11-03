@@ -7,7 +7,7 @@ import { reservedUsd, secondReview } from "./second-test.ts";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "../commerce/store.ts";
-import {PlanLedger,PLAN_RULES} from "../commerce/plans.ts";
+import {PlanLedger} from "../commerce/plans.ts";
 import { mkdir, realpath, stat, unlink } from "node:fs/promises";
 import { LiveTestStore, confirmationPhrase, type Attempt } from "./store.ts";
 import { prepareStudioDraft } from "./media.ts";
@@ -643,18 +643,8 @@ export class StudioWorkflow {
     const old = this.store.db
       .prepare("SELECT id FROM live_attempts WHERE source_job_id=?")
       .get(source) as { id: string } | undefined;
-    // Only new STAGING projects count; existing reviews and retries remain accessible.
-    // The super-admin's operational projects must never be constrained by consumer plans.
-    if (!old && !this.superAdmin && process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041") {
-      let projectLimit=PLAN_RULES.free.maxProjects;
-      if(owner.startsWith("customer-")){
-        const accountStore=new CommerceStore(path.join(this.root,"commerce.sqlite"));
-        try{projectLimit=new PlanLedger(accountStore.db).snapshot(owner.slice("customer-".length)).maxProjects;}
-        finally{accountStore.close();}
-      }
-      const existing=(this.store.db.prepare("SELECT COUNT(*) AS n FROM live_studio_projects WHERE owner=?").get(owner) as {n:number}).n;
-      if(existing>=projectLimit)throw new StudioLiveError("PROJECT_LIMIT_REACHED",`This plan includes up to ${projectLimit} projects. Remove an existing project or upgrade before creating another.`,409);
-    }
+    // Unlimited new projects for every plan. Provider authorization, concurrent
+    // work caps, paid seconds, and upload bytes remain independent safeguards.
     const rootPolicy = this.superAdmin
       ? superAdminStudioPolicy(await this.dependencies.policy())
       : validateStudioPolicy(await this.dependencies.policy());
