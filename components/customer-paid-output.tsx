@@ -7,6 +7,7 @@ type CustomerOrder={orderId:string;projectId:string;status:string;fulfillmentSta
 export function CustomerPaidOutput({orderId}:{orderId:string}){
  const [order,setOrder]=useState<CustomerOrder|null>(null);
  const [error,setError]=useState("");
+ const [loaded,setLoaded]=useState(false);
  useEffect(()=>{
   let live=true;let timer:ReturnType<typeof setTimeout>;
   async function poll(){
@@ -15,7 +16,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
      const response=await fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"});
      if(!response.ok)throw Error("Order status unavailable");
      const data=await response.json() as {orders:CustomerOrder[]};
-     if(live){setOrder(data.orders.find(o=>o.orderId===orderId)||null);setError("");}
+     if(live){setOrder(data.orders.find(o=>o.orderId===orderId)||null);setLoaded(true);setError("");}
     }catch{if(live)setError("Unable to refresh video status.");}
    }
    if(live)timer=setTimeout(poll,5000);
@@ -23,7 +24,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
   void poll();return()=>{live=false;clearTimeout(timer)};
  },[orderId]);
  const ready=order?.status==="paid"&&order.videoReady===1&&!!order.videoUrl&&!!order.downloadUrl;
- const status=ready?"Completed":order?.fulfillmentState==="failed"?"Requires review":order?.status==="paid"?"Preparing video":"Awaiting payment";
+ const status=!loaded?"Loading video":!order?"Video unavailable":ready?"Completed":order.fulfillmentState==="failed"?"Requires review":order.status==="paid"?"Preparing video":"Awaiting payment";
  return <div id="content" className="sm-live-page">
   {error&&<p className="error" role="alert">{error}</p>}
   <div className="sm-carousel-stage sm-output-stage">
