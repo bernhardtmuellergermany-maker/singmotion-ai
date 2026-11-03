@@ -29,3 +29,39 @@ test("patched sharp version loads its packaged libvips and can convert and resiz
  assert.equal(metadata.width,8);
  assert.equal(metadata.height,6);
 });
+
+import {assessProductionDependencyAudit} from "../scripts/audit-policy.mjs";
+
+test("npm audit policy accepts complete low/moderate reports but never overlooks severe findings",()=>{
+ const report=(counts:Record<string,number>,issues:Record<string,unknown>={})=>({
+  metadata:{vulnerabilities:{critical:0,high:0,moderate:0,low:0,total:0,...counts}},
+  vulnerabilities:issues
+ });
+ const moderate=assessProductionDependencyAudit(report({moderate:1,total:1},{
+  "example-transitive-lib":{severity:"moderate",isDirect:false,fixAvailable:true}
+ }));
+ assert.equal(moderate.blocked,false);
+ assert.equal(moderate.summary.moderate,1);
+ assert.deepEqual(moderate.summary.top,[{
+  name:"example-transitive-lib",severity:"moderate",direct:false,fixAvailable:"patch"
+ }]);
+ assert.equal(assessProductionDependencyAudit(report({high:1,total:1},{
+  "unsafe-sharp":{severity:"high",isDirect:true,fixAvailable:false}
+ })).blocked,true);
+ assert.equal(assessProductionDependencyAudit(report({critical:1,total:1},{
+  "critical-html-parser":{severity:"critical",isDirect:false}
+ })).blocked,true);
+});
+test("npm audit policy fails closed on missing, inconsistent or malformed reports",()=>{
+ const report=(counts:Record<string,number>,issues:Record<string,unknown>={})=>({
+  metadata:{vulnerabilities:{critical:0,high:0,moderate:0,low:0,total:0,...counts}},
+  vulnerabilities:issues
+ });
+ for(const invalid of [
+  null,{}, {error:{code:"ENOAUDIT"}},
+  {metadata:{vulnerabilities:{critical:0,high:0,moderate:0,low:0,total:0}}},
+  report({critical:-1}), report({high:NaN}),report({moderate:1,total:0}),
+  report({critical:0,high:0,total:0},{"unsafe":{severity:"high"}}),
+  report({critical:0,high:0,total:0},{"unknown":{severity:"urgent"}}),
+ ])assert.throws(()=>assessProductionDependencyAudit(invalid),undefined,JSON.stringify(invalid));
+});
