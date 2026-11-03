@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
-    "build": "node scripts/audit-build.mjs && node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/paid-video-delivery.test.ts tests/paid-output-recovery.test.ts tests/paid-customer-recovery.test.ts tests/paid-recovery-batch.test.ts tests/paid-recovery-e2e.test.ts tests/inspect-paid-recovery.test.ts tests/paid-recovery-preflight.test.ts tests/customer-video-links.test.ts tests/dependency-security.test.ts tests/audit-policy.test.mjs tests/cms-database-guard.test.mjs tests/cms-compatibility.test.mjs && next build",
+    "build": "node scripts/audit-build.mjs && node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/paid-video-delivery.test.ts tests/paid-output-recovery.test.ts tests/paid-customer-recovery.test.ts tests/paid-recovery-batch.test.ts tests/paid-recovery-e2e.test.ts tests/inspect-paid-recovery.test.ts tests/paid-recovery-preflight.test.ts tests/customer-video-links.test.ts tests/customer-orders-query.test.ts tests/dependency-security.test.ts tests/audit-policy.test.mjs tests/cms-database-guard.test.mjs tests/cms-compatibility.test.mjs && next build",
     "start": "next start --hostname 0.0.0.0 -p ${PORT:-3000}",
     "worker": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/worker.ts",
     "lint": "eslint .",
