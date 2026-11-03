@@ -4,6 +4,7 @@ import {CommerceStore} from "./store.ts";
 import {downloadValidatedOutput,validateOutput,outputTransferLimits,type OutputValidationContract} from "../live/output.ts";
 import type {OutputTransport} from "../live/output-transport.ts";
 import {asset,db,putAsset} from "../db.ts";
+import {mirrorPrivatePaidVideo} from "../cloud-paid-video.ts";
 
 /** Trusted worker only; never call from a browser route.
  * A completed BytePlus task is still not a customer delivery until the private
@@ -64,6 +65,16 @@ export async function deliverReviewedPaidVideo(
   putAsset({id:assetId,owner,kind:"video",
    name:"singmotion.mp4",path:file,mime:"video/mp4",bytes:details.size,
    duration:media.durationSeconds,width:null,height:null,created:Date.now()});
+ }
+ // The R2 copy is strictly optional outside protected staging; when enabled,
+ // a delivered receipt must never point at an unverified remote archive.
+ const cloud=await mirrorPrivatePaidVideo(order.account_id,orderId,file,details.size);
+ if(cloud){
+  store.db.exec("CREATE TABLE IF NOT EXISTS cloud_paid_videos(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+  const previous=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,order.account_id) as {key:string;sha256:string;bytes:number}|undefined;
+  if(previous && (previous.key!==cloud.key||previous.sha256!==cloud.sha256||previous.bytes!==cloud.bytes))
+   throw Error("Paid R2 archive requires operator reconciliation");
+  if(!previous)store.db.prepare("INSERT INTO cloud_paid_videos(order_id,account_id,key,sha256,bytes,created) VALUES(?,?,?,?,?,?)").run(orderId,order.account_id,cloud.key,cloud.sha256,cloud.bytes,Date.now());
  }
  const evidence=`private-validated-byteplus-output:${orderId}:${details.size}`;
  store.recordPaidVideoDelivery(orderId,assetId,evidence);
