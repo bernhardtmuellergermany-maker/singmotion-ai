@@ -7,7 +7,7 @@ import {readFile} from "node:fs/promises";
 import {randomUUID,createHash} from "node:crypto";
 import {S3Client,DeleteObjectCommand,HeadObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "../lib/live/r2-config.ts";
-import {customerR2Enabled,mirrorPrivateSource,readMirroredPrivateSource,deleteMirroredPrivateSource} from "../lib/cloud-media.ts";
+import {customerR2Enabled,mirrorPrivateSource,readMirroredPrivateSource,deleteMirroredPrivateSource,privateSourceKey} from "../lib/cloud-media.ts";
 import {mirrorPrivatePaidVideo,paidR2ByteRange,privatePaidVideoKey,type CloudPaidVideoRecord} from "../lib/cloud-paid-video.ts";
 import type {Asset} from "../lib/domain.ts";
 
@@ -24,20 +24,25 @@ async function canary(){
  const a:Asset={id,owner,kind:"video",name:"canary.mp4",path:file,mime:"video/mp4",
   bytes:original.byteLength,duration:10,width:null,height:null,created:Date.now()};
  const recordKey=privatePaidVideoKey(accountId,orderId,digest(original));
+ const sourceKey=privateSourceKey(owner,id,digest(original));
  const cfg=loadR2Config(),client=new S3Client(r2ClientConfig(cfg));
  let source:Awaited<ReturnType<typeof mirrorPrivateSource>>=null;
  let paid:CloudPaidVideoRecord|undefined;
  let error:unknown;
+ let stage="source upload";
  try{
   source=await mirrorPrivateSource(a);
   if(!source)throw Error("Private source storage not active");
+  stage="source readback";
   const restored=await readMirroredPrivateSource(owner,id,source,256*1024*1024);
   if(digest(restored)!==digest(original)||!restored.equals(original))
    throw Error("R2 full original is not byte-for-byte identical");
+  stage="paid archive";
   paid=await mirrorPrivatePaidVideo(accountId,orderId,file,original.byteLength)??undefined;
   if(!paid)throw Error("Private paid R2 archive not active");
   // A 206 response must contain exactly the server-owned requested bytes;
   // test both a short seek and full secure playback, not just HEAD metadata.
+  stage="paid range stream";
   for(const [start,end] of [[100,Math.min(8191,original.length-1)],[0,original.length-1]]){
    const response=await paidR2ByteRange(accountId,orderId,paid,start,end);
    const reader=response.getReader();const chunks:Uint8Array[]=[];let total=0;
@@ -63,8 +68,17 @@ async function canary(){
    throw Error("Paid R2 canary deletion not confirmed");
   }catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==404)throw e}
  }catch(e){error??=e}
- try{if(source)await deleteMirroredPrivateSource(owner,id,source)}catch(e){error??=e}
+ try{
+  if(source)await deleteMirroredPrivateSource(owner,id,source);
+  else{
+   // A failed/uncertain source PUT may still have created an object.
+   await client.send(new DeleteObjectCommand({Bucket:cfg.bucket,Key:sourceKey}));
+   try{await client.send(new HeadObjectCommand({Bucket:cfg.bucket,Key:sourceKey}));
+    throw Error("Source R2 canary deletion not confirmed");
+   }catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==404)throw e}
+  }
+ }catch(e){error??=e}
  client.destroy();
- if(error)throw Error("Private R2 canary failed or cleanup could not be confirmed");
+ if(error)throw Error("Private R2 canary failed in "+stage+" or cleanup could not be confirmed");
 }
 await canary().catch(e=>{console.error(e instanceof Error?e.message:"R2 canary error");process.exitCode=1});
