@@ -36,7 +36,7 @@ export default async function Page({
       authenticatedOwner = Boolean(account && order && order.account_id === account);
       if(authenticatedOwner && store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get())
         promotion = store.db.prepare("SELECT code,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?")
-          .get(id) as typeof promotion;
+          .get(id) as {code:string;original_cents:number;discount_cents:number;state:string} | undefined ?? null;
       const fulfillment = store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(id);
       fulfillmentState = fulfillment ? String(fulfillment.state) : null;
       videoReady = store.ownedDeliveredVideoAsset(id, account, guestToken) !== null;
