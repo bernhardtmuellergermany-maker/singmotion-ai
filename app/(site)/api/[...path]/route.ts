@@ -1,6 +1,7 @@
 import { CommerceStore } from "@/lib/commerce/store";
 import { PlanLedger } from "@/lib/commerce/plans";
 import { uploadStorageLimit, reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
+import {mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import { parseSavedStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -385,7 +386,8 @@ async function handler(
           height,
           created: Date.now(),
         };
-        commitUploadedAsset(db,a);
+        const mirrored=await mirrorPrivateSource(a);
+        commitUploadedAsset(db,a,mirrored);
         return json(safeAsset(a), 201);
       } catch (e) {
         releaseUploadStorage(db,owner,assetId);
@@ -400,7 +402,17 @@ async function handler(
     if (route === "assets" && id && method === "GET") {
       const a = asset(id, owner);
       const playback = a.kind === "audio" && req.nextUrl.searchParams.has("playback") && (a.mime === "audio/wav" || a.mime === "audio/mp4");
-      const content = await readFile(playback ? path.join(dataDir, "media", `${a.id}.preview.mp3`) : a.path);
+      let content:Buffer;
+      try{
+        content=await readFile(playback ? path.join(dataDir,"media",`${a.id}.preview.mp3`) : a.path);
+      }catch(error){
+        if((error as NodeJS.ErrnoException).code!=="ENOENT" || playback || !a.owner.startsWith("customer-"))
+          throw error;
+        const row=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(a.id,owner) as CloudMediaRecord|undefined;
+        if(!row)throw error;
+        // R2 is a private recovery copy, never a public direct-download URL.
+        content=await readMirroredPrivateSource(owner,a.id,row,51*1024*1024);
+      }
       const headers: Record<string, string> = {
         "Content-Type": playback ? "audio/mpeg" : a.mime,
         "Cache-Control": "private, no-store",
