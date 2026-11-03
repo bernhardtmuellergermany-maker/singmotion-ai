@@ -93,6 +93,33 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
       outputTransport, new AbortController().signal, 10), []);
     assert.equal(statusReads, 1);
     assert.equal(downloads, 1);
+    // An acknowledged but ambiguous result must never download or re-submit.
+    const uncertain = store.preparedVideoOrder({
+      account: owner, email: "customer@example.test", project: "offline-uncertain-e2e",
+      cents: 125, quoteEvidence: "verified-offline-uncertain-quote-2026",
+      key: "offline-uncertain-e2e", media,
+    }).id;
+    store.bindStripeCheckout(uncertain, "cs_test_offline_uncertain");
+    await store.webhook(new Uint8Array(), "signed", { async verify() {
+      return { provider:"stripe", eventId:"evt_offline_uncertain", orderId:uncertain,
+        cents:125, currency:"EUR" as const, evidence:"cs_test_offline_uncertain" };
+    } });
+    assert.equal(store.claimPaidFulfillment(uncertain), true);
+    assert.equal(store.beginPaidProviderSubmission(uncertain), true);
+    store.recordPaidProviderJob(uncertain, "byteplus", "task_offline_uncertain");
+    let uncertainStatusReads = 0;
+    const unverified = await runPaidRecoveryBatch(store, root, contract,
+      async request => {
+        assert.match(request.url, /CVSync2AsyncGetResult/);
+        uncertainStatusReads++;
+        return {status:200, body:{code:10000, data:{status:"not_found"}}};
+      }, async () => {
+        throw Error("An unverified provider result must not download");
+      }, new AbortController().signal, 10);
+    assert.deepEqual(unverified,[{orderId:uncertain,state:"unverified"}]);
+    assert.equal(uncertainStatusReads,1);
+    assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(uncertain)?.state,"processing");
+    assert.equal(store.ownedDeliveredVideoAsset(uncertain,owner),null);
     db.close();
   } finally {
     store?.close();
