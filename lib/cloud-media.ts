@@ -19,7 +19,15 @@ const idComponent=(id:string)=>/^[a-f0-9-]{36}$/.test(id)?id:sha(id);
 export function sourceAssetLimit(kind:Asset["kind"]):number{
  return kind==="video"?256*1024*1024:50*1024*1024;
 }
-export const customerR2Enabled=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"&&process.env.CUSTOMER_R2_STORAGE_ENABLED==="true";
+export const customerR2Enabled=()=>{
+ if(process.env.CUSTOMER_R2_STORAGE_ENABLED!=="true")return false;
+ const env=process.env.RAILWAY_ENVIRONMENT_ID;
+ if(env==="dfaeabed-03df-43ed-aa71-50f343a75041")return true;
+ // Public launch requires its OWN verified production R2 credentials and a
+ // second, explicit release approval. Never inherit Staging's opt-in.
+ return env==="36adc41d-7e54-4396-ad1a-fd432ba0441d"&&
+  process.env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED==="true";
+};
 export function privateSourceKey(owner:string,id:string,digest:string):string{
  if(!validOwner(owner)||!validId(id)||!/^[a-f0-9]{64}$/.test(digest))
   throw Error("Invalid private R2 source identity");
