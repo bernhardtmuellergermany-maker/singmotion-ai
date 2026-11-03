@@ -316,7 +316,9 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   await restoreTempoOutput(raw, final, slow, contract);
   await validateRestored(final, slow, contract);
   assert.ok(Math.abs(slow.tempo!.originalDecodedSeconds! - 5) < 0.001);
-  assert.ok(slow.durationSeconds > slow.tempo!.providerDecodedSeconds!); // MP3 padding is not music
+  // Container duration may be slightly above or below decoded samples across FFmpeg versions.
+  // Bound encoder framing without treating that padding as source music.
+  assert.ok(Math.abs(slow.durationSeconds - slow.tempo!.providerDecodedSeconds!) < 0.12);
   // Provider may add a bounded tail: trim that tail, don't stretch it across the song.
   const tail = path.join(root, "provider-tail.mp4");
   ff([
