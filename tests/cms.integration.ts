@@ -5,17 +5,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
-const database = process.env.CMS_TEST_DATABASE_URL;
-if (!database)
-  throw new Error(
-    "CMS_TEST_DATABASE_URL must identify a disposable local database ending in _test.",
-  );
-const url = new URL(database);
-if (
-  !["localhost", "127.0.0.1"].includes(url.hostname) ||
-  !url.pathname.endsWith("_test")
-)
-  throw new Error("Refusing nonlocal/non-test CMS database.");
+import { assertDisposableCmsTestDatabase } from "../cms/test-database-guard.mjs";
+const database = assertDisposableCmsTestDatabase(process.env);
 const directory = await mkdtemp(path.join(tmpdir(), "sm-cms-"));
 Object.assign(process.env, {
   CMS_DATABASE_URL: database,
