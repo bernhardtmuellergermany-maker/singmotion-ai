@@ -571,10 +571,11 @@ try {
   assert.ok(cookie?.secure);
   assert.equal(cookie?.sameSite, "Strict");
   await page.goto(origin + "/");
-  await page
-    .getByRole("heading", { name: "Add your song", exact: true })
-    .waitFor();
-  assert.equal(await page.locator(".wizard-steps button").count(), 4);
+  // The current homepage is a carousel. The old multi-step wizard header
+  // was replaced; both the showcase and upload cards remain available.
+  await page.locator(".sm-carousel-stage").waitFor();
+  assert.ok(await page.locator('[aria-label="SingMotion AI Showcase"]').count());
+  assert.ok(await page.locator('[aria-label="Audio upload"]').count());
   await page.goto(origin + "/cms-preview/home");
   await page
     .getByRole("heading", { name: "A published artist story", exact: true })
