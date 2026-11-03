@@ -2,6 +2,7 @@ import { CommerceStore } from "@/lib/commerce/store";
 import { PlanLedger } from "@/lib/commerce/plans";
 import { uploadStorageLimit, reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
 import {mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
+import {ensureLocalAsset} from "@/lib/cloud-hydration";
 import { parseSavedStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -408,13 +409,20 @@ async function handler(
       try{
         content=await readFile(playback ? path.join(dataDir,"media",`${a.id}.preview.mp3`) : a.path);
       }catch(error){
-        if((error as NodeJS.ErrnoException).code!=="ENOENT" || playback)
-          throw error;
-        if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'cloud_source_media\'").get())throw error;
-        const row=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(a.id,owner) as CloudMediaRecord|undefined;
-        if(!row)throw error;
-        // R2 is a private recovery copy, never a public direct-download URL.
-        content=await readMirroredPrivateSource(owner,a.id,row,a.kind==="video"?256*1024*1024:51*1024*1024);
+        if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+        if(playback){
+          // Recreate only the disposable browser MP3 preview from the
+          // owner-verified R2 original when the local preview was evicted.
+          await ensureLocalAsset(a);
+          const preview=path.join(dataDir,"media",`${a.id}.preview.mp3`);
+          await createAudioPreview(a.path,preview);
+          content=await readFile(preview);
+        }else{
+          if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get())throw error;
+          const row=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(a.id,owner) as CloudMediaRecord|undefined;
+          if(!row)throw error;
+          content=await readMirroredPrivateSource(owner,a.id,row,a.kind==="video"?256*1024*1024:51*1024*1024);
+        }
       }
       const headers: Record<string, string> = {
         "Content-Type": playback ? "audio/mpeg" : a.mime,
