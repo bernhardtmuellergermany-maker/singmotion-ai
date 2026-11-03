@@ -29,3 +29,22 @@ test("patched sharp version loads its packaged libvips and can convert and resiz
  assert.equal(metadata.width,8);
  assert.equal(metadata.height,6);
 });
+
+test("Drizzle legacy loader resolves only patched esbuild, with a functional native transformer",async()=>{
+ const pkg=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"utf8"));
+ const lock=JSON.parse(readFileSync(new URL("../package-lock.json",import.meta.url),"utf8"));
+ assert.equal(pkg.overrides?.["@esbuild-kit/core-utils"]?.esbuild,"0.25.12");
+ const versions=Object.entries(lock.packages).filter(([name])=>
+  name==="node_modules/esbuild"||name.endsWith("/node_modules/esbuild"));
+ assert.ok(versions.length>0);
+ for(const [name,item] of versions){
+  const parts=String((item as {version:string}).version).split(".").map(Number);
+  assert.ok(parts[0]>0||parts[1]>=25,`${name} must not contain vulnerable esbuild`);
+ }
+ assert.equal(lock.packages["node_modules/esbuild"].version,"0.25.12");
+ assert.equal(lock.packages["node_modules/@esbuild-kit/core-utils/node_modules/esbuild"],undefined);
+ assert.equal(lock.packages["node_modules/@esbuild/linux-x64"].version,"0.25.12");
+ const esbuild=await import("esbuild");
+ const out=await esbuild.transform("const amount: number = 42",{loader:"ts"});
+ assert.match(out.code,/amount\s*=\s*42/);
+});
