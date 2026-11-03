@@ -102,7 +102,7 @@ export function GenerationDialog({
     )
       return;
     lock.current = true;
-    setBusy(true);
+    void Promise.resolve().then(()=>{if(lock.current)setBusy(true)});
     void api<StudioProject>("studio-live", {
       method: "POST",
       body: JSON.stringify({
