@@ -13,6 +13,7 @@ export type Promotion = {
   maxUses: number;
   perCustomerLimit: number;
   enabled: boolean;
+  status: "active" | "scheduled" | "expired" | "disabled";
   reserved: number;
   redeemed: number;
   released: number;
@@ -135,6 +136,7 @@ export class PromotionLedger {
       freeVideos: row.free_videos, maxVideoSeconds: row.max_video_seconds,
       startsAt: row.starts_at, endsAt: row.ends_at, maxUses: row.max_uses,
       perCustomerLimit: row.per_customer_limit, enabled: row.enabled === 1,
+      status: !row.enabled ? "disabled" : Date.now() < row.starts_at ? "scheduled" : Date.now() >= row.ends_at ? "expired" : "active",
       ...this.counts(row.code), createdAt: row.created_at,
     };
   }
