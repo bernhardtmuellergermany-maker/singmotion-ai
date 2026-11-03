@@ -30,12 +30,12 @@ test("offline sandbox payment -> acknowledged status -> validated private MP4 ->
     };
     const id = store.preparedVideoOrder({
       account: owner, email: "customer@example.test", project: "offline-sandbox-e2e",
-      cents: 1250, quoteEvidence: "verified-offline-sandbox-quote-2026",
+      cents: 125, quoteEvidence: "verified-offline-sandbox-quote-2026",
       key: "offline-sandbox-e2e", media,
     }).id;
     store.bindStripeCheckout(id, "cs_test_offline_e2e");
     const receipt = { provider: "stripe", eventId: "evt_offline_e2e", orderId: id,
-      cents: 1250, currency: "EUR" as const, evidence: "cs_test_offline_e2e" };
+      cents: 125, currency: "EUR" as const, evidence: "cs_test_offline_e2e" };
     await store.webhook(new Uint8Array(), "signed", { async verify() { return receipt; } });
     await store.webhook(new Uint8Array(), "signed", { async verify() { return receipt; } });
     assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id)?.status, "paid");
