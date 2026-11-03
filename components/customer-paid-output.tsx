@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import "./studio-live-preview.css";
+import {customerPaidVideoLabel} from "../lib/commerce/customer-video-links";
 
 type CustomerOrder={orderId:string;projectId:string;status:string;fulfillmentState:string|null;
  videoReady:number;videoUrl:string|null;downloadUrl:string|null};
@@ -24,7 +25,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
   void poll();return()=>{live=false;clearTimeout(timer)};
  },[orderId]);
  const ready=order?.status==="paid"&&order.videoReady===1&&!!order.videoUrl&&!!order.downloadUrl;
- const status=!loaded?"Loading video":!order?"Video unavailable":ready?"Completed":order.fulfillmentState==="failed"?"Requires review":order.status==="paid"?"Preparing video":"Awaiting payment";
+ const status=customerPaidVideoLabel(order,loaded);
  return <div id="content" className="sm-live-page">
   {error&&<p className="error" role="alert">{error}</p>}
   <div className="sm-carousel-stage sm-output-stage">
