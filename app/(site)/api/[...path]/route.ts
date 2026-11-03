@@ -388,9 +388,18 @@ async function handler(
           created: Date.now(),
         };
         let mirrored:CloudMediaRecord|null;
-        try{mirrored=await mirrorPrivateSource(a)}
-        catch{throw new AppError("Private cloud storage is temporarily unavailable. Please retry the upload later.",503)}
+        try{
+          mirrored=await mirrorPrivateSource(a);
+          if(mirrored)await readMirroredPrivateSource(owner,assetId,mirrored,a.kind==="video"?256*1024*1024:51*1024*1024);
+        }catch{throw new AppError("Private cloud storage is temporarily unavailable. Please retry the upload later.",503)}
         commitUploadedAsset(db,a,mirrored);
+        if(mirrored){
+          // R2 is the authoritative uploaded original once BOTH hashes match.
+          // Local media is disposable scratch for Studio and is rehydrated only
+          // on demand. A failed unlink leaves a safe extra local copy.
+          await unlink(dest).catch(()=>{});
+          await unlink(preview).catch(()=>{});
+        }
         return json(safeAsset(a), 201);
       } catch (e) {
         releaseUploadStorage(db,owner,assetId);
