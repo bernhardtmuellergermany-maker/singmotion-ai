@@ -25,6 +25,12 @@ test("recovery batch validates bounded size and respects an already aborted sign
     request,request,new AbortController().signal,0),/Invalid recovery batch size/);
   await assert.rejects(runPaidRecoveryBatch(store,"/missing",{} as OutputValidationContract,
     request,request,new AbortController().signal,101),/Invalid recovery batch size/);
+  for(const invalid of [NaN,Infinity,-1,1.5,101]){
+   await assert.rejects(runPaidRecoveryBatch(store,"/missing",{} as OutputValidationContract,
+     request,request,new AbortController().signal,invalid),/Invalid recovery batch size/);
+  }
+  assert.deepEqual(await runPaidRecoveryBatch(store,"/missing",{} as OutputValidationContract,
+    request,request,new AbortController().signal,100),[]);
   const controller=new AbortController();controller.abort();
   assert.deepEqual(await runPaidRecoveryBatch(store,"/missing",{} as OutputValidationContract,
     request,request,controller.signal,10),[]);
