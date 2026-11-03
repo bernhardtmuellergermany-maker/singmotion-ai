@@ -51,8 +51,13 @@ export async function migrateTestAssetsToR2():Promise<{
     if(!commerce)throw Error("Paid test records exist without commerce ledger");
     const orderId=asset.id.slice("customer-video-".length);
     const accountId=asset.owner.startsWith("customer-")?asset.owner.slice(9):"";
-    if(!accountId||commerce.ownedDeliveredVideoAsset(orderId,accountId)!==asset.id)
-     throw Error("Paid asset is not backed by a verified delivered order");
+    // Revoked/disputed test videos are still private evidence worth
+    // preserving. Their customer download rights remain revoked by the
+    // existing order-status gate; migration never restores entitlements.
+    const order=commerce.db.prepare("SELECT account_id FROM customer_orders WHERE id=?").get(orderId) as {account_id:string|null}|undefined;
+    const delivery=commerce.db.prepare("SELECT asset_id FROM customer_video_deliveries WHERE order_id=?").get(orderId) as {asset_id:string}|undefined;
+    if(!accountId||order?.account_id!==accountId||delivery?.asset_id!==asset.id)
+     throw Error("Paid test archive is not bound to an owned historical delivery");
     commerce.db.exec("CREATE TABLE IF NOT EXISTS cloud_paid_videos(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
     let record:CloudPaidVideoRecord|undefined=commerce.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,accountId) as CloudPaidVideoRecord|undefined;
     if(present){
