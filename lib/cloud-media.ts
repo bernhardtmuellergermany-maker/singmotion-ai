@@ -5,7 +5,7 @@
  */
 import {createHash} from "node:crypto";
 import {readFile,stat} from "node:fs/promises";
-import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand} from "@aws-sdk/client-s3";
+import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand,DeleteObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "./live/r2-config.ts";
 import type {Asset} from "./domain.ts";
 
@@ -72,5 +72,25 @@ export async function readMirroredPrivateSource(owner:string,id:string,record:Cl
   if(body.length!==record.bytes||sha(body)!==record.sha256)
    throw Error("Cloud object digest mismatch");
   return body;
+ }finally{client.destroy()}
+}
+
+/** Explicit deletion only after a separately authorized unused-upload check.
+ * Never use prefix/list operations, and do not remove a manifest if a remote
+ * delete cannot be independently confirmed.
+ */
+export async function deleteMirroredPrivateSource(owner:string,id:string,record:CloudMediaRecord):Promise<void>{
+ if(!customerR2Enabled()||!validCloudRecord(owner,id,record))
+  throw Error("Private R2 cleanup is not available");
+ const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
+ try{
+  await client.send(new DeleteObjectCommand({Bucket:config.bucket,Key:record.key}));
+  try{
+   await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}));
+   throw Error("Private cloud deletion was not confirmed");
+  }catch(e){
+   const status=(e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode;
+   if(status!==404)throw e;
+  }
  }finally{client.destroy()}
 }
