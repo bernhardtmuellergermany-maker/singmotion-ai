@@ -39,7 +39,7 @@ export async function ensureLocalAsset(asset:Asset):Promise<string>{
   // No-overwrite hydration: on another worker's successful recovery,
   // verify that file rather than replacing it.
   try{
-   await (await import("node:fs/promises")).link(temporary,destination);
+   await link(temporary,destination);
   }catch(e){
    if((e as NodeJS.ErrnoException).code!=="EEXIST")throw e;
   }
