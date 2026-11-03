@@ -170,6 +170,44 @@ export class PromotionLedger {
     return (this.db.prepare("SELECT * FROM promo_codes ORDER BY created_at DESC,code LIMIT 500").all() as Row[])
       .map(row => this.display(row));
   }
+  /** Aggregated and bounded administrative audit view. Never exposes an email,
+   * payment credential, private media or customer authentication token. */
+  report(code: string) {
+    const normalized = normalizePromoCode(code);
+    const promotion = this.row(normalized);
+    if(!promotion) throw Error("Promotion not found");
+    const summary = this.display(promotion);
+    const activity = this.db.prepare(`
+      SELECT order_id,state,original_cents,discount_cents,created_at,updated_at
+      FROM promo_redemptions WHERE code=?
+      ORDER BY updated_at DESC,order_id DESC LIMIT 500
+    `).all(normalized) as {order_id:string;state:"reserved"|"redeemed"|"released";
+      original_cents:number;discount_cents:number;created_at:number;updated_at:number}[];
+    const daily = this.db.prepare(`
+      SELECT strftime('%Y-%m-%d',created_at/1000,'unixepoch') AS day,
+             SUM(CASE WHEN state='reserved' THEN 1 ELSE 0 END) AS reserved,
+             SUM(CASE WHEN state='redeemed' THEN 1 ELSE 0 END) AS redeemed,
+             SUM(CASE WHEN state='released' THEN 1 ELSE 0 END) AS released,
+             SUM(CASE WHEN state='redeemed' THEN discount_cents ELSE 0 END) AS redeemed_discount_cents
+      FROM promo_redemptions WHERE code=? GROUP BY day ORDER BY day DESC LIMIT 365
+    `).all(normalized) as {day:string;reserved:number;redeemed:number;released:number;redeemed_discount_cents:number}[];
+    const totals=this.db.prepare(`
+      SELECT COALESCE(SUM(CASE WHEN state='redeemed' THEN discount_cents ELSE 0 END),0) AS redeemed_discount_cents,
+             COALESCE(SUM(CASE WHEN state IN ('redeemed','reserved') THEN discount_cents ELSE 0 END),0) AS committed_discount_cents
+      FROM promo_redemptions WHERE code=?
+    `).get(normalized) as {redeemed_discount_cents:number;committed_discount_cents:number};
+    return {
+      summary,
+      activity: activity.map(a=>({orderId:a.order_id,state:a.state,
+        originalCents:a.original_cents,discountCents:a.discount_cents,
+        createdAt:a.created_at,updatedAt:a.updated_at})),
+      daily:daily.map(d=>({day:d.day,reserved:d.reserved,redeemed:d.redeemed,
+        released:d.released,redeemedDiscountCents:d.redeemed_discount_cents})),
+      totals:{redeemedDiscountCents:totals.redeemed_discount_cents,
+        committedDiscountCents:totals.committed_discount_cents},
+      truncated:activity.length===500 || daily.length===365,
+    };
+  }
   setEnabled(code: string, enabled: boolean): Promotion {
     code = normalizePromoCode(code);
     const changed = this.db.prepare("UPDATE promo_codes SET enabled=? WHERE code=?")
