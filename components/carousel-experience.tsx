@@ -151,7 +151,7 @@ export function CarouselExperience(){
   },[loading,tiles,current,navigate,searching]);
   const deleteDraft=async(tile:Tile)=>{
     if(!tile.id.startsWith("draft_") || deletingDraft)return;
-    if(!window.confirm(`Permanently delete draft "${tile.name}"? This frees a guest draft slot.`))return;
+    if(!window.confirm(`Permanently delete draft "${tile.name}"? This cannot be undone.`))return;
     const id=tile.id.slice(6);
     setDeletingDraft(tile.id);
     setError("");
