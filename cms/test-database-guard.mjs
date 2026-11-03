@@ -22,3 +22,15 @@ export function assertDisposableCmsTestDatabase(env) {
   throw new Error("CMS test database must not reuse an application database connection");
  return connection;
 }
+
+/** Starting a disposable local cluster is never permitted when the caller has
+ * an existing database configuration or runs in a Railway/production context.
+ * The launcher also excludes inherited credentials from its child processes. */
+export function assertSafeCmsLocalTestRunner(env) {
+ if(env.NODE_ENV==="production" || env.RAILWAY_PROJECT_ID ||
+    env.RAILWAY_ENVIRONMENT_ID || env.RAILWAY_SERVICE_ID)
+  throw Error("Local CMS runner cannot start on Railway or production");
+ if(env.CMS_DATABASE_URL || env.DATABASE_URL || env.CMS_TEST_DATABASE_URL)
+  throw Error("Local CMS runner refuses existing database settings");
+ return true;
+}
