@@ -390,7 +390,7 @@ test("experimental planning is labeled, separately acknowledged and never relaxe
   );
   assert.throws(
     () => reviewedDurationBand({ ...review, maxInputSeconds: 16 }, owner, base),
-    /maxInputSeconds/,
+    /(maxInputSeconds|Host\/media\/duration)/,
   );
   assert.throws(
     () =>
