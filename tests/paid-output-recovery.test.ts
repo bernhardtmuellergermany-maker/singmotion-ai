@@ -36,5 +36,25 @@ test("recovery discovery skips pending and ambiguous paid submissions",async()=>
   assert.deepEqual(store.acknowledgedPaidRecovery(),[known]);
   assert.deepEqual(store.acknowledgedPaidRecovery(1),[known]);
   assert.throws(()=>store.acknowledgedPaidRecovery(0),/Invalid recovery batch size/);
+  // Only status reads are permitted. Ambiguous, expired and cancelled provider
+  // outcomes must not cause downloads, queue transitions or new submissions.
+  let statusReads=0,downloads=0;
+  for(const [providerState,expected] of [
+    ["in_queue","pending"],["generating","pending"],
+    ["not_found","unverified"],["expired","unverified"],
+    ["canceled","unverified"]
+  ] as const){
+    const actual=await recoverReviewedPaidOutput(store,known,async request=>{
+      assert.match(request.url,/Action=CVSync2AsyncGetResult/);
+      statusReads++;
+      return {status:200,body:{code:10000,data:{status:providerState}}};
+    },new AbortController().signal,async()=>{downloads++;return "delivered"});
+    assert.equal(actual,expected);
+  }
+  assert.equal(statusReads,5);
+  assert.equal(downloads,0);
+  assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(known)?.state,"processing");
+  assert.deepEqual(store.acknowledgedPaidRecovery(),[known]);
+
  }finally{store.close()}
 });
