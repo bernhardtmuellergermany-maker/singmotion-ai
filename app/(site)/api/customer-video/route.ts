@@ -5,6 +5,7 @@ import { stagingDenial } from "@/lib/staging";
 import { customerVideoByteRange } from "@/lib/commerce/customer-video-links";
 import { type FileHandle } from "node:fs/promises";
 import { openVerifiedPaidVideoFile, streamVerifiedPaidVideoRange } from "@/lib/commerce/private-video-file";
+import {paidR2ByteRange, type CloudPaidVideoRecord} from "@/lib/cloud-paid-video";
 import path from "node:path";
 
 export const runtime = "nodejs";
@@ -30,20 +31,33 @@ export async function GET(req: NextRequest) {
     if(!assetId)return deniedVideo();
     const video=asset(assetId,`customer-${accountId}`);
     if(video.kind!=="video"||video.mime!=="video/mp4")return deniedVideo();
-    const verified=await openVerifiedPaidVideoFile(
-      path.join(dataDir,"media"),video.path,orderId,video.bytes
-    );
-    fileHandle=verified.handle;
-    const range=customerVideoByteRange(req.headers.get("range"),verified.size);
+    let inCloud:CloudPaidVideoRecord|undefined;
+    try{
+      const verified=await openVerifiedPaidVideoFile(
+        path.join(dataDir,"media"),video.path,orderId,video.bytes
+      );
+      fileHandle=verified.handle;
+    }catch(error){
+      // Only a genuinely missing local file may fall back to R2. Never bypass
+      // local file-integrity failures or the paid owner/session authorization.
+      if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+      if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_paid_videos'").get())throw error;
+      inCloud=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,accountId) as CloudPaidVideoRecord|undefined;
+      if(!inCloud||inCloud.bytes!==video.bytes)throw error;
+    }
+    const size=inCloud?.bytes??video.bytes;
+    const range=customerVideoByteRange(req.headers.get("range"),size);
     if(!range)return new Response(null,{status:416,
-      headers:{...headers,"Content-Range":`bytes */${verified.size}`}});
+      headers:{...headers,"Content-Range":`bytes */${size}`}});
     const {start,end,status}=range;
-    const body=streamVerifiedPaidVideoRange(fileHandle,start,end,req.signal);
+    const body=inCloud
+      ? await paidR2ByteRange(accountId,orderId,inCloud,start,end,req.signal)
+      : streamVerifiedPaidVideoRange(fileHandle!,start,end,req.signal);
     streaming=true;
     return new Response(body,{status,headers:{...headers,
       "Content-Type":"video/mp4","Accept-Ranges":"bytes",
       "Content-Length":String(end-start+1),
-      ...(status===206?{"Content-Range":`bytes ${start}-${end}/${verified.size}`}:{}),
+      ...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{}),
       "Content-Disposition":`${req.nextUrl.searchParams.has("download")?"attachment":"inline"}; filename="singmotion.mp4"`
     }});
   }catch{
