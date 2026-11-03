@@ -8,7 +8,7 @@ import { stagingDenial, stagingEnabled } from "@/lib/staging";
 import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
-import { readFile, writeFile, unlink, stat } from "node:fs/promises";
+import { readFile, writeFile, unlink, stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import {
@@ -321,6 +321,13 @@ async function handler(
             ? new PlanLedger(customer.db).activePlan(accountId) : "free";
         }finally{customer.close()}
       }
+      // Plan allowance is not physical disk capacity. Railway's staging volume
+      // is smaller than one Hobby allowance until the storage backend expands.
+      // Keep a recovery reserve so one upload cannot fill the persistent disk.
+      const disk=await statfs(dataDir);
+      const available=disk.bavail*disk.bsize;
+      if(available-file.size<128*1024*1024)
+        throw new AppError("Upload storage temporarily unavailable: server capacity is low. Existing videos and files are safe.",507);
       const assetId = randomUUID();
       reserveUploadStorage(db,owner,assetId,file.size,uploadStorageLimit(plan));
       const dest = path.join(dataDir, "media", assetId);
