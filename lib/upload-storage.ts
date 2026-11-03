@@ -5,6 +5,7 @@ import {DatabaseSync} from "node:sqlite";
 import type {Asset} from "./domain.ts";
 import {AppError} from "./domain.ts";
 import {PLAN_RULES, type PlanCode} from "./commerce/plans.ts";
+import {validCloudRecord, type CloudMediaRecord} from "./cloud-media.ts";
 
 export const GUEST_UPLOAD_STORAGE_BYTES=250*1024*1024;
 export function uploadStorageLimit(plan:PlanCode|"guest"):number{
@@ -34,12 +35,18 @@ export function reserveUploadStorage(db:DatabaseSync,owner:string,id:string,byte
   db.exec("COMMIT");
  }catch(e){db.exec("ROLLBACK");throw e;}
 }
-export function commitUploadedAsset(db:DatabaseSync,a:Asset):void{
+export function commitUploadedAsset(db:DatabaseSync,a:Asset,cloud:CloudMediaRecord|null=null):void{
  ensureReservations(db);
  db.exec("BEGIN IMMEDIATE");
  try{
   const reservation=db.prepare("SELECT bytes FROM pending_upload_storage WHERE id=? AND owner=?").get(a.id,a.owner) as {bytes:number}|undefined;
   if(!reservation||reservation.bytes!==a.bytes)throw new AppError("Upload reservation missing or expired.",409);
+  if(cloud){
+   if(!validCloudRecord(a.owner,a.id,cloud)||cloud.bytes!==a.bytes)
+    throw new AppError("Cloud storage manifest mismatch.",409);
+   db.exec("CREATE TABLE IF NOT EXISTS cloud_source_media(asset_id TEXT PRIMARY KEY,owner TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+   db.prepare("INSERT INTO cloud_source_media(asset_id,owner,key,sha256,bytes,created) VALUES(?,?,?,?,?,?)").run(a.id,a.owner,cloud.key,cloud.sha256,cloud.bytes,Date.now());
+  }
   db.prepare("INSERT INTO assets VALUES(?,?,?)").run(a.id,a.owner,JSON.stringify(a));
   db.prepare("DELETE FROM pending_upload_storage WHERE id=? AND owner=?").run(a.id,a.owner);
   db.exec("COMMIT");
