@@ -11,14 +11,10 @@ import {
 } from "node:https";
 import { request as httpRequest } from "node:http";
 import { chromium } from "@playwright/test";
-const database = process.env.CMS_TEST_DATABASE_URL;
-if (!database) throw new Error("CMS_TEST_DATABASE_URL required.");
-const parsed = new URL(database);
-if (
-  !["127.0.0.1", "localhost"].includes(parsed.hostname) ||
-  !parsed.pathname.endsWith("_test")
-)
-  throw new Error("Disposable local test database required.");
+import { assertDisposableCmsTestDatabase } from "../cms/test-database-guard.mjs";
+// The browser fixture also writes/migrates CMS data. It must use exactly
+// the same fail-closed local-only guard as the API integration suite.
+const database = assertDisposableCmsTestDatabase(process.env);
 const directory = await mkdtemp(path.join(tmpdir(), "sm-cms-browser-"));
 const origin = "https://127.0.0.1:3199",
   backend = "http://127.0.0.1:3198",
