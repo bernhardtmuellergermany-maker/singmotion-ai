@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { PromotionLedger, calculatePromotion } from "../lib/commerce/promotions.ts";
+import { CommerceStore } from "../lib/commerce/store.ts";
+import type { PreparedMedia } from "../lib/live/store.ts";
+
 const start="2026-11-01T00:00:00.000Z", end="2026-12-01T00:00:00.000Z";
 const at=Date.parse("2026-11-03T12:00:00.000Z");
 function db(){
@@ -85,4 +88,82 @@ test("discount cannot be reserved for changed or unowned price",()=>{
   assert.equal(ledger.reserveForOrder(input,at).finalCents,800);
   assert.throws(()=>ledger.reserveForOrder({...input,originalCents:999},at),/idempotency conflict/);
   database.close();
+});
+
+test("customer checkout atomically reserves discounted price and verified Stripe event settles it",async()=>{
+  const store=new CommerceStore(":memory:");
+  try{
+    const account=store.register("promos@example.test","long-unique-test-password-12345");
+    const duration=8.2;
+    const source={
+      owner:"customer-"+account, audioPath:"/private/audio.wav",imagePath:"/private/image.png",
+      audioSha256:"a".repeat(64), imageSha256:"b".repeat(64),durationSeconds:duration,
+      prompt:"Studio review approved.",outputFormat:"9:16",
+    } as PreparedMedia;
+    const ledger=new PromotionLedger(store.db);
+    ledger.create({code:"CHECK20",kind:"percent",percent:20,
+      startsAt:start,endsAt:end,maxUses:10,perCustomerLimit:1},at);
+    const request={account,email:"promos@example.test",project:"video-promo-1",
+      cents:180,originalCents:225,promoCode:"CHECK20",quoteEvidence:"trusted-reviewed-promo-price-12345",
+      key:"checkout-promo-order-1",media:source};
+    const first=store.preparedVideoOrder(request);
+    assert.equal(store.preparedVideoOrder(request).id,first.id);
+    assert.equal(ledger.list()[0].reserved,1);
+    assert.equal(store.reviewedOrderReadyForCheckout(first.id),true);
+    assert.throws(()=>store.preparedVideoOrder({...request,promoCode:undefined,originalCents:undefined}),/conflict/);
+    const paymentId="cs_test_promo_idempotent_123";
+    store.bindStripeCheckout(first.id,paymentId);
+    const receipt={provider:"stripe",eventId:"evt_promo_1",evidence:paymentId,
+      orderId:first.id,cents:180,currency:"EUR" as const};
+    await store.webhook(new Uint8Array([1]),"unused",{verify:async()=>receipt});
+    await store.webhook(new Uint8Array([1]),"unused",{verify:async()=>receipt});
+    assert.equal(ledger.list()[0].redeemed,1);
+    assert.equal(ledger.list()[0].reserved,0);
+    assert.equal((store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(first.id) as {status:string}).status,"paid");
+    const reversed=store.reconcileVerifiedStripeRefund({orderId:first.id,
+      stripeCheckoutId:paymentId,refundId:"re_promo_refund_1",refundedCents:180,
+      evidence:"verified-refund-evidence-12345"});
+    assert.equal(reversed,true);
+    assert.equal(ledger.list()[0].released,1);
+    assert.equal(ledger.list()[0].redeemed,0);
+  }finally{store.close();}
+});
+test("zero-price promotional video never automatically receives paid status or fulfillment",()=>{
+  const store=new CommerceStore(":memory:");
+  try{
+    const account=store.register("freepromos@example.test","long-unique-test-password-12345");
+    const ledger=new PromotionLedger(store.db);
+    ledger.create({code:"FREETHREE",kind:"free_videos",freeVideos:3,maxVideoSeconds:10,
+      startsAt:start,endsAt:end,maxUses:30},at);
+    const source={owner:"customer-"+account,
+      audioPath:"/private/audio.wav",imagePath:"/private/image.png",
+      audioSha256:"a".repeat(64),imageSha256:"b".repeat(64),
+      durationSeconds:8.2,prompt:"Approved test.",outputFormat:"9:16"} as PreparedMedia;
+    const created=store.preparedVideoOrder({account,email:"freepromos@example.test",
+      project:"promo-free-1",cents:0,originalCents:225,promoCode:"FREETHREE",
+      quoteEvidence:"reviewed-zero-price-promotion-evidence",key:"free-test-order-key-1",media:source});
+    assert.equal(ledger.list()[0].reserved,1);
+    assert.equal(store.db.prepare("SELECT 1 FROM customer_fulfillment_queue WHERE order_id=?").get(created.id),undefined);
+    assert.equal((store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(created.id) as {status:string}).status,"awaiting_payment");
+    assert.equal(store.cancelUnstartedCustomerOrder(created.id,account),true);
+    assert.equal(ledger.list()[0].released,1);
+  }finally{store.close();}
+});
+test("price mismatch aborts order and coupon capacity together",()=>{
+  const store=new CommerceStore(":memory:");
+  try{
+    const account=store.register("rollbackpromos@example.test","long-unique-test-password-12345");
+    const ledger=new PromotionLedger(store.db);
+    ledger.create({code:"ROLLBACK20",kind:"percent",percent:20,startsAt:start,endsAt:end,maxUses:1},at);
+    const source={owner:"customer-"+account,audioPath:"/private/audio.wav",
+      imagePath:"/private/image.png",audioSha256:"a".repeat(64),imageSha256:"b".repeat(64),
+      durationSeconds:8.2,prompt:"Reviewed studio.",outputFormat:"9:16"} as PreparedMedia;
+    assert.throws(()=>store.preparedVideoOrder({
+      account,email:"rollbackpromos@example.test",project:"price-changed-1",
+      cents:179,originalCents:225,promoCode:"ROLLBACK20",
+      quoteEvidence:"incorrect-quote-evidence-123456",key:"rollback-promo-1",media:source,
+    }),/PRICE_CHANGED_REVIEW_AGAIN/);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,0);
+    assert.equal(ledger.list()[0].reserved,0);
+  }finally{store.close();}
 });
