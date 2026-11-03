@@ -408,6 +408,7 @@ async function handler(
       }catch(error){
         if((error as NodeJS.ErrnoException).code!=="ENOENT" || playback || !a.owner.startsWith("customer-"))
           throw error;
+        if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type=\'table\' AND name=\'cloud_source_media\'").get())throw error;
         const row=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(a.id,owner) as CloudMediaRecord|undefined;
         if(!row)throw error;
         // R2 is a private recovery copy, never a public direct-download URL.
