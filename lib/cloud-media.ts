@@ -13,12 +13,17 @@ export interface CloudMediaRecord {
  key:string; sha256:string; bytes:number;
 }
 const sha=(data:Buffer|string)=>createHash("sha256").update(data).digest("hex");
-const validId=(s:string)=>/^[a-f0-9-]{36}$/.test(s);
+const validId=(s:string)=>/^[a-zA-Z0-9_-]{1,180}$/.test(s);
+const validOwner=(s:string)=>/^(?:[a-f0-9-]{36}|customer-[a-f0-9-]{36}|cms-staff-[a-zA-Z0-9_-]{1,100})$/.test(s);
+const idComponent=(id:string)=>/^[a-f0-9-]{36}$/.test(id)?id:sha(id);
+export function sourceAssetLimit(kind:Asset["kind"]):number{
+ return kind==="video"?256*1024*1024:50*1024*1024;
+}
 export const customerR2Enabled=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"&&process.env.CUSTOMER_R2_STORAGE_ENABLED==="true";
 export function privateSourceKey(owner:string,id:string,digest:string):string{
- if(!/^customer-[a-f0-9-]{36}$/.test(owner)||!validId(id)||!/^[a-f0-9]{64}$/.test(digest))
+ if(!validOwner(owner)||!validId(id)||!/^[a-f0-9]{64}$/.test(digest))
   throw Error("Invalid private R2 source identity");
- return `customer-sources/v1/${sha(owner)}/${id}/${digest}`;
+ return `customer-sources/v1/${sha(owner)}/${idComponent(id)}/${digest}`;
 }
 export function validCloudRecord(owner:string,id:string,record:CloudMediaRecord):boolean{
  return Number.isSafeInteger(record.bytes)&&record.bytes>0&&
@@ -29,23 +34,36 @@ export function validCloudRecord(owner:string,id:string,record:CloudMediaRecord)
  * may be necessary, with the local original retained.
  */
 export async function mirrorPrivateSource(asset:Asset):Promise<CloudMediaRecord|null>{
- if(!customerR2Enabled()||!asset.owner.startsWith("customer-"))return null;
- if(asset.kind!=="audio"&&asset.kind!=="image")throw Error("Only customer source assets may be mirrored");
+ if(!customerR2Enabled())return null;
+ if(!validOwner(asset.owner)||!validId(asset.id))throw Error("Invalid private asset identity");
  const config=loadR2Config();
  const client=new S3Client(r2ClientConfig(config));
  try{
   const info=await stat(asset.path);
-  if(!info.isFile()||info.size!==asset.bytes||info.size<=0||info.size>50*1024*1024)
+  if(!info.isFile()||info.size!==asset.bytes||info.size<=0||info.size>sourceAssetLimit(asset.kind))
    throw Error("Private source size mismatch");
   const bytes=await readFile(asset.path);
   const digest=sha(bytes),key=privateSourceKey(asset.owner,asset.id,digest);
   const record={key,sha256:digest,bytes:bytes.length};
-  await client.send(new PutObjectCommand({
-   Bucket:config.bucket,Key:key,Body:bytes,ContentLength:bytes.length,
-   ContentType:asset.mime,ContentMD5:createHash("md5").update(bytes).digest("base64"),
-   CacheControl:"private, no-store",IfNoneMatch:"*",
-   Metadata:{"singmotion-sha256":digest},
-  }));
+  // Idempotent migration: accept an existing object only if its immutable
+  // key, exact size and digest metadata match this verified local original.
+  let existing=false;
+  try{
+   const h=await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:key}));
+   if(h.ContentLength!==bytes.length||h.Metadata?.["singmotion-sha256"]!==digest)
+    throw Error("Cloud object differs from local source; manual reconciliation required");
+   existing=true;
+  }catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==404)throw e}
+  if(!existing){
+   try{
+    await client.send(new PutObjectCommand({
+     Bucket:config.bucket,Key:key,Body:bytes,ContentLength:bytes.length,
+     ContentType:asset.mime,ContentMD5:createHash("md5").update(bytes).digest("base64"),
+     CacheControl:"private, no-store",IfNoneMatch:"*",
+     Metadata:{"singmotion-sha256":digest},
+    }));
+   }catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e}
+  }
   const head=await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:key}));
   if(head.ContentLength!==bytes.length||head.Metadata?.["singmotion-sha256"]!==digest)
    throw Error("Private R2 readback metadata mismatch");
