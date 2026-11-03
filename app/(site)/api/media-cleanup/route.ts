@@ -43,7 +43,7 @@ export async function POST(req:NextRequest){
   const safe=assets.map(r=>{
    const a=JSON.parse(r.data) as {bytes?:number;name?:string;kind?:string};
    return {id:r.id,bytes:Number(a.bytes)||0,name:a.name||"Upload",kind:a.kind||"media",unused:!referenceText.includes(r.id)};
-  });
+  }).filter(a=>a.kind==="audio"||a.kind==="image");
   // Paid output files are immutable customer deliveries, never unused uploads.
   const unused=safe.filter(a=>a.unused && (a.kind==="audio" || a.kind==="image"));
   const cloudTable=!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get();
