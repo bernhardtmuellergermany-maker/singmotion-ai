@@ -12,6 +12,7 @@ import { trimAudio, validateAudio } from "../media.ts";
 import { IMAGE_LIMIT, composePrompt } from "../domain.ts";
 import { parseStudioDraft } from "../studio-draft.ts";
 import {ensureLocalAsset,ensureLocalMediaPath} from "../cloud-hydration.ts";
+import {customerR2Enabled,mirrorPrivateSource,validCloudRecord,readMirroredPrivateSource} from "../cloud-media.ts";
 import type { PreparedMedia } from "./store.ts";
 
 export async function sha256File(filename: string): Promise<string> {
@@ -97,7 +98,7 @@ async function prepareOwnedSelection(
   owner: string,
   maxSeconds: number,
 ): Promise<PreparedMedia> {
-  const { asset, dataDir, putAsset } = await import("../db.ts");
+  const { asset, dataDir, db, putAsset } = await import("../db.ts");
   if (
     !Number.isFinite(maxSeconds) ||
     maxSeconds <= 0 ||
@@ -182,14 +183,32 @@ async function prepareOwnedSelection(
       name: "live-test-reference",
     },
   ]) {
-    try {
-      asset(snapshot.id, owner);
-    } catch {
-      putAsset({
-        ...snapshot,
-        bytes: (await stat(snapshot.path)).size,
-        created: Date.now(),
-      });
+    const record={
+      ...snapshot,
+      bytes:(await stat(snapshot.path)).size,
+      created:Date.now(),
+    };
+    try{
+      const existing=asset(snapshot.id,owner);
+      if(existing.path!==snapshot.path||existing.bytes!==record.bytes)
+        throw Error("Immutable Studio snapshot record differs");
+    }catch(error){
+      if(!(error instanceof Error)||!error.message.includes("File not found"))
+        throw error;
+      putAsset(record);
+    }
+    if(customerR2Enabled()){
+      // Paid-job approvals bind these immutable bytes to a snapshot, so their
+      // R2 copy must be verified before a quote/provider submission can begin.
+      const cloud=await mirrorPrivateSource(record);
+      if(!cloud||!validCloudRecord(owner,snapshot.id,cloud))
+        throw Error("Immutable Studio snapshot could not be archived");
+      await readMirroredPrivateSource(owner,snapshot.id,cloud,50*1024*1024);
+      db.exec("CREATE TABLE IF NOT EXISTS cloud_source_media(asset_id TEXT PRIMARY KEY,owner TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+      const prior=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(snapshot.id,owner) as {key:string;sha256:string;bytes:number}|undefined;
+      if(prior&&(prior.key!==cloud.key||prior.sha256!==cloud.sha256||prior.bytes!==cloud.bytes))
+        throw Error("Immutable Studio snapshot changed after R2 archive");
+      if(!prior)db.prepare("INSERT INTO cloud_source_media VALUES(?,?,?,?,?,?)").run(snapshot.id,owner,cloud.key,cloud.sha256,cloud.bytes,Date.now());
     }
   }
   if ((await sha256File(sourcePath)) !== sourceSha256)
