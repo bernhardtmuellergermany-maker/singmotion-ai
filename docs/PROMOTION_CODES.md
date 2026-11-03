@@ -19,6 +19,12 @@ The dashboard shows:
 - `reserved` — capacity allocated to an order awaiting settlement;
 - `redeemed` — only orders already recorded as paid by the trusted checkout system;
 - `released` — reversed or cancelled orders, retained in audit history.
+- Per-code **Details**: daily UTC activity, cumulative redeemed and reserved
+  discount amounts and the most recent 500 individual order transitions, with
+  a CSV export. Reports deliberately omit customer emails, authentication
+  tokens, media content and Stripe credentials. Discount totals are not revenue.
+  Daily activity reflects the latest transition time; multiple transitions
+  within a day are represented by their current final state.
 
 Each reservation belongs to one persistent order ID and one authenticated customer account.
 A single order retry cannot spend an allowance twice. Customer/global counts include
@@ -50,6 +56,13 @@ the voucher exactly once. Verified full refund or safe unstarted-order cancellat
 releases capacity; ambiguous payment/provider outcomes remain reserved for
 manual reconciliation. The private order page displays the voucher discount
 and reservation status only to the authorized owner.
+
+A signed-in customer can now cancel a prepared order from its private order
+page before any Stripe Checkout session or fulfillment claim exists. The
+same-origin, rate-limited `DELETE /api/customer-orders?orderId=...` endpoint
+rechecks account ownership and releases both the plan split and promotion
+reservation atomically. A started Checkout or uncertain provider state is
+never auto-cancelled.
 
 For a **100%-off or three-free-video** promotion, order and coupon reservation
 may exist with zero sale price, but the order deliberately stays
