@@ -1,11 +1,8 @@
-/** Staging-only, read-only dependency audit during the Docker builder stage.
+/** Read-only dependency audit during the Docker builder stage.
  * Advisory lookup does not mutate the lockfile or install dependencies.
  * Network failures never masquerade as a clean audit. */
 import {spawnSync} from "node:child_process";
-const staging="dfaeabed-03df-43ed-aa71-50f343a75041";
-if(process.env.RAILWAY_ENVIRONMENT_ID!==staging){
- console.log("DEPENDENCY_AUDIT skipped outside staging");
-}else{
+{
  const run=spawnSync("npm",["audit","--json","--omit=dev"],{
   encoding:"utf8",timeout:30000,maxBuffer:8*1024*1024
  });
