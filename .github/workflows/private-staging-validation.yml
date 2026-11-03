@@ -46,8 +46,6 @@ jobs:
         run: node --experimental-strip-types --test tests/promotions.test.ts
       - name: TypeScript checks
         run: npm run typecheck
-      - name: Lint
-        run: npm run lint
       - name: Offline unit and integration tests
         run: npm test
       - name: CMS compatibility checks without a live database
@@ -56,3 +54,5 @@ jobs:
         run: npm run build
       - name: Private staging authorization and worker smoke test
         run: npm run test:staging
+      - name: Repository-wide lint (reported after functional checks)
+        run: npm run lint
