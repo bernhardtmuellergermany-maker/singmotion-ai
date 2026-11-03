@@ -595,14 +595,14 @@ try {
   await page.getByText("Editable card copy", { exact: true }).waitFor();
   assert.equal(
     await page
-      .locator(".site-header")
+      .locator(".sm-site-header")
       .getByRole("link", { name: "Go to studio" })
       .getAttribute("href"),
     "/studio",
   );
   assert.equal(
     await page
-      .locator(".site-header")
+      .locator(".sm-site-header")
       .getByRole("link", { name: "Contact the team" })
       .count(),
     0,
