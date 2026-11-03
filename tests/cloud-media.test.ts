@@ -34,3 +34,25 @@ test("paid R2 is fail-closed outside protected staging without touching provider
   if(beforeEnv===undefined)delete process.env.RAILWAY_ENVIRONMENT_ID;else process.env.RAILWAY_ENVIRONMENT_ID=beforeEnv;
  }
 });
+
+test("production R2 release requires independent approval and never inherits staging flag",()=>{
+ const old={env:process.env.RAILWAY_ENVIRONMENT_ID,enabled:process.env.CUSTOMER_R2_STORAGE_ENABLED,approved:process.env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED};
+ try{
+  process.env.RAILWAY_ENVIRONMENT_ID="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+  process.env.CUSTOMER_R2_STORAGE_ENABLED="true";
+  delete process.env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED;
+  assert.equal(customerR2Enabled(),false);
+  process.env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED="true";
+  assert.equal(customerR2Enabled(),true);
+  process.env.RAILWAY_ENVIRONMENT_ID="unknown-environment";
+  assert.equal(customerR2Enabled(),false);
+ }finally{
+  for(const [key,value] of Object.entries({
+   RAILWAY_ENVIRONMENT_ID:old.env,
+   CUSTOMER_R2_STORAGE_ENABLED:old.enabled,
+   CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED:old.approved,
+  })){
+   if(value===undefined)delete process.env[key];else process.env[key]=value;
+  }
+ }
+});
