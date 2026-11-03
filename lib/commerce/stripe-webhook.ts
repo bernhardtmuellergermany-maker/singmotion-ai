@@ -77,3 +77,23 @@ export function stripeCheckoutAdapter(secret: string): PaymentAdapter {
     },
   };
 }
+
+/** Validate the actual Stripe test-mode checkout against the reviewed order.
+ * A valid API HTTP response alone is not authorization to bind an order. */
+export function verifiedStripeTestCheckoutSession(
+ value:unknown,orderId:string,priceCents:number
+):{id:string;url:string}{
+ if(!value||typeof value!=="object")throw Error("Invalid Stripe Checkout Session");
+ const session=value as Record<string,any>;
+ if(session.livemode!==false||session.mode!=="payment"||
+    session.currency!=="eur"||session.amount_total!==priceCents||
+    session.metadata?.orderId!==orderId||
+    typeof session.id!=="string"||!/^cs_test_[A-Za-z0-9_]+$/.test(session.id)||
+    typeof session.url!=="string")throw Error("Unverified Stripe Checkout Session");
+ let url:URL;
+ try{url=new URL(session.url);}catch{throw Error("Unverified Stripe Checkout URL");}
+ if(url.protocol!=="https:"||url.hostname!=="checkout.stripe.com"||
+    url.port||url.username||url.password)
+  throw Error("Unverified Stripe Checkout URL");
+ return {id:session.id,url:session.url};
+}
