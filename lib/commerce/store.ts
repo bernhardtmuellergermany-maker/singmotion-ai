@@ -537,6 +537,9 @@ export class CommerceStore {
         this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=? AND state='reserved'").run(orderId);
       }
       this.db.prepare("UPDATE customer_orders SET status='cancelled' WHERE id=? AND status='awaiting_payment'").run(orderId);
+      if(this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get() &&
+        this.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=?").get(orderId))
+        new PromotionLedger(this.db).release(orderId);
       this.audit(accountId,"customer-unstarted-order-cancelled",orderId);
       return true;
     });
@@ -582,6 +585,9 @@ export class CommerceStore {
       }
       if(split)this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=? AND state='reserved'").run(input.orderId);
       this.db.prepare("UPDATE customer_orders SET status='refunded' WHERE id=? AND status='paid'").run(input.orderId);
+      if(this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get() &&
+        this.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=?").get(input.orderId))
+        new PromotionLedger(this.db).release(input.orderId);
       this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(input.orderId);
       this.db.prepare("INSERT INTO customer_stripe_refunds VALUES(?,?,?,?)").run(input.orderId,input.refundId,input.refundedCents,Date.now());
       this.audit("stripe-refund-reconciliation","verified-full-refund",input.orderId+":"+hash(input.evidence));
@@ -698,8 +704,15 @@ export class CommerceStore {
       // before a signed payment can advance fulfillment. The reservation and
       // payment confirmation share this SQLite transaction.
       const split = this.db.prepare("SELECT account_id,extra_cents,state,included_seconds,period FROM customer_split_quotes WHERE attempt_id=?").get(receipt.orderId) as {account_id:string;extra_cents:number;state:string;included_seconds:number;period:string}|undefined;
+      const promo = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get()
+        ? this.db.prepare("SELECT account_id,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?").get(receipt.orderId) as
+          {account_id:string;original_cents:number;discount_cents:number;state:string}|undefined
+        : undefined;
+      if(promo && (!o.account_id || promo.account_id!==o.account_id ||
+        promo.original_cents-promo.discount_cents!==receipt.cents || promo.state!=="reserved"))
+        throw Error("Promotion payment reservation mismatch");
       if(split){
-        if(!o.account_id||split.account_id!==o.account_id||split.extra_cents!==receipt.cents||split.state!=="reserved")
+        if(!o.account_id||split.account_id!==o.account_id||split.extra_cents!==(promo?.original_cents ?? receipt.cents)||split.state!=="reserved")
           throw Error("Split payment reservation mismatch");
         if(split.included_seconds>0){
           const usage=this.db.prepare("SELECT account_id,seconds,period,state FROM customer_plan_usage WHERE provider_attempt_id=?").get(receipt.orderId) as {account_id:string;seconds:number;period:string;state:string}|undefined;
@@ -717,6 +730,7 @@ export class CommerceStore {
       // Enqueue atomically with payment reconciliation. No provider call is made here.
       this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)")
         .run(receipt.orderId, Date.now());
+      if(promo) new PromotionLedger(this.db).settle(receipt.orderId);
       this.audit(receipt.provider, "verified-payment", receipt.orderId);
     });
   }
