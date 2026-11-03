@@ -14,7 +14,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
   async function poll(){
    if(document.visibilityState!=="hidden"){
     try{
-     const response=await fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"});
+     const response=await fetch(`/api/customer-orders?view=mine&orderId=${encodeURIComponent(orderId)}`,{credentials:"same-origin",cache:"no-store"});
      if(!response.ok)throw Error("Order status unavailable");
      const data=await response.json() as {orders:CustomerOrder[]};
      if(live){setOrder(data.orders.find(o=>o.orderId===orderId)||null);setLoaded(true);setError("");}
