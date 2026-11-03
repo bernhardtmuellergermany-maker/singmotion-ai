@@ -2,6 +2,7 @@ import {NextRequest, NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger, quotePlanSeconds} from "@/lib/commerce/plans";
+import {PromotionLedger} from "@/lib/commerce/promotions";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 
@@ -32,7 +33,17 @@ export async function GET(req:NextRequest) {
    if(!accountId)return reply({error:"Customer sign-in required"},401);
    const state=new PlanLedger(store.db).snapshot(accountId);
    const quote=quotePlanSeconds(state.code,state.secondsRemaining,seconds);
+   const promoCode=req.nextUrl.searchParams.get("promo");
+   let promotion=null;
+   if(promoCode){
+     if(promoCode.length>40)return reply({error:"Invalid promotion code"},400);
+     try {
+       if(quote.extraCents<=0)return reply({error:"No extra price to discount."},409);
+       promotion=new PromotionLedger(store.db).preview(promoCode,accountId,quote.extraCents,seconds);
+     } catch {return reply({error:"Promotion is invalid, unavailable or exhausted."},409);}
+   }
    return reply({
+     promotion,
      plan:state.code,
      billingPeriod:state.period,
      monthlyFeeCents:state.monthlyPriceCents,
