@@ -1,4 +1,6 @@
 import { CommerceStore } from "@/lib/commerce/store";
+import { PlanLedger } from "@/lib/commerce/plans";
+import { uploadStorageLimit, reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
 import { parseSavedStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -21,7 +23,6 @@ import {
   balance,
   list,
   asset,
-  putAsset,
   artist,
   saveArtist,
   job,
@@ -325,17 +326,21 @@ async function handler(
       if (!(file instanceof File) || (kind !== "audio" && kind !== "image"))
         throw new AppError("Choose a file to upload.");
       validateFile(file.name, file.size, kind);
-      const total = list<Asset>("assets", owner).reduce(
-        (n, a) => n + a.bytes,
-        0,
-      );
-      if (total + file.size > 250 * 1024 * 1024)
-        throw new AppError(
-          "Demo storage limit reached (250 MB). Delete demo data in Settings.",
-          413,
-        );
-      const bytes = Buffer.from(await file.arrayBuffer());
+      let plan: "guest"|"free"|"hobby"="guest";
+      // The authenticated customer cookie, not a browser plan claim, determines
+      // the upload budget. Former Hobby accounts immediately use the Free budget
+      // after paid access expires; over-quota files are never auto-deleted.
+      if(owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
+        const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+        try{
+          const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
+          plan=accountId && owner===`customer-${accountId}`
+            ? new PlanLedger(customer.db).activePlan(accountId) : "free";
+        }finally{customer.close()}
+      }
       const assetId = randomUUID();
+      reserveUploadStorage(db,owner,assetId,file.size,uploadStorageLimit(plan));
+      const bytes = Buffer.from(await file.arrayBuffer());
       const dest = path.join(dataDir, "media", assetId);
       const preview = path.join(dataDir, "media", `${assetId}.preview.mp3`);
       let duration: number | null = null,
@@ -390,9 +395,10 @@ async function handler(
           height,
           created: Date.now(),
         };
-        putAsset(a);
+        commitUploadedAsset(db,a);
         return json(safeAsset(a), 201);
       } catch (e) {
+        releaseUploadStorage(db,owner,assetId);
         await unlink(dest).catch(() => {});
         await unlink(preview).catch(() => {});
         if (e instanceof AppError) throw e;
