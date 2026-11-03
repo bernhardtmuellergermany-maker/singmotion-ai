@@ -25,9 +25,7 @@ export function HomeUploadedAudio({
   useEffect(() => {
     const controller = new AbortController();
     let ctx: AudioContext | null = null;
-    setPeaks([]);
-    setPosition(0);
-    setPlaying(false);
+    void Promise.resolve().then(()=>{if(!controller.signal.aborted){setPeaks([]);setPosition(0);setPlaying(false);}});
     (async () => {
       try {
         const res = await fetch(playbackUrl, { signal: controller.signal });
