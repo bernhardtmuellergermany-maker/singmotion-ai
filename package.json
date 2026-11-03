@@ -34,7 +34,8 @@
     "test:cms:browser": "tsx tests/cms.browser.ts",
     "cms:recover-admin": "tsx scripts/cms-recover-admin.ts",
     "inspect:paid-recovery": "node --experimental-strip-types scripts/inspect-paid-recovery.ts",
-    "preflight:paid-recovery": "node --experimental-strip-types scripts/paid-recovery-preflight.ts"
+    "preflight:paid-recovery": "node --experimental-strip-types scripts/paid-recovery-preflight.ts",
+    "recover:paid-once": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/paid-recovery-worker.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",
