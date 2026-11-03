@@ -1,4 +1,5 @@
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
+import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
 import type { PreparedMedia } from "../live/store.ts";
@@ -302,9 +303,13 @@ export class CommerceStore {
     quoteEvidence: string;
     key: string;
     media: PreparedMedia;
+    promoCode?: string;
+    originalCents?: number;
   }) {
     return this.tx(() => {
-      const { media, ...orderInput } = input;
+      const { media, promoCode, originalCents, ...orderInput } = input;
+      const promotions = promoCode ? new PromotionLedger(this.db) : null;
+      const normalizedPromo = promoCode ? normalizePromoCode(promoCode) : null;
       // Initialize subscription and reservation schema before every lookup,
       // including first-time and guest order attempts.
       new PlanLedger(this.db);
@@ -330,11 +335,21 @@ export class CommerceStore {
       if(previous){
         const bound=this.db.prepare("SELECT media_json FROM customer_prepared_media WHERE order_id=?").get(previous.id) as {media_json:string}|undefined;
         const reserved=this.db.prepare("SELECT account_id,seconds,extra_cents,state FROM customer_split_quotes WHERE attempt_id=?").get(previous.id) as {account_id:string;seconds:number;extra_cents:number;state:string}|undefined;
+        const promoReservation = promotions ? this.db.prepare("SELECT code,account_id,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?").get(previous.id) as
+          {code:string;account_id:string;original_cents:number;discount_cents:number;state:string}|undefined : null;
+        if(normalizedPromo && (!promoReservation || promoReservation.code!==normalizedPromo ||
+          promoReservation.account_id!==input.account || promoReservation.original_cents!==originalCents ||
+          promoReservation.original_cents-promoReservation.discount_cents!==input.cents ||
+          promoReservation.state==="released"))
+          throw Error("Promotion idempotency conflict");
+        if(!normalizedPromo && this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get() &&
+          this.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=?").get(previous.id))
+          throw Error("Promotion idempotency conflict");
         if(previous.account_id!==input.account||previous.project_id!==input.project||
            previous.price_cents!==input.cents||previous.quote_evidence!==input.quoteEvidence||
            !bound||bound.media_json!==JSON.stringify(media)||
            (input.account && (!reserved||reserved.account_id!==input.account||
-             reserved.seconds!==Math.ceil(media.durationSeconds)||reserved.extra_cents!==input.cents||
+             reserved.seconds!==Math.ceil(media.durationSeconds)||reserved.extra_cents!==(normalizedPromo ? originalCents : input.cents)||
              reserved.state==="released")))
           throw Error("Idempotency conflict");
         return {id:previous.id,guestToken:null};
@@ -345,11 +360,22 @@ export class CommerceStore {
       const plan=input.account?ledger!.snapshot(input.account):null;
       const seconds=Math.ceil(media.durationSeconds);
       const split=plan?quotePlanSeconds(plan.code,plan.secondsRemaining,media.durationSeconds):null;
-      if(split && split.extraCents!==input.cents)
+      const originalPrice = normalizedPromo ? originalCents : input.cents;
+      if(split && split.extraCents!==originalPrice)
         throw Error("PRICE_CHANGED_REVIEW_AGAIN");
+      if(normalizedPromo) {
+        if(!input.account || typeof originalPrice!=="number" || originalPrice<=0)
+          throw Error("Authenticated paid customer price required for promotion");
+        const discounted = promotions!.preview(normalizedPromo,input.account,originalPrice,media.durationSeconds);
+        if(discounted.finalCents!==input.cents)
+          throw Error("PRICE_CHANGED_REVIEW_AGAIN");
+      }
       if(split && split.extraCents===0 && (plan?.code!=="hobby" || split.includedSeconds!==split.seconds))
         throw Error("Hobby allowance verification required");
       const created = this.order(orderInput);
+      if(normalizedPromo && input.account)
+        promotions!.reserveForOrder({code:normalizedPromo,orderId:created.id,accountId:input.account,
+          originalCents:originalPrice!,durationSeconds:media.durationSeconds});
       if(split && input.account){
         const prior=this.db.prepare("SELECT * FROM customer_split_quotes WHERE attempt_id=?").get(created.id) as {account_id:string;seconds:number;included_seconds:number;extra_cents:number;state:string}|undefined;
         if(prior){
@@ -370,7 +396,7 @@ export class CommerceStore {
       if (!prior) this.db.prepare("INSERT INTO customer_prepared_media VALUES(?,?,?)").run(created.id,snapshot,Date.now());
       // A fully included Hobby order is authorized by reserved paid-period
       // allowance, not a fictitious zero-euro Stripe Checkout.
-      if(split && split.extraCents===0 && input.account){
+      if(split && split.extraCents===0 && input.account && !normalizedPromo){
         const updated=this.db.prepare("UPDATE customer_orders SET status='paid' WHERE id=? AND status='awaiting_payment' AND price_cents=0").run(created.id);
         if(updated.changes!==1)throw Error("Included order authorization conflict");
         this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)").run(created.id,Date.now());
