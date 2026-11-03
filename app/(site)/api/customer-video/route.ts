@@ -4,7 +4,7 @@ import { asset, dataDir } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { customerVideoByteRange } from "@/lib/commerce/customer-video-links";
 import { constants } from "node:fs";
-import { open, realpath, type FileHandle } from "node:fs/promises";
+import { lstat, open, realpath, type FileHandle } from "node:fs/promises";
 import { Readable } from "node:stream";
 import path from "node:path";
 
@@ -34,12 +34,16 @@ export async function GET(req: NextRequest) {
     const root=await realpath(path.join(dataDir,"media"));
     const file=await realpath(video.path);
     if(!file.startsWith(root+path.sep))return deniedVideo();
+    const beforeOpen=await lstat(video.path);
+    if(!beforeOpen.isFile()||beforeOpen.nlink!==1)return deniedVideo();
 
-    // Open once, without following a final symlink. The same verified inode is
-    // used for metadata checks and streaming; no second path-based open.
-    fileHandle=await open(file,constants.O_RDONLY|constants.O_NOFOLLOW);
+    // Open the ORIGINAL path once with O_NOFOLLOW (not the resolved path).
+    // Check the inode after opening: swapping the file between lstat and open
+    // must not allow a different or linked file into the customer stream.
+    fileHandle=await open(video.path,constants.O_RDONLY|constants.O_NOFOLLOW);
     const info=await fileHandle.stat();
-    if(!info.isFile()||info.size<1||info.size!==video.bytes)return deniedVideo();
+    if(!info.isFile()||info.nlink!==1||info.dev!==beforeOpen.dev||
+       info.ino!==beforeOpen.ino||info.size<1||info.size!==video.bytes)return deniedVideo();
 
     const range=customerVideoByteRange(req.headers.get("range"),info.size);
     if(!range)return new Response(null,{status:416,
