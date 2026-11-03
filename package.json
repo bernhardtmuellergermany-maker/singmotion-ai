@@ -65,5 +65,8 @@
     "tsx": "4.23.15",
     "typescript": "^5.9.0"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "dompurify": "3.4.17"
+  }
 }
