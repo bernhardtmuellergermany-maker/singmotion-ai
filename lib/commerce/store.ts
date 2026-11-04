@@ -551,7 +551,7 @@ export class CommerceStore {
     orderId:string;stripeCheckoutId:string;refundId:string;refundedCents:number;
     evidence:string;
   }):boolean {
-    if(!/^cs_test_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
+    if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
        !/^re_[A-Za-z0-9_]+$/.test(input.refundId)||
        !Number.isSafeInteger(input.refundedCents)||input.refundedCents<=0||
        typeof input.evidence!=="string"||input.evidence.length<20||input.evidence.length>2048)
@@ -598,7 +598,7 @@ export class CommerceStore {
   reconcileVerifiedStripeDispute(input:{
     orderId:string;stripeCheckoutId:string;disputeId:string;evidence:string;
   }):boolean {
-    if(!/^cs_test_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
+    if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
        !/^dp_[A-Za-z0-9_]+$/.test(input.disputeId)||
        typeof input.evidence!=="string"||input.evidence.length<20||input.evidence.length>2048)
       throw Error("Verified Stripe dispute evidence required");
@@ -627,8 +627,8 @@ export class CommerceStore {
   }
   /** Bind the exact Stripe-created Checkout Session before accepting any payment. */
   bindStripeCheckout(orderId: string, sessionId: string) {
-    if (!/^cs_test_[A-Za-z0-9_]+$/.test(sessionId))
-      throw Error("Invalid Stripe sandbox Checkout Session");
+    if (!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(sessionId))
+      throw Error("Invalid Stripe Checkout Session");
     return this.tx(() => {
       const order = this.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(orderId);
       if (!order || order.status !== "awaiting_payment")
