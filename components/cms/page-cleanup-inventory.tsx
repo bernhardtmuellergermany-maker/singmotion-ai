@@ -6,7 +6,7 @@ import {planCmsPageCleanup,type CmsPageInventory} from "../../cms/page-cleanup-p
 /** Server-rendered inventory visible exclusively to verified super-admins.
  * No mutable CMS actions, external requests or exposure to other roles.
  */
-export async function CmsPageCleanupInventory(){
+async function loadRows(){
  try{
   if(process.env.CMS_ENABLED!=="true"||
    !(process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"||
@@ -26,8 +26,13 @@ export async function CmsPageCleanupInventory(){
    items.push({id:doc.id,slug:doc.slug,title:doc.title,status:doc._status??undefined,
     hasPublishedVersion,versionsComplete:!versions.hasNextPage});
   }
-  const rows=planCmsPageCleanup(items);
-  const online=rows.filter(x=>x.status==="published").length;
+  return planCmsPageCleanup(items);
+ }catch{return null;}
+}
+export async function CmsPageCleanupInventory(){
+ const rows=await loadRows();
+ if(rows===null) return <section className="sm-cms-page-inventory" role="status"><h2>CMS-Veröffentlichungsstatus nicht verfügbar</h2><p>Die vollständige Veröffentlichungshistorie konnte nicht überprüft werden. Es wird nichts gelöscht.</p></section>;
+ const online=rows.filter(x=>x.status==="published").length;
   const protectedHistory=rows.filter(x=>x.status!=="published"&&x.hasPublishedVersion).length;
   const drafts=rows.filter(x=>x.action==="remove-unpublished").length;
   const unresolved=rows.filter(x=>x.action==="manual-review").length;
@@ -63,10 +68,4 @@ export async function CmsPageCleanupInventory(){
     Nie veröffentlichte Entwürfe können nach einer gesicherten Prüfung entfernt werden; früher veröffentlichte Versionen bleiben geschützt.
     Diese Übersicht führt selbst keine Löschung aus.</p>
   </section>;
- }catch{
-  return <section className="sm-cms-page-inventory" role="status">
-   <h2>CMS-Veröffentlichungsstatus nicht verfügbar</h2>
-   <p>Die vollständige Veröffentlichungshistorie konnte nicht überprüft werden. Es wird nichts gelöscht.</p>
-  </section>;
- }
 }
