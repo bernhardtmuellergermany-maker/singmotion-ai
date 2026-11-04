@@ -52,6 +52,7 @@ async function demoMetrics():Promise<Metrics|null>{
 }
 export async function Operations({user}:Pick<AdminViewServerProps,"user">){
  const privileged=hasRole(user,["super-admin","support"]);
+ const canEditContent=hasRole(user,["super-admin","editor"]);
  const superAdmin=hasRole(user,["super-admin"]);
  const metrics=privileged?await demoMetrics():null;
  const environment=process.env.RAILWAY_ENVIRONMENT_ID===STAGING?"Private staging":
@@ -67,8 +68,8 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
     <p className="sm-cms-hero-copy">Everything you need to shape the SingMotion experience:
       website content, Studio guidance, assets and protected operations — in one place.</p>
     <div className="sm-cms-hero-actions">
-     <Link href="/admin/collections/pages" className="sm-cms-primary-link">Manage website <ArrowUpRight size={17}/></Link>
-     <Link href="/cms-preview/home" className="sm-cms-secondary-link">Preview CMS home <ExternalLink size={16}/></Link>
+     {canEditContent?<Link href="/admin/collections/pages" className="sm-cms-primary-link">Manage website <ArrowUpRight size={17}/></Link>:<Link href="/admin/collections/support-cases" className="sm-cms-primary-link">Review support <ArrowUpRight size={17}/></Link>}
+     {canEditContent&&<Link href="/cms-preview/home" className="sm-cms-secondary-link">Preview CMS home <ExternalLink size={16}/></Link>}
     </div>
    </div>
    <div className="sm-cms-hero-art" aria-hidden="true">
@@ -79,7 +80,7 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
    </div>
   </header>
 
-  <section className="sm-cms-section" aria-labelledby="sm-cms-workspace-title">
+  {canEditContent&&<section className="sm-cms-section" aria-labelledby="sm-cms-workspace-title">
    <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">01 / EDITORIAL WORKSPACE</span>
     <h2 id="sm-cms-workspace-title">Create & manage</h2>
     <p>Edit your pages and Studio content with the existing secure publishing workflow.</p></div>
@@ -97,9 +98,9 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
      </Link>
     })}
    </div>
-  </section>
+  </section>}
 
-  <section className="sm-cms-section" aria-labelledby="sm-cms-publishing-title">
+  {canEditContent&&<section className="sm-cms-section" aria-labelledby="sm-cms-publishing-title">
    <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">02 / PUBLISHING</span>
     <h2 id="sm-cms-publishing-title">Content workflow</h2></div></div>
    <div className="sm-cms-notice">
@@ -110,7 +111,7 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
      Review changes in CMS preview and publish intentionally.</p></div>
     <Link href="/cms-preview/home" className="sm-cms-notice-link">Open preview <ArrowUpRight size={16}/></Link>
    </div>
-  </section>
+  </section>}
 
   {privileged&&<section className="sm-cms-section" aria-labelledby="sm-cms-operations-title">
    <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">03 / REAL DATA</span>
