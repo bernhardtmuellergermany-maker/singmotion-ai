@@ -518,6 +518,12 @@ export class CommerceStore {
         this.db.prepare("SELECT 1 FROM stripe_checkout_sessions WHERE order_id=?").get(orderId)||
         this.db.prepare("SELECT 1 FROM customer_fulfillment_queue WHERE order_id=?").get(orderId))
         throw Error("Order requires payment reconciliation");
+      // A zero-EUR voucher with a separately signed provider cost authorization
+      // is no longer an unstarted order. Never release its quota or let another
+      // browser tab recycle the same paid-provider budget.
+      if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='free_promo_budget_authorizations'").get() &&
+         this.db.prepare("SELECT 1 FROM free_promo_budget_authorizations WHERE order_id=?").get(orderId))
+        throw Error("Operator-authorized promo requires manual reconciliation");
       const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(orderId) as {state:string;included_seconds:number}|undefined;
       if(split){
         if(split.state!=="reserved")throw Error("Allowance requires reconciliation");
