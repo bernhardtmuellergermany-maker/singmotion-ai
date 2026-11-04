@@ -53,8 +53,8 @@ test("production requires separately approved R2 and verified media migration",(
  assert.equal(auditSingMotionLaunch(env,"production").gates.find(g=>g.id==="production-media-migration")?.ready,false);
 });
 test("independent no-go states cannot be bypassed with mere Stripe credentials",()=>{
- const env=verified(production);
- delete (env as Record<string,string|undefined>).BYTEPLUS_BILLING_AND_TAX_APPROVED;
+ const env:Record<string,string|undefined>=verified(production);
+ delete env.BYTEPLUS_BILLING_AND_TAX_APPROVED;
  delete (env as Record<string,string|undefined>).STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED;
  env.STRIPE_SECRET_KEY="sk_live_credential_never_proves_launch";
  const audit=auditSingMotionLaunch(env,"production");
