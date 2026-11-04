@@ -592,71 +592,17 @@ try {
   await page.locator(".sm-carousel-stage").waitFor();
   assert.ok(await page.locator('[aria-label="SingMotion AI Showcase"]').count());
   assert.ok(await page.locator('[aria-label="Audio upload"]').count());
+  // CMS home draft is shown within the CURRENT Carousel experience.
   await page.goto(origin + "/cms-preview/home");
-  await page
-    .getByRole("heading", { name: "A published artist story", exact: true })
-    .waitFor();
-  assert.equal(
-    await page
-      .getByRole("link", { name: "Start creating", exact: true })
-      .getAttribute("href"),
-    "/studio",
-  );
-  assert.equal(
-    await page
-      .getByRole("link", { name: "Meet our team", exact: true })
-      .getAttribute("href"),
-    "/about",
-  );
-  await page.getByText("Editable card copy", { exact: true }).waitFor();
-  assert.equal(
-    await page
-      .locator(".sm-site-header")
-      .getByRole("link", { name: "Go to studio" })
-      .getAttribute("href"),
-    "/studio",
-  );
-  assert.equal(
-    await page
-      .locator(".sm-site-header")
-      .getByRole("link", { name: "Contact the team" })
-      .count(),
-    0,
-  );
-  assert.equal(
-    await page
-      .locator("footer")
-      .getByRole("link", { name: "Contact the team" })
-      .getAttribute("href"),
-    "/contact",
-  );
-  assert.equal(
-    await page
-      .locator("footer")
-      .getByRole("link", { name: "Questions" })
-      .getAttribute("href"),
-    "/faq",
-  );
-
-  const heroImage = page.getByRole("img", {
-    name: "Published concert artwork",
-  });
-  assert.match(
-    (await heroImage.getAttribute("src")) || "",
-    /^\/api\/cms\/cms-assets\/file\//,
-  );
-  assert.ok(
-    await heroImage.evaluate(
-      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
-    ),
-  );
-  assert.equal(await page.locator(".concert-artwork").count(), 1);
-  assert.equal(
-    await page
-      .getByRole("heading", { name: "Make your artist sing.", exact: true })
-      .count(),
-    0,
-  );
+  await page.locator(".sm-cms-preview-banner").waitFor();
+  await page.locator(".sm-carousel-stage").waitFor();
+  assert.equal(await page.locator(".sm-carousel-home h1").textContent(),"A published artist story");
+  assert.match((await page.locator(".sm-cms-preview-banner").textContent())||"",/not automatically live/);
+  await page.setViewportSize({width:390,height:844});
+  assert.ok(await page.locator(".sm-cms-preview-back").isVisible());
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(origin + "/");
+  assert.match((await page.locator(".sm-carousel-home h1").textContent())||"",/Turn your song/);
   const operatorContext = await browser.newContext({
     ignoreHTTPSErrors: true,
     httpCredentials: { username: "staging", password: stagingPassword },
