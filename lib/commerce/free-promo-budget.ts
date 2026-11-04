@@ -196,6 +196,40 @@ export class FreePromoBudgetLedger{
    globalReservedMicroUsd:global,ambiguousCount:states.ambiguous??0,
    requiresReviewCount:states.requires_review??0};
  }
+ /** Read-only alert assessment. The operator kill switch may be OFF while
+  * costs are monitored. No emails, external calls or budget mutations occur.
+  */
+ assessCostAlerts(code:string,policy:Budget,now=Date.now()):{
+  severity:"ok"|"warning"|"blocked";
+  reasons:Array<"operator-disabled"|"per-promo-near-cap"|"per-promo-at-cap"|
+   "daily-near-cap"|"daily-at-cap"|"global-near-cap"|"global-at-cap"|
+   "ambiguous-submissions"|"operator-reviews">;
+ }{
+  // Validate each numeric ceiling but deliberately allow a disabled operator
+  // to inspect costs. Authorization and submission stay fail-closed.
+  validBudget({...policy,operatorEnabled:true});
+  const exposure=this.costExposure(code,now);
+  type Reason="operator-disabled"|"per-promo-near-cap"|"per-promo-at-cap"|
+   "daily-near-cap"|"daily-at-cap"|"global-near-cap"|"global-at-cap"|
+   "ambiguous-submissions"|"operator-reviews";
+  const reasons:Reason[]=[];
+  let severity:"ok"|"warning"|"blocked"="ok";
+  const add=(reason:Reason,blocking=false)=>{
+   reasons.push(reason);
+   severity=blocking?"blocked":severity==="ok"?"warning":severity;
+  };
+  if(policy.operatorEnabled!==true)add("operator-disabled",true);
+  const assess=(used:number,cap:number,near:Reason,full:Reason)=>{
+   if(used>=cap)add(full,true);
+   else if(used*100>=cap*80)add(near);
+  };
+  assess(exposure.promoReservedMicroUsd,policy.perPromoMicroUsd,"per-promo-near-cap","per-promo-at-cap");
+  assess(exposure.rollingDayReservedMicroUsd,policy.rollingDayMicroUsd,"daily-near-cap","daily-at-cap");
+  assess(exposure.globalReservedMicroUsd,policy.lifetimeMicroUsd,"global-near-cap","global-at-cap");
+  if(exposure.ambiguousCount>0)add("ambiguous-submissions");
+  if(exposure.requiresReviewCount>0)add("operator-reviews");
+  return {severity,reasons};
+ }
  /** Atomic one-time reservation under a separately authenticated operator
   * approval. Never updates customer_orders to paid or touches provider APIs.
   * The order must already have an immutable server-reviewed media snapshot.
