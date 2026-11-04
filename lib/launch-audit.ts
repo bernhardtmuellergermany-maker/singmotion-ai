@@ -49,6 +49,17 @@ export function auditSingMotionLaunch(
  add("operational-recovery",yes(env,"BACKUP_RESTORE_EXERCISE_VERIFIED")&&
   yes(env,"MEDIA_RETENTION_NOTICE_FLOW_VERIFIED")&&yes(env,"COST_ALERTS_AND_KILL_SWITCH_VERIFIED"),
   "Backups, recovery, retention notice, daily cost alerts and emergency stop must be tested.");
+ // A green staging CMS build does not prove the Production CMS exists.
+ // Require separate reviewed migration/restore and CMS login + roles +
+ // modern homepage editing checks before approving a public cutover.
+ add("production-cms",!isProd||(
+  yes(env,"CMS_ENABLED")&&has(env,"CMS_DATABASE_URL")&&has(env,"PAYLOAD_SECRET")&&
+  yes(env,"PRODUCTION_CMS_MIGRATION_VERIFIED")&&
+  yes(env,"PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED")&&
+  yes(env,"PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED")),
+  "Modern Payload CMS must be deployed with independently reviewed schema migration, backup/restore, role and publishing E2E in Production.");
+ add("cms-page-retention",!isProd||yes(env,"CMS_PUBLISHED_CONTENT_RECONCILED"),
+  "Compare published CMS records and public routes, review legacy drafts and preserve legal/previously published content.");
  add("customer-release",!isProd||yes(env,"PUBLIC_CUSTOMER_LAUNCH_APPROVED"),
   "Explicit operator production go-live signoff is required after every gate passes.");
  return {environment:target,ready:gates.every(g=>g.ready),gates};
