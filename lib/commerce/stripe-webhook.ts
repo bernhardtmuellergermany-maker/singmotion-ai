@@ -86,7 +86,9 @@ export function stripeCheckoutAdapter(secret: string,mode:StripePaymentMode="tes
   return {
     async verify(raw: Uint8Array, signature: string): Promise<VerifiedPayment> {
       const event = verifyStripePaymentEvent(raw,signature,secret,mode);
-      if (event.type !== "checkout.session.completed") throw Error("Unsupported Stripe payment event.");
+      if (event.type !== "checkout.session.completed" &&
+          event.type !== "checkout.session.async_payment_succeeded")
+        throw Error("Unsupported Stripe payment event.");
       const checkout = event.data?.object;
       if (checkout?.object !== "checkout.session" || checkout.mode !== "payment" ||
           checkout.payment_status !== "paid" || checkout.currency?.toLowerCase() !== "eur" ||
@@ -107,7 +109,7 @@ export function stripeCheckoutAdapter(secret: string,mode:StripePaymentMode="tes
   };
 }
 
-/** Validate the actual Stripe test-mode checkout against the reviewed order.
+/** Validate the actual Stripe Checkout response against the reviewed order and mode.
  * A valid API HTTP response alone is not authorization to bind an order. */
 export function verifiedStripeCheckoutSession(
  value:unknown,orderId:string,priceCents:number,mode:StripePaymentMode
