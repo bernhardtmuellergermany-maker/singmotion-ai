@@ -23,7 +23,7 @@ export async function CmsPageCleanupInventory(){
    const versions=await payload.findVersions({collection:"pages",where:{parent:{equals:doc.id}},
     limit:100,depth:0,overrideAccess:true});
    const hasPublishedVersion=versions.docs.some(record=>record.version?._status==="published");
-   items.push({id:doc.id,slug:doc.slug,title:doc.title,status:doc._status,
+   items.push({id:doc.id,slug:doc.slug,title:doc.title,status:doc._status??undefined,
     hasPublishedVersion,versionsComplete:!versions.hasNextPage});
   }
   const rows=planCmsPageCleanup(items);
