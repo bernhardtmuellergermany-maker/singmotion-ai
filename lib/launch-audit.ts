@@ -2,6 +2,8 @@
  * This checklist is advisory and fail-closed; it never promotes a build,
  * flips a feature flag, reads secret values into output or calls providers.
  */
+import {customerLaunchReadiness} from "./commerce/readiness.ts";
+
 export type ReleaseEnvironment="staging"|"production";
 export type GateState={id:string;ready:boolean;reason:string};
 export type LaunchAudit={environment:ReleaseEnvironment;ready:boolean;gates:GateState[]};
@@ -38,6 +40,8 @@ export function auditSingMotionLaunch(
   has(env,"STRIPE_LIVE_CUSTOMER_CHECKOUT_AUDIT_ID")&&
   yes(env,"STRIPE_REFUND_DISPUTE_E2E_VERIFIED"),
   "Separate Stripe live onboarding, full checkout/refund/dispute validation and audited webhook reconciliation.");
+ add("code-runtime-readiness",customerLaunchReadiness(env).readyForPaidOrders,
+  "Verified checkout, provider submission and private delivery must actually be connected in code; operator flags alone never authorize launch.");
  add("zero-euro-promo",yes(env,"FREE_PROMO_FULFILLMENT_E2E_VERIFIED"),
   "Three-video free entitlement must use audited zero-EUR authorization and capped provider spending.");
  add("legal-and-support",yes(env,"LEGAL_REVIEW_APPROVED")&&has(env,"SUPPORT_CONTACT_VERIFIED"),
