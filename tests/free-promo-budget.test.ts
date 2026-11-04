@@ -7,7 +7,7 @@ import type {PreparedMedia} from "../lib/live/store.ts";
 
 const secret="dedicated-free-promo-operator-authorization-secret-very-long";
 const now=Date.parse("2026-11-04T12:00:00.000Z");
-const budget={perJobMicroUsd:100000,rollingDayMicroUsd:150000,lifetimeMicroUsd:250000};
+const budget={perJobMicroUsd:100000,perPromoMicroUsd:150000,rollingDayMicroUsd:150000,lifetimeMicroUsd:250000};
 function setup(){
  const store=new CommerceStore(":memory:");
  const account=store.register("freebudget@example.test","long-unique-test-password-12345");
@@ -73,5 +73,28 @@ test("disabled promo never obtains provider cost authorization",()=>{
   const id=x.order(5);
   x.promo.setEnabled("TRIPLEFREE",false);
   assert.throws(()=>x.ledger.authorize(x.approval(id),secret,budget,now),/not eligible/);
+ }finally{x.store.close()}
+});
+
+test("per-promotion USD ceiling blocks repeat reservations even with available global budget",()=>{
+ const x=setup();
+ try{
+  const highGlobal={perJobMicroUsd:100000,perPromoMicroUsd:100000,rollingDayMicroUsd:300000,lifetimeMicroUsd:500000};
+  const first=x.order(6),second=x.order(7);
+  x.ledger.authorize(x.approval(first),secret,highGlobal,now);
+  assert.throws(()=>x.ledger.authorize(x.approval(second),secret,highGlobal,now),/ceiling/);
+  assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM free_promo_budget_authorizations").get() as {n:number}).n,1);
+  assert.equal(x.promo.list()[0].reserved,2);
+ }finally{x.store.close()}
+});
+
+test("missing or invalid per-promotion cost cap fails closed",()=>{
+ const x=setup();
+ try{
+  const id=x.order(8);
+  assert.throws(()=>x.ledger.authorize(x.approval(id),secret,
+   {...budget,perPromoMicroUsd:0},now),/Invalid free-video spending policy/);
+  assert.throws(()=>x.ledger.authorize(x.approval(id),secret,
+   {...budget,perPromoMicroUsd:undefined as unknown as number},now),/Invalid free-video spending policy/);
  }finally{x.store.close()}
 });
