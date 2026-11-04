@@ -64,18 +64,36 @@ export class FreePromoBudgetLedger{
    throw Error("Invalid free-video claim");
   this.db.exec("BEGIN IMMEDIATE");
   try{
-   const row=this.db.prepare(`SELECT a.state,a.account_id,o.status,p.state AS promo_state
+   const row=this.db.prepare(`SELECT a.state,a.account_id,o.status,o.price_cents,o.quote_evidence,
+     p.state AS promo_state,c.enabled,c.starts_at,c.ends_at,c.kind,
+     m.media_json,i.input_digest,i.review_digest
      FROM free_promo_budget_authorizations a
      JOIN customer_orders o ON o.id=a.order_id AND o.account_id=a.account_id
      JOIN promo_redemptions p ON p.order_id=a.order_id AND p.account_id=a.account_id
+     JOIN promo_codes c ON c.code=a.code AND c.code=p.code
+     JOIN customer_prepared_media m ON m.order_id=a.order_id
+     JOIN customer_order_inputs i ON i.order_id=a.order_id
      WHERE a.order_id=?`).get(orderId) as
-     {state:FreePromoAuthorization["state"];account_id:string;status:string;promo_state:string}|undefined;
-   if(!row||row.account_id!==accountId||row.status!=="awaiting_payment"||row.promo_state!=="reserved")
+     {state:FreePromoAuthorization["state"];account_id:string;status:string;promo_state:string;
+      price_cents:number;quote_evidence:string;enabled:number;starts_at:number;ends_at:number;
+      kind:string;media_json:string;input_digest:string;review_digest:string}|undefined;
+   if(!row||row.account_id!==accountId||row.status!=="awaiting_payment"||
+    row.promo_state!=="reserved"||row.price_cents!==0||row.kind!=="free_videos"||
+    row.enabled!==1||now<row.starts_at||now>=row.ends_at)
     throw Error("Free-video claim not eligible");
    if(row.state!=="authorized"){
     this.db.exec("COMMIT");
     return "already-claimed";
    }
+   const media=JSON.parse(row.media_json) as PreparedMedia;
+   if(media.owner!==`customer-${accountId}`||
+    !Number.isFinite(media.durationSeconds)||media.durationSeconds<5||media.durationSeconds>10||
+    typeof media.sourceJobId!=="string"||media.sourceJobId.length<8)
+    throw Error("Free-video claim media invalid");
+   const input=reviewedVideoInputDigest(media);
+   if(input!==row.input_digest||
+    reviewedVideoQuoteDigest(input,row.price_cents,row.quote_evidence)!==row.review_digest)
+    throw Error("Free-video claim reviewed media changed");
    const updated=this.db.prepare(`UPDATE free_promo_budget_authorizations
      SET state='submitted_or_unknown',updated=?
      WHERE order_id=? AND account_id=? AND state='authorized'`).run(now,orderId,accountId);
