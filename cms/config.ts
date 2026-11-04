@@ -69,6 +69,7 @@ const contentAccess = {
 const collections: CollectionConfig[] = [
   {
     slug: "staff",
+    labels: {singular:"Teammitglied",plural:"Team & Zugriffsrechte"},
     admin: { useAsTitle: "email", group: "Administration" },
     auth: {
       tokenExpiration: 3600,
@@ -153,9 +154,10 @@ const collections: CollectionConfig[] = [
   },
   {
     slug: "pages",
+    labels: {singular:"Seite",plural:"Seiten bearbeiten"},
     admin: {
       useAsTitle: "title",
-      group: "Website",
+      group: "Website & Inhalte",
       preview: (doc) => `/cms-preview/${doc.slug}`,
     },
     access: {
@@ -254,8 +256,9 @@ const collections: CollectionConfig[] = [
   },
   {
     slug: "cms-assets",
+    labels: {singular:"Medienbild",plural:"Medienbibliothek"},
     admin: {
-      group: "Website",
+      group: "Website & Inhalte",
       description:
         "Public website images only. Never upload customer or BytePlus media here.",
     },
@@ -294,8 +297,9 @@ const collections: CollectionConfig[] = [
   },
   {
     slug: "support-cases",
+    labels: {singular:"Supportfall",plural:"Kundenservice"},
     admin: {
-      group: "Operations",
+      group: "Kunden & Betrieb",
       description:
         "Manual reports and refund requests. Status changes do not issue refunds, suspend customers or run generations.",
     },
@@ -325,6 +329,7 @@ const collections: CollectionConfig[] = [
   },
   {
     slug: "audit-events",
+    labels: {singular:"Aktivitätsereignis",plural:"Aktivitätsprotokoll"},
     admin: {
       group: "Administration",
       description:
@@ -342,8 +347,9 @@ const collections: CollectionConfig[] = [
 const globals: GlobalConfig[] = [
   {
     slug: "studio-settings",
+    label:"Studio-Inhalte",
     admin: {
-      group: "Operations",
+      group: "Kunden & Betrieb",
       description:
         "Studio copy and optional prompt suggestions only. Authorization, costs and provider policy cannot be changed here.",
     },
@@ -366,7 +372,8 @@ const globals: GlobalConfig[] = [
   },
   {
     slug: "site-navigation",
-    admin: { group: "Website" },
+    label:"Navigation & Footer",
+    admin: { group: "Website & Inhalte" },
     access: { read: () => true, update: editor, readVersions: editor },
     versions: { max: 30 },
     fields: [
@@ -377,8 +384,9 @@ const globals: GlobalConfig[] = [
   },
   {
     slug: "notification-templates",
+    label:"E-Mail-Vorlagen",
     admin: {
-      group: "Operations",
+      group: "Kunden & Betrieb",
       description:
         "Draft copy only. No email delivery or automated notifications are connected.",
     },
@@ -454,6 +462,7 @@ export default buildConfig({
     importMap: { baseDir: path.resolve(".") },
     components: {
       beforeDashboard: ["/components/cms/operations.tsx#Operations"],
+      beforeNavLinks: ["/components/cms/dashboard-nav.tsx#DashboardNav"],
     },
   },
   collections,
