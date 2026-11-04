@@ -43,3 +43,19 @@ export function retainedInputPaths(dataDir: string): string[] {
     ledger.close();
   }
 }
+
+/** Only delete fully expired, UUID-owned ephemeral DEMO accounts.
+ * Authenticated customers and CMS staff have persistent identities: expiration
+ * of a login cookie is never consent to destroy media or projects.
+ * Multiple sessions belonging to one demo owner must ALL have expired.
+ */
+export function expiredDemoOwners(db:DatabaseSync,now=Date.now()):string[]{
+ if(!Number.isSafeInteger(now)||now<0)throw Error("Invalid demo cleanup timestamp");
+ const rows=db.prepare(`SELECT DISTINCT s.owner
+   FROM sessions s WHERE s.expires<?
+   AND NOT EXISTS(SELECT 1 FROM sessions active
+      WHERE active.owner=s.owner AND active.expires>=?)`)
+  .all(now,now) as {owner:string}[];
+ return rows.map(r=>r.owner).filter(owner=>
+  /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(owner));
+}
