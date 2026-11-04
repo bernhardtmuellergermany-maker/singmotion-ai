@@ -6,11 +6,12 @@
  * npm run cms:prune-drafts -- --apply
  */
 import path from "node:path";
-import {lstat,mkdir,open,realpath} from "node:fs/promises";
+import {lstat,mkdir,open,realpath,readFile} from "node:fs/promises";
 import {randomUUID} from "node:crypto";
 import {getPayload} from "payload";
 import config from "../payload.config.ts";
 import {planCmsPageCleanup,type CmsPageInventory} from "../cms/page-cleanup-policy.ts";
+import {cmsArchiveDigest,verifyCmsArchiveReadback,hasChangedCmsVersions} from "../cms/draft-archive-integrity.ts";
 
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 const mode=process.argv[2];
@@ -67,9 +68,25 @@ try{
   const backupPath=path.join(archiveRoot,`draft-prune-${Date.now()}-${randomUUID()}.json`);
   const record={created:new Date().toISOString(),purpose:"CMS unpublished-only cleanup",
    decisions,documents:docs,versions};
+  const original=Buffer.from(JSON.stringify(record,null,2),"utf8");
+  const digest=cmsArchiveDigest(original);
   const handle=await open(backupPath,"wx",0o600);
-  try{await handle.writeFile(JSON.stringify(record,null,2));await handle.sync()}
+  try{await handle.writeFile(original);await handle.sync()}
   finally{await handle.close()}
+  // Verify the archive actually persisted correctly before any destructive step.
+  // The archive must stay private: no symlink, no group/world read permission.
+  const archiveInfo=await lstat(backupPath);
+  const verifiedBytes=await readFile(backupPath);
+  if(!archiveInfo.isFile()||archiveInfo.isSymbolicLink()||
+   (archiveInfo.mode&0o077)!==0||archiveInfo.size!==original.length||
+   !verifyCmsArchiveReadback(original,verifiedBytes))
+   throw Error("CMS backup verification failed; no pages have been deleted");
+  const saved=JSON.parse(verifiedBytes.toString("utf8")) as typeof record;
+  if(saved.decisions.length!==decisions.length||
+   saved.documents.length!==docs.length||
+   saved.versions.length!==versions.length||
+   cmsArchiveDigest(verifiedBytes)!==digest)
+   throw Error("CMS backup manifest mismatch; no pages have been deleted");
   for(const decision of decisions){
    if(decision.action!=="remove-unpublished")continue;
    // Re-read just before deleting: no new draft may overwrite a published page.
@@ -78,6 +95,20 @@ try{
    if(current.slug!==decision.slug||current._status!=="draft"||
     JSON.stringify(current)!==JSON.stringify(docs.find(d=>d.id===decision.id)))
     throw Error("CMS page changed during cleanup; stop and inspect backup");
+   // A concurrent publication or new autosave can change history after inventory.
+   // Never delete when fresh history differs from the backed-up version set.
+   const recorded=versions.find(v=>v.id===decision.id);
+   if(!recorded)throw Error("CMS versions are missing in verified backup");
+   const fresh:unknown[]=[];
+   let complete=false;
+   for(let page=1;page<=20;page++){
+    const history=await payload.findVersions({collection:"pages",
+     where:{parent:{equals:decision.id}},page,limit:100,depth:0,overrideAccess:true});
+    fresh.push(...history.docs);
+    if(!history.hasNextPage){complete=true;break}
+   }
+   if(hasChangedCmsVersions(recorded.records,fresh,complete))
+    throw Error("CMS page history changed during cleanup; stop and inspect backup");
    await payload.delete({collection:"pages",id:decision.id,overrideAccess:true});
   }
   console.log(JSON.stringify({removed:decisions.filter(d=>d.action==="remove-unpublished").length,
