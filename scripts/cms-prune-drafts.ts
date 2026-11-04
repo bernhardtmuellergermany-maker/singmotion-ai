@@ -33,7 +33,7 @@ try{
  for(let page=1;page<=10;page++){
   const result=await payload.find({collection:"pages",page,limit:100,depth:0,
    overrideAccess:true,draft:true,sort:"slug"});
-  docs.push(...result.docs as Array<Record<string,unknown>>);
+  docs.push(...result.docs as unknown as Array<Record<string,unknown>>);
   if(!result.hasNextPage)break;
   if(page===10)throw Error("CMS inventory exceeds safe page limit");
  }
