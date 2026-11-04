@@ -61,8 +61,14 @@ test("independent no-go states cannot be bypassed with mere Stripe credentials",
  assert.equal(audit.gates.find(g=>g.id==="provider-contract")?.ready,false);
  assert.equal(audit.gates.find(g=>g.id==="stripe")?.ready,false);
 });
-test("fully approved synthetic audit is deterministic and never performs a launch",()=>{
+test("synthetic green approval flags never override disconnected payment and provider runtime",()=>{
  const audit=auditSingMotionLaunch(verified(production),"production");
- assert.equal(audit.ready,true);
- assert.ok(audit.gates.every(g=>g.ready));
+ assert.equal(audit.ready,false);
+ assert.equal(audit.gates.find(g=>g.id==="code-runtime-readiness")?.ready,false);
+ assert.ok(audit.gates.filter(g=>g.id!=="code-runtime-readiness").every(g=>g.ready));
+});
+test("staging operator approvals alone cannot enable public customer checkout",()=>{
+ const audit=auditSingMotionLaunch(verified(staging),"staging");
+ assert.equal(audit.ready,false);
+ assert.equal(audit.gates.find(g=>g.id==="code-runtime-readiness")?.ready,false);
 });
