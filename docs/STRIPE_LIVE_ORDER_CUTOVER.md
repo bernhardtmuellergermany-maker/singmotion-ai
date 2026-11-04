@@ -15,6 +15,30 @@
 
 The Hobby checkout and webhook under `/api/hobby-*` are currently **staging/test-mode only** with a reviewed EUR 4.99/month inclusive-tax test price. They are **not** a production subscription implementation and must not be enabled by this change or represented as recurring live revenue.
 
+## Read-only technical audit (no charge)
+
+On the actual protected Railway **Production** runtime, after onboarding the
+independently verified Stripe Live account, configure the server-only
+`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
+`STRIPE_HOBBY_LIVE_PRICE_ID` plus `PUBLIC_SITE_ORIGIN` (exact public HTTPS
+origin). Then run:
+
+```sh
+npm run stripe:live-preflight -- --production
+```
+
+This calls only Stripe **GET** operations to validate live account
+`charges_enabled` and `details_submitted`, the active inclusive EUR 4.99
+monthly price, and a live enabled HTTPS webhook that subscribes to paid
+Checkout, delayed paid success, refunds and disputes. It never creates a
+payment, returns customer information or prints credentials. It **always
+returns a failure exit code while actual paid customer fulfillment and
+delivery are not active**: passing Stripe config alone is not enough.
+
+Do not run this read-only live key check in Staging; its code refuses to make
+Stripe calls unless the exact Production Railway environment is present.
+Passing this audit is not an authorization to charge customers.
+
 ## Required external/operator steps before any real charge
 
 1. Connect an eligible, verified **live** Stripe account. This chat currently has **only** a sandbox account (`livemode=false`). Never copy `sk_test_` or test-mode price IDs into live production.
