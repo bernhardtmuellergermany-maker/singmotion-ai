@@ -403,7 +403,23 @@ try {
   );
   await page.getByRole("button", { name: "Login", exact: true }).click();
   assert.equal((await loginResponse).status(), 200);
-  await page.getByRole("heading", { name: "SingMotion operations" }).waitFor();
+  await page.getByRole("heading", { name: "Create & manage" }).waitFor();
+  // Modern CMS control center is real Payload dashboard content, not demo console.
+  const controlCenter = page.locator(".sm-cms");
+  assert.equal(await controlCenter.count(), 1);
+  await page.getByRole("link", { name: /Manage website/ }).waitFor();
+  await page.getByRole("link", { name: /Media library/ }).waitFor();
+  await page.getByRole("heading", { name: "Customer operations" }).waitFor();
+  await page.getByRole("heading", { name: "Workspace activity" }).waitFor();
+  const heroBg = await page.locator(".sm-cms-hero").evaluate(
+    (el) => getComputedStyle(el).backgroundImage,
+  );
+  assert.match(heroBg,/gradient/);
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.locator(".sm-cms-actions-grid").evaluate(
+    (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+  ),1);
+  await page.setViewportSize({width:1280,height:900});
   // Admin-only first-test browser flow stays entirely offline with gates disabled.
   const adminTest = origin + "/api/admin/first-test";
   assert.equal((await fetch(adminTest)).status, 401);
@@ -421,7 +437,7 @@ try {
     403,
   );
   await page
-    .getByText("Historical pilot tools and policy maintenance", { exact: true })
+    .getByText("Legacy pilot diagnostics", { exact: false })
     .click();
   const panel = page.getByRole("region", { name: "OmniHuman first test" });
   await panel.waitFor();
