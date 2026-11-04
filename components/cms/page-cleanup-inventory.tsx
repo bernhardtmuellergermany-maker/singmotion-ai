@@ -9,7 +9,9 @@ import {planCmsPageCleanup,type CmsPageInventory} from "../../cms/page-cleanup-p
 export async function CmsPageCleanupInventory(){
  try{
   if(process.env.CMS_ENABLED!=="true"||
-   process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041")
+   !(process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"||
+    (!process.env.RAILWAY_PROJECT_ID&&!process.env.RAILWAY_ENVIRONMENT_ID&&
+     process.env.CMS_ORIGIN==="https://127.0.0.1:3199")) )
    return null;
   const payload=await getPayload({config});
   const result=await payload.find({collection:"pages",limit:100,depth:0,
