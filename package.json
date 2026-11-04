@@ -37,6 +37,7 @@
     "test:cms:browser": "tsx tests/cms.browser.ts",
     "cms:recover-admin": "tsx scripts/cms-recover-admin.ts",
     "inspect:paid-recovery": "node --experimental-strip-types scripts/inspect-paid-recovery.ts",
+    "inspect:free-promo-risk": "node --experimental-strip-types scripts/inspect-free-promo-risk.ts --staging",
     "preflight:paid-recovery": "node --experimental-strip-types scripts/paid-recovery-preflight.ts",
     "recover:paid-once": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/paid-recovery-worker.ts",
     "test:customer:browser": "node --experimental-strip-types tests/customer-output.browser.ts",
