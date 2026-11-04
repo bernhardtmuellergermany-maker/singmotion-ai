@@ -13,14 +13,28 @@ import {mirrorPrivatePaidVideo,validPaidCloudRecord,paidR2ByteRange,type CloudPa
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {createHash} from "node:crypto";
 
+const STAGING_ENV="dfaeabed-03df-43ed-aa71-50f343a75041";
+const PRODUCTION_ENV="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+/** Migration is a separate, explicit operator act. Launch approval by itself
+ * never initiates migration, and no Staging approval carries into Production.
+ */
+export function allowPrivateMediaMigration(env:Record<string,string|undefined>):boolean{
+ const id=env.RAILWAY_ENVIRONMENT_ID;
+ const staging=id===STAGING_ENV;
+ const production=id===PRODUCTION_ENV;
+ return env.R2_MIGRATE_TEST_DATA==="true" &&
+   env.CUSTOMER_R2_STORAGE_ENABLED==="true" &&
+   (staging || (production &&
+      env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED==="true" &&
+      env.PRODUCTION_R2_MIGRATION_APPROVED==="true"));
+}
 export async function migrateTestAssetsToR2():Promise<{
  assets:number;sourceAssets:number;paidVideos:number;verifiedBytes:number;
 }>{
- if(!customerR2Enabled()||process.env.R2_MIGRATE_TEST_DATA!=="true"||
-   process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||
+ if(!allowPrivateMediaMigration(process.env)||!customerR2Enabled()||
    path.resolve(dataDir)!=="/app/.data"||
    !existsSync(path.join(dataDir,"demo.sqlite")))
-  throw Error("Test migration requires protected Staging, explicit approval and existing mounted data");
+  throw Error("Media migration requires explicit target-environment R2 approval and mounted data");
  const root=await realpath(path.join(dataDir,"media"));
  db.exec("CREATE TABLE IF NOT EXISTS cloud_source_media(asset_id TEXT PRIMARY KEY,owner TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
  const commerceFile=path.join(dataDir,"commerce.sqlite");
