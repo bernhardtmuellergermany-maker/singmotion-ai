@@ -273,3 +273,37 @@ test("cost exposure query fails closed on malformed inputs",()=>{
   assert.throws(()=>x.ledger.costExposure("triplefree",now),/Invalid/);
  }finally{x.store.close()}
 });
+
+test("budget alert assessment flags threshold, uncertainty and hard spending ceiling without side effects",()=>{
+ const x=setup();
+ try{
+  const first=x.order(21),second=x.order(22);
+  const limits={...budget,perPromoMicroUsd:200000,rollingDayMicroUsd:200000,lifetimeMicroUsd:200000};
+  assert.deepEqual(x.ledger.assessCostAlerts("TRIPLEFREE",limits,now),{severity:"ok",reasons:[]});
+  x.ledger.authorize(x.approval(first),secret,limits,now);
+  x.ledger.claimProviderAttempt(x.approval(first),secret,true,now+1000);
+  assert.deepEqual(x.ledger.assessCostAlerts("TRIPLEFREE",limits,now+2000),{
+   severity:"warning",reasons:["ambiguous-submissions"]});
+  x.ledger.authorize(x.approval(second),secret,limits,now+2000);
+  x.ledger.flagProviderAttemptForReview(x.approval(first),secret,"timeout",now+3000);
+  assert.deepEqual(x.ledger.assessCostAlerts("TRIPLEFREE",limits,now+4000),{
+   severity:"blocked",reasons:[
+    "per-promo-at-cap","daily-at-cap","global-at-cap","operator-reviews"
+   ]});
+  assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM free_promo_budget_authorizations").get() as {n:number}).n,2);
+  assert.equal(x.promo.list()[0].reserved,2);
+ }finally{x.store.close()}
+});
+test("cost alerts remain visible with disabled operator and report near cap",()=>{
+ const x=setup();
+ try{
+  const limit={...budget,perPromoMicroUsd:120000,rollingDayMicroUsd:120000,lifetimeMicroUsd:120000};
+  const id=x.order(23);
+  x.ledger.authorize(x.approval(id),secret,limit,now);
+  assert.deepEqual(x.ledger.assessCostAlerts("TRIPLEFREE",{...limit,operatorEnabled:false},now+1000),{
+   severity:"blocked",
+   reasons:["operator-disabled","per-promo-near-cap","daily-near-cap","global-near-cap"]
+  });
+  assert.throws(()=>x.ledger.assessCostAlerts("TRIPLEFREE",{...limit,perJobMicroUsd:0},now),/Invalid free-video spending policy/);
+ }finally{x.store.close()}
+});
