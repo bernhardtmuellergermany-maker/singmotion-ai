@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
     const form = new URLSearchParams({
       mode: "payment",
       "line_items[0][price_data][currency]": "eur",
+      "line_items[0][price_data][tax_behavior]": "inclusive",
       "line_items[0][price_data][unit_amount]": String(cents),
       "line_items[0][price_data][product_data][name]": "SingMotion AI music video",
       "line_items[0][quantity]": "1",
