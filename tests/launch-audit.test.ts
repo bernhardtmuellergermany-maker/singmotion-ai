@@ -50,7 +50,7 @@ test("modern CMS is a hard production release gate even when other human flags a
  assert.equal(after.gates.find(g=>g.id==="production-cms")?.ready,true);
  assert.equal(after.gates.find(g=>g.id==="cms-page-retention")?.ready,true);
  assert.equal(after.ready,false,"human CMS evidence never bypasses disconnected paid runtime");
- assert.ok(!JSON.stringify(after).includes(env.PAYLOAD_SECRET));
+ assert.ok(!JSON.stringify(after).includes(env.PAYLOAD_SECRET!));
 });
 test("CMS migration approval never passes for disabled CMS or missing credentials",()=>{
  const env:Record<string,string|undefined>=verified(production);
