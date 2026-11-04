@@ -61,6 +61,16 @@ test("Stripe mode and signed event must match; never mix sandbox with live",asyn
  await assert.rejects(stripeCheckoutAdapter(secret,"live").verify(unpaid.raw,unpaid.signature),/not eligible/);
  await assert.rejects(stripeCheckoutAdapter(secret,"live").verify(raw,signature+"f"),/signature/);
 });
+test("Signed delayed payment succeeds only with final paid status",async()=>{
+ const settled=signed({...liveEvent,id:"evt_mock_async_succeeded_1",
+  type:"checkout.session.async_payment_succeeded"});
+ const receipt=await stripeCheckoutAdapter(secret,"live").verify(settled.raw,settled.signature);
+ assert.equal(receipt.evidence,"cs_live_mock_paid");
+ assert.equal(receipt.cents,250);
+ const pending=signed({...liveEvent,id:"evt_mock_async_pending_1",
+  data:{object:{...liveEvent.data.object,payment_status:"unpaid"}}});
+ await assert.rejects(stripeCheckoutAdapter(secret,"live").verify(pending.raw,pending.signature),/not eligible/);
+});
 test("Live Checkout sessions require actual live metadata, cents and strict Stripe host",()=>{
  const valid={id:"cs_live_mock_paid",livemode:true,url:"https://checkout.stripe.com/c/pay/cs_live_mock_paid",
   mode:"payment",currency:"eur",amount_total:250,metadata:{orderId}};
