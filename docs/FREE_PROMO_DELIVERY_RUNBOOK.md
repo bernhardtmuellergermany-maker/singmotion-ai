@@ -32,6 +32,14 @@ npm run inspect:free-promo-risk
 5. Ist kein dauerhafter privater Kunden-Download nachweisbar? **Gutschein nicht als eingelöst markieren**, keinen Stripe-Zahlungseingang erfinden.
 6. Nach einer Konto-/Session-Ablaufprüfung nicht pauschal Medien löschen; abgelaufene Login-Tokens sind keine Löschfreigabe für Kundeninhalte.
 
+## Explizit gesperrter Staging-only Offline-Testpfad (PR #25)
+
+- Ein separater, **standardmäßig deaktivierter** Abschlussweg prüft ein lokal vorhandenes MP4 vollständig und verbucht erst dann den reservierten Gratisgutschein atomar als `redeemed`, den Auftrag als `free_delivered` und ein owner-gebundenes SHA-256-/Byte-Manifest.
+- Dazu müssen **beide** Bedingungen erfüllt sein: `RAILWAY_ENVIRONMENT_ID` ist exakt Staging, und ein vertrauenswürdiger Betreiber hat `FREE_PROMO_PRIVATE_SETTLEMENT_ENABLED=true` ausdrücklich gesetzt. Der signierte Betreiber-Nachweis bleibt Pflicht. Der Schalter wird durch dieses PR **nicht** in Railway gesetzt.
+- `/api/customer-free-video` ist ein eigenständiger authentifizierter, staging-gesperrter Lesepfad. Vor jedem Byte-Range-Stream wird die gesamte lokale Datei erneut gegen die gespeicherte Prüfsumme validiert. Andere Kunden erhalten keinen Zugriff; es gibt keinen Stripe-paid-Status.
+- Dieser Pfad ist **noch keine freigegebene Produktionsauslieferung**: Es fehlt die private, dauerhafte R2-Archivierung inklusive Cloud-E2E/Restore und eine echte, kontrolliert genehmigte BytePlus-Ausführung. Die lokale Staging-Datei kann keine produktive Haltbarkeit garantieren.
+- **Keinen** Live-Schalter in Produktion setzen; keine automatischen Provider-Retries.
+
 ## Noch zu implementieren/verifizieren
 
 - Echte, strikt kontrollierte BytePlus-Gratisvideo-Übermittlung unter freigegebenem Vertrag und Limits.
