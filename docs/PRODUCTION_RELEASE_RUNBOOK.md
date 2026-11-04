@@ -25,6 +25,36 @@
 6. Set `R2_MIGRATE_TEST_DATA=false` and `PRODUCTION_R2_MIGRATION_APPROVED=false` immediately after a fully verified run. Do not delete legacy local files until independently tested full R2 recovery, missing-file regeneration, and restored databases prove safe.
 7. Use `npm run launch:audit -- --production`. A BLOCK is a hard release blocker, not a recommendation to turn a flag on without evidence.
 
+## Phase B2 — modern Payload CMS production gate (no implicit release)
+
+Private Staging runs the modern Payload CMS, while current Production `main`
+still contains the old disabled demo admin. These are **different applications**;
+a cosmetic sidebar change or successful Staging CI does not migrate Production.
+
+1. Export the **actual** current Production Postgres CMS schema/data and volume
+   to an encrypted operator-controlled backup. Rehearse a restore separately.
+   Record the restored schema/version checksum and a rollback command.
+2. Run `npm run cms:prune-drafts -- --dry-run` **only** on private Staging
+   after the explicit operator switch; inspect which CMS pages were ever
+   published, and retain all historically published/legal content.
+   Do not delete a CMS page based only on whether a separate React route exists.
+3. Diff Production `main` against reviewed Staging release. Identify all
+   customer/worker/payment/BytePlus flags; never merge unfinished public
+   generation or billing into Production merely to install the CMS.
+4. Provision secure and isolated Production Payload DB config, `PAYLOAD_SECRET`,
+   admin identity/MFA, trusted origin, cookies, editor/support/super-admin
+   role checks, migration plan, legal-content review and an isolated browser
+   E2E using the **Production candidate**.
+5. Rehearse login, draft preview, publish/rollback, assets, cross-role denial,
+   backup recovery and live homepage compatibility without exposing unfinished
+   payments. Record independent operator evidence before setting
+   `PRODUCTION_CMS_MIGRATION_VERIFIED`,
+   `PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED`,
+   `PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED`, and
+   `CMS_PUBLISHED_CONTENT_RECONCILED`.
+6. The production launch audit now blocks when the CMS or any of those human
+   proof markers is missing. Do **not** set these variables to bypass a BLOCK.
+
 ## Phase C — customer journey and no-go checks
 - Two distinct real test logins, private upload and quota enforcement (250 MiB Free, 2 GiB Hobby), Studio snapshot review, eviction/recovery, cross-account denial, zero-storage overquota and re-login.
 - Signed Stripe **sandbox** checkout plus refunds/chargebacks, real private MP4 delivery, range downloads and canceled subscriptions. Never confuse a sandbox receipt with live payment evidence.
