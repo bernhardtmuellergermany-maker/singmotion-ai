@@ -86,8 +86,16 @@ export async function POST(req: NextRequest) {
     const raw = await readBoundedStripeWebhookBody(req);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const event=verifyStripePaymentEvent(raw,signature,secret,mode);
-    if(event.type==="checkout.session.completed")
+    if(event.type==="checkout.session.completed"||
+       event.type==="checkout.session.async_payment_succeeded"){
+      // A signed completed Checkout may still be unpaid for delayed methods.
+      // Acknowledge without marking paid; Stripe later sends async success.
+      if(event.type==="checkout.session.completed"&&
+         event.data?.object?.object==="checkout.session"&&
+         event.data.object.payment_status==="unpaid")
+        return NextResponse.json({received:true},{headers:{"Cache-Control":"no-store"}});
       await store.webhook(raw,signature,stripeCheckoutAdapter(secret,mode));
+    }
     else if(["refund.created","refund.updated","charge.dispute.created"].includes(event.type||""))
       await reconcileReversal(store,event,mode);
     // Other signed Stripe events are unrelated to single-video settlement.
