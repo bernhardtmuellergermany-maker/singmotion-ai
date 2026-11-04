@@ -13,11 +13,11 @@ import {mirrorPrivatePaidVideo,paidR2ByteRange,privatePaidVideoKey,type CloudPai
 import type {Asset} from "../lib/domain.ts";
 
 const digest=(bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
-async function canary(){
+export async function canary(mode:"predeploy"|"runtime"="predeploy"){
  const staging=process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041";
  const production=process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d";
  if(!customerR2Enabled()||
-    !(staging&&process.argv.includes("--confirm-staging-private-r2-canary"))&&
+    !(staging&&(mode==="runtime"?process.getuid?.()===1000:process.argv.includes("--confirm-staging-private-r2-canary")))&&
     !(production&&process.env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED==="true"&&
       process.argv.includes("--confirm-production-private-r2-canary")))
    throw Error("Explicit environment-specific private R2 canary approval required");
@@ -43,7 +43,10 @@ async function canary(){
   const restored=await readMirroredPrivateSource(owner,id,source,256*1024*1024);
   if(digest(restored)!==digest(original)||!restored.equals(original))
    throw Error("R2 full original is not byte-for-byte identical");
-  if(staging){
+  // Pre-deploy runs as root before the user-owned persistent volume is ready.
+  // The SQLite scratch test MUST instead execute from scripts/serve.mjs after
+  // the root-owned entrypoint mounted storage and dropped to UID/GID 1000.
+  if(staging&&mode==="runtime"){
    stage="private cloud-only scratch hydration";
    const {db,dataDir}=await import("../lib/db.ts");
    const local=path.join(dataDir,"media",`.r2-recovery-${id}.mp4`);
@@ -113,4 +116,6 @@ async function canary(){
  client.destroy();
  if(error)throw Error("Private R2 canary failed in "+stage+" or cleanup could not be confirmed");
 }
-await canary().catch(e=>{console.error(e instanceof Error?e.message:"R2 canary error");process.exitCode=1});
+if(process.argv[1]?.endsWith("/r2-storage-canary.ts")){
+ await canary().catch(e=>{console.error(e instanceof Error?e.message:"R2 canary error");process.exitCode=1});
+}
