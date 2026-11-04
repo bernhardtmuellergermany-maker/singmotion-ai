@@ -32,6 +32,15 @@ try {
   );
 }
 console.log(`Persistent storage ready (UID ${process.getuid?.()}).`);
+if(process.env.STAGING_R2_RUNTIME_CANARY_ENABLED==="true"){
+  if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.getuid?.()!==1000)
+    throw new Error("Private R2 hydration canary is permitted on nonroot Staging only.");
+  // Unlike Railway preDeploy, this runs AFTER the secure container entrypoint
+  // mounted the persistent volume and dropped privileges to UID/GID 1000.
+  const {canary}=await import("./r2-storage-canary.ts");
+  await canary("runtime");
+}
+
 if (process.env.R2_MIGRATE_TEST_DATA === "true") {
   // Explicit staging-only one-shot pass on the mounted persistent volume.
   // Failure prevents starting new web/worker instances with partial records.
