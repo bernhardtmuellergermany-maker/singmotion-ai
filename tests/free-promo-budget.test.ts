@@ -212,3 +212,31 @@ test("free-provider claim requires a fresh signed operator approval matching res
   assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM commerce_audit WHERE action='free-promo-provider-attempt-claimed'").get() as {n:number}).n,0);
  }finally{x.store.close()}
 });
+
+test("signed operator may mark a claimed free-provider attempt for review exactly once",()=>{
+ const x=setup();
+ try{
+  const id=x.order(17),signed=x.approval(id);
+  x.ledger.authorize(signed,secret,budget,now);
+  x.ledger.claimProviderAttempt(signed,secret,true,now+1000);
+  assert.equal(x.ledger.flagProviderAttemptForReview(signed,secret,"timeout",now+2000),"flagged");
+  const restarted=new FreePromoBudgetLedger(x.store.db);
+  assert.equal(restarted.flagProviderAttemptForReview(signed,secret,"timeout",now+3000),"already-flagged");
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"requires_review");
+  assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM commerce_audit WHERE action='free-promo-provider-requires-review'").get() as {n:number}).n,1);
+  assert.equal((x.store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id) as {status:string}).status,"awaiting_payment");
+  assert.equal(x.promo.list()[0].reserved,1);
+  assert.equal(x.store.pendingPaidFulfillment().length,0);
+ }finally{x.store.close()}
+});
+test("review transition fails closed for forged approvals and unsubmitted free orders",()=>{
+ const x=setup();
+ try{
+  const id=x.order(18),signed=x.approval(id);
+  x.ledger.authorize(signed,secret,budget,now);
+  assert.throws(()=>x.ledger.flagProviderAttemptForReview(signed,secret,"timeout",now+1000),/Only ambiguous/);
+  assert.throws(()=>x.ledger.flagProviderAttemptForReview({...signed,signature:"0".repeat(64)},secret,"timeout",now+1000),/forged/);
+  assert.throws(()=>x.ledger.flagProviderAttemptForReview(signed,secret,"wrong" as "timeout",now+1000),/reason/);
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
+ }finally{x.store.close()}
+});
