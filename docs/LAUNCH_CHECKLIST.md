@@ -1,5 +1,18 @@
 # SingMotion AI — customer launch release gates (updated 4 November 2026)
 
+## Verified release snapshot (4 November 2026)
+
+- Protected Staging commit `71fcd1a0d2300cbb7fca1ad47ee77212ef6f7594` is deployed SUCCESS. All current staging CI workflows have passed; the modern Payload CMS and private page-publishing inventory exist there.
+- Production still runs old `main` commit `d17419d79a01629302eb5d353d8c13a77f45540b`, with the old disabled demo admin; **not** the new CMS.
+- The connected Stripe account is **SingMotion AI Sandbox, test mode only**. A live account and verified live customer checkout are missing.
+- Production has no R2 bucket/credential variable names configured; do not copy private Staging R2 keys, and do not advertise the 2 GiB customer allowance in live Production until its dedicated R2 has been verified.
+- Real BytePlus provider billing/taxes, end-to-end production delivery, restore exercise, published CMS-content reconciliation and qualified legal review remain unverified.
+- The standalone offline-synthetic free-MP4 flow and its zero-EUR redemption/owner-bound download are implemented under disabled Staging-only controls. They **do not** authorize real provider submissions, customer billing or Production launch.
+- Current tracking issues: #6 for payment/free video, #8 for storage/retention/recovery, and #27 for CMS Production cutover.
+- **Release decision: NO-GO.** No public paid checkout or real-provider spending until every `launch:audit -- --production` gate passes with independently verified evidence.
+
+
+
 ## What is verified vs. still blocked
 - Protected Railway **Staging** runs Next.js and worker; the latest verified commit `fb8823074f656b6fe235980a03b7d699c182e59f` deployed successfully.
 - **36 of 36 registered Staging test assets, 71,952,319 bytes** were privately migrated and SHA-256 verified in Cloudflare R2. A real private MP4 readback and two Range GETs passed.
