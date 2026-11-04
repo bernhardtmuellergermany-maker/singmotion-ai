@@ -53,6 +53,39 @@ export class FreePromoBudgetLedger{
    created INTEGER NOT NULL,updated INTEGER NOT NULL
   );`);
  }
+ /** Reserve the only possible free-provider submission attempt before network IO.
+  * Does NOT submit, deliver or redeem; uncertain outcomes require human review.
+  * Persistent state is never reset automatically after a crash.
+  */
+ claimProviderAttempt(orderId:string,accountId:string,operatorEnabled:boolean,now=Date.now()):
+  "claimed"|"already-claimed"{
+  if(operatorEnabled!==true)throw Error("Free-video provider budget kill switch disabled");
+  if(!uuid.test(orderId)||!uuid.test(accountId)||!Number.isSafeInteger(now))
+   throw Error("Invalid free-video claim");
+  this.db.exec("BEGIN IMMEDIATE");
+  try{
+   const row=this.db.prepare(`SELECT a.state,a.account_id,o.status,p.state AS promo_state
+     FROM free_promo_budget_authorizations a
+     JOIN customer_orders o ON o.id=a.order_id AND o.account_id=a.account_id
+     JOIN promo_redemptions p ON p.order_id=a.order_id AND p.account_id=a.account_id
+     WHERE a.order_id=?`).get(orderId) as
+     {state:FreePromoAuthorization["state"];account_id:string;status:string;promo_state:string}|undefined;
+   if(!row||row.account_id!==accountId||row.status!=="awaiting_payment"||row.promo_state!=="reserved")
+    throw Error("Free-video claim not eligible");
+   if(row.state!=="authorized"){
+    this.db.exec("COMMIT");
+    return "already-claimed";
+   }
+   const updated=this.db.prepare(`UPDATE free_promo_budget_authorizations
+     SET state='submitted_or_unknown',updated=?
+     WHERE order_id=? AND account_id=? AND state='authorized'`).run(now,orderId,accountId);
+   if(updated.changes!==1)throw Error("Free-video submission barrier unavailable");
+   this.db.prepare("INSERT INTO commerce_audit(actor,action,record,created) VALUES(?,?,?,?)")
+    .run("verified-promo-operator","free-promo-provider-attempt-claimed",orderId,now);
+   this.db.exec("COMMIT");
+   return "claimed";
+  }catch(error){this.db.exec("ROLLBACK");throw error}
+ }
  /** Atomic one-time reservation under a separately authenticated operator
   * approval. Never updates customer_orders to paid or touches provider APIs.
   * The order must already have an immutable server-reviewed media snapshot.
