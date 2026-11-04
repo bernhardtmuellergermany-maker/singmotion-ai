@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
-import { stripeCheckoutAdapter, verifyStripeSandboxEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
+import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
+import {configuredStripePaymentMode,stripeSessionIdMatchesMode,stripeKeyMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {auditSingMotionLaunch} from "@/lib/launch-audit";
+import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,15 +16,15 @@ type StripeLookup = Record<string, unknown> & {
 };
 
 
-async function stripeGet(resource:string,key:string){
- if(!/^sk_test_[A-Za-z0-9_]+$/.test(key))throw Error("Stripe sandbox key required");
+async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
+ if(!stripeKeyMatchesMode(key,mode))throw Error("Matching Stripe environment key required");
  const response=await fetch("https://api.stripe.com/v1/"+resource,{
    headers:{Authorization:"Bearer "+key},cache:"no-store",signal:AbortSignal.timeout(8000),
  });
  if(!response.ok)throw Error("Stripe verification request failed");
  return await response.json() as StripeLookup;
 }
-async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
+async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:StripePaymentMode){
  const key=process.env.STRIPE_SECRET_KEY||"";
  const object=event.data?.object;
  if(!object||typeof object.id!=="string")throw Error("Missing reversal object");
@@ -30,22 +33,22 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
  if(!refund&&!dispute)throw Error("Unsupported reversal");
  if(!new RegExp(refund?"^re_[A-Za-z0-9_]+$":"^dp_[A-Za-z0-9_]+$").test(object.id))
    throw Error("Invalid reversal ID");
- const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key);
- if(verified.livemode!==false||typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
+ const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
+ if(verified.livemode!==(mode==="live")||typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
  if(refund&&verified.status!=="succeeded")return; // No release on pending/failed refunds.
  if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status||""))
    return;
  if(typeof verified.charge!=="string"||!/^ch_[A-Za-z0-9_]+$/.test(verified.charge))
    throw Error("Charge reference missing");
- const charge=await stripeGet("charges/"+encodeURIComponent(verified.charge),key);
- if(charge.livemode!==false||charge.id!==verified.charge||
+ const charge=await stripeGet("charges/"+encodeURIComponent(verified.charge),key,mode);
+ if(charge.livemode!==(mode==="live")||charge.id!==verified.charge||
     typeof charge.payment_intent!=="string")throw Error("Charge verification failed");
- const sessions=await stripeGet("checkout/sessions?payment_intent="+encodeURIComponent(charge.payment_intent)+"&limit=2",key);
+ const sessions=await stripeGet("checkout/sessions?payment_intent="+encodeURIComponent(charge.payment_intent)+"&limit=2",key,mode);
  if(!Array.isArray(sessions.data)||sessions.data.length!==1)throw Error("Checkout reconciliation ambiguous");
  const session=sessions.data[0];
- if(session.livemode!==false||session.mode!=="payment"||
+ if(session.livemode!==(mode==="live")||session.mode!=="payment"||
    typeof session.id!=="string"||
-   !/^cs_test_[A-Za-z0-9_]+$/.test(session.id)||
+   !stripeSessionIdMatchesMode(session.id,mode)||
    session.payment_status!=="paid"||
    session.payment_intent!==charge.payment_intent||
    session.currency!=="eur"||
@@ -68,9 +71,13 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent){
 }
 
 export async function POST(req: NextRequest) {
-  // Fail closed until a test-mode Stripe webhook signing secret is installed.
+  // Never receive live orders unless the separate Production release audit
+  // has verified paid fulfillment, private output and all human approvals.
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  if (!secret || process.env.STRIPE_CHECKOUT_ENABLED !== "true")
+  const mode=configuredStripePaymentMode(process.env);
+  if (!secret || !mode ||
+      (mode==="live"&&(!customerLaunchReadiness().readyForPaidOrders||
+        !auditSingMotionLaunch(process.env,"production").ready)))
     return NextResponse.json({ error: "Stripe Checkout is disabled." }, { status: 503 });
   const signature = req.headers.get("stripe-signature");
   if (!signature) return NextResponse.json({ error: "Missing signature." }, { status: 400 });
@@ -78,11 +85,19 @@ export async function POST(req: NextRequest) {
   try {
     const raw = await readBoundedStripeWebhookBody(req);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
-    const event=verifyStripeSandboxEvent(raw,signature,secret);
-    if(event.type==="checkout.session.completed")
-      await store.webhook(raw,signature,stripeCheckoutAdapter(secret));
+    const event=verifyStripePaymentEvent(raw,signature,secret,mode);
+    if(event.type==="checkout.session.completed"||
+       event.type==="checkout.session.async_payment_succeeded"){
+      // A signed completed Checkout may still be unpaid for delayed methods.
+      // Acknowledge without marking paid; Stripe later sends async success.
+      if(event.type==="checkout.session.completed"&&
+         event.data?.object?.object==="checkout.session"&&
+         event.data.object.payment_status==="unpaid")
+        return NextResponse.json({received:true},{headers:{"Cache-Control":"no-store"}});
+      await store.webhook(raw,signature,stripeCheckoutAdapter(secret,mode));
+    }
     else if(["refund.created","refund.updated","charge.dispute.created"].includes(event.type||""))
-      await reconcileReversal(store,event);
+      await reconcileReversal(store,event,mode);
     // Other signed Stripe events are unrelated to single-video settlement.
     return NextResponse.json({ received: true }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

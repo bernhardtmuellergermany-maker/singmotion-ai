@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { customerLaunchReadiness } from "@/lib/commerce/readiness";
-import { verifiedStripeTestCheckoutSession } from "@/lib/commerce/stripe-webhook";
+import {verifiedStripeCheckoutSession} from "@/lib/commerce/stripe-webhook";
+import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -16,17 +18,19 @@ const reply = (data: unknown, status = 200) => NextResponse.json(data, {
 export async function POST(req: NextRequest) {
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
-  // Deliberately limited to the test-mode backend and pre-reviewed orders.
+  // Checkout mode is fixed by the actual Railway environment and credential
+  // prefix. A live key alone cannot authorize accepting real payments.
   const key = process.env.STRIPE_SECRET_KEY;
-  // Do not collect money until paid-order generation and delivery are active.
-  if (!customerLaunchReadiness().readyForPaidOrders ||
-      process.env.STRIPE_CHECKOUT_ENABLED !== "true" ||
+  const mode = configuredStripePaymentMode(process.env);
+  // Do not collect money before real paid-order generation and delivery work.
+  if (!mode || !customerLaunchReadiness().readyForPaidOrders ||
+      (mode==="live"&&!auditSingMotionLaunch(process.env,"production").ready) ||
       process.env.CUSTOMER_GENERATION_ENABLED !== "true" ||
       process.env.CUSTOMER_FULFILLMENT_ENABLED !== "true" ||
       process.env.CUSTOMER_DELIVERY_ENABLED !== "true" ||
       process.env.CUSTOMER_ACCOUNTS_ENABLED !== "true" ||
-      !key?.startsWith("sk_test_"))
-    return reply({ error: "Test Checkout is not configured." }, 503);
+      !key)
+    return reply({ error: "Customer Checkout is not configured." }, 503);
   const origin = applicationOrigin(req.url, req.headers.get("host"));
   if (!origin || req.headers.get("origin") !== origin)
     return reply({ error: "Request origin is not allowed." }, 403);
@@ -53,6 +57,7 @@ export async function POST(req: NextRequest) {
     const form = new URLSearchParams({
       mode: "payment",
       "line_items[0][price_data][currency]": "eur",
+      "line_items[0][price_data][tax_behavior]": "inclusive",
       "line_items[0][price_data][unit_amount]": String(cents),
       "line_items[0][price_data][product_data][name]": "SingMotion AI music video",
       "line_items[0][quantity]": "1",
@@ -79,9 +84,9 @@ export async function POST(req: NextRequest) {
     }
     let session: { id: string; url: string };
     try {
-      session = verifiedStripeTestCheckoutSession(await response.json(),String(order.id),cents);
+      session = verifiedStripeCheckoutSession(await response.json(),String(order.id),cents,mode);
     } catch {
-      return reply({ error: "Invalid test Checkout response." }, 502);
+      return reply({ error: "Invalid Checkout response." }, 502);
     }
     store.bindStripeCheckout(String(order.id), session.id);
     return reply({ url: session.url });
