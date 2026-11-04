@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import type {AdminViewServerProps} from "payload";
 import {hasRole} from "../../cms/policy";
+import {readCommerceDashboard} from "../../cms/dashboard-metrics";
 import {PrivateLedger} from "./private-ledger";
 import {StudioActivation} from "./studio-activation";
 import {FirstTestPanel} from "./first-test-panel";
@@ -55,6 +56,7 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
  const canEditContent=hasRole(user,["super-admin","editor"]);
  const superAdmin=hasRole(user,["super-admin"]);
  const metrics=privileged?await demoMetrics():null;
+ const commerce=superAdmin?readCommerceDashboard(process.env.DATA_DIR||".data"):null;
  const environment=process.env.RAILWAY_ENVIRONMENT_ID===STAGING?"Private staging":
   process.env.RAILWAY_ENVIRONMENT_ID?"Restricted environment":"Local CMS";
  return <div className="sm-cms" aria-label="SingMotion CMS control center">
@@ -113,8 +115,26 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
    </div>
   </section>}
 
+  {superAdmin&&<section className="sm-cms-section" aria-labelledby="sm-cms-commerce-title">
+   <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">03 / COMMERCE SNAPSHOT</span>
+    <h2 id="sm-cms-commerce-title">Customer operations</h2>
+    <p>Read-only counts from the persisted customer ledger. Not revenue, billing proof or launch approval.</p></div>
+    <span className="sm-cms-snapshot"><Clock3 size={15}/> On-page snapshot</span>
+   </div>
+   {commerce?<div className="sm-cms-stats">
+    {[
+     {label:"Registered accounts",value:commerce.accounts,detail:"Persisted customer identities"},
+     {label:"Customer orders",value:commerce.orders,detail:"All order states"},
+     {label:"Verified free deliveries",value:commerce.freeDeliveries,detail:"Zero-EUR local delivery records"},
+     {label:"Free-provider reviews",value:commerce.freeReviews+commerce.uncertainFreeAttempts,
+      detail:"Uncertain or operator-held claims"},
+    ].map(item=><div className="sm-cms-stat" key={item.label}>
+     <span className="sm-cms-stat-label">{item.label}</span><strong>{item.value.toLocaleString("en-US")}</strong>
+     <span className="sm-cms-stat-detail">{item.detail}</span></div>)}
+   </div>:<div className="sm-cms-unavailable" role="status">Customer commerce snapshot is unavailable in this environment. No placeholder figures are shown.</div>}
+  </section>}
   {privileged&&<section className="sm-cms-section" aria-labelledby="sm-cms-operations-title">
-   <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">03 / REAL DATA</span>
+   <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">04 / DEMO DATA</span>
     <h2 id="sm-cms-operations-title">Workspace activity</h2>
     <p>Current aggregate counts from the persisted demo ledger, not sample customers or revenue.</p></div>
     <span className="sm-cms-snapshot"><Clock3 size={15}/> On-page snapshot</span>
