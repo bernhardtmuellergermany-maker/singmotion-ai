@@ -165,6 +165,37 @@ export class FreePromoBudgetLedger{
   return rows.map(row=>({orderId:row.order_id,state:row.state,
    ageMs:now-row.updated,reservedMicroUsd:row.reserved_micro_usd}));
  }
+ /** Read-only, owner-free operator cost exposure for one promo and globally.
+  * Each sum includes ALL reserved/ambiguous/reviewed/delivered attempts so an
+  * uncertain charged task cannot silently restore spending allowance.
+  * Never expose account identities, private media, or secrets.
+  */
+ costExposure(code:string,now=Date.now()):{
+  code:string;promoReservedMicroUsd:number;rollingDayReservedMicroUsd:number;
+  globalReservedMicroUsd:number;ambiguousCount:number;requiresReviewCount:number;
+ }{
+  if(typeof code!=="string"||!/^[A-Z0-9][A-Z0-9-]{4,38}[A-Z0-9]$/.test(code)||
+   !Number.isSafeInteger(now)||now<86400000)
+   throw Error("Invalid free-promo cost exposure query");
+  const aggregate=(where:string,params:Array<string|number>)=>{
+   const row=this.db.prepare(`SELECT COALESCE(SUM(reserved_micro_usd),0) AS total
+     FROM free_promo_budget_authorizations ${where}`).get(...params) as {total:number};
+   if(!Number.isSafeInteger(row.total)||row.total<0)
+    throw Error("Corrupt free-promo spending ledger");
+   return row.total;
+  };
+  const promo=aggregate("WHERE code=?",[code]);
+  const day=aggregate("WHERE created>=?",[now-86400000]);
+  const global=aggregate("",[]);
+  const states=this.db.prepare(`SELECT
+    SUM(CASE WHEN state='submitted_or_unknown' THEN 1 ELSE 0 END) AS ambiguous,
+    SUM(CASE WHEN state='requires_review' THEN 1 ELSE 0 END) AS requires_review
+    FROM free_promo_budget_authorizations WHERE code=?`).get(code) as
+    {ambiguous:number|null;requires_review:number|null};
+  return {code,promoReservedMicroUsd:promo,rollingDayReservedMicroUsd:day,
+   globalReservedMicroUsd:global,ambiguousCount:states.ambiguous??0,
+   requiresReviewCount:states.requires_review??0};
+ }
  /** Atomic one-time reservation under a separately authenticated operator
   * approval. Never updates customer_orders to paid or touches provider APIs.
   * The order must already have an immutable server-reviewed media snapshot.
