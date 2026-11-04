@@ -187,3 +187,36 @@ html:has(.payload-admin) { color-scheme: dark; }
  }
  .payload-admin .card:hover{transform:none}
 }
+
+/* Recognizable, always-visible CMS navigation entry on all Payload views. */
+.payload-admin .sm-cms-sidebar-intro{
+ display:flex;flex-direction:column;gap:13px;padding:12px 11px 17px;
+ margin:0 4px 16px;border-bottom:1px solid rgba(179,157,255,.2)
+}
+.payload-admin .sm-cms-sidebar-brand{
+ display:flex;align-items:center;gap:9px;min-width:0;color:#eee9ff;
+ font-size:15px;font-weight:750;letter-spacing:-.035em;
+}
+.payload-admin .sm-cms-sidebar-brand>svg{color:#c9b0ff;flex-shrink:0}
+.payload-admin .sm-cms-sidebar-brand strong{color:#bcadff}
+.payload-admin .sm-cms-sidebar-tag{
+ font-size:9px;letter-spacing:.12em;font-weight:800;border:1px solid rgba(192,170,255,.25);
+ border-radius:6px;padding:4px 5px;margin-left:auto;color:#bcb2d3;
+}
+.payload-admin .sm-cms-sidebar-dashboard{
+ display:flex;gap:10px;align-items:center;min-height:45px;padding:10px 12px;
+ border:1px solid rgba(190,172,255,.24);border-radius:12px;
+ background:linear-gradient(115deg,rgba(154,130,255,.22),rgba(96,135,235,.12));
+ color:#f5f0ff;text-decoration:none;font-size:13px;font-weight:750;
+ transition:background .15s,border-color .15s;
+}
+.payload-admin .sm-cms-sidebar-dashboard>svg{color:#c6b3ff;flex-shrink:0}
+.payload-admin .sm-cms-sidebar-dashboard:hover{
+ border-color:rgba(217,199,255,.58);
+ background:linear-gradient(115deg,rgba(161,138,255,.32),rgba(101,142,239,.19));
+}
+.payload-admin .sm-cms-sidebar-dashboard:focus-visible{outline:2px solid #d8c6ff;outline-offset:3px}
+.payload-admin .sm-cms-sidebar-arrow{margin-left:auto;color:#bbb0d9;font-size:17px}
+@media(prefers-reduced-motion:reduce){
+ .payload-admin .sm-cms-sidebar-dashboard{transition:none}
+}

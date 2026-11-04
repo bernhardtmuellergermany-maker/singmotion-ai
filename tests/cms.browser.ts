@@ -403,7 +403,19 @@ try {
   );
   await page.getByRole("button", { name: "Login", exact: true }).click();
   assert.equal((await loginResponse).status(), 200);
-  await page.getByRole("heading", { name: "Create & manage" }).waitFor();
+  // The *native Payload sidebar* must show the rebranded dashboard
+  // and German collection/global navigation on every admin view.
+  const sidebar=page.getByRole("navigation").filter({has:page.locator(".sm-cms-sidebar-intro")});
+  await sidebar.getByRole("link",{name:"Dashboard"}).waitFor();
+  assert.equal(await sidebar.getByRole("link",{name:"Dashboard"}).getAttribute("href"),"/admin");
+  for(const label of ["Team & Zugriffsrechte","Aktivitätsprotokoll",
+    "Seiten bearbeiten","Medienbibliothek","Navigation & Footer",
+    "Kundenservice","Studio-Inhalte","E-Mail-Vorlagen"]){
+    await sidebar.getByText(label,{exact:true}).first().waitFor();
+  }
+  assert.ok(await sidebar.getByText("Website & Inhalte",{exact:true}).count());
+  assert.ok(await sidebar.getByText("Kunden & Betrieb",{exact:true}).count());
+    await page.getByRole("heading", { name: "Create & manage" }).waitFor();
   // Modern CMS control center is real Payload dashboard content, not demo console.
   const controlCenter = page.locator(".sm-cms");
   assert.equal(await controlCenter.count(), 1);
@@ -559,6 +571,7 @@ try {
   });
 
   await page.goto(origin + `/admin/collections/pages/${draft.id}`);
+  await page.locator(".sm-cms-sidebar-intro").getByRole("link",{name:"Dashboard"}).waitFor();
   await page.locator('input[name="title"]').fill("Published browser test");
   await page.getByRole("button", { name: /publish changes/i }).click();
   await page
