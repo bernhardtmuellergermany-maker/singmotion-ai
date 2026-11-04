@@ -33,7 +33,7 @@ export async function readOnlyStripeLivePreflight(
  const origin=safeOrigin(env.PUBLIC_SITE_ORIGIN);
  check("public-https-origin",origin!==null);
  const priceId=env.STRIPE_HOBBY_LIVE_PRICE_ID||"";
- const hasPrice=check("separate-hobby-live-price",/^price_[A-Za-z0-9]+$/.test(priceId));
+ const hasPrice=check("separate-hobby-live-price",/^price_[A-Za-z0-9_]+$/.test(priceId));
  // The connection cannot access live Stripe outside real Production. This
  // protects private Staging from accidentally using an operator's live key.
  if(environment&&credential&&origin&&hasPrice){
