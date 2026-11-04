@@ -27,6 +27,36 @@ function verified(envId:string){
   PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",
  };
 }
+test("modern CMS is a hard production release gate even when other human flags are green",()=>{
+ const env:Record<string,string|undefined>=verified(production);
+ env.CMS_ENABLED="true";
+ env.CMS_DATABASE_URL="postgresql://test.invalid/release-audit";
+ env.PAYLOAD_SECRET="mock-cms-secret-for-test";
+ const audit=auditSingMotionLaunch(env,"production");
+ assert.equal(audit.gates.find(g=>g.id==="production-cms")?.ready,false);
+ assert.equal(audit.gates.find(g=>g.id==="cms-page-retention")?.ready,false);
+ env.PRODUCTION_CMS_MIGRATION_VERIFIED="true";
+ env.PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED="true";
+ env.PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED="true";
+ env.CMS_PUBLISHED_CONTENT_RECONCILED="true";
+ const after=auditSingMotionLaunch(env,"production");
+ assert.equal(after.gates.find(g=>g.id==="production-cms")?.ready,true);
+ assert.equal(after.gates.find(g=>g.id==="cms-page-retention")?.ready,true);
+ assert.equal(after.ready,false,"human CMS evidence never bypasses disconnected paid runtime");
+ assert.ok(!JSON.stringify(after).includes(env.PAYLOAD_SECRET));
+});
+test("CMS migration approval never passes for disabled CMS or missing credentials",()=>{
+ const env:Record<string,string|undefined>=verified(production);
+ Object.assign(env,{
+  CMS_ENABLED:"false",PRODUCTION_CMS_MIGRATION_VERIFIED:"true",
+  PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED:"true",
+  PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED:"true",
+  CMS_PUBLISHED_CONTENT_RECONCILED:"true",
+ });
+ assert.equal(auditSingMotionLaunch(env,"production").gates.find(g=>g.id==="production-cms")?.ready,false);
+ env.CMS_ENABLED="true";
+ assert.equal(auditSingMotionLaunch(env,"production").gates.find(g=>g.id==="production-cms")?.ready,false);
+});
 test("production launch blocks absent credentials, human signoffs and test evidence",()=>{
  const audit=auditSingMotionLaunch({RAILWAY_ENVIRONMENT_ID:production},"production");
  assert.equal(audit.ready,false);
