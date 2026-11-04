@@ -104,6 +104,27 @@ export class FreePromoBudgetLedger{
    return "claimed";
   }catch(error){this.db.exec("ROLLBACK");throw error}
  }
+ /** Read-only operator reconciliation queue for ambiguous provider attempts.
+  * Results are bounded, contain no email or media fields and never retry,
+  * release a voucher, alter an order or clear reserved spending.
+  * Call only from a trusted operator context, never a public customer route.
+  */
+ staleProviderAttempts(now=Date.now(),minimumAgeMs=15*60_000,limit=100):
+  Array<{orderId:string;state:"submitted_or_unknown"|"requires_review";ageMs:number;reservedMicroUsd:number}>{
+  if(!Number.isSafeInteger(now)||now<1||
+   !Number.isSafeInteger(minimumAgeMs)||minimumAgeMs<60_000||minimumAgeMs>30*86400_000||
+   !Number.isSafeInteger(limit)||limit<1||limit>100)
+   throw Error("Invalid free-promo reconciliation scan bounds");
+  const rows=this.db.prepare(`SELECT order_id,state,updated,reserved_micro_usd
+    FROM free_promo_budget_authorizations
+    WHERE state IN ('submitted_or_unknown','requires_review')
+      AND updated>=0 AND updated<=?
+    ORDER BY updated ASC,order_id ASC LIMIT ?`)
+   .all(now-minimumAgeMs,limit) as Array<
+    {order_id:string;state:"submitted_or_unknown"|"requires_review";updated:number;reserved_micro_usd:number}>;
+  return rows.map(row=>({orderId:row.order_id,state:row.state,
+   ageMs:now-row.updated,reservedMicroUsd:row.reserved_micro_usd}));
+ }
  /** Atomic one-time reservation under a separately authenticated operator
   * approval. Never updates customer_orders to paid or touches provider APIs.
   * The order must already have an immutable server-reviewed media snapshot.
