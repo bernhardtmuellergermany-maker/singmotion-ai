@@ -41,7 +41,8 @@
     "preflight:paid-recovery": "node --experimental-strip-types scripts/paid-recovery-preflight.ts",
     "recover:paid-once": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/paid-recovery-worker.ts",
     "test:customer:browser": "node --experimental-strip-types tests/customer-output.browser.ts",
-    "test:cms:isolated": "node scripts/test-cms-isolated.mjs"
+    "test:cms:isolated": "node scripts/test-cms-isolated.mjs",
+    "cms:prune-drafts": "tsx scripts/cms-prune-drafts.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",

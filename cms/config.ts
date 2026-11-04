@@ -157,6 +157,7 @@ const collections: CollectionConfig[] = [
     labels: {singular:"Seite",plural:"Seiten bearbeiten"},
     admin: {
       useAsTitle: "title",
+      defaultColumns:["title","slug","_status","updatedAt"],
       group: "Website & Inhalte",
       preview: (doc) => `/cms-preview/${doc.slug}`,
     },
