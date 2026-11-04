@@ -143,3 +143,27 @@ test("free-provider claim without preapproved spending is denied",()=>{
   assert.equal(x.promo.list()[0].reserved,1);
  }finally{x.store.close()}
 });
+
+test("operator cannot claim after a promotion is disabled following cost authorization",()=>{
+ const x=setup();
+ try{
+  const id=x.order(13);
+  x.ledger.authorize(x.approval(id),secret,budget,now);
+  x.promo.setEnabled("TRIPLEFREE",false);
+  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,true,now+1000),/not eligible/);
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
+ }finally{x.store.close()}
+});
+test("provider claim rejects modified reviewed media after budget approval",()=>{
+ const x=setup();
+ try{
+  const id=x.order(14);
+  x.ledger.authorize(x.approval(id),secret,budget,now);
+  const row=x.store.db.prepare("SELECT media_json FROM customer_prepared_media WHERE order_id=?").get(id) as {media_json:string};
+  const mutated=JSON.parse(row.media_json) as PreparedMedia;
+  mutated.prompt="Modified after authorization";
+  x.store.db.prepare("UPDATE customer_prepared_media SET media_json=? WHERE order_id=?").run(JSON.stringify(mutated),id);
+  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,true,now+1000),/reviewed media changed/);
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
+ }finally{x.store.close()}
+});
