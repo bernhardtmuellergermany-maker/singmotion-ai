@@ -29,14 +29,14 @@ export async function readOnlyStripeLivePreflight(
  const environment=check("real-production-environment",env.RAILWAY_ENVIRONMENT_ID===PRODUCTION);
  const key=env.STRIPE_SECRET_KEY||"";
  const credential=check("live-secret-key-format",/^sk_live_[A-Za-z0-9_]+$/.test(key));
- check("live-webhook-signing-secret",/^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||""));
+ const webhookConfigured=check("live-webhook-signing-secret",/^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||""));
  const origin=safeOrigin(env.PUBLIC_SITE_ORIGIN);
  check("public-https-origin",origin!==null);
  const priceId=env.STRIPE_HOBBY_LIVE_PRICE_ID||"";
  const hasPrice=check("separate-hobby-live-price",/^price_[A-Za-z0-9_]+$/.test(priceId));
  // The connection cannot access live Stripe outside real Production. This
  // protects private Staging from accidentally using an operator's live key.
- if(environment&&credential&&origin&&hasPrice){
+ if(environment&&credential&&webhookConfigured&&origin&&hasPrice){
   const request=async(url:string):Promise<Record<string,unknown>|null>=>{
    try{
     const response=await fetcher(url,{
