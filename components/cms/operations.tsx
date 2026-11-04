@@ -7,6 +7,7 @@ import {
 import type {AdminViewServerProps} from "payload";
 import {hasRole} from "../../cms/policy";
 import {readCommerceDashboard} from "../../cms/dashboard-metrics";
+import {CmsPageCleanupInventory} from "./page-cleanup-inventory";
 import {PrivateLedger} from "./private-ledger";
 import {StudioActivation} from "./studio-activation";
 import {FirstTestPanel} from "./first-test-panel";
@@ -162,6 +163,7 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
       They do not automatically enable generation or renew provider budgets.</p><StudioActivation/><FirstTestPanel/></div>
    </details>}
   </section>}
+  {superAdmin&&<CmsPageCleanupInventory/>}
   <aside className="sm-cms-release" aria-label="Launch readiness notice">
    <div className="sm-cms-release-head"><ShieldAlert size={22}/><div><span className="sm-cms-eyebrow">RELEASE CONTROL</span>
     <h2>Private by design. Not publicly launched.</h2></div></div>

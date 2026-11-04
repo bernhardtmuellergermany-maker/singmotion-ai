@@ -423,6 +423,13 @@ try {
   await page.getByRole("link", { name: /Media library/ }).waitFor();
   await page.getByRole("heading", { name: "Customer operations" }).waitFor();
   await page.getByRole("heading", { name: "Workspace activity" }).waitFor();
+  const inventory=page.locator(".sm-cms-page-inventory");
+  await inventory.getByRole("heading",{name:/Welche Seiten sind tatsächlich veröffentlicht/}).waitFor();
+  await inventory.getByText("Nie veröffentlicht",{exact:true}).first().waitFor();
+  await inventory.getByText("Veröffentlicht",{exact:true}).first().waitFor();
+  assert.ok((await inventory.textContent())?.includes("/about"));
+  assert.ok((await inventory.textContent())?.includes("/"));
+
   const heroBg = await page.locator(".sm-cms-hero").evaluate(
     (el) => getComputedStyle(el).backgroundImage,
   );
