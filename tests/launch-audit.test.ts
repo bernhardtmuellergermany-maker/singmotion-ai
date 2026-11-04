@@ -25,13 +25,20 @@ function verified(envId:string){
   PRODUCTION_MEDIA_MIGRATION_VERIFIED:"true",
   CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED:"true",
   PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",
+  CMS_ENABLED:"true",CMS_DATABASE_URL:"postgresql://test.invalid/fake-audit",
+  PAYLOAD_SECRET:"fictional-mock-only-cms-secret",
+  PRODUCTION_CMS_MIGRATION_VERIFIED:"true",
+  PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED:"true",
+  PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED:"true",
+  CMS_PUBLISHED_CONTENT_RECONCILED:"true",
  };
 }
 test("modern CMS is a hard production release gate even when other human flags are green",()=>{
  const env:Record<string,string|undefined>=verified(production);
- env.CMS_ENABLED="true";
- env.CMS_DATABASE_URL="postgresql://test.invalid/release-audit";
- env.PAYLOAD_SECRET="mock-cms-secret-for-test";
+ delete env.PRODUCTION_CMS_MIGRATION_VERIFIED;
+ delete env.PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED;
+ delete env.PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED;
+ delete env.CMS_PUBLISHED_CONTENT_RECONCILED;
  const audit=auditSingMotionLaunch(env,"production");
  assert.equal(audit.gates.find(g=>g.id==="production-cms")?.ready,false);
  assert.equal(audit.gates.find(g=>g.id==="cms-page-retention")?.ready,false);
@@ -55,6 +62,7 @@ test("CMS migration approval never passes for disabled CMS or missing credential
  });
  assert.equal(auditSingMotionLaunch(env,"production").gates.find(g=>g.id==="production-cms")?.ready,false);
  env.CMS_ENABLED="true";
+ delete env.CMS_DATABASE_URL;
  assert.equal(auditSingMotionLaunch(env,"production").gates.find(g=>g.id==="production-cms")?.ready,false);
 });
 test("production launch blocks absent credentials, human signoffs and test evidence",()=>{
