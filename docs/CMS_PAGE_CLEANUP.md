@@ -31,11 +31,12 @@ werden, nicht aus dem Screenshot abgeleitet.
    werden behalten, auch wenn sie aktuell einen bearbeiteten Entwurf haben.
 5. `npm run cms:prune-drafts -- --apply` schreibt **zuerst** eine exklusive
    JSON-Datei mit allen aktuellen Inhalten und Versionen in das private
-   `DATA_DIR/cms-draft-archives`-Verzeichnis und entfernt anschließend
-   ausschließlich vollständig geprüfte, nie veröffentlichte Entwürfe.
+   `DATA_DIR/cms-draft-archives`-Verzeichnis, liest die gesamte Archivdatei zur SHA-256-Integritätsprüfung und Rechtekontrolle erneut ein und entfernt anschließend
+   ausschließlich vollständig geprüfte, nie veröffentlichte Entwürfe. Vor **jeder** Löschung wird die Versionenhistorie erneut gelesen; jede neue Veröffentlichung oder Änderung stoppt den Vorgang.
 6. Anschließend öffentlich erreichbare Links und CMS prüfen; vor öffentlicher
    Veröffentlichung keine rechtlichen Platzhalter versehentlich freigeben.
-7. Den temporären Betreiber-Schalter wieder deaktivieren. Backup gemäß
+7. Das Archiv auf dem gleichen Staging-Volume ist ein lokaler Wiederherstellungspunkt, **kein** unabhängig getestetetes Offsite-/Produktionsbackup. Für Disaster-Recovery eine separat verschlüsselte Kopie und Restore-Übung erstellen. Niemals Archivdateien öffentlich bereitstellen.
+8. Den temporären Betreiber-Schalter wieder deaktivieren. Backup gemäß
    freigegebener Retention-Richtlinie schützen und nicht öffentlich zugänglich
    machen.
 
