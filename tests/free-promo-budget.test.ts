@@ -167,3 +167,31 @@ test("provider claim rejects modified reviewed media after budget approval",()=>
   assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
  }finally{x.store.close()}
 });
+
+test("bounded operator reconciliation scan surfaces only stale ambiguous claims without mutation",()=>{
+ const x=setup();
+ try{
+  const id=x.order(15);
+  x.ledger.authorize(x.approval(id),secret,budget,now);
+  assert.deepEqual(x.ledger.staleProviderAttempts(now+60*60_000),[]);
+  x.ledger.claimProviderAttempt(id,x.account,true,now+1000);
+  assert.deepEqual(x.ledger.staleProviderAttempts(now+2*60_000),[]);
+  assert.deepEqual(x.ledger.staleProviderAttempts(now+16*60_000),[{
+   orderId:id,state:"submitted_or_unknown",ageMs:16*60_000-1000,reservedMicroUsd:100000
+  }]);
+  assert.deepEqual(x.ledger.staleProviderAttempts(now+16*60_000,15*60_000,1),[{
+   orderId:id,state:"submitted_or_unknown",ageMs:16*60_000-1000,reservedMicroUsd:100000
+  }]);
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"submitted_or_unknown");
+  assert.equal(x.promo.list()[0].reserved,1);
+  assert.equal((x.store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id) as {status:string}).status,"awaiting_payment");
+ }finally{x.store.close()}
+});
+test("reconciliation scan rejects unbounded or invalid arguments",()=>{
+ const x=setup();
+ try{
+  assert.throws(()=>x.ledger.staleProviderAttempts(now,0),/scan bounds/);
+  assert.throws(()=>x.ledger.staleProviderAttempts(now,15*60_000,101),/scan bounds/);
+  assert.throws(()=>x.ledger.staleProviderAttempts(Number.NaN),/scan bounds/);
+ }finally{x.store.close()}
+});
