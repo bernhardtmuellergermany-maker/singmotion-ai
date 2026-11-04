@@ -11,10 +11,11 @@ import {reviewedVideoInputDigest,reviewedVideoQuoteDigest} from "./reviewed-vide
 const uuid=/^[a-f0-9-]{36}$/;
 const signedHex=/^[a-f0-9]{64}$/;
 type Approval={orderId:string;accountId:string;maxMicroUsd:number;expiresAt:number;signature:string};
-type Budget={perJobMicroUsd:number;perPromoMicroUsd:number;rollingDayMicroUsd:number;lifetimeMicroUsd:number};
+type Budget={operatorEnabled:boolean;perJobMicroUsd:number;perPromoMicroUsd:number;rollingDayMicroUsd:number;lifetimeMicroUsd:number};
 export type FreePromoAuthorization={orderId:string;accountId:string;reservedMicroUsd:number;state:"authorized"|"submitted_or_unknown"|"delivered"|"requires_review"};
 function validBudget(policy:Budget){
- for(const value of Object.values(policy))if(!Number.isSafeInteger(value)||value<1||value>1_000_000_000)
+ if(policy.operatorEnabled!==true)throw Error("Free-video provider budget kill switch disabled");
+ for(const value of [policy.perJobMicroUsd,policy.perPromoMicroUsd,policy.rollingDayMicroUsd,policy.lifetimeMicroUsd])if(!Number.isSafeInteger(value)||value<1||value>1_000_000_000)
   throw Error("Invalid free-video spending policy");
  if(policy.perJobMicroUsd>policy.perPromoMicroUsd||policy.perPromoMicroUsd>policy.lifetimeMicroUsd||
   policy.perJobMicroUsd>policy.rollingDayMicroUsd||policy.rollingDayMicroUsd>policy.lifetimeMicroUsd)
