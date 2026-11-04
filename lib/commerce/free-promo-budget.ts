@@ -11,12 +11,13 @@ import {reviewedVideoInputDigest,reviewedVideoQuoteDigest} from "./reviewed-vide
 const uuid=/^[a-f0-9-]{36}$/;
 const signedHex=/^[a-f0-9]{64}$/;
 type Approval={orderId:string;accountId:string;maxMicroUsd:number;expiresAt:number;signature:string};
-type Budget={perJobMicroUsd:number;rollingDayMicroUsd:number;lifetimeMicroUsd:number};
+type Budget={perJobMicroUsd:number;perPromoMicroUsd:number;rollingDayMicroUsd:number;lifetimeMicroUsd:number};
 export type FreePromoAuthorization={orderId:string;accountId:string;reservedMicroUsd:number;state:"authorized"|"submitted_or_unknown"|"delivered"|"requires_review"};
 function validBudget(policy:Budget){
  for(const value of Object.values(policy))if(!Number.isSafeInteger(value)||value<1||value>1_000_000_000)
   throw Error("Invalid free-video spending policy");
- if(policy.perJobMicroUsd>policy.rollingDayMicroUsd||policy.rollingDayMicroUsd>policy.lifetimeMicroUsd)
+ if(policy.perJobMicroUsd>policy.perPromoMicroUsd||policy.perPromoMicroUsd>policy.lifetimeMicroUsd||
+  policy.perJobMicroUsd>policy.rollingDayMicroUsd||policy.rollingDayMicroUsd>policy.lifetimeMicroUsd)
   throw Error("Inconsistent free-video spending caps");
 }
 function message(value:Omit<Approval,"signature">){
@@ -102,8 +103,10 @@ export class FreePromoBudgetLedger{
     throw Error("Free-promo reviewed media commitment changed");
    const total=this.db.prepare("SELECT COALESCE(SUM(reserved_micro_usd),0) AS n FROM free_promo_budget_authorizations").get() as {n:number};
    const day=this.db.prepare("SELECT COALESCE(SUM(reserved_micro_usd),0) AS n FROM free_promo_budget_authorizations WHERE created>=?").get(now-86400000) as {n:number};
+   const promoTotal=this.db.prepare("SELECT COALESCE(SUM(reserved_micro_usd),0) AS n FROM free_promo_budget_authorizations WHERE code=?").get(record.code) as {n:number};
    if(total.n+approval.maxMicroUsd>policy.lifetimeMicroUsd||
-    day.n+approval.maxMicroUsd>policy.rollingDayMicroUsd)
+    day.n+approval.maxMicroUsd>policy.rollingDayMicroUsd||
+    promoTotal.n+approval.maxMicroUsd>policy.perPromoMicroUsd)
     throw Error("Free-video provider spending ceiling reached");
    this.db.prepare(`INSERT INTO free_promo_budget_authorizations
      (order_id,account_id,code,reserved_micro_usd,state,created,updated)
