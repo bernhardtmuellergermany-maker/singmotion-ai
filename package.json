@@ -23,6 +23,8 @@
     "test:staging": "node scripts/test-staging.mjs",
     "test:volume": "node scripts/test-volume.mjs",
     "r2:check": "node --experimental-strip-types scripts/r2-connectivity.ts",
+    "launch:audit": "node --experimental-strip-types scripts/launch-audit.ts",
+    "r2:migrate": "node --experimental-strip-types scripts/migrate-test-assets-to-r2.ts",
     "test:byteplus:offline": "node --experimental-strip-types --test tests/preflight-offline.test.ts",
     "byteplus:first-test": "node --env-file-if-exists=.env.first-test.local --experimental-strip-types scripts/byteplus-first-test.ts",
     "byteplus:operator": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-operator.ts",
