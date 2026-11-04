@@ -41,7 +41,9 @@ function verifyApproval(value:Approval,secret:string,now:number){
   throw Error("Missing, expired or forged operator authorization");
 }
 export class FreePromoBudgetLedger{
- constructor(private readonly db:DatabaseSync){
+ private readonly db:DatabaseSync;
+ constructor(db:DatabaseSync){
+  this.db=db;
   db.exec(`CREATE TABLE IF NOT EXISTS free_promo_budget_authorizations(
    order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,code TEXT NOT NULL,
    reserved_micro_usd INTEGER NOT NULL,state TEXT NOT NULL
