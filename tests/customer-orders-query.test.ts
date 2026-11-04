@@ -13,7 +13,8 @@ test("the existing paid output loads an older owned order beyond the latest 50",
    id TEXT PRIMARY KEY,account_id TEXT,project_id TEXT,price_cents INTEGER,
    currency TEXT,status TEXT,created INTEGER);
    CREATE TABLE customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT);
-   CREATE TABLE customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT);`);
+   CREATE TABLE customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT);
+   CREATE TABLE free_promo_video_deliveries(order_id TEXT PRIMARY KEY,account_id TEXT,sha256 TEXT,bytes INTEGER,created INTEGER);`);
   const insert=db.prepare("INSERT INTO customer_orders VALUES(?,?,?,?,?,?,?)");
   for(let i=0;i<65;i++)insert.run(id(i),"owner-a","project-a",125,"EUR","paid",i);
   insert.run(id(100),"owner-b","project-a",125,"EUR","paid",100);
