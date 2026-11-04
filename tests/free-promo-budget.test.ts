@@ -109,3 +109,37 @@ test("operator kill switch blocks fresh free-video spending, including missing s
   assert.equal((x.store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id) as {status:string}).status,"awaiting_payment");
  }finally{x.store.close()}
 });
+
+test("free provider claim is durable and cannot automatically retry after restart",()=>{
+ const x=setup();
+ try{
+  const id=x.order(10);
+  x.ledger.authorize(x.approval(id),secret,budget,now);
+  assert.equal(x.ledger.claimProviderAttempt(id,x.account,true,now+1000),"claimed");
+  const restarted=new FreePromoBudgetLedger(x.store.db);
+  assert.equal(restarted.claimProviderAttempt(id,x.account,true,now+2000),"already-claimed");
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"submitted_or_unknown");
+  assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM commerce_audit WHERE action='free-promo-provider-attempt-claimed' AND record=?").get(id) as {n:number}).n,1);
+  assert.equal((x.store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id) as {status:string}).status,"awaiting_payment");
+  assert.equal(x.store.pendingPaidFulfillment().length,0);
+  assert.equal(x.promo.list()[0].reserved,1);
+ }finally{x.store.close()}
+});
+test("kill switch and foreign account cannot claim a free provider attempt",()=>{
+ const x=setup();
+ try{
+  const id=x.order(11);
+  x.ledger.authorize(x.approval(id),secret,budget,now);
+  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,false,now+1000),/kill switch/);
+  assert.throws(()=>x.ledger.claimProviderAttempt(id,"22222222-2222-4222-8222-222222222222",true,now+1000),/not eligible/);
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
+ }finally{x.store.close()}
+});
+test("free-provider claim without preapproved spending is denied",()=>{
+ const x=setup();
+ try{
+  const id=x.order(12);
+  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,true,now),/not eligible/);
+  assert.equal(x.promo.list()[0].reserved,1);
+ }finally{x.store.close()}
+});
