@@ -1,4 +1,8 @@
 import { CommerceStore } from "@/lib/commerce/store";
+import { PlanLedger } from "@/lib/commerce/plans";
+import { uploadStorageLimit, reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
+import {mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
+import {ensureLocalAsset} from "@/lib/cloud-hydration";
 import { parseSavedStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -6,7 +10,7 @@ import { stagingDenial, stagingEnabled } from "@/lib/staging";
 import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
-import { readFile, writeFile, unlink, stat } from "node:fs/promises";
+import { readFile, writeFile, unlink, stat, statfs } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import {
@@ -21,7 +25,6 @@ import {
   balance,
   list,
   asset,
-  putAsset,
   artist,
   saveArtist,
   job,
@@ -240,7 +243,7 @@ async function handler(
           return json(
             db
               .prepare(
-                "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC LIMIT 100",
+                "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC",
               )
               .all(owner)
               .map(view),
@@ -273,25 +276,8 @@ async function handler(
         const step = Number(input.step);
         if (!Number.isInteger(step) || step < 0 || step > 4)
           throw new AppError("Invalid draft step.");
-        // Guest limit applies only when creating a new draft, never while editing.
-        const exists = db.prepare("SELECT 1 FROM studio_drafts WHERE id=? AND owner=?").get(key, owner);
-        if (!exists) {
-          let authenticatedCustomer = false;
-          const customerToken = req.cookies.get("sm_customer")?.value;
-          if (process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" && customerToken) {
-            const customerStore = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
-            try {
-              const accountId = customerStore.session(customerToken);
-              authenticatedCustomer = !!accountId && owner === `customer-${accountId}`;
-            } finally {
-              customerStore.close();
-            }
-          }
-          if (!authenticatedCustomer) {
-            const count = db.prepare("SELECT COUNT(*) AS total FROM studio_drafts WHERE owner=?").get(owner) as { total: number };
-            if (count.total >= 3) throw new AppError("You have reached the limit of 3 drafts. Log in to create more drafts.", 403);
-          }
-        }
+        // Draft count is unlimited for both guests and customers. Upload bytes
+        // are independently metered, and the write rate limit still applies.
         const result = db
           .prepare(
             "INSERT INTO studio_drafts (id,owner,selection,artist_name,step,updated,project_name) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated,project_name=excluded.project_name WHERE studio_drafts.owner=excluded.owner",
@@ -325,17 +311,27 @@ async function handler(
       if (!(file instanceof File) || (kind !== "audio" && kind !== "image"))
         throw new AppError("Choose a file to upload.");
       validateFile(file.name, file.size, kind);
-      const total = list<Asset>("assets", owner).reduce(
-        (n, a) => n + a.bytes,
-        0,
-      );
-      if (total + file.size > 250 * 1024 * 1024)
-        throw new AppError(
-          "Demo storage limit reached (250 MB). Delete demo data in Settings.",
-          413,
-        );
-      const bytes = Buffer.from(await file.arrayBuffer());
+      let plan: "guest"|"free"|"hobby"="guest";
+      // The authenticated customer cookie, not a browser plan claim, determines
+      // the upload budget. Former Hobby accounts immediately use the Free budget
+      // after paid access expires; over-quota files are never auto-deleted.
+      if(owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
+        const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+        try{
+          const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
+          plan=accountId && owner===`customer-${accountId}`
+            ? new PlanLedger(customer.db).activePlan(accountId) : "free";
+        }finally{customer.close()}
+      }
+      // Plan allowance is not physical disk capacity. Railway's staging volume
+      // is smaller than one Hobby allowance until the storage backend expands.
+      // Keep a recovery reserve so one upload cannot fill the persistent disk.
+      const disk=await statfs(dataDir);
+      const available=disk.bavail*disk.bsize;
+      if(available-file.size<128*1024*1024)
+        throw new AppError("Upload storage temporarily unavailable: server capacity is low. Existing videos and files are safe.",507);
       const assetId = randomUUID();
+      reserveUploadStorage(db,owner,assetId,file.size,uploadStorageLimit(plan));
       const dest = path.join(dataDir, "media", assetId);
       const preview = path.join(dataDir, "media", `${assetId}.preview.mp3`);
       let duration: number | null = null,
@@ -343,6 +339,7 @@ async function handler(
         height: number | null = null,
         mime = "";
       try {
+        const bytes = Buffer.from(await file.arrayBuffer());
         await writeFile(dest, bytes, { mode: 0o600, flag: "wx" });
         if (kind === "audio") {
           duration = await validateAudio(dest);
@@ -390,9 +387,22 @@ async function handler(
           height,
           created: Date.now(),
         };
-        putAsset(a);
+        let mirrored:CloudMediaRecord|null;
+        try{
+          mirrored=await mirrorPrivateSource(a);
+          if(mirrored)await readMirroredPrivateSource(owner,assetId,mirrored,a.kind==="video"?256*1024*1024:51*1024*1024);
+        }catch{throw new AppError("Private cloud storage is temporarily unavailable. Please retry the upload later.",503)}
+        commitUploadedAsset(db,a,mirrored);
+        if(mirrored){
+          // R2 is the authoritative uploaded original once BOTH hashes match.
+          // Local media is disposable scratch for Studio and is rehydrated only
+          // on demand. A failed unlink leaves a safe extra local copy.
+          await unlink(dest).catch(()=>{});
+          await unlink(preview).catch(()=>{});
+        }
         return json(safeAsset(a), 201);
       } catch (e) {
+        releaseUploadStorage(db,owner,assetId);
         await unlink(dest).catch(() => {});
         await unlink(preview).catch(() => {});
         if (e instanceof AppError) throw e;
@@ -404,7 +414,25 @@ async function handler(
     if (route === "assets" && id && method === "GET") {
       const a = asset(id, owner);
       const playback = a.kind === "audio" && req.nextUrl.searchParams.has("playback") && (a.mime === "audio/wav" || a.mime === "audio/mp4");
-      const content = await readFile(playback ? path.join(dataDir, "media", `${a.id}.preview.mp3`) : a.path);
+      let content:Buffer;
+      try{
+        content=await readFile(playback ? path.join(dataDir,"media",`${a.id}.preview.mp3`) : a.path);
+      }catch(error){
+        if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+        if(playback){
+          // Recreate only the disposable browser MP3 preview from the
+          // owner-verified R2 original when the local preview was evicted.
+          await ensureLocalAsset(a);
+          const preview=path.join(dataDir,"media",`${a.id}.preview.mp3`);
+          await createAudioPreview(a.path,preview);
+          content=await readFile(preview);
+        }else{
+          if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get())throw error;
+          const row=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(a.id,owner) as CloudMediaRecord|undefined;
+          if(!row)throw error;
+          content=await readMirroredPrivateSource(owner,a.id,row,a.kind==="video"?256*1024*1024:51*1024*1024);
+        }
+      }
       const headers: Record<string, string> = {
         "Content-Type": playback ? "audio/mpeg" : a.mime,
         "Cache-Control": "private, no-store",
@@ -425,13 +453,13 @@ async function handler(
           });
         headers["Content-Range"] = `bytes ${start}-${end}/${content.length}`;
         headers["Content-Length"] = String(end - start + 1);
-        return new Response(content.subarray(start, end + 1), {
+        return new Response(new Uint8Array(content.subarray(start, end + 1)), {
           status: 206,
           headers,
         });
       }
       headers["Content-Length"] = String(content.length);
-      return new Response(content, { headers });
+      return new Response(new Uint8Array(content), { headers });
     }
     if (route === "artists" && method === "GET")
       return json(list<Artist>("artists", owner));

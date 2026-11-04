@@ -240,7 +240,7 @@ test("admin duration bands require explicit independent review and preserve shor
       fps: original.contract.output.fps,
       videoCodec: "h264",
       audioCodec: "aac",
-      toleranceSeconds: 2,
+      toleranceSeconds: 1,
       expiresAt: new Date(Date.now() + 86400000).toISOString(),
     };
     const input = {
@@ -362,7 +362,7 @@ test("experimental planning is labeled, separately acknowledged and never relaxe
     fps: base.contract.output.fps,
     videoCodec: "h264",
     audioCodec: "aac",
-    toleranceSeconds: 2,
+    toleranceSeconds: 1,
     expiresAt: new Date(Date.now() + 86400000).toISOString(),
   };
   for (const key of [
@@ -390,7 +390,7 @@ test("experimental planning is labeled, separately acknowledged and never relaxe
   );
   assert.throws(
     () => reviewedDurationBand({ ...review, maxInputSeconds: 16 }, owner, base),
-    /maxInputSeconds/,
+    /(maxInputSeconds|Host\/media\/duration)/,
   );
   assert.throws(
     () =>

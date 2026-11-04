@@ -500,7 +500,7 @@ export function LiveProject({ id }: { id: string }) {
   }
   const [editingProjectName,setEditingProjectName]=useState(false);
   const [projectLabel,setProjectLabel]=useState("");
-  useEffect(()=>{try{setProjectLabel(localStorage.getItem("sm-live-project-name:"+id)||"");}catch{}},[id]);
+  useEffect(()=>{try{const stored=localStorage.getItem("sm-live-project-name:"+id)||"";void Promise.resolve().then(()=>setProjectLabel(stored));}catch{}},[id]);
   const saveProjectName=(name:string)=>{
     const value=name.trim().slice(0,80);
     if(!value){setEditingProjectName(false);return;}

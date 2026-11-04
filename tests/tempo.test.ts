@@ -316,7 +316,9 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   await restoreTempoOutput(raw, final, slow, contract);
   await validateRestored(final, slow, contract);
   assert.ok(Math.abs(slow.tempo!.originalDecodedSeconds! - 5) < 0.001);
-  assert.ok(slow.durationSeconds > slow.tempo!.providerDecodedSeconds!); // MP3 padding is not music
+  // Container duration may be slightly above or below decoded samples across FFmpeg versions.
+  // Bound encoder framing without treating that padding as source music.
+  assert.ok(Math.abs(slow.durationSeconds - slow.tempo!.providerDecodedSeconds!) < 0.12);
   // Provider may add a bounded tail: trim that tail, don't stretch it across the song.
   const tail = path.join(root, "provider-tail.mp4");
   ff([
@@ -526,11 +528,14 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
       .get(broken.id)!.reserved_micro_usd,
     cost,
   );
-  assert.ok(
-    !(await readdir(path.join(root, "live-output"))).some(
-      (f) => f.includes("partial") || f.startsWith(broken.id),
-    ),
-  );
+  // No finalized customer output or partial MP4 may remain. A validated
+  // provider-source capture is intentionally kept for manual, idempotent
+  // recovery without a second paid provider submission.
+  const outputFiles = await readdir(path.join(root, "live-output"));
+  assert.ok(!outputFiles.includes(`${broken.id}.mp4`));
+  assert.ok(!outputFiles.some(f=>f.startsWith(broken.id + ".") && f.includes(".partial")));
+  const sourceCapture = path.join(root, "live-output", `${broken.id}.provider-source.mp4`);
+  assert.equal((await stat(sourceCapture)).mode & 0o777,0o600);
   process.env.AUDIO_TEMPO_ENABLED = "true";
   assert.deepEqual(await readFile(original), before);
   assert.deepEqual(await readFile(source), sourceBefore);

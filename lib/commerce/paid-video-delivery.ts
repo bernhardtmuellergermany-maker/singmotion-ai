@@ -1,9 +1,11 @@
-import {mkdir,lstat,realpath,stat} from "node:fs/promises";
+import {mkdir,lstat,realpath,stat,unlink} from "node:fs/promises";
+import {createHash} from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
 import {downloadValidatedOutput,validateOutput,outputTransferLimits,type OutputValidationContract} from "../live/output.ts";
 import type {OutputTransport} from "../live/output-transport.ts";
 import {asset,db,putAsset} from "../db.ts";
+import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 
 /** Trusted worker only; never call from a browser route.
  * A completed BytePlus task is still not a customer delivery until the private
@@ -65,9 +67,41 @@ export async function deliverReviewedPaidVideo(
    name:"singmotion.mp4",path:file,mime:"video/mp4",bytes:details.size,
    duration:media.durationSeconds,width:null,height:null,created:Date.now()});
  }
+ // The R2 copy is strictly optional outside protected staging; when enabled,
+ // a delivered receipt must never point at an unverified remote archive.
+ const cloud=await mirrorPrivatePaidVideo(order.account_id,orderId,file,details.size);
+ if(cloud){
+  // The output is not downloadable until we have reread and SHA-256 verified
+  // the full private R2 object. HEAD metadata alone is insufficient.
+  const body=await paidR2ByteRange(order.account_id,orderId,cloud,0,cloud.bytes-1);
+  const reader=body.getReader();
+  const digest=createHash("sha256");
+  let size=0;
+  try{
+   while(true){
+    const result=await reader.read();
+    if(result.done)break;
+    size+=result.value.byteLength;
+    if(size>cloud.bytes)throw Error("Cloud paid output exceeded validated size");
+    digest.update(result.value);
+   }
+  }finally{reader.releaseLock()}
+  if(size!==cloud.bytes||digest.digest("hex")!==cloud.sha256)
+   throw Error("Cloud paid video content verification failed");
+  store.db.exec("CREATE TABLE IF NOT EXISTS cloud_paid_videos(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+  const previous=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,order.account_id) as {key:string;sha256:string;bytes:number}|undefined;
+  if(previous && (previous.key!==cloud.key||previous.sha256!==cloud.sha256||previous.bytes!==cloud.bytes))
+   throw Error("Paid R2 archive requires operator reconciliation");
+  if(!previous)store.db.prepare("INSERT INTO cloud_paid_videos(order_id,account_id,key,sha256,bytes,created) VALUES(?,?,?,?,?,?)").run(orderId,order.account_id,cloud.key,cloud.sha256,cloud.bytes,Date.now());
+ }
  const evidence=`private-validated-byteplus-output:${orderId}:${details.size}`;
  store.recordPaidVideoDelivery(orderId,assetId,evidence);
  if(!store.finalizePaidFulfillment(orderId,{state:"delivered",deliveryEvidence:evidence}))
   throw Error("Paid fulfillment transition unavailable");
+ if(cloud){
+  // The local MP4 is only a temporary post-validation artifact. All customer
+  // playback is owner-verified and can stream a private range from R2.
+  await unlink(file).catch(()=>{});
+ }
  return "delivered";
 }

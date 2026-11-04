@@ -58,3 +58,165 @@ html:has(.payload-admin) { color-scheme: dark; }
   .payload-admin .template-default__wrap,
   .payload-admin .dashboard__wrap { padding-inline: 1rem; }
 }
+
+/* 2026 CMS refresh: native Payload content editing and sign-in screens */
+.payload-admin {
+  --theme-bg:#0b0c14;
+  --theme-input-bg:#161929;
+  --theme-elevation-0:#0b0c14;
+  --theme-elevation-50:#111420;
+  --theme-elevation-100:#181b2b;
+  --theme-elevation-150:#202337;
+  --theme-elevation-200:#272c40;
+  --theme-elevation-250:#30354b;
+  --theme-elevation-300:#424961;
+  --theme-elevation-400:#696f86;
+  --theme-elevation-500:#989eb1;
+  --theme-elevation-600:#b4b9cb;
+  --theme-elevation-700:#d0d4df;
+  --theme-elevation-800:#e6e8f1;
+  --theme-elevation-900:#f5f4ff;
+  --theme-elevation-1000:#fff;
+  --theme-text:#f3f0ff;
+  --theme-success-500:#71d6b0;
+  --theme-warning-500:#ffcf8a;
+  --theme-error-500:#ff899e;
+  background:#0b0c14;
+  color:#f3f0ff;
+}
+.payload-admin .nav{
+ background:linear-gradient(180deg,#11111e 0%,#0e1320 100%);
+ border-right:1px solid rgba(190,166,255,.14);
+}
+.payload-admin .nav__brand{
+ position:relative;
+ padding:26px 16px 20px;
+ margin-bottom:8px;
+}
+.payload-admin .nav__brand:after{
+ content:"";position:absolute;bottom:0;left:16px;right:16px;
+ height:1px;background:linear-gradient(90deg,rgba(164,148,255,.5),transparent);
+}
+.payload-admin .nav a,.payload-admin .nav button{
+ border-radius:11px;transition:background .16s,color .16s;
+}
+.payload-admin .nav a:hover,.payload-admin .nav button:hover{
+ background:rgba(171,152,255,.12);color:#f3eeff;
+}
+.payload-admin .nav a.active,.payload-admin .nav a[aria-current="page"]{
+ background:linear-gradient(110deg,rgba(157,131,255,.22),rgba(113,153,250,.11));
+ box-shadow:inset 2px 0 0 #beaaff;color:#fff;
+}
+.payload-admin .nav-group__label,.payload-admin .nav__label{
+ letter-spacing:.12em;text-transform:uppercase;font-size:10px;font-weight:750;
+ color:#a6a0bc;
+}
+.payload-admin .template-default__wrap,.payload-admin .dashboard__wrap{
+ max-width:1560px;padding-bottom:64px;
+}
+.payload-admin h1,.payload-admin h2,.payload-admin h3{
+ letter-spacing:-.035em;
+}
+.payload-admin h1{font-weight:730}
+.payload-admin .card,.payload-admin .collection-list,.payload-admin .render-fields,
+.payload-admin .tabs-field,.payload-admin .collapsible,.payload-admin .list-controls,
+.payload-admin .auth-form{
+ border-radius:16px;
+}
+.payload-admin .card{
+ border:1px solid rgba(192,176,244,.14);
+ background:linear-gradient(135deg,rgba(37,37,55,.95),rgba(24,28,42,.96));
+ transition:border-color .16s,transform .16s;
+}
+.payload-admin .card:hover{border-color:rgba(199,168,255,.46);transform:translateY(-1px)}
+.payload-admin .collection-list,.payload-admin .render-fields{
+ border-color:rgba(192,176,244,.12);
+}
+.payload-admin input,.payload-admin textarea,.payload-admin select,
+.payload-admin .select__control{
+ border-radius:11px;
+ background-color:#191c2d;
+ border-color:#37374f;
+ color:#f4f0ff;
+ min-height:42px;
+}
+.payload-admin input:hover,.payload-admin textarea:hover,.payload-admin select:hover{
+ border-color:#676082;
+}
+.payload-admin input:focus,.payload-admin textarea:focus,.payload-admin select:focus{
+ border-color:#bcadff;
+ box-shadow:0 0 0 3px rgba(188,173,255,.13);
+}
+.payload-admin .btn--style-primary{
+ border-radius:11px;
+ background:linear-gradient(120deg,#c6b0ff,#a5b7fb);
+ color:#1a1431;
+ font-weight:730;
+ border-color:transparent;
+}
+.payload-admin .btn--style-primary:hover{
+ background:linear-gradient(120deg,#dfd2ff,#c5d0ff);
+ color:#151028;
+}
+.payload-admin .btn--style-secondary{border-radius:11px}
+.payload-admin .table{border-radius:15px;overflow:hidden;border:1px solid rgba(191,168,255,.12)}
+.payload-admin .table thead{background:rgba(172,147,255,.065)}
+.payload-admin .table tbody tr:hover{background:rgba(160,144,255,.06)}
+.payload-admin .field-type,.payload-admin .field-description{line-height:1.55}
+.payload-admin .tabs-field__tab-button--active{color:#d4c5ff}
+.payload-admin .login__wrap,.payload-admin .forgot-password__wrap{
+ max-width:520px;
+}
+.payload-admin .login__form{
+ border:1px solid rgba(194,169,255,.2);
+ border-radius:22px;
+ background:linear-gradient(145deg,#181629,#131b2a);
+ padding:clamp(24px,3vw,43px);
+ box-shadow:0 25px 65px rgba(2,5,20,.3);
+}
+.payload-admin :focus-visible{outline:2px solid #cbb8ff;outline-offset:3px}
+@media (max-width:800px){
+ .payload-admin .template-default__wrap,.payload-admin .dashboard__wrap{
+  padding-inline:clamp(12px,3vw,24px);
+ }
+ .payload-admin .login__form{padding:22px}
+}
+@media(prefers-reduced-motion:reduce){
+ .payload-admin .nav a,.payload-admin .nav button,.payload-admin .card{
+  transition:none;
+ }
+ .payload-admin .card:hover{transform:none}
+}
+
+/* Recognizable, always-visible CMS navigation entry on all Payload views. */
+.payload-admin .sm-cms-sidebar-intro{
+ display:flex;flex-direction:column;gap:13px;padding:12px 11px 17px;
+ margin:0 4px 16px;border-bottom:1px solid rgba(179,157,255,.2)
+}
+.payload-admin .sm-cms-sidebar-brand{
+ display:flex;align-items:center;gap:9px;min-width:0;color:#eee9ff;
+ font-size:15px;font-weight:750;letter-spacing:-.035em;
+}
+.payload-admin .sm-cms-sidebar-brand>svg{color:#c9b0ff;flex-shrink:0}
+.payload-admin .sm-cms-sidebar-brand strong{color:#bcadff}
+.payload-admin .sm-cms-sidebar-tag{
+ font-size:9px;letter-spacing:.12em;font-weight:800;border:1px solid rgba(192,170,255,.25);
+ border-radius:6px;padding:4px 5px;margin-left:auto;color:#bcb2d3;
+}
+.payload-admin .sm-cms-sidebar-dashboard{
+ display:flex;gap:10px;align-items:center;min-height:45px;padding:10px 12px;
+ border:1px solid rgba(190,172,255,.24);border-radius:12px;
+ background:linear-gradient(115deg,rgba(154,130,255,.22),rgba(96,135,235,.12));
+ color:#f5f0ff;text-decoration:none;font-size:13px;font-weight:750;
+ transition:background .15s,border-color .15s;
+}
+.payload-admin .sm-cms-sidebar-dashboard>svg{color:#c6b3ff;flex-shrink:0}
+.payload-admin .sm-cms-sidebar-dashboard:hover{
+ border-color:rgba(217,199,255,.58);
+ background:linear-gradient(115deg,rgba(161,138,255,.32),rgba(101,142,239,.19));
+}
+.payload-admin .sm-cms-sidebar-dashboard:focus-visible{outline:2px solid #d8c6ff;outline-offset:3px}
+.payload-admin .sm-cms-sidebar-arrow{margin-left:auto;color:#bbb0d9;font-size:17px}
+@media(prefers-reduced-motion:reduce){
+ .payload-admin .sm-cms-sidebar-dashboard{transition:none}
+}

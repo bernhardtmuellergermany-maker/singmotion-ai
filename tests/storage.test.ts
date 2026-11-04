@@ -119,3 +119,23 @@ test("demo mode fails closed when disabled and rate limits are enforced", () => 
   limit("test", 1);
   assert.throws(() => limit("test", 1), /Too many/);
 });
+
+test("expired sessions never delete customer or CMS media owners",async()=>{
+ const {expiredDemoOwners}=await import("../lib/live/cleanup.ts");
+ const {DatabaseSync}=await import("node:sqlite");
+ const {randomUUID}=await import("node:crypto");
+ const testDb=new DatabaseSync(":memory:");
+ try{
+  testDb.exec("CREATE TABLE sessions(token TEXT PRIMARY KEY,owner TEXT NOT NULL,expires INTEGER NOT NULL)");
+  const demo=randomUUID(),activeDemo=randomUUID(),customer="customer-"+randomUUID();
+  const staff="cms-staff-editor_001",now=1000000;
+  const add=(token:string,owner:string,expires:number)=>testDb.prepare("INSERT INTO sessions VALUES(?,?,?)").run(token,owner,expires);
+  add("demo-expired",demo,now-1);
+  add("demo-old",activeDemo,now-1);
+  add("demo-fresh",activeDemo,now+10000);
+  add("customer-expired",customer,now-1);
+  add("staff-expired",staff,now-1);
+  assert.deepEqual(expiredDemoOwners(testDb,now),[demo]);
+  assert.throws(()=>expiredDemoOwners(testDb,Number.NaN),/timestamp/);
+ }finally{testDb.close()}
+});

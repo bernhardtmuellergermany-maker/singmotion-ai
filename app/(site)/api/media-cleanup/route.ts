@@ -2,6 +2,10 @@ import { NextRequest } from "next/server";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { db, dataDir, session, limit } from "@/lib/db";
+import { CommerceStore } from "@/lib/commerce/store";
+import { PlanLedger } from "@/lib/commerce/plans";
+import {uploadStorageLimit} from "@/lib/upload-storage";
+import {deleteMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import { stagingDenial } from "@/lib/staging";
 import { openStudioStore } from "@/lib/live/studio";
 export const runtime="nodejs";
@@ -39,14 +43,34 @@ export async function POST(req:NextRequest){
   const safe=assets.map(r=>{
    const a=JSON.parse(r.data) as {bytes?:number;name?:string;kind?:string};
    return {id:r.id,bytes:Number(a.bytes)||0,name:a.name||"Upload",kind:a.kind||"media",unused:!referenceText.includes(r.id)};
-  });
-  const unused=safe.filter(a=>a.unused);
-  const report={totalBytes:safe.reduce((s,a)=>s+a.bytes,0),limitBytes:250*1024*1024,
+  }).filter(a=>a.kind==="audio"||a.kind==="image");
+  // Paid output files are immutable customer deliveries, never unused uploads.
+  const unused=safe.filter(a=>a.unused && (a.kind==="audio" || a.kind==="image"));
+  const cloudTable=!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get();
+  let storagePlan:"guest"|"free"|"hobby"="guest";
+  if(auth.owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
+   const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+   try{
+    const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
+    storagePlan=accountId && auth.owner===`customer-${accountId}`
+      ? new PlanLedger(customer.db).activePlan(accountId) : "free";
+   }finally{customer.close()}
+  }
+  const report={totalBytes:safe.reduce((s,a)=>s+a.bytes,0),limitBytes:uploadStorageLimit(storagePlan),
    unusedBytes:unused.reduce((s,a)=>s+a.bytes,0),unusedCount:unused.length,
    protectedCount:safe.length-unused.length,
    unused:unused.map(({id,bytes,name,kind})=>({id,bytes,name,kind}))};
   if(body.mode==="preview")return respond(report);
   if(body.confirmation!=="DELETE UNUSED UPLOADS")return respond({error:"Confirmation required"},400);
+  // The private cloud object must be deleted and verified before local
+  // metadata is removed; uncertain R2 outcomes preserve local originals.
+  for(const item of unused){
+   if(!cloudTable)break;
+   const record=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(item.id,auth.owner) as CloudMediaRecord|undefined;
+   if(!record)continue;
+   try{await deleteMirroredPrivateSource(auth.owner,item.id,record)}
+   catch{return respond({error:"Cloud deletion could not be confirmed. Existing uploads were preserved; contact support before retrying."},503)}
+  }
   const removed:string[]=[];
   // Recheck under the SQLite write transaction for concurrent updates.
   db.exec("BEGIN IMMEDIATE");
@@ -54,6 +78,7 @@ export async function POST(req:NextRequest){
    for(const item of unused){
     const still=db.prepare("SELECT 1 FROM assets WHERE id=? AND owner=?").get(item.id,auth.owner);
     if(!still)continue;
+    if(cloudTable)db.prepare("DELETE FROM cloud_source_media WHERE asset_id=? AND owner=?").run(item.id,auth.owner);
     db.prepare("DELETE FROM assets WHERE id=? AND owner=?").run(item.id,auth.owner);
     removed.push(item.id);
    }

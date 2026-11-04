@@ -13,7 +13,7 @@ type Tile = { id:string; name:string; href:string; imageId?:string; state:string
 type Draft = { id:string; artistName:string; projectName?:string; updated?:number; selection:{ songId?:string; imageId?:string; start:number; end:number } };
 const cleanTitle=(name:string)=>!name.trim()||name.trim().toLowerCase()==="my artist"||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
 const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
-export function CarouselExperience(){
+export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:string}}={}){
   const [tiles,setTiles]=useState<Tile[]>([]);
   const [publishedShowcase,setPublishedShowcase]=useState<{title:string;videoUrl:string}|null>(null);
   // Public showcase selection is independent of the visitor's login/session.
@@ -72,7 +72,14 @@ export function CarouselExperience(){
   const activeIndex=Math.max(0,ids.indexOf(current));
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
-  useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";setSearchOpen(true);const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
+  useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";void Promise.resolve().then(()=>setSearchOpen(true));const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
+  const navigate=useCallback((id:string,replace=false)=>{
+    currentRef.current=id;setCurrent(id);
+    const u=new URL(window.location.href);
+    if(id==="home")u.searchParams.delete("card");else u.searchParams.set("card",id);
+    window.history[replace?"replaceState":"pushState"]({ ...window.history.state, carouselCard:id },"",u.pathname+u.search+u.hash);
+  },[]);
+  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
   useEffect(()=>{
     if(!searchOpen)return;
     const onOutside=(event:PointerEvent)=>{
@@ -81,19 +88,12 @@ export function CarouselExperience(){
     document.addEventListener("pointerdown",onOutside);
     return()=>document.removeEventListener("pointerdown",onOutside);
   },[searchOpen,tiles]);
-  const closeSearch=()=>{const hadFilter=searchQuery.trim().length>0;setSearchOpen(false);setSearchText("");setSearchQuery("");if(hadFilter){const restore=priorCard.current;navigate(["showcase","home","login"].includes(restore)||tiles.some(t=>t.id===restore)?restore:"home");}searchButton.current?.focus();};
-  const navigate=useCallback((id:string,replace=false)=>{
-    currentRef.current=id;setCurrent(id);
-    const u=new URL(window.location.href);
-    if(id==="home")u.searchParams.delete("card");else u.searchParams.set("card",id);
-    window.history[replace?"replaceState":"pushState"]({ ...window.history.state, carouselCard:id },"",u.pathname+u.search+u.hash);
-  },[]);
   useEffect(()=>{
     if(!searching)return;
-    if(ids.length && !ids.includes(current))navigate(ids[0],true);
+    if(ids.length && !ids.includes(current))void Promise.resolve().then(()=>navigate(ids[0],true));
   },[searchQuery,tiles,searchOpen]);
   useEffect(()=>{
-    const id=queryCard();currentRef.current=id;setCurrent(id);
+    const id=queryCard();currentRef.current=id;void Promise.resolve().then(()=>setCurrent(id));
     const onPop=()=>{const next=queryCard();currentRef.current=next;setCurrent(next);};
     window.addEventListener("popstate",onPop);
     return ()=>window.removeEventListener("popstate",onPop);
@@ -146,12 +146,12 @@ export function CarouselExperience(){
   useEffect(()=>{
     if(!loading&&!searching&&!ids.includes(current)){
       // Keep the user in the project carousel when a card disappears.
-      navigate(tiles[0]?.id || "home",true);
+      void Promise.resolve().then(()=>navigate(tiles[0]?.id || "home",true));
     }
   },[loading,tiles,current,navigate,searching]);
   const deleteDraft=async(tile:Tile)=>{
     if(!tile.id.startsWith("draft_") || deletingDraft)return;
-    if(!window.confirm(`Permanently delete draft "${tile.name}"? This frees a guest draft slot.`))return;
+    if(!window.confirm(`Permanently delete draft "${tile.name}"? This cannot be undone.`))return;
     const id=tile.id.slice(6);
     setDeletingDraft(tile.id);
     setError("");
@@ -183,19 +183,7 @@ export function CarouselExperience(){
     setUploading(true);setUploadError("");
     try{
       validateFile(file.name,file.size,"audio");
-      // Customer plan is server-owned. Check BEFORE transferring large files.
-      // A missing customer account response must not be mistaken for Free.
-      const planResponse=await fetch("/api/customer-plan",{credentials:"same-origin",cache:"no-store"});
-      if(planResponse.ok){
-        const access=await planResponse.json() as {plan?:{code?:string;maxProjects?:number};projects?:{used?:number}};
-        if(access.plan?.code==="free" && access.plan.maxProjects===3 &&
-           Math.max(access.projects?.used??0,tiles.filter(t=>t.id.startsWith("draft_")||t.id.startsWith("job_")||t.id.startsWith("live_")).length)>=3){
-          setUploadError("PROJECT_LIMIT_REACHED");
-          return;
-        }
-      }else if(planResponse.status!==401&&planResponse.status!==403){
-        throw Error("Project limit could not be checked. Please try again.");
-      }
+      // Storage quota is checked by the server; historical orders do not consume project slots.
       await ensureSession();
       const result=await upload(file,"audio") as Asset;
       setAudio(result);
@@ -248,8 +236,8 @@ export function CarouselExperience(){
             {distance!==0&&<button type="button" className="sm-carousel-side-hit" onPointerEnter={()=>setHoveredSide(id)} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide(id)} onBlur={()=>setHoveredSide(null)} aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
             {id==="showcase"?<ShowcaseCard active={distance===0} visible={visible} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
-              <h1>Turn your song<br/>into a music video</h1>
-              <p>Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.</p>
+              <h1>{homeCopy?.heading||<>Turn your song<br/>into a music video</>}</h1>
+              <p>{homeCopy?.body||"Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song."}</p>
               {audio
                 ? <HomeUploadedAudio key={audio.id} audio={audio} active={distance===0} onRemove={()=>setAudio(null)}/>
                 : <label className="sm-carousel-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void selectAudio(e.dataTransfer.files?.[0]);}}>
@@ -258,9 +246,7 @@ export function CarouselExperience(){
                     <strong>{uploading?"Uploading your song…":"Drop your audio here or click to browse"}</strong>
                     <small>MP3, WAV, M4A · up to 50 MB</small>
                   </label>}
-              {uploadError==="PROJECT_LIMIT_REACHED"
-                ? <div className="sm-carousel-inline-error" role="alert"><strong>Project limit reached</strong><p>Your plan allows a maximum of 3 projects. Delete an existing project before uploading another song, or switch to Hobby for up to 10 projects.</p><p><a href="/projects">Manage projects</a> · <a href="/plans">View Hobby plan</a></p></div>
-                : uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
+              {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
             </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
@@ -290,8 +276,8 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
-    if(!active){v.pause();v.muted=true;setSound(false);return;}
-    v.muted=true;setSound(false);
+    if(!active){v.pause();v.muted=true;void Promise.resolve().then(()=>setSound(false));return;}
+    v.muted=true;void Promise.resolve().then(()=>setSound(false));
     const play=()=>{if(!document.hidden)void v.play().catch(()=>{});else v.pause();};
     play();
     document.addEventListener("visibilitychange",play);
@@ -339,8 +325,9 @@ function AccountPanel(){
  const [recoveryAvailable,setRecoveryAvailable]=useState(false);
  useEffect(()=>{fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[]);
  const [googleAvailable,setGoogleAvailable]=useState(false);
- useEffect(()=>{fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)setError(reason);},[]);
+
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
+ useEffect(()=>{fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[]);
  useEffect(()=>{
   let live=true;
   const refresh=()=>{
@@ -403,7 +390,7 @@ function AccountPanel(){
    {mode==="register"&&<><label className="sm-account-label">Confirm password<span className="sm-account-password-wrap"><input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label><p className="sm-account-hint">Use at least 20 characters. Your projects remain private to your account.</p><p className="sm-account-hint">STAGING test account. Email verification is not yet available; please do not use a password from another service.</p></>}
    {mode==="login"&&(recoveryAvailable?<Link className="sm-account-recovery-link" href="/account/reset-password">Forgot password?</Link>:<p className="sm-account-hint">Password recovery will be available after email setup.</p>)}
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
-   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><a className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</a></>}
+   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
@@ -420,14 +407,14 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   const videoUrl=published===null?"/api/showcase?video=1":published.videoUrl;
   const posterUrl=showcase.posterUrl;
   const hasVideo=videoUrl.startsWith("https://") || videoUrl.startsWith("/");
-  useEffect(()=>{setFailed(false);},[videoUrl]);
+  useEffect(()=>{void Promise.resolve().then(()=>setFailed(false));},[videoUrl]);
   useEffect(()=>{fetch("/api/showcase?admin=1",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{if(data?.projects)setAdminProjects(data.projects);}).catch(()=>{});},[]);
   const chooseShowcase=async(id:string)=>{setSelecting(true);setSelectionError("");try{const r=await fetch("/api/showcase",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Selection failed");onPublish({title:d.title,videoUrl:d.videoUrl+"#"+Date.now()});setAdminProjects(old=>old?.map(p=>({...p,selected:p.id===id}))||null);}catch(e){setSelectionError((e as Error).message);}finally{setSelecting(false);}};
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
-    if(!active){v.pause();v.muted=true;setSound(false);return;}
-    v.muted=true;setSound(false);
+    if(!active){v.pause();v.muted=true;void Promise.resolve().then(()=>setSound(false));return;}
+    v.muted=true;void Promise.resolve().then(()=>setSound(false));
     const sync=()=>{if(document.hidden)v.pause();else void v.play().catch(()=>{});};
     sync();
     document.addEventListener("visibilitychange",sync);

@@ -1,11 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Plus, Trash2, Clock3, Play, Pause, RotateCcw, GripHorizontal, ChevronDown, Camera, Smile } from "lucide-react";
 import { cameras, cameraHelp, cameraPrompt } from "../lib/domain";
 
 export type PerformanceSection={id:string;start:number;end:number;camera:string;emotion:string;instructions:string;color?:string};
-const cameraModes=["Static","Orbit left","Orbit right","Push-in","Pull-out","Pan left","Pan right"];
 const emotions=["Neutral","Emotional","Smile","Happy","Sad","Intense","Calm"];
 const emotionHelp:Record<string,string>={Neutral:"Maintain a natural, relaxed facial expression throughout the performance.",Emotional:"Show heartfelt emotion with expressive eyes and natural facial movements.",Smile:"Smile warmly and naturally while performing.",Happy:"Show a joyful, upbeat expression with lively eyes and positive energy.",Sad:"Show a subdued, melancholic expression with gentle, reflective movements.",Intense:"Perform with strong focus, dramatic emotional intensity, and expressive facial movements.",Calm:"Keep a peaceful, composed expression with soft and controlled movements."};
 const palette=["#a43afb","#64748b","#00c6eb","#e89047","#e66ca3"];
@@ -46,12 +45,21 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   const [ghost,setGhost]=useState<{id:string;x:number;y:number;kind:"card"|"timeline"}|null>(null);
   const drag=useRef<Drag|null>(null);
   const track=useRef<HTMLDivElement>(null);
-  const latest=useRef(sections);latest.current=sections;
+  const latest=useRef(sections);
   const colors=useRef<Record<string,string>>({});
-  for(const item of [...sections].sort((a,b)=>a.start-b.start)){
-    if(!colors.current[item.id]){const used=new Set(Object.values(colors.current));colors.current[item.id]=item.color||palette.find(color=>!used.has(color))||palette[Object.keys(colors.current).length%palette.length];}
-  }
-  const colorFor=(id:string)=>colors.current[id]||palette[0];
+  const colorAssignments=useMemo(()=>{
+    const assigned:Record<string,string>={};
+    for(const item of [...sections].sort((a,b)=>a.start-b.start)){
+      const used=new Set(Object.values(assigned));
+      assigned[item.id]=item.color||palette.find(color=>!used.has(color))||palette[Object.keys(assigned).length%palette.length];
+    }
+    return assigned;
+  },[sections]);
+  useEffect(()=>{
+    latest.current=sections;
+    Object.assign(colors.current,colorAssignments);
+  },[sections,colorAssignments]);
+  const colorFor=(id:string)=>colorAssignments[id]||palette[0];
   const orderedSections=[...sections].sort((a,b)=>a.start-b.start);
   const ghostSection=ghost?sections.find(section=>section.id===ghost.id):undefined;
   const dropSections=orderedSections.filter(section=>section.id!==dragging);

@@ -4,10 +4,13 @@ import { dataDir } from "../db.ts";
 import { sha256File, validateReference } from "../live/media.ts";
 import { validateOmniAudio, validateEncodedDuration } from "../live/limits.ts";
 import type { PreparedMedia } from "../live/store.ts";
+import {ensureLocalMediaPath} from "../cloud-hydration.ts";
 
 /** Verify only immutable, owned copies stored within the private media directory.
  * The hash check detects replaced or modified files even if the DB is unchanged. */
 export async function verifyPrivatePaidMediaSnapshot(media: PreparedMedia): Promise<void> {
+  await ensureLocalMediaPath(media.owner,media.audioPath);
+  await ensureLocalMediaPath(media.owner,media.imagePath);
   const root = await realpath(path.join(dataDir, "media"));
   for (const filename of [media.audioPath, media.imagePath]) {
     const resolved = await realpath(filename);

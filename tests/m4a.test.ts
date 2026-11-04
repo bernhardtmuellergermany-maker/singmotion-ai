@@ -24,7 +24,7 @@ test("AAC/M4A audio is decoded and trimmed to MP3; MP4 video masquerading as aud
     ]);
     validateFile("song.m4a", 1000, "audio");
     assert.ok((await validateAudio(input)) > 5.9);
-    await trimAudio(input, output, 1, 5);
+    await trimAudio(input, output, 0.5, 5.5);
     assert.equal((await probe(output)).streams[0].codec_name, "mp3");
     const video = path.join(dir, "wrong.m4a");
     execFileSync("ffmpeg", [

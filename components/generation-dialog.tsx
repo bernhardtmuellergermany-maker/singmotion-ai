@@ -32,7 +32,10 @@ export function GenerationDialog({
     [pilot, setPilot] = useState<boolean | null>(null),
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
-    [customerQuote, setCustomerQuote] = useState<{plan:string;includedBalanceSeconds:number;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number}|null>(null),
+    [customerQuote, setCustomerQuote] = useState<{plan:string;includedBalanceSeconds:number;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number;promotion?:{discountCents:number;finalCents:number;kind:string;percent:number|null}|null}|null>(null),
+    [promoCode,setPromoCode] = useState(""),
+    [appliedPromo,setAppliedPromo] = useState(""),
+    [promoError,setPromoError] = useState(""),
     [quotePending, setQuotePending] = useState(true);
   useEffect(() => {
     dialog.current?.showModal();
@@ -67,15 +70,23 @@ export function GenerationDialog({
   useEffect(() => {
     let active = true;
     const seconds = selection.end - selection.start;
-    setQuotePending(true);
-    setCustomerQuote(null);
-    void fetch(`/api/customer-quote?seconds=${encodeURIComponent(seconds.toFixed(3))}`,{credentials:"same-origin",cache:"no-store"})
-      .then(async response => response.ok ? response.json() : null)
+    void Promise.resolve().then(()=>{if(active){setQuotePending(true);setCustomerQuote(null);}});
+    const query = new URLSearchParams({seconds:seconds.toFixed(3)});
+    if(appliedPromo)query.set("promo",appliedPromo);
+    void fetch(`/api/customer-quote?${query.toString()}`,{credentials:"same-origin",cache:"no-store"})
+      .then(async response => {
+        if(!response.ok){
+          if(active && appliedPromo)setPromoError("Promotion unavailable for this video.");
+          return null;
+        }
+        if(active)setPromoError("");
+        return response.json();
+      })
       .then(value => {if(active)setCustomerQuote(value?.estimateOnly===true ? value : null)})
       .catch(()=>{})
       .finally(()=>{if(active)setQuotePending(false)});
     return ()=>{active=false};
-  },[selection.start,selection.end]);
+  },[selection.start,selection.end,appliedPromo]);
   // Prepare and price server-side inside the same dialog once the operator
   // accepts the media rights. This is NOT a paid provider submission.
   useEffect(() => {
@@ -91,7 +102,7 @@ export function GenerationDialog({
     )
       return;
     lock.current = true;
-    setBusy(true);
+    void Promise.resolve().then(()=>{if(lock.current)setBusy(true)});
     void api<StudioProject>("studio-live", {
       method: "POST",
       body: JSON.stringify({
@@ -129,7 +140,8 @@ export function GenerationDialog({
     requestKey,
   ]);
   async function prepareCustomerOrder() {
-    if (busy || !rights || !customerOrdersAvailable || !terms) return;
+    if (busy || !rights || !customerOrdersAvailable || !terms ||
+      promoCode.trim().toUpperCase()!==appliedPromo) return;
     setBusy(true);
     setError("");
     try {
@@ -137,7 +149,8 @@ export function GenerationDialog({
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({projectId: requestKey, requestKey, draft: selection}),
+        body: JSON.stringify({projectId: requestKey, requestKey, draft: selection,
+          ...(appliedPromo ? {promoCode:appliedPromo} : {})}),
       });
       const result = await response.json() as {orderId?:string;error?:string};
       if (!response.ok || !result.orderId) throw Error(result.error || "Order preparation failed.");
@@ -230,11 +243,27 @@ export function GenerationDialog({
       onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
       <h2 id="confirm-generation-title">Confirm generation</h2>
       <div className="sm-confirm-summary">
-        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : pilot === true ? "Estimated provider base cost (not customer price)" : "Customer price"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(customerQuote.estimatedExtraPriceCents/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : "Being calculated") : "Not available yet"}</strong></div>
+        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : pilot === true ? "Estimated provider base cost (not customer price)" : "Customer price"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : "Being calculated") : "Not available yet"}</strong></div>
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
       {customerQuote && <p className="sm-confirm-notice" role="status">Your {customerQuote.plan==="hobby"?"Hobby":"pay-as-you-go"} estimate: {customerQuote.estimatedBillableSeconds} chargeable seconds, {customerQuote.includedSeconds} included, {customerQuote.extraSeconds} payable. {customerQuote.plan==="hobby"?`${customerQuote.includedBalanceSeconds} included seconds currently available. `:""}This is not a final charge. Generated output duration may differ; the binding total must be confirmed before payment or generation.</p>}
+      {customerOrdersAvailable && <section aria-label="Promotion code" className="sm-confirm-notice">
+        <label htmlFor="generation-promo-code">Promotion code (optional)</label>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+          <input id="generation-promo-code" type="text" maxLength={40} autoComplete="off"
+            value={promoCode} disabled={busy}
+            onChange={e=>setPromoCode(e.target.value.toUpperCase())} placeholder="PROMO20"/>
+          <button type="button" className="product-secondary" disabled={busy}
+            onClick={()=>setAppliedPromo(promoCode.trim().toUpperCase())}>Apply code</button>
+        </div>
+        {customerQuote?.promotion && <p role="status">
+          Coupon discount: €{(customerQuote.promotion.discountCents/100).toFixed(2)}.
+          {customerQuote.promotion.finalCents===0 ? " Free video fulfillment requires separate authorization." : ""}
+        </p>}
+        {promoError && <p role="alert">{promoError}</p>}
+        {promoCode.trim().toUpperCase()!==appliedPromo && <p role="status">Apply your code before saving this order.</p>}
+      </section>}
       {!customerQuote && !quotePending && customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Your personal price is currently unavailable. No payment can be made here.</p>}
       <label className="consent sm-confirm-consent">
         <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
@@ -250,7 +279,7 @@ export function GenerationDialog({
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !rights || !terms || !customerQuote || quotePending} onClick={()=>void prepareCustomerOrder()}>{busy ? "Working…" : "Review order"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !rights || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? "Working…" : "Review order"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>

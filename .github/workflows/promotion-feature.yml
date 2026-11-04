@@ -1,0 +1,48 @@
+name: Verify promotion feature in isolation
+
+on:
+  push:
+    branches:
+      - feat/super-admin-promo-codes-20261103
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-promotion-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  promotion:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - name: Install FFmpeg for synthetic offline media tests
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+      - run: npm ci
+      - name: Validate promotional-code logic
+        run: node --experimental-strip-types --test tests/promotions.test.ts
+      - name: Typecheck all application code
+        run: npm run typecheck
+      - name: Lint only files changed by the promotion feature
+        run: |
+          npx eslint lib/commerce/promotions.ts tests/promotions.test.ts \
+            components/promotion-admin.tsx 'app/(site)/promo-admin/page.tsx' \
+            'app/(site)/api/promo-admin/route.ts' 'app/(site)/checkout/page.tsx' \
+            'app/(site)/api/customer-quote/route.ts' components/promo-quote-preview.tsx
+      - name: Build application and run security audits
+        run: npm run build

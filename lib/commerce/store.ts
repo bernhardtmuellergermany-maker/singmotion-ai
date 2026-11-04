@@ -1,4 +1,5 @@
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
+import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
 import type { PreparedMedia } from "../live/store.ts";
@@ -46,6 +47,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
  CREATE TABLE IF NOT EXISTS customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT UNIQUE NOT NULL,evidence_hash TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS free_promo_video_deliveries(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
@@ -302,22 +304,18 @@ export class CommerceStore {
     quoteEvidence: string;
     key: string;
     media: PreparedMedia;
+    promoCode?: string;
+    originalCents?: number;
   }) {
     return this.tx(() => {
-      const { media, ...orderInput } = input;
+      const { media, promoCode, originalCents, ...orderInput } = input;
+      const promotions = promoCode ? new PromotionLedger(this.db) : null;
+      const normalizedPromo = promoCode ? normalizePromoCode(promoCode) : null;
       // Initialize subscription and reservation schema before every lookup,
       // including first-time and guest order attempts.
       new PlanLedger(this.db);
-      // Definitive quota check inside the same SQLite write transaction as
-      // order creation. The HTTP precheck is advisory and can race.
-      if(input.account && process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"){
-        const cap=new PlanLedger(this.db).snapshot(input.account).maxProjects;
-        const already=this.db.prepare("SELECT 1 FROM customer_orders WHERE account_id=? AND project_id=? LIMIT 1").get(input.account,input.project);
-        if(!already){
-          const count=this.db.prepare("SELECT COUNT(DISTINCT project_id) AS n FROM customer_orders WHERE account_id=?").get(input.account) as {n:number};
-          if(count.n>=cap)throw Error("PROJECT_LIMIT_REACHED");
-        }
-      }
+      // Past orders are an immutable payment/audit history, never a project slot.
+      // Video purchases remain governed by server-side pricing, authorization and budgets.
 
       // Never persist media prepared for another customer, even from a trusted caller.
       if(input.account && media.owner!==`customer-${input.account}`)
@@ -330,11 +328,21 @@ export class CommerceStore {
       if(previous){
         const bound=this.db.prepare("SELECT media_json FROM customer_prepared_media WHERE order_id=?").get(previous.id) as {media_json:string}|undefined;
         const reserved=this.db.prepare("SELECT account_id,seconds,extra_cents,state FROM customer_split_quotes WHERE attempt_id=?").get(previous.id) as {account_id:string;seconds:number;extra_cents:number;state:string}|undefined;
+        const promoReservation = promotions ? this.db.prepare("SELECT code,account_id,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?").get(previous.id) as
+          {code:string;account_id:string;original_cents:number;discount_cents:number;state:string}|undefined : null;
+        if(normalizedPromo && (!promoReservation || promoReservation.code!==normalizedPromo ||
+          promoReservation.account_id!==input.account || promoReservation.original_cents!==originalCents ||
+          promoReservation.original_cents-promoReservation.discount_cents!==input.cents ||
+          promoReservation.state==="released"))
+          throw Error("Promotion idempotency conflict");
+        if(!normalizedPromo && this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get() &&
+          this.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=?").get(previous.id))
+          throw Error("Promotion idempotency conflict");
         if(previous.account_id!==input.account||previous.project_id!==input.project||
            previous.price_cents!==input.cents||previous.quote_evidence!==input.quoteEvidence||
            !bound||bound.media_json!==JSON.stringify(media)||
            (input.account && (!reserved||reserved.account_id!==input.account||
-             reserved.seconds!==Math.ceil(media.durationSeconds)||reserved.extra_cents!==input.cents||
+             reserved.seconds!==Math.ceil(media.durationSeconds)||reserved.extra_cents!==(normalizedPromo ? originalCents : input.cents)||
              reserved.state==="released")))
           throw Error("Idempotency conflict");
         return {id:previous.id,guestToken:null};
@@ -343,13 +351,23 @@ export class CommerceStore {
       // parallel requests cannot spend the same Hobby seconds twice.
       const ledger=input.account?new PlanLedger(this.db):null;
       const plan=input.account?ledger!.snapshot(input.account):null;
-      const seconds=Math.ceil(media.durationSeconds);
       const split=plan?quotePlanSeconds(plan.code,plan.secondsRemaining,media.durationSeconds):null;
-      if(split && split.extraCents!==input.cents)
+      const originalPrice = normalizedPromo ? originalCents : input.cents;
+      if(split && split.extraCents!==originalPrice)
         throw Error("PRICE_CHANGED_REVIEW_AGAIN");
+      if(normalizedPromo) {
+        if(!input.account || typeof originalPrice!=="number" || originalPrice<=0)
+          throw Error("Authenticated paid customer price required for promotion");
+        const discounted = promotions!.preview(normalizedPromo,input.account,originalPrice,media.durationSeconds);
+        if(discounted.finalCents!==input.cents)
+          throw Error("PRICE_CHANGED_REVIEW_AGAIN");
+      }
       if(split && split.extraCents===0 && (plan?.code!=="hobby" || split.includedSeconds!==split.seconds))
         throw Error("Hobby allowance verification required");
       const created = this.order(orderInput);
+      if(normalizedPromo && input.account)
+        promotions!.reserveForOrder({code:normalizedPromo,orderId:created.id,accountId:input.account,
+          originalCents:originalPrice!,durationSeconds:media.durationSeconds});
       if(split && input.account){
         const prior=this.db.prepare("SELECT * FROM customer_split_quotes WHERE attempt_id=?").get(created.id) as {account_id:string;seconds:number;included_seconds:number;extra_cents:number;state:string}|undefined;
         if(prior){
@@ -370,7 +388,7 @@ export class CommerceStore {
       if (!prior) this.db.prepare("INSERT INTO customer_prepared_media VALUES(?,?,?)").run(created.id,snapshot,Date.now());
       // A fully included Hobby order is authorized by reserved paid-period
       // allowance, not a fictitious zero-euro Stripe Checkout.
-      if(split && split.extraCents===0 && input.account){
+      if(split && split.extraCents===0 && input.account && !normalizedPromo){
         const updated=this.db.prepare("UPDATE customer_orders SET status='paid' WHERE id=? AND status='awaiting_payment' AND price_cents=0").run(created.id);
         if(updated.changes!==1)throw Error("Included order authorization conflict");
         this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)").run(created.id,Date.now());
@@ -501,6 +519,12 @@ export class CommerceStore {
         this.db.prepare("SELECT 1 FROM stripe_checkout_sessions WHERE order_id=?").get(orderId)||
         this.db.prepare("SELECT 1 FROM customer_fulfillment_queue WHERE order_id=?").get(orderId))
         throw Error("Order requires payment reconciliation");
+      // A zero-EUR voucher with a separately signed provider cost authorization
+      // is no longer an unstarted order. Never release its quota or let another
+      // browser tab recycle the same paid-provider budget.
+      if(this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='free_promo_budget_authorizations'").get() &&
+         this.db.prepare("SELECT 1 FROM free_promo_budget_authorizations WHERE order_id=?").get(orderId))
+        throw Error("Operator-authorized promo requires manual reconciliation");
       const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(orderId) as {state:string;included_seconds:number}|undefined;
       if(split){
         if(split.state!=="reserved")throw Error("Allowance requires reconciliation");
@@ -511,6 +535,9 @@ export class CommerceStore {
         this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=? AND state='reserved'").run(orderId);
       }
       this.db.prepare("UPDATE customer_orders SET status='cancelled' WHERE id=? AND status='awaiting_payment'").run(orderId);
+      if(this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get() &&
+        this.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=?").get(orderId))
+        new PromotionLedger(this.db).release(orderId);
       this.audit(accountId,"customer-unstarted-order-cancelled",orderId);
       return true;
     });
@@ -524,7 +551,7 @@ export class CommerceStore {
     orderId:string;stripeCheckoutId:string;refundId:string;refundedCents:number;
     evidence:string;
   }):boolean {
-    if(!/^cs_test_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
+    if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
        !/^re_[A-Za-z0-9_]+$/.test(input.refundId)||
        !Number.isSafeInteger(input.refundedCents)||input.refundedCents<=0||
        typeof input.evidence!=="string"||input.evidence.length<20||input.evidence.length>2048)
@@ -556,6 +583,9 @@ export class CommerceStore {
       }
       if(split)this.db.prepare("UPDATE customer_split_quotes SET state='released' WHERE attempt_id=? AND state='reserved'").run(input.orderId);
       this.db.prepare("UPDATE customer_orders SET status='refunded' WHERE id=? AND status='paid'").run(input.orderId);
+      if(this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get() &&
+        this.db.prepare("SELECT 1 FROM promo_redemptions WHERE order_id=?").get(input.orderId))
+        new PromotionLedger(this.db).release(input.orderId);
       this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(input.orderId);
       this.db.prepare("INSERT INTO customer_stripe_refunds VALUES(?,?,?,?)").run(input.orderId,input.refundId,input.refundedCents,Date.now());
       this.audit("stripe-refund-reconciliation","verified-full-refund",input.orderId+":"+hash(input.evidence));
@@ -568,7 +598,7 @@ export class CommerceStore {
   reconcileVerifiedStripeDispute(input:{
     orderId:string;stripeCheckoutId:string;disputeId:string;evidence:string;
   }):boolean {
-    if(!/^cs_test_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
+    if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(input.stripeCheckoutId)||
        !/^dp_[A-Za-z0-9_]+$/.test(input.disputeId)||
        typeof input.evidence!=="string"||input.evidence.length<20||input.evidence.length>2048)
       throw Error("Verified Stripe dispute evidence required");
@@ -597,8 +627,8 @@ export class CommerceStore {
   }
   /** Bind the exact Stripe-created Checkout Session before accepting any payment. */
   bindStripeCheckout(orderId: string, sessionId: string) {
-    if (!/^cs_test_[A-Za-z0-9_]+$/.test(sessionId))
-      throw Error("Invalid Stripe sandbox Checkout Session");
+    if (!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(sessionId))
+      throw Error("Invalid Stripe Checkout Session");
     return this.tx(() => {
       const order = this.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(orderId);
       if (!order || order.status !== "awaiting_payment")
@@ -672,8 +702,15 @@ export class CommerceStore {
       // before a signed payment can advance fulfillment. The reservation and
       // payment confirmation share this SQLite transaction.
       const split = this.db.prepare("SELECT account_id,extra_cents,state,included_seconds,period FROM customer_split_quotes WHERE attempt_id=?").get(receipt.orderId) as {account_id:string;extra_cents:number;state:string;included_seconds:number;period:string}|undefined;
+      const promo = this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get()
+        ? this.db.prepare("SELECT account_id,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?").get(receipt.orderId) as
+          {account_id:string;original_cents:number;discount_cents:number;state:string}|undefined
+        : undefined;
+      if(promo && (!o.account_id || promo.account_id!==o.account_id ||
+        promo.original_cents-promo.discount_cents!==receipt.cents || promo.state!=="reserved"))
+        throw Error("Promotion payment reservation mismatch");
       if(split){
-        if(!o.account_id||split.account_id!==o.account_id||split.extra_cents!==receipt.cents||split.state!=="reserved")
+        if(!o.account_id||split.account_id!==o.account_id||split.extra_cents!==(promo?.original_cents ?? receipt.cents)||split.state!=="reserved")
           throw Error("Split payment reservation mismatch");
         if(split.included_seconds>0){
           const usage=this.db.prepare("SELECT account_id,seconds,period,state FROM customer_plan_usage WHERE provider_attempt_id=?").get(receipt.orderId) as {account_id:string;seconds:number;period:string;state:string}|undefined;
@@ -691,6 +728,7 @@ export class CommerceStore {
       // Enqueue atomically with payment reconciliation. No provider call is made here.
       this.db.prepare("INSERT INTO customer_fulfillment_queue(order_id,state,created) VALUES(?,'pending',?)")
         .run(receipt.orderId, Date.now());
+      if(promo) new PromotionLedger(this.db).settle(receipt.orderId);
       this.audit(receipt.provider, "verified-payment", receipt.orderId);
     });
   }
