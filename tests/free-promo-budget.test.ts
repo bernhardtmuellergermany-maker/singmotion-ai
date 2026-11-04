@@ -240,3 +240,36 @@ test("review transition fails closed for forged approvals and unsubmitted free o
   assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
  }finally{x.store.close()}
 });
+
+test("read-only budget exposure includes ambiguous and review-held reservations",()=>{
+ const x=setup();
+ try{
+  const policy={...budget,perPromoMicroUsd:300000,rollingDayMicroUsd:300000,lifetimeMicroUsd:400000};
+  const first=x.order(19),second=x.order(20);
+  x.ledger.authorize(x.approval(first),secret,policy,now);
+  x.ledger.authorize(x.approval(second),secret,policy,now);
+  x.ledger.claimProviderAttempt(x.approval(first),secret,true,now+1000);
+  x.ledger.flagProviderAttemptForReview(x.approval(first),secret,"operator-hold",now+2000);
+  x.ledger.claimProviderAttempt(x.approval(second),secret,true,now+1000);
+  assert.deepEqual(x.ledger.costExposure("TRIPLEFREE",now+3000),{
+   code:"TRIPLEFREE",promoReservedMicroUsd:200000,
+   rollingDayReservedMicroUsd:200000,globalReservedMicroUsd:200000,
+   ambiguousCount:1,requiresReviewCount:1
+  });
+  assert.deepEqual(x.ledger.costExposure("OTHERPROMO",now+3000),{
+   code:"OTHERPROMO",promoReservedMicroUsd:0,
+   rollingDayReservedMicroUsd:200000,globalReservedMicroUsd:200000,
+   ambiguousCount:0,requiresReviewCount:0
+  });
+  assert.equal(x.promo.list()[0].reserved,2);
+  assert.equal(x.store.pendingPaidFulfillment().length,0);
+ }finally{x.store.close()}
+});
+test("cost exposure query fails closed on malformed inputs",()=>{
+ const x=setup();
+ try{
+  assert.throws(()=>x.ledger.costExposure("TRIPLEFREE' OR 1=1 --",now),/Invalid/);
+  assert.throws(()=>x.ledger.costExposure("TRIPLEFREE",Number.NaN),/Invalid/);
+  assert.throws(()=>x.ledger.costExposure("triplefree",now),/Invalid/);
+ }finally{x.store.close()}
+});
