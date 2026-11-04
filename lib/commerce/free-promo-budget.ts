@@ -56,15 +56,17 @@ export class FreePromoBudgetLedger{
  /** Reserve the only possible free-provider submission attempt before network IO.
   * Does NOT submit, deliver or redeem; uncertain outcomes require human review.
   * Persistent state is never reset automatically after a crash.
+  * Rechecks the short-lived signed operator approval and exact reserved cost.
   */
- claimProviderAttempt(orderId:string,accountId:string,operatorEnabled:boolean,now=Date.now()):
+ claimProviderAttempt(approval:Approval,secret:string,operatorEnabled:boolean,now=Date.now()):
   "claimed"|"already-claimed"{
   if(operatorEnabled!==true)throw Error("Free-video provider budget kill switch disabled");
-  if(!uuid.test(orderId)||!uuid.test(accountId)||!Number.isSafeInteger(now))
-   throw Error("Invalid free-video claim");
+  if(!Number.isSafeInteger(now))throw Error("Invalid free-video claim");
+  verifyApproval(approval,secret,now);
+  const {orderId,accountId}=approval;
   this.db.exec("BEGIN IMMEDIATE");
   try{
-   const row=this.db.prepare(`SELECT a.state,a.account_id,o.status,o.price_cents,o.quote_evidence,
+   const row=this.db.prepare(`SELECT a.state,a.account_id,a.reserved_micro_usd,o.status,o.price_cents,o.quote_evidence,
      p.state AS promo_state,c.enabled,c.starts_at,c.ends_at,c.kind,
      m.media_json,i.input_digest,i.review_digest
      FROM free_promo_budget_authorizations a
@@ -74,10 +76,11 @@ export class FreePromoBudgetLedger{
      JOIN customer_prepared_media m ON m.order_id=a.order_id
      JOIN customer_order_inputs i ON i.order_id=a.order_id
      WHERE a.order_id=?`).get(orderId) as
-     {state:FreePromoAuthorization["state"];account_id:string;status:string;promo_state:string;
+     {state:FreePromoAuthorization["state"];account_id:string;reserved_micro_usd:number;status:string;promo_state:string;
       price_cents:number;quote_evidence:string;enabled:number;starts_at:number;ends_at:number;
       kind:string;media_json:string;input_digest:string;review_digest:string}|undefined;
-   if(!row||row.account_id!==accountId||row.status!=="awaiting_payment"||
+   if(!row||row.account_id!==accountId||row.reserved_micro_usd!==approval.maxMicroUsd||
+    row.status!=="awaiting_payment"||
     row.promo_state!=="reserved"||row.price_cents!==0||row.kind!=="free_videos"||
     row.enabled!==1||now<row.starts_at||now>=row.ends_at)
     throw Error("Free-video claim not eligible");

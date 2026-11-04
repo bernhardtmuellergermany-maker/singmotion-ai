@@ -115,9 +115,9 @@ test("free provider claim is durable and cannot automatically retry after restar
  try{
   const id=x.order(10);
   x.ledger.authorize(x.approval(id),secret,budget,now);
-  assert.equal(x.ledger.claimProviderAttempt(id,x.account,true,now+1000),"claimed");
+  assert.equal(x.ledger.claimProviderAttempt(x.approval(id),secret,true,now+1000),"claimed");
   const restarted=new FreePromoBudgetLedger(x.store.db);
-  assert.equal(restarted.claimProviderAttempt(id,x.account,true,now+2000),"already-claimed");
+  assert.equal(restarted.claimProviderAttempt(x.approval(id),secret,true,now+2000),"already-claimed");
   assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"submitted_or_unknown");
   assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM commerce_audit WHERE action='free-promo-provider-attempt-claimed' AND record=?").get(id) as {n:number}).n,1);
   assert.equal((x.store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(id) as {status:string}).status,"awaiting_payment");
@@ -130,8 +130,8 @@ test("kill switch and foreign account cannot claim a free provider attempt",()=>
  try{
   const id=x.order(11);
   x.ledger.authorize(x.approval(id),secret,budget,now);
-  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,false,now+1000),/kill switch/);
-  assert.throws(()=>x.ledger.claimProviderAttempt(id,"22222222-2222-4222-8222-222222222222",true,now+1000),/not eligible/);
+  assert.throws(()=>x.ledger.claimProviderAttempt(x.approval(id),secret,false,now+1000),/kill switch/);
+  assert.throws(()=>x.ledger.claimProviderAttempt({...x.approval(id),accountId:"22222222-2222-4222-8222-222222222222"},secret,true,now+1000),/forged/);
   assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
  }finally{x.store.close()}
 });
@@ -139,7 +139,7 @@ test("free-provider claim without preapproved spending is denied",()=>{
  const x=setup();
  try{
   const id=x.order(12);
-  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,true,now),/not eligible/);
+  assert.throws(()=>x.ledger.claimProviderAttempt(x.approval(id),secret,true,now),/not eligible/);
   assert.equal(x.promo.list()[0].reserved,1);
  }finally{x.store.close()}
 });
@@ -150,7 +150,7 @@ test("operator cannot claim after a promotion is disabled following cost authori
   const id=x.order(13);
   x.ledger.authorize(x.approval(id),secret,budget,now);
   x.promo.setEnabled("TRIPLEFREE",false);
-  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,true,now+1000),/not eligible/);
+  assert.throws(()=>x.ledger.claimProviderAttempt(x.approval(id),secret,true,now+1000),/not eligible/);
   assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
  }finally{x.store.close()}
 });
@@ -163,7 +163,7 @@ test("provider claim rejects modified reviewed media after budget approval",()=>
   const mutated=JSON.parse(row.media_json) as PreparedMedia;
   mutated.prompt="Modified after authorization";
   x.store.db.prepare("UPDATE customer_prepared_media SET media_json=? WHERE order_id=?").run(JSON.stringify(mutated),id);
-  assert.throws(()=>x.ledger.claimProviderAttempt(id,x.account,true,now+1000),/reviewed media changed/);
+  assert.throws(()=>x.ledger.claimProviderAttempt(x.approval(id),secret,true,now+1000),/reviewed media changed/);
   assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
  }finally{x.store.close()}
 });
@@ -174,7 +174,7 @@ test("bounded operator reconciliation scan surfaces only stale ambiguous claims 
   const id=x.order(15);
   x.ledger.authorize(x.approval(id),secret,budget,now);
   assert.deepEqual(x.ledger.staleProviderAttempts(now+60*60_000),[]);
-  x.ledger.claimProviderAttempt(id,x.account,true,now+1000);
+  x.ledger.claimProviderAttempt(x.approval(id),secret,true,now+1000);
   assert.deepEqual(x.ledger.staleProviderAttempts(now+2*60_000),[]);
   assert.deepEqual(x.ledger.staleProviderAttempts(now+16*60_000),[{
    orderId:id,state:"submitted_or_unknown",ageMs:16*60_000-1000,reservedMicroUsd:100000
@@ -193,5 +193,22 @@ test("reconciliation scan rejects unbounded or invalid arguments",()=>{
   assert.throws(()=>x.ledger.staleProviderAttempts(now,0),/scan bounds/);
   assert.throws(()=>x.ledger.staleProviderAttempts(now,15*60_000,101),/scan bounds/);
   assert.throws(()=>x.ledger.staleProviderAttempts(Number.NaN),/scan bounds/);
+ }finally{x.store.close()}
+});
+
+test("free-provider claim requires a fresh signed operator approval matching reserved cost",()=>{
+ const x=setup();
+ try{
+  const id=x.order(16),signed=x.approval(id);
+  x.ledger.authorize(signed,secret,budget,now);
+  assert.throws(()=>x.ledger.claimProviderAttempt({...signed,signature:"f".repeat(64)},secret,true,now+1000),/forged/);
+  assert.throws(()=>x.ledger.claimProviderAttempt({...signed,maxMicroUsd:90000},secret,true,now+1000),/forged/);
+  assert.throws(()=>x.ledger.claimProviderAttempt(signed,secret,true,now+400000),/expired/);
+  const wrongAmount=signOperatorFreePromoApproval({
+   orderId:id,accountId:x.account,maxMicroUsd:90000,expiresAt:now+300000
+  },secret);
+  assert.throws(()=>x.ledger.claimProviderAttempt(wrongAmount,secret,true,now+1000),/not eligible/);
+  assert.equal((x.store.db.prepare("SELECT state FROM free_promo_budget_authorizations WHERE order_id=?").get(id) as {state:string}).state,"authorized");
+  assert.equal((x.store.db.prepare("SELECT COUNT(*) AS n FROM commerce_audit WHERE action='free-promo-provider-attempt-claimed'").get() as {n:number}).n,0);
  }finally{x.store.close()}
 });
