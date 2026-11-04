@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - fix/tempo-distinguish-provider-errors-20261028
+      - feat/super-admin-promo-codes-20261103
   push:
     branches:
       - fix/tempo-distinguish-provider-errors-20261028

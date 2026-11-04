@@ -10,7 +10,7 @@ import {reviewedVideoInputDigest,reviewedVideoQuoteDigest} from "./reviewed-vide
 
 const uuid=/^[a-f0-9-]{36}$/;
 const signedHex=/^[a-f0-9]{64}$/;
-type Approval={orderId:string;accountId:string;maxMicroUsd:number;expiresAt:number;signature:string};
+export type Approval={orderId:string;accountId:string;maxMicroUsd:number;expiresAt:number;signature:string};
 type Budget={operatorEnabled:boolean;perJobMicroUsd:number;perPromoMicroUsd:number;rollingDayMicroUsd:number;lifetimeMicroUsd:number};
 export type FreePromoAuthorization={orderId:string;accountId:string;reservedMicroUsd:number;state:"authorized"|"submitted_or_unknown"|"delivered"|"requires_review"};
 function validBudget(policy:Budget){
@@ -41,6 +41,11 @@ function verifyApproval(value:Approval,secret:string,now:number){
    !timingSafeEqual(Buffer.from(value.signature,"hex"),Buffer.from(expected.signature,"hex"))||
    value.expiresAt<=now||value.expiresAt>now+15*60_000)
   throw Error("Missing, expired or forged operator authorization");
+}
+/** Trusted worker verification; signatures are never accepted from clients without
+ * a separate authenticated operator control plane. */
+export function verifyOperatorFreePromoApproval(approval:Approval,secret:string,now=Date.now()){
+ verifyApproval(approval,secret,now);
 }
 export class FreePromoBudgetLedger{
  private readonly db:DatabaseSync;

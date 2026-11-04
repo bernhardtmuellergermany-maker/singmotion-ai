@@ -1,9 +1,12 @@
 /** Public-facing projection only. The actual MP4 endpoint independently checks the
  * current authenticated owner and paid/delivered state on every request. */
 export function privateCustomerVideoLinks(order:Record<string,unknown>){
- const ready=order.status==="paid" && order.videoReady===1 &&
-   typeof order.orderId==="string" && /^[a-f0-9-]{36}$/.test(order.orderId);
- const link=ready?`/api/customer-video?orderId=${order.orderId}`:null;
+ const ownedReady=order.videoReady===1 && typeof order.orderId==="string" &&
+   /^[a-f0-9-]{36}$/.test(order.orderId);
+ const paid=ownedReady && order.status==="paid";
+ const free=ownedReady && order.status==="free_delivered";
+ const link=paid?`/api/customer-video?orderId=${order.orderId}`:
+  free?`/api/customer-free-video?orderId=${order.orderId}`:null;
  return {videoUrl:link,downloadUrl:link?`${link}&download=1`:null};
 }
 
@@ -38,6 +41,8 @@ export function customerPaidVideoLabel(
  if(!order)return "Video unavailable";
  if(order.status==="refunded")return "Payment refunded";
  if(order.status==="disputed")return "Payment requires review";
+ if(order.status==="free_delivered"&&order.videoReady===1)return "Completed";
+ if(order.status==="free_delivered")return "Requires review";
  if(order.status==="paid"&&order.fulfillmentState==="delivered"&&order.videoReady===1)
   return "Completed";
  if(order.fulfillmentState==="failed")return "Requires review";
