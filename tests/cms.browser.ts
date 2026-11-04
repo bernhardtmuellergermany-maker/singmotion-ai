@@ -403,7 +403,23 @@ try {
   );
   await page.getByRole("button", { name: "Login", exact: true }).click();
   assert.equal((await loginResponse).status(), 200);
-  await page.getByRole("heading", { name: "SingMotion operations" }).waitFor();
+  await page.getByRole("heading", { name: "Create & manage" }).waitFor();
+  // Modern CMS control center is real Payload dashboard content, not demo console.
+  const controlCenter = page.locator(".sm-cms");
+  assert.equal(await controlCenter.count(), 1);
+  await page.getByRole("link", { name: /Manage website/ }).waitFor();
+  await page.getByRole("link", { name: /Media library/ }).waitFor();
+  await page.getByRole("heading", { name: "Customer operations" }).waitFor();
+  await page.getByRole("heading", { name: "Workspace activity" }).waitFor();
+  const heroBg = await page.locator(".sm-cms-hero").evaluate(
+    (el) => getComputedStyle(el).backgroundImage,
+  );
+  assert.match(heroBg,/gradient/);
+  await page.setViewportSize({width:390,height:844});
+  assert.equal(await page.locator(".sm-cms-actions-grid").evaluate(
+    (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
+  ),1);
+  await page.setViewportSize({width:1280,height:900});
   // Admin-only first-test browser flow stays entirely offline with gates disabled.
   const adminTest = origin + "/api/admin/first-test";
   assert.equal((await fetch(adminTest)).status, 401);
@@ -421,7 +437,7 @@ try {
     403,
   );
   await page
-    .getByText("Historical pilot tools and policy maintenance", { exact: true })
+    .getByText("Legacy pilot diagnostics", { exact: false })
     .click();
   const panel = page.getByRole("region", { name: "OmniHuman first test" });
   await panel.waitFor();
@@ -576,71 +592,17 @@ try {
   await page.locator(".sm-carousel-stage").waitFor();
   assert.ok(await page.locator('[aria-label="SingMotion AI Showcase"]').count());
   assert.ok(await page.locator('[aria-label="Audio upload"]').count());
+  // CMS home draft is shown within the CURRENT Carousel experience.
   await page.goto(origin + "/cms-preview/home");
-  await page
-    .getByRole("heading", { name: "A published artist story", exact: true })
-    .waitFor();
-  assert.equal(
-    await page
-      .getByRole("link", { name: "Start creating", exact: true })
-      .getAttribute("href"),
-    "/studio",
-  );
-  assert.equal(
-    await page
-      .getByRole("link", { name: "Meet our team", exact: true })
-      .getAttribute("href"),
-    "/about",
-  );
-  await page.getByText("Editable card copy", { exact: true }).waitFor();
-  assert.equal(
-    await page
-      .locator(".sm-site-header")
-      .getByRole("link", { name: "Go to studio" })
-      .getAttribute("href"),
-    "/studio",
-  );
-  assert.equal(
-    await page
-      .locator(".sm-site-header")
-      .getByRole("link", { name: "Contact the team" })
-      .count(),
-    0,
-  );
-  assert.equal(
-    await page
-      .locator("footer")
-      .getByRole("link", { name: "Contact the team" })
-      .getAttribute("href"),
-    "/contact",
-  );
-  assert.equal(
-    await page
-      .locator("footer")
-      .getByRole("link", { name: "Questions" })
-      .getAttribute("href"),
-    "/faq",
-  );
-
-  const heroImage = page.getByRole("img", {
-    name: "Published concert artwork",
-  });
-  assert.match(
-    (await heroImage.getAttribute("src")) || "",
-    /^\/api\/cms\/cms-assets\/file\//,
-  );
-  assert.ok(
-    await heroImage.evaluate(
-      (image: HTMLImageElement) => image.complete && image.naturalWidth > 0,
-    ),
-  );
-  assert.equal(await page.locator(".concert-artwork").count(), 1);
-  assert.equal(
-    await page
-      .getByRole("heading", { name: "Make your artist sing.", exact: true })
-      .count(),
-    0,
-  );
+  await page.locator(".sm-cms-preview-banner").waitFor();
+  await page.locator(".sm-carousel-stage").waitFor();
+  assert.equal(await page.locator(".sm-carousel-home h1").textContent(),"A published artist story");
+  assert.match((await page.locator(".sm-cms-preview-banner").textContent())||"",/not automatically live/);
+  await page.setViewportSize({width:390,height:844});
+  assert.ok(await page.locator(".sm-cms-preview-back").isVisible());
+  await page.setViewportSize({width:1280,height:900});
+  await page.goto(origin + "/");
+  assert.match((await page.locator(".sm-carousel-home h1").textContent())||"",/Turn your song/);
   const operatorContext = await browser.newContext({
     ignoreHTTPSErrors: true,
     httpCredentials: { username: "staging", password: stagingPassword },

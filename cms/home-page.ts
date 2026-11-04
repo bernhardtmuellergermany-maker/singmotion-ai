@@ -3,9 +3,9 @@ import type { Page } from "./payload-types";
 export const homePage: Page = {
   id: 0,
   slug: "home",
-  title: "Make your artist sing.",
+  title: "Turn your song into a music video",
   description:
-    "Turn your music and a single image into a lifelike singing performance with synchronized lip movements, expressive motion and natural stage presence.",
+    "Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.",
   createdAt: "2026-10-23T00:00:00.000Z",
   updatedAt: "2026-10-23T00:00:00.000Z",
   _status: "published",
@@ -13,8 +13,8 @@ export const homePage: Page = {
     {
       blockType: "hero",
       eyebrow: "YOUR MUSIC. A NEW PRESENCE.",
-      heading: "Make your artist sing.",
-      body: "Turn your music and a single image into a lifelike singing performance with synchronized lip movements, expressive motion and natural stage presence.",
+      heading: "Turn your song into a music video",
+      body: "Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.",
       buttonLabel: "Create your music video",
       url: "/studio",
     },

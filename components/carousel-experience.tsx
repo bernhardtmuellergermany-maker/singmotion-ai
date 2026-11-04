@@ -13,7 +13,7 @@ type Tile = { id:string; name:string; href:string; imageId?:string; state:string
 type Draft = { id:string; artistName:string; projectName?:string; updated?:number; selection:{ songId?:string; imageId?:string; start:number; end:number } };
 const cleanTitle=(name:string)=>!name.trim()||name.trim().toLowerCase()==="my artist"||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
 const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
-export function CarouselExperience(){
+export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:string}}={}){
   const [tiles,setTiles]=useState<Tile[]>([]);
   const [publishedShowcase,setPublishedShowcase]=useState<{title:string;videoUrl:string}|null>(null);
   // Public showcase selection is independent of the visitor's login/session.
@@ -236,8 +236,8 @@ export function CarouselExperience(){
             {distance!==0&&<button type="button" className="sm-carousel-side-hit" onPointerEnter={()=>setHoveredSide(id)} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide(id)} onBlur={()=>setHoveredSide(null)} aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
             {id==="showcase"?<ShowcaseCard active={distance===0} visible={visible} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
-              <h1>Turn your song<br/>into a music video</h1>
-              <p>Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song.</p>
+              <h1>{homeCopy?.heading||<>Turn your song<br/>into a music video</>}</h1>
+              <p>{homeCopy?.body||"Watch your music come alive with realistic lip-sync, fluid natural movements, and expressive performances that follow the rhythm and emotion of your song."}</p>
               {audio
                 ? <HomeUploadedAudio key={audio.id} audio={audio} active={distance===0} onRemove={()=>setAudio(null)}/>
                 : <label className="sm-carousel-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void selectAudio(e.dataTransfer.files?.[0]);}}>
