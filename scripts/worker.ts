@@ -13,6 +13,8 @@ import {
   transaction,
 } from "../lib/db.ts";
 import { trimAudio, probe } from "../lib/media.ts";
+import { ensureLocalAsset } from "../lib/cloud-hydration.ts";
+import { customerR2Enabled, mirrorPrivateSource, readMirroredPrivateSource } from "../lib/cloud-media.ts";
 
 demoOnly();
 let stopping = false;
@@ -76,7 +78,9 @@ while (!stopping) {
     output = path.join(dataDir, "media", `${outputId}.mp4`);
   try {
     const source = asset(claimed.songId, claimed.owner);
-    asset(claimed.imageId, claimed.owner);
+    const reference = asset(claimed.imageId, claimed.owner);
+    await ensureLocalAsset(source);
+    await ensureLocalAsset(reference);
     await trimAudio(source.path, trimmed, claimed.start, claimed.end);
     // An included fixed sample, never represented as generated from customer assets.
     await copyFile(path.resolve("public/media/demo.mp4"), output);
@@ -88,10 +92,10 @@ while (!stopping) {
     )
       throw new Error("Invalid demo output");
     const { size } = await (await import("node:fs/promises")).stat(output);
-    putAsset({
+    const video = {
       id: outputId,
       owner: claimed.owner,
-      kind: "video",
+      kind: "video" as const,
       name: "singmotion-demo-sample.mp4",
       path: output,
       mime: "video/mp4",
@@ -100,7 +104,26 @@ while (!stopping) {
       width: 1280,
       height: 720,
       created: Date.now(),
+    };
+    // Uploaded originals may have been evicted from Railway after a verified
+    // private R2 write. A generated sample is likewise durable only after
+    // byte-for-byte R2 readback and an owner-bound manifest commit.
+    const cloud = customerR2Enabled() ? await mirrorPrivateSource(video) : null;
+    if (customerR2Enabled() && !cloud)
+      throw new Error("Private sample archive was not created");
+    if (cloud) {
+      const verified = await readMirroredPrivateSource(video.owner, video.id, cloud, 256 * 1024 * 1024);
+      if (verified.length !== video.bytes)
+        throw new Error("Private sample archive is incomplete");
+    }
+    transaction(() => {
+      putAsset(video);
+      if (cloud) {
+        db.exec("CREATE TABLE IF NOT EXISTS cloud_source_media(asset_id TEXT PRIMARY KEY,owner TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+        db.prepare("INSERT INTO cloud_source_media(asset_id,owner,key,sha256,bytes,created) VALUES(?,?,?,?,?,?)").run(video.id,video.owner,cloud.key,cloud.sha256,cloud.bytes,Date.now());
+      }
     });
+    if (cloud) await unlink(output).catch(() => {});
     transition(claimed.id, "completed", {
       outputId,
       stage: "Demo sample ready",
