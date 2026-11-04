@@ -7,7 +7,7 @@
 - The one-off, price-reviewed EUR Checkout flow exists at `POST /api/stripe-checkout`. It does not take browser-supplied amounts or owner data.
 - The Stripe event signature is checked using the raw request body, with a bounded body size and timestamp tolerance.
 - `customer_orders` binds the Stripe-created Checkout Session ID before a signed paid event can change the order; payment events are idempotent. Paid orders enter a non-auto-dispatched fulfillment queue.
-- Signed refunds/disputes are checked against Stripe's charge and session before changing an order. The worker must not retry an uncertain provider submission.
+- Delayed payment methods: acknowledge signed `checkout.session.completed` with `payment_status=unpaid` without delivering; only a subsequent signed `checkout.session.async_payment_succeeded` showing `paid` can settle the order. A delayed failure remains unpaid for review.\n- One-off Checkout amounts are represented as inclusive EUR prices; legal tax treatment still needs human verification.\n- Signed refunds/disputes are checked against Stripe's charge and session before changing an order. The worker must not retry an uncertain provider submission.
 - `configuredStripePaymentMode` now isolates private staging (`sk_test_`, `cs_test_`, `livemode=false`) from verified production (`sk_live_`, `cs_live_`, `livemode=true`) and requires separate production release flags before selecting live mode.
 - **Code still deliberately returns `customerLaunchReadiness().readyForPaidOrders === false`** until a verified paid-worker, private cloud delivery and customer notification/recovery path are actually connected. Setting Stripe flags or inserting keys cannot bypass this.
 
