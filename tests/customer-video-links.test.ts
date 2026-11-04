@@ -48,3 +48,17 @@ test("refunded and disputed customer videos never appear unpaid or in progress",
  assert.equal(label("disputed","processing",1),"Payment requires review");
  assert.equal(label("unknown",null),"Video unavailable");
 });
+
+test("delivered zero-EUR customer video links never use paid Stripe delivery endpoint",()=>{
+ const id="11111111-1111-4111-8111-111111111111";
+ const row={orderId:id,status:"free_delivered",videoReady:1,fulfillmentState:null};
+ assert.deepEqual(privateCustomerVideoLinks(row),{
+  videoUrl:`/api/customer-free-video?orderId=${id}`,
+  downloadUrl:`/api/customer-free-video?orderId=${id}&download=1`
+ });
+ assert.equal(customerPaidVideoLabel(row,true),"Completed");
+ assert.deepEqual(privateCustomerVideoLinks({...row,videoReady:0}),{
+  videoUrl:null,downloadUrl:null
+ });
+ assert.equal(customerPaidVideoLabel({...row,videoReady:0},true),"Requires review");
+});
