@@ -3,7 +3,8 @@
  * random one-use non-customer identities and are deleted after verification.
  */
 import path from "node:path";
-import {readFile} from "node:fs/promises";
+import {readFile,writeFile,unlink} from "node:fs/promises";
+import {ensureLocalAsset} from "../lib/cloud-hydration.ts";
 import {randomUUID,createHash} from "node:crypto";
 import {S3Client,DeleteObjectCommand,HeadObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "../lib/live/r2-config.ts";
@@ -33,6 +34,7 @@ async function canary(){
  let source:Awaited<ReturnType<typeof mirrorPrivateSource>>=null;
  let paid:CloudPaidVideoRecord|undefined;
  let error:unknown;
+ let cleanupHydration:(()=>Promise<void>)|undefined;
  let stage="source upload";
  try{
   source=await mirrorPrivateSource(a);
@@ -41,6 +43,31 @@ async function canary(){
   const restored=await readMirroredPrivateSource(owner,id,source,256*1024*1024);
   if(digest(restored)!==digest(original)||!restored.equals(original))
    throw Error("R2 full original is not byte-for-byte identical");
+  if(staging){
+   stage="private cloud-only scratch hydration";
+   const {db,dataDir}=await import("../lib/db.ts");
+   const local=path.join(dataDir,"media",`.r2-recovery-${id}.mp4`);
+   cleanupHydration=async()=>{
+    db.prepare("DELETE FROM cloud_source_media WHERE asset_id=? AND owner=?").run(id,owner);
+    db.prepare("DELETE FROM assets WHERE id=? AND owner=?").run(id,owner);
+    await unlink(local).catch(()=>{});
+   };
+   await writeFile(local,original,{flag:"wx",mode:0o600});
+   a.path=local;
+   db.exec("BEGIN IMMEDIATE");
+   try{
+    db.exec("CREATE TABLE IF NOT EXISTS cloud_source_media(asset_id TEXT PRIMARY KEY,owner TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+    db.prepare("INSERT INTO assets VALUES(?,?,?)").run(id,owner,JSON.stringify(a));
+    db.prepare("INSERT INTO cloud_source_media VALUES(?,?,?,?,?,?)").run(id,owner,source.key,source.sha256,source.bytes,Date.now());
+    db.exec("COMMIT");
+   }catch(e){db.exec("ROLLBACK");throw e}
+   await unlink(local);
+   const hydrated=await ensureLocalAsset(a);
+   if(hydrated!==local||!(await readFile(hydrated)).equals(original))
+    throw Error("Private R2 hydration differs from evicted local original");
+   await unlink(local);
+   console.log("R2_CLOUD_HYDRATION_CANARY_VERIFIED "+JSON.stringify({bytes:original.length,ownerScoped:true,localEvicted:true}));
+  }
   stage="paid archive";
   paid=await mirrorPrivatePaidVideo(accountId,orderId,file,original.byteLength)??undefined;
   if(!paid)throw Error("Private paid R2 archive not active");
@@ -65,6 +92,7 @@ async function canary(){
   }
   console.log("R2_PRIVATE_MP4_CANARY_VERIFIED "+JSON.stringify({bytes:original.length,ranges:2,sourceSha256:digest(original).slice(0,12)}));
  }catch(e){error=e}
+ if(cleanupHydration){try{await cleanupHydration()}catch(e){error??=e}}
  // Cleanup exact deterministic random canary keys even if PUT was ambiguous.
  try{
   await client.send(new DeleteObjectCommand({Bucket:cfg.bucket,Key:recordKey}));
