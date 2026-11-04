@@ -107,6 +107,43 @@ export class FreePromoBudgetLedger{
    return "claimed";
   }catch(error){this.db.exec("ROLLBACK");throw error}
  }
+ /** Put one ambiguous provider submission into human review without resending,
+  * releasing a voucher, changing a payment or decreasing reserved provider cost.
+  * Requires a NEW short-lived signed operator approval; reason is an allowlisted
+  * code, never arbitrary customer information or a provider credential.
+  */
+ flagProviderAttemptForReview(
+  approval:Approval,secret:string,
+  reason:"timeout"|"provider-uncertain"|"operator-hold",now=Date.now(),
+ ):"flagged"|"already-flagged"{
+  if(!["timeout","provider-uncertain","operator-hold"].includes(reason))
+   throw Error("Invalid free-promo review reason");
+  if(!Number.isSafeInteger(now)||now<1)throw Error("Invalid free-promo review timestamp");
+  verifyApproval(approval,secret,now);
+  this.db.exec("BEGIN IMMEDIATE");
+  try{
+   const row=this.db.prepare(`SELECT account_id,reserved_micro_usd,state
+     FROM free_promo_budget_authorizations WHERE order_id=?`).get(approval.orderId) as
+     {account_id:string;reserved_micro_usd:number;state:FreePromoAuthorization["state"]}|undefined;
+   if(!row||row.account_id!==approval.accountId||row.reserved_micro_usd!==approval.maxMicroUsd)
+    throw Error("Free-promo review approval not eligible");
+   if(row.state==="requires_review"){
+    this.db.exec("COMMIT");
+    return "already-flagged";
+   }
+   if(row.state!=="submitted_or_unknown")
+    throw Error("Only ambiguous free-provider submissions require review");
+   const changed=this.db.prepare(`UPDATE free_promo_budget_authorizations
+     SET state='requires_review',updated=?
+     WHERE order_id=? AND account_id=? AND state='submitted_or_unknown'`)
+    .run(now,approval.orderId,approval.accountId);
+   if(changed.changes!==1)throw Error("Free-promo review transition unavailable");
+   this.db.prepare("INSERT INTO commerce_audit(actor,action,record,created) VALUES(?,?,?,?)")
+    .run("verified-promo-operator","free-promo-provider-requires-review",approval.orderId+":"+reason,now);
+   this.db.exec("COMMIT");
+   return "flagged";
+  }catch(error){this.db.exec("ROLLBACK");throw error}
+ }
  /** Read-only operator reconciliation queue for ambiguous provider attempts.
   * Results are bounded, contain no email or media fields and never retry,
   * release a voucher, alter an order or clear reserved spending.
