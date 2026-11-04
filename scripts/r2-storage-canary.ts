@@ -13,9 +13,13 @@ import type {Asset} from "../lib/domain.ts";
 
 const digest=(bytes:Uint8Array)=>createHash("sha256").update(bytes).digest("hex");
 async function canary(){
- if(!customerR2Enabled()||process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||
-  !process.argv.includes("--confirm-staging-private-r2-canary"))
-  throw Error("Explicit Staging R2 canary confirmation required");
+ const staging=process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041";
+ const production=process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+ if(!customerR2Enabled()||
+    !(staging&&process.argv.includes("--confirm-staging-private-r2-canary"))&&
+    !(production&&process.env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED==="true"&&
+      process.argv.includes("--confirm-production-private-r2-canary")))
+   throw Error("Explicit environment-specific private R2 canary approval required");
  const file=path.resolve("public/media/demo.mp4");
  const original=await readFile(file);
  if(original.byteLength<512||original.byteLength>256*1024*1024)
