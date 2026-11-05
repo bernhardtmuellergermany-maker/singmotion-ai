@@ -9,7 +9,8 @@ import { createSignedTransport } from "./signed-transport.ts";
 import { loadBytePlusCredentials } from "./signing.ts";
 import { R2PrivateInputDelivery, loadR2Config } from "./r2.ts";
 import { StudioWorkflow } from "./studio.ts";
-import { loadStudioPolicy, studioConfig } from "./studio-policy.ts";
+import { loadStudioPolicy, studioConfig, StudioLiveError as PolicyError } from "./studio-policy.ts";
+import { superAdminRuntimeBootstrapPolicy } from "./super-admin-runtime-bootstrap.ts";
 import type { LiveTestStore } from "./store.ts";
 export async function studioReadiness(
   root: string,
@@ -53,7 +54,19 @@ export function studioRuntime(
 ) {
   const resources: R2PrivateInputDelivery[] = [];
   const service = new StudioWorkflow(store, root, studioConfig(env), {
-    policy: () => loadStudioPolicy(root, !superAdmin),
+    policy: async () => {
+      try {
+        return await loadStudioPolicy(root, !superAdmin);
+      } catch (error) {
+        // A missing operator file is not a BytePlus requirement. The private
+        // Super Admin can use an explicit conservative, server-owned bootstrap.
+        // Existing but invalid policies remain blocked; customers never fall back.
+        if (superAdmin && error instanceof PolicyError && error.code === "POLICY_MISSING") {
+          return superAdminRuntimeBootstrapPolicy();
+        }
+        throw error;
+      }
+    },
     ready: () => studioReadiness(root, env),
     provider: (policy) => {
       const delivery = new R2PrivateInputDelivery(
