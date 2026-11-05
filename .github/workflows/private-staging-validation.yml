@@ -13,8 +13,10 @@ on:
       - fix/stripe-endive-hobby-invoice-20261105
       - feat/production-r2-readonly-preflight-20261105
       - feat/production-private-customer-preview-300s-20261105
+      - feat/super-admin-stripe-free-private-studio-20261105
   push:
     branches:
+      - fix/mobile-private-gate-cookie-20261105
       - fix/tempo-distinguish-provider-errors-20261028
       - feat/super-admin-promo-codes-20261103
       - feat/automatic-customer-video-worker-20261105
