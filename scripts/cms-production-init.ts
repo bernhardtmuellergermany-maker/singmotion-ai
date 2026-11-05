@@ -50,3 +50,6 @@ try {
 } finally {
   await payload.destroy();
 }
+// Payload/pg pools can leave async handles after a successful migration.
+// The pre-deploy process must terminate deterministically for Railway.
+process.exit(0);
