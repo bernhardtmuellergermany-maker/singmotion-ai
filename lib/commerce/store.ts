@@ -51,6 +51,8 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_provider_cost_reservations(order_id TEXT PRIMARY KEY,inclusive_micro_usd INTEGER NOT NULL,review_hash TEXT NOT NULL,reserved_at INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_provider_input_leases(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,audio_key TEXT UNIQUE NOT NULL,image_key TEXT UNIQUE NOT NULL,expires_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('uploading','ready','requires-review')));
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
   private txDepth = 0;
@@ -858,10 +860,6 @@ export class CommerceStore {
         evidence.trim().length<20||evidence.length>2048)
       throw Error("Reviewed inclusive provider cost policy required");
     return this.tx(()=>{
-      this.db.exec(`CREATE TABLE IF NOT EXISTS customer_provider_cost_reservations(
-        order_id TEXT PRIMARY KEY, inclusive_micro_usd INTEGER NOT NULL,
-        review_hash TEXT NOT NULL, reserved_at INTEGER NOT NULL
-      )`);
       const fingerprint=hash(evidence);
       const prior=this.db.prepare(
         "SELECT inclusive_micro_usd,review_hash FROM customer_provider_cost_reservations WHERE order_id=?"
