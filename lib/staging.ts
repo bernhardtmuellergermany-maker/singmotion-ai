@@ -1,7 +1,61 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import {productionCustomerReleaseApproved,PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "./commerce/customer-live-config.ts";
 
 type Environment = Record<string, string | undefined>;
+/**
+ * A short-lived, server-signed private-gate ticket for mobile browsers.
+ * It is distinct from CMS/staff authentication and never grants a role.
+ * Changing STAGING_PASSWORD invalidates every issued ticket.
+ */
+/** Only trusted, server-configured public origins authorize mobile-cookie mutations.
+ * Railway reverse proxies can expose an internal http origin in request.nextUrl.
+ * Neither Host nor X-Forwarded-* are valid CSRF authority.
+ */
+export function privateGateMutationOriginAllowed(
+  origin: string | null,
+  pathname: string,
+  internalRequestOrigin: string,
+  env: Environment = process.env,
+): boolean {
+  if (!origin || origin === "null") return false;
+  const cmsRoute = pathname === "/api/cms" || pathname.startsWith("/api/cms/");
+  const expected = cmsRoute ? env.CMS_ORIGIN : (env.APP_ORIGIN || env.PUBLIC_SITE_ORIGIN);
+  return origin === (expected || internalRequestOrigin);
+}
+
+export const PRIVATE_GATE_COOKIE = "sm_private_gate";
+export const PRIVATE_GATE_TTL_SECONDS = 12 * 60 * 60;
+const PRIVATE_GATE_VERSION = "v1";
+export function issuePrivateGateTicket(
+  env: Environment = process.env,
+  now = Date.now(),
+): string {
+  validateStaging(env);
+  if (!stagingEnabled(env)) throw new Error("Private gate disabled");
+  const issued = Math.floor(now / 1000);
+  const payload = `${PRIVATE_GATE_VERSION}.${issued}`;
+  const signature = createHmac("sha256", env.STAGING_PASSWORD!)
+    .update("SingMotion private gate\n" + (env.RAILWAY_ENVIRONMENT_ID || "none") + "\n" + payload)
+    .digest("hex");
+  return payload + "." + signature;
+}
+export function validPrivateGateTicket(
+  token: string | undefined | null,
+  env: Environment = process.env,
+  now = Date.now(),
+): boolean {
+  if (!token || token.length > 160 || !stagingEnabled(env)) return false;
+  try { validateStaging(env); } catch { return false; }
+  const match = /^(v1)\.([1-9][0-9]{8,12})\.([a-f0-9]{64})$/.exec(token);
+  if (!match) return false;
+  const issued = Number(match[2]);
+  const current = Math.floor(now / 1000);
+  if (!Number.isSafeInteger(issued) || issued > current + 60 ||
+      current - issued > PRIVATE_GATE_TTL_SECONDS) return false;
+  const expected = issuePrivateGateTicket(env, issued * 1000);
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+}
+
 export function stagingEnabled(env: Environment = process.env) {
   // Public production is an independent, explicit decision. Never turn the
   // private staging service public, and never mistake an arbitrary Railway
@@ -42,6 +96,8 @@ export function stagingAccess(
   } catch {
     return 503;
   }
+  if (authorization?.startsWith("SingMotionSession "))
+    return validPrivateGateTicket(authorization.slice("SingMotionSession ".length), env) ? 200 : 401;
   if (
     !authorization ||
     authorization.length > 4096 ||
