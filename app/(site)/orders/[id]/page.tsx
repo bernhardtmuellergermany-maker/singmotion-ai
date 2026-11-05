@@ -5,6 +5,8 @@ import { dataDir } from "@/lib/db";
 import { ProductHeader } from "@/components/product-header";
 import { GuestOrderAccess } from "@/components/guest-order-access";
 import { CustomerPaidOutput } from "@/components/customer-paid-output";
+import { CustomerVideoCheckout } from "@/components/customer-video-checkout";
+import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import { CancelUnstartedOrder } from "@/components/cancel-unstarted-order";
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -67,9 +69,13 @@ export default async function Page({
             </p>}
             <p>Video order: {fulfillmentState === "pending" ? "Awaiting processing" : fulfillmentState === "processing" ? "Processing or under review" : fulfillmentState === "delivered" ? "Delivered" : fulfillmentState === "failed" ? "Needs support review" : "Not started"}</p>
             <p>Video ready: {videoReady ? "Yes" : "No"}</p>
+            {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState &&
+              Number(order.price_cents)>0 && customerLaunchReadiness().readyForPaidOrders &&
+              <CustomerVideoCheckout orderId={id}
+                staging={process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"}/>}
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
             {authenticatedOwner && <CustomerPaidOutput orderId={id} />}
-            {!videoReady && <p>Payment confirmation alone does not start BytePlus generation. The video will appear in the output card only after verified delivery.</p>}
+            {!videoReady && <p>After verified payment, the customer worker starts one BytePlus generation. Your video appears here after private validation and delivery.</p>}
           </>
         ) : (
           <GuestOrderAccess id={id} />
