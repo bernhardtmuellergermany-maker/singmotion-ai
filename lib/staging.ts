@@ -7,6 +7,22 @@ type Environment = Record<string, string | undefined>;
  * It is distinct from CMS/staff authentication and never grants a role.
  * Changing STAGING_PASSWORD invalidates every issued ticket.
  */
+/** Only trusted, server-configured public origins authorize mobile-cookie mutations.
+ * Railway reverse proxies can expose an internal http origin in request.nextUrl.
+ * Neither Host nor X-Forwarded-* are valid CSRF authority.
+ */
+export function privateGateMutationOriginAllowed(
+  origin: string | null,
+  pathname: string,
+  internalRequestOrigin: string,
+  env: Environment = process.env,
+): boolean {
+  if (!origin || origin === "null") return false;
+  const cmsRoute = pathname === "/api/cms" || pathname.startsWith("/api/cms/");
+  const expected = cmsRoute ? env.CMS_ORIGIN : (env.APP_ORIGIN || env.PUBLIC_SITE_ORIGIN);
+  return origin === (expected || internalRequestOrigin);
+}
+
 export const PRIVATE_GATE_COOKIE = "sm_private_gate";
 export const PRIVATE_GATE_TTL_SECONDS = 12 * 60 * 60;
 const PRIVATE_GATE_VERSION = "v1";
