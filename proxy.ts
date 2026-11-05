@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stagingAccess, stagingDenial, stagingEnabled, PRIVATE_GATE_COOKIE, PRIVATE_GATE_TTL_SECONDS, issuePrivateGateTicket, validPrivateGateTicket } from "./lib/staging";
+import { stagingAccess, stagingDenial, stagingEnabled, PRIVATE_GATE_COOKIE, PRIVATE_GATE_TTL_SECONDS, issuePrivateGateTicket, validPrivateGateTicket, privateGateMutationOriginAllowed } from "./lib/staging";
 
 // No matcher exclusions: APIs, public media, Next assets and RSC requests are private.
 export function proxy(request: NextRequest) {
@@ -23,8 +23,8 @@ export function proxy(request: NextRequest) {
       // A private-gate cookie must not authorize cross-origin mutations.
       // Normal CMS/Studio authorization and Origin checks remain separate.
       if (!["GET","HEAD","OPTIONS"].includes(request.method) &&
-          request.headers.get("origin") !== request.nextUrl.origin)
-        return new NextResponse("Private session requires same-origin request.", {status:403});
+          !privateGateMutationOriginAllowed(request.headers.get("origin"), pathname, request.nextUrl.origin))
+        return NextResponse.json({error:"Private session requires an approved same-origin request."}, {status:403, headers: {"Cache-Control":"private, no-store"}});
     }
     const denied = stagingDenial(headers.get("authorization"));
     if (denied) return denied;
