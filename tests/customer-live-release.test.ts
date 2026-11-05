@@ -67,6 +67,14 @@ test("Stripe live connection alone cannot enable production paid customer genera
  assert.equal(customerLaunchReadiness({...e,RAILWAY_ENVIRONMENT_ID:"other"}).readyForPaidOrders,false);
 });
 
+test("production support contact accepts normal email and rejects whitespace, missing dot or malformed address",()=>{
+ const e=env("/nonexistent");
+ assert.equal(productionCustomerReleaseApproved(e),true);
+ for(const address of ["support example.test","support@exampletest","support@example\\test","support@invalid","support@@example.test","support@example.test extra"]){
+  assert.equal(productionCustomerReleaseApproved({...e,SUPPORT_CONTACT_VERIFIED:address}),false,address);
+ }
+});
+
 test("production requires a private real-customer policy on persistent volume, never staging fallback",async()=>{
  const root=await mkdtemp(path.join(tmpdir(),"singmotion-live-policy-"));
  try{
