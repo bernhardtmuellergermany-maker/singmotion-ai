@@ -254,6 +254,20 @@ export function StudioLiveControl({
       setPlan(result);
       setConfirmed(approval);
       saveReceipt(result, approval);
+      if (superAdmin && !repeatOf && result.state === "prepared" &&
+          !result.providerJobId && result.digest &&
+          result.ceilingMicroUsd !== null && result.ceilingMicroUsd > 0) {
+        await api("studio-live", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "submit", consent, termsVersion,
+            id: result.id, digest: result.digest,
+            ceilingMicroUsd: result.ceilingMicroUsd,
+            confirmation: `CONFIRM PAID STUDIO ${result.id} ${result.digest} ${result.ceilingMicroUsd}${result.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
+          }),
+        });
+        router.push(`/projects/live_${result.id}`);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
