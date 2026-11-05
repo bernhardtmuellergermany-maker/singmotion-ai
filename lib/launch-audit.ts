@@ -40,8 +40,17 @@ export function auditSingMotionLaunch(
   has(env,"STRIPE_LIVE_CUSTOMER_CHECKOUT_AUDIT_ID")&&
   yes(env,"STRIPE_REFUND_DISPUTE_E2E_VERIFIED"),
   "Separate Stripe live onboarding, full checkout/refund/dispute validation and audited webhook reconciliation.");
- add("code-runtime-readiness",customerLaunchReadiness(env).readyForPaidOrders,
+ const customerRuntime=customerLaunchReadiness(env);
+ add("code-runtime-readiness",customerRuntime.readyForPaidOrders,
   "Verified checkout, provider submission and private delivery must actually be connected in code; operator flags alone never authorize launch.");
+ // Operator-only Studio access is not public customer fulfillment. This
+ // independent gate stays blocked until payment-authorized, account-owned
+ // orders can reach a bounded, idempotent provider dispatch and private delivery.
+ // It must apply to both Free and Hobby accounts, not an operator allowlist.
+ add("all-customer-generation",customerRuntime.accountsEnabled&&
+  customerRuntime.paymentsConnected&&customerRuntime.customerGenerationEnabled&&
+  customerRuntime.fulfillmentConnected&&customerRuntime.deliveryConnected,
+  "Free and Hobby customer accounts need owner-scoped order authorization, validated payment or entitlement, provider cost caps, recovery and private completed-video delivery. An admin-only pilot is not customer access.");
  add("zero-euro-promo",yes(env,"FREE_PROMO_FULFILLMENT_E2E_VERIFIED"),
   "Three-video free entitlement must use audited zero-EUR authorization and capped provider spending.");
  add("legal-and-support",yes(env,"LEGAL_REVIEW_APPROVED")&&has(env,"SUPPORT_CONTACT_VERIFIED"),
