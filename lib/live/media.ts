@@ -5,7 +5,7 @@ import {
 } from "./limits.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { stat, realpath, mkdir, copyFile, unlink } from "node:fs/promises";
+import { stat, realpath, mkdir, copyFile, unlink, chmod } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { trimAudio, validateAudio } from "../media.ts";
@@ -163,6 +163,9 @@ async function prepareOwnedSelection(
     )
       throw error;
   });
+  // Provider-bound snapshots are private even if the source file was created
+  // with a more permissive host umask; the customer R2 lease requires 0600.
+  await Promise.all([chmod(audioPath, 0o600), chmod(reference, 0o600)]);
   // Validate the copied bytes too: the source may have changed during preparation.
   if ((await sha256File(reference)) !== imageSha256)
     throw new Error("Reference changed while creating the immutable snapshot.");
