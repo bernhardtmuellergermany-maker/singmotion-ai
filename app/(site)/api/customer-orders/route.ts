@@ -8,6 +8,7 @@ import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
 import { privateCustomerVideoLinks } from "@/lib/commerce/customer-video-links";
 import { customerOrderStatusFilter, ownedCustomerOrderStatuses } from "@/lib/commerce/customer-orders-query";
+import {requireRights} from "@/lib/rights";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,11 @@ export async function POST(req: NextRequest) {
     const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId);
     if (!account || typeof account.email!=="string")
       return respond({error:"Customer account unavailable."},403);
+    // The customer's browser checkbox alone is not durable authorization.
+    // Require affirmative rights + current legal version at the trusted order
+    // creation boundary, before reserving any price/allowance/promotion.
+    try{requireRights(payload.consent,payload.termsVersion);}
+    catch{return respond({error:"Confirm rights and current terms before ordering."},409);}
     // Historical purchases never count toward an artificial project ceiling.
     // Never accept media owner, price or email from the browser.
     if(payload.promoCode!==undefined &&
