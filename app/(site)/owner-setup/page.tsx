@@ -1,5 +1,6 @@
 "use client";
 import {useState} from "react";
+import Link from "next/link";
 export default function Page(){
   const [email,setEmail]=useState(""),[password,setPassword]=useState(""),
     [setupToken,setSetupToken]=useState(""),[busy,setBusy]=useState(false),
@@ -26,7 +27,7 @@ export default function Page(){
       möglich, solange noch kein Mitarbeiterkonto existiert. Das Staging-Passwort
       schützt die Website; der zusätzliche Einrichtungs-Code steht ausschließlich
       in den privaten Railway-Variablen.</p>
-    {done?<a href="/operator-signin">Zur Super-Admin-Anmeldung</a>:
+    {done?<Link href="/operator-signin">Zur Super-Admin-Anmeldung</Link>:
     <form onSubmit={create} style={{display:"grid",gap:"1rem"}}>
       <label>Admin-E-Mail<input type="email" autoComplete="email" required
         value={email} onChange={e=>setEmail(e.target.value)}/></label>
