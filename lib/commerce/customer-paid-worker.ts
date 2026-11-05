@@ -4,6 +4,7 @@
  * This module performs no work merely by being imported.
  */
 import {readFile} from "node:fs/promises";
+import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
 import {dispatchReviewedCustomerBytePlus} from "./customer-byteplus-dispatch.ts";
@@ -34,6 +35,7 @@ export function customerWorkerEnabled(env:Record<string,string|undefined>){
  return env.RAILWAY_ENVIRONMENT_ID===STAGING &&
   env.CUSTOMER_PAID_WORKER_ENABLED==="true" &&
   env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED==="true" &&
+  env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
   env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
   env.CUSTOMER_R2_STORAGE_ENABLED==="true" &&
   env.STRIPE_CHECKOUT_ENABLED==="true" &&
@@ -71,10 +73,21 @@ export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now()):Reviewe
  }
  return p;
 }
-export async function loadCustomerWorkerPolicy(root:string){
- const bytes=await readFile(path.join(root,"customer-byteplus-policy.json"));
- if(bytes.length<40||bytes.length>65536)throw Error("Invalid customer provider policy file");
- return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
+export async function loadCustomerWorkerPolicy(root:string,env:Record<string,string|undefined>=process.env){
+ // A private, explicitly approved policy takes precedence. If none was
+ // installed, use the dated 2026-11-05 owner-attested billing/delivery policy
+ // ONLY on protected Staging with explicit owner confirmation; never Production.
+ try{
+  const bytes=await readFile(path.join(root,"customer-byteplus-policy.json"));
+  if(bytes.length<40||bytes.length>65536)throw Error("Invalid customer provider policy file");
+  return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
+ }catch(error){
+  if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+  if(env.RAILWAY_ENVIRONMENT_ID!==STAGING||
+     env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING!=="true")
+   throw Error("Explicit staging owner confirmation or private policy required");
+  return validateCustomerWorkerPolicy(ownerConfirmedBytePlusPolicy());
+ }
 }
 export type CustomerWorkerResults={
  status:"disabled"|"ready";
@@ -96,7 +109,7 @@ export async function runCustomerPaidWorkerBatch(
  if(!customerWorkerEnabled(env))
   return {status:"disabled",submitted:0,alreadyClaimed:0,uncertain:0,requiresReview:0,recovered:0};
  if(!Number.isSafeInteger(limit)||limit<1||limit>5)throw Error("Invalid paid dispatch batch");
- const policy=await loadCustomerWorkerPolicy(root);
+ const policy=await loadCustomerWorkerPolicy(root,env);
  // Validate every external dependency BEFORE claiming a single paid order.
  loadBytePlusCredentials(env);
  loadR2Config(env);
