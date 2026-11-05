@@ -10,6 +10,7 @@ import {productionCustomerReleaseApproved,PRODUCTION_CUSTOMER_PROOFS,
  PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "../lib/commerce/customer-live-config.ts";
 import {CustomerR2PrivateInputDelivery} from "../lib/commerce/customer-r2-inputs.ts";
 import {CommerceStore} from "../lib/commerce/store.ts";
+import {stagingEnabled,stagingAccess} from "../lib/staging.ts";
 
 const env=(root:string)=>{
  const vars:Record<string,string|undefined>={
@@ -89,4 +90,24 @@ test("Production R2 adapter never starts with an unreviewed live account",()=>{
     ...env(root),STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"false",
    }),/approved production/);
  }finally{store.close()}
+});
+
+test("only a separately released Live Production site may stop requiring private Basic Auth",()=>{
+ const e={...env("/n/a"),PRODUCTION_PUBLIC_ACCESS_ENABLED:"true"};
+ assert.equal(stagingEnabled(e),false);
+ assert.equal(stagingAccess(null,e),200);
+ for(const [key,value] of [
+  ["PRODUCTION_PUBLIC_ACCESS_ENABLED","false"],
+  ["PUBLIC_CUSTOMER_LAUNCH_APPROVED","false"],
+  ["STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED","false"],
+  ["CUSTOMER_PAID_PROVIDER_E2E_VERIFIED","false"],
+  ["STRIPE_SECRET_KEY","sk_test_mismatched"],
+  ["STAGING_AUTH_ENABLED","true"],
+ ]){
+  const wrong={...e,[key]:value};
+  assert.equal(stagingEnabled(wrong),true,key+" must keep the site private");
+  assert.notEqual(stagingAccess(null,wrong),200,key);
+ }
+ assert.equal(stagingEnabled({...e,RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"}),true);
+ assert.equal(stagingEnabled({...e,RAILWAY_ENVIRONMENT_ID:"unknown-railway"}),true);
 });
