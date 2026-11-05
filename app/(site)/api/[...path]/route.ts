@@ -7,6 +7,7 @@ import { parseSavedStudioDraft } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
+import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
 import { removeOfflinePlans } from "@/lib/live/cleanup";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID, createHash, timingSafeEqual } from "node:crypto";
@@ -113,16 +114,25 @@ async function handler(
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
   try {
-    demoOnly();
+    // Production uses the same private asset/studio editor, NOT sample-video
+    // jobs or anonymous/demo credits. Keep the paid customer API separate.
+    const liveCustomer=process.env.DEMO_MODE==="false" &&
+      process.env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true" &&
+      productionCustomerReleaseApproved(process.env);
+    if(!liveCustomer)demoOnly();
     const parts = (await params).path;
     const route = parts[0],
       id = parts[1];
     const method = req.method;
+    if(liveCustomer && !["session","studio-drafts","assets","artists"].includes(route))
+      throw new AppError("Demo endpoints are unavailable in paid production.",503);
     if (method !== "GET") requireOrigin(req);
     const token = req.cookies.get("sm_session")?.value;
     let auth = session(token);
+    if(liveCustomer && auth && !auth.owner.startsWith("customer-") &&
+       !auth.owner.startsWith("cms-staff-"))auth=null;
     // Disconnect this browser's private demo workspace without deleting its data.
-    if (route === "session" && id === "guest" && method === "POST") {
+    if (!liveCustomer && route === "session" && id === "guest" && method === "POST") {
       const guestToken = req.cookies.get("sm_guest_session")?.value;
       const guest = session(guestToken);
       if (!guest || guest.owner.startsWith("customer-") || guest.owner.startsWith("cms-staff-"))
