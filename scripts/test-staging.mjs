@@ -161,7 +161,8 @@ try {
   });
   assert.equal(session.status, 200);
   assert.match(session.headers.get("set-cookie"), /Secure/i);
-  const cookie = session.headers.get("set-cookie").split(";")[0];
+  const cookie = session.headers.get("set-cookie")?.match(/sm_session=[^;]+/)?.[0];
+  assert.ok(cookie, "The media session cookie is independent of the mobile preview cookie");
   const disabled = await fetch(origin + "/api/jobs", {
     method: "POST",
     headers: {
