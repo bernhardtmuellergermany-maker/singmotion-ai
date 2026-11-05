@@ -17,6 +17,7 @@ import { ensureLocalAsset } from "../lib/cloud-hydration.ts";
 import { customerR2Enabled, mirrorPrivateSource, readMirroredPrivateSource } from "../lib/cloud-media.ts";
 
 demoOnly();
+let nextCustomerPaidPoll=0;
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
@@ -25,11 +26,35 @@ process.on("SIGINT", () => {
   stopping = true;
 });
 console.log(
-  "SingMotion worker ready. Demo rendering and Studio recovery are separately gated; this worker never submits paid tasks.",
+  "SingMotion worker ready. Demo and Studio recovery are separate; paid customer dispatch requires independently reviewed policy, bounded spend and explicit staging enablement.",
 );
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
+  // A separately reviewed contract, TEST Stripe key, private R2 and two explicit
+  // customer worker flags are all required before automatic paid processing.
+  // With the safe defaults this is inert and the demo worker is unchanged.
+  if(Date.now()>=nextCustomerPaidPoll){
+    nextCustomerPaidPoll=Date.now()+30_000;
+    if(process.env.CUSTOMER_PAID_WORKER_ENABLED==="true"){
+      try{
+        const {runCustomerPaidWorkerBatch}=await import("../lib/commerce/customer-paid-worker.ts");
+        const outcome=await runCustomerPaidWorkerBatch(dataDir);
+        if(outcome.status==="ready" &&
+           (outcome.submitted||outcome.uncertain||outcome.requiresReview||outcome.recovered))
+          console.log("Customer video worker batch",{
+            submitted:outcome.submitted,
+            uncertain:outcome.uncertain,
+            requiresReview:outcome.requiresReview,
+            recovered:outcome.recovered,
+          });
+      }catch{
+        // Never emit credentials, signed R2 URLs, provider output URLs or raw media
+        // details into logs. A failed batch must never resubmit uncertain jobs.
+        console.warn("Customer paid worker unavailable; reviewed policy or dependencies required");
+      }
+    }
+  }
   if (process.env.GENERATIONS_ENABLED === "false") {
     await new Promise((resolve) => setTimeout(resolve, 750));
     continue;
