@@ -17,7 +17,7 @@ export async function POST(req:NextRequest){
  const secret=process.env.STRIPE_HOBBY_WEBHOOK_SECRET;
  const mode=configuredStripePaymentMode(process.env);
  if(!mode||process.env.HOBBY_SUBSCRIPTIONS_ENABLED!=="true"||
-    !/^whsec_[A-Za-z0-9_]+$/.test(secret||""))
+    !secret||!/^whsec_[A-Za-z0-9_]+$/.test(secret))
   return NextResponse.json({error:"Unavailable"},{status:503});
  const expectedLive=mode==="live";
  const raw=Buffer.from(await req.arrayBuffer());if(raw.length>128*1024)return NextResponse.json({error:"Payload too large"},{status:413});
