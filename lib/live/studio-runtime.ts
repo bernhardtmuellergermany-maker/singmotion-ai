@@ -46,15 +46,8 @@ export async function studioReadiness(
       503,
     );
 }
-export function studioRuntime(
-  store: LiveTestStore,
-  root: string,
-  env: NodeJS.ProcessEnv = process.env,
-  superAdmin = false,
-) {
-  const resources: R2PrivateInputDelivery[] = [];
-  const service = new StudioWorkflow(store, root, studioConfig(env), {
-    policy: async () => {
+export function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = process.env, superAdmin = false) {
+  async () => {
       try {
         return await loadStudioPolicy(root, !superAdmin);
       } catch (error) {
@@ -79,7 +72,17 @@ export function studioRuntime(
         }
         throw error;
       }
-    },
+    }
+}
+export function studioRuntime(
+  store: LiveTestStore,
+  root: string,
+  env: NodeJS.ProcessEnv = process.env,
+  superAdmin = false,
+) {
+  const resources: R2PrivateInputDelivery[] = [];
+  const service = new StudioWorkflow(store, root, studioConfig(env), {
+    policy: () => loadRuntimeStudioPolicy(root, env, superAdmin),
     ready: () => studioReadiness(root, env),
     provider: (policy) => {
       const delivery = new R2PrivateInputDelivery(
