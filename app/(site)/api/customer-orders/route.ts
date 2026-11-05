@@ -8,7 +8,7 @@ import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
 import { privateCustomerVideoLinks } from "@/lib/commerce/customer-video-links";
 import { customerOrderStatusFilter, ownedCustomerOrderStatuses } from "@/lib/commerce/customer-orders-query";
-import {requireRights} from "@/lib/rights";
+import {requireRights,recordRights} from "@/lib/rights";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +84,15 @@ export async function POST(req: NextRequest) {
       accountId,email:String(account.email),mediaOwner:`customer-${accountId}`,
       draft:payload.draft,projectId:payload.projectId,requestKey:payload.requestKey,
       promoCode:typeof payload.promoCode==="string" ? payload.promoCode : undefined,
+    });
+    // Audit the exact server-reviewed media input commitment, not only the
+    // untrusted draft that the browser displayed.
+    const reviewed=store.db.prepare("SELECT input_digest FROM customer_order_inputs WHERE order_id=?")
+      .get(order.id) as {input_digest:string}|undefined;
+    if(!reviewed||!/^[a-f0-9]{64}$/.test(reviewed.input_digest))
+      throw Error("Reviewed media commitment unavailable");
+    recordRights(store.db,accountId,order.id,String(payload.termsVersion),{
+      session:`customer-${accountId}`,content:reviewed.input_digest,
     });
     const saved=store.db.prepare("SELECT price_cents FROM customer_orders WHERE id=?").get(order.id) as {price_cents:number}|undefined;
     const freePromo=store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get()
