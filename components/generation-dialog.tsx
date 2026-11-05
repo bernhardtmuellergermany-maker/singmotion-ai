@@ -262,15 +262,13 @@ export function GenerationDialog({
     !rights ||
     !terms ||
     pilot !== true ||
-    blockers.length > 0 ||
-    !plan ||
-    !!(
-      plan &&
-      (plan.state !== "prepared" ||
-        !plan.digest ||
-        !plan.ceilingMicroUsd ||
-        plan.budgetBlocker)
-    );
+    (!superAdmin &&
+      (blockers.length > 0 ||
+        !plan ||
+        (plan.state !== "prepared" ||
+          !plan.digest ||
+          !plan.ceilingMicroUsd ||
+          !!plan.budgetBlocker)));
   const selectedSeconds = Math.max(0, selection.end - selection.start);
   const time = (seconds: number) => {
     const centis = Math.round(Math.max(0, seconds) * 100);
