@@ -86,6 +86,22 @@ export function tempoExportFailureCode(error: unknown): string {
     "Restored audio/video start alignment failed.": "TEMPO_START_ALIGNMENT_MISMATCH",
   };
   if (known[error.message]) return known[error.message];
+  // Safe, fixed MP4 validation categories reveal the failing export rule.
+  // Do not log raw FFmpeg stderr, paths, signed URLs or provider responses.
+  const outputCodes = new Set([
+    "OUTPUT_FORMAT_INVALID",
+    "OUTPUT_STREAM_MISSING",
+    "OUTPUT_CODEC_MISMATCH",
+    "OUTPUT_DIMENSIONS_MISMATCH",
+    "OUTPUT_DURATION_MISMATCH",
+    "OUTPUT_FRAMERATE_MISMATCH",
+    "OUTPUT_NORMALIZATION_TIMING_FAILED",
+    "OUTPUT_NORMALIZATION_AUDIO_CHANGED",
+  ]);
+  if (outputCodes.has(error.message)) return error.message;
+  if (/^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\\d{0,3})x(?:[1-9]\\d{0,3})_EXPECTED_(?:(?:[1-9]\\d{0,3})x(?:[1-9]\\d{0,3})|720P)$/.test(error.message))
+    return "OUTPUT_DIMENSIONS_MISMATCH";
+  if (error.message === "Provider output is too large.") return "OUTPUT_SIZE_REJECTED";
   const child = error as Error & { killed?: boolean; signal?: string };
   if (child.killed || child.signal === "SIGTERM" || child.signal === "SIGKILL")
     return "TEMPO_FFMPEG_TIMEOUT_OR_TERMINATED";
