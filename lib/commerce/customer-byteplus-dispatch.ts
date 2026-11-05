@@ -3,6 +3,7 @@
  * The caller supplies a verified per-account private R2 lease adapter.
  */
 import {CommerceStore} from "./store.ts";
+import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import {submitReviewedPaidVideo} from "./paid-video-worker.ts";
 import {planUpperBoundMicroUsd,contractDigest,type VerifiedContract} from "../live/contract.ts";
 import {BytePlusProtocol,submitPreparedInputs,type PrivateInputDelivery} from "../live/byteplus.ts";
@@ -56,7 +57,8 @@ export async function dispatchReviewedCustomerBytePlus(
  review:CustomerBytePlusDispatch,
  env:Record<string,string|undefined>=process.env,
 ){
- if(env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" ||
+ if((env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" &&
+     !productionCustomerReleaseApproved(env)) ||
     env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED!=="true")
   throw Error("Customer provider dispatch not authorized for this environment");
  const order=store.db.prepare("SELECT account_id,status FROM customer_orders WHERE id=?")

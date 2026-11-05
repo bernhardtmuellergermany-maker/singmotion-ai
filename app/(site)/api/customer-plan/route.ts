@@ -5,11 +5,12 @@ import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir, db} from "@/lib/db";
 import {uploadedBytes} from "@/lib/upload-storage";
 import {stagingDenial} from "@/lib/staging";
+import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 /** Customer-owned plan status, never Staff Studio access or a video submission. */
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
+ if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !productionCustomerReleaseApproved(process.env))||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
   return NextResponse.json({error:"Unavailable"},{status:403});
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{

@@ -1,8 +1,15 @@
 import { createHash, timingSafeEqual } from "node:crypto";
+import {productionCustomerReleaseApproved,PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "./commerce/customer-live-config.ts";
 
 type Environment = Record<string, string | undefined>;
 export function stagingEnabled(env: Environment = process.env) {
-  // Railway cannot accidentally disable its access gate.
+  // Public production is an independent, explicit decision. Never turn the
+  // private staging service public, and never mistake an arbitrary Railway
+  // environment for an approved Live service.
+  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID)
+   return !(env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true" &&
+     env.STAGING_AUTH_ENABLED!=="true" &&
+     productionCustomerReleaseApproved(env));
   return (
     Boolean(env.RAILWAY_ENVIRONMENT_ID) ||
     env.STAGING_AUTH_ENABLED === "true" ||

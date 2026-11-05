@@ -1,4 +1,5 @@
 import { pollStudioProjects } from "../lib/live/studio-worker.ts";
+import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { copyFile, unlink, writeFile } from "node:fs/promises";
@@ -16,7 +17,12 @@ import { trimAudio, probe } from "../lib/media.ts";
 import { ensureLocalAsset } from "../lib/cloud-hydration.ts";
 import { customerR2Enabled, mirrorPrivateSource, readMirroredPrivateSource } from "../lib/cloud-media.ts";
 
-demoOnly();
+// In approved Live production, demo sample generation is forbidden, but
+// the dedicated customer worker must still be able to serve paid orders.
+const approvedLiveCustomer=process.env.DEMO_MODE==="false" &&
+  productionCustomerReleaseApproved(process.env) &&
+  process.env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true";
+if(!approvedLiveCustomer)demoOnly();
 let nextCustomerPaidPoll=0;
 let stopping = false;
 process.on("SIGTERM", () => {
@@ -55,7 +61,7 @@ while (!stopping) {
       }
     }
   }
-  if (process.env.GENERATIONS_ENABLED === "false") {
+  if (approvedLiveCustomer || process.env.GENERATIONS_ENABLED === "false") {
     await new Promise((resolve) => setTimeout(resolve, 750));
     continue;
   }

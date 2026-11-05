@@ -3,13 +3,14 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,limit,createAccountMediaSession,revokeMediaSession,session} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
+import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
 import {applicationOrigin} from "@/lib/request-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
-const env="dfaeabed-03df-43ed-aa71-50f343a75041";
+const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env);
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(process.env.RAILWAY_ENVIRONMENT_ID!==env)return json({error:"STAGING only"},403);
+ if(!accountsEnvironment())return json({error:"Accounts unavailable"},403);
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
@@ -31,7 +32,7 @@ export async function GET(req:NextRequest){
 }
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(process.env.RAILWAY_ENVIRONMENT_ID!==env||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")return json({error:"Accounts not enabled on STAGING"},503);
+ if(!accountsEnvironment()||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")return json({error:"Accounts not enabled"},503);
  const origin=applicationOrigin(req.url,req.headers.get("host"));
  if(!origin||req.headers.get("origin")!==origin)return json({error:"Invalid origin"},403);
  if(Number(req.headers.get("content-length"))>2048)return json({error:"Request too large"},413);

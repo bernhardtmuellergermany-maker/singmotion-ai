@@ -1,4 +1,4 @@
-/** Staging-only, one-shot private R2 input lease for one paid customer order.
+/** Staging/approved-Production, one-shot private R2 input lease for one paid customer order.
  * A created manifest is an irreversible upload-attempt record: after an ambiguous
  * S3 outcome it must be reconciled, never silently resubmitted.
  */
@@ -10,6 +10,7 @@ import sharp from "sharp";
 import {S3Client,PutObjectCommand,GetObjectCommand} from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import {CommerceStore} from "./store.ts";
+import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import {loadR2Config,r2ClientConfig,type R2Config} from "../live/r2-config.ts";
 import {assertInputLifetime,inputDeliveryPolicy} from "../live/input-policy.ts";
 import type {PrivateInputDelivery,InputLease} from "../live/byteplus.ts";
@@ -54,8 +55,9 @@ export class CustomerR2PrivateInputDelivery implements PrivateInputDelivery{
   this.store=store;
   this.orderId=orderId;
   this.dataDir=dataDir;
-  if(env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041")
-   throw Error("Customer input leasing requires protected staging");
+  if(env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" &&
+     !productionCustomerReleaseApproved(env))
+   throw Error("Customer input leasing requires protected staging or approved production");
   if(!/^[a-f0-9-]{36}$/.test(orderId))throw Error("Invalid paid order reference");
   this.config=loadR2Config(env);
   this.client=client??new S3Client(r2ClientConfig(this.config));

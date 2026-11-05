@@ -3,9 +3,10 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
+import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
+import {applicationOrigin} from "@/lib/request-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
-const canonical="https://singmotion-ai-staging.up.railway.app";
-const enabled=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"&&process.env.CUSTOMER_ACCOUNTS_ENABLED==="true";
+const enabled=()=> (process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env)) && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true";
 const mailReady=()=>enabled()&&!!process.env.RESEND_API_KEY&&!!process.env.ACCOUNT_EMAIL_FROM;
 const reply=(obj:unknown,status=200)=>NextResponse.json(obj,{status,headers:{"Cache-Control":"no-store"}});
 export async function GET(req:NextRequest){
@@ -15,7 +16,8 @@ export async function GET(req:NextRequest){
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  if(!mailReady())return reply({error:"Password recovery email is not configured yet."},503);
- if(new URL(req.url).origin!==canonical||req.headers.get("origin")!==canonical)return reply({error:"Invalid origin"},403);
+ const canonical=applicationOrigin(req.url,req.headers.get("host"));
+ if(!canonical||new URL(req.url).origin!==canonical||req.headers.get("origin")!==canonical)return reply({error:"Invalid origin"},403);
  if(Number(req.headers.get("content-length"))>2048)return reply({error:"Invalid request"},413);
  const text=await req.text();if(Buffer.byteLength(text)>2048)return reply({error:"Invalid request"},413);
  let input:{action?:string;email?:string;token?:string;password?:string};
