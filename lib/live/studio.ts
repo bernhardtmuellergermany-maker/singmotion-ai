@@ -44,6 +44,28 @@ const policyReviewKey = (p: StudioPolicy) =>
       ]),
     )
     .digest("hex");
+/** Expose only fixed-format, server-generated diagnostics, never provider URLs or secrets.
+ * A terminal failure may still have incurred a BytePlus charge; do not retry.
+ */
+export function studioFailedProjectStage(
+  failureCode: string | null,
+  diagnostic: string | null,
+): string {
+  const safeCode = failureCode && /^[A-Z][A-Z0-9_]{2,79}$/.test(failureCode)
+    ? failureCode
+    : "FAILED_WITHOUT_CODE";
+  const messages: Record<string, string> = {
+    PROVIDER_JOB_FAILED: "BytePlus reported a terminal task failure.",
+    CONTENT_PREFILTER_REJECTED: "BytePlus rejected the content before generation.",
+    MISSING_OUTPUT: "BytePlus marked the task complete without an output URL.",
+    INVALID_OUTPUT: "The generated MP4 failed validation.",
+    OUTPUT_HOST_REJECTED: "The output URL was rejected by the private download safety check.",
+  };
+  // Diagnostics from pollError are server-owned, but do not return raw values
+  // from legacy records: codes alone suffice to locate the underlying error.
+  void diagnostic;
+  return `${messages[safeCode] || "The video could not be completed."} [${safeCode}] Do not submit the same paid task again before checking BytePlus billing and status.`;
+}
 export interface StudioProject {
   id: string;
   hidden: boolean;
@@ -210,7 +232,7 @@ export class StudioWorkflow {
       digest: a.contractDigest || null,
       stage:
         a.state === "failed"
-          ? stages.failed
+          ? studioFailedProjectStage(a.failureCode, row.diagnostic)
           : row.diagnostic || stages[a.state] || a.state,
       outputReady: a.state === "completed" && !!a.outputPath,
     };
