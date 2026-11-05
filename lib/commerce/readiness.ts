@@ -29,7 +29,11 @@ export function customerLaunchReadiness(env:Record<string,string|undefined>=proc
   try{
    // Fail the whole checkout when any required provider or private R2 secret
    // is missing. This check never sends a charge or provider request.
-   loadBytePlusCredentials(env);
+   const byteplus=loadBytePlusCredentials(env);
+   // Avoid treating placeholder strings like "false" or "test" as a configured
+   // production provider account. These checks are not proof of authorization.
+   if(byteplus.accessKeyId.length<8||byteplus.secretAccessKey.length<16)
+    throw Error("BytePlus credentials look like placeholders");
    loadR2Config(env);
    const root=env.DATA_DIR;
    if(!root||!path.isAbsolute(root))throw Error("Private data directory required");
