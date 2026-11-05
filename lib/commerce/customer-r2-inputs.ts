@@ -71,10 +71,6 @@ export class CustomerR2PrivateInputDelivery implements PrivateInputDelivery{
   const audioKey=`${prefix}/${media.audioSha256}.mp3`;
   const imageKey=`${prefix}/${media.imageSha256}.${format==="jpeg"?"jpg":"png"}`;
   // Durable ownership and nonretryable manifest before the first external R2 call.
-  this.store.db.exec(`CREATE TABLE IF NOT EXISTS customer_provider_input_leases(
-   order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,audio_key TEXT UNIQUE NOT NULL,
-   image_key TEXT UNIQUE NOT NULL,expires_at INTEGER NOT NULL,state TEXT NOT NULL
-   CHECK(state IN ('uploading','ready','requires-review')))`);
   const inserted=this.store.db.prepare(`
    INSERT OR IGNORE INTO customer_provider_input_leases
     (order_id,account_id,audio_key,image_key,expires_at,state)
