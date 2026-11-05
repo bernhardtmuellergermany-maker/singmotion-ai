@@ -197,9 +197,14 @@ async function handler(
       if (auth)
         return json({
           owner: auth.owner,
-          balance: balance(auth.owner),
-          demo: true,
+          balance: liveCustomer ? 0 : balance(auth.owner),
+          demo: !liveCustomer,
+          account: liveCustomer,
         });
+      // Never mint anonymous/demo credits or a guest media workspace in
+      // public customer Production. Log in to obtain a private owner session.
+      if(liveCustomer)
+        throw new AppError("Sign in to create your private music video workspace.",401);
       limit("session:global", 120);
       const created = createSession();
       auth = { owner: created.owner, admin: 0 };
@@ -309,7 +314,7 @@ async function handler(
 
     if (method !== "GET") limit(`${owner}:write`, 60);
     if (route === "session" && method === "GET")
-      return json({ owner, balance: balance(owner), demo: true });
+      return json({ owner, balance: liveCustomer ? 0 : balance(owner), demo: !liveCustomer, account: liveCustomer });
     if (route === "assets" && method === "POST") {
       limit(`${owner}:upload`, 15);
       const form = await new Response(
