@@ -30,7 +30,7 @@ export async function readOnlyStripeLivePreflight(
  const check=(name:string,ok:boolean)=>{checks.push({name,ok});return ok};
  const environment=check("real-production-environment",env.RAILWAY_ENVIRONMENT_ID===PRODUCTION);
  const key=env.STRIPE_SECRET_KEY||"";
- const credential=check("live-secret-key-format",/^sk_live_[A-Za-z0-9_]+$/.test(key));
+ const credential=check("live-secret-key-format",/^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key));
  const webhookConfigured=check("live-webhook-signing-secret",/^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||""));
  const origin=safeOrigin(env.PUBLIC_SITE_ORIGIN);
  check("public-https-origin",origin!==null);
