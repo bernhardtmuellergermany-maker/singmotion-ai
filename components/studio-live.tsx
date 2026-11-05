@@ -358,7 +358,7 @@ export function StudioLiveControl({
         }
         onClick={() => void prepare()}
       >
-        {superAdmin ? "Prepare video — no provider request" : "Review real video cost — no paid request"}
+        {superAdmin ? "Echtes Video generieren (BytePlus, kostenpflichtig)" : "Review real video cost — no paid request"}
       </button>
       {error && (
         <p role="alert" className="error">
