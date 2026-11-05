@@ -7,6 +7,7 @@ import {
   issuePrivateGateTicket,
   validPrivateGateTicket,
   PRIVATE_GATE_TTL_SECONDS,
+  privateGateMutationOriginAllowed,
 } from "../lib/staging.ts";
 const env = {
   STAGING_AUTH_ENABLED: "true",
@@ -92,4 +93,26 @@ test("signed preview ticket does not override unsafe Production configuration", 
   ]) {
     assert.equal(stagingAccess(header, {...prod,...patch}),503);
   }
+});
+
+test("mobile CMS POST trusts configured public HTTPS origin, not internal Railway localhost", () => {
+  const config = {
+    ...env,
+    APP_ORIGIN: "https://singmotion-ai-production.up.railway.app",
+    CMS_ORIGIN: "https://singmotion-ai-production.up.railway.app",
+  };
+  const internal = "http://localhost:8080";
+  const external = "https://singmotion-ai-production.up.railway.app";
+  assert.equal(privateGateMutationOriginAllowed(external, "/api/cms/staff/login", internal, config), true);
+  assert.equal(privateGateMutationOriginAllowed(external, "/api/session", internal, config), true);
+  for (const forged of [
+    null, "null", internal, "http://singmotion-ai-production.up.railway.app",
+    external + ".evil.example", "https://evil.example", external + "/",
+  ]) {
+    assert.equal(privateGateMutationOriginAllowed(forged, "/api/cms/staff/login", internal, config), false);
+  }
+  assert.equal(privateGateMutationOriginAllowed("https://evil.example", "/api/session", internal, config), false);
+  const split = {...config, APP_ORIGIN:"https://app.example", CMS_ORIGIN:"https://cms.example"};
+  assert.equal(privateGateMutationOriginAllowed("https://cms.example", "/api/cms/staff/login", internal, split), true);
+  assert.equal(privateGateMutationOriginAllowed("https://app.example", "/api/cms/staff/login", internal, split), false);
 });
