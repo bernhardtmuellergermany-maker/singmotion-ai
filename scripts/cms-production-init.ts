@@ -8,9 +8,12 @@ import type { PostgresAdapter } from "@payloadcms/db-postgres";
 import { sql } from "@payloadcms/db-postgres";
 import config from "../payload.config.ts";
 const env = process.env;
+if (env.CMS_PRODUCTION_SCHEMA_INIT_ENABLED !== "true") {
+  console.log("CMS_SCHEMA_INIT_DISABLED: no migration attempted.");
+  process.exit(0);
+}
 if (env.RAILWAY_ENVIRONMENT_ID !== "36adc41d-7e54-4396-ad1a-fd432ba0441d" ||
     env.CMS_ENABLED !== "true" ||
-    env.CMS_PRODUCTION_SCHEMA_INIT_ENABLED !== "true" ||
     env.STAGING_AUTH_ENABLED !== "true" ||
     env.PRODUCTION_PUBLIC_ACCESS_ENABLED !== "false" ||
     !env.CMS_DATABASE_URL) {
