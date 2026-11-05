@@ -13,12 +13,8 @@ export async function submitReviewedPaidVideo(
     submit: (media: PreparedMedia, orderId: string) => Promise<string>;
     verify?: (media: PreparedMedia) => Promise<void>;
     /** Trusted, independently reviewed all-inclusive BytePlus ceiling, never browser-supplied. */
-    providerCost: {
-      inclusiveMaxMicroUsd: number;
-      dailyCapMicroUsd: number;
-      lifetimeCapMicroUsd: number;
-      reviewEvidence: string;
-    };
+    providerCost: {inclusiveMaxMicroUsd:number;dailyCapMicroUsd:number;lifetimeCapMicroUsd:number;reviewEvidence:string} |
+      ((media:PreparedMedia)=>{inclusiveMaxMicroUsd:number;dailyCapMicroUsd:number;lifetimeCapMicroUsd:number;reviewEvidence:string});
   },
 ): Promise<"already-claimed" | "submitted" | "submission-uncertain"> {
   if (!/^[a-f0-9-]{36}$/.test(orderId)) throw Error("Invalid paid order reference");
@@ -32,7 +28,8 @@ export async function submitReviewedPaidVideo(
   await (operations.verify ?? verifyPrivatePaidMediaSnapshot)(media);
   // Reserve worst-case inclusive provider spending before crossing the irreversible
   // submission boundary. Ambiguous attempts keep their full reservation.
-  store.reservePaidProviderSpend(orderId, operations.providerCost);
+  const reviewedCost=typeof operations.providerCost==="function" ? operations.providerCost(media) : operations.providerCost;
+  store.reservePaidProviderSpend(orderId, reviewedCost);
   // Check the immutable order commitment before crossing the paid provider boundary.
   if (!store.beginPaidProviderSubmission(orderId)) return "submission-uncertain";
   try {
