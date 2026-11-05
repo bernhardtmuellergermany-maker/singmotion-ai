@@ -4,6 +4,7 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
+import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 function valid(raw:Buffer,signature:string,secret:string){
  const parts=signature.split(",").map(p=>p.trim().split("="));
@@ -14,11 +15,15 @@ function valid(raw:Buffer,signature:string,secret:string){
 }
 export async function POST(req:NextRequest){
  const secret=process.env.STRIPE_HOBBY_WEBHOOK_SECRET;
- if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.env.HOBBY_SUBSCRIPTIONS_ENABLED!=="true"||!secret?.startsWith("whsec_")||!process.env.STRIPE_SECRET_KEY?.startsWith("sk_test_"))return NextResponse.json({error:"Unavailable"},{status:503});
+ const mode=configuredStripePaymentMode(process.env);
+ if(!mode||process.env.HOBBY_SUBSCRIPTIONS_ENABLED!=="true"||
+    !/^whsec_[A-Za-z0-9_]+$/.test(secret||""))
+  return NextResponse.json({error:"Unavailable"},{status:503});
+ const expectedLive=mode==="live";
  const raw=Buffer.from(await req.arrayBuffer());if(raw.length>128*1024)return NextResponse.json({error:"Payload too large"},{status:413});
  if(!valid(raw,req.headers.get("stripe-signature")||"",secret))return NextResponse.json({error:"Invalid signature"},{status:400});
  const event=JSON.parse(raw.toString("utf8")) as {id?:string;livemode?:boolean;type?:string;data?:{object?:Record<string,unknown>}};
- if(event.livemode!==false||!event.id?.startsWith("evt_"))return NextResponse.json({error:"Invalid event"},{status:400});
+ if(event.livemode!==expectedLive||!event.id?.startsWith("evt_"))return NextResponse.json({error:"Invalid event"},{status:400});
  if(!["customer.subscription.created","customer.subscription.updated","customer.subscription.deleted","invoice.paid","invoice.payment_failed"].includes(event.type||""))return NextResponse.json({received:true});
  const obj=event.data?.object;
  const invoiceSubscription=event.type?.startsWith("invoice.")?(typeof obj?.subscription==="string"?obj.subscription:(obj?.parent as {subscription_details?:{subscription?:string}}|undefined)?.subscription_details?.subscription):undefined;
@@ -28,7 +33,7 @@ export async function POST(req:NextRequest){
  const response=await fetch("https://api.stripe.com/v1/subscriptions/"+encodeURIComponent(subId)+"?expand%5B%5D=latest_invoice",{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
  if(!response.ok)return NextResponse.json({error:"Subscription verification unavailable"},{status:503});
  const current=await response.json() as {id:string;livemode:boolean;status:string;metadata?:Record<string,string>;items?:{data?:{price?:{id?:string}}[]};current_period_start?:number;current_period_end?:number;latest_invoice?:{paid?:boolean;status?:string;lines?:{data?:{price?:{id?:string};period?:{start?:number;end?:number}}[]}}|string;cancel_at_period_end?:boolean};
- if(current.livemode!==false||current.id!==subId)return NextResponse.json({error:"Invalid Stripe subscription"},{status:400});
+ if(current.livemode!==expectedLive||current.id!==subId)return NextResponse.json({error:"Invalid Stripe subscription"},{status:400});
  const accountId=current.metadata?.singmotionAccountId;
  if(typeof accountId!=="string"||!accountId||current.metadata?.singmotionPlan!=="hobby"||!current.items?.data?.some(x=>x.price?.id===process.env.STRIPE_HOBBY_PRICE_ID))return NextResponse.json({received:true});
  const item=current.items?.data?.[0] as {current_period_start?:number;current_period_end?:number}|undefined;
