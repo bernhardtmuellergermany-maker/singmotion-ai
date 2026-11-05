@@ -30,6 +30,8 @@ export function GenerationDialog({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [pilot, setPilot] = useState<boolean | null>(null),
+    [superAdmin, setSuperAdmin] = useState(false),
+    [loginBusy, setLoginBusy] = useState(false),
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
     [customerCheckoutEnabled,setCustomerCheckoutEnabled] = useState(false),
@@ -49,6 +51,7 @@ export function GenerationDialog({
       api<{ version: string }>("rights"),
       api<{
         pilot?: boolean;
+        superAdmin?: boolean;
         available: boolean;
         blockers: string[];
       }>("studio-live"),
@@ -57,6 +60,7 @@ export function GenerationDialog({
         if (current) {
           setTerms(t.version);
           setPilot(r.pilot === true);
+          setSuperAdmin(r.superAdmin === true);
           setBlockers(r.blockers || []);
         }
       })
