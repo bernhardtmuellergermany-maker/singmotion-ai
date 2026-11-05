@@ -17,7 +17,6 @@ import {createSignedTransport} from "../live/signed-transport.ts";
 import {BytePlusProtocol} from "../live/byteplus.ts";
 import {loadR2Config} from "../live/r2-config.ts";
 import {privateOutputTransport} from "../live/output-transport.ts";
-import {dataDir} from "../db.ts";
 
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 export type ReviewedCustomerWorkerPolicy={
