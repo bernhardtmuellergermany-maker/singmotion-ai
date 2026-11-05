@@ -213,7 +213,23 @@ export function StudioLiveControl({
   ].filter(
     (reason): reason is string => typeof reason === "string" && !!reason,
   );
-  if (!pilot) return null;
+  if (!pilot) {
+    return (
+      <section aria-label="Super Admin Studio access" className="prompt-preview">
+        <h3>OmniHuman 2.0 · Echtes Video erstellen</h3>
+        <p>Die Demo-Schaltfläche oben erzeugt kein BytePlus-Video. Melde dich als
+          Super Admin an, um hier dein echtes Video vorzubereiten und zu generieren.</p>
+        <p>
+          BytePlus-Richtwert:{" "}
+          <strong>{nominalProviderMicroUsd === null ? "–" : usd(nominalProviderMicroUsd)}</strong>
+          {" "}bei angenommenen 0,07 USD je generierter Sekunde, ohne Steuern und Gebühren.
+        </p>
+        <Link className="button primary" href="/operator-signin">
+          Super-Admin-Anmeldung öffnen
+        </Link>
+      </section>
+    );
+  }
   async function prepare(repeatOf?: string) {
     ++reviewRevision.current;
     setBusy(true);
