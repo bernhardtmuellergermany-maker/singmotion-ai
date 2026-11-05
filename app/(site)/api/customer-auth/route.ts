@@ -3,10 +3,10 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,limit,createAccountMediaSession,revokeMediaSession,session} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
+import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled} from "@/lib/commerce/customer-live-config";
 import {applicationOrigin} from "@/lib/request-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
-const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env);
+const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env) || productionPrivateCustomerPreviewEnabled(process.env);
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;

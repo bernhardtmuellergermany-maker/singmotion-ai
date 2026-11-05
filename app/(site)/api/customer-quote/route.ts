@@ -5,7 +5,7 @@ import {PlanLedger, quotePlanSeconds} from "@/lib/commerce/plans";
 import {PromotionLedger} from "@/lib/commerce/promotions";
 import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
+import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled} from "@/lib/commerce/customer-live-config";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,14 +20,14 @@ const reply = (body:unknown,status=200) => NextResponse.json(body,{status,header
 export async function GET(req:NextRequest) {
  const denied=stagingDenial(req.headers.get("authorization"));
  if(denied)return denied;
- if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !productionCustomerReleaseApproved(process.env)) ||
+ if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !(productionCustomerReleaseApproved(process.env)||productionPrivateCustomerPreviewEnabled(process.env))) ||
     process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
    return reply({error:"Unavailable"},403);
  const raw=new URL(req.url).searchParams.get("seconds");
- if(!raw || !/^(?:[5-9]|[12][0-9]|30)(?:\.\d{1,3})?$/.test(raw))
-   return reply({error:"Expected video duration between 5 and 30 seconds (up to three decimals)."},400);
+ if(!raw || !/^(?:[5-9]|[1-9][0-9]|[12][0-9]{2}|300)(?:\.\d{1,3})?$/.test(raw))
+   return reply({error:"Expected video duration between 5 and 300 seconds (up to three decimals)."},400);
  const seconds=Number(raw);
- if(seconds<5 || seconds>30)return reply({error:"Invalid duration"},400);
+ if(seconds<5 || seconds>300)return reply({error:"Invalid duration"},400);
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try {
    const accountId=store.session(req.cookies.get("sm_customer")?.value||"");

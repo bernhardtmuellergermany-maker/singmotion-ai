@@ -12,6 +12,7 @@ on:
       - fix/stripe-live-permissions-20261105
       - fix/stripe-endive-hobby-invoice-20261105
       - feat/production-r2-readonly-preflight-20261105
+      - feat/production-private-customer-preview-300s-20261105
   push:
     branches:
       - fix/tempo-distinguish-provider-errors-20261028
@@ -23,6 +24,7 @@ on:
       - fix/stripe-live-permissions-20261105
       - fix/stripe-endive-hobby-invoice-20261105
       - feat/production-r2-readonly-preflight-20261105
+      - feat/production-private-customer-preview-300s-20261105
   workflow_dispatch:
 
 permissions:
