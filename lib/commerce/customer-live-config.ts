@@ -38,8 +38,8 @@ export function productionCustomerReleaseApproved(env:Record<string,string|undef
    "CUSTOMER_PAID_WORKER_ENABLED","CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED",
    "CUSTOMER_R2_STORAGE_ENABLED"].every(key=>env[key]==="true") &&
   env.CMS_ENABLED==="true" &&
-  Boolean(env.CMS_DATABASE_URL?.trim()) &&
-  Boolean(env.PAYLOAD_SECRET?.trim()) &&
+  /^postgres(?:ql)?:\/\/[^\s]+$/.test(env.CMS_DATABASE_URL||"") &&
+  (env.PAYLOAD_SECRET||"").length>=32 &&
   /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SUPPORT_CONTACT_VERIFIED||"") &&
   env.CUSTOMER_PRODUCTION_PROVIDER_BUDGET_APPROVED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
