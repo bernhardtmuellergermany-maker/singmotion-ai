@@ -20,6 +20,11 @@ export const PRODUCTION_CUSTOMER_PROOFS=Object.freeze([
  "MEDIA_RETENTION_NOTICE_FLOW_VERIFIED",
  "COST_ALERTS_AND_KILL_SWITCH_VERIFIED",
  "LEGAL_REVIEW_APPROVED",
+ "FREE_PROMO_FULFILLMENT_E2E_VERIFIED",
+ "PRODUCTION_CMS_MIGRATION_VERIFIED",
+ "PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED",
+ "PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED",
+ "CMS_PUBLISHED_CONTENT_RECONCILED",
 ] as const);
 
 export function productionCustomerReleaseApproved(env:Record<string,string|undefined>):boolean{
@@ -32,6 +37,10 @@ export function productionCustomerReleaseApproved(env:Record<string,string|undef
    "CUSTOMER_FULFILLMENT_ENABLED","CUSTOMER_DELIVERY_ENABLED",
    "CUSTOMER_PAID_WORKER_ENABLED","CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED",
    "CUSTOMER_R2_STORAGE_ENABLED"].every(key=>env[key]==="true") &&
+  env.CMS_ENABLED==="true" &&
+  /^postgres(?:ql)?:\/\/[^\s]+$/.test(env.CMS_DATABASE_URL||"") &&
+  (env.PAYLOAD_SECRET||"").length>=32 &&
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SUPPORT_CONTACT_VERIFIED||"") &&
   env.CUSTOMER_PRODUCTION_PROVIDER_BUDGET_APPROVED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
   Number.isSafeInteger(Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)) &&

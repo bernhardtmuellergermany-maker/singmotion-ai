@@ -4,8 +4,10 @@
  */
 import {customerLaunchReadiness} from "./readiness.ts";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
-const events=["checkout.session.completed","checkout.session.async_payment_succeeded",
+const videoEvents=["checkout.session.completed","checkout.session.async_payment_succeeded",
  "refund.created","refund.updated","charge.dispute.created"] as const;
+const hobbyEvents=["customer.subscription.created","customer.subscription.updated",
+ "customer.subscription.deleted","invoice.paid","invoice.payment_failed"] as const;
 type Fetcher=(input:string,init:RequestInit)=>Promise<Response>;
 export type StripePreflightResult={
  environment:"production"; account:string; checks:{name:string;ok:boolean}[];
@@ -32,11 +34,13 @@ export async function readOnlyStripeLivePreflight(
  const webhookConfigured=check("live-webhook-signing-secret",/^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||""));
  const origin=safeOrigin(env.PUBLIC_SITE_ORIGIN);
  check("public-https-origin",origin!==null);
- const priceId=env.STRIPE_HOBBY_LIVE_PRICE_ID||"";
+ const priceId=env.STRIPE_HOBBY_PRICE_ID||"";
  const hasPrice=check("separate-hobby-live-price",/^price_[A-Za-z0-9_]+$/.test(priceId));
+ const hobbyWebhook=check("live-hobby-webhook-signing-secret",
+  /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_HOBBY_WEBHOOK_SECRET||""));
  // The connection cannot access live Stripe outside real Production. This
  // protects private Staging from accidentally using an operator's live key.
- if(environment&&credential&&webhookConfigured&&origin&&hasPrice){
+ if(environment&&credential&&webhookConfigured&&hobbyWebhook&&origin&&hasPrice){
   const request=async(url:string):Promise<Record<string,unknown>|null>=>{
    try{
     const response=await fetcher(url,{
@@ -65,19 +69,24 @@ export async function readOnlyStripeLivePreflight(
    price.tax_behavior==="inclusive"&&recurring?.interval==="month"&&
    recurring?.interval_count===1&&recurring?.usage_type==="licensed");
   const items=Array.isArray(webhooks?.data)?webhooks.data:[];
-  check("verified-live-checkout-webhook",
-   items.some(value=>{
+  // Video purchases and Hobby subscriptions use separate signing secrets.
+  // Both endpoints must exist in the same Live account before admitting
+  // either type of charge, otherwise fulfillment/quota may never arrive.
+  const endpoint=(route:string,required:readonly string[])=>items.some(value=>{
     if(!value||typeof value!=="object")return false;
     const hook=value as Record<string,unknown>;
     const enabled=hook.enabled_events;
     return hook.livemode===true&&hook.status==="enabled"&&
-     hook.url===origin+"/api/stripe-webhook"&&
-     Array.isArray(enabled)&&events.every(t=>enabled.includes(t)||enabled.includes("*"));
-   }));
+     hook.url===origin+route &&
+     Array.isArray(enabled)&&required.every(t=>enabled.includes(t)||enabled.includes("*"));
+  });
+  check("verified-live-checkout-webhook",endpoint("/api/stripe-webhook",videoEvents));
+  check("verified-live-hobby-webhook",endpoint("/api/hobby-webhook",hobbyEvents));
  }else{
   check("stripe-account-accepts-charges",false);
   check("hobby-price-is-active-inclusive-eur-monthly",false);
   check("verified-live-checkout-webhook",false);
+  check("verified-live-hobby-webhook",false);
  }
  const stripeConfigurationVerified=checks.every(c=>c.ok);
  // Even a fully configured Stripe account does NOT prove that customers can

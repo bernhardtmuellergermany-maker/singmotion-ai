@@ -5,17 +5,24 @@ const env={
  RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
  STRIPE_SECRET_KEY:"sk_live_fixture_for_readonly_testing",
  STRIPE_WEBHOOK_SECRET:"whsec_fixture_for_readonly_testing",
- STRIPE_HOBBY_LIVE_PRICE_ID:"price_live_testfixture",
+ STRIPE_HOBBY_PRICE_ID:"price_live_testfixture",
+ STRIPE_HOBBY_WEBHOOK_SECRET:"whsec_hobby_testfixture",
  PUBLIC_SITE_ORIGIN:"https://singmotion.example",
 };
 const account={object:"account",id:"acct_fixture",charges_enabled:true,details_submitted:true};
-const price={id:env.STRIPE_HOBBY_LIVE_PRICE_ID,livemode:true,active:true,
+const price={id:env.STRIPE_HOBBY_PRICE_ID,livemode:true,active:true,
  currency:"eur",unit_amount:499,tax_behavior:"inclusive",recurring:{
   interval:"month",interval_count:1,usage_type:"licensed"}};
-const endpoint={data:[{url:env.PUBLIC_SITE_ORIGIN+"/api/stripe-webhook",
- livemode:true,status:"enabled",enabled_events:["checkout.session.completed",
- "checkout.session.async_payment_succeeded","refund.created","refund.updated",
- "charge.dispute.created"]}]};
+const endpoint={data:[
+ {url:env.PUBLIC_SITE_ORIGIN+"/api/stripe-webhook",
+  livemode:true,status:"enabled",enabled_events:["checkout.session.completed",
+  "checkout.session.async_payment_succeeded","refund.created","refund.updated",
+  "charge.dispute.created"]},
+ {url:env.PUBLIC_SITE_ORIGIN+"/api/hobby-webhook",
+  livemode:true,status:"enabled",enabled_events:["customer.subscription.created",
+  "customer.subscription.updated","customer.subscription.deleted",
+  "invoice.paid","invoice.payment_failed"]},
+]};
 function mock(objects:Record<string,unknown>,calls:string[]){
  return async(input:string,init:RequestInit)=>{
   calls.push(input);
@@ -41,7 +48,7 @@ test("Stripe read-only live preflight calls only GET and does not approve unavai
  const output=JSON.stringify(result);
  assert.equal(output.includes(env.STRIPE_SECRET_KEY),false);
  assert.equal(output.includes(env.STRIPE_WEBHOOK_SECRET),false);
- assert.equal(output.includes(env.STRIPE_HOBBY_LIVE_PRICE_ID),false);
+ assert.equal(output.includes(env.STRIPE_HOBBY_PRICE_ID),false);
 });
 test("Stripe preflight refuses live network outside production even with live credentials",async()=>{
  let called=0;
@@ -59,7 +66,8 @@ test("Stripe preflight rejects public URL spoofing, test keys and missing price 
   {PUBLIC_SITE_ORIGIN:"https://user@singmotion.example"},
   {PUBLIC_SITE_ORIGIN:"https://singmotion.example/admin"},
   {STRIPE_SECRET_KEY:"sk_test_fixture"},
-  {STRIPE_HOBBY_LIVE_PRICE_ID:"price_live/../../evil"},
+  {STRIPE_HOBBY_PRICE_ID:"price_live/../../evil"},
+  {STRIPE_HOBBY_WEBHOOK_SECRET:"invalid"},
   {STRIPE_WEBHOOK_SECRET:"missing"},
  ]) {
   let calls=0;
@@ -80,9 +88,11 @@ test("Stripe preflight rejects inactive wrong-amount wrong-mode or unverified we
   {[priceUrl]:{...price,livemode:false}},
   {[priceUrl]:{...price,tax_behavior:"exclusive"}},
   {[accountUrl]:{...account,charges_enabled:false}},
-  {[hooksUrl]:{data:[{...endpoint.data[0],livemode:false}]}},
-  {[hooksUrl]:{data:[{...endpoint.data[0],enabled_events:["checkout.session.completed"]}]}},
-  {[hooksUrl]:{data:[{...endpoint.data[0],url:"https://evil.example/api/stripe-webhook"}]}},
+  {[hooksUrl]:{data:[{...endpoint.data[0],livemode:false},endpoint.data[1]]}},
+  {[hooksUrl]:{data:[{...endpoint.data[0],enabled_events:["checkout.session.completed"]},endpoint.data[1]]}},
+  {[hooksUrl]:{data:[{...endpoint.data[0],url:"https://evil.example/api/stripe-webhook"},endpoint.data[1]]}},
+  {[hooksUrl]:{data:[endpoint.data[0],{...endpoint.data[1],livemode:false}]}},
+  {[hooksUrl]:{data:[endpoint.data[0],{...endpoint.data[1],enabled_events:["invoice.paid"]}]}},
  ];
  for(const o of bad){
   const result=await readOnlyStripeLivePreflight(env,mock({...valid,...o},[]));
