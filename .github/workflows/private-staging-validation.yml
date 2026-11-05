@@ -6,11 +6,13 @@ on:
       - fix/tempo-distinguish-provider-errors-20261028
       - feat/super-admin-promo-codes-20261103
       - feat/automatic-customer-video-worker-20261105
+      - feat/owner-confirmed-byteplus-pricing-checkout-20261105
   push:
     branches:
       - fix/tempo-distinguish-provider-errors-20261028
       - feat/super-admin-promo-codes-20261103
       - feat/automatic-customer-video-worker-20261105
+      - feat/owner-confirmed-byteplus-pricing-checkout-20261105
   workflow_dispatch:
 
 permissions:
