@@ -144,6 +144,28 @@ export function GenerationDialog({
     projectName,
     requestKey,
   ]);
+  async function signInOperator(event: import("react").FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loginBusy) return;
+    const form = event.currentTarget, data = new FormData(form);
+    setLoginBusy(true); setError("");
+    try {
+      const response = await fetch("/api/cms/staff/login", {
+        method: "POST", credentials: "same-origin",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email: data.get("email"), password: data.get("password")}),
+      });
+      form.reset();
+      if (!response.ok) throw Error("Super-Admin-Anmeldung fehlgeschlagen.");
+      const access = await api<{pilot?: boolean; superAdmin?: boolean; blockers?: string[]}>("studio-live");
+      setSuperAdmin(access.superAdmin === true);
+      setPilot(access.pilot === true);
+      setBlockers(access.blockers || []);
+      if (!access.superAdmin || !access.pilot)
+        throw Error("Dieses Konto ist nicht für private Super-Admin-Generierung freigegeben.");
+    } catch (cause) { setError((cause as Error).message); }
+    finally { setLoginBusy(false); }
+  }
   async function prepareCustomerOrder() {
     if (busy || !rights || !customerOrdersAvailable || !terms ||
       promoCode.trim().toUpperCase()!==appliedPromo) return;
