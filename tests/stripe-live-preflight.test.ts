@@ -48,7 +48,7 @@ test("Stripe read-only live preflight calls only GET and does not approve unavai
  const output=JSON.stringify(result);
  assert.equal(output.includes(env.STRIPE_SECRET_KEY),false);
  assert.equal(output.includes(env.STRIPE_WEBHOOK_SECRET),false);
- assert.equal(output.includes(env.STRIPE_HOBBY_LIVE_PRICE_ID),false);
+ assert.equal(output.includes(env.STRIPE_HOBBY_PRICE_ID),false);
 });
 test("Stripe preflight refuses live network outside production even with live credentials",async()=>{
  let called=0;
