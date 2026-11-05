@@ -10,6 +10,7 @@ on:
       - feat/stripe-live-customer-release-preflight-20261105
       - fix/production-customer-session-and-release-safety-20261105
       - fix/stripe-live-permissions-20261105
+      - fix/stripe-endive-hobby-invoice-20261105
   push:
     branches:
       - fix/tempo-distinguish-provider-errors-20261028
@@ -19,6 +20,7 @@ on:
       - feat/stripe-live-customer-release-preflight-20261105
       - fix/production-customer-session-and-release-safety-20261105
       - fix/stripe-live-permissions-20261105
+      - fix/stripe-endive-hobby-invoice-20261105
   workflow_dispatch:
 
 permissions:

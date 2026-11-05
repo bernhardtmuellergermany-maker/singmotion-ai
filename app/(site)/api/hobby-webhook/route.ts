@@ -5,6 +5,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
 import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {hobbyInvoicePaidThrough} from "@/lib/commerce/stripe-hobby-invoice";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 function valid(raw:Buffer,signature:string,secret:string){
  const parts=signature.split(",").map(p=>p.trim().split("="));
@@ -32,7 +33,7 @@ export async function POST(req:NextRequest){
  // Read fresh state from Stripe, not a potentially outdated out-of-order webhook payload.
  const response=await fetch("https://api.stripe.com/v1/subscriptions/"+encodeURIComponent(subId)+"?expand%5B%5D=latest_invoice",{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
  if(!response.ok)return NextResponse.json({error:"Subscription verification unavailable"},{status:503});
- const current=await response.json() as {id:string;livemode:boolean;status:string;metadata?:Record<string,string>;items?:{data?:{price?:{id?:string}}[]};current_period_start?:number;current_period_end?:number;latest_invoice?:{paid?:boolean;status?:string;lines?:{data?:{price?:{id?:string};period?:{start?:number;end?:number}}[]}}|string;cancel_at_period_end?:boolean};
+ const current=await response.json() as {id:string;livemode:boolean;status:string;metadata?:Record<string,string>;items?:{data?:{price?:{id?:string};current_period_start?:number;current_period_end?:number}[]};current_period_start?:number;current_period_end?:number;latest_invoice?:{paid?:boolean;status?:string;lines?:{data?:{price?:string|{id?:string};pricing?:{type?:string;price_details?:{price?:string|{id?:string}}};period?:{start?:number;end?:number}}[]}}|string;cancel_at_period_end?:boolean};
  if(current.livemode!==expectedLive||current.id!==subId)return NextResponse.json({error:"Invalid Stripe subscription"},{status:400});
  const accountId=current.metadata?.singmotionAccountId;
  if(typeof accountId!=="string"||!accountId||current.metadata?.singmotionPlan!=="hobby"||!current.items?.data?.some(x=>x.price?.id===process.env.STRIPE_HOBBY_PRICE_ID))return NextResponse.json({received:true});
@@ -40,7 +41,7 @@ export async function POST(req:NextRequest){
  const periodEnd=Number(item?.current_period_end||current.current_period_end||0)*1000;
  const periodStart=Number(item?.current_period_start||current.current_period_start||0)*1000;
  const invoice=typeof current.latest_invoice==="object"?current.latest_invoice:null;
- const paidPeriod=invoice?.paid===true&&invoice.status==="paid"&&invoice.lines?.data?.some(line=>line.price?.id===process.env.STRIPE_HOBBY_PRICE_ID&&Number(line.period?.end)*1000>=periodEnd);
+ const paidPeriod=hobbyInvoicePaidThrough(invoice,process.env.STRIPE_HOBBY_PRICE_ID||"",periodEnd);
  const paidThrough=paidPeriod?periodEnd:0;
  const status=current.status==="active"&&periodStart>0&&periodStart<=Date.now()&&periodEnd>Date.now()&&paidThrough>=periodEnd?"active":"inactive";
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
