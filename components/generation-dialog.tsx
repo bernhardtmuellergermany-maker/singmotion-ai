@@ -271,7 +271,7 @@ export function GenerationDialog({
       onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
       <h2 id="confirm-generation-title">Confirm generation</h2>
       <div className="sm-confirm-summary">
-        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : pilot === true ? "Estimated provider base cost (not customer price)" : "Customer price"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : "Being calculated") : "Not available yet"}</strong></div>
+        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : "BytePlus-Basispreis (geschätzt, zzgl. möglicher Gebühren)"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`}</strong></div>
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
