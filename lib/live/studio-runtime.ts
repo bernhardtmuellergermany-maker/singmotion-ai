@@ -61,8 +61,21 @@ export function studioRuntime(
         // A missing operator file is not a BytePlus requirement. The private
         // Super Admin can use an explicit conservative, server-owned bootstrap.
         // Existing but invalid policies remain blocked; customers never fall back.
-        if (superAdmin && error instanceof PolicyError && error.code === "POLICY_MISSING") {
-          return superAdminRuntimeBootstrapPolicy();
+        if (
+          superAdmin &&
+          error instanceof PolicyError &&
+          error.code === "POLICY_MISSING" &&
+          !env.STUDIO_LIVE_POLICY_JSON
+        ) {
+          // Never hide a malformed, unreadable or stale existing operator file.
+          let fileMissing = false;
+          try {
+            await stat(path.join(root, "studio-live-policy.json"));
+          } catch (failure) {
+            if ((failure as NodeJS.ErrnoException).code !== "ENOENT") throw failure;
+            fileMissing = true;
+          }
+          if (fileMissing) return superAdminRuntimeBootstrapPolicy();
         }
         throw error;
       }
