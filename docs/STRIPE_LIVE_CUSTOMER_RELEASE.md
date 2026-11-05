@@ -17,36 +17,55 @@ actually deployed. The Free/Hobby per-video pricing remains in
 `lib/commerce/plans.ts`; Stripe Checkout video line-item totals come only
 from immutable, server-reviewed customer orders.
 
-## Production is still a separate, blocked environment
+## Verified Production status — 5 November 2026, 11:20 CET
 
-Railway Production app: `singmotion-ai-production.up.railway.app` —
+Railway Production app: `singmotion-ai-production.up.railway.app`,
 environment `36adc41d-7e54-4396-ad1a-fd432ba0441d`.
-The Stripe Live API returned **zero registered webhook endpoints** on 5 November
-2026. The new read-only live preflight now requires *both* the one-time video
-and monthly Hobby webhook and their separate signing secrets. Never direct
-active live webhooks at the old demonstration runtime; install the reviewed
-Production code and verify persistence/fulfillment first.
+The current running protected service is Git commit
+`9928dcb657c0874856038c33db2551326adca9e6` on
+`feat/production-r2-readonly-preflight-20261105`; app and Postgres are online.
 
-As checked 5 November 2026 it runs historical `main`; **no** Stripe live
-`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, BytePlus or R2 access credential
-names are configured in the application service. The Stripe ChatGPT account
-connection does not export credentials into Railway or create any webhook.
+Stripe Live has **two active account webhook endpoints** with the five exactly
+required events for each route, and Railway Production contains both distinct
+webhook-signing-secret variable names. The existing EUR 4.99 tax-inclusive
+monthly Hobby Price remains `price_1UYKjSBAVolbZIfAeeyiF1lx`.
+The owner installed a restricted `rk_live_` API key; the application accepts
+either restricted `rk_live_` or `sk_live_` keys only under its separate Live
+release requirements. The connected Railway integration reveals variable names,
+not secret values, so it cannot by itself attest valid secrets or signatures.
 
-Do not copy Staging's database, Basic Auth/password, keys, ledger or live
-customer data. Do not start charging clients before new provider fulfillment,
-private delivery, migration and backups succeed in Production.
+Railway Production now contains all six **BytePlus + Cloudflare R2** required
+credential variable names. The current Production service printed
+`PRODUCTION_R2_READONLY_PREFLIGHT verified` at startup: a private R2
+`HeadBucket` succeeded **without writing objects**. This is positive
+connectivity evidence, **not** proof of customer input upload, output retrieval,
+retention, signed downloads or the first paid BytePlus task. The BytePlus
+credentials were not validated by an actual provider task or billing record.
+
+**Customer checkout, public access, Hobby subscription sales, paid worker and
+BytePlus dispatch remain disabled.** Two unauthenticated synthetic webhook POST
+checks returned HTTP 503 while launch gates were closed; they were NOT positive
+Stripe-signature verifications. Do not claim paid delivery end-to-end.
+
+Do not copy Staging database, demo accounts, provider budgets or customer data
+into Production. The operator expressly chose a previous code deployment without
+a volume backup; this does **not** satisfy the separate
+`BACKUP_RESTORE_EXERCISE_VERIFIED` launch proof, which must remain false until
+genuinely demonstrated. Confirm real production backup/restore, legal/tax,
+bounded BytePlus billing, output hosts, zero-EUR Free/Hobby fulfillment and
+the signed live payment/refund/dispute flows before any public launch.
 
 ### Production-only server secrets (set directly in Railway's sealed secrets)
 
-- `STRIPE_SECRET_KEY`: actual `sk_live_...` for the connected account
+- `STRIPE_SECRET_KEY`: actual `rk_live_...` (restricted) or `sk_live_...` for the connected account
 - `STRIPE_WEBHOOK_SECRET`: the `whsec_...` for the production single-video
   endpoint `https://singmotion-ai-production.up.railway.app/api/stripe-webhook`
 - `STRIPE_HOBBY_WEBHOOK_SECRET`: a separately signed `whsec_...` for
   `https://singmotion-ai-production.up.railway.app/api/hobby-webhook`
 - `STRIPE_HOBBY_PRICE_ID=price_1UYKjSBAVolbZIfAeeyiF1lx`
 - Production-only BytePlus AK/SK and Cloudflare R2 account/bucket/key/secret
-  from the owner, scoped to the production private assets; never expose these
-  in browser code or logs.
+  from the owner, scoped to production private assets. Their variable names are
+  installed; never expose the values in browser code or logs.
 
 Single-video endpoint events: `checkout.session.completed`,
 `checkout.session.async_payment_succeeded`, `refund.created`,
