@@ -47,3 +47,23 @@ export function productionCustomerReleaseApproved(env:Record<string,string|undef
   Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)>0 &&
   Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)<=Date.now();
 }
+
+/** Private Production account-and-quote preview ONLY. Basic Auth and all
+ * monetary/provider operations remain closed; never a customer launch approval.
+ * This enables account UI evaluation while the release evidence is incomplete.
+ */
+export function productionPrivateCustomerPreviewEnabled(env:Record<string,string|undefined>):boolean{
+ return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
+  env.PRODUCTION_PRIVATE_CUSTOMER_PREVIEW_ENABLED==="true" &&
+  env.STAGING_AUTH_ENABLED==="true" &&
+  typeof env.STAGING_PASSWORD==="string" && env.STAGING_PASSWORD.length>=32 &&
+  env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="false" &&
+  env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="false" &&
+  env.STRIPE_LIVE_CHECKOUT_ENABLED==="false" &&
+  env.HOBBY_SUBSCRIPTIONS_ENABLED==="false" &&
+  env.CUSTOMER_PAID_WORKER_ENABLED==="false" &&
+  env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED==="false" &&
+  env.DEMO_MODE==="true" &&
+  env.GENERATIONS_ENABLED==="false" &&
+  env.ADMIN_DEMO_ENABLED==="false";
+}
