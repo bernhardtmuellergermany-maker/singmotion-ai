@@ -11,7 +11,7 @@ type InvoiceLine={
 };
 type PaidInvoice={
  paid?:unknown;status?:unknown;
- lines?:{data?:InvoiceLine[]}|null;
+ lines?:{data?:unknown[]}|null;
 }|null|undefined;
 function priceId(value:PriceReference):string|null {
  if(typeof value==="string")return value;
@@ -25,13 +25,16 @@ export function hobbyInvoicePaidThrough(invoice:PaidInvoice,expectedPriceId:stri
  if(!Array.isArray(invoice.lines?.data))return false;
  return invoice.lines.data.some(line=>{
    if(!line||typeof line!=="object")return false;
+   // Stripe JSON must be checked at runtime before accessing nested fields.
+   const item=line as InvoiceLine;
+   const pricing=item.pricing;
+   if(pricing && typeof pricing!=="object")return false;
    // Never treat a pricing.type other than price_details as the correct plan.
-   const pricing=line.pricing;
    const matched=pricing?
      pricing.type==="price_details"&&
      priceId(pricing.price_details?.price)===expectedPriceId:
-     priceId(line.price)===expectedPriceId;
-   const endSeconds=line.period?.end;
+     priceId(item.price)===expectedPriceId;
+   const endSeconds=item.period?.end;
    return matched&&typeof endSeconds==="number"&&
      Number.isSafeInteger(endSeconds)&&endSeconds>0&&
      endSeconds*1000>=periodEndMs;
