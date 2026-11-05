@@ -46,8 +46,7 @@ export async function studioReadiness(
       503,
     );
 }
-export function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = process.env, superAdmin = false) {
-  async () => {
+export async function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = process.env, superAdmin = false) {
       try {
         return await loadStudioPolicy(root, !superAdmin);
       } catch (error) {
@@ -72,8 +71,8 @@ export function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = p
         }
         throw error;
       }
-    }
 }
+
 export function studioRuntime(
   store: LiveTestStore,
   root: string,
