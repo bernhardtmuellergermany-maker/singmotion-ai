@@ -17,7 +17,7 @@ export function CustomerVideoCheckout({orderId,staging}:{orderId:string;staging:
    if(!response.ok||typeof body.url!=="string")throw Error(body.error||"Checkout is unavailable.");
    const redirect=new URL(body.url);
    if(redirect.protocol!=="https:"||
-      !["checkout.stripe.com","checkout.stripe.dev"].includes(redirect.hostname)||
+      redirect.hostname!=="checkout.stripe.com"||
       redirect.username||redirect.password)throw Error("Invalid Stripe Checkout destination.");
    // Only a server-verified Stripe Checkout URL is allowed; never accept a
    // browser-supplied price, payment status or arbitrary redirect.
