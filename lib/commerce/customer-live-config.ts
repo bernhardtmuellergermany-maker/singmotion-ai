@@ -26,6 +26,12 @@ export function productionCustomerReleaseApproved(env:Record<string,string|undef
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
   configuredStripePaymentMode(env)==="live" &&
   PRODUCTION_CUSTOMER_PROOFS.every(key=>env[key]==="true") &&
+  // The public gate must include the runtime switches, not just dated human
+  // release attestations, or the site could open while fulfillment was off.
+  ["CUSTOMER_ACCOUNTS_ENABLED","CUSTOMER_GENERATION_ENABLED",
+   "CUSTOMER_FULFILLMENT_ENABLED","CUSTOMER_DELIVERY_ENABLED",
+   "CUSTOMER_PAID_WORKER_ENABLED","CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED",
+   "CUSTOMER_R2_STORAGE_ENABLED"].every(key=>env[key]==="true") &&
   env.CUSTOMER_PRODUCTION_PROVIDER_BUDGET_APPROVED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
   Number.isSafeInteger(Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)) &&
