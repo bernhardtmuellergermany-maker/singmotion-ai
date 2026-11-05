@@ -157,6 +157,14 @@ export function StudioLiveControl({
       .then(refreshReadiness)
       .catch(() => {});
   }, [refreshReadiness]);
+  // Display a non-binding provider base estimate before a reviewed plan exists.
+  // This is the model's nominal USD 0.07 per generated second, not a quote
+  // for actual generated length, tax, minimums, processing or provider fees.
+  const excerptSeconds = selection ? Math.max(0, selection.end - selection.start) : 0;
+  const nominalProviderMicroUsd =
+    Number.isFinite(excerptSeconds) && excerptSeconds > 0
+      ? Math.ceil(excerptSeconds * 70000)
+      : null;
   const plan =
     reviewedPlan && selectionIdentity(reviewedPlan.selection) === selectionKey
       ? reviewedPlan
@@ -269,6 +277,17 @@ export function StudioLiveControl({
       <p>
         {superAdmin ? "Super Admin generation: no internal test budget or duration-band approval. BytePlus charges still apply. Media and task safety checks remain active." : "Real provider charges. Use a reviewed duration band and the server-approved limit. Customer payment is separate."}
       </p>
+      {superAdmin && (
+        <p role="status" aria-label="BytePlus provider cost estimate">
+          <strong>BytePlus-Richtwert für {excerptSeconds.toFixed(1)} Sekunden:{" "}
+            {nominalProviderMicroUsd === null ? "–" : usd(nominalProviderMicroUsd)}
+          </strong>
+          {" "}bei angenommenen 0,07 USD pro generierter Sekunde, vor eventuellen
+          Steuern, Mindestgebühren und Abweichungen der tatsächlichen Videolänge.
+          Dies ist kein verbindlicher Preis. Dein Super-Admin-Zugang benötigt keinen
+          Stripe-Checkout.
+        </p>
+      )}
       {blockers.map((b) => (
         <p role="status" key={b}>
           {b}
@@ -298,7 +317,7 @@ export function StudioLiveControl({
       <button
         className="button outline"
         disabled={
-          !available ||
+          (!superAdmin && !available) ||
           busy ||
           disabled ||
           !selection ||
