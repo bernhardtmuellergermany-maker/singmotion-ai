@@ -50,6 +50,11 @@ export interface VerifiedContract {
     transfer?: { maxBytes: number; timeoutMs: number; evidence: string };
   };
   outputHosts: readonly string[];
+  /** Private Super Admin bootstrap only: signed BytePlus result selects one host,
+   * then pinned public DNS/TLS/redirect checks apply. Never browser supplied. */
+  trustSignedProviderOutputHost?: boolean;
+  /** Permit 720p output metadata inspection rather than a fabricated codec/FPS. */
+  discover720p?: boolean;
 }
 
 // Not configurable through environment variables: credentials or a checkbox cannot

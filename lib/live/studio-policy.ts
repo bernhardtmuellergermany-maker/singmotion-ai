@@ -83,7 +83,7 @@ export function validateStudioPolicy(
     planUpperBoundMicroUsd(b.maxInputSeconds, c);
     if (
       !Array.isArray(c.outputHosts) ||
-      !c.outputHosts.length ||
+      (c.outputHosts.length === 0 && !(c.trustSignedProviderOutputHost === true && c.discover720p === true && c.revision.startsWith("super-admin-runtime-"))) ||
       c.outputHosts.length > 8
     )
       throw Error();

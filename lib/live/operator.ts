@@ -61,7 +61,7 @@ export class OperatorWorkflow {
       !Number.isSafeInteger(contract.inputFetchWindowSeconds) ||
       contract.inputFetchWindowSeconds! <
         inputDeliveryPolicy.minimumRemainingSeconds ||
-      !contract.outputHosts.length ||
+      (!contract.outputHosts.length && !contract.trustSignedProviderOutputHost) ||
       !Number.isSafeInteger(contract.output.width) ||
       contract.output.width <= 0 ||
       !Number.isSafeInteger(contract.output.height) ||
