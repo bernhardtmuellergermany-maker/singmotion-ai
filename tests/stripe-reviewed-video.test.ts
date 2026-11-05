@@ -6,6 +6,8 @@ import { CommerceStore } from "../lib/commerce/store.ts";
 import { PlanLedger } from "../lib/commerce/plans.ts";
 import { submitReviewedPaidVideo } from "../lib/commerce/paid-video-worker.ts";
 
+const approvedProviderCost={inclusiveMaxMicroUsd:700000,dailyCapMicroUsd:5000000,lifetimeCapMicroUsd:25000000,reviewEvidence:"reviewed-inclusive-provider-pricing-test-only"};
+
 const media = {
   owner:"test-owner",audioPath:"/private/audio.wav",imagePath:"/private/image.png",
   audioSha256: "a".repeat(64), imageSha256: "b".repeat(64),
@@ -95,7 +97,7 @@ test("trusted worker dispatches verified paid media exactly once", async () => {
       currency:"EUR" as const,evidence:"cs_test_worker",
     };}});
     let submits=0;
-    const ops={prepare:async()=>media,verify:async()=>{},submit:async()=>{submits++;return "provider_job_123";}};
+    const ops={providerCost:approvedProviderCost,prepare:async()=>media,verify:async()=>{},submit:async()=>{submits++;return "provider_job_123";}};
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"submitted");
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
     assert.equal(submits,1);
@@ -115,7 +117,7 @@ test("ambiguous paid provider response never triggers automatic retry", async ()
       currency:"EUR" as const,evidence:"cs_test_uncertain",
     };}});
     let calls=0;
-    const ops={prepare:async()=>media,verify:async()=>{},submit:async()=>{calls++;throw Error("response lost");}};
+    const ops={providerCost:approvedProviderCost,prepare:async()=>media,verify:async()=>{},submit:async()=>{calls++;throw Error("response lost");}};
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"submission-uncertain");
     assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
     assert.equal(calls,1);
@@ -157,6 +159,7 @@ test("paid worker defaults to saved customer snapshot without browser-provided m
     const observed: PreparedMedia[] = [];
     assert.equal(await submitReviewedPaidVideo(store,id,{
       verify:async()=>{},
+      providerCost:approvedProviderCost,
       submit:async(prepared)=>{observed.push(prepared);return "provider_saved_001";},
     }),"submitted");
     assert.equal(observed[0]?.imageSha256,media.imageSha256);

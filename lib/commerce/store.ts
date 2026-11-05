@@ -51,6 +51,8 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_provider_cost_reservations(order_id TEXT PRIMARY KEY,inclusive_micro_usd INTEGER NOT NULL,review_hash TEXT NOT NULL,reserved_at INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_provider_input_leases(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,audio_key TEXT UNIQUE NOT NULL,image_key TEXT UNIQUE NOT NULL,expires_at INTEGER NOT NULL,state TEXT NOT NULL CHECK(state IN ('uploading','ready','requires-review')));
  CREATE TABLE IF NOT EXISTS commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL);`);
   }
   private txDepth = 0;
@@ -839,6 +841,56 @@ export class CommerceStore {
       ORDER BY q.created ASC,q.order_id ASC LIMIT ?
     `).all(limit);
     return rows.map(row=>String(row.order_id));
+  }
+  /** Persist the reviewed *provider* cost ceiling independently of the customer
+   * sale price. A timeout/uncertain provider task retains its full reservation.
+   * Serializes concurrent workers across all customer accounts in SQLite.
+   * Never accepts a price or cap supplied by an HTTP client.
+   */
+  reservePaidProviderSpend(orderId: string, policy: {
+    inclusiveMaxMicroUsd: number;
+    dailyCapMicroUsd: number;
+    lifetimeCapMicroUsd: number;
+    reviewEvidence: string;
+  }): boolean {
+    const {inclusiveMaxMicroUsd: cost,dailyCapMicroUsd: daily,
+      lifetimeCapMicroUsd: lifetime,reviewEvidence: evidence}=policy;
+    if (![cost,daily,lifetime].every(n=>Number.isSafeInteger(n)&&n>0&&n<=1_000_000_000) ||
+        cost>daily||cost>lifetime||typeof evidence!=="string" ||
+        evidence.trim().length<20||evidence.length>2048)
+      throw Error("Reviewed inclusive provider cost policy required");
+    return this.tx(()=>{
+      const fingerprint=hash(evidence);
+      const prior=this.db.prepare(
+        "SELECT inclusive_micro_usd,review_hash FROM customer_provider_cost_reservations WHERE order_id=?"
+      ).get(orderId) as {inclusive_micro_usd:number;review_hash:string}|undefined;
+      if(prior){
+        if(prior.inclusive_micro_usd!==cost||prior.review_hash!==fingerprint)
+          throw Error("Provider cost reservation conflict");
+        return false;
+      }
+      const eligible=this.db.prepare(`
+        SELECT 1 FROM customer_fulfillment_queue q
+        JOIN customer_orders o ON o.id=q.order_id
+        WHERE q.order_id=? AND q.state='processing' AND o.status='paid'
+      `).get(orderId);
+      if(!eligible)throw Error("Verified paid order claim required for provider budget");
+      const since=Date.now()-86400000;
+      const totals=this.db.prepare(`
+        SELECT COALESCE(SUM(inclusive_micro_usd),0) AS lifetime,
+               COALESCE(SUM(CASE WHEN reserved_at>=? THEN inclusive_micro_usd ELSE 0 END),0) AS daily
+        FROM customer_provider_cost_reservations
+      `).get(since) as {lifetime:number;daily:number};
+      if(!Number.isSafeInteger(totals.lifetime)||!Number.isSafeInteger(totals.daily)||
+         totals.daily+cost>daily||totals.lifetime+cost>lifetime)
+        throw Error("Provider spending budget exhausted");
+      this.db.prepare(`
+        INSERT INTO customer_provider_cost_reservations(order_id,inclusive_micro_usd,review_hash,reserved_at)
+        VALUES(?,?,?,?)
+      `).run(orderId,cost,fingerprint,Date.now());
+      this.audit("fulfillment-worker","provider-cost-reserved",orderId);
+      return true;
+    });
   }
   /** Reserve a paid job once. Never reclaim an ambiguous processing job automatically. */
   claimPaidFulfillment(orderId: string): boolean {

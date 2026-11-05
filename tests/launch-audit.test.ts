@@ -103,10 +103,34 @@ test("synthetic green approval flags never override disconnected payment and pro
  const audit=auditSingMotionLaunch(verified(production),"production");
  assert.equal(audit.ready,false);
  assert.equal(audit.gates.find(g=>g.id==="code-runtime-readiness")?.ready,false);
- assert.ok(audit.gates.filter(g=>g.id!=="code-runtime-readiness").every(g=>g.ready));
+ assert.ok(audit.gates.filter(g=>!["code-runtime-readiness","all-customer-generation"].includes(g.id)).every(g=>g.ready));
 });
 test("staging operator approvals alone cannot enable public customer checkout",()=>{
  const audit=auditSingMotionLaunch(verified(staging),"staging");
  assert.equal(audit.ready,false);
  assert.equal(audit.gates.find(g=>g.id==="code-runtime-readiness")?.ready,false);
+});
+
+test("all customer accounts remain blocked by actual runtime even with every operator signoff",()=>{
+ for(const environment of ["staging","production"] as const){
+  const env:Record<string,string|undefined>=verified(environment==="staging"?staging:production);
+  env.CUSTOMER_ACCOUNTS_ENABLED="true";
+  env.CUSTOMER_ORDER_PREPARATION_ENABLED="true";
+  env.BYTEPLUS_STUDIO_ENABLED="true";
+  env.GENERATIONS_ENABLED="true";
+  env.STRIPE_CHECKOUT_ENABLED="true";
+  env.FREE_PROMO_FULFILLMENT_E2E_VERIFIED="true";
+  const audit=auditSingMotionLaunch(env,environment);
+  assert.equal(audit.ready,false);
+  assert.equal(audit.gates.find(g=>g.id==="all-customer-generation")?.ready,false);
+  assert.equal(audit.gates.find(g=>g.id==="code-runtime-readiness")?.ready,false);
+ }
+});
+
+test("missing regular customer accounts cannot be disguised as an admin-only pilot",()=>{
+ const env:Record<string,string|undefined>=verified(staging);
+ env.BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS="some-operator";
+ const audit=auditSingMotionLaunch(env,"staging");
+ assert.equal(audit.gates.find(g=>g.id==="all-customer-generation")?.ready,false);
+ assert.ok(audit.gates.find(g=>g.id==="all-customer-generation")?.reason.includes("Free and Hobby"));
 });
