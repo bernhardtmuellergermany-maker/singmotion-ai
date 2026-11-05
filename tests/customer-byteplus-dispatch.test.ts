@@ -75,12 +75,12 @@ test("authenticated paid customer submits once with durable spend and task recor
   store.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(account,"buyer@example.test","test-hash",Date.now());
   const id=store.preparedVideoOrder({
    account,email:"buyer@example.test",project:"reviewed-song",
-   cents:1250,quoteEvidence:"reviewed-inclusive-verified-customer-quote",
+   cents:125,quoteEvidence:"reviewed-inclusive-verified-customer-quote",
    key:"customer-byteplus-offline-1",media,
   }).id;
   store.bindStripeCheckout(id,"cs_test_dispatch_customer_1");
   await store.webhook(new Uint8Array(),"signed",{async verify(){return {
-   eventId:"evt_dispatch_customer_1",provider:"stripe",orderId:id,cents:1250,
+   eventId:"evt_dispatch_customer_1",provider:"stripe",orderId:id,cents:125,
    currency:"EUR" as const,evidence:"cs_test_dispatch_customer_1"
   }}});
   const env={RAILWAY_ENVIRONMENT_ID:STAGING,CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true"};
