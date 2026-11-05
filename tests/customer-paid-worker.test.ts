@@ -1,4 +1,6 @@
 import {test} from "node:test";
+import {ownerConfirmedBytePlusPolicy} from "../lib/commerce/owner-confirmed-provider-policy.ts";
+import {planUpperBoundMicroUsd} from "../lib/live/contract.ts";
 import assert from "node:assert/strict";
 import {customerWorkerEnabled,runCustomerPaidWorkerBatch,validateCustomerWorkerPolicy}
  from "../lib/commerce/customer-paid-worker.ts";
@@ -8,6 +10,8 @@ const fullEnv={
  RAILWAY_ENVIRONMENT_ID:staging,
  CUSTOMER_PAID_WORKER_ENABLED:"true",
  CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true",
+ CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING:"true",
+ CUSTOMER_PAID_WORKER_ACTIVATED_AT:"1",
  CUSTOMER_ACCOUNTS_ENABLED:"true",
  CUSTOMER_R2_STORAGE_ENABLED:"true",
  STRIPE_CHECKOUT_ENABLED:"true",
@@ -59,8 +63,17 @@ test("customer paid worker remains inert in Production, without secrets or any p
  });
 });
 
-test("customer worker rejects missing signed review before a payment claim or upload",async()=>{
- await assert.rejects(runCustomerPaidWorkerBatch("/does/not/exist",fullEnv),/ENOENT/);
+test("owner-confirmed policy is usable without a duplicate vendor contract or fabricated surcharges",()=>{
+ const policy=ownerConfirmedBytePlusPolicy();
+ assert.equal(validateCustomerWorkerPolicy(policy).contract.billing.microUsdPerSecond,70_000);
+ assert.equal(policy.contract.billing.fixedFeeMicroUsd,0);
+ assert.equal(policy.contract.billing.taxBasisPointsUpperBound,0);
+ assert.equal(planUpperBoundMicroUsd(5,policy.contract),490_000);
+ assert.equal(planUpperBoundMicroUsd(30,policy.contract),2_240_000);
+ assert.deepEqual(policy.contract.outputHosts,["v16m-default.tiktokcdn.com"]);
+});
+test("customer worker fails before the first claimed order if BytePlus credentials are absent",async()=>{
+ await assert.rejects(runCustomerPaidWorkerBatch("/does/not/exist",fullEnv),/credentials/);
 });
 test("customer provider policy validates a finite reviewed total in an offline fixture",()=>{
  assert.equal(validateCustomerWorkerPolicy(syntheticPolicy()).dailyCapMicroUsd,1_000_000);
