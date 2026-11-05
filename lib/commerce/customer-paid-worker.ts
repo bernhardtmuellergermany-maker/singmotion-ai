@@ -36,6 +36,9 @@ export function customerWorkerEnabled(env:Record<string,string|undefined>){
   env.CUSTOMER_PAID_WORKER_ENABLED==="true" &&
   env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
+  Number.isSafeInteger(Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)) &&
+  Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)>0 &&
+  Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)<=Date.now() &&
   env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
   env.CUSTOMER_R2_STORAGE_ENABLED==="true" &&
   env.STRIPE_CHECKOUT_ENABLED==="true" &&
@@ -123,7 +126,7 @@ export async function runCustomerPaidWorkerBatch(
    transport,privateOutputTransport,AbortSignal.timeout(180000),5);
   result.recovered=recoveries.filter(x=>x.state==="delivered"||x.state==="already-delivered").length;
   result.requiresReview+=recoveries.filter(x=>x.state==="requires-review"||x.state==="unverified").length;
-  for(const orderId of store.pendingPaidFulfillment(limit)){
+  for(const orderId of store.pendingPaidFulfillmentSince(Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT),limit)){
    const lease=new CustomerR2PrivateInputDelivery(store,orderId,root,env);
    try{
     const outcome=await dispatchReviewedCustomerBytePlus(store,orderId,{
