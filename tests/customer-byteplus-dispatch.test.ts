@@ -22,6 +22,7 @@ const contract:VerifiedContract={
 };
 const account="11111111-1111-4111-8111-111111111111";
 const media:PreparedMedia={
+ sourceJobId:"synthetic-customer-source",promptLanguageConfirmed:true,
  owner:`customer-${account}`,audioPath:"/private/input.mp3",imagePath:"/private/image.png",
  audioSha256:"a".repeat(64),imageSha256:"b".repeat(64),
  durationSeconds:5,prompt:"Sing naturally",outputFormat:"9:16"
@@ -50,7 +51,7 @@ test("offline contract computes ceiling from generated duration and includes tax
  assert.match(p.reviewEvidence,/customer-byteplus-v1:/);
  for(const invalid of [
   {...review(),contract:{...contract,pilotAdmission:{inclusiveMaxMicroUsd:499800,
-   evidence:"pilot",planningUpliftBasisPoints:1900,maxGeneratedSeconds:6}}},
+   evidence:"pilot",planningUpliftBasisPoints:1900 as const,maxGeneratedSeconds:6}}},
   {...review(),contract:{...contract,billing:{...contract.billing,taxBasisPointsUpperBound:null}}},
   {...review(),contract:{...contract,inputFetchWindowSeconds:null}},
  ])assert.throws(()=>reviewedCustomerBytePlusCost(media,invalid),/contract required|nonnegative integers/);
