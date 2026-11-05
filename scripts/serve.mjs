@@ -32,6 +32,13 @@ try {
   );
 }
 console.log(`Persistent storage ready (UID ${process.getuid?.()}).`);
+if (process.env.PRODUCTION_R2_READONLY_PREFLIGHT_ENABLED === "true") {
+  // Optional HEAD-only diagnostic. Failure cannot start the paid customer
+  // worker or open public checkout, and never blocks the existing demo server.
+  const { productionR2ReadOnlyPreflight } = await import("./production-r2-readonly-preflight.ts");
+  const status = await productionR2ReadOnlyPreflight();
+  console.log("PRODUCTION_R2_READONLY_PREFLIGHT " + status);
+}
 if(process.env.STAGING_R2_RUNTIME_CANARY_ENABLED==="true"){
   if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.getuid?.()!==1000)
     throw new Error("Private R2 hydration canary is permitted on nonroot Staging only.");
