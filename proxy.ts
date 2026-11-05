@@ -45,9 +45,11 @@ export function proxy(request: NextRequest) {
     )
       return new NextResponse("Public provisioning disabled.", { status: 403 });
   }
-  const response = NextResponse.next({
-    request: {headers},
-  });
+  // Preserve native Basic-Auth forwarding unchanged. Only the cookie-only
+  // fallback needs an injected, independently verified session header.
+  const response = cookieAuthorized
+    ? NextResponse.next({request: {headers}})
+    : NextResponse.next();
   // Only an already validated Basic password may mint a private cookie.
   // A signed ticket can authenticate but cannot extend its own lifetime.
   if (!signedStripeWebhook && stagingEnabled() && !cookieAuthorized &&
