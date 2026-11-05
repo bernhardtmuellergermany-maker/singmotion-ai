@@ -298,6 +298,16 @@ export function GenerationDialog({
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
+      {pilot !== true && !customerOrdersAvailable && (
+        <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Super Admin anmelden">
+          <p>Für echte BytePlus-Videos bitte als Super Admin anmelden. Dein gewähltes Bild und Audio bleiben erhalten.</p>
+          <label>E-Mail <input type="email" name="email" autoComplete="username" required disabled={loginBusy}/></label>
+          <label>Passwort <input type="password" name="password" autoComplete="current-password" required disabled={loginBusy}/></label>
+          <button type="submit" className="product-secondary" disabled={loginBusy}>
+            {loginBusy ? "Anmeldung läuft…" : "Als Super Admin anmelden"}
+          </button>
+        </form>
+      )}
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
       {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
       {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Review and save your order, then use secure Stripe test Checkout on your private order page. Your video will generate automatically after confirmed payment." : "Review and save your order. Secure payment is not available yet."}</p>}
