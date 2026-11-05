@@ -56,9 +56,9 @@ export async function POST(req:NextRequest) {
   const payload=await getPayload({config});
   let id:string|undefined;
   try {
-    id=await payload.db.beginTransaction()||undefined;
+    id=String(await payload.db.beginTransaction() || '') || undefined;
     if(!id)return respond("Database transaction unavailable.",503);
-    const session=(payload.db as PostgresAdapter).sessions[id];
+    const session=(payload.db as unknown as PostgresAdapter).sessions[id];
     await session.db.execute(sql`SELECT pg_advisory_xact_lock(73158012)`);
     const txReq={transactionID:id,context:{provisioning:true}};
     const count=await payload.count({collection:"staff",overrideAccess:true,req:txReq});
