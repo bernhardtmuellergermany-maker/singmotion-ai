@@ -444,7 +444,19 @@ export async function downloadValidatedOutput(
   contract: OutputValidationContract,
   transport: OutputTransport = privateOutputTransport,
 ) {
-  const url = validateOutputUrl(raw, contract.outputHosts);
+  // Only the authenticated BytePlus task-status response may supply the URL
+  // for the private Super Admin bootstrap. The downloader still rejects
+  // non-HTTPS, URL credentials, IP literals, redirects, non-public DNS, and
+  // invalid TLS before transferring a byte.
+  let hosts = contract.outputHosts;
+  if ("trustSignedProviderOutputHost" in contract && contract.trustSignedProviderOutputHost === true) {
+    try {
+      hosts = [new URL(raw).hostname];
+    } catch {
+      throw new Error("Provider output URL is invalid.");
+    }
+  }
+  const url = validateOutputUrl(raw, hosts);
   const limits = outputTransferLimits(contract);
   const response = await transport(url, AbortSignal.timeout(limits.timeoutMs));
   if (response.status !== 200 || !response.body) {
