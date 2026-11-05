@@ -18,7 +18,7 @@ export function configuredStripePaymentMode(env:Record<string,string|undefined>)
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true"&&
     env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"&&
     env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true"&&
-    /^sk_live_[A-Za-z0-9_]+$/.test(key))
+    /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key))
    return "live";
  return null;
 }
@@ -27,6 +27,6 @@ export function stripeSessionIdMatchesMode(value:string,mode:StripePaymentMode):
   /^cs_test_[A-Za-z0-9_]+$/.test(value);
 }
 export function stripeKeyMatchesMode(key:string,mode:StripePaymentMode):boolean{
- return mode==="live"?/^sk_live_[A-Za-z0-9_]+$/.test(key):
+ return mode==="live"?/^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key):
   /^sk_test_[A-Za-z0-9_]+$/.test(key);
 }
