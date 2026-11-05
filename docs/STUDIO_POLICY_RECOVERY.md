@@ -35,6 +35,28 @@ validated historical provider output and an operator-reviewed, inclusive
 billing ceiling. Get the actual BytePlus account terms and evidence before
 generating new paid requests.
 
+## Owner-confirmed price information (5 November 2026)
+
+The owner confirms that their BytePlus OmniHuman 2.0 account is billed at
+**USD 0.07 per second of generated video**, with **no separately charged
+taxes**. This matches the existing internal base-rate constant
+`70000` micro-USD/second; no price-rate code change is necessary.
+
+Illustrative base amounts if exactly the listed duration is billed:
+5 s = USD 0.35, 10 s = USD 0.70, 30 s = USD 2.10,
+60 s = USD 4.20, 300 s = USD 21.00.
+
+**Do not mistake this price confirmation for a complete approval of live
+billing.** It does not establish fractional-second rounding, minimum
+billable duration or charges, failed-request charges, extra processing
+fees (if any), or the generated-duration upper bound. Nor does it supply
+the approved output hostname and media properties. The server policy
+must still be based on the actual contract/output evidence. Do not
+silently substitute `taxBasisPointsUpperBound: 0` into a production
+contract unless zero applicable tax is explicitly supported by the
+relevant account billing evidence. The app's existing Super Admin
+planning allowance is not an invoice promise.
+
 ## Verify before rendering
 
 1. Deploy the reviewed change to staging before production. Keep customer
