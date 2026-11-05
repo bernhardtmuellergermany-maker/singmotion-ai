@@ -79,3 +79,17 @@ test("fresh signed session works in the route-level auth check", () => {
   assert.equal(stagingAccess("SingMotionSession "+ticket+"bad", production),401);
   assert.equal(stagingAccess("Bearer "+ticket, production),401);
 });
+
+test("signed preview ticket does not override unsafe Production configuration", () => {
+  const prod = {...env, RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d"};
+  const ticket = issuePrivateGateTicket(prod);
+  const header = "SingMotionSession " + ticket;
+  for (const patch of [
+    { GENERATIONS_ENABLED:"true" },
+    { ADMIN_DEMO_ENABLED:"true" },
+    { DEMO_MODE:"false" },
+    { STAGING_PASSWORD:"short" },
+  ]) {
+    assert.equal(stagingAccess(header, {...prod,...patch}),503);
+  }
+});
