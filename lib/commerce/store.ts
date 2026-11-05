@@ -826,6 +826,22 @@ export class CommerceStore {
     `).all(limit);
     return rows.map(row => String(row.order_id));
   }
+  /** Automatic activation uses a durable cutoff so old sandbox payments do
+   * not suddenly trigger real provider charges after a new deployment.
+   * Existing acknowledged tasks remain separately eligible for recovery.
+   */
+  pendingPaidFulfillmentSince(activatedAt:number,limit=5):string[]{
+    if(!Number.isSafeInteger(activatedAt)||activatedAt<=0||activatedAt>Date.now()||
+       !Number.isSafeInteger(limit)||limit<1||limit>100)
+      throw Error("Invalid automatic fulfillment cutoff or batch size");
+    const rows=this.db.prepare(`
+      SELECT q.order_id FROM customer_fulfillment_queue q
+      JOIN customer_orders o ON o.id=q.order_id
+      WHERE q.state='pending' AND o.status='paid' AND q.created>=?
+      ORDER BY q.created ASC,q.order_id ASC LIMIT ?
+    `).all(activatedAt,limit);
+    return rows.map(row=>String(row.order_id));
+  }
   /** Recovery discovery only: confirmed provider tasks belonging to paid orders.
    * Does not reclaim unknown submissions or queue fresh provider requests. */
   acknowledgedPaidRecovery(limit = 25): string[] {

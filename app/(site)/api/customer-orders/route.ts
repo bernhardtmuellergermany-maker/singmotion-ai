@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { prepareCustomerStudioOrder } from "@/lib/commerce/prepare-studio-order";
+import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
 import { privateCustomerVideoLinks } from "@/lib/commerce/customer-video-links";
 import { customerOrderStatusFilter, ownedCustomerOrderStatuses } from "@/lib/commerce/customer-orders-query";
+import {requireRights,recordRights} from "@/lib/rights";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,7 +40,7 @@ export async function GET(req: NextRequest) {
   return respond({
     available: process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
       process.env.CUSTOMER_ORDER_PREPARATION_ENABLED === "true",
-    checkoutEnabled: false,
+    checkoutEnabled: customerLaunchReadiness().readyForPaidOrders,
   });
 }
 
@@ -68,6 +70,11 @@ export async function POST(req: NextRequest) {
     const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId);
     if (!account || typeof account.email!=="string")
       return respond({error:"Customer account unavailable."},403);
+    // The customer's browser checkbox alone is not durable authorization.
+    // Require affirmative rights + current legal version at the trusted order
+    // creation boundary, before reserving any price/allowance/promotion.
+    try{requireRights(payload.consent,payload.termsVersion);}
+    catch{return respond({error:"Confirm rights and current terms before ordering."},409);}
     // Historical purchases never count toward an artificial project ceiling.
     // Never accept media owner, price or email from the browser.
     if(payload.promoCode!==undefined &&
@@ -77,6 +84,15 @@ export async function POST(req: NextRequest) {
       accountId,email:String(account.email),mediaOwner:`customer-${accountId}`,
       draft:payload.draft,projectId:payload.projectId,requestKey:payload.requestKey,
       promoCode:typeof payload.promoCode==="string" ? payload.promoCode : undefined,
+    });
+    // Audit the exact server-reviewed media input commitment, not only the
+    // untrusted draft that the browser displayed.
+    const reviewed=store.db.prepare("SELECT input_digest FROM customer_order_inputs WHERE order_id=?")
+      .get(order.id) as {input_digest:string}|undefined;
+    if(!reviewed||!/^[a-f0-9]{64}$/.test(reviewed.input_digest))
+      throw Error("Reviewed media commitment unavailable");
+    recordRights(store.db,accountId,order.id,String(payload.termsVersion),{
+      session:`customer-${accountId}`,content:reviewed.input_digest,
     });
     const saved=store.db.prepare("SELECT price_cents FROM customer_orders WHERE id=?").get(order.id) as {price_cents:number}|undefined;
     const freePromo=store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get()

@@ -32,6 +32,7 @@ export function GenerationDialog({
     [pilot, setPilot] = useState<boolean | null>(null),
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
+    [customerCheckoutEnabled,setCustomerCheckoutEnabled] = useState(false),
     [customerQuote, setCustomerQuote] = useState<{plan:string;includedBalanceSeconds:number;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number;promotion?:{discountCents:number;finalCents:number;kind:string;percent:number|null}|null}|null>(null),
     [promoCode,setPromoCode] = useState(""),
     [appliedPromo,setAppliedPromo] = useState(""),
@@ -42,7 +43,7 @@ export function GenerationDialog({
     let current = true;
     void fetch("/api/customer-orders", { cache: "no-store" })
       .then(async r => r.ok ? r.json() : null)
-      .then(v => { if (current) setCustomerOrdersAvailable(v?.available === true); })
+      .then(v => { if (current) {setCustomerOrdersAvailable(v?.available === true);setCustomerCheckoutEnabled(v?.checkoutEnabled===true);} })
       .catch(() => {});
     void Promise.all([
       api<{ version: string }>("rights"),
@@ -150,6 +151,7 @@ export function GenerationDialog({
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({projectId: requestKey, requestKey, draft: selection,
+          consent:true,termsVersion:terms,
           ...(appliedPromo ? {promoCode:appliedPromo} : {})}),
       });
       const result = await response.json() as {orderId?:string;error?:string};
@@ -272,7 +274,7 @@ export function GenerationDialog({
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
       {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
-      {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Review and save your order. Payment is not available yet.</p>}
+      {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Review and save your order, then use secure Stripe test Checkout on your private order page. Your video will generate automatically after confirmed payment." : "Review and save your order. Secure payment is not available yet."}</p>}
       {blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
