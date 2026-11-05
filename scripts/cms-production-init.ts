@@ -22,7 +22,7 @@ try {
   if (!id) throw new Error("Schema preflight requires a database transaction.");
   let names: string[] = [];
   try {
-    const adapter = payload.db as PostgresAdapter;
+    const adapter = payload.db as unknown as PostgresAdapter;
     const session = adapter.sessions[id];
     const query = await session.db.execute(sql`
       SELECT table_name
