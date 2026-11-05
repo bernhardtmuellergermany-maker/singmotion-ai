@@ -595,7 +595,7 @@ export function LiveProject({ id }: { id: string }) {
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
   const notice = project ? outputNotice(project.state, project.stage, project.createdAt) : null;
-  const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Generating video" : "Preparing project";
+  const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Video status pending" : "Preparing project";
   return (
     <div id="content" className="sm-live-page">
       {error && <p role="alert" className="error">{error}</p>}
@@ -614,7 +614,7 @@ export function LiveProject({ id }: { id: string }) {
                 <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
                 <div className="sm-live-animated">
                   {!failed && <><div className="sm-live-scan"/><div className="sm-live-orbit"/></>}
-                  <strong>{failed?"Generation stopped":project.state==="submitted"?"Waiting for provider":"Creating your performance"}</strong>
+                  <strong>{failed?"Generation stopped":project.state==="submitted"?"Waiting for provider":project.state==="processing"?"Checking video processing status":"Preparing your performance"}</strong>
                   <span>{failed?"Review the project status.":"Preview will appear here when the video is ready."}</span>
                 </div>
               </>}
