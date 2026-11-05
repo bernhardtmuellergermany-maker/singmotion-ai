@@ -132,7 +132,9 @@ export async function validateOutput(
       audio.codec_name !== contract.output.audioCodec) ||
     (contract.discover720p &&
       (!["h264", "hevc"].includes(video.codec_name) ||
-        audio.codec_name !== "aac"))
+        // A restored-tempo export explicitly requires original MP3 packets.
+        // Provider outputs without that explicit override still require AAC.
+        audio.codec_name !== (contract.output.audioCodec ?? "aac")))
   )
     throw new Error("OUTPUT_CODEC_MISMATCH");
   if (
