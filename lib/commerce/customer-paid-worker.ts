@@ -114,7 +114,9 @@ export async function runCustomerPaidWorkerBatch(
  if(!Number.isSafeInteger(limit)||limit<1||limit>5)throw Error("Invalid paid dispatch batch");
  const policy=await loadCustomerWorkerPolicy(root,env);
  // Validate every external dependency BEFORE claiming a single paid order.
- loadBytePlusCredentials(env);
+ const byteplus=loadBytePlusCredentials(env);
+ if(byteplus.accessKeyId.length<8||byteplus.secretAccessKey.length<16)
+  throw Error("BytePlus credentials are not configured");
  loadR2Config(env);
  const store=new CommerceStore(path.join(root,"commerce.sqlite"));
  const transport=createSignedTransport(fetch,()=>loadBytePlusCredentials(env));
