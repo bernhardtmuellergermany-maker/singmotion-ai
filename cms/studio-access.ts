@@ -31,7 +31,17 @@ export function studioStaff(
     throw new StudioLiveError("STAFF_AUTH_REQUIRED", "Invalid operator identity.", 403);
   // A CMS Super Admin role alone never authorizes a billable Studio task.
   // Both super admins and editors require explicit exact operator ID allowlisting.
+  // Private Production Super Admin testing is independent of Stripe and
+  // customer launch. It requires a dedicated switch, Basic Auth and the
+  // authenticated CMS super-admin role; editors always need an allowlist.
+  const privateSuperAdmin =
+    env.RAILWAY_ENVIRONMENT_ID === "36adc41d-7e54-4396-ad1a-fd432ba0441d" &&
+    env.SUPER_ADMIN_PRIVATE_GENERATION_ENABLED === "true" &&
+    env.STAGING_AUTH_ENABLED === "true" &&
+    env.PRODUCTION_PUBLIC_ACCESS_ENABLED === "false" &&
+    hasRole(user, ["super-admin"]);
   if (
+    !privateSuperAdmin &&
     !(env.BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS || "")
       .split(",")
       .map((s) => s.trim())
