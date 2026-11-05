@@ -93,16 +93,11 @@ test("rejection matches source hash or owned source ID, not every unrelated reco
     const old = await source("rejected recording"),
       fresh = await source("independent recording"),
       reupload = await source("rejected recording");
-    rejected(store, { songId: old.id, sourceSha256: old.hash });
+    const rejectedId = rejected(store, { songId: old.id, sourceSha256: old.hash });
     await checkRecordingRejections(root, store, fresh.id, owner, fresh.hash);
-    await assert.rejects(
-      checkRecordingRejections(root, store, old.id, owner, old.hash),
-      /TEMPO_RECORDING_REJECTED/,
-    );
-    await assert.rejects(
-      checkRecordingRejections(root, store, reupload.id, owner, reupload.hash),
-      /TEMPO_RECORDING_REJECTED/,
-    );
+    assert.equal((await checkRecordingRejections(root, store, old.id, owner, old.hash)).previousProviderRejection, true);
+    assert.equal((await checkRecordingRejections(root, store, reupload.id, owner, reupload.hash)).previousProviderRejection, true);
+    assert.equal(store.get(rejectedId).failureCode, "CONTENT_PREFILTER_REJECTED");
     await assert.rejects(
       reviewIndependentRecording(
         root,
@@ -199,18 +194,15 @@ test("unresolved legacy evidence stays intact; explicit review binds new source 
     assert.equal(audit.actor, "staff");
     assert.equal(audit.source_sha256, fresh.hash);
     assert.equal(audit.evidence, evidence);
-    // A reviewed new source that trims to the exact rejected clip remains blocked.
-    await assert.rejects(
-      checkRecordingRejections(
+    // A reviewed new source that trims to a rejected clip is flagged but not blocked.
+    assert.equal((await checkRecordingRejections(
         root,
         store,
         fresh.id,
         owner,
         fresh.hash,
         "a".repeat(64),
-      ),
-      /TEMPO_RECORDING_REJECTED/,
-    );
+      )).previousProviderRejection, true);
     const sameBytesNewId = await source(await readFile(fresh.file, "utf8"));
     await assert.doesNotReject(
       checkRecordingRejections(
@@ -253,10 +245,7 @@ test("retained Studio source mapping establishes identity; missing old bytes are
       .prepare("INSERT INTO live_studio_projects VALUES (?,?)")
       .run(id, JSON.stringify(selection(old.id)));
     await checkRecordingRejections(root, store, fresh.id, owner, fresh.hash);
-    await assert.rejects(
-      checkRecordingRejections(root, store, old.id, owner, old.hash),
-      /TEMPO_RECORDING_REJECTED/,
-    );
+    assert.equal((await checkRecordingRejections(root, store, old.id, owner, old.hash)).previousProviderRejection, true);
     // A corrupt historical mapping to an image is not evidence of a different recording.
     const prior = db.asset(old.id, owner);
     db.db
@@ -272,10 +261,7 @@ test("retained Studio source mapping establishes identity; missing old bytes are
     await assert.doesNotReject(
       checkRecordingRejections(root, store, fresh.id, owner, fresh.hash),
     );
-    await assert.rejects(
-      checkRecordingRejections(root, store, old.id, owner, old.hash),
-      /TEMPO_RECORDING_REJECTED/,
-    );
+    assert.equal((await checkRecordingRejections(root, store, old.id, owner, old.hash)).previousProviderRejection, true);
   } finally {
     store.close();
   }
@@ -331,10 +317,7 @@ test("generic provider rejection does not become content moderation", async () =
       JSON.stringify({ ...store.get(id), failureCode: "CONTENT_PREFILTER_REJECTED" }),
       id,
     );
-    await assert.rejects(
-      checkRecordingRejections(root, store, recording.id, owner, recording.hash),
-      /TEMPO_RECORDING_REJECTED/,
-    );
+    assert.equal((await checkRecordingRejections(root, store, recording.id, owner, recording.hash)).previousProviderRejection, true);
   } finally {
     store.close();
   }

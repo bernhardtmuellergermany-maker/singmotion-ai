@@ -135,12 +135,32 @@ export async function checkRecordingRejections(
   hash: string,
   clipHash?: string,
 ) {
-  const state = await identityState(root, store, songId, owner, hash, clipHash);
-  // Unknown legacy identity is not evidence against this upload. Matching
-  // source/clip hashes and owned source IDs still fail in identityState above.
-  // Preserve every historical record; optional provenance reviews remain useful
-  // audit evidence, but unrelated legacy records cannot lock new Studio jobs.
-  return { unresolvedHistoricalRecords: state.unknown.length };
+  try {
+    const state = await identityState(root, store, songId, owner, hash, clipHash);
+    return {
+      unresolvedHistoricalRecords: state.unknown.length,
+      previousProviderRejection: false,
+    };
+  } catch (error) {
+    // A historical attempt is an audit fact, not a permanent ban on uploading
+    // or reusing an owner's recording. BytePlus still performs independent
+    // content checks for every new paid task; no provider filter is disabled,
+    // no task is resubmitted, and old task/billing records remain unchanged.
+    // Suppress only this exact local historical-rejection gate.
+    if (
+      error instanceof AppError &&
+      error.message.startsWith("[TEMPO_RECORDING_REJECTED]")
+    ) {
+      console.warn("STUDIO_PREVIOUS_PROVIDER_REJECTION_NOTICE", {
+        matchedPreviousProviderRejection: true,
+      });
+      return {
+        unresolvedHistoricalRecords: 0,
+        previousProviderRejection: true,
+      };
+    }
+    throw error;
+  }
 }
 /** Explicit staff assessment of NEW content; never fills in or rewrites legacy provenance. */
 export async function reviewIndependentRecording(
