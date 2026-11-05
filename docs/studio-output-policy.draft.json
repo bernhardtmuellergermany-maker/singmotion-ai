@@ -1,0 +1,53 @@
+{
+  "$schemaDescription": "SingMotion private Studio output policy DRAFT; not a verified production approval. Required null fields must be reviewed. Do NOT copy this draft to STUDIO_LIVE_POLICY_JSON.",
+  "status": "draft_not_approved",
+  "reviewedBy": null,
+  "reviewedAt": null,
+  "expiresAt": null,
+  "billingEvidence": "Operator confirmation 2026-11-05: USD 0.07 per generated-video second, with no separately charged tax. Rounding, minimum charges, other fees and failed-task billing require written provider evidence.",
+  "outputEvidence": null,
+  "contract": {
+    "revision": "DRAFT-NOT-AUTHORIZED",
+    "model": "OmniHuman 2.0",
+    "documentationUrl": "https://docs.byteplus.com/",
+    "maxDurationSeconds": 300,
+    "promptSupported": true,
+    "inputFetchWindowSeconds": 44100,
+    "generatedDurationBound": {
+      "minInputSeconds": 4,
+      "maxInputSeconds": null,
+      "maxAdditionalSeconds": null,
+      "evidence": null
+    },
+    "billing": {
+      "microUsdPerSecond": 70000,
+      "minimumBillableMs": null,
+      "billingQuantumMs": null,
+      "minimumChargeMicroUsd": null,
+      "fixedFeeMicroUsd": null,
+      "taxBasisPointsUpperBound": null
+    },
+    "output": {
+      "width": null,
+      "height": null,
+      "fps": null,
+      "videoCodec": null,
+      "audioCodec": null,
+      "durationToleranceSeconds": null,
+      "maxDurationSeconds": null,
+      "transfer": {
+        "maxBytes": 104857600,
+        "timeoutMs": 120000,
+        "evidence": "SingMotion local output-download safety bound, NOT verified BytePlus output characteristics."
+      }
+    },
+    "outputHosts": []
+  },
+  "administrativePolicy": {
+    "role": "authenticated_super_admin_only",
+    "applicationVideoCountLimit": null,
+    "creditChargeToSuperAdmin": 0,
+    "subscriptionEntitlementRequired": false,
+    "notes": "Unlimited app entitlements do not imply free or literally unlimited third-party provider capacity; each real provider job needs its exact reviewed approval and recovery."
+  }
+}
