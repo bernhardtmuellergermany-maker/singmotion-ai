@@ -132,7 +132,9 @@ export async function validateOutput(
       audio.codec_name !== contract.output.audioCodec) ||
     (contract.discover720p &&
       (!["h264", "hevc"].includes(video.codec_name) ||
-        audio.codec_name !== "aac"))
+        // A restored-tempo export explicitly requires original MP3 packets.
+        // Provider outputs without that explicit override still require AAC.
+        audio.codec_name !== (contract.output.audioCodec ?? "aac")))
   )
     throw new Error("OUTPUT_CODEC_MISMATCH");
   if (
@@ -391,8 +393,7 @@ async function fitValidatedRectangle(
         "-1",
         "-movflags",
         "+faststart",
-        "-fs",
-        String(limits.maxBytes),
+        // Do not use -fs: FFmpeg may truncate MP4 before the final size check.
         normalized,
       ],
       { timeout: 60000, maxBuffer: 1024 * 1024 },
@@ -420,10 +421,15 @@ async function fitValidatedRectangle(
         ) ||
         Math.abs(Number(before.duration) - Number(after.duration)) >
           1 / contract.output.fps ||
+        // MP4 remuxing with stream-copy MP3 may move start_time by one
+        // codec/frame tick while leaving the packet payload unchanged.
+        // Reject shifts beyond one output video frame plus 10ms rounding.
         Math.abs(Number(before.start_time) - Number(after.start_time)) >
-          0.001 ||
+          1 / contract.output.fps + 0.01 ||
         (kind === "video" &&
-          (!before.nb_frames || before.nb_frames !== after.nb_frames))
+          before.nb_frames !== undefined &&
+          after.nb_frames !== undefined &&
+          before.nb_frames !== after.nb_frames)
       )
         throw new Error("OUTPUT_NORMALIZATION_TIMING_FAILED");
     }
@@ -444,7 +450,19 @@ export async function downloadValidatedOutput(
   contract: OutputValidationContract,
   transport: OutputTransport = privateOutputTransport,
 ) {
-  const url = validateOutputUrl(raw, contract.outputHosts);
+  // Only the authenticated BytePlus task-status response may supply the URL
+  // for the private Super Admin bootstrap. The downloader still rejects
+  // non-HTTPS, URL credentials, IP literals, redirects, non-public DNS, and
+  // invalid TLS before transferring a byte.
+  let hosts = contract.outputHosts;
+  if ("trustSignedProviderOutputHost" in contract && contract.trustSignedProviderOutputHost === true) {
+    try {
+      hosts = [new URL(raw).hostname];
+    } catch {
+      throw new Error("Provider output URL is invalid.");
+    }
+  }
+  const url = validateOutputUrl(raw, hosts);
   const limits = outputTransferLimits(contract);
   const response = await transport(url, AbortSignal.timeout(limits.timeoutMs));
   if (response.status !== 200 || !response.body) {

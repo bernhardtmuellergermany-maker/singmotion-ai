@@ -83,7 +83,7 @@ export function validateStudioPolicy(
     planUpperBoundMicroUsd(b.maxInputSeconds, c);
     if (
       !Array.isArray(c.outputHosts) ||
-      !c.outputHosts.length ||
+      (c.outputHosts.length === 0 && !(c.trustSignedProviderOutputHost === true && c.discover720p === true && c.revision.startsWith("super-admin-runtime-"))) ||
       c.outputHosts.length > 8
     )
       throw Error();
@@ -163,14 +163,24 @@ export function selectStudioPolicy(root: StudioPolicy, seconds: number) {
 }
 export async function loadStudioPolicy(root: string, checkExpiry = true) {
   try {
-    const file = await readFile(path.join(root, "studio-live-policy.json"));
+    let file: Buffer;
+    try {
+      file = await readFile(path.join(root, "studio-live-policy.json"));
+    } catch (error) {
+      // Server-owned Railway configuration can replace a missing volume file.
+      // Never override an existing file or hide non-ENOENT read failures.
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      const configured = process.env.STUDIO_LIVE_POLICY_JSON;
+      if (!configured) throw error;
+      file = Buffer.from(configured, "utf8");
+    }
     if (file.length > 65536) throw Error();
     return validateStudioPolicy(JSON.parse(file.toString()), checkExpiry);
   } catch (e) {
     if (e instanceof StudioLiveError) throw e;
     throw new StudioLiveError(
       "POLICY_MISSING",
-      "Server studio-live-policy.json is missing or invalid. No price or provider terms were assumed.",
+      "A valid reviewed Studio policy is required in studio-live-policy.json or the server-only STUDIO_LIVE_POLICY_JSON variable. No price or provider terms were assumed.",
       503,
     );
   }

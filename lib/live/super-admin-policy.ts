@@ -8,7 +8,7 @@ import { validateStudioPolicy, type StudioPolicy } from "./studio-policy.ts";
 export function superAdminStudioPolicy(root: StudioPolicy): StudioPolicy {
   const base = validateStudioPolicy(root, false);
   const contract = structuredClone(base.contract);
-  if (!contract.outputHosts.length) {
+  if (!contract.outputHosts.length && !contract.trustSignedProviderOutputHost) {
     throw new Error("Private output hosts must be configured.");
   }
   // Reuse the existing secure output transport default when the original
@@ -42,7 +42,7 @@ export function superAdminStudioPolicy(root: StudioPolicy): StudioPolicy {
     reviewedBy: "authenticated-super-admin-server-policy",
     reviewedAt: new Date("2026-01-01T00:00:00.000Z").toISOString(),
     expiresAt: "2099-01-01T00:00:00.000Z",
-    billingEvidence: "Operator planning reservation only; taxes, fees and actual billing remain uncertain.",
+    billingEvidence: "Owner-reported USD 0.07 per generated second, no separately charged tax. Unknown rounding and fees: USD 24.99 for a 300s task is an internal planning reservation, NOT a provider guaranteed ceiling.",
     outputEvidence: base.outputEvidence,
   };
   return validateStudioPolicy(policy, false);

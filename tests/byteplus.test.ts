@@ -40,10 +40,12 @@ test("documented requests use the exact 2.0 endpoint, version and body with a si
     image_urls: ["https://input.example.test/i"],
     audio_url: "https://input.example.test/a",
     prompt: "Sing softly. Static close-up.",
+    enable_watermark: false,
   });
   assert.equal(requests[0].headers["Content-Type"], "application/json");
   await protocol.submit({ imageUrl: "i", audioUrl: "a" }, signal());
   assert.equal("prompt" in JSON.parse(requests[1].body), false);
+  assert.equal(JSON.parse(requests[1].body).enable_watermark, false);
   assert.deepEqual(
     JSON.parse(
       wireRequest("CVSync2AsyncGetResult", { task_id: "task-1" }).body,

@@ -47,7 +47,7 @@ export function OperatorLogin() {
               throw new Error(
                 "This account is not authorized for private generation. Contact your administrator.",
               );
-            router.push("/");
+            router.push("/studio");
             router.refresh();
           } catch (cause) {
             setError((cause as Error).message);

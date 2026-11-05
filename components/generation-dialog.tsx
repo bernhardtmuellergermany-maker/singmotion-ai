@@ -30,6 +30,8 @@ export function GenerationDialog({
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
     [pilot, setPilot] = useState<boolean | null>(null),
+    [superAdmin, setSuperAdmin] = useState(false),
+    [loginBusy, setLoginBusy] = useState(false),
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
     [customerCheckoutEnabled,setCustomerCheckoutEnabled] = useState(false),
@@ -49,6 +51,7 @@ export function GenerationDialog({
       api<{ version: string }>("rights"),
       api<{
         pilot?: boolean;
+        superAdmin?: boolean;
         available: boolean;
         blockers: string[];
       }>("studio-live"),
@@ -57,6 +60,7 @@ export function GenerationDialog({
         if (current) {
           setTerms(t.version);
           setPilot(r.pilot === true);
+          setSuperAdmin(r.superAdmin === true);
           setBlockers(r.blockers || []);
         }
       })
@@ -140,6 +144,28 @@ export function GenerationDialog({
     projectName,
     requestKey,
   ]);
+  async function signInOperator(event: import("react").FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (loginBusy) return;
+    const form = event.currentTarget, data = new FormData(form);
+    setLoginBusy(true); setError("");
+    try {
+      const response = await fetch("/api/cms/staff/login", {
+        method: "POST", credentials: "same-origin",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({email: data.get("email"), password: data.get("password")}),
+      });
+      form.reset();
+      if (!response.ok) throw Error("Super-Admin-Anmeldung fehlgeschlagen.");
+      const access = await api<{pilot?: boolean; superAdmin?: boolean; blockers?: string[]}>("studio-live");
+      setSuperAdmin(access.superAdmin === true);
+      setPilot(access.pilot === true);
+      setBlockers(access.blockers || []);
+      if (!access.superAdmin || !access.pilot)
+        throw Error("Dieses Konto ist nicht für private Super-Admin-Generierung freigegeben.");
+    } catch (cause) { setError((cause as Error).message); }
+    finally { setLoginBusy(false); }
+  }
   async function prepareCustomerOrder() {
     if (busy || !rights || !customerOrdersAvailable || !terms ||
       promoCode.trim().toUpperCase()!==appliedPromo) return;
@@ -164,14 +190,13 @@ export function GenerationDialog({
     }
   }
   async function act(repeatOf?: string) {
-    if (lock.current || !rights || !terms || !pilot || blockers.length) return;
+    if (lock.current || !rights || !terms || !pilot || (blockers.length > 0 && !superAdmin)) return;
     lock.current = true;
     setBusy(true);
     setError("");
     try {
       if (!plan || repeatOf) {
-        setPlan(
-          await api<StudioProject>("studio-live", {
+        const prepared = await api<StudioProject>("studio-live", {
             method: "POST",
             body: JSON.stringify({
               action: "prepare",
@@ -184,8 +209,21 @@ export function GenerationDialog({
               english: true,
               ...(repeatOf ? { repeatOf } : {}),
             }),
-          }),
-        );
+        });
+        setPlan(prepared);
+        if (superAdmin && !repeatOf && prepared.state === "prepared" &&
+            prepared.digest && prepared.ceilingMicroUsd && !prepared.providerJobId) {
+          await api("studio-live", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "submit", id: prepared.id, digest: prepared.digest,
+              ceilingMicroUsd: prepared.ceilingMicroUsd, consent: true,
+              termsVersion: terms,
+              confirmation: `CONFIRM PAID STUDIO ${prepared.id} ${prepared.digest} ${prepared.ceilingMicroUsd}${prepared.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
+            }),
+          });
+          router.push(`/projects/live_${prepared.id}`);
+        }
         return;
       }
       if (
@@ -224,15 +262,13 @@ export function GenerationDialog({
     !rights ||
     !terms ||
     pilot !== true ||
-    blockers.length > 0 ||
-    !plan ||
-    !!(
-      plan &&
-      (plan.state !== "prepared" ||
-        !plan.digest ||
-        !plan.ceilingMicroUsd ||
-        plan.budgetBlocker)
-    );
+    (!superAdmin &&
+      (blockers.length > 0 ||
+        !plan ||
+        (plan.state !== "prepared" ||
+          !plan.digest ||
+          !plan.ceilingMicroUsd ||
+          !!plan.budgetBlocker)));
   const selectedSeconds = Math.max(0, selection.end - selection.start);
   const time = (seconds: number) => {
     const centis = Math.round(Math.max(0, seconds) * 100);
@@ -245,7 +281,7 @@ export function GenerationDialog({
       onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
       <h2 id="confirm-generation-title">Confirm generation</h2>
       <div className="sm-confirm-summary">
-        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : pilot === true ? "Estimated provider base cost (not customer price)" : "Customer price"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : "Being calculated") : "Not available yet"}</strong></div>
+        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : "BytePlus-Basispreis (geschätzt, zzgl. möglicher Gebühren)"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`}</strong></div>
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
@@ -272,6 +308,16 @@ export function GenerationDialog({
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
+      {pilot !== true && !customerOrdersAvailable && (
+        <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Super Admin anmelden">
+          <p>Für echte BytePlus-Videos bitte als Super Admin anmelden. Dein gewähltes Bild und Audio bleiben erhalten.</p>
+          <label>E-Mail <input type="email" name="email" autoComplete="username" required disabled={loginBusy}/></label>
+          <label>Passwort <input type="password" name="password" autoComplete="current-password" required disabled={loginBusy}/></label>
+          <button type="submit" className="product-secondary" disabled={loginBusy}>
+            {loginBusy ? "Anmeldung läuft…" : "Als Super Admin anmelden"}
+          </button>
+        </form>
+      )}
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
       {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
       {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Review and save your order, then use secure Stripe test Checkout on your private order page. Your video will generate automatically after confirmed payment." : "Review and save your order. Secure payment is not available yet."}</p>}

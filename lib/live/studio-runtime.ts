@@ -9,7 +9,8 @@ import { createSignedTransport } from "./signed-transport.ts";
 import { loadBytePlusCredentials } from "./signing.ts";
 import { R2PrivateInputDelivery, loadR2Config } from "./r2.ts";
 import { StudioWorkflow } from "./studio.ts";
-import { loadStudioPolicy, studioConfig } from "./studio-policy.ts";
+import { loadStudioPolicy, studioConfig, StudioLiveError as PolicyError } from "./studio-policy.ts";
+import { superAdminRuntimeBootstrapPolicy } from "./super-admin-runtime-bootstrap.ts";
 import type { LiveTestStore } from "./store.ts";
 export async function studioReadiness(
   root: string,
@@ -45,6 +46,33 @@ export async function studioReadiness(
       503,
     );
 }
+export async function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = process.env, superAdmin = false) {
+      try {
+        return await loadStudioPolicy(root, !superAdmin);
+      } catch (error) {
+        // A missing operator file is not a BytePlus requirement. The private
+        // Super Admin can use an explicit conservative, server-owned bootstrap.
+        // Existing but invalid policies remain blocked; customers never fall back.
+        if (
+          superAdmin &&
+          error instanceof PolicyError &&
+          error.code === "POLICY_MISSING" &&
+          !env.STUDIO_LIVE_POLICY_JSON
+        ) {
+          // Never hide a malformed, unreadable or stale existing operator file.
+          let fileMissing = false;
+          try {
+            await stat(path.join(root, "studio-live-policy.json"));
+          } catch (failure) {
+            if ((failure as NodeJS.ErrnoException).code !== "ENOENT") throw failure;
+            fileMissing = true;
+          }
+          if (fileMissing) return superAdminRuntimeBootstrapPolicy();
+        }
+        throw error;
+      }
+}
+
 export function studioRuntime(
   store: LiveTestStore,
   root: string,
@@ -53,7 +81,7 @@ export function studioRuntime(
 ) {
   const resources: R2PrivateInputDelivery[] = [];
   const service = new StudioWorkflow(store, root, studioConfig(env), {
-    policy: () => loadStudioPolicy(root, !superAdmin),
+    policy: () => loadRuntimeStudioPolicy(root, env, superAdmin),
     ready: () => studioReadiness(root, env),
     provider: (policy) => {
       const delivery = new R2PrivateInputDelivery(

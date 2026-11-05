@@ -157,6 +157,14 @@ export function StudioLiveControl({
       .then(refreshReadiness)
       .catch(() => {});
   }, [refreshReadiness]);
+  // Display a non-binding provider base estimate before a reviewed plan exists.
+  // This is the model's nominal USD 0.07 per generated second, not a quote
+  // for actual generated length, tax, minimums, processing or provider fees.
+  const excerptSeconds = selection ? Math.max(0, selection.end - selection.start) : 0;
+  const nominalProviderMicroUsd =
+    Number.isFinite(excerptSeconds) && excerptSeconds > 0
+      ? Math.ceil(excerptSeconds * 70000)
+      : null;
   const plan =
     reviewedPlan && selectionIdentity(reviewedPlan.selection) === selectionKey
       ? reviewedPlan
@@ -205,7 +213,23 @@ export function StudioLiveControl({
   ].filter(
     (reason): reason is string => typeof reason === "string" && !!reason,
   );
-  if (!pilot) return null;
+  if (!pilot) {
+    return (
+      <section aria-label="Super Admin Studio access" className="prompt-preview">
+        <h3>OmniHuman 2.0 · Echtes Video erstellen</h3>
+        <p>Die Demo-Schaltfläche oben erzeugt kein BytePlus-Video. Melde dich als
+          Super Admin an, um hier dein echtes Video vorzubereiten und zu generieren.</p>
+        <p>
+          BytePlus-Richtwert:{" "}
+          <strong>{nominalProviderMicroUsd === null ? "–" : usd(nominalProviderMicroUsd)}</strong>
+          {" "}bei angenommenen 0,07 USD je generierter Sekunde, ohne Steuern und Gebühren.
+        </p>
+        <Link className="button primary" href="/operator-signin">
+          Super-Admin-Anmeldung öffnen
+        </Link>
+      </section>
+    );
+  }
   async function prepare(repeatOf?: string) {
     ++reviewRevision.current;
     setBusy(true);
@@ -230,6 +254,20 @@ export function StudioLiveControl({
       setPlan(result);
       setConfirmed(approval);
       saveReceipt(result, approval);
+      if (superAdmin && !repeatOf && result.state === "prepared" &&
+          !result.providerJobId && result.digest &&
+          result.ceilingMicroUsd !== null && result.ceilingMicroUsd > 0) {
+        await api("studio-live", {
+          method: "POST",
+          body: JSON.stringify({
+            action: "submit", consent, termsVersion,
+            id: result.id, digest: result.digest,
+            ceilingMicroUsd: result.ceilingMicroUsd,
+            confirmation: `CONFIRM PAID STUDIO ${result.id} ${result.digest} ${result.ceilingMicroUsd}${result.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
+          }),
+        });
+        router.push(`/projects/live_${result.id}`);
+      }
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -269,6 +307,17 @@ export function StudioLiveControl({
       <p>
         {superAdmin ? "Super Admin generation: no internal test budget or duration-band approval. BytePlus charges still apply. Media and task safety checks remain active." : "Real provider charges. Use a reviewed duration band and the server-approved limit. Customer payment is separate."}
       </p>
+      {superAdmin && (
+        <p role="status" aria-label="BytePlus provider cost estimate">
+          <strong>BytePlus-Richtwert für {excerptSeconds.toFixed(1)} Sekunden:{" "}
+            {nominalProviderMicroUsd === null ? "–" : usd(nominalProviderMicroUsd)}
+          </strong>
+          {" "}bei angenommenen 0,07 USD pro generierter Sekunde, vor eventuellen
+          Steuern, Mindestgebühren und Abweichungen der tatsächlichen Videolänge.
+          Dies ist kein verbindlicher Preis. Dein Super-Admin-Zugang benötigt keinen
+          Stripe-Checkout.
+        </p>
+      )}
       {blockers.map((b) => (
         <p role="status" key={b}>
           {b}
@@ -298,7 +347,7 @@ export function StudioLiveControl({
       <button
         className="button outline"
         disabled={
-          !available ||
+          (!superAdmin && !available) ||
           busy ||
           disabled ||
           !selection ||
@@ -309,7 +358,7 @@ export function StudioLiveControl({
         }
         onClick={() => void prepare()}
       >
-        {superAdmin ? "Prepare video — no provider request" : "Review real video cost — no paid request"}
+        {superAdmin ? "Echtes Video generieren (BytePlus, kostenpflichtig)" : "Review real video cost — no paid request"}
       </button>
       {error && (
         <p role="alert" className="error">
@@ -546,11 +595,16 @@ export function LiveProject({ id }: { id: string }) {
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
   const notice = project ? outputNotice(project.state, project.stage, project.createdAt) : null;
-  const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Generating video" : "Preparing project";
+  const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Video status pending" : "Preparing project";
   return (
     <div id="content" className="sm-live-page">
       {error && <p role="alert" className="error">{error}</p>}
       {!project ? (!error && <div className="sm-live-empty" role="status">Loading your project…</div>) : (
+        <>
+          <div className="sm-output-mobile-tabs" role="group" aria-label="Project view">
+            <button type="button" className={frontCard==="video"?"is-selected":""} aria-pressed={frontCard==="video"} onClick={()=>setFrontCard("video")}>Video</button>
+            <button type="button" className={frontCard==="details"?"is-selected":""} aria-pressed={frontCard==="details"} onClick={()=>setFrontCard("details")}>Project details</button>
+          </div>
         <div className="sm-carousel-stage sm-output-stage">
           <section className={"sm-carousel-card sm-output-card "+(!complete?"sm-output-pending ":"")+(frontCard==="video"?"is-active":"is-neighbor is-inactive"+(hoveredSide==="video"?" is-side-hovered":""))} style={{"--distance":frontCard==="video"?0:-1,"--depth":frontCard==="video"?0:1,"--drag":0} as React.CSSProperties} aria-label="Video preview and status">
             {frontCard!=="video" && <button type="button" className="sm-carousel-side-hit" aria-label="Show video" onPointerEnter={()=>setHoveredSide("video")} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide("video")} onBlur={()=>setHoveredSide(null)} onClick={()=>{setHoveredSide(null);setFrontCard("video")}}/>}
@@ -560,7 +614,7 @@ export function LiveProject({ id }: { id: string }) {
                 <img className="sm-live-image" src={`/api/assets/${encodeURIComponent(project.imageId)}`} alt="" aria-hidden="true"/>
                 <div className="sm-live-animated">
                   {!failed && <><div className="sm-live-scan"/><div className="sm-live-orbit"/></>}
-                  <strong>{failed?"Generation stopped":project.state==="submitted"?"Waiting for provider":"Creating your performance"}</strong>
+                  <strong>{failed?"Generation stopped":project.state==="submitted"?"Waiting for provider":project.state==="processing"?"Checking video processing status":"Preparing your performance"}</strong>
                   <span>{failed?"Review the project status.":"Preview will appear here when the video is ready."}</span>
                 </div>
               </>}
@@ -584,6 +638,7 @@ export function LiveProject({ id }: { id: string }) {
             {complete && <div className="sm-live-final-actions"><a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a><button type="button" className="button outline" disabled={busy} onClick={e=>{e.stopPropagation();void createAnotherVersion()}}>{busy?"Preparing…":"Create another version"}</button></div>}
           </aside>
         </div>
+        </>
       )}
     </div>
   );

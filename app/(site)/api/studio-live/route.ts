@@ -16,11 +16,10 @@ import { hasRole } from "@/cms/policy";
 import { studioStaff } from "@/cms/studio-access";
 import { session, limit, dataDir, asset } from "@/lib/db";
 import { openStudioStore } from "@/lib/live/studio";
-import { studioRuntime, studioReadiness } from "@/lib/live/studio-runtime";
+import { studioRuntime, studioReadiness, loadRuntimeStudioPolicy } from "@/lib/live/studio-runtime";
 import {
   StudioLiveError,
   studioDiagnostic,
-  loadStudioPolicy,
   studioConfig,
   studioGate,
 } from "@/lib/live/studio-policy";
@@ -141,7 +140,7 @@ async function handler(req: NextRequest) {
       const blockers: string[] = [];
       try {
         studioGate(studioConfig());
-        await loadStudioPolicy(dataDir, !isSuperAdmin);
+        await loadRuntimeStudioPolicy(dataDir, process.env, isSuperAdmin);
         await studioReadiness(dataDir);
       } catch (e) {
         blockers.push(
