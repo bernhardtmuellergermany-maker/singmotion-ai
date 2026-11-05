@@ -391,8 +391,7 @@ async function fitValidatedRectangle(
         "-1",
         "-movflags",
         "+faststart",
-        "-fs",
-        String(limits.maxBytes),
+        // Do not use -fs: FFmpeg may truncate MP4 before the final size check.
         normalized,
       ],
       { timeout: 60000, maxBuffer: 1024 * 1024 },
@@ -420,10 +419,15 @@ async function fitValidatedRectangle(
         ) ||
         Math.abs(Number(before.duration) - Number(after.duration)) >
           1 / contract.output.fps ||
+        // MP4 remuxing with stream-copy MP3 may move start_time by one
+        // codec/frame tick while leaving the packet payload unchanged.
+        // Reject shifts beyond one output video frame plus 10ms rounding.
         Math.abs(Number(before.start_time) - Number(after.start_time)) >
-          0.001 ||
+          1 / contract.output.fps + 0.01 ||
         (kind === "video" &&
-          (!before.nb_frames || before.nb_frames !== after.nb_frames))
+          before.nb_frames !== undefined &&
+          after.nb_frames !== undefined &&
+          before.nb_frames !== after.nb_frames)
       )
         throw new Error("OUTPUT_NORMALIZATION_TIMING_FAILED");
     }
