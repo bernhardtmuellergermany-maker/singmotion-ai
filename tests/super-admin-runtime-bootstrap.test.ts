@@ -47,3 +47,31 @@ test("signed response discovery still rejects unsafe output URLs", () => {
     "media.example.com",
   );
 });
+
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { loadRuntimeStudioPolicy } from "../lib/live/studio-runtime.ts";
+
+test("runtime has no-file Super Admin fallback, never customer or malformed file", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "sm-admin-runtime-"));
+  const env = { ...process.env };
+  delete env.STUDIO_LIVE_POLICY_JSON;
+  const previous = process.env.STUDIO_LIVE_POLICY_JSON;
+  delete process.env.STUDIO_LIVE_POLICY_JSON;
+  try {
+    const p = await loadRuntimeStudioPolicy(dir, env, true);
+    assert.equal(p.contract.revision, "super-admin-runtime-bootstrap-v1");
+    await assert.rejects(loadRuntimeStudioPolicy(dir, env, false), (error: unknown) =>
+      error instanceof StudioLiveError && error.code === "POLICY_MISSING",
+    );
+    await writeFile(path.join(dir, "studio-live-policy.json"), "{malformed");
+    await assert.rejects(loadRuntimeStudioPolicy(dir, env, true), (error: unknown) =>
+      error instanceof StudioLiveError && error.code === "POLICY_MISSING",
+    );
+  } finally {
+    if (previous === undefined) delete process.env.STUDIO_LIVE_POLICY_JSON;
+    else process.env.STUDIO_LIVE_POLICY_JSON = previous;
+    await rm(dir, { recursive: true, force: true });
+  }
+});

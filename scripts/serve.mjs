@@ -59,18 +59,22 @@ if (process.env.R2_MIGRATE_TEST_DATA === "true") {
 // Startup-only private Studio diagnostic. Read-only: no paid provider requests.
 if (process.env.BYTEPLUS_STUDIO_ENABLED === "true") {
   try {
-    const [{ studioGate, studioConfig, loadStudioPolicy }, { studioReadiness }] =
+    const [{ studioGate, studioConfig }, { studioReadiness, loadRuntimeStudioPolicy }] =
       await Promise.all([
         import("../lib/live/studio-policy.ts"),
         import("../lib/live/studio-runtime.ts"),
       ]);
     const checks = [
       ["studio-gate", () => studioGate(studioConfig())],
-      ["studio-policy", () => loadStudioPolicy(directory, false)],
+      ["studio-policy", () => loadRuntimeStudioPolicy(directory, process.env, process.env.SUPER_ADMIN_PRIVATE_GENERATION_ENABLED === "true")],
       ["studio-recovery", () => studioReadiness(directory)],
     ];
     for (const [name, check] of checks) {
-      try { await check(); console.log("PRIVATE_STUDIO_CHECK", name, "READY"); }
+      try {
+        const result = await check();
+        const bootstrap = name === "studio-policy" && result?.contract?.revision === "super-admin-runtime-bootstrap-v1";
+        console.log("PRIVATE_STUDIO_CHECK", name, bootstrap ? "BOOTSTRAP_READY" : "READY");
+      }
       catch (error) {
         const code = error && typeof error === "object" && "code" in error
           ? String(error.code).replace(/[^A-Z0-9_]/g, "").slice(0, 64)
