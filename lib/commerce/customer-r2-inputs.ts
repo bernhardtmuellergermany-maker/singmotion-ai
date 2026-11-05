@@ -41,13 +41,19 @@ export class CustomerR2PrivateInputDelivery implements PrivateInputDelivery{
  readonly client:S3Client;
  readonly inputHosts:readonly string[];
  private readonly config:R2Config;
+ private readonly store:CommerceStore;
+ private readonly orderId:string;
+ private readonly dataDir:string;
  constructor(
-  private readonly store:CommerceStore,
-  private readonly orderId:string,
-  private readonly dataDir:string,
+  store:CommerceStore,
+  orderId:string,
+  dataDir:string,
   env:Record<string,string|undefined>=process.env,
   client?:S3Client,
  ){
+  this.store=store;
+  this.orderId=orderId;
+  this.dataDir=dataDir;
   if(env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041")
    throw Error("Customer input leasing requires protected staging");
   if(!/^[a-f0-9-]{36}$/.test(orderId))throw Error("Invalid paid order reference");
