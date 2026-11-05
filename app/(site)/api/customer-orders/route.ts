@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { prepareCustomerStudioOrder } from "@/lib/commerce/prepare-studio-order";
+import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
   return respond({
     available: process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
       process.env.CUSTOMER_ORDER_PREPARATION_ENABLED === "true",
-    checkoutEnabled: false,
+    checkoutEnabled: customerLaunchReadiness().readyForPaidOrders,
   });
 }
 
