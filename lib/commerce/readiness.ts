@@ -6,7 +6,7 @@ import {readFileSync} from "node:fs";
 import path from "node:path";
 import {configuredStripePaymentMode} from "./stripe-payment-mode.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
-import {customerWorkerEnabled,validateCustomerWorkerPolicy} from "./customer-paid-worker.ts";
+import {assertCustomerFullDurationCoverage,customerWorkerEnabled,validateCustomerWorkerPolicy} from "./customer-paid-worker.ts";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {loadBytePlusCredentials} from "../live/signing.ts";
 import {loadR2Config} from "../live/r2-config.ts";
@@ -53,6 +53,7 @@ export function customerLaunchReadiness(env:Record<string,string|undefined>=proc
     policy=ownerConfirmedBytePlusPolicy();
    }
    const review=validateCustomerWorkerPolicy(policy);
+   if(mode==="live")assertCustomerFullDurationCoverage(review);
    fulfillmentConnected=review.dailyCapMicroUsd>0&&review.lifetimeCapMicroUsd>0;
    deliveryConnected=env.CUSTOMER_DELIVERY_ENABLED==="true"&&
     env.CUSTOMER_R2_STORAGE_ENABLED==="true"&&review.contract.outputHosts.length>0;
@@ -64,7 +65,7 @@ export function customerLaunchReadiness(env:Record<string,string|undefined>=proc
   ...(!accountsEnabled?["Customer accounts are not enabled."]:[]),
   ...(!paymentsConnected?["A mode-matched Stripe Checkout key, signed webhook and independently approved production release are required."]:[]),
   ...(!customerGenerationEnabled?["Authenticated, bounded customer worker is not enabled for this payment environment."]:[]),
-  ...(!fulfillmentConnected?["Reviewed owner-confirmed BytePlus pricing, private media and provider credentials are unavailable."]:[]),
+  ...(!fulfillmentConnected?["Verified 5–300-second BytePlus contract, inclusive provider budget, private media and credentials are required in Production."]:[]),
   ...(!deliveryConnected?["Private R2 output delivery is not enabled."]:[]),
  ];
  return {readyForPaidOrders:blockers.length===0,paymentsConnected,

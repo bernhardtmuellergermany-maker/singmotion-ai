@@ -79,6 +79,24 @@ export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now()):Reviewe
  }
  return p;
 }
+/**
+ * Public plans quote 5–300 seconds, whereas the existing owner-attested
+ * Staging pilot only covers 4–30. Never open Production order admission with
+ * a policy that cannot actually fulfill the longest advertised selection.
+ * This checks evidence-backed bounds, not the presence of a launch flag.
+ */
+export function assertCustomerFullDurationCoverage(policy:ReviewedCustomerWorkerPolicy):void{
+ const contract=policy.contract;
+ const bound=contract.generatedDurationBound;
+ if(!bound || bound.minInputSeconds>5 || bound.maxInputSeconds<300 ||
+    contract.maxDurationSeconds<300 || contract.output.maxDurationSeconds<300)
+  throw Error("Production provider policy must cover every 5–300 second video");
+ const maximum=planUpperBoundMicroUsd(300,contract);
+ if(!Number.isSafeInteger(maximum)||maximum<1||
+    maximum>policy.dailyCapMicroUsd||maximum>policy.lifetimeCapMicroUsd)
+  throw Error("Production provider budget must cover one approved 300 second video");
+}
+
 export async function loadCustomerWorkerPolicy(root:string,env:Record<string,string|undefined>=process.env){
  // A private, explicitly approved policy takes precedence. If none was
  // installed, use the dated 2026-11-05 owner-attested billing/delivery policy
@@ -86,7 +104,10 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
  try{
   const bytes=await readFile(path.join(root,"customer-byteplus-policy.json"));
   if(bytes.length<40||bytes.length>65536)throw Error("Invalid customer provider policy file");
-  return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
+  const policy=validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
+  if(env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d")
+   assertCustomerFullDurationCoverage(policy);
+  return policy;
  }catch(error){
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
   // A dated operator policy may be reused for private Staging only.
