@@ -99,7 +99,7 @@ export function tempoExportFailureCode(error: unknown): string {
     "OUTPUT_NORMALIZATION_AUDIO_CHANGED",
   ]);
   if (outputCodes.has(error.message)) return error.message;
-  if (/^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\\d{0,3})x(?:[1-9]\\d{0,3})_EXPECTED_(?:(?:[1-9]\\d{0,3})x(?:[1-9]\\d{0,3})|720P)$/.test(error.message))
+  if (/^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})_EXPECTED_(?:(?:[1-9]\d{0,3})x(?:[1-9]\d{0,3})|720P)$/.test(error.message))
     return "OUTPUT_DIMENSIONS_MISMATCH";
   if (error.message === "Provider output is too large.") return "OUTPUT_SIZE_REJECTED";
   const child = error as Error & { killed?: boolean; signal?: string };
