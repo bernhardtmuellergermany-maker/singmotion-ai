@@ -12,9 +12,17 @@ export async function submitReviewedPaidVideo(
     prepare?: (orderId: string) => Promise<PreparedMedia>;
     submit: (media: PreparedMedia, orderId: string) => Promise<string>;
     verify?: (media: PreparedMedia) => Promise<void>;
+    /** Trusted, independently reviewed all-inclusive BytePlus ceiling, never browser-supplied. */
+    providerCost: {
+      inclusiveMaxMicroUsd: number;
+      dailyCapMicroUsd: number;
+      lifetimeCapMicroUsd: number;
+      reviewEvidence: string;
+    };
   },
 ): Promise<"already-claimed" | "submitted" | "submission-uncertain"> {
   if (!/^[a-f0-9-]{36}$/.test(orderId)) throw Error("Invalid paid order reference");
+  if (!operations.providerCost) throw Error("Reviewed provider cost policy required");
   if (!store.claimPaidFulfillment(orderId)) return "already-claimed";
   // Prepare before opening the network submission barrier. An invalid input
   // leaves a claimed order for manual inspection, never auto-resubmits.
@@ -22,6 +30,9 @@ export async function submitReviewedPaidVideo(
   const media = operations.prepare ? await operations.prepare(orderId) : store.paidPreparedMedia(orderId);
   store.assertPaidOrderMediaUnchanged(orderId, media);
   await (operations.verify ?? verifyPrivatePaidMediaSnapshot)(media);
+  // Reserve worst-case inclusive provider spending before crossing the irreversible
+  // submission boundary. Ambiguous attempts keep their full reservation.
+  store.reservePaidProviderSpend(orderId, operations.providerCost);
   // Check the immutable order commitment before crossing the paid provider boundary.
   if (!store.beginPaidProviderSubmission(orderId)) return "submission-uncertain";
   try {
