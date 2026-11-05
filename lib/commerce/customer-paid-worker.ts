@@ -5,6 +5,7 @@
  */
 import {readFile} from "node:fs/promises";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
+import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
 import {dispatchReviewedCustomerBytePlus} from "./customer-byteplus-dispatch.ts";
@@ -32,7 +33,12 @@ export type ReviewedCustomerWorkerPolicy={
 };
 
 export function customerWorkerEnabled(env:Record<string,string|undefined>){
- return env.RAILWAY_ENVIRONMENT_ID===STAGING &&
+ const live=productionCustomerReleaseApproved(env);
+ const test=env.RAILWAY_ENVIRONMENT_ID===STAGING &&
+   env.STRIPE_CHECKOUT_ENABLED==="true" &&
+   /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
+   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
+ return (test||live) &&
   env.CUSTOMER_PAID_WORKER_ENABLED==="true" &&
   env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
@@ -40,10 +46,7 @@ export function customerWorkerEnabled(env:Record<string,string|undefined>){
   Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)>0 &&
   Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT)<=Date.now() &&
   env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
-  env.CUSTOMER_R2_STORAGE_ENABLED==="true" &&
-  env.STRIPE_CHECKOUT_ENABLED==="true" &&
-  /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
-  /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
+  env.CUSTOMER_R2_STORAGE_ENABLED==="true";
 }
 
 export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now()):ReviewedCustomerWorkerPolicy{
@@ -86,9 +89,12 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
   return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
  }catch(error){
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+  // A dated operator policy may be reused for private Staging only.
+  // Production must install its own separately approved per-volume customer
+  // policy including independent daily/lifetime spending caps and output hosts.
   if(env.RAILWAY_ENVIRONMENT_ID!==STAGING||
      env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING!=="true")
-   throw Error("Explicit staging owner confirmation or private policy required");
+   throw Error("An approved private production customer provider policy is required");
   return validateCustomerWorkerPolicy(ownerConfirmedBytePlusPolicy());
  }
 }
