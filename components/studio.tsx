@@ -524,7 +524,7 @@ export function Studio() {
                 </span>
               </div>
               <strong className="total-price">
-                {price === null ? "—" : money(price)}
+                {price === null ? `USD ${(Math.max(0, end - start) * 0.07).toFixed(2)}*` : money(price)}
               </strong>
             </div>
             <p className="summary-cost-note">
