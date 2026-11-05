@@ -151,6 +151,7 @@ export function GenerationDialog({
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({projectId: requestKey, requestKey, draft: selection,
+          consent:true,termsVersion:terms,
           ...(appliedPromo ? {promoCode:appliedPromo} : {})}),
       });
       const result = await response.json() as {orderId?:string;error?:string};
