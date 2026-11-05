@@ -190,14 +190,13 @@ export function GenerationDialog({
     }
   }
   async function act(repeatOf?: string) {
-    if (lock.current || !rights || !terms || !pilot || blockers.length) return;
+    if (lock.current || !rights || !terms || !pilot || (blockers.length > 0 && !superAdmin)) return;
     lock.current = true;
     setBusy(true);
     setError("");
     try {
       if (!plan || repeatOf) {
-        setPlan(
-          await api<StudioProject>("studio-live", {
+        const prepared = await api<StudioProject>("studio-live", {
             method: "POST",
             body: JSON.stringify({
               action: "prepare",
@@ -210,8 +209,21 @@ export function GenerationDialog({
               english: true,
               ...(repeatOf ? { repeatOf } : {}),
             }),
-          }),
-        );
+        });
+        setPlan(prepared);
+        if (superAdmin && !repeatOf && prepared.state === "prepared" &&
+            prepared.digest && prepared.ceilingMicroUsd && !prepared.providerJobId) {
+          await api("studio-live", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "submit", id: prepared.id, digest: prepared.digest,
+              ceilingMicroUsd: prepared.ceilingMicroUsd, consent: true,
+              termsVersion: terms,
+              confirmation: `CONFIRM PAID STUDIO ${prepared.id} ${prepared.digest} ${prepared.ceilingMicroUsd}${prepared.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
+            }),
+          });
+          router.push(`/projects/live_${prepared.id}`);
+        }
         return;
       }
       if (
