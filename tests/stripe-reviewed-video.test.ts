@@ -28,6 +28,34 @@ test("review commitments include actual prepared audio, image, prompt and output
   assert.match(reviewedVideoQuoteDigest(a,0,"verified-inclusive-price-2026"),/^[a-f0-9]{64}$/);
 });
 
+test("customer tempo orders bind original recording and restoration to their paid quote",()=>{
+  const tempo={
+    rate:0.9 as const,
+    originalPath:"/private/original.mp3",
+    originalSha256:"d".repeat(64),
+    originalDuration:7.5,
+    originalDecodedSeconds:7.5,
+    providerDecodedSeconds:8.333,
+    sourceSha256:"e".repeat(64),
+    songId:"owned-song",
+    authorizationDigest:"f".repeat(64),
+  };
+  const originalDigest=reviewedVideoInputDigest(media);
+  const slowed={...media,tempo};
+  const slowedDigest=reviewedVideoInputDigest(slowed);
+  assert.notEqual(slowedDigest,originalDigest);
+  assert.equal(slowedDigest,reviewedVideoInputDigest({...slowed}));
+  assert.notEqual(slowedDigest,reviewedVideoInputDigest({
+    ...slowed,tempo:{...tempo,originalSha256:"a".repeat(64)},
+  }));
+  assert.notEqual(slowedDigest,reviewedVideoInputDigest({
+    ...slowed,tempo:{...tempo,originalDuration:8},
+  }));
+  assert.notEqual(slowedDigest,reviewedVideoInputDigest({
+    ...slowed,tempo:{...tempo,authorizationDigest:"b".repeat(64)},
+  }));
+});
+
 test("server-owned quote controls binding of actual prepared media to customer order", () => {
   const store = new CommerceStore(":memory:");
   try {
