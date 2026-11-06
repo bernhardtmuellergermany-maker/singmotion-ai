@@ -45,7 +45,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
       <p>{description}</p>
      </div>}
     <span className="sm-private-video-brand">SingMotion <b>AI</b></span>
-    <span className="sm-private-video-state" role="status">{ready?"Video ready":displayStatus}</span>
+    <span className="sm-private-video-state" role="status">{displayStatus}</span>
     {ready&&<div className="sm-private-video-scrim" aria-hidden="true"/>}
    </div>
    <div className="sm-private-video-footer">
