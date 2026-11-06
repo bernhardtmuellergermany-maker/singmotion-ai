@@ -137,7 +137,7 @@ export async function runCustomerPaidWorkerBatch(
   // Aggregate allowlisted reasons only: never log order IDs, provider job IDs,
   // output URLs, raw provider responses, credentials or customer information.
   const reviewCounts=Object.fromEntries(
-   ["provider_status_unavailable","provider_noncompletion","provider_done_missing_output","private_output_validation_failed"]
+   ["provider_status_unavailable","provider_authentication","provider_throttled","provider_transient","provider_protocol","provider_rejected","provider_unsupported_status","provider_completed_without_url","provider_noncompletion","provider_done_missing_output","private_output_validation_failed"]
     .map(reason=>[reason,recoveries.filter(x=>x.diagnostic===reason).length])
   );
   if(Object.values(reviewCounts).some(count=>count>0))
