@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
-import "./studio-live-preview.css";
+import "./customer-paid-output.css";
+import {Clapperboard,Film,ShieldCheck,Download} from "lucide-react";
 import {customerPaidVideoLabel} from "../lib/commerce/customer-video-links";
 
 type CustomerOrder={orderId:string;projectId:string;status:string;fulfillmentState:string|null;
@@ -26,22 +27,35 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
  },[orderId]);
  const ready=order?.status==="paid"&&order.videoReady===1&&!!order.videoUrl&&!!order.downloadUrl;
  const status=customerPaidVideoLabel(order,loaded);
- return <div id="content" className="sm-live-page">
-  {error&&<p className="error" role="alert">{error}</p>}
-  <div className="sm-carousel-stage sm-output-stage">
-   <section className={"sm-carousel-card sm-output-card "+(!ready?"sm-output-pending ":"")+"is-active"}
-    style={{"--distance":0,"--depth":0,"--drag":0} as React.CSSProperties} aria-label="Customer video output">
-    <div className="sm-live-card-top sm-live-video-overlay">
-     <span className={"sm-live-card-kicker "+(ready?"sm-output-completed-tag":"")}>{status}</span>
+ const review=order?.fulfillmentState==="failed"||order?.fulfillmentState==="requires-review";
+ const processing=order?.status==="paid"&&order?.fulfillmentState==="processing";
+ const displayStatus=review?"Under review":processing?"Processing or under review":status;
+ const description=ready?"Your music video is ready to watch and download.":
+  review?"Your paid video needs an internal review. No second payment or video order is necessary.":
+  processing?"Your video has been submitted and its result is being checked. It may require a manual review.":
+  "Your paid video will appear here when processing and private validation are complete.";
+ return <section className="sm-private-output" aria-label="Your music video">
+  {error&&<p className="sm-private-output-error" role="alert">{error}</p>}
+  <div className="sm-private-video-card">
+   <div className="sm-private-video-frame">
+    {ready?<video controls playsInline preload="metadata" src={order.videoUrl!} aria-label="Your generated video"/>:
+     <div className="sm-private-video-placeholder">
+      <div className="sm-private-video-halo" aria-hidden="true"><Clapperboard size={30} strokeWidth={1.6}/></div>
+      <h2>{displayStatus}</h2>
+      <p>{description}</p>
+     </div>}
+    <span className="sm-private-video-brand">SingMotion <b>AI</b></span>
+    <span className="sm-private-video-state" role="status">{ready?"Video ready":displayStatus}</span>
+    {ready&&<div className="sm-private-video-scrim" aria-hidden="true"/>}
+   </div>
+   <div className="sm-private-video-footer">
+    <div className="sm-private-video-footheading">
+     <Film size={17} aria-hidden="true"/>
+     <div><strong>Your music video</strong><span>{ready?"Completed":"Private preview"}</span></div>
     </div>
-    <div className="sm-live-viewport portrait">
-     {ready?<video controls playsInline preload="metadata" src={order.videoUrl!} aria-label="Your generated video"/>:
-      <div className="sm-live-animated"><strong>{status}</strong><span>Your video will appear here when it is ready.</span></div>}
-    </div>
-    {ready?<div className="sm-output-completed-footer"><strong>SingMotion video</strong>
-      <a className="sm-output-download" href={order.downloadUrl!} download>Download video ↓</a></div>:
-     <div className="sm-output-pending-footer"><p className="sm-output-pending-stage" role="status">{status}</p></div>}
-   </section>
+    {ready?<a className="sm-private-download" href={order.downloadUrl!} download><Download size={17} aria-hidden="true"/> Download MP4</a>:
+     <div className="sm-private-video-secure"><ShieldCheck size={16} aria-hidden="true"/> Payment confirmed · Private processing</div>}
+   </div>
   </div>
- </div>;
+ </section>;
 }
