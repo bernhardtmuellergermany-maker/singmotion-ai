@@ -8,7 +8,7 @@ test("reads safe Stripe type, code and parameter only",()=>{
 });
 test("never exposes error messages or untrusted parameter content",()=>{
  assert.deepEqual(sanitizedStripeCheckoutError({error:{message:"secret key and email",param:"user@example.com",code:"x".repeat(200)}}),{type:null,code:null,param:null,category:"unclassified"});
- assert.deepEqual(sanitizedStripeCheckoutError(null),{type:null,code:null,param:null});
+ assert.deepEqual(sanitizedStripeCheckoutError(null),{type:null,code:null,param:null,category:"unclassified"});
 });
 
 test("classifies code-less Stripe messages without leaking their content",()=>{
