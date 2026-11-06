@@ -1,5 +1,6 @@
 import {CommerceStore} from "./store.ts";
 import {recoverAndDeliverPaidCustomerVideo} from "./paid-customer-recovery.ts";
+import type {PaidRecoveryDiagnostic} from "./paid-output-recovery.ts";
 import type {Transport} from "../live/byteplus.ts";
 import type {OutputTransport} from "../live/output-transport.ts";
 import type {OutputValidationContract} from "../live/output.ts";
@@ -20,15 +21,17 @@ export async function runPaidRecoveryBatch(
   throw new Error("Invalid recovery batch size");
  if (signal.aborted) return [];
  const ids=store.acknowledgedPaidRecovery(limit);
- const results: {orderId:string;state:string}[]=[];
+ const results: {orderId:string;state:string;diagnostic?:PaidRecoveryDiagnostic|"private_output_validation_failed"}[]=[];
  for(const orderId of ids){
   if(signal.aborted)break;
   try{
-   const state=await recoverAndDeliverPaidCustomerVideo(store,orderId,dataDir,contract,statusTransport,outputTransport,signal);
-   results.push({orderId,state});
+   let diagnostic:PaidRecoveryDiagnostic|undefined;
+   const state=await recoverAndDeliverPaidCustomerVideo(store,orderId,dataDir,contract,statusTransport,outputTransport,signal,
+    reason=>{diagnostic=reason;});
+   results.push({orderId,state,...(diagnostic?{diagnostic}:{})});
   }catch{
    // Keep payment, provider claim and output untouched for operator review.
-   results.push({orderId,state:"requires-review"});
+   results.push({orderId,state:"requires-review",diagnostic:"private_output_validation_failed"});
   }
  }
  return results;
