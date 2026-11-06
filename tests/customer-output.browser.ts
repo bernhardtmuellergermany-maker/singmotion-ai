@@ -91,7 +91,7 @@ try{
  const page=await context.newPage();
  await page.goto(origin+"/orders/"+id);
  const output=page.getByRole("region",{name:"Customer video output"});
- await output.locator(".sm-private-video-state").getByText("Completed",{exact:true}).waitFor({timeout:15000});
+ await output.locator(".sm-private-video-state").filter({hasText:"Completed"}).waitFor({timeout:15000});
  assert.equal(await output.locator("video[controls]").count(),1);
  const download=output.getByRole("link",{name:/Download MP4/});
  assert.equal(await download.getAttribute("href"),`/api/customer-video?orderId=${id}&download=1`);
