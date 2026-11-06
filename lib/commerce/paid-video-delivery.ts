@@ -107,7 +107,8 @@ export async function deliverReviewedPaidVideo(
  }
  // The R2 copy is strictly optional outside protected staging; when enabled,
  // a delivered receipt must never point at an unverified remote archive.
- const cloud=await deliveryStage("private-archive",()=>mirrorPrivatePaidVideo(order.account_id,orderId,file,details.size));
+ const accountId=order.account_id;
+ const cloud=await deliveryStage("private-archive",()=>mirrorPrivatePaidVideo(accountId,orderId,file,details.size));
  if(cloud){
   // The output is not downloadable until we have reread and SHA-256 verified
   // the full private R2 object. HEAD metadata alone is insufficient.
