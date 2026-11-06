@@ -729,3 +729,54 @@
   min-width:0;
   white-space:normal;
 }
+
+/* Studio reuses the same SiteHeader as the homepage. Project controls sit
+   within its action area, without changing the global header dimensions. */
+.sm-site-header .sm-studio-header-project{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  max-width:min(34vw,370px);
+  flex:0 1 auto;
+}
+.sm-site-header .sm-studio-header-project .flow-project-name,
+.sm-site-header .sm-studio-header-project .flow-project-input{
+  display:block;
+  flex:0 1 auto;
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+  height:28px;
+  margin:0;
+  padding:4px 0;
+  border:0;
+  border-radius:0;
+  outline:0;
+  box-shadow:none;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  line-height:20px;
+  text-align:left;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.sm-site-header .sm-studio-header-project .flow-project-input:focus,
+.sm-site-header .sm-studio-header-project .flow-project-input:focus-visible{
+  border:0;
+  outline:0;
+  box-shadow:none;
+}
+.sm-site-header .sm-studio-header-project .flow-menu{flex:0 0 auto}
+@media(max-width:650px){
+  .sm-site-header .sm-studio-header-project{
+    max-width:min(29vw,175px);
+    gap:2px;
+  }
+  .sm-site-header .sm-studio-header-project .flow-project-name,
+  .sm-site-header .sm-studio-header-project .flow-project-input{
+    font-size:12px;
+  }
+}
