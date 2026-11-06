@@ -154,3 +154,39 @@ test("786x1178 source becomes padded 720x1280 with unchanged timeline and audio;
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("paid BytePlus 30 FPS source is converted to validated 25 FPS without changing AAC samples",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"sm-provider-fps-"));
+ const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{
+  maxBuffer:4*1024*1024,timeout:30000,
+ });
+ const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy",
+   "-f","hash","-hash","sha256","-"]).toString("utf8").trim();
+ const policy:OutputValidationContract={
+  outputHosts:["approved.example.test"],
+  output:{width:720,height:1280,fps:25,videoCodec:"h264",
+   audioCodec:"aac",durationToleranceSeconds:0.15,maxDurationSeconds:2},
+ };
+ try{
+  for(const rect of ["786x1178","720x1280"]){
+   const raw=path.join(root,`source-${rect}.mp4`);
+   ff(["-f","lavfi","-i",`color=blue:s=${rect}:r=30:d=1`,
+    "-f","lavfi","-i","sine=frequency=440:duration=1",
+    "-t","1","-c:v","libx264","-threads","2","-preset","ultrafast",
+    "-pix_fmt","yuv420p","-c:a","aac",raw]);
+   const expectedHash=hash(raw);
+   const bytes=await readFile(raw);
+   const dest=path.join(root,`paid-${rect}.mp4`);
+   await assert.rejects(validateOutput(raw,1,policy),/FRAMERATE|DIMENSIONS/);
+   await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
+    async()=>new Response(Uint8Array.from(bytes)));
+   await validateOutput(dest,1,policy);
+   const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
+   assert.equal(video.width,720);
+   assert.equal(video.height,1280);
+   assert.equal(video.avg_frame_rate,"25/1");
+   assert.equal(hash(dest),expectedHash);
+   assert.deepEqual(await readFile(raw),bytes);
+  }
+ }finally{await rm(root,{recursive:true,force:true})}
+});
