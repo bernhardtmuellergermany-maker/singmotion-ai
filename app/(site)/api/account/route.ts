@@ -120,7 +120,7 @@ async function handler(req: NextRequest) {
     });
     r.cookies.set("sm_customer", session, {
       httpOnly: true,
-      sameSite: "strict",
+      sameSite: "lax",
       secure: req.nextUrl.protocol === "https:",
       path: "/",
       maxAge: 86400,
