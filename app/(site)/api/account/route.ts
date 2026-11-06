@@ -9,6 +9,7 @@ import {
 } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
+import { sendCustomerVerificationEmail } from "@/lib/commerce/verification-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json = (data: unknown, status = 200) =>
@@ -48,6 +49,7 @@ async function handler(req: NextRequest) {
         ? json({
             enabled: true,
             authenticated: true,
+            emailVerification: store.verificationState(id),
             balanceCents: store.balance(id),
             paymentsEnabled: false,
           })
@@ -95,12 +97,20 @@ async function handler(req: NextRequest) {
       b.password.length > 256
     )
       return json({ error: "Valid email and password required." }, 400);
-    if (b.action === "register") store.register(b.email, b.password);
-    else if (b.action !== "login")
+    const registrationId = b.action === "register" ? store.register(b.email,b.password) : undefined;
+    if (b.action !== "login" && b.action !== "register")
       return json({ error: "Unknown action." }, 400);
     const session = store.login(b.email, b.password),
       r = json({ ok: true });
-    const media = createCustomerMediaSession(store.session(session)!);
+    const id = store.session(session)!;
+    const media = createCustomerMediaSession(id);
+    if(registrationId){
+      const pending=store.issueEmailVerification(registrationId);
+      if(pending){
+        const sent=await sendCustomerVerificationEmail(pending.email,pending.token);
+        if(!sent)store.invalidateEmailVerification(pending.token);
+      }
+    }
     r.cookies.set("sm_session", media.token, {
       httpOnly: true,
       sameSite: "strict",
