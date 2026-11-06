@@ -59,7 +59,7 @@ export async function POST(req:NextRequest){
     return json({error:"Both passwords required"},400);
    const token=store.changePassword(accountId,input.password,input.newPassword);
    const response=json({changed:true});
-   response.cookies.set("sm_customer",token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
+   response.cookies.set("sm_customer",token,{httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:86400});
    return response;
   }
   if(input.action==="logout"||input.action==="logout-all"){
@@ -102,7 +102,9 @@ export async function POST(req:NextRequest){
    emailVerification:store.verificationState(id),verificationEmailSent});
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   for(const [name,value] of [["sm_customer",token],["sm_session",media.token]]){
-   response.cookies.set(name,value,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
+   // Stripe Checkout returns via cross-site top-level GET. The customer
+   // account cookie must be sent on that navigation; keep media cookie Strict.
+   response.cookies.set(name,value,{httpOnly:true,secure:true,sameSite:name==="sm_customer"?"lax":"strict",path:"/",maxAge:86400});
   }
   return response;
  }catch{return json({error:input.action==="register"?"Registration failed. Check email, password length (20–256), or existing account.":"Invalid credentials"},input.action==="login"?401:400)}
