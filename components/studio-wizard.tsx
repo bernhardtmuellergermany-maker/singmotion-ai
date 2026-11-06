@@ -363,7 +363,7 @@ export function StudioWizard({
   };
   return (
     <div className="product-theme singmotion-flow">
-      <SiteHeader navigation={
+      <SiteHeader leftContent={
         <div className="sm-studio-header-project" aria-label="Current Studio project">
           <span className="sm-studio-rename-slot">
             <button className="flow-project-name" type="button" title="Click to rename" aria-hidden={editingName} tabIndex={editingName ? -1 : 0} style={editingName ? {visibility:"hidden"} : undefined} onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>
