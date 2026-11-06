@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
+import { reviewedCustomerOrderKey } from "@/lib/commerce/studio-order-key";
 import { CommerceStore } from "@/lib/commerce/store";
 import { prepareCustomerStudioOrder } from "@/lib/commerce/prepare-studio-order";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
@@ -86,9 +87,17 @@ export async function POST(req: NextRequest) {
     if(payload.promoCode!==undefined &&
        (typeof payload.promoCode!=="string" || payload.promoCode.length>40))
       return respond({error:"Invalid promotion code."},400);
+    // The project ID identifies the saved draft, NOT its immutable payable
+    // order. A changed duration, image, audio, prompt or promotion must use a
+    // different idempotency key. Legacy orders keyed only by project ID must
+    // never be accidentally repriced or charged for a newer selection.
+    const selectionOrderKey=reviewedCustomerOrderKey({
+      accountId,projectId:payload.projectId,draft:payload.draft,
+      promoCode:typeof payload.promoCode==="string"?payload.promoCode:undefined,
+    });
     const order=await prepareCustomerStudioOrder(store,{
       accountId,email:String(account.email),mediaOwner:`customer-${accountId}`,
-      draft:payload.draft,projectId:payload.projectId,requestKey:payload.requestKey,
+      draft:payload.draft,projectId:payload.projectId,requestKey:selectionOrderKey,
       promoCode:typeof payload.promoCode==="string" ? payload.promoCode : undefined,
     });
     // Audit the exact server-reviewed media input commitment, not only the
@@ -123,6 +132,15 @@ export async function POST(req: NextRequest) {
       return respond({error:"The reviewed audio or image is no longer available in this customer account. Reopen Studio and select your account's media.",code:"STUDIO_MEDIA_UNAVAILABLE"},409);
     if (error instanceof Error && /Invalid video duration|Selected segment exceeds|Invalid audio duration/.test(error.message))
       return respond({error:"The selected video duration is not eligible. Adjust the audio selection and review it again.",code:"STUDIO_DURATION_INVALID"},409);
+    // Log only an allowlisted category. Never log source file paths, raw
+    // drafts, provider credentials, customer email or payment evidence.
+    const reason=error instanceof Error?error.message:"";
+    const category=/Idempotency conflict|reservation conflict/i.test(reason)?"ORDER_IDEMPOTENCY":
+      /Immutable Studio snapshot|cloud source|archived|R2|mirror|private storage/i.test(reason)?"PRIVATE_MEDIA_STORAGE":
+      /ffmpeg|ffprobe|audio|decode|encode|trim/i.test(reason)?"AUDIO_PREPARATION":
+      /reference|image|sharp/i.test(reason)?"IMAGE_PREPARATION":
+      /database|SQLITE|constraint/i.test(reason)?"ORDER_STORAGE":"UNKNOWN_PREPARATION";
+    console.error("Customer Studio order preparation failed", {category});
     return respond({error:"The video could not be prepared. No Stripe payment or AI generation was started. Please retry from Studio.",code:"STUDIO_PREPARATION_FAILED"},422);
   } finally {
     store?.close();

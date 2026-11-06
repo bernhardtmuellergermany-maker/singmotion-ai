@@ -29,6 +29,7 @@ export function GenerationDialog({
     [plan, setPlan] = useState<StudioProject | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
+    [checkoutStep,setCheckoutStep]=useState<"preparing"|"redirecting">("preparing"),
     [pilot, setPilot] = useState<boolean | null>(null),
     [superAdmin, setSuperAdmin] = useState(false),
     [loginBusy, setLoginBusy] = useState(false),
@@ -191,6 +192,7 @@ export function GenerationDialog({
         !terms || !customerQuote || quotePending ||
         promoCode.trim().toUpperCase() !== appliedPromo) return;
     setBusy(true);
+    setCheckoutStep("preparing");
     setError("");
     try {
       // Ensure a fresh media session after login. A restored guest draft must
@@ -227,6 +229,7 @@ export function GenerationDialog({
           return;
         }
       }
+      setCheckoutStep("redirecting");
       await openCustomerCheckout(orderId);
     } catch (cause) {
       setError((cause as Error).message);
@@ -338,7 +341,7 @@ export function GenerationDialog({
             value={promoCode} disabled={busy}
             onChange={e=>setPromoCode(e.target.value.toUpperCase())} placeholder="PROMO20"/>
           <button type="button" className="product-secondary" disabled={busy}
-            onClick={()=>setAppliedPromo(promoCode.trim().toUpperCase())}>Apply code</button>
+            onClick={()=>{setSavedOrderId("");setAppliedPromo(promoCode.trim().toUpperCase());}}>Apply code</button>
         </div>
         {customerQuote?.promotion && <p role="status">
           Coupon discount: €{(customerQuote.promotion.discountCents/100).toFixed(2)}.
@@ -372,7 +375,7 @@ export function GenerationDialog({
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? "Opening secure checkout…" : "Generate Video"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : "Generate Video"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>
