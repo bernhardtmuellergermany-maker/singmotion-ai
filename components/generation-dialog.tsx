@@ -35,6 +35,7 @@ export function GenerationDialog({
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
     [customerCheckoutEnabled,setCustomerCheckoutEnabled] = useState(false),
+    [savedOrderId,setSavedOrderId] = useState(""),
     [customerQuote, setCustomerQuote] = useState<{plan:string;includedBalanceSeconds:number;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number;promotion?:{discountCents:number;finalCents:number;kind:string;percent:number|null}|null}|null>(null),
     [promoCode,setPromoCode] = useState(""),
     [appliedPromo,setAppliedPromo] = useState(""),
@@ -166,23 +167,57 @@ export function GenerationDialog({
     } catch (cause) { setError((cause as Error).message); }
     finally { setLoginBusy(false); }
   }
+  // The order is committed server-side first; only Stripe's verified webhook
+  // may settle payment and authorize paid video generation.
+  async function openCustomerCheckout(orderId: string) {
+    const response = await fetch("/api/stripe-checkout", {
+      method: "POST", credentials: "same-origin", cache: "no-store",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({orderId}),
+    });
+    const body = await response.json() as {url?:unknown;error?:string};
+    if (!response.ok || typeof body.url !== "string")
+      throw Error(body.error || "Secure Stripe Checkout is unavailable.");
+    const url = new URL(body.url);
+    if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com" ||
+        url.username || url.password)
+      throw Error("Invalid Stripe Checkout destination.");
+    window.location.assign(url.href);
+  }
   async function prepareCustomerOrder() {
-    if (busy || !rights || !customerOrdersAvailable || !terms ||
-      promoCode.trim().toUpperCase()!==appliedPromo) return;
+    if (busy || !rights || !customerOrdersAvailable || !customerCheckoutEnabled ||
+        !terms || !customerQuote || quotePending ||
+        promoCode.trim().toUpperCase() !== appliedPromo) return;
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/customer-orders", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({projectId: requestKey, requestKey, draft: selection,
-          consent:true,termsVersion:terms,
-          ...(appliedPromo ? {promoCode:appliedPromo} : {})}),
-      });
-      const result = await response.json() as {orderId?:string;error?:string};
-      if (!response.ok || !result.orderId) throw Error(result.error || "Order preparation failed.");
-      router.push(`/orders/${result.orderId}`);
+      let orderId = savedOrderId;
+      if (!orderId) {
+        const response = await fetch("/api/customer-orders", {
+          method: "POST", credentials: "same-origin",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({
+            projectId: requestKey, requestKey, draft: selection,
+            consent: true, termsVersion: terms,
+            ...(appliedPromo ? {promoCode: appliedPromo} : {}),
+          }),
+        });
+        const result = await response.json() as {
+          orderId?:string;error?:string;checkoutReady?:boolean;
+          includedOnly?:boolean;promotionAwaitingActivation?:boolean;
+        };
+        if (!response.ok || !result.orderId)
+          throw Error(result.error || "Order preparation failed.");
+        orderId = result.orderId;
+        setSavedOrderId(orderId);
+        if (!result.checkoutReady) {
+          // No Stripe charge may be requested for included-only or free
+          // promotion orders. Their existing authorization flows remain.
+          router.push(`/orders/${orderId}`);
+          return;
+        }
+      }
+      await openCustomerCheckout(orderId);
     } catch (cause) {
       setError((cause as Error).message);
     } finally {
@@ -320,14 +355,14 @@ export function GenerationDialog({
       )}
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
       {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
-      {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Review and save your order, then use secure Stripe test Checkout on your private order page. Your video will generate automatically after confirmed payment." : "Review and save your order. Secure payment is not available yet."}</p>}
+      {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Generate your video by continuing to secure Stripe Checkout. Payment is required before processing; generation starts only after Stripe confirms payment." : "Secure payment is not available yet. No paid generation can start."}</p>}
       {blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !rights || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? "Working…" : "Review order"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? "Opening secure checkout…" : "Generate Video"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>
