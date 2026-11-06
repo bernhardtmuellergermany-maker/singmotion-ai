@@ -10,6 +10,7 @@ on:
       - fix/stripe-test-error-diagnostics-20261106
       - fix/stripe-test-rejection-reason-20261106
       - fix/stripe-managed-payments-video-tax-code-20261106
+      - fix/stripe-return-samesite-session-20261106
   workflow_dispatch:
 concurrency:
   group: studio-release-${{ github.ref }}
