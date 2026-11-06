@@ -1,6 +1,6 @@
 import {CommerceStore} from "./store.ts";
 import {recoverAndDeliverPaidCustomerVideo} from "./paid-customer-recovery.ts";
-import {PaidDeliveryStageError} from "./paid-video-delivery.ts";
+import {PaidDeliveryStageError,type PaidDeliveryDiagnosticStage} from "./paid-video-delivery.ts";
 import type {PaidRecoveryDiagnostic} from "./paid-output-recovery.ts";
 import type {Transport} from "../live/byteplus.ts";
 import type {OutputTransport} from "../live/output-transport.ts";
