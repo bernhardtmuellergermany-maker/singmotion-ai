@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   productionCustomerReleaseApproved,
   productionPrivateCustomerPreviewEnabled,
+  customerAccountSettingsAccessible,
   PRODUCTION_CUSTOMER_PROOFS,
   PRODUCTION_RAILWAY_ENVIRONMENT_ID,
 } from "../lib/commerce/customer-live-config.ts";
@@ -78,4 +79,16 @@ test("staging cannot inherit a public production flag or a live Stripe key", () 
   assert.equal(productionCustomerReleaseApproved(wrongEnv), false);
   assert.equal(customerWorkerEnabled(wrongEnv), false);
   assert.equal(customerLaunchReadiness(wrongEnv).readyForPaidOrders, false);
+});
+
+test("private Production account settings allow signed-in customers without unlocking launch or payment",()=>{
+ assert.equal(customerAccountSettingsAccessible(safePrivate),true);
+ assert.equal(customerAccountSettingsAccessible({...safePrivate,CUSTOMER_ACCOUNTS_ENABLED:"false"}),false);
+ assert.equal(customerAccountSettingsAccessible({...safePrivate,PRODUCTION_PRIVATE_CUSTOMER_PREVIEW_ENABLED:"false"}),false);
+ assert.equal(customerAccountSettingsAccessible({...safePrivate,STAGING_AUTH_ENABLED:"false"}),false);
+ assert.equal(customerAccountSettingsAccessible({...safePrivate,PRODUCTION_PUBLIC_ACCESS_ENABLED:"true"}),false);
+ assert.equal(customerAccountSettingsAccessible({...safePrivate,RAILWAY_ENVIRONMENT_ID:"invalid-environment"}),false);
+ assert.equal(customerAccountSettingsAccessible({...safePrivate,RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"}),true);
+ assert.equal(productionCustomerReleaseApproved(safePrivate),false);
+ assert.equal(customerLaunchReadiness(safePrivate).readyForPaidOrders,false);
 });
