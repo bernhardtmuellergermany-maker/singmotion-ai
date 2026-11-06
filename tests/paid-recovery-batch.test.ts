@@ -37,3 +37,23 @@ test("recovery batch validates bounded size and respects an already aborted sign
   assert.equal(calls,0);
  }finally{store.close()}
 });
+
+test("paid download diagnosis separates exact safe failures without exposing URL or credentials",async()=>{
+ const {classifyPaidDeliveryFailure,PaidDeliveryStageError}=await import("../lib/commerce/paid-video-delivery.ts");
+ for(const [message,expected] of [
+  ["Provider output URL is not an approved HTTPS download destination.","provider-host"],
+  ["Provider output DNS resolution failed or timed out.","provider-dns"],
+  ["Provider output connection failed or timed out.","provider-network"],
+  ["Provider output HTTP status rejected; redirects are forbidden.","provider-http"],
+  ["Provider output length/encoding is invalid or too large.","provider-headers"],
+  ["Cannot create private provider output file.","provider-private-file"],
+  ["Provider output is not a decodable MP4.","provider-media"],
+ ] as const){
+  const error=new Error(message);
+  assert.equal(classifyPaidDeliveryFailure("provider-download",error),expected);
+  const result=new PaidDeliveryStageError(expected);
+  assert.equal(result.message,"Private paid delivery stage failed");
+  assert.doesNotMatch(result.message,/https|token|url/i);
+ }
+ assert.equal(classifyPaidDeliveryFailure("source",new Error("private path")), "source");
+});
