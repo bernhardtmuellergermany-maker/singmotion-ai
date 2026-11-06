@@ -1,7 +1,8 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {CommerceStore} from "../lib/commerce/store.ts";
-import {recoverReviewedPaidOutput} from "../lib/commerce/paid-output-recovery.ts";
+import {recoverReviewedPaidOutput,paidRecoveryFailureCategory} from "../lib/commerce/paid-output-recovery.ts";
+import {BytePlusError} from "../lib/live/byteplus.ts";
 
 test("recovery never touches provider or download for an unacknowledged order",async()=>{
  const store=new CommerceStore(":memory:");
@@ -44,17 +45,43 @@ test("recovery discovery skips pending and ambiguous paid submissions",async()=>
     ["not_found","unverified"],["expired","unverified"],
     ["canceled","unverified"]
   ] as const){
+    const reasons:string[]=[];
     const actual=await recoverReviewedPaidOutput(store,known,async request=>{
       assert.match(request.url,/Action=CVSync2AsyncGetResult/);
       statusReads++;
       return {status:200,body:{code:10000,data:{status:providerState}}};
-    },new AbortController().signal,async()=>{downloads++;return "delivered"});
+    },new AbortController().signal,async()=>{downloads++;return "delivered"},reason=>reasons.push(reason));
     assert.equal(actual,expected);
+    assert.deepEqual(reasons,expected==="unverified"?["provider_noncompletion"]:[]);
   }
   assert.equal(statusReads,5);
+  assert.equal(downloads,0);
+  const failures:string[]=[];
+  const unreachable=await recoverReviewedPaidOutput(store,known,async()=>{
+   throw Error("private provider response must not leak");
+  },new AbortController().signal,async()=>{downloads++;return "delivered"},reason=>failures.push(reason));
+  assert.equal(unreachable,"unverified");
+  assert.deepEqual(failures,["provider_transient"]);
   assert.equal(downloads,0);
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(known)?.state,"processing");
   assert.deepEqual(store.acknowledgedPaidRecovery(),[known]);
 
  }finally{store.close()}
+});
+
+test("paid recovery reports safe BytePlus error categories without sensitive response details",()=>{
+ for(const [code,expected] of [
+  ["TRANSPORT_AUTHENTICATION","provider_authentication"],
+  ["TRANSPORT_THROTTLED","provider_throttled"],
+  ["TRANSPORT_TRANSIENT","provider_transient"],
+  ["TRANSPORT_PROTOCOL","provider_protocol"],
+  ["PROVIDER_REJECTED","provider_rejected"],
+  ["UNSUPPORTED_TASK_STATUS","provider_unsupported_status"],
+  ["COMPLETED_WITHOUT_VIDEO_URL","provider_completed_without_url"],
+  ["INVALID_PROVIDER_RESPONSE","provider_status_unavailable"],
+ ] as const){
+  const error=new BytePlusError(false,{code});
+  assert.equal(paidRecoveryFailureCategory(error),expected);
+ }
+ assert.equal(paidRecoveryFailureCategory(new Error("sensitive private response")),"provider_status_unavailable");
 });

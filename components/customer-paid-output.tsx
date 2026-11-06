@@ -29,10 +29,10 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
  const status=customerPaidVideoLabel(order,loaded);
  const review=order?.fulfillmentState==="failed"||order?.fulfillmentState==="requires-review";
  const processing=order?.status==="paid"&&order?.fulfillmentState==="processing";
- const displayStatus=review?"Under review":processing?"Processing or under review":status;
+ const displayStatus=review?"Under review":processing?"Checking video status":status;
  const description=ready?"Your music video is ready to watch and download.":
   review?"Your paid video needs an internal review. No second payment or video order is necessary.":
-  processing?"Your video has been submitted and its result is being checked. It may require a manual review.":
+  processing?"Payment confirmed. We are checking the existing provider job and validating its result. No second payment or generation is needed.":
   "Your paid video will appear here when processing and private validation are complete.";
  return <section className="sm-private-output" aria-label="Customer video output">
   {error&&<p className="sm-private-output-error" role="alert">{error}</p>}

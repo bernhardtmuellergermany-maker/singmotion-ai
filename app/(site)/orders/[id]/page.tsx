@@ -65,7 +65,7 @@ export default async function Page({
             <div className="sm-order-summary" aria-label="Order information">
               <div className="sm-order-summary-item"><span>Payment</span><strong className={order.status==="paid"?"sm-order-paid":""}>{order.status==="paid"?"Paid":String(order.status).replaceAll("_"," ")}</strong></div>
               <div className="sm-order-summary-item"><span>Order total</span><strong>€{(Number(order.price_cents)/100).toFixed(2)}</strong></div>
-              <div className="sm-order-summary-item"><span>Video status</span><strong>{videoReady?"Ready":fulfillmentState==="failed"?"Under review":fulfillmentState==="processing"?"Processing / review":fulfillmentState==="pending"?"Queued":"Not started"}</strong></div>
+              <div className="sm-order-summary-item"><span>Video status</span><strong>{videoReady?"Ready":fulfillmentState==="failed"?"Under review":fulfillmentState==="processing"?"Checking status":fulfillmentState==="pending"?"Queued":"Not started"}</strong></div>
             </div>
             {promotion && <p role="status">
               Promotion {promotion.code}: EUR {(promotion.discount_cents/100).toFixed(2)}

@@ -1,5 +1,5 @@
 import {CommerceStore} from "./store.ts";
-import {recoverReviewedPaidOutput} from "./paid-output-recovery.ts";
+import {recoverReviewedPaidOutput,type PaidRecoveryDiagnostic} from "./paid-output-recovery.ts";
 import {deliverReviewedPaidVideo} from "./paid-video-delivery.ts";
 import type {Transport} from "../live/byteplus.ts";
 import type {OutputTransport} from "../live/output-transport.ts";
@@ -15,7 +15,8 @@ export async function recoverAndDeliverPaidCustomerVideo(
  statusTransport:Transport,
  outputTransport:OutputTransport,
  signal:AbortSignal,
+ onDiagnostic?:(reason:PaidRecoveryDiagnostic)=>void,
 ){
  return recoverReviewedPaidOutput(store,orderId,statusTransport,signal,
-  (id,url)=>deliverReviewedPaidVideo(store,id,url,dataDir,contract,outputTransport));
+  (id,url)=>deliverReviewedPaidVideo(store,id,url,dataDir,contract,outputTransport),onDiagnostic);
 }
