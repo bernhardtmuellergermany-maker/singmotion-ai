@@ -90,10 +90,13 @@ try{
   deliveryEvidence:"validated offline browser result 2026"}),true);
  const page=await context.newPage();
  await page.goto(origin+"/orders/"+id);
+ console.log("BROWSER_CHECKPOINT: page loaded");
  const output=page.getByRole("region",{name:"Customer video output"});
- await output.getByText("Completed",{exact:true}).waitFor({timeout:15000});
+ console.log("BROWSER_CHECKPOINT: waiting for paid completed card");
+ await output.locator(".sm-private-video-state").filter({hasText:"Completed"}).waitFor({timeout:15000});
+ console.log("BROWSER_CHECKPOINT: paid completed card visible");
  assert.equal(await output.locator("video[controls]").count(),1);
- const download=output.getByRole("link",{name:/Download video/});
+ const download=output.getByRole("link",{name:/Download MP4/});
  assert.equal(await download.getAttribute("href"),`/api/customer-video?orderId=${id}&download=1`);
  const partial=await context.request.get(origin+`/api/customer-video?orderId=${id}`,{
   headers:{range:"bytes=0-31"},
@@ -101,6 +104,7 @@ try{
  assert.equal(partial.status(),206);
  assert.equal(partial.headers()["content-range"],`bytes 0-31/${bytes.length}`);
  assert.deepEqual(await partial.body(),bytes.subarray(0,32));
+ console.log("BROWSER_CHECKPOINT: range protected and ready for download");
  const pendingDownload=page.waitForEvent("download");
  await download.click();
  const downloaded=await pendingDownload;
@@ -111,13 +115,17 @@ try{
  await stranger.close();
  store.reconcileVerifiedStripeDispute({orderId:id,stripeCheckoutId:"cs_test_browser_output",
   disputeId:"dp_browser_offline",evidence:"verified offline browser dispute notification"});
+ console.log("BROWSER_CHECKPOINT: download complete; validating dispute revocation");
  await page.reload();
- await output.locator(".sm-live-card-kicker").filter({hasText:"Payment requires review"}).waitFor({timeout:15000});
+ await output.locator(".sm-private-video-state").filter({hasText:"Payment requires review"}).waitFor({timeout:15000});
  assert.equal(await output.locator("video").count(),0);
  assert.equal(await output.getByRole("link",{name:/Download video/}).count(),0);
  assert.equal((await context.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),404);
  await context.close();
- console.log("PASS: real HTTP + Chromium signup, signed sandbox receipt, existing output card, MP4 preview/range/download, cross-user denial and post-dispute revocation.");
+ console.log("PASS: real HTTP + Chromium signup, signed sandbox receipt, redesigned output card, MP4 preview/range/download, cross-user denial and post-dispute revocation.");
+}catch(error){
+ console.error("BROWSER_CHECK_FAILED",error instanceof Error ? `${error.name}: ${error.message}` : String(error));
+ throw error;
 }finally{
  await browser?.close();
  store?.close();
