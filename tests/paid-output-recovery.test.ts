@@ -2,7 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {recoverReviewedPaidOutput,paidRecoveryFailureCategory} from "../lib/commerce/paid-output-recovery.ts";
-import {BytePlusError} from "../lib/live/byteplus.ts";
+import {BytePlusError,BytePlusProtocol} from "../lib/live/byteplus.ts";
 
 test("recovery never touches provider or download for an unacknowledged order",async()=>{
  const store=new CommerceStore(":memory:");
@@ -89,6 +89,30 @@ test("recovery discovery skips pending and ambiguous paid submissions",async()=>
   assert.equal(downloads,0);
 
  }finally{store.close()}
+});
+
+test("read-only status diagnostics distinguish missing provider data and corrupt completion payload",async()=>{
+ const signal=new AbortController().signal;
+ const cases=[
+  [{code:10000,data:null},"MISSING_TASK_STATUS_DATA","provider_missing_task_data"],
+  [{code:10000,data:{status:"done",resp_data:"not-json"}},"INVALID_OUTPUT_PAYLOAD_JSON","provider_invalid_output_json"],
+  [{code:10000,data:{status:"done",resp_data:"[]"}},"INVALID_OUTPUT_PAYLOAD_OBJECT","provider_invalid_output_object"],
+  [{code:10000,data:{status:"done",resp_data:"x".repeat(262145)}},"OUTPUT_PAYLOAD_TOO_LARGE","provider_output_payload_too_large"],
+ ] as const;
+ for(const [body,code,category] of cases){
+  let reads=0;
+  await assert.rejects(new BytePlusProtocol(async request=>{
+   assert.match(request.url,/Action=CVSync2AsyncGetResult/);
+   reads++;
+   return {status:200,body};
+  }).status("task-read-only",signal),(error:unknown)=>{
+   assert.ok(error instanceof BytePlusError);
+   assert.equal(error.diagnostic.code,code);
+   assert.equal(paidRecoveryFailureCategory(error),category);
+   return true;
+  });
+  assert.equal(reads,1);
+ }
 });
 
 test("paid recovery reports safe BytePlus error categories without sensitive response details",()=>{
