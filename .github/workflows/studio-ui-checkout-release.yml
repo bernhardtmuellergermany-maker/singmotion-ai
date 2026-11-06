@@ -4,6 +4,9 @@ on:
     branches:
       - release/staging-production-ui-checkout-20261106
   workflow_dispatch:
+concurrency:
+  group: studio-release-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -18,7 +21,8 @@ jobs:
         with:
           node-version: '24.22.1'
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Check FFmpeg tools
+        run: ffmpeg -version && ffprobe -version
       - run: npm ci
       - name: Lint and typecheck
         run: |
