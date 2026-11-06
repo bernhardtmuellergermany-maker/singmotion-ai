@@ -15,6 +15,8 @@ cp .env.example .env.local # only if this file does not already exist
 npm run dev
 ```
 
+Before starting, run `npm run doctor` to check Node 24, FFmpeg/FFprobe, local write access and safe demo/staging configuration. It runs entirely offline, does not inspect or reveal API secrets, and never enables paid rendering.
+
 In a second terminal, from the same repository:
 
 ```sh
