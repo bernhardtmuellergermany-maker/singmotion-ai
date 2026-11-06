@@ -12,7 +12,9 @@ import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 export type PaidDeliveryStage = "source"|"provider-download"|"provider-validation"|"tempo-restoration"|"private-archive";
 export type PaidDeliveryDiagnosticStage = PaidDeliveryStage |
  "provider-host"|"provider-dns"|"provider-network"|"provider-http"|
- "provider-headers"|"provider-private-file"|"provider-media";
+ "provider-headers"|"provider-private-file"|"provider-media"|
+ "provider-media-format"|"provider-media-codec"|"provider-media-dimensions"|
+ "provider-media-duration"|"provider-media-framerate"|"provider-media-normalization";
 export function classifyPaidDeliveryFailure(stage:PaidDeliveryStage,error:unknown):PaidDeliveryDiagnosticStage {
  if(stage!=="provider-download" || !(error instanceof Error))return stage;
  // Only fixed codes reach logs. Never log a provider URL, task ID,
@@ -36,8 +38,19 @@ export function classifyPaidDeliveryFailure(stage:PaidDeliveryStage,error:unknow
   case "Cannot create private provider output file.":
    return "provider-private-file";
   default:
-   // A successful transfer can still fail byte, codec or duration checks.
-   // Unrecognized errors are not disclosed to the customer or logs.
+   // Only recognized constant validation codes; no ffprobe or FFmpeg stderr,
+   // output paths, signed URLs or customer filenames are disclosed.
+   if(error.message==="OUTPUT_FORMAT_INVALID")return "provider-media-format";
+   if(error.message==="OUTPUT_CODEC_MISMATCH"||error.message==="OUTPUT_STREAM_MISSING")return "provider-media-codec";
+   if(error.message==="OUTPUT_FRAMERATE_MISMATCH")return "provider-media-framerate";
+   if(error.message==="OUTPUT_DURATION_MISMATCH")return "provider-media-duration";
+   if(error.message==="OUTPUT_NORMALIZATION_POLICY_REJECTED"||
+      error.message==="OUTPUT_NORMALIZATION_TIMING_FAILED"||
+      error.message==="OUTPUT_NORMALIZATION_AUDIO_CHANGED")return "provider-media-normalization";
+   if(error.message==="OUTPUT_DIMENSIONS_MISMATCH"||
+      /^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_\\d+x\\d+_EXPECTED_(?:\\d+x\\d+|720P)$/.test(error.message))
+    return "provider-media-dimensions";
+   // Unknown failures remain a generic fixed category.
    return "provider-media";
  }
 }
