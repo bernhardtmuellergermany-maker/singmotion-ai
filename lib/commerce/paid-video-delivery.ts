@@ -11,7 +11,11 @@ import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 
 export type PaidDeliveryStage = "source"|"provider-download"|"provider-validation"|"tempo-restoration"|"private-archive";
 export class PaidDeliveryStageError extends Error {
- constructor(readonly stage:PaidDeliveryStage) {super("Private paid delivery stage failed");}
+ readonly stage:PaidDeliveryStage;
+ constructor(stage:PaidDeliveryStage) {
+  super("Private paid delivery stage failed");
+  this.stage=stage;
+ }
 }
 async function deliveryStage<T>(stage:PaidDeliveryStage, action:()=>Promise<T>):Promise<T>{
  try{return await action();}catch{throw new PaidDeliveryStageError(stage);}
