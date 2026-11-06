@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
     store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     const accountId=store.session(req.cookies.get("sm_customer")?.value || "");
     if (!accountId) return respond({error:"Customer login required."},401);
+    if(!store.emailVerified(accountId))return respond({error:"Verify your email before preparing paid video orders.",code:"EMAIL_NOT_VERIFIED"},403);
     const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId);
     if (!account || typeof account.email!=="string")
       return respond({error:"Customer account unavailable."},403);
