@@ -685,36 +685,47 @@
 }
 
 
-/* Timeline menus open in the card's normal layout, never above the ruler or heading. */
-.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-menu{
-  position:relative;
-  width:100%;
-}
-.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-options{
-  position:static !important;
-  inset:auto !important;
-  transform:none !important;
-  display:none;
-  width:100%;
-  min-width:0;
-  max-height:220px;
-  overflow-y:auto;
-  box-sizing:border-box;
-  margin-top:5px;
-  z-index:auto;
-}
-.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-menu[open]>.flow-camera-options{
-  display:block;
-}
+/* Performance Timeline menus belong to their section card.
+   Keep options in normal flow so they cannot cover Add Section, other fields,
+   or the bottom of the panel. Only the list itself scrolls. */
 .singmotion-flow .sm-timeline-cards article{
   height:auto;
+  overflow:visible;
 }
-
-/* Performance Timeline popovers overlay the editor instead of expanding/reflowing the card. */
-.singmotion-flow .sm-timeline-cards article{overflow:visible}
-.singmotion-flow .sm-timeline-add-camera{position:relative;min-width:0}
-.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu{position:relative;z-index:1;min-width:0}
-.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu[open]{z-index:80}
-.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu>.flow-camera-options{position:absolute!important;top:calc(100% + 5px)!important;bottom:auto!important;left:0!important;right:0!important;width:100%!important;min-width:0!important;max-width:100%!important;max-height:210px!important;overflow-y:auto!important;box-sizing:border-box;z-index:100;box-shadow:0 14px 35px #000a}
-.singmotion-flow .sm-timeline-add-camera details.flow-camera-menu>.flow-camera-options button{width:100%;min-width:0;white-space:normal}
-.singmotion-flow .sm-timeline-cards article:has(details.flow-camera-menu[open]){position:relative;z-index:50}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera{
+  position:relative;
+  min-width:0;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu{
+  position:relative;
+  z-index:auto;
+  width:100%;
+  min-width:0;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu > .flow-camera-options{
+  position:static!important;
+  inset:auto!important;
+  transform:none!important;
+  box-sizing:border-box;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  max-height:220px!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  margin-top:5px;
+  z-index:auto;
+  box-shadow:none;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu:not([open]) > .flow-camera-options{
+  display:none!important;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu[open] > .flow-camera-options{
+  display:flex!important;
+  flex-direction:column;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-options button{
+  width:100%;
+  min-width:0;
+  white-space:normal;
+}
