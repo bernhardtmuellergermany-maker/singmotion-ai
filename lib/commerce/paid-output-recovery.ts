@@ -6,7 +6,8 @@ export type PaidRecoveryDiagnostic =
  "provider_status_unavailable"|"provider_authentication"|"provider_throttled"|
  "provider_transient"|"provider_protocol"|"provider_rejected"|"provider_denied"|"provider_prefilter"|
  "provider_unsupported_status"|"provider_completed_without_url"|
- "provider_noncompletion"|"provider_done_missing_output";
+ "provider_noncompletion"|"provider_done_missing_output"|
+ "provider_missing_task_data"|"provider_invalid_output_json"|"provider_invalid_output_object"|"provider_output_payload_too_large";
 
 export function paidRecoveryFailureCategory(error:unknown):PaidRecoveryDiagnostic {
  if(!(error instanceof BytePlusError))return "provider_status_unavailable";
@@ -20,6 +21,10 @@ export function paidRecoveryFailureCategory(error:unknown):PaidRecoveryDiagnosti
    if(error.diagnostic.providerCode===50510)return "provider_prefilter";
    return "provider_rejected";
   }
+  case "MISSING_TASK_STATUS_DATA": return "provider_missing_task_data";
+  case "INVALID_OUTPUT_PAYLOAD_JSON": return "provider_invalid_output_json";
+  case "INVALID_OUTPUT_PAYLOAD_OBJECT": return "provider_invalid_output_object";
+  case "OUTPUT_PAYLOAD_TOO_LARGE": return "provider_output_payload_too_large";
   case "UNSUPPORTED_TASK_STATUS": return "provider_unsupported_status";
   case "COMPLETED_WITHOUT_VIDEO_URL": return "provider_completed_without_url";
   default: return "provider_status_unavailable";
