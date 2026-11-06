@@ -46,7 +46,25 @@ export async function recoverReviewedPaidOutput(
  if(!job||job.provider!=="byteplus")return "awaiting-job";
  let result:Awaited<ReturnType<BytePlusProtocol["status"]>>;
  try{result=await new BytePlusProtocol(transport).status(job.jobId,signal);}
- catch(error){onDiagnostic?.(paidRecoveryFailureCategory(error));return "unverified";}
+ catch(error){
+  onDiagnostic?.(paidRecoveryFailureCategory(error));
+  // BytePlus explicitly classifies 50510 as permanent content pre-filter
+  // rejection. Its status read (never a submission) carries the exact task ID
+  // and a SHA-256 digest of the provider response as durable evidence.
+  // Finalize the already-claimed paid order without retrying, refunding,
+  // reopening a provider task, or releasing a spend reservation.
+  if(error instanceof BytePlusError &&
+     error.rejection?.code===50510 &&
+     error.rejection.httpStatus===500 &&
+     error.rejection.taskId===job.jobId &&
+     /^[a-f0-9]{64}$/.test(error.rejection.responseSha256)){
+   store.finalizePaidFulfillment(orderId,{
+    state:"failed",
+    failureEvidence:"BytePlus confirmed permanent pre-filter rejection; code=50510; http=500; response-sha256="+error.rejection.responseSha256,
+   });
+  }
+  return "unverified";
+ }
  if(result.status==="in_queue"||result.status==="generating")return "pending";
  if(result.status!=="done"){
   onDiagnostic?.("provider_noncompletion");
