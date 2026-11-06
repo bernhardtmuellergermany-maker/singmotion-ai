@@ -53,10 +53,10 @@ export async function POST(req:NextRequest){
     if(pending?.session_id&&stripeSessionIdMatchesMode(pending.session_id,mode)){
       const verify=await fetch("https://api.stripe.com/v1/checkout/sessions/"+encodeURIComponent(pending.session_id),{headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)});
       if(!verify.ok)return NextResponse.json({error:"Pending Checkout verification unavailable"},{status:503});
-      const session=await verify.json() as {id?:string;status?:string;livemode?:boolean;url?:string;expires_at?:number;client_reference_id?:string};
+      const session=await verify.json() as {id?:string;mode?:string;status?:string;livemode?:boolean;url?:string;expires_at?:number;client_reference_id?:string};
       if(session.status==="complete")return NextResponse.json({error:"Checkout completed; waiting for subscription confirmation."},{status:409});
       try {
-        const valid=verifiedHobbyCheckoutSession({...session,mode:"subscription"},mode,accountId);
+        const valid=verifiedHobbyCheckoutSession(session,mode,accountId);
         if(valid.id===pending.session_id&&valid.url===existingCheckout.url)
           return NextResponse.json({url:valid.url},{headers:{"Cache-Control":"no-store"}});
       }catch{return NextResponse.json({error:"Pending Checkout could not be verified."},{status:503})}
