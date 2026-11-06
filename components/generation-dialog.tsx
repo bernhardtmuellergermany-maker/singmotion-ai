@@ -181,10 +181,13 @@ export function GenerationDialog({
     const body = await response.json() as {
       url?:unknown;error?:string;code?:string;
       stripeErrorCode?:string|null;stripeErrorParameter?:string|null;
+      stripeFailureCategory?:string;
     };
     if (!response.ok || typeof body.url !== "string") {
       const details=body.code==="STRIPE_TEST_CHECKOUT_REJECTED"
-        ? [body.stripeErrorCode,body.stripeErrorParameter].filter(Boolean).join(" / ")
+        ? [body.stripeErrorCode,body.stripeErrorParameter,
+            body.stripeFailureCategory && body.stripeFailureCategory!=="unclassified"
+              ? "reason: "+body.stripeFailureCategory : null].filter(Boolean).join(" / ")
         : "";
       throw Error((body.error || "Secure Stripe Checkout is unavailable.")+
         (details?" Stripe diagnostic: "+details:""));
