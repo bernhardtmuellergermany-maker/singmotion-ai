@@ -83,5 +83,7 @@ test("paid recovery reports safe BytePlus error categories without sensitive res
   const error=new BytePlusError(false,{code});
   assert.equal(paidRecoveryFailureCategory(error),expected);
  }
+ assert.equal(paidRecoveryFailureCategory(new BytePlusError(false,{code:"PROVIDER_REJECTED",providerCode:50400})),"provider_denied");
+ assert.equal(paidRecoveryFailureCategory(new BytePlusError(false,{code:"PROVIDER_REJECTED",providerCode:50510})),"provider_prefilter");
  assert.equal(paidRecoveryFailureCategory(new Error("sensitive private response")),"provider_status_unavailable");
 });
