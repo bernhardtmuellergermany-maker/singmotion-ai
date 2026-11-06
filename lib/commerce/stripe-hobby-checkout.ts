@@ -20,3 +20,15 @@ export function verifiedHobbyCheckoutSession(value:unknown,mode:StripePaymentMod
    url.username||url.password||url.port)throw Error("Unexpected Hobby Checkout host");
  return {id:session.id,url:session.url,expiresAt:session.expires_at*1000-30000};
 }
+
+/** Reuse a pending session only when Stripe's fresh response and the local
+ * account-bound reservation match exactly. Never trust a browser URL. */
+export function verifiedReusableHobbyCheckoutSession(
+  stripeResponse:unknown,mode:StripePaymentMode,accountId:string,
+  pending:{sessionId:string;url:string},now=Date.now(),
+):{id:string;url:string;expiresAt:number}{
+  const verified=verifiedHobbyCheckoutSession(stripeResponse,mode,accountId,now);
+  if(verified.id!==pending.sessionId||verified.url!==pending.url)
+    throw Error("Hobby Checkout reservation conflict");
+  return verified;
+}
