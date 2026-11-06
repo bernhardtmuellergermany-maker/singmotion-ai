@@ -2,6 +2,8 @@ import {CommerceStore} from "./store.ts";
 import {BytePlusProtocol} from "../live/byteplus.ts";
 import type {Transport} from "../live/byteplus.ts";
 
+export type PaidRecoveryDiagnostic = "provider_status_unavailable"|"provider_noncompletion"|"provider_done_missing_output";
+
 /** Trusted-worker bridge. Only an acknowledged, claimed paid task is eligible.
  * Never submits or retries a BytePlus task. A completed response is delivered
  * only through a separately injected private validation/ingestion operation. */
@@ -11,6 +13,7 @@ export async function recoverReviewedPaidOutput(
  transport:Transport,
  signal:AbortSignal,
  deliver:(orderId:string,providerUrl:string)=>Promise<"delivered"|"already-delivered">,
+ onDiagnostic?:(reason:PaidRecoveryDiagnostic)=>void,
 ):Promise<"awaiting-job"|"pending"|"unverified"|"delivered"|"already-delivered">{
  if(!/^[a-f0-9-]{36}$/.test(orderId))throw Error("Invalid order reference");
  const order=store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(orderId) as {status:string}|undefined;
@@ -21,8 +24,15 @@ export async function recoverReviewedPaidOutput(
  if(!job||job.provider!=="byteplus")return "awaiting-job";
  let result:Awaited<ReturnType<BytePlusProtocol["status"]>>;
  try{result=await new BytePlusProtocol(transport).status(job.jobId,signal);}
- catch{return "unverified";}
+ catch{onDiagnostic?.("provider_status_unavailable");return "unverified";}
  if(result.status==="in_queue"||result.status==="generating")return "pending";
- if(result.status!=="done"||!result.outputUrl)return "unverified";
+ if(result.status!=="done"){
+  onDiagnostic?.("provider_noncompletion");
+  return "unverified";
+ }
+ if(!result.outputUrl){
+  onDiagnostic?.("provider_done_missing_output");
+  return "unverified";
+ }
  return deliver(orderId,result.outputUrl);
 }
