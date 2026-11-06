@@ -9,6 +9,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { PreparedMedia, LiveTestStore } from "./store.ts";
 import type { StudioDraftExport } from "../studio-draft.ts";
 import type { OutputValidationContract } from "./output.ts";
+import type { VerifiedContract } from "./contract.ts";
 import { sha256File } from "./media.ts";
 import { probe, validateAudio } from "../media.ts";
 import { validateOutput, outputTransferLimits } from "./output.ts";
@@ -259,7 +260,7 @@ async function audioPacketHash(file: string) {
 export async function validateRestored(
   file: string,
   media: PreparedMedia,
-  contract: OutputValidationContract,
+  contract: OutputValidationContract | VerifiedContract,
 ) {
   const t = media.tempo!;
   if ((await sha256File(t.originalPath)) !== t.originalSha256)
@@ -291,7 +292,7 @@ export async function restoreTempoOutput(
   input: string,
   output: string,
   media: PreparedMedia,
-  contract: OutputValidationContract,
+  contract: OutputValidationContract | VerifiedContract,
 ) {
   const t = media.tempo!;
   const originalSeconds = await decodedSeconds(t.originalPath);
