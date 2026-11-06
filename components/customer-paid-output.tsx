@@ -34,7 +34,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
   review?"Your paid video needs an internal review. No second payment or video order is necessary.":
   processing?"Your video has been submitted and its result is being checked. It may require a manual review.":
   "Your paid video will appear here when processing and private validation are complete.";
- return <section className="sm-private-output" aria-label="Your music video">
+ return <section className="sm-private-output" aria-label="Customer video output">
   {error&&<p className="sm-private-output-error" role="alert">{error}</p>}
   <div className="sm-private-video-card">
    <div className="sm-private-video-frame">
