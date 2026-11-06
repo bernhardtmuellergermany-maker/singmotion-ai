@@ -14,7 +14,7 @@
 .sm-settings-section .sm-settings-danger:focus-visible{outline:2px solid #ef9b9f;outline-offset:3px}
 
 /* Align all settings actions to the sign-out action's visual width. */
-.sm-settings-content .sm-settings-section button:not(.sm-account-menu button){
+.sm-settings-content .sm-settings-section button{
  box-sizing:border-box;
  width:min(100%,232px);
  min-height:43px;
