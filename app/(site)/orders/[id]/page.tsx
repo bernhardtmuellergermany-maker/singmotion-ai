@@ -8,6 +8,7 @@ import { CustomerPaidOutput } from "@/components/customer-paid-output";
 import { CustomerVideoCheckout } from "@/components/customer-video-checkout";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import { CancelUnstartedOrder } from "@/components/cancel-unstarted-order";
+import { StripeOrderReturnRecovery } from "@/components/stripe-order-return-recovery";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Private order",
@@ -15,11 +16,13 @@ export const metadata = {
   referrer: "no-referrer" as const,
 };
 export default async function Page({
-  params,
+  params, searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ checkout?: string }>;
 }) {
   const { id } = await params;
+  const { checkout } = await searchParams;
   let order: Record<string, unknown> | null = null,
     fulfillmentState: string | null = null,
     videoReady = false,
@@ -80,8 +83,13 @@ export default async function Page({
             {order.status==="awaiting_payment" && <p>Payment has not been confirmed. No video generation has started. Complete secure Checkout to begin processing.</p>}
             {order.status==="paid" && !videoReady && <p>Your payment was confirmed. Your video will appear here after processing and private validation.</p>}
           </>
+        ) : checkout === "success" && /^[a-f0-9-]{36}$/.test(id) ? (
+          <StripeOrderReturnRecovery orderId={id}/>
         ) : (
-          <GuestOrderAccess id={id} />
+          <>
+            {checkout === "recovered" && <p role="status">Your payment return was received, but your customer session could not be confirmed. Sign in to your customer account and reopen this same order link. Do not pay again.</p>}
+            <GuestOrderAccess id={id} />
+          </>
         )}
       </main>
     </div>
