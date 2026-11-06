@@ -2,3 +2,8 @@
 /* Account settings shares the same global header as Output/Studio, while its content scrolls naturally. */
 .sm-output-page .sm-carousel-main:has(>.sm-settings-page){display:block;min-height:calc(100svh - 76px);height:auto;padding:0;overflow:visible}
 .sm-output-page .sm-carousel-main>.sm-settings-page{width:100%;box-sizing:border-box;min-height:calc(100svh - 76px);margin:0;overflow:visible}
+
+.sm-settings-verification{display:flex;align-items:center;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:14px}
+.sm-settings-verification-ok{color:#80dfb3;font-weight:700}
+.sm-settings-verification-pending{color:#f6cf86;font-weight:700}
+.sm-settings-section .sm-settings-verification .sm-settings-secondary{margin-top:0;font-size:13px;padding:8px 12px}
