@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
         type:diagnostic.type,
         code:diagnostic.code,
         param:diagnostic.param,
+        category:diagnostic.category,
         mode,
       });
       return reply(isTest ? {
@@ -106,6 +107,7 @@ export async function POST(req: NextRequest) {
         stripeHttpStatus:response.status,
         stripeErrorCode:diagnostic.code,
         stripeErrorParameter:diagnostic.param,
+        stripeFailureCategory:diagnostic.category,
       } : {error:"Checkout is temporarily unavailable."}, 502);
     }
     let session: { id: string; url: string };
