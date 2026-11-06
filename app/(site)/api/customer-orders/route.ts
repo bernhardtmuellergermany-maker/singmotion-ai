@@ -76,6 +76,11 @@ export async function POST(req: NextRequest) {
     // creation boundary, before reserving any price/allowance/promotion.
     try{requireRights(payload.consent,payload.termsVersion);}
     catch{return respond({error:"Confirm rights and current terms before ordering."},409);}
+    // A browser draft may survive a guest -> customer sign-in. Never silently
+    // change its owner: asset ownership must stay verifiable server-side.
+    if (!payload.draft || typeof payload.draft !== "object" ||
+        (payload.draft as {owner?:unknown}).owner !== `customer-${accountId}`)
+      return respond({error:"This Studio draft belongs to a different media session. Sign in, reopen Studio and upload or import the media into your customer account before paying.",code:"STUDIO_OWNER_MISMATCH"},409);
     // Historical purchases never count toward an artificial project ceiling.
     // Never accept media owner, price or email from the browser.
     if(payload.promoCode!==undefined &&
@@ -110,7 +115,15 @@ export async function POST(req: NextRequest) {
       return respond({error:"This video is covered by your Hobby allowance. Paid Checkout is not applicable.",code:"HOBBY_INCLUDED_ONLY"},409);
     if(error instanceof Error && (/^Promotion |^Customer promotion |^VIDEO_TOO_LONG_FOR_PROMO$|^Authenticated paid customer price/.test(error.message)))
       return respond({error:"Promotion is unavailable, expired, exhausted or incompatible with this video.",code:"PROMOTION_UNAVAILABLE"},409);
-    return respond({error:"Studio order could not be prepared."},422);
+    // Report safe categories without leaking file paths, provider diagnostics
+    // or another account's media identifiers to the browser.
+    if (error instanceof Error && /Draft owner does not match|Customer media owner mismatch/.test(error.message))
+      return respond({error:"This Studio draft belongs to another media session. Reopen Studio as the signed-in customer and import or upload your audio and image.",code:"STUDIO_OWNER_MISMATCH"},409);
+    if (error instanceof Error && /File not found|Asset must remain in private storage|song and one reference image/.test(error.message))
+      return respond({error:"The reviewed audio or image is no longer available in this customer account. Reopen Studio and select your account's media.",code:"STUDIO_MEDIA_UNAVAILABLE"},409);
+    if (error instanceof Error && /Invalid video duration|Selected segment exceeds|Invalid audio duration/.test(error.message))
+      return respond({error:"The selected video duration is not eligible. Adjust the audio selection and review it again.",code:"STUDIO_DURATION_INVALID"},409);
+    return respond({error:"The video could not be prepared. No Stripe payment or AI generation was started. Please retry from Studio.",code:"STUDIO_PREPARATION_FAILED"},422);
   } finally {
     store?.close();
   }
