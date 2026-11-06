@@ -4,6 +4,7 @@ on:
     branches:
       - release/staging-production-ui-checkout-20261106
       - fix/customer-checkout-owner-and-global-nav-20261106
+      - fix/professional-account-security-20261106
   workflow_dispatch:
 concurrency:
   group: studio-release-${{ github.ref }}
