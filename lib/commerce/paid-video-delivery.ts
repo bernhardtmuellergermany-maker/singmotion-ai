@@ -48,7 +48,7 @@ export function classifyPaidDeliveryFailure(stage:PaidDeliveryStage,error:unknow
       error.message==="OUTPUT_NORMALIZATION_TIMING_FAILED"||
       error.message==="OUTPUT_NORMALIZATION_AUDIO_CHANGED")return "provider-media-normalization";
    if(error.message==="OUTPUT_DIMENSIONS_MISMATCH"||
-      /^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_\\d+x\\d+_EXPECTED_(?:\\d+x\\d+|720P)$/.test(error.message))
+      /^OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_\d+x\d+_EXPECTED_(?:\d+x\d+|720P)$/.test(error.message))
     return "provider-media-dimensions";
    // Unknown failures remain a generic fixed category.
    return "provider-media";
