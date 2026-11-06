@@ -4,7 +4,7 @@ import type {Transport} from "../live/byteplus.ts";
 
 export type PaidRecoveryDiagnostic =
  "provider_status_unavailable"|"provider_authentication"|"provider_throttled"|
- "provider_transient"|"provider_protocol"|"provider_rejected"|
+ "provider_transient"|"provider_protocol"|"provider_rejected"|"provider_denied"|"provider_prefilter"|
  "provider_unsupported_status"|"provider_completed_without_url"|
  "provider_noncompletion"|"provider_done_missing_output";
 
@@ -15,7 +15,11 @@ export function paidRecoveryFailureCategory(error:unknown):PaidRecoveryDiagnosti
   case "TRANSPORT_THROTTLED": return "provider_throttled";
   case "TRANSPORT_TRANSIENT": return "provider_transient";
   case "TRANSPORT_PROTOCOL": return "provider_protocol";
-  case "PROVIDER_REJECTED": return "provider_rejected";
+  case "PROVIDER_REJECTED": {
+   if(error.diagnostic.providerCode===50400)return "provider_denied";
+   if(error.diagnostic.providerCode===50510)return "provider_prefilter";
+   return "provider_rejected";
+  }
   case "UNSUPPORTED_TASK_STATUS": return "provider_unsupported_status";
   case "COMPLETED_WITHOUT_VIDEO_URL": return "provider_completed_without_url";
   default: return "provider_status_unavailable";
