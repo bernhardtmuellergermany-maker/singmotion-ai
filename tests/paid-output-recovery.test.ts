@@ -61,7 +61,7 @@ test("recovery discovery skips pending and ambiguous paid submissions",async()=>
    throw Error("private provider response must not leak");
   },new AbortController().signal,async()=>{downloads++;return "delivered"},reason=>failures.push(reason));
   assert.equal(unreachable,"unverified");
-  assert.deepEqual(failures,["provider_status_unavailable"]);
+  assert.deepEqual(failures,["provider_transient"]);
   assert.equal(downloads,0);
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(known)?.state,"processing");
   assert.deepEqual(store.acknowledgedPaidRecovery(),[known]);
