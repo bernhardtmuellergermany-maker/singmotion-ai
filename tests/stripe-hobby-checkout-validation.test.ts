@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {verifiedHobbyCheckoutSession} from "../lib/commerce/stripe-hobby-checkout.ts";
+import {verifiedHobbyCheckoutSession,verifiedReusableHobbyCheckoutSession} from "../lib/commerce/stripe-hobby-checkout.ts";
 const now=Date.UTC(2026,10,6,11,0);
 const customer="9c6a934f-d96f-42b6-92b7-39c613ba5c71";
 const valid={id:"cs_test_hobby_123",livemode:false,mode:"subscription",status:"open",client_reference_id:customer,
@@ -28,4 +28,24 @@ test("reject mismatch, replayed completed, unsafe URL, wrong account, missing mo
   {...valid,url:""},
   {...valid,client_reference_id:undefined},
  ])assert.throws(()=>verifiedHobbyCheckoutSession(bad,"test",customer,now));
+});
+
+test("resumed Hobby checkout validates Stripe's actual mode and original reservation",()=>{
+ const pending={sessionId:valid.id,url:valid.url};
+ const verified=verifiedReusableHobbyCheckoutSession(valid,"test",customer,pending,now);
+ assert.equal(verified.id,valid.id);
+ for(const changed of [
+  {...valid,mode:"payment"},
+  {...valid,mode:undefined},
+  {...valid,status:"complete"},
+  {...valid,client_reference_id:"someone-else"},
+  {...valid,livemode:true},
+  {...valid,id:"cs_test_another_customer"},
+ ]){
+  assert.throws(()=>verifiedReusableHobbyCheckoutSession(changed,"test",customer,pending,now));
+ }
+ assert.throws(()=>verifiedReusableHobbyCheckoutSession(valid,"test",customer,
+  {...pending,sessionId:"cs_test_different"},now));
+ assert.throws(()=>verifiedReusableHobbyCheckoutSession(valid,"test",customer,
+  {...pending,url:"https://checkout.stripe.com/c/pay/cs_test_rogue"},now));
 });
