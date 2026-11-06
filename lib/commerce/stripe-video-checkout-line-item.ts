@@ -17,3 +17,11 @@ export function stripeVideoCheckoutLineItem(cents:number):Record<string,string>{
   "line_items[0][quantity]":"1",
  };
 }
+
+/** Versioned for Stripe's cached failed 400 response to the previous request
+ * without product tax_code. Stable on repeat requests for the same order. */
+export function stripeVideoCheckoutIdempotencyKey(orderId:string):string{
+ if(!/^[a-f0-9-]{36}$/.test(orderId))
+  throw Error("Invalid checkout order reference");
+ return `singmotion-checkout-tax-v2-${orderId}`;
+}
