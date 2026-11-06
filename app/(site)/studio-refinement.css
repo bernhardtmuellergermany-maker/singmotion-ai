@@ -780,3 +780,46 @@
     font-size:12px;
   }
 }
+
+/* Rename is an overlay of the exact same title footprint. The hidden title
+   remains in normal layout so focus never moves the menu or changes its size. */
+.sm-site-header .sm-studio-rename-slot{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  flex:0 1 auto;
+  min-width:0;
+  max-width:100%;
+}
+.sm-site-header .sm-studio-rename-slot .flow-project-name{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  width:auto;
+}
+.sm-site-header .sm-studio-rename-slot .flow-project-input,
+.sm-site-header .sm-studio-rename-slot .flow-project-input:focus,
+.sm-site-header .sm-studio-rename-slot .flow-project-input:focus-visible{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  box-sizing:border-box!important;
+  display:block;
+  width:100%!important;
+  height:100%!important;
+  min-width:0;
+  max-width:100%!important;
+  margin:0!important;
+  padding:4px 0!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  color:inherit!important;
+  font:inherit!important;
+  line-height:20px!important;
+  text-align:left;
+  appearance:none;
+  transition:none!important;
+}
