@@ -178,9 +178,17 @@ export function GenerationDialog({
       headers: {"Content-Type": "application/json"},
       body: JSON.stringify({orderId}),
     });
-    const body = await response.json() as {url?:unknown;error?:string};
-    if (!response.ok || typeof body.url !== "string")
-      throw Error(body.error || "Secure Stripe Checkout is unavailable.");
+    const body = await response.json() as {
+      url?:unknown;error?:string;code?:string;
+      stripeErrorCode?:string|null;stripeErrorParameter?:string|null;
+    };
+    if (!response.ok || typeof body.url !== "string") {
+      const details=body.code==="STRIPE_TEST_CHECKOUT_REJECTED"
+        ? [body.stripeErrorCode,body.stripeErrorParameter].filter(Boolean).join(" / ")
+        : "";
+      throw Error((body.error || "Secure Stripe Checkout is unavailable.")+
+        (details?" Stripe diagnostic: "+details:""));
+    }
     const url = new URL(body.url);
     if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com" ||
         url.username || url.password)
