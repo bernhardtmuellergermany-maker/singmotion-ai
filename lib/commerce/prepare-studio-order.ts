@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { prepareStudioDraft } from "../live/media.ts";
+import { slowExcerpt } from "../live/tempo.ts";
+import { dataDir } from "../db.ts";
 import { reviewedVideoInputDigest } from "./reviewed-video.ts";
 import { CommerceStore } from "./store.ts";
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
@@ -38,7 +40,33 @@ export async function prepareCustomerStudioOrder(
   // provider/customer pricing interval. Encoded MP3 duration is authoritative.
   const maxSeconds=env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" ?
     OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS : 300;
-  const media = await prepareStudioDraft(input.draft, input.mediaOwner, maxSeconds);
+  let media = await prepareStudioDraft(input.draft, input.mediaOwner, maxSeconds);
+  if (env.AUDIO_TEMPO_ENABLED === "true") {
+    if (!media.recording?.songId || !/^[a-f0-9]{64}$/.test(media.recording.sourceSha256))
+      throw Error("Verified original recording is required for customer tempo processing");
+    // Do not offer a modified-speed replay of a recording whose previous
+    // customer provider attempt ended in failure. New independent content can
+    // still be ordered, subject to the normal BytePlus moderation policy.
+    const rejected = store.db.prepare(`
+      SELECT 1 FROM customer_prepared_media m
+      JOIN customer_orders o ON o.id=m.order_id
+      JOIN customer_fulfillment_queue q ON q.order_id=o.id
+      WHERE o.account_id=? AND q.state='failed'
+        AND json_extract(m.media_json,'$.recording.sourceSha256')=?
+      LIMIT 1
+    `).get(input.accountId, media.recording.sourceSha256);
+    if (rejected) throw Error("Previous provider failure for this recording requires independent content review; no automatic tempo retry");
+    const digest=createHash("sha256").update(JSON.stringify([
+      "customer-original-tempo-v1", input.accountId,
+      media.recording.sourceSha256, media.imageSha256,
+    ])).digest("hex");
+    // Transform BEFORE pricing and Stripe Checkout. The immutable reviewed
+    // customer order therefore binds the actual slowed MP3 and its measured
+    // provider duration; no paid job is retimed or repriced retroactively.
+    media=await slowExcerpt(media,dataDir,media.recording.songId,{
+      sourceSha256:media.recording.sourceSha256,digest,
+    },maxSeconds);
+  }
   const plan = new PlanLedger(store.db).snapshot(input.accountId);
   const billableSeconds = Math.ceil(media.durationSeconds);
   if (!Number.isSafeInteger(billableSeconds) || billableSeconds < 5)
