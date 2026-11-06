@@ -4,6 +4,7 @@ import { CommerceStore } from "@/lib/commerce/store";
 import { customerLaunchReadiness } from "@/lib/commerce/readiness";
 import {verifiedStripeCheckoutSession} from "@/lib/commerce/stripe-webhook";
 import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {sanitizedStripeCheckoutError} from "@/lib/commerce/stripe-error-diagnostics";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
@@ -86,8 +87,26 @@ export async function POST(req: NextRequest) {
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok) {
-      console.error("Stripe Checkout session request failed", response.status);
-      return reply({ error: "Checkout is temporarily unavailable." }, 502);
+      // Stripe 400 errors are input/configuration problems, not transient
+      // network errors. Never log or forward raw Stripe error messages.
+      let details:unknown=null;
+      try{details=await response.json();}catch{/* safely fall back */}
+      const diagnostic=sanitizedStripeCheckoutError(details);
+      const isTest=mode==="test";
+      console.error("Stripe Checkout session rejected", {
+        httpStatus:response.status,
+        type:diagnostic.type,
+        code:diagnostic.code,
+        param:diagnostic.param,
+        mode,
+      });
+      return reply(isTest ? {
+        error:"Stripe Test Checkout rejected this request. No payment was taken.",
+        code:"STRIPE_TEST_CHECKOUT_REJECTED",
+        stripeHttpStatus:response.status,
+        stripeErrorCode:diagnostic.code,
+        stripeErrorParameter:diagnostic.param,
+      } : {error:"Checkout is temporarily unavailable."}, 502);
     }
     let session: { id: string; url: string };
     try {
