@@ -67,3 +67,11 @@ export function productionPrivateCustomerPreviewEnabled(env:Record<string,string
   env.GENERATIONS_ENABLED==="false" &&
   env.ADMIN_DEMO_ENABLED==="false";
 }
+
+/** Account settings may be read inside the private, Basic-Auth-protected customer
+ * preview. This never authorizes customer payments or public launch. */
+export function customerAccountSettingsAccessible(env:Record<string,string|undefined>):boolean{
+ return env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
+  (env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" ||
+   productionCustomerReleaseApproved(env) || productionPrivateCustomerPreviewEnabled(env));
+}
