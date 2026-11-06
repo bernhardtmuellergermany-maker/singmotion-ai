@@ -578,7 +578,8 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   // ban on new explicitly authorized use of the same owned song.
   const reuseAuthorization = await tempoAuthorization(root, store, selection, owner);
   assert.ok(reuseAuthorization);
-  assert.equal(reuseAuthorization.originalSha256, authorization.originalSha256);
+  assert.equal(reuseAuthorization.sourceSha256, authorization.sourceSha256);
+  assert.equal(reuseAuthorization.digest, authorization.digest);
   assert.equal(store.get(attempt.id).failureCode, "CONTENT_PREFILTER_REJECTED");
 });
 
