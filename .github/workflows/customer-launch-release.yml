@@ -1,0 +1,44 @@
+name: Customer launch release verification
+
+on:
+  push:
+    branches:
+      - phase2/customer-launch-safety-20261106
+  pull_request:
+    branches:
+      - phase1/release-export-gates-20261106
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: customer-launch-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  customer-launch-regressions:
+    name: Offline customer auth, Stripe, provider and private delivery gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: npm
+      - name: Install synthetic video regression tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - name: Release parity and production fail-closed gates
+        run: |
+          npm run test:release-parity
+          npm run test:customer:release
+      - name: Production build with full customer and video regression gates
+        run: npm run build
