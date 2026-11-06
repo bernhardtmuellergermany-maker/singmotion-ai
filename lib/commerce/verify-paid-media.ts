@@ -22,6 +22,22 @@ export async function verifyPrivatePaidMediaSnapshot(media: PreparedMedia): Prom
   validateOmniAudio({format:"mp3",bytes:audio.size,duration:media.durationSeconds});
   validateEncodedDuration(media.durationSeconds,300);
   await validateReference(media.imagePath);
+  if (media.tempo) {
+    if (media.tempo.rate !== 0.9 ||
+        !/^[a-f0-9]{64}$/.test(media.tempo.originalSha256) ||
+        media.tempo.sourceSha256 !== media.recording?.sourceSha256 ||
+        media.tempo.songId !== media.recording?.songId ||
+        media.tempo.originalDuration <= 0 ||
+        !media.tempo.authorizationDigest)
+      throw Error("Invalid committed customer tempo metadata");
+    await ensureLocalMediaPath(media.owner,media.tempo.originalPath);
+    const original=await realpath(media.tempo.originalPath);
+    if (!original.startsWith(root+path.sep) ||
+        (await sha256File(original))!==media.tempo.originalSha256)
+      throw Error("Original customer audio changed after checkout");
+    if (Math.abs(media.durationSeconds * 0.9-media.tempo.originalDuration)>0.2)
+      throw Error("Customer tempo duration no longer matches reviewed original");
+  }
   const [audioHash,imageHash] = await Promise.all([
     sha256File(media.audioPath),sha256File(media.imagePath),
   ]);
