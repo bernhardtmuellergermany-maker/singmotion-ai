@@ -5,6 +5,7 @@ import { customerLaunchReadiness } from "@/lib/commerce/readiness";
 import {verifiedStripeCheckoutSession} from "@/lib/commerce/stripe-webhook";
 import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {sanitizedStripeCheckoutError} from "@/lib/commerce/stripe-error-diagnostics";
+import {stripeVideoCheckoutLineItem,stripeVideoCheckoutIdempotencyKey} from "@/lib/commerce/stripe-video-checkout-line-item";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
@@ -64,11 +65,7 @@ export async function POST(req: NextRequest) {
       return reply({ error: "Order is not eligible for Checkout." }, 409);
     const form = new URLSearchParams({
       mode: "payment",
-      "line_items[0][price_data][currency]": "eur",
-      "line_items[0][price_data][tax_behavior]": "inclusive",
-      "line_items[0][price_data][unit_amount]": String(cents),
-      "line_items[0][price_data][product_data][name]": "SingMotion AI music video",
-      "line_items[0][quantity]": "1",
+      ...stripeVideoCheckoutLineItem(cents),
       "metadata[orderId]": String(order.id),
       "payment_intent_data[metadata][orderId]": String(order.id),
       customer_email: String(order.email),
@@ -80,7 +77,7 @@ export async function POST(req: NextRequest) {
       headers: {
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/x-www-form-urlencoded",
-        "Idempotency-Key": `singmotion-checkout-${order.id}`,
+        "Idempotency-Key": stripeVideoCheckoutIdempotencyKey(String(order.id)),
       },
       body: form,
       cache: "no-store",
