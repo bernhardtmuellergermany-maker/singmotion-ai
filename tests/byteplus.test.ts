@@ -92,6 +92,20 @@ test("poll parses documented statuses, only reads successful code, and rejects m
     BytePlusError,
   );
 });
+test("completed task retrieves the documented nested JSON video URL without new provider submission",async()=>{
+ const calls:string[]=[];
+ const protocol=new BytePlusProtocol(async request=>{
+  calls.push(new URL(request.url).searchParams.get("Action")||"");
+  return ok({status:"done",resp_data:JSON.stringify({video_url:"https://output.example.test/ready.mp4",progress:100})});
+ });
+ assert.deepEqual(await protocol.status("existing-paid-task",signal()),{
+  status:"done",outputUrl:"https://output.example.test/ready.mp4"
+ });
+ assert.deepEqual(calls,["CVSync2AsyncGetResult"]);
+ for(const resp_data of ['{','[]','{}',JSON.stringify({video_url:""})]){
+  await assert.rejects(new BytePlusProtocol(async()=>ok({status:"done",resp_data})).status("existing-paid-task",signal()),BytePlusError);
+ }
+});
 test("provider failures redact raw messages; retryable codes never cause automatic submission retries", async () => {
   for (const code of [50429, 50430, 50500, 50501, 50510, 50215, 50400]) {
     let calls = 0;
