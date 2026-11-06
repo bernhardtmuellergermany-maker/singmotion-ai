@@ -823,3 +823,18 @@
   appearance:none;
   transition:none!important;
 }
+
+/* Keep the homepage navigation geometry, with Studio project name left of the nav. */
+.sm-site-header .sm-site-header-left{
+  display:flex;
+  align-items:center;
+  gap:clamp(10px,1.5vw,22px);
+  min-width:0;
+  flex:0 1 auto;
+}
+.sm-site-header .sm-site-header-left .sm-wordmark{flex:0 0 auto}
+.sm-site-header .sm-header-actions{margin-left:auto;flex:0 0 auto}
+@media(max-width:650px){
+ .sm-site-header .sm-site-header-left{gap:7px}
+ .sm-site-header .sm-studio-header-project{max-width:min(28vw,150px)}
+}
