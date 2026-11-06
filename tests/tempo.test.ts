@@ -574,10 +574,12 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
       "INSERT INTO live_studio_projects (attempt_id,owner,selection_json,policy_json,artist_name) VALUES (?,?,?,?,?)",
     )
     .run(attempt.id, owner, JSON.stringify(selection), "{}", "singer");
-  await assert.rejects(
-    tempoAuthorization(root, store, selection, owner),
-    /previous provider failure/,
-  );
+  // Historical provider rejection is retained for audit, not a permanent
+  // ban on new explicitly authorized use of the same owned song.
+  const reuseAuthorization = await tempoAuthorization(root, store, selection, owner);
+  assert.ok(reuseAuthorization);
+  assert.equal(reuseAuthorization.originalSha256, authorization.originalSha256);
+  assert.equal(store.get(attempt.id).failureCode, "CONTENT_PREFILTER_REJECTED");
 });
 
 test("tempo export diagnostics expose only bounded stages, never private stderr", () => {
