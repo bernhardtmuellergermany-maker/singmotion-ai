@@ -406,7 +406,7 @@ export function StudioWizard({
             {draft.imageId&&<img className="sm-studio-review-photo" alt="Uploaded artist reference" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/>}
             <div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" rows={5} readOnly aria-readonly="true" value={draft.customPrompt}/></div>
           </section>
-          <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={20}/></button>
+          <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Review Order <ArrowRight size={20}/></button>
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
