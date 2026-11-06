@@ -1,9 +1,11 @@
-import {mkdir,lstat,realpath,stat,unlink} from "node:fs/promises";
+import {mkdir,lstat,realpath,stat,unlink,rename} from "node:fs/promises";
 import {createHash} from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
 import {downloadValidatedOutput,validateOutput,outputTransferLimits,type OutputValidationContract} from "../live/output.ts";
 import type {OutputTransport} from "../live/output-transport.ts";
+import {restoreTempoOutput,validateRestored} from "../live/tempo.ts";
+import {verifyPrivatePaidMediaSnapshot} from "./verify-paid-media.ts";
 import {asset,db,putAsset} from "../db.ts";
 import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 
@@ -46,12 +48,36 @@ export async function deliverReviewedPaidVideo(
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
  }
  if(existing){
-  // Validation decodes the entire private file again before any DB state change.
-  // This enables crash recovery without re-downloading a paid provider output.
-  await validateOutput(file,media.durationSeconds,contract);
+  // Recovery of a validated final output must never submit another paid job.
+  if(media.tempo){
+   await verifyPrivatePaidMediaSnapshot(media);
+   await validateRestored(file,media,contract);
+  }else await validateOutput(file,media.durationSeconds,contract);
  }else{
   if(hasDelivery)throw Error("Previously recorded delivery is missing its private file");
-  await downloadValidatedOutput(providerUrl,file,media.durationSeconds,contract,transport);
+  if(media.tempo){
+   await verifyPrivatePaidMediaSnapshot(media);
+   // Retain an already downloaded and validated provider response on failure:
+   // restoration can then recover without a new signed URL or paid task.
+   const providerFile=path.join(root,`paid-${orderId}.provider-source.mp4`);
+   const restored=path.join(root,`paid-${orderId}.restoring.mp4`);
+   try{
+    const info=await lstat(providerFile);
+    if(!info.isFile()||info.nlink!==1||(info.mode&0o077)!==0||
+       info.size<1||info.size>limits.maxBytes||
+       await realpath(providerFile)!==providerFile)
+      throw Error("Existing customer provider capture requires operator review");
+    await validateOutput(providerFile,media.durationSeconds,contract);
+   }catch(error){
+    if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+    await downloadValidatedOutput(providerUrl,providerFile,media.durationSeconds,contract,transport);
+   }
+   // All frames are retimed, original MP3 packets copied unchanged, and both
+   // streams fully validated BEFORE the deliverable file becomes visible.
+   await restoreTempoOutput(providerFile,restored,media,contract);
+   await rename(restored,file);
+   await unlink(providerFile).catch(()=>{});
+  }else await downloadValidatedOutput(providerUrl,file,media.durationSeconds,contract,transport);
  }
  const details=await stat(file);
  const assetId=`customer-video-${orderId}`;
