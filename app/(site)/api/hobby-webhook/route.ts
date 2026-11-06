@@ -1,19 +1,12 @@
 import {NextRequest,NextResponse} from "next/server";
-import {createHmac,timingSafeEqual} from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
 import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {hobbyInvoicePaidThrough} from "@/lib/commerce/stripe-hobby-invoice";
+import {readBoundedStripeWebhookBody,StripeWebhookPayloadTooLarge,verifyStripePaymentEvent} from "@/lib/commerce/stripe-webhook";
 export const runtime="nodejs";export const dynamic="force-dynamic";
-function valid(raw:Buffer,signature:string,secret:string){
- const parts=signature.split(",").map(p=>p.trim().split("="));
- const ts=parts.find(p=>p[0]==="t")?.[1]||"",values=parts.filter(p=>p[0]==="v1").map(p=>p[1]);
- if(!/^\d+$/.test(ts)||Math.abs(Date.now()/1000-Number(ts))>300)return false;
- const expected=createHmac("sha256",secret).update(ts+".").update(raw).digest();
- return values.some(v=>/^[a-f0-9]{64}$/i.test(v)&&timingSafeEqual(Buffer.from(v,"hex"),expected));
-}
 export async function POST(req:NextRequest){
  const secret=process.env.STRIPE_HOBBY_WEBHOOK_SECRET;
  const mode=configuredStripePaymentMode(process.env);
@@ -21,10 +14,14 @@ export async function POST(req:NextRequest){
     !secret||!/^whsec_[A-Za-z0-9_]+$/.test(secret))
   return NextResponse.json({error:"Unavailable"},{status:503});
  const expectedLive=mode==="live";
- const raw=Buffer.from(await req.arrayBuffer());if(raw.length>128*1024)return NextResponse.json({error:"Payload too large"},{status:413});
- if(!valid(raw,req.headers.get("stripe-signature")||"",secret))return NextResponse.json({error:"Invalid signature"},{status:400});
- const event=JSON.parse(raw.toString("utf8")) as {id?:string;livemode?:boolean;type?:string;data?:{object?:Record<string,unknown>}};
- if(event.livemode!==expectedLive||!event.id?.startsWith("evt_"))return NextResponse.json({error:"Invalid event"},{status:400});
+ let event:{id?:string;livemode?:boolean;type?:string;data?:{object?:Record<string,unknown>}};
+ try {
+  const raw=await readBoundedStripeWebhookBody(req);
+  event=verifyStripePaymentEvent(raw,req.headers.get("stripe-signature")||"",secret,mode) as typeof event;
+ }catch(error){
+  if(error instanceof StripeWebhookPayloadTooLarge)return NextResponse.json({error:"Payload too large"},{status:413});
+  return NextResponse.json({error:"Invalid signed webhook"},{status:400});
+ }
  if(!["customer.subscription.created","customer.subscription.updated","customer.subscription.deleted","invoice.paid","invoice.payment_failed"].includes(event.type||""))return NextResponse.json({received:true});
  const obj=event.data?.object;
  const invoiceSubscription=event.type?.startsWith("invoice.")?(typeof obj?.subscription==="string"?obj.subscription:(obj?.parent as {subscription_details?:{subscription?:string}}|undefined)?.subscription_details?.subscription):undefined;
