@@ -18,7 +18,7 @@ export async function GET(req:NextRequest){
  if(!saved?.state||!saved.verifier||!saved.nonce||!state||saved.state!==state||!code)return go("Google sign-in cancelled or expired");
  try{
   const redirectUri=trustedOrigin+"/api/google-auth/callback";
-  const token=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({code,client_id:process.env.GOOGLE_OAUTH_CLIENT_ID,client_secret:process.env.GOOGLE_OAUTH_CLIENT_SECRET,redirect_uri:redirectUri,grant_type:"authorization_code",code_verifier:saved.verifier}),cache:"no-store"});
+  const token=await fetch("https://oauth2.googleapis.com/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:new URLSearchParams({code,client_id:process.env.GOOGLE_OAUTH_CLIENT_ID!,client_secret:process.env.GOOGLE_OAUTH_CLIENT_SECRET!,redirect_uri:redirectUri,grant_type:"authorization_code",code_verifier:saved.verifier}),cache:"no-store"});
   if(!token.ok)return go("Google sign-in failed");
   const tokens=await token.json() as {id_token?:string};
   if(!tokens.id_token)return go("Google identity missing");
