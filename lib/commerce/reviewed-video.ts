@@ -19,6 +19,16 @@ export function reviewedVideoInputDigest(media: PreparedMedia): string {
     durationSeconds: Math.round(media.durationSeconds * 1000) / 1000,
     prompt: media.prompt,
     outputFormat: media.outputFormat ?? null,
+    // Legacy orders remain digest-compatible. Tempo orders additionally bind
+    // their original soundtrack and restoration instructions before payment.
+    ...(media.tempo ? {tempo:{
+      rate:media.tempo.rate,
+      originalSha256:media.tempo.originalSha256,
+      originalDuration:media.tempo.originalDuration,
+      sourceSha256:media.tempo.sourceSha256,
+      songId:media.tempo.songId,
+      authorizationDigest:media.tempo.authorizationDigest,
+    }} : {}),
   }));
 }
 
