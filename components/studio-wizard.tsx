@@ -79,6 +79,7 @@ export function StudioWizard({
     [projectKey, setProjectKey] = useState("");
   const [projectName, setProjectName] = useState(""),
     [editingName, setEditingName] = useState(false),
+    [renameWidth, setRenameWidth] = useState<number | null>(null),
     [draft, setDraft] = useState(initial),
     [step, setStep] = useState(0),
     [timeline, setTimeline] = useState<PerformanceSection[]>([]),
@@ -367,8 +368,8 @@ export function StudioWizard({
         <div className="flow-header-left">
           <Link href="/" aria-label="SingMotion AI home" className="sm-wordmark">SingMotion <span>AI</span></Link>
           <span className="flow-divider"/>
-          {editingName ? <input className="flow-project-input" aria-label="Project name" autoFocus value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") rename(projectName); if(e.key==="Escape") setEditingName(false);}}/> :
-          <button className="flow-project-name" title="Click to rename" onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>}
+          {editingName ? <input className="flow-project-input" aria-label="Project name" autoFocus style={renameWidth ? {width:renameWidth} : undefined} value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") rename(projectName); if(e.key==="Escape") setEditingName(false);}}/> :
+          <button className="flow-project-name" title="Click to rename" onClick={e=>{setRenameWidth(e.currentTarget.getBoundingClientRect().width);setEditingName(true);}}>{projectName || "New project"}</button>}
           <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
         </div>
         <div className="flow-header-right">
