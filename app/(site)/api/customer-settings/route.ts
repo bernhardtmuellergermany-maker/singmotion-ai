@@ -4,11 +4,11 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger,PLAN_RULES} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {productionCustomerReleaseApproved} from "@/lib/commerce/customer-live-config";
+import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled} from "@/lib/commerce/customer-live-config";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
  const denial=stagingDenial(req.headers.get("authorization"));if(denial)return denial;
- if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !productionCustomerReleaseApproved(process.env))||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")return NextResponse.json({error:"Unavailable"},{status:403});
+ if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !productionCustomerReleaseApproved(process.env) && !productionPrivateCustomerPreviewEnabled(process.env))||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")return NextResponse.json({error:"Unavailable"},{status:403});
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
