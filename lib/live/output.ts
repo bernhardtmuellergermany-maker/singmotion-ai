@@ -258,13 +258,21 @@ export async function validateDownloadedOutput(
 ) {
   const source = await probe(file);
   const video = source.streams.find((s) => s.codec_type === "video");
-  if (
-    contract.discover720p ||
-    contract.output.width !== 720 ||
-    contract.output.height !== 1280 ||
-    video?.width !== 786 ||
-    video.height !== 1178
-  ) {
+  const rate = video?.avg_frame_rate?.split("/").map(Number);
+  const actualFps = rate?.length === 2 && rate[1] > 0 ? rate[0] / rate[1] : NaN;
+  // The reviewed deliverable remains exactly 25 FPS. A short, explicitly
+  // enumerated source rate may be normalized locally without changing the
+  // BytePlus task, the original soundtrack or the reviewed final policy.
+  const normalizeFps = contract.output.fps === 25 &&
+    [24, 24000 / 1001, 30, 30000 / 1001].some(
+      fps => Math.abs(actualFps - fps) < 0.005,
+    );
+  const knownSourceRectangle =
+    !contract.discover720p &&
+    contract.output.width === 720 &&
+    contract.output.height === 1280 &&
+    video?.width === 786 && video.height === 1178;
+  if (!knownSourceRectangle && !normalizeFps) {
     await validateOutput(file, duration, contract);
     return;
   }
@@ -273,22 +281,27 @@ export async function validateDownloadedOutput(
     side_data_list?: { rotation?: number }[];
   };
   if (
+    contract.discover720p ||
     contract.output.videoCodec !== "h264" ||
     contract.output.audioCodec !== "aac" ||
     source.streams.length !== 2 ||
-    metadata.sample_aspect_ratio !== "1:1" ||
+    metadata?.sample_aspect_ratio !== "1:1" ||
     metadata.side_data_list?.some(
       (s) => s.rotation !== undefined && s.rotation !== 0,
     )
-  )
-    throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
-  // Same codec/FPS/duration/container/full-decode checks, with an explicit source
-  // rectangle. This does not change the saved contract or the final-output policy.
+  ) throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
+  // Decode and validate the entire untrusted source before local
+  // conversion. Only the reviewed 786x1178 source rectangle or the
+  // reviewed 720p portrait/landscape rectangle can be accepted.
   await validateOutput(file, duration, {
     ...contract,
-    output: { ...contract.output, width: 786, height: 1178 },
+    output: {
+      ...contract.output,
+      ...(knownSourceRectangle ? { width: 786, height: 1178 } : {}),
+      ...(normalizeFps ? { fps: actualFps } : {}),
+    },
   });
-  await fitValidatedRectangle(file, duration, contract);
+  await fitValidatedRectangle(file, duration, contract, normalizeFps);
 }
 /** Local export only; does not send an aspect-ratio parameter to BytePlus. */
 export function exportContract<T extends OutputValidationContract>(
@@ -327,6 +340,7 @@ async function fitValidatedRectangle(
   file: string,
   duration: number,
   contract: OutputValidationContract,
+  normalizeFps = false,
 ) {
   const source = await probe(file);
   const limits = outputTransferLimits(contract);
@@ -374,7 +388,7 @@ async function fitValidatedRectangle(
         "-map",
         "0:a:0",
         "-vf",
-        `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black`,
+        `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
         "-c:v",
         "libx264",
         "-threads",
@@ -420,13 +434,13 @@ async function fitValidatedRectangle(
             Number.isFinite(Number(s.start_time)),
         ) ||
         Math.abs(Number(before.duration) - Number(after.duration)) >
-          1 / contract.output.fps ||
+          1 / contract.output.fps + (normalizeFps ? 0.01 : 0) ||
         // MP4 remuxing with stream-copy MP3 may move start_time by one
         // codec/frame tick while leaving the packet payload unchanged.
         // Reject shifts beyond one output video frame plus 10ms rounding.
         Math.abs(Number(before.start_time) - Number(after.start_time)) >
           1 / contract.output.fps + 0.01 ||
-        (kind === "video" &&
+        (kind === "video" && !normalizeFps &&
           before.nb_frames !== undefined &&
           after.nb_frames !== undefined &&
           before.nb_frames !== after.nb_frames)
