@@ -685,12 +685,14 @@
 }
 
 
-/* Performance Timeline menus belong to their section card.
-   Keep options in normal flow so they cannot cover Add Section, other fields,
-   or the bottom of the panel. Only the list itself scrolls. */
+/* Timeline dropdowns are floating popovers, not expanding card content.
+   Keep the card height, surrounding controls and Add Section fixed in place. */
 .singmotion-flow .sm-timeline-cards article{
-  height:auto;
   overflow:visible;
+}
+.singmotion-flow .sm-timeline-cards article:has(.sm-timeline-add-camera details[open]){
+  position:relative;
+  z-index:40;
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera{
   position:relative;
@@ -698,24 +700,31 @@
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu{
   position:relative;
-  z-index:auto;
   width:100%;
   min-width:0;
+  z-index:auto;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu[open]{
+  z-index:41;
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu > .flow-camera-options{
-  position:static!important;
-  inset:auto!important;
+  position:absolute!important;
+  top:calc(100% + 5px)!important;
+  bottom:auto!important;
+  left:0!important;
+  right:auto!important;
+  inset-inline:auto!important;
   transform:none!important;
   box-sizing:border-box;
   width:100%!important;
   min-width:0!important;
   max-width:100%!important;
-  max-height:220px!important;
+  max-height:min(220px,45vh)!important;
   overflow-x:hidden!important;
   overflow-y:auto!important;
-  margin-top:5px;
-  z-index:auto;
-  box-shadow:none;
+  margin:0!important;
+  z-index:42;
+  box-shadow:0 12px 28px rgba(0,0,0,.5);
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu:not([open]) > .flow-camera-options{
   display:none!important;
