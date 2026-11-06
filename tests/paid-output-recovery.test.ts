@@ -66,6 +66,28 @@ test("recovery discovery skips pending and ambiguous paid submissions",async()=>
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(known)?.state,"processing");
   assert.deepEqual(store.acknowledgedPaidRecovery(),[known]);
 
+  // Documented permanent content pre-filter rejection is final, evidence-
+  // bound, and must never turn the paid claim into another provider submit.
+  let rejectionReads=0;
+  const diagnostics:string[]=[];
+  const rejected=await recoverReviewedPaidOutput(store,known,async request=>{
+   assert.match(request.url,/Action=CVSync2AsyncGetResult/);
+   rejectionReads++;
+   return {status:500,body:{code:50510,data:null,message:"provider message never displayed"}};
+  },new AbortController().signal,async()=>{downloads++;return "delivered"},reason=>diagnostics.push(reason));
+  assert.equal(rejected,"unverified");
+  assert.deepEqual(diagnostics,["provider_prefilter"]);
+  assert.equal(rejectionReads,1);
+  assert.equal(downloads,0);
+  assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(known)?.state,"failed");
+  assert.deepEqual(store.acknowledgedPaidRecovery(),[]);
+  const noRetry=await recoverReviewedPaidOutput(store,known,async()=>{
+   rejectionReads++;throw Error("must never repoll a permanently rejected job");
+  },new AbortController().signal,async()=>{downloads++;return "delivered"});
+  assert.equal(noRetry,"awaiting-job");
+  assert.equal(rejectionReads,1);
+  assert.equal(downloads,0);
+
  }finally{store.close()}
 });
 
