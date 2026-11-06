@@ -21,3 +21,33 @@
  text-align:center;
 }
 .sm-settings-section .sm-settings-verification .sm-settings-secondary{width:min(100%,232px)}
+
+/* A single control column: inputs and actions match "Sign out on all devices".
+   Keep the same width on desktop and shrink safely on narrow screens. */
+.sm-settings-content{
+  --sm-settings-control-width:232px;
+  min-width:0;
+}
+.sm-settings-content .sm-settings-section form{
+  display:grid;
+  grid-template-columns:minmax(0,1fr);
+  width:min(100%,var(--sm-settings-control-width));
+  max-width:var(--sm-settings-control-width);
+  gap:14px;
+}
+.sm-settings-content .sm-settings-section label{
+  box-sizing:border-box;
+  width:min(100%,var(--sm-settings-control-width));
+  max-width:var(--sm-settings-control-width);
+  min-width:0;
+}
+.sm-settings-content .sm-settings-section input{
+  box-sizing:border-box;
+  display:block;
+  width:100%;
+  min-width:0;
+}
+.sm-settings-content .sm-settings-section button{
+  width:min(100%,var(--sm-settings-control-width));
+  max-width:var(--sm-settings-control-width);
+}
