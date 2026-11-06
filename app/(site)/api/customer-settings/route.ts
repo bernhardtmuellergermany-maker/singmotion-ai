@@ -31,6 +31,6 @@ export async function GET(req:NextRequest){
   const sessions=store.db.prepare("SELECT COUNT(*) AS count FROM customer_sessions WHERE account_id=? AND expires>?").get(id,Date.now()) as {count:number};
   const credits=store.db.prepare("SELECT COALESCE(SUM(delta),0) AS balance FROM customer_credits WHERE account_id=?").get(id) as {balance:number};
   const plan=new PlanLedger(store.db).snapshot(id);
-  return NextResponse.json({plan,profile,orders,sessions:sessions.count,credits:credits.balance,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+  return NextResponse.json({plan,profile,emailVerification:store.verificationState(id),orders,sessions:sessions.count,credits:credits.balance,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
  }finally{store.close();}
 }
