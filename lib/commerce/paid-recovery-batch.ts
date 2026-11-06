@@ -22,7 +22,7 @@ export async function runPaidRecoveryBatch(
   throw new Error("Invalid recovery batch size");
  if (signal.aborted) return [];
  const ids=store.acknowledgedPaidRecovery(limit);
- const results: {orderId:string;state:string;diagnostic?:PaidRecoveryDiagnostic|"private_output_validation_failed"|`private_${"source"|"provider-download"|"provider-validation"|"tempo-restoration"|"private-archive"}_failed`}[]=[];
+ const results: {orderId:string;state:string;diagnostic?:PaidRecoveryDiagnostic|"private_output_validation_failed"|`private_${PaidDeliveryDiagnosticStage}_failed`}[]=[];
  for(const orderId of ids){
   if(signal.aborted)break;
   try{
