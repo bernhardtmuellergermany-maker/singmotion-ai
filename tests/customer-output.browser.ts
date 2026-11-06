@@ -93,7 +93,7 @@ try{
  const output=page.getByRole("region",{name:"Customer video output"});
  await output.getByText("Completed",{exact:true}).waitFor({timeout:15000});
  assert.equal(await output.locator("video[controls]").count(),1);
- const download=output.getByRole("link",{name:/Download video/});
+ const download=output.getByRole("link",{name:/Download MP4/});
  assert.equal(await download.getAttribute("href"),`/api/customer-video?orderId=${id}&download=1`);
  const partial=await context.request.get(origin+`/api/customer-video?orderId=${id}`,{
   headers:{range:"bytes=0-31"},
@@ -112,12 +112,12 @@ try{
  store.reconcileVerifiedStripeDispute({orderId:id,stripeCheckoutId:"cs_test_browser_output",
   disputeId:"dp_browser_offline",evidence:"verified offline browser dispute notification"});
  await page.reload();
- await output.locator(".sm-live-card-kicker").filter({hasText:"Payment requires review"}).waitFor({timeout:15000});
+ await output.locator(".sm-private-video-state").filter({hasText:"Payment requires review"}).waitFor({timeout:15000});
  assert.equal(await output.locator("video").count(),0);
  assert.equal(await output.getByRole("link",{name:/Download video/}).count(),0);
  assert.equal((await context.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),404);
  await context.close();
- console.log("PASS: real HTTP + Chromium signup, signed sandbox receipt, existing output card, MP4 preview/range/download, cross-user denial and post-dispute revocation.");
+ console.log("PASS: real HTTP + Chromium signup, signed sandbox receipt, redesigned output card, MP4 preview/range/download, cross-user denial and post-dispute revocation.");
 }finally{
  await browser?.close();
  store?.close();
