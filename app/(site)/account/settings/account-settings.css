@@ -12,3 +12,12 @@
 .sm-settings-section .sm-settings-danger{background:transparent;color:#ef9b9f;border:1px solid #81464f;font-size:13px;font-weight:600;padding:9px 14px;margin:10px 0 6px;transition:background .15s ease,border-color .15s ease}
 .sm-settings-section .sm-settings-danger:hover{background:rgba(170,55,65,.14);border-color:#c36d76}
 .sm-settings-section .sm-settings-danger:focus-visible{outline:2px solid #ef9b9f;outline-offset:3px}
+
+/* Align all settings actions to the sign-out action's visual width. */
+.sm-settings-content .sm-settings-section button:not(.sm-account-menu button){
+ box-sizing:border-box;
+ width:min(100%,232px);
+ min-height:43px;
+ text-align:center;
+}
+.sm-settings-section .sm-settings-verification .sm-settings-secondary{width:min(100%,232px)}
