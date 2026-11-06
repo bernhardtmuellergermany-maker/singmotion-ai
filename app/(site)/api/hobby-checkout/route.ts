@@ -29,6 +29,7 @@ export async function POST(req:NextRequest){
  try{
   const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
   if(!accountId)return NextResponse.json({error:"Sign in to subscribe"},{status:401});
+  if(!store.emailVerified(accountId))return NextResponse.json({error:"Verify your email before subscribing.",code:"EMAIL_NOT_VERIFIED"},{status:403});
   const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId) as {email:string}|undefined;
   if(!account)return NextResponse.json({error:"Account missing"},{status:404});
   // Prevent duplicate active subscriptions, but permit a new checkout after a

@@ -37,6 +37,7 @@ export class CommerceStore {
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
  CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_email_verifications(account_id TEXT PRIMARY KEY,verified_at INTEGER,token_hash TEXT UNIQUE,token_expires INTEGER,sent_at INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS customer_orders(id TEXT PRIMARY KEY,account_id TEXT,guest_hash TEXT,guest_expiry INTEGER,email TEXT NOT NULL,project_id TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,quote_evidence TEXT NOT NULL,request_key TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_stripe_disputes(order_id TEXT PRIMARY KEY,dispute_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_stripe_refunds(order_id TEXT PRIMARY KEY,refund_id TEXT UNIQUE NOT NULL,amount_cents INTEGER NOT NULL,created INTEGER NOT NULL);
@@ -96,9 +97,13 @@ export class CommerceStore {
     const salt = randomBytes(16).toString("hex"),
       id = randomUUID(),
       digest = scryptSync(password, salt, 64).toString("hex");
-    this.db
-      .prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)")
-      .run(id, email, `${salt}:${digest}`, Date.now());
+    this.tx(() => {
+      this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)")
+        .run(id, email, `${salt}:${digest}`, Date.now());
+      // New password accounts must confirm ownership before future paid orders.
+      // Missing rows belong to existing pre-migration accounts and retain access.
+      this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,NULL,0)").run(id);
+    });
     return id;
   }
   googleLogin(subject:string,email:string){
@@ -113,6 +118,10 @@ export class CommerceStore {
       this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());
       this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,id);
     }
+    // Google email_verified was validated by the OAuth callback, including
+    // audience, issuer, subject and nonce. Never infer it from an email alone.
+    this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,?,0) ON CONFLICT(account_id) DO UPDATE SET verified_at=excluded.verified_at,token_hash=NULL,token_expires=NULL")
+      .run(id,Date.now());
     const token=randomBytes(32).toString("base64url");
     this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
     return {id,token};
@@ -161,6 +170,45 @@ export class CommerceStore {
       )
       .get(hash(token), now);
     return s ? String(s.account_id) : null;
+  }
+  /** Old customer records predate verification and remain grandfathered;
+   * only new explicitly pending rows block paid ordering. */
+  emailVerified(accountId:string):boolean {
+    const row=this.db.prepare("SELECT verified_at FROM customer_email_verifications WHERE account_id=?")
+      .get(accountId) as {verified_at:number|null}|undefined;
+    return !row || typeof row.verified_at==="number" && row.verified_at>0;
+  }
+  verificationState(accountId:string):"verified"|"pending"|"legacy"{
+    const row=this.db.prepare("SELECT verified_at FROM customer_email_verifications WHERE account_id=?")
+      .get(accountId) as {verified_at:number|null}|undefined;
+    if(!row)return "legacy";
+    return typeof row.verified_at==="number"&&row.verified_at>0?"verified":"pending";
+  }
+  /** One active, short-lived token; issuing another invalidates its predecessor.
+   * A one-minute cooldown controls mail abuse independently of endpoint limits. */
+  issueEmailVerification(accountId:string,now=Date.now()):{email:string;token:string}|null {
+    return this.tx(()=>{
+      const account=this.db.prepare("SELECT email FROM customer_accounts WHERE id=?")
+        .get(accountId) as {email:string}|undefined;
+      if(!account)return null;
+      const row=this.db.prepare("SELECT verified_at,sent_at FROM customer_email_verifications WHERE account_id=?")
+        .get(accountId) as {verified_at:number|null;sent_at:number}|undefined;
+      if(!row||row.verified_at!==null||row.sent_at>now-60000)return null;
+      const token=randomBytes(32).toString("base64url");
+      this.db.prepare("UPDATE customer_email_verifications SET token_hash=?,token_expires=?,sent_at=? WHERE account_id=? AND verified_at IS NULL")
+        .run(hash(token),now+24*60*60*1000,now,accountId);
+      return {email:account.email,token};
+    });
+  }
+  invalidateEmailVerification(token:string):void{
+    this.db.prepare("UPDATE customer_email_verifications SET token_hash=NULL,token_expires=NULL WHERE token_hash=? AND verified_at IS NULL")
+      .run(hash(token));
+  }
+  verifyEmailToken(token:string,now=Date.now()):boolean{
+    if(!/^[A-Za-z0-9_-]{30,128}$/.test(token))return false;
+    const result=this.db.prepare("UPDATE customer_email_verifications SET verified_at=?,token_hash=NULL,token_expires=NULL WHERE token_hash=? AND token_expires>? AND verified_at IS NULL")
+      .run(now,hash(token),now);
+    return result.changes===1;
   }
   createPasswordReset(email: string) {
     this.db.exec("CREATE TABLE IF NOT EXISTS customer_password_resets(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL)");

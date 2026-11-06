@@ -5,6 +5,7 @@ import {dataDir,limit,createAccountMediaSession,revokeMediaSession,session} from
 import {stagingDenial} from "@/lib/staging";
 import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled} from "@/lib/commerce/customer-live-config";
 import {applicationOrigin} from "@/lib/request-origin";
+import {sendCustomerVerificationEmail} from "@/lib/commerce/verification-email";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env) || productionPrivateCustomerPreviewEnabled(process.env);
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
@@ -27,7 +28,7 @@ export async function GET(req:NextRequest){
    return json({authenticated:false});
   }
   const row=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(id) as {email:string}|undefined;
-  return json({authenticated:!!row,email:row?.email||null,kind:"customer"});
+  return json({authenticated:!!row,email:row?.email||null,kind:"customer",emailVerification:store.verificationState(id)});
  }finally{store.close()}
 }
 export async function POST(req:NextRequest){
@@ -79,7 +80,8 @@ export async function POST(req:NextRequest){
    return response;
   }
   if(!["login","register"].includes(input.action||"")||typeof input.email!=="string"||typeof input.password!=="string")return json({error:"Invalid request"},400);
-  if(input.action==="register")store.register(input.email,input.password);
+  let registrationId:string|undefined;
+  if(input.action==="register")registrationId=store.register(input.email,input.password);
   const token=store.login(input.email,input.password);
   const id=store.session(token);
   if(!id)throw Error("Account session unavailable");
@@ -88,7 +90,16 @@ export async function POST(req:NextRequest){
   const previousOwner=session(previous)?.owner;
   const guest=previousOwner && !previousOwner.startsWith("customer-") && !previousOwner.startsWith("cms-staff-") ? previous : null;
   if(previous && previousOwner?.startsWith("customer-"))revokeMediaSession(previous);
-  const response=json({authenticated:true,email:input.email.trim().toLowerCase(),owner:media.owner});
+  let verificationEmailSent=false;
+  if(registrationId){
+   const pending=store.issueEmailVerification(registrationId);
+   if(pending){
+    verificationEmailSent=await sendCustomerVerificationEmail(pending.email,pending.token);
+    if(!verificationEmailSent)store.invalidateEmailVerification(pending.token);
+   }
+  }
+  const response=json({authenticated:true,email:input.email.trim().toLowerCase(),owner:media.owner,
+   emailVerification:store.verificationState(id),verificationEmailSent});
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   for(const [name,value] of [["sm_customer",token],["sm_session",media.token]]){
    response.cookies.set(name,value,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
