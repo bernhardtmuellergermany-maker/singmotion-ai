@@ -44,18 +44,10 @@ export async function prepareCustomerStudioOrder(
   if (env.AUDIO_TEMPO_ENABLED === "true") {
     if (!media.recording?.songId || !/^[a-f0-9]{64}$/.test(media.recording.sourceSha256))
       throw Error("Verified original recording is required for customer tempo processing");
-    // Do not offer a modified-speed replay of a recording whose previous
-    // customer provider attempt ended in failure. New independent content can
-    // still be ordered, subject to the normal BytePlus moderation policy.
-    const rejected = store.db.prepare(`
-      SELECT 1 FROM customer_prepared_media m
-      JOIN customer_orders o ON o.id=m.order_id
-      JOIN customer_fulfillment_queue q ON q.order_id=o.id
-      WHERE o.account_id=? AND q.state='failed'
-        AND json_extract(m.media_json,'$.recording.sourceSha256')=?
-      LIMIT 1
-    `).get(input.accountId, media.recording.sourceSha256);
-    if (rejected) throw Error("Previous provider failure for this recording requires independent content review; no automatic tempo retry");
+    // Earlier provider failures are independent, durable orders; they must
+    // not prohibit uploading, editing or preparing a new user-initiated order.
+    // A new order still requires separately approved Stripe Checkout and
+    // BytePlus applies its own content review without any bypass.
     const digest=createHash("sha256").update(JSON.stringify([
       "customer-original-tempo-v1", input.accountId,
       media.recording.sourceSha256, media.imageSha256,
