@@ -9,6 +9,7 @@ import { CustomerVideoCheckout } from "@/components/customer-video-checkout";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import { CancelUnstartedOrder } from "@/components/cancel-unstarted-order";
 import { StripeOrderReturnRecovery } from "@/components/stripe-order-return-recovery";
+import "./private-order.css";
 export const dynamic = "force-dynamic";
 export const metadata = {
   title: "Private order",
@@ -53,14 +54,19 @@ export default async function Page({
   return (
     <div className="product-theme">
       <ProductHeader />
-      <main id="content" className="account-content wizard-card">
-        <h1>Your private order</h1>
+      <main id="content" className="account-content wizard-card sm-private-order-page">
+        <header className="sm-order-heading">
+          <span className="sm-order-eyebrow">SINGMOTION AI / PRIVATE ORDER</span>
+          <h1>Your music video</h1>
+          <p>Your video and order status in one private place.</p>
+        </header>
         {order ? (
           <>
-            <p>Status: {String(order.status)}</p>
-            <p>
-              Recorded total: EUR {(Number(order.price_cents) / 100).toFixed(2)}
-            </p>
+            <div className="sm-order-summary" aria-label="Order information">
+              <div className="sm-order-summary-item"><span>Payment</span><strong className={order.status==="paid"?"sm-order-paid":""}>{order.status==="paid"?"Paid":String(order.status).replaceAll("_"," ")}</strong></div>
+              <div className="sm-order-summary-item"><span>Order total</span><strong>€{(Number(order.price_cents)/100).toFixed(2)}</strong></div>
+              <div className="sm-order-summary-item"><span>Video status</span><strong>{videoReady?"Ready":fulfillmentState==="failed"?"Under review":fulfillmentState==="processing"?"Processing / review":fulfillmentState==="pending"?"Queued":"Not started"}</strong></div>
+            </div>
             {promotion && <p role="status">
               Promotion {promotion.code}: EUR {(promotion.discount_cents/100).toFixed(2)}
               {" "}discount from EUR {(promotion.original_cents/100).toFixed(2)}.
@@ -70,10 +76,7 @@ export default async function Page({
               Your free-video voucher is reserved, but video processing is not authorized yet.
               No payment or AI provider job has been started.
             </p>}
-            {(order.status==="paid" || fulfillmentState!==null || videoReady) && <>
-              <p>Video order: {fulfillmentState === "pending" ? "Awaiting processing" : fulfillmentState === "processing" ? "Processing or under review" : fulfillmentState === "delivered" ? "Delivered" : fulfillmentState === "failed" ? "Needs support review" : "Not started"}</p>
-              <p>Video ready: {videoReady ? "Yes" : "No"}</p>
-            </>}
+
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState &&
               Number(order.price_cents)>0 && customerLaunchReadiness().readyForPaidOrders &&
               <CustomerVideoCheckout orderId={id}
@@ -81,7 +84,7 @@ export default async function Page({
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
             {authenticatedOwner && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} />}
             {order.status==="awaiting_payment" && <p>Payment has not been confirmed. No video generation has started. Complete secure Checkout to begin processing.</p>}
-            {order.status==="paid" && !videoReady && <p>Your payment was confirmed. Your video will appear here after processing and private validation.</p>}
+            {order.status==="paid" && !videoReady && <p className="sm-order-assurance">Your payment is confirmed. We will show the video here once processing and private validation are complete. You do not need to pay again.</p>}
           </>
         ) : checkout === "success" && /^[a-f0-9-]{36}$/.test(id) ? (
           <StripeOrderReturnRecovery orderId={id}/>
