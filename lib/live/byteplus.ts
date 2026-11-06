@@ -193,15 +193,42 @@ export class BytePlusProtocol {
     if (data.status === "done" && typeof data.resp_data === "string") {
       if (data.resp_data.length > 262144)
         throw new BytePlusError(false, { code: "OUTPUT_PAYLOAD_TOO_LARGE" });
-      let details: unknown;
-      try { details = JSON.parse(data.resp_data); }
-      catch { throw new BytePlusError(false, { code: "INVALID_OUTPUT_PAYLOAD_JSON" }); }
-      if (!details || typeof details !== "object" || Array.isArray(details))
-        throw new BytePlusError(false, { code: "INVALID_OUTPUT_PAYLOAD_OBJECT" });
-      videoUrl = (details as Record<string, unknown>).video_url;
+      const payload = data.resp_data.trim();
+      if (!payload) {
+        if (typeof videoUrl !== "string" || !videoUrl)
+          throw new BytePlusError(false, { code: "EMPTY_OUTPUT_PAYLOAD" });
+      } else {
+        let details: unknown;
+        try { details = JSON.parse(payload); }
+        catch {
+          // A directly returned video_url is an already supported result
+          // shape. Malformed auxiliary resp_data must not suppress it.
+          if (typeof videoUrl !== "string" || !videoUrl)
+            throw new BytePlusError(false, { code: "INVALID_OUTPUT_PAYLOAD_JSON" });
+        }
+        if (details !== undefined) {
+          if (!details || typeof details !== "object" || Array.isArray(details))
+            throw new BytePlusError(false, { code: "INVALID_OUTPUT_PAYLOAD_OBJECT" });
+          const nestedUrl = (details as Record<string, unknown>).video_url;
+          if (typeof nestedUrl === "string" && nestedUrl)
+            videoUrl = nestedUrl;
+        }
+      }
     }
-    if (data.status === "done" && (typeof videoUrl !== "string" || !videoUrl))
-      throw new BytePlusError(false, { code: "COMPLETED_WITHOUT_VIDEO_URL" });
+    if (data.status === "done") {
+      if (typeof videoUrl !== "string" || !videoUrl)
+        throw new BytePlusError(false, { code: "COMPLETED_WITHOUT_VIDEO_URL" });
+      // Validate before the untrusted URL reaches the private output
+      // downloader, which additionally enforces approved provider hosts.
+      try {
+        const candidate = new URL(videoUrl);
+        if (candidate.protocol !== "https:" || !candidate.hostname ||
+            candidate.username || candidate.password || candidate.port)
+          throw Error("Untrusted result URL");
+      } catch {
+        throw new BytePlusError(false, { code: "INVALID_OUTPUT_VIDEO_URL" });
+      }
+    }
     return {
       status: data.status as TaskStatus,
       ...(data.status === "done" ? { outputUrl: videoUrl as string } : {}),
