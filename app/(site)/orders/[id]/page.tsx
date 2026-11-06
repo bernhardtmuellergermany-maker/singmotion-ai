@@ -67,15 +67,18 @@ export default async function Page({
               Your free-video voucher is reserved, but video processing is not authorized yet.
               No payment or AI provider job has been started.
             </p>}
-            <p>Video order: {fulfillmentState === "pending" ? "Awaiting processing" : fulfillmentState === "processing" ? "Processing or under review" : fulfillmentState === "delivered" ? "Delivered" : fulfillmentState === "failed" ? "Needs support review" : "Not started"}</p>
-            <p>Video ready: {videoReady ? "Yes" : "No"}</p>
+            {(order.status==="paid" || fulfillmentState!==null || videoReady) && <>
+              <p>Video order: {fulfillmentState === "pending" ? "Awaiting processing" : fulfillmentState === "processing" ? "Processing or under review" : fulfillmentState === "delivered" ? "Delivered" : fulfillmentState === "failed" ? "Needs support review" : "Not started"}</p>
+              <p>Video ready: {videoReady ? "Yes" : "No"}</p>
+            </>}
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState &&
               Number(order.price_cents)>0 && customerLaunchReadiness().readyForPaidOrders &&
               <CustomerVideoCheckout orderId={id}
                 staging={process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"}/>}
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
-            {authenticatedOwner && <CustomerPaidOutput orderId={id} />}
-            {!videoReady && <p>After verified payment, the customer worker starts one BytePlus generation. Your video appears here after private validation and delivery.</p>}
+            {authenticatedOwner && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} />}
+            {order.status==="awaiting_payment" && <p>Payment has not been confirmed. No video generation has started. Complete secure Checkout to begin processing.</p>}
+            {order.status==="paid" && !videoReady && <p>Your payment was confirmed. Your video will appear here after processing and private validation.</p>}
           </>
         ) : (
           <GuestOrderAccess id={id} />

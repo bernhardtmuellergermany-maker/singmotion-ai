@@ -685,12 +685,14 @@
 }
 
 
-/* Performance Timeline menus belong to their section card.
-   Keep options in normal flow so they cannot cover Add Section, other fields,
-   or the bottom of the panel. Only the list itself scrolls. */
+/* Timeline dropdowns are floating popovers, not expanding card content.
+   Keep the card height, surrounding controls and Add Section fixed in place. */
 .singmotion-flow .sm-timeline-cards article{
-  height:auto;
   overflow:visible;
+}
+.singmotion-flow .sm-timeline-cards article:has(.sm-timeline-add-camera details[open]){
+  position:relative;
+  z-index:40;
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera{
   position:relative;
@@ -698,24 +700,30 @@
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu{
   position:relative;
-  z-index:auto;
   width:100%;
   min-width:0;
+  z-index:auto;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu[open]{
+  z-index:41;
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu > .flow-camera-options{
-  position:static!important;
-  inset:auto!important;
+  position:absolute!important;
+  top:calc(100% + 5px)!important;
+  bottom:auto!important;
+  left:0!important;
+  right:auto!important;
   transform:none!important;
   box-sizing:border-box;
   width:100%!important;
   min-width:0!important;
   max-width:100%!important;
-  max-height:220px!important;
+  max-height:min(220px,45vh)!important;
   overflow-x:hidden!important;
   overflow-y:auto!important;
-  margin-top:5px;
-  z-index:auto;
-  box-shadow:none;
+  margin:0!important;
+  z-index:42;
+  box-shadow:0 12px 28px rgba(0,0,0,.5);
 }
 .singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu:not([open]) > .flow-camera-options{
   display:none!important;
@@ -728,4 +736,113 @@
   width:100%;
   min-width:0;
   white-space:normal;
+}
+
+/* Studio reuses the same SiteHeader as the homepage. Project controls sit
+   within its action area, without changing the global header dimensions. */
+.sm-site-header .sm-studio-header-project{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  max-width:min(34vw,370px);
+  flex:0 1 auto;
+}
+.sm-site-header .sm-studio-header-project .flow-project-name,
+.sm-site-header .sm-studio-header-project .flow-project-input{
+  display:block;
+  flex:0 1 auto;
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+  height:28px;
+  margin:0;
+  padding:4px 0;
+  border:0;
+  border-radius:0;
+  outline:0;
+  box-shadow:none;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  line-height:20px;
+  text-align:left;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.sm-site-header .sm-studio-header-project .flow-project-input:focus,
+.sm-site-header .sm-studio-header-project .flow-project-input:focus-visible{
+  border:0;
+  outline:0;
+  box-shadow:none;
+}
+.sm-site-header .sm-studio-header-project .flow-menu{flex:0 0 auto}
+@media(max-width:650px){
+  .sm-site-header .sm-studio-header-project{
+    max-width:min(29vw,175px);
+    gap:2px;
+  }
+  .sm-site-header .sm-studio-header-project .flow-project-name,
+  .sm-site-header .sm-studio-header-project .flow-project-input{
+    font-size:12px;
+  }
+}
+
+/* Rename is an overlay of the exact same title footprint. The hidden title
+   remains in normal layout so focus never moves the menu or changes its size. */
+.sm-site-header .sm-studio-rename-slot{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  flex:0 1 auto;
+  min-width:0;
+  max-width:100%;
+}
+.sm-site-header .sm-studio-rename-slot .flow-project-name{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  width:auto;
+}
+.sm-site-header .sm-studio-rename-slot .flow-project-input,
+.sm-site-header .sm-studio-rename-slot .flow-project-input:focus,
+.sm-site-header .sm-studio-rename-slot .flow-project-input:focus-visible{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  box-sizing:border-box!important;
+  display:block;
+  width:100%!important;
+  height:100%!important;
+  min-width:0;
+  max-width:100%!important;
+  margin:0!important;
+  padding:4px 0!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  color:inherit!important;
+  font:inherit!important;
+  line-height:20px!important;
+  text-align:left;
+  appearance:none;
+  transition:none!important;
+}
+
+/* Keep the homepage navigation geometry, with Studio project name left of the nav. */
+.sm-site-header .sm-site-header-left{
+  display:flex;
+  align-items:center;
+  gap:clamp(10px,1.5vw,22px);
+  min-width:0;
+  flex:0 1 auto;
+}
+.sm-site-header .sm-site-header-left .sm-wordmark{flex:0 0 auto}
+.sm-site-header .sm-header-actions{margin-left:auto;flex:0 0 auto}
+@media(max-width:650px){
+ .sm-site-header .sm-site-header-left{gap:7px}
+ .sm-site-header .sm-studio-header-project{max-width:min(28vw,150px)}
 }

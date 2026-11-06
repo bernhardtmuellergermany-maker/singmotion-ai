@@ -2,7 +2,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { GlobalMenu } from "./home-collection";
+import { SiteHeader } from "./site-header";
 import {
   ArrowLeft,
   ArrowRight,
@@ -79,7 +79,6 @@ export function StudioWizard({
     [projectKey, setProjectKey] = useState("");
   const [projectName, setProjectName] = useState(""),
     [editingName, setEditingName] = useState(false),
-    [renameWidth, setRenameWidth] = useState<number | null>(null),
     [draft, setDraft] = useState(initial),
     [step, setStep] = useState(0),
     [timeline, setTimeline] = useState<PerformanceSection[]>([]),
@@ -364,19 +363,15 @@ export function StudioWizard({
   };
   return (
     <div className="product-theme singmotion-flow">
-      <header className="flow-header">
-        <div className="flow-header-left">
-          <Link href="/" aria-label="SingMotion AI home" className="sm-wordmark">SingMotion <span>AI</span></Link>
-          <span className="flow-divider"/>
-          {editingName ? <input className="flow-project-input" aria-label="Project name" autoFocus style={renameWidth ? {width:renameWidth} : undefined} value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") rename(projectName); if(e.key==="Escape") setEditingName(false);}}/> :
-          <button className="flow-project-name" title="Click to rename" onClick={e=>{setRenameWidth(e.currentTarget.getBoundingClientRect().width);setEditingName(true);}}>{projectName || "New project"}</button>}
-          <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
+      <SiteHeader leftContent={
+        <div className="sm-studio-header-project" aria-label="Current Studio project">
+          <span className="sm-studio-rename-slot">
+            <button className="flow-project-name" type="button" title="Click to rename" aria-hidden={editingName} tabIndex={editingName ? -1 : 0} style={editingName ? {visibility:"hidden"} : undefined} onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>
+            {editingName && <input className="flow-project-input" aria-label="Project name" autoFocus value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") e.currentTarget.blur(); if(e.key==="Escape") setEditingName(false);}}/>}
+          </span>
+          <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button type="button" onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
         </div>
-        <div className="flow-header-right">
-          <GlobalMenu openInNewTab />
-          <Link href="/login" className="flow-profile" aria-label="Login"><UserRound size={21}/></Link>
-        </div>
-      </header>
+      }/>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
         
         {step===0&&<div className="flow-workspace sm-studio-audio-step"><div className="flow-workspace-media">
