@@ -44,14 +44,23 @@ test("recovery discovery skips pending and ambiguous paid submissions",async()=>
     ["not_found","unverified"],["expired","unverified"],
     ["canceled","unverified"]
   ] as const){
+    const reasons:string[]=[];
     const actual=await recoverReviewedPaidOutput(store,known,async request=>{
       assert.match(request.url,/Action=CVSync2AsyncGetResult/);
       statusReads++;
       return {status:200,body:{code:10000,data:{status:providerState}}};
-    },new AbortController().signal,async()=>{downloads++;return "delivered"});
+    },new AbortController().signal,async()=>{downloads++;return "delivered"},reason=>reasons.push(reason));
     assert.equal(actual,expected);
+    assert.deepEqual(reasons,expected==="unverified"?["provider_noncompletion"]:[]);
   }
   assert.equal(statusReads,5);
+  assert.equal(downloads,0);
+  const failures:string[]=[];
+  const unreachable=await recoverReviewedPaidOutput(store,known,async()=>{
+   throw Error("private provider response must not leak");
+  },new AbortController().signal,async()=>{downloads++;return "delivered"},reason=>failures.push(reason));
+  assert.equal(unreachable,"unverified");
+  assert.deepEqual(failures,["provider_status_unavailable"]);
   assert.equal(downloads,0);
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(known)?.state,"processing");
   assert.deepEqual(store.acknowledgedPaidRecovery(),[known]);
