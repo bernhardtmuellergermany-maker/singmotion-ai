@@ -9,6 +9,14 @@ import {verifyPrivatePaidMediaSnapshot} from "./verify-paid-media.ts";
 import {asset,db,putAsset} from "../db.ts";
 import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 
+export type PaidDeliveryStage = "source"|"provider-download"|"provider-validation"|"tempo-restoration"|"private-archive";
+export class PaidDeliveryStageError extends Error {
+ constructor(readonly stage:PaidDeliveryStage) {super("Private paid delivery stage failed");}
+}
+async function deliveryStage<T>(stage:PaidDeliveryStage, action:()=>Promise<T>):Promise<T>{
+ try{return await action();}catch{throw new PaidDeliveryStageError(stage);}
+}
+
 /** Trusted worker only; never call from a browser route.
  * A completed BytePlus task is still not a customer delivery until the private
  * MP4 has passed validation, ownership is recorded and fulfillment is committed. */
@@ -50,13 +58,13 @@ export async function deliverReviewedPaidVideo(
  if(existing){
   // Recovery of a validated final output must never submit another paid job.
   if(media.tempo){
-   await verifyPrivatePaidMediaSnapshot(media);
-   await validateRestored(file,media,contract);
-  }else await validateOutput(file,media.durationSeconds,contract);
+   await deliveryStage("source",()=>verifyPrivatePaidMediaSnapshot(media));
+   await deliveryStage("tempo-restoration",()=>validateRestored(file,media,contract));
+  }else await deliveryStage("provider-validation",()=>validateOutput(file,media.durationSeconds,contract));
  }else{
   if(hasDelivery)throw Error("Previously recorded delivery is missing its private file");
   if(media.tempo){
-   await verifyPrivatePaidMediaSnapshot(media);
+   await deliveryStage("source",()=>verifyPrivatePaidMediaSnapshot(media));
    // Retain an already downloaded and validated provider response on failure:
    // restoration can then recover without a new signed URL or paid task.
    const providerFile=path.join(root,`paid-${orderId}.provider-source.mp4`);
@@ -67,17 +75,17 @@ export async function deliverReviewedPaidVideo(
        info.size<1||info.size>limits.maxBytes||
        await realpath(providerFile)!==providerFile)
       throw Error("Existing customer provider capture requires operator review");
-    await validateOutput(providerFile,media.durationSeconds,contract);
+    await deliveryStage("provider-validation",()=>validateOutput(providerFile,media.durationSeconds,contract));
    }catch(error){
     if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
-    await downloadValidatedOutput(providerUrl,providerFile,media.durationSeconds,contract,transport);
+    await deliveryStage("provider-download",()=>downloadValidatedOutput(providerUrl,providerFile,media.durationSeconds,contract,transport));
    }
    // All frames are retimed, original MP3 packets copied unchanged, and both
    // streams fully validated BEFORE the deliverable file becomes visible.
-   await restoreTempoOutput(providerFile,restored,media,contract);
+   await deliveryStage("tempo-restoration",()=>restoreTempoOutput(providerFile,restored,media,contract));
    await rename(restored,file);
    await unlink(providerFile).catch(()=>{});
-  }else await downloadValidatedOutput(providerUrl,file,media.durationSeconds,contract,transport);
+  }else await deliveryStage("provider-download",()=>downloadValidatedOutput(providerUrl,file,media.durationSeconds,contract,transport));
  }
  const details=await stat(file);
  const assetId=`customer-video-${orderId}`;
@@ -95,7 +103,7 @@ export async function deliverReviewedPaidVideo(
  }
  // The R2 copy is strictly optional outside protected staging; when enabled,
  // a delivered receipt must never point at an unverified remote archive.
- const cloud=await mirrorPrivatePaidVideo(order.account_id,orderId,file,details.size);
+ const cloud=await deliveryStage("private-archive",()=>mirrorPrivatePaidVideo(order.account_id,orderId,file,details.size));
  if(cloud){
   // The output is not downloadable until we have reread and SHA-256 verified
   // the full private R2 object. HEAD metadata alone is insufficient.
