@@ -5,7 +5,7 @@ import {Shell} from "@/components/shell";
 
 export default function VerifyEmail(){
  const [token,setToken]=useState(""),[busy,setBusy]=useState(false),[message,setMessage]=useState(""),[verified,setVerified]=useState(false);
- useEffect(()=>{setToken(new URLSearchParams(window.location.search).get("token")||"");},[]);
+ useEffect(()=>{let active=true;void Promise.resolve().then(()=>{if(active)setToken(new URLSearchParams(window.location.search).get("token")||"");});return ()=>{active=false};},[]);
  async function confirm(){
   setBusy(true);setMessage("");
   try{
