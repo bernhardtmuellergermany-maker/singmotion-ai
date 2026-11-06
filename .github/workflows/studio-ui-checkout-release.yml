@@ -8,6 +8,7 @@ on:
       - fix/home-carousel-vertical-center-20261106
       - fix/stripe-test-checkout-order-preparation-20261106
       - fix/stripe-test-error-diagnostics-20261106
+      - fix/stripe-test-rejection-reason-20261106
   workflow_dispatch:
 concurrency:
   group: studio-release-${{ github.ref }}
