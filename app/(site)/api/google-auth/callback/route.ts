@@ -3,14 +3,15 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,createAccountMediaSession,session} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
+import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- const trustedOrigin="https://singmotion-ai-staging.up.railway.app";
+ const trustedOrigin=customerIdentityOrigin(process.env);
+ if(!trustedOrigin||!trustedIdentityHost(req.headers.get("host"),trustedOrigin))return NextResponse.json({error:"Invalid OAuth origin"},{status:403});
  const clear=(response:NextResponse)=>{response.cookies.set("sm_google_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:0});return response;};
  const go=(reason:string)=>clear(NextResponse.redirect(trustedOrigin+"/?card=login&google_error="+encodeURIComponent(reason)));
- if(new URL(req.url).origin!==trustedOrigin)return NextResponse.json({error:"Invalid OAuth origin"},{status:403});
- if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true"||!process.env.GOOGLE_OAUTH_CLIENT_ID||!process.env.GOOGLE_OAUTH_CLIENT_SECRET)return go("Google sign-in unavailable");
+ if(!googleLoginReady(process.env))return go("Google sign-in unavailable");
  let saved:{state:string;verifier:string;nonce:string};
  try{saved=JSON.parse(req.cookies.get("sm_google_oauth")?.value||"");}catch{return go("Sign-in session expired");}
  const state=req.nextUrl.searchParams.get("state"),code=req.nextUrl.searchParams.get("code");
