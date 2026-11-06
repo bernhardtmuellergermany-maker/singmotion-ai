@@ -14,6 +14,7 @@ on:
       - fix/private-order-output-card-design-20261106
       - fix/paid-video-review-diagnostics-20261106
       - fix/paid-video-provider-response-20261106
+      - fix/byteplus-permanent-rejection-order-state-20261106
   workflow_dispatch:
 concurrency:
   group: studio-release-${{ github.ref }}
