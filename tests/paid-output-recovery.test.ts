@@ -115,6 +115,38 @@ test("read-only status diagnostics distinguish missing provider data and corrupt
  }
 });
 
+test("BytePlus complete result accepts verified direct output URL with malformed optional JSON",async()=>{
+ const signal=new AbortController().signal;
+ let reads=0;
+ for(const auxiliary of ["", "bad-json", "{not-valid"]) {
+  const parsed=await new BytePlusProtocol(async request=>{
+   assert.match(request.url,/Action=CVSync2AsyncGetResult/);
+   reads++;
+   return {status:200,body:{code:10000,data:{
+    status:"done",video_url:"https://outputs.example.test/video.mp4",resp_data:auxiliary,
+   }}};
+  }).status("task-existing",signal);
+  assert.deepEqual(parsed,{status:"done",outputUrl:"https://outputs.example.test/video.mp4"});
+ }
+ assert.equal(reads,3);
+ for(const auxiliary of ["", "bad-json"]) {
+  await assert.rejects(new BytePlusProtocol(async()=>({
+   status:200,body:{code:10000,data:{status:"done",resp_data:auxiliary}},
+  })).status("task-existing",signal),(error:unknown)=>{
+   assert.ok(error instanceof BytePlusError);
+   assert.equal(paidRecoveryFailureCategory(error),auxiliary?"provider_invalid_output_json":"provider_empty_output_payload");
+   return true;
+  });
+ }
+ await assert.rejects(new BytePlusProtocol(async()=>({
+   status:200,body:{code:10000,data:{status:"done",video_url:"http://untrusted.example.test/video.mp4"}},
+ })).status("task-existing",signal),(error:unknown)=>{
+  assert.ok(error instanceof BytePlusError);
+  assert.equal(paidRecoveryFailureCategory(error),"provider_invalid_output_video_url");
+  return true;
+ });
+});
+
 test("paid recovery reports safe BytePlus error categories without sensitive response details",()=>{
  for(const [code,expected] of [
   ["TRANSPORT_AUTHENTICATION","provider_authentication"],
