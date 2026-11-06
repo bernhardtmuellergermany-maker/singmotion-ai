@@ -1,0 +1,30 @@
+name: Studio UI and checkout release verification
+on:
+  push:
+    branches:
+      - release/staging-production-ui-checkout-20261106
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - name: Lint and typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+      - name: Customer payment security and production build
+        run: |
+          npm run test:customer:release
+          npm run build
