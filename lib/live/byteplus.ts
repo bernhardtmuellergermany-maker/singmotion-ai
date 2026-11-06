@@ -182,16 +182,24 @@ export class BytePlusProtocol {
     ];
     if (!states.includes(data.status))
       throw new BytePlusError(false, { code: "UNSUPPORTED_TASK_STATUS" });
-    if (
-      data.status === "done" &&
-      (typeof data.video_url !== "string" || !data.video_url)
-    )
+    // BytePlus documents data.resp_data as a serialized JSON object
+    // containing video_url. Keep the legacy direct field for existing fixtures.
+    let videoUrl: unknown = data.video_url;
+    if (data.status === "done" && typeof data.resp_data === "string") {
+      if (data.resp_data.length > 262144)
+        throw new BytePlusError(false, { code: "INVALID_PROVIDER_RESPONSE" });
+      let details: unknown;
+      try { details = JSON.parse(data.resp_data); }
+      catch { throw new BytePlusError(false, { code: "INVALID_PROVIDER_RESPONSE" }); }
+      if (!details || typeof details !== "object" || Array.isArray(details))
+        throw new BytePlusError(false, { code: "INVALID_PROVIDER_RESPONSE" });
+      videoUrl = (details as Record<string, unknown>).video_url;
+    }
+    if (data.status === "done" && (typeof videoUrl !== "string" || !videoUrl))
       throw new BytePlusError(false, { code: "COMPLETED_WITHOUT_VIDEO_URL" });
     return {
       status: data.status as TaskStatus,
-      ...(data.status === "done"
-        ? { outputUrl: data.video_url as string }
-        : {}),
+      ...(data.status === "done" ? { outputUrl: videoUrl as string } : {}),
     };
   }
   async cancelQueued(id: string, signal: AbortSignal) {
