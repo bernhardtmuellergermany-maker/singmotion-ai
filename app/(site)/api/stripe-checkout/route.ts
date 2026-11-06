@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
     // A guest order cannot be sent to BytePlus or privately downloaded by
     // our current paid customer pipeline, so never collect Stripe money for it.
     if(!accountId)return reply({error:"Sign in before paying for a real video."},401);
+    if(!store.emailVerified(accountId))return reply({error:"Verify your email before paying for a video.",code:"EMAIL_NOT_VERIFIED"},403);
     const order = store.ownedOrder(input.orderId, accountId);
     if(order.account_id!==accountId)
       return reply({error:"Customer-owned video order required."},403);
