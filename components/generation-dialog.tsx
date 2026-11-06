@@ -99,6 +99,7 @@ export function GenerationDialog({
     if (
       !rights ||
       !terms ||
+      customerOrdersAvailable ||
       pilot !== true ||
       blockers.length ||
       plan ||
@@ -135,6 +136,7 @@ export function GenerationDialog({
   }, [
     rights,
     terms,
+    customerOrdersAvailable,
     pilot,
     blockers.length,
     plan,
@@ -364,7 +366,7 @@ export function GenerationDialog({
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
       {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
       {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Generate your video by continuing to secure Stripe Checkout. Payment is required before processing; generation starts only after Stripe confirms payment." : "Secure payment is not available yet. No paid generation can start."}</p>}
-      {blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
+      {!customerOrdersAvailable && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
       <div className="product-actions">
