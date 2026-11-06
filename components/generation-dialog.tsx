@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/client";
+import { api, ensureSession, resetSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
 const usd = (n: number) => `USD ${(n / 1000000).toFixed(2)}`;
@@ -191,6 +191,14 @@ export function GenerationDialog({
     setBusy(true);
     setError("");
     try {
+      // Ensure a fresh media session after login. A restored guest draft must
+      // never be charged as if its files belonged to the customer account.
+      resetSession();
+      const workspace = await ensureSession() as {owner?:string};
+      if (!workspace.owner?.startsWith("customer-"))
+        throw Error("Please sign in to your customer account before generating a paid video.");
+      if (selection.owner !== workspace.owner)
+        throw Error("This project was prepared in another session. Reopen Studio while signed in and import or reupload your audio and image before paying.");
       let orderId = savedOrderId;
       if (!orderId) {
         const response = await fetch("/api/customer-orders", {
