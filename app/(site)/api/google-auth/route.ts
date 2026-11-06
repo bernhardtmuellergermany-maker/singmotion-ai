@@ -1,14 +1,14 @@
 import {NextRequest,NextResponse} from "next/server";
 import {randomBytes,createHash} from "node:crypto";
 import {stagingDenial} from "@/lib/staging";
+import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
-const staging="dfaeabed-03df-43ed-aa71-50f343a75041";
-const trustedOrigin="https://singmotion-ai-staging.up.railway.app";
-const ready=()=>process.env.RAILWAY_ENVIRONMENT_ID===staging&&process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"&&!!process.env.GOOGLE_OAUTH_CLIENT_ID&&!!process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+
 export async function GET(req:NextRequest){
  const denial=stagingDenial(req.headers.get("authorization"));if(denial)return denial;
- if(new URL(req.url).origin!==trustedOrigin)return NextResponse.json({error:"Invalid OAuth origin"},{status:403});
- if(!ready())return NextResponse.json({enabled:false},{headers:{"Cache-Control":"no-store"}});
+ const trustedOrigin=customerIdentityOrigin(process.env);
+ if(!trustedOrigin||!trustedIdentityHost(req.headers.get("host"),trustedOrigin))return NextResponse.json({error:"Invalid OAuth origin"},{status:403});
+ if(!googleLoginReady(process.env))return NextResponse.json({enabled:false},{headers:{"Cache-Control":"no-store"}});
  if(req.nextUrl.searchParams.get("start")!=="1")return NextResponse.json({enabled:true},{headers:{"Cache-Control":"no-store"}});
  const state=randomBytes(32).toString("base64url"),verifier=randomBytes(32).toString("base64url"),nonce=randomBytes(24).toString("base64url");
  const challenge=createHash("sha256").update(verifier).digest("base64url");
