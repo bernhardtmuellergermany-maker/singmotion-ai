@@ -2106,3 +2106,17 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   .home-gallery:has(> .sm-site-header),
   .product-theme:has(> .sm-site-header) {padding-top:0}
 }
+
+/* Visually center the entire landing carousel group in the viewport.
+   Header remains fixed; the cards and their controls shift together.
+   Scope to the landing page so account, orders and other pages are unchanged. */
+@media (min-width:691px) and (min-height:650px){
+  .sm-carousel-landing > .sm-carousel-main{
+    transform:translateY(-clamp(18px,3.5svh,34px));
+  }
+}
+@media (max-width:690px) and (min-height:650px){
+  .sm-carousel-landing > .sm-carousel-main{
+    transform:translateY(-12px);
+  }
+}
