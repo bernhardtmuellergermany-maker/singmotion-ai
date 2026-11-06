@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { reviewedCustomerOrderKey } from "@/lib/commerce/studio-order-key";
 import { CommerceStore } from "@/lib/commerce/store";
 import { prepareCustomerStudioOrder } from "@/lib/commerce/prepare-studio-order";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
@@ -91,13 +91,10 @@ export async function POST(req: NextRequest) {
     // order. A changed duration, image, audio, prompt or promotion must use a
     // different idempotency key. Legacy orders keyed only by project ID must
     // never be accidentally repriced or charged for a newer selection.
-    const selectionOrderKey=createHash("sha256")
-      .update("customer-studio-order-v2\0")
-      .update(accountId).update("\0")
-      .update(payload.projectId).update("\0")
-      .update(JSON.stringify(payload.draft)).update("\0")
-      .update(typeof payload.promoCode==="string"?payload.promoCode.trim().toUpperCase():"")
-      .digest("hex");
+    const selectionOrderKey=reviewedCustomerOrderKey({
+      accountId,projectId:payload.projectId,draft:payload.draft,
+      promoCode:typeof payload.promoCode==="string"?payload.promoCode:undefined,
+    });
     const order=await prepareCustomerStudioOrder(store,{
       accountId,email:String(account.email),mediaOwner:`customer-${accountId}`,
       draft:payload.draft,projectId:payload.projectId,requestKey:selectionOrderKey,
