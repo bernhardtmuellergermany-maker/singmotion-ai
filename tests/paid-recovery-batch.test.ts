@@ -48,6 +48,12 @@ test("paid download diagnosis separates exact safe failures without exposing URL
   ["Provider output length/encoding is invalid or too large.","provider-headers"],
   ["Cannot create private provider output file.","provider-private-file"],
   ["Provider output is not a decodable MP4.","provider-media"],
+  ["OUTPUT_CODEC_MISMATCH","provider-media-codec"],
+  ["OUTPUT_FORMAT_INVALID","provider-media-format"],
+  ["OUTPUT_DIMENSIONS_MISMATCH_ACTUAL_786x1178_EXPECTED_720x1280","provider-media-dimensions"],
+  ["OUTPUT_DURATION_MISMATCH","provider-media-duration"],
+  ["OUTPUT_FRAMERATE_MISMATCH","provider-media-framerate"],
+  ["OUTPUT_NORMALIZATION_POLICY_REJECTED","provider-media-normalization"],
  ] as const){
   const error=new Error(message);
   assert.equal(classifyPaidDeliveryFailure("provider-download",error),expected);
