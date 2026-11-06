@@ -10,15 +10,46 @@ import {asset,db,putAsset} from "../db.ts";
 import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 
 export type PaidDeliveryStage = "source"|"provider-download"|"provider-validation"|"tempo-restoration"|"private-archive";
+export type PaidDeliveryDiagnosticStage = PaidDeliveryStage |
+ "provider-host"|"provider-dns"|"provider-network"|"provider-http"|
+ "provider-headers"|"provider-private-file"|"provider-media";
+export function classifyPaidDeliveryFailure(stage:PaidDeliveryStage,error:unknown):PaidDeliveryDiagnosticStage {
+ if(stage!=="provider-download" || !(error instanceof Error))return stage;
+ // Only fixed codes reach logs. Never log a provider URL, task ID,
+ // signed query string, private path, status body or exception message.
+ switch(error.message){
+  case "Provider output URL is invalid.":
+  case "Provider output URL is not an approved HTTPS download destination.":
+   return "provider-host";
+  case "Provider output DNS resolution failed or timed out.":
+  case "Provider output DNS destination is not public.":
+   return "provider-dns";
+  case "Provider output connection failed or timed out.":
+  case "Provider output transfer failed or timed out.":
+   return "provider-network";
+  case "Provider output HTTP status rejected; redirects are forbidden.":
+  case "Provider download did not return a complete file.":
+   return "provider-http";
+  case "Provider output length/encoding is invalid or too large.":
+  case "Provider output length did not match.":
+   return "provider-headers";
+  case "Cannot create private provider output file.":
+   return "provider-private-file";
+  default:
+   // A successful transfer can still fail byte, codec or duration checks.
+   // Unrecognized errors are not disclosed to the customer or logs.
+   return "provider-media";
+ }
+}
 export class PaidDeliveryStageError extends Error {
- readonly stage:PaidDeliveryStage;
- constructor(stage:PaidDeliveryStage) {
+ readonly stage:PaidDeliveryDiagnosticStage;
+ constructor(stage:PaidDeliveryDiagnosticStage) {
   super("Private paid delivery stage failed");
   this.stage=stage;
  }
 }
 async function deliveryStage<T>(stage:PaidDeliveryStage, action:()=>Promise<T>):Promise<T>{
- try{return await action();}catch{throw new PaidDeliveryStageError(stage);}
+ try{return await action();}catch(error){throw new PaidDeliveryStageError(classifyPaidDeliveryFailure(stage,error));}
 }
 
 /** Trusted worker only; never call from a browser route.
