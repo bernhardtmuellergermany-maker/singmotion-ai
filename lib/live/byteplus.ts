@@ -171,7 +171,12 @@ export class BytePlusProtocol {
       { task_id: taskId(id) },
       signal,
     );
-    const data = object(result.data);
+    // Do not combine malformed provider envelopes with transport failures.
+    // Distinct fixed diagnostics make recovery actionable without exposing
+    // raw provider responses, media URLs, task IDs or credentials.
+    if (!result.data || typeof result.data !== "object" || Array.isArray(result.data))
+      throw new BytePlusError(false, { code: "MISSING_TASK_STATUS_DATA" });
+    const data = result.data as Record<string, unknown>;
     const states: readonly unknown[] = [
       "in_queue",
       "generating",
@@ -187,12 +192,12 @@ export class BytePlusProtocol {
     let videoUrl: unknown = data.video_url;
     if (data.status === "done" && typeof data.resp_data === "string") {
       if (data.resp_data.length > 262144)
-        throw new BytePlusError(false, { code: "INVALID_PROVIDER_RESPONSE" });
+        throw new BytePlusError(false, { code: "OUTPUT_PAYLOAD_TOO_LARGE" });
       let details: unknown;
       try { details = JSON.parse(data.resp_data); }
-      catch { throw new BytePlusError(false, { code: "INVALID_PROVIDER_RESPONSE" }); }
+      catch { throw new BytePlusError(false, { code: "INVALID_OUTPUT_PAYLOAD_JSON" }); }
       if (!details || typeof details !== "object" || Array.isArray(details))
-        throw new BytePlusError(false, { code: "INVALID_PROVIDER_RESPONSE" });
+        throw new BytePlusError(false, { code: "INVALID_OUTPUT_PAYLOAD_OBJECT" });
       videoUrl = (details as Record<string, unknown>).video_url;
     }
     if (data.status === "done" && (typeof videoUrl !== "string" || !videoUrl))
