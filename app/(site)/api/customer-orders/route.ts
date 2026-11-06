@@ -132,6 +132,12 @@ export async function POST(req: NextRequest) {
       return respond({error:"The reviewed audio or image is no longer available in this customer account. Reopen Studio and select your account's media.",code:"STUDIO_MEDIA_UNAVAILABLE"},409);
     if (error instanceof Error && /Invalid video duration|Selected segment exceeds|Invalid audio duration/.test(error.message))
       return respond({error:"The selected video duration is not eligible. Adjust the audio selection and review it again.",code:"STUDIO_DURATION_INVALID"},409);
+    if (error instanceof Error && /Previous provider failure for this recording/.test(error.message))
+      return respond({error:"This recording already has a failed BytePlus generation. Use a different eligible recording, or request an independent-content review. No payment was taken.",code:"PREVIOUS_PROVIDER_REJECTION"},409);
+    if (error instanceof Error && /Encoded MP3|Tempo duration validation|Decoded tempo ratio|exceeds processing bounds|outside processing bounds/i.test(error.message))
+      return respond({error:"At 90% speed this music excerpt exceeds the BytePlus duration limit or its timing could not be verified. Select a shorter excerpt and review the price again. No payment was taken.",code:"TEMPO_AUDIO_DURATION_INVALID"},409);
+    if (error instanceof Error && /Verified original recording is required|Original customer audio changed/.test(error.message))
+      return respond({error:"The original audio could not be verified. Reopen Studio and select the original recording again. No payment was taken.",code:"TEMPO_SOURCE_UNAVAILABLE"},409);
     // Log only an allowlisted category. Never log source file paths, raw
     // drafts, provider credentials, customer email or payment evidence.
     const reason=error instanceof Error?error.message:"";
