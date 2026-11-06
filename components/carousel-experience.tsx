@@ -217,7 +217,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
     touch.current=null;setDragging(0);
     if(Math.abs(delta)>55||(Math.abs(delta)>25&&velocity>.5))step(delta<0?1:-1);
   }
-  return <div className="sm-carousel-page">
+  return <div className="sm-carousel-page sm-carousel-landing">
     <SiteHeader onBrandClick={()=>navigate("home")} onAccountClick={()=>{setSearchOpen(false);setSearchText("");setSearchQuery("");currentRef.current="login";navigate("login");}} search={<>        <div ref={searchContainer} className={"sm-inline-search"+(searchOpen?" is-open":"")}>
           <button ref={searchButton} type="button" className="sm-inline-search-icon" aria-label="Search projects" aria-expanded={searchOpen} onClick={()=>{if(searchOpen){searchInput.current?.focus();return;}priorCard.current=current;setSearchOpen(true);}}><Search size={19}/></button>
           <input ref={searchInput} type="search" tabIndex={searchOpen?0:-1} placeholder="Search cards, projects, dates..." aria-label="Search projects" value={searchText} onChange={e=>setSearchText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();closeSearch();}if(e.key==="Enter"&&ids.length){navigate(ids[0]);}}}/>
