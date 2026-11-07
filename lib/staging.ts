@@ -20,7 +20,24 @@ export function privateGateMutationOriginAllowed(
   if (!origin || origin === "null") return false;
   const cmsRoute = pathname === "/api/cms" || pathname.startsWith("/api/cms/");
   const expected = cmsRoute ? env.CMS_ORIGIN : (env.APP_ORIGIN || env.PUBLIC_SITE_ORIGIN);
-  return origin === (expected || internalRequestOrigin);
+  // Never derive an authenticated mutation's trusted origin from its request
+  // Host. On Railway the internal request URL is proxy-controlled metadata,
+  // not an independently configured CSRF authority. Fail closed if the
+  // corresponding origin is missing, malformed or non-HTTPS.
+  if (expected) {
+    try {
+      const url = new URL(expected);
+      const secure = url.protocol === "https:" ||
+        (!env.RAILWAY_ENVIRONMENT_ID && url.protocol === "http:" &&
+         ["localhost", "127.0.0.1"].includes(url.hostname));
+      return secure && url.origin === expected &&
+        !url.username && !url.password && origin === expected;
+    } catch { return false; }
+  }
+  // Preserve ordinary direct local development without Railway or a private
+  // gate; never use this fallback for protected previews.
+  return !env.RAILWAY_ENVIRONMENT_ID && !stagingEnabled(env) &&
+    origin === internalRequestOrigin;
 }
 
 export const PRIVATE_GATE_COOKIE = "sm_private_gate";
