@@ -97,6 +97,7 @@ export function HomeCollection() {
           <div className="home-gallery-grid">
             <CreateTile />
             {tiles.map(tile => <GalleryTile key={tile.id} tile={{...tile,name:renames[tile.id] || tile.name}} deleting={deleting === tile.id} onRename={() => rename(tile)} onDelete={async () => {
+              if (tile.id.startsWith("paid_")) { setError("Completed paid videos cannot be deleted as drafts."); return; }
               if (!window.confirm(`Permanently delete "${tile.name}"? This cannot be undone. Active provider tasks cannot be deleted.`)) return;
               setDeleting(tile.id); setError("");
               try {
@@ -134,7 +135,7 @@ function GalleryTile({tile,deleting,onDelete,onRename}:{tile:Tile;deleting:boole
     <div className="home-gallery-title-row">
       <Link href={tile.href} className="home-gallery-title" title={tile.name}>{tile.name}</Link>
       <details className="home-gallery-options"><summary aria-label={`Options for ${tile.name}`}><MoreVertical size={18}/></summary>
-        <div className="home-gallery-options-list"><button type="button" onClick={onRename}><Pencil size={15}/> Rename</button><button type="button" onClick={()=>window.location.assign(tile.href)}><Copy size={15}/> Open to duplicate</button>{tile.videoUrl && <a href={tile.videoUrl + (tile.id.startsWith("live_") ? "&download=1" : "")} download><Download size={15}/> Download</a>}<button type="button" disabled={deleting} onClick={onDelete}><Trash2 size={15}/> {deleting?"Deleting…":"Delete"}</button></div>
+        <div className="home-gallery-options-list"><button type="button" onClick={onRename}><Pencil size={15}/> Rename</button><button type="button" onClick={()=>window.location.assign(tile.href)}><Copy size={15}/> {tile.id.startsWith("paid_") ? "Open finished video" : "Open to duplicate"}</button>{tile.videoUrl && <a href={tile.videoUrl + (tile.id.startsWith("live_") ? "&download=1" : tile.id.startsWith("paid_") ? "&download=1" : "")} download><Download size={15}/> Download</a>}{!tile.id.startsWith("paid_") && <button type="button" disabled={deleting} onClick={onDelete}><Trash2 size={15}/> {deleting?"Deleting…":"Delete"}</button>}</div>
       </details>
     </div>
     <p className="home-gallery-date">{tile.created?new Date(tile.created).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}):"Saved draft"}</p>
