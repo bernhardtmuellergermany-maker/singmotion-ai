@@ -10,6 +10,7 @@ import type { StudioProject } from "@/lib/live/studio";
 import { showcase } from "@/lib/showcase";
 
 type Tile = { id:string; name:string; href:string; imageId?:string; state:string; created:number; videoUrl?:string; seconds:number };
+type PaidOrderTile = {orderId:string;projectId:string;status:string;fulfillmentState:string|null;videoReady:number;videoUrl:string|null;created:number};
 type Draft = { id:string; artistName:string; projectName?:string; updated?:number; selection:{ songId?:string; imageId?:string; start:number; end:number } };
 const cleanTitle=(name:string)=>!name.trim()||name.trim().toLowerCase()==="my artist"||/^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(name.trim())?"Untitled Project":name.trim();
 const queryCard=()=>{if(typeof window==="undefined")return "home";const explicit=new URLSearchParams(location.search).get("card");if(explicit)return explicit;const returned=sessionStorage.getItem("singmotion-carousel-return");if(returned){sessionStorage.removeItem("singmotion-carousel-return");return returned;}return "home";};
@@ -103,12 +104,28 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
     async function refresh(){
       try{
         const workspace = await ensureSession() as { owner?: string };
-        const results=await Promise.allSettled([api<Job[]>("jobs"),api<{projects:StudioProject[]}>("studio-live"),api<Draft[]>("studio-drafts")]);
+        const results=await Promise.allSettled([
+          api<Job[]>("jobs"),api<{projects:StudioProject[]}>("studio-live"),api<Draft[]>("studio-drafts"),
+          fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
+            .then(async response=>response.ok?await response.json() as {orders:PaidOrderTile[]}:{orders:[]}),
+        ]);
         if(!mounted)return;
         if(results.every(r=>r.status==="rejected"))throw new Error("Your private projects could not be loaded.");
         const jobs=results[0].status==="fulfilled"?results[0].value:[];
         const live=results[1].status==="fulfilled"?results[1].value.projects:[];
         const drafts=results[2].status==="fulfilled"?results[2].value:[];
+        const paid=results[3].status==="fulfilled"?results[3].value.orders||[]:[];
+        const paidCards:Tile[]=paid.filter(o=>
+          o.status==="paid"&&o.fulfillmentState==="delivered"&&o.videoReady===1&&
+          /^[a-f0-9-]{36}$/.test(o.orderId)&&
+          typeof o.videoUrl==="string"&&o.videoUrl.startsWith("/api/customer-video?orderId=")
+        ).map(o=>({
+          id:"paid_"+o.orderId,name:"Your music video",
+          href:"/projects/paid_"+encodeURIComponent(o.orderId),
+          state:"completed",created:o.created||Date.now(),seconds:0,
+          videoUrl:o.videoUrl!,
+        }));
+
         // A generated video replaces its source draft's gallery card, not its
         // saved draft data. Match the exact media cut and instructions so that
         // unrelated drafts sharing an image or title remain visible.
@@ -123,6 +140,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
           "customPrompt" in d.selection && s.customPrompt===(d.selection as typeof s).customPrompt
         ));
         const cards:Tile[]=[
+          ...paidCards,
           ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.projectName||p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
           ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
           ...(workspace.owner?.startsWith("customer-")||workspace.owner?.startsWith("cms-staff-") ? visibleDrafts : visibleDrafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"draft"}))
