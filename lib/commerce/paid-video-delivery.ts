@@ -9,6 +9,23 @@ import {verifyPrivatePaidMediaSnapshot} from "./verify-paid-media.ts";
 import {asset,db,putAsset} from "../db.ts";
 import {mirrorPrivatePaidVideo,paidR2ByteRange} from "../cloud-paid-video.ts";
 
+/** Public customer video metadata describes the *delivered* timeline, not
+ * the slowed provider input charged at Checkout. Legacy (no-tempo) orders
+ * remain unchanged; corrupt tempo metadata fails closed before registration.
+ * This does not modify a historical delivery or the provider cost basis.
+ */
+export function deliveredPaidVideoDurationSeconds(media:{durationSeconds:number;tempo?:{rate:number;originalDuration:number}}):number{
+ const seconds=media.tempo?.originalDuration??media.durationSeconds;
+ if(!Number.isFinite(seconds)||seconds<5||seconds>300)
+  throw Error("Invalid restored customer video duration");
+ if(media.tempo && (media.tempo.rate!==0.9||
+    !Number.isFinite(media.durationSeconds)||media.durationSeconds<5||
+    media.durationSeconds>300||
+    Math.abs(media.durationSeconds*0.9-seconds)>0.2))
+  throw Error("Customer tempo duration differs from reviewed original");
+ return seconds;
+}
+
 export type PaidDeliveryStage = "source"|"provider-download"|"provider-validation"|"tempo-restoration"|"private-archive";
 export type PaidDeliveryDiagnosticStage = PaidDeliveryStage |
  "provider-host"|"provider-dns"|"provider-network"|"provider-http"|
@@ -147,7 +164,7 @@ export async function deliverReviewedPaidVideo(
  }else{
   putAsset({id:assetId,owner,kind:"video",
    name:"singmotion.mp4",path:file,mime:"video/mp4",bytes:details.size,
-   duration:media.durationSeconds,width:null,height:null,created:Date.now()});
+   duration:deliveredPaidVideoDurationSeconds(media),width:null,height:null,created:Date.now()});
  }
  // The R2 copy is strictly optional outside protected staging; when enabled,
  // a delivered receipt must never point at an unverified remote archive.
