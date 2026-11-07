@@ -45,3 +45,9 @@
 ## Evidence provenance and limitations
 
 Railway service/proxy telemetry, DNS/TLS and current deploy status were checked 2026-11-07. Stripe live account, webhooks, prices and product metadata were read through the connected **live** Stripe account without writing or initiating charges. Price/product names are operational labels, not contractual proof. No private secrets, customer identities, bank details, unpublished content, video URLs or raw provider outputs are recorded here. These observations cannot certify future compliance or production readiness after further config changes.
+
+## Additional independent release-hardening (7 November 2026)
+
+- Railway private-cookie mutations are now authorized only against an **explicit, canonical, trusted HTTPS** `APP_ORIGIN`/`PUBLIC_SITE_ORIGIN` (or the separate `CMS_ORIGIN` for CMS). An omitted origin no longer falls back to a request-controlled `Host`/internal proxy origin on either Staging or Production. Direct, unprotected local development is still supported. Regression tests cover both Railway environment IDs, cross-origin requests, malformed origins and CMS separation. Existing Railway service variable names include `APP_ORIGIN` and `CMS_ORIGIN` in both environments. This hardening never changes a payment/BytePlus flag.
+- The exact-commit / builder-strategy promotion regression suite (`tests/release-parity.test.mjs`) is now included in the normal mandatory `npm run build` pipeline rather than relying on an optional standalone invocation. It does not assert live Railway parity on its own: inspect the actual deployment SHA and SUCCESS status of **both** Railway environments after each deployment.
+- The signed-in customer release still requires provider contract, live Stripe fulfillment, production data recovery, CMS/legal approval, and a controlled public cutover. Passing these additional tests does not constitute public launch approval.
