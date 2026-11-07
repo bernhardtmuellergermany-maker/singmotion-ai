@@ -115,14 +115,17 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
         const live=results[1].status==="fulfilled"?results[1].value.projects:[];
         const drafts=results[2].status==="fulfilled"?results[2].value:[];
         const paid=results[3].status==="fulfilled"?results[3].value.orders||[]:[];
+        const draftById=new Map(drafts.map(d=>[d.id,d]));
         const paidCards:Tile[]=paid.filter(o=>
           o.status==="paid"&&o.fulfillmentState==="delivered"&&o.videoReady===1&&
           /^[a-f0-9-]{36}$/.test(o.orderId)&&
           typeof o.videoUrl==="string"&&o.videoUrl.startsWith("/api/customer-video?orderId=")
         ).map(o=>({
-          id:"paid_"+o.orderId,name:"Your music video",
+          id:"paid_"+o.orderId,name:cleanTitle(draftById.get(o.projectId)?.projectName||draftById.get(o.projectId)?.artistName||"Your music video"),
           href:"/projects/paid_"+encodeURIComponent(o.orderId),
-          state:"completed",created:o.created||Date.now(),seconds:0,
+          state:"completed",created:o.created||Date.now(),
+          seconds:Math.max(0,(draftById.get(o.projectId)?.selection.end||0)-(draftById.get(o.projectId)?.selection.start||0)),
+          imageId:draftById.get(o.projectId)?.selection.imageId,
           videoUrl:o.videoUrl!,
         }));
 
@@ -130,7 +133,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
         // saved draft data. Match the exact media cut and instructions so that
         // unrelated drafts sharing an image or title remain visible.
         const generatedSelections=live.filter(p=>p.state!=="prepared").map(p=>p.selection);
-        const visibleDrafts=drafts.filter(d=>!generatedSelections.some(s=>
+        const visibleDrafts=drafts.filter(d=>!paidCards.some(p=>p.id==="paid_"+paid.find(o=>o.projectId===d.id&&o.status==="paid"&&o.videoReady===1)?.orderId)&&!generatedSelections.some(s=>
           s.songId===d.selection.songId &&
           s.imageId===d.selection.imageId &&
           s.start===d.selection.start &&
