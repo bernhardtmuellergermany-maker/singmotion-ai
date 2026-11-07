@@ -1,16 +1,20 @@
 # SingMotion AI
 
-> **Release status (4 November 2026): NOT READY FOR PUBLIC CUSTOMERS.**
-> On protected Railway Staging, Cloudflare R2 privately stores new uploads and
-> 36/36 registered legacy test assets were hash-verified after migration.
-> Free: **250 MiB** source storage; Hobby: **2 GiB**; both permit unlimited
-> projects. A private R2 MP4 range-access canary passed.
-> The production app still runs `main` without Production R2 credentials and
-> with a 500 MB media volume. Live Stripe Checkout, customer-paid BytePlus
-> delivery and free-promo/provider fulfillment remain disabled.
-> Current launch gates and rollback steps are in
-> [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md) and
-> [docs/PRODUCTION_RELEASE_RUNBOOK.md](docs/PRODUCTION_RELEASE_RUNBOOK.md).
+> **Release status (7 November 2026): PRIVATE PRODUCTION PREVIEW; NOT PUBLICLY LAUNCH-APPROVED.**
+> Staging and Production deploy the same tested commit in Railway (source is
+> currently pinned to a reviewed release branch, not automatically following `main`).
+> The custom `www.singmotion.ai` domain has propagated DNS and a valid TLS
+> certificate. Production still requires the private password (HTTP 401 on
+> unauthenticated `/`). The configured private Production R2 read-only preflight
+> and Staging R2 MP4 canary passed; this is not a Production customer migration.
+> An actual SingMotion AI Stripe **Live** account has active card processing and
+> two enabled webhooks, but the active €4.99/month Hobby Product/Price is labeled
+> STAGING in Stripe and there is no proved end-to-end live fulfillment.
+> No public customer charge, unlimited automatic BytePlus dispatch or unsupported
+> 300-second MP4 guarantee is approved. Free/Hobby availability and legal,
+> retention, backups, CMS, support and vendor billing require additional proof.
+> Current evidence and remaining launch gates: [docs/RELEASE_READINESS_2026-11-07.md](docs/RELEASE_READINESS_2026-11-07.md)
+> and [docs/PRODUCTION_RELEASE_RUNBOOK.md](docs/PRODUCTION_RELEASE_RUNBOOK.md).
 > Historical v0.1 sections below describe the original local demo and may
 > not reflect subsequent guarded Staging features.
 

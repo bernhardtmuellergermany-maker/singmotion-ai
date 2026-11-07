@@ -11,6 +11,7 @@ const env={
 };
 const account={object:"account",id:"acct_fixture",charges_enabled:true,details_submitted:true};
 const price={id:env.STRIPE_HOBBY_PRICE_ID,livemode:true,active:true,
+ product:"prod_live_reviewed_fixture",nickname:"Hobby production",lookup_key:"hobby_monthly_live",
  currency:"eur",unit_amount:499,tax_behavior:"inclusive",recurring:{
   interval:"month",interval_count:1,usage_type:"licensed"}};
 const endpoint={data:[
@@ -34,14 +35,17 @@ function mock(objects:Record<string,unknown>,calls:string[]){
    {status:body===undefined?404:200});
  };
 }
+const product={id:"prod_live_reviewed_fixture",object:"product",livemode:true,active:true,
+ name:"SingMotion AI Hobby",description:"Subscription plan",metadata:{environment:"production"}};
 const accountUrl="https://api.stripe.com/v1/account";
 const priceUrl="https://api.stripe.com/v1/prices/price_live_testfixture";
 const hooksUrl="https://api.stripe.com/v1/webhook_endpoints?limit=100";
-const valid={ [accountUrl]:account,[priceUrl]:price,[hooksUrl]:endpoint };
+const productUrl="https://api.stripe.com/v1/products/prod_live_reviewed_fixture";
+const valid={ [accountUrl]:account,[priceUrl]:price,[hooksUrl]:endpoint,[productUrl]:product };
 test("Stripe read-only live preflight calls only GET and does not approve unavailable paid delivery",async()=>{
  const calls:string[]=[];
  const result=await readOnlyStripeLivePreflight(env,mock(valid,calls));
- assert.deepEqual(calls.sort(),[accountUrl,priceUrl,hooksUrl].sort());
+ assert.deepEqual(calls.sort(),[accountUrl,priceUrl,hooksUrl,productUrl].sort());
  assert.equal(result.stripeConfigurationVerified,true);
  assert.equal(result.paidOrdersEnabled,false);
  assert.deepEqual(result.checks.filter(c=>!c.ok),[]);
@@ -101,4 +105,35 @@ test("Stripe preflight rejects inactive wrong-amount wrong-mode or unverified we
  }
  const unreachable=await readOnlyStripeLivePreflight(env,async()=>new Response("",{status:503}));
  assert.equal(unreachable.stripeConfigurationVerified,false);
+});
+
+
+test("real Production Railway webhook hostname is accepted only for actual canonical SingMotion origin",async()=>{
+ const realSite="https://www.singmotion.ai";
+ const railway="https://singmotion-ai-production.up.railway.app";
+ const railwayHooks={data:endpoint.data.map(h=>({...h,
+  url:railway+new URL(h.url).pathname}))};
+ const result=await readOnlyStripeLivePreflight({...env,PUBLIC_SITE_ORIGIN:realSite},
+  mock({...valid,[hooksUrl]:railwayHooks},[]));
+ assert.equal(result.stripeConfigurationVerified,true);
+ assert.equal(result.paidOrdersEnabled,false);
+ const unrelated=await readOnlyStripeLivePreflight({...env,PUBLIC_SITE_ORIGIN:"https://unrelated.example"},
+  mock({...valid,[hooksUrl]:railwayHooks},[]));
+ assert.equal(unrelated.stripeConfigurationVerified,false);
+ assert.equal(unrelated.checks.find(x=>x.name==="verified-live-checkout-webhook")?.ok,false);
+});
+
+test("an active LIVE Stripe price linked to a staging or sandbox product cannot be used for launch",async()=>{
+ for(const changes of [
+  {[priceUrl]:{...price,nickname:"Hobby 4.99 EUR/month STAGING"}},
+  {[priceUrl]:{...price,lookup_key:"singmotion_hobby_monthly_staging"}},
+  {[productUrl]:{...product,metadata:{environment:"staging"}}},
+  {[productUrl]:{...product,description:"Subscription sandbox testing."}},
+  {[productUrl]:{...product,active:false}},
+ ]){
+  const result=await readOnlyStripeLivePreflight(env,mock({...valid,...changes},[]));
+  assert.equal(result.stripeConfigurationVerified,false);
+  assert.equal(result.checks.find(x=>x.name==="hobby-live-product-reviewed-not-staging")?.ok,false);
+  assert.equal(result.paidOrdersEnabled,false);
+ }
 });
