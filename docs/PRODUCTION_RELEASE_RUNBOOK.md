@@ -1,17 +1,17 @@
 # SingMotion AI — Production release and rollback runbook
-**Status: NOT APPROVED FOR CUSTOMERS.** This is an operator procedure, not proof of a completed step.
+**Status: PRIVATE PRODUCTION PREVIEW (07.11.2026); NOT APPROVED FOR PUBLIC PAID CUSTOMERS.** This is an operator procedure, not proof of a completed step. See [release evidence](RELEASE_READINESS_2026-11-07.md).
 
 ## Current baselines
 - Railway project: `96ab3402-f974-4cdf-b9a3-408443b17025`.
-- Production environment: `36adc41d-7e54-4396-ad1a-fd432ba0441d`; service `2c6bca77-61e6-4ab5-9447-fa23767622aa`; currently deployed from `main`.
+- Production environment: `36adc41d-7e54-4396-ad1a-fd432ba0441d`; service `2c6bca77-61e6-4ab5-9447-fa23767622aa`; deployment **pinned to a reviewed feature branch SHA**, not `main`. Confirm the exact latest SUCCESS SHA before any cutover.
 - Private Staging: `dfaeabed-03df-43ed-aa71-50f343a75041`; 36/36 registered test media, 71,952,319 bytes were verified in R2. This does NOT prove Production migrated.
-- Production app volume currently 500 MB. Do not promise 2 GiB uploads to paying customers until private Production R2 is connected and verified.
+- The Production private R2 read-only preflight is verified and R2 credentials are present, but no complete Production migration/restore and owner-scoped upload/download proof has been established. Do not claim paid-customer 2 GiB recovery readiness.
 
 ## Phase A — external prerequisites, no payment/provider charges
 1. Create a **dedicated private Cloudflare R2 Production bucket** with no anonymous access, in the operator's own Cloudflare account.
 2. Create separate least-privileged bucket-scoped R2 API token for object GET/PUT/HEAD/DELETE. Store `R2_ACCOUNT_ID`, `R2_BUCKET`, `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` as private Production Railway variables. Do NOT paste values in GitHub, chat or logs, and do not reuse Staging credentials.
 3. Confirm the BytePlus OmniHuman 2.0 account contract: USD duration/rounding, applicable taxes, paid/failed task charging, approved output hosts, private R2 presigned input validity and support escalation. Record actual evidence. Without it, retain every paid provider kill switch.
-4. Complete Stripe live business onboarding and verify invoice/VAT, refund/dispute and consumer support obligations. The **current single-video webhook and Checkout adapter are sandbox-only** and MUST NOT be used with live Stripe keys. Do not switch `sk_test_` to `sk_live_` and assume it works.
+4. Stripe Live account is connected, card payments enabled, and two enabled Live webhook endpoints target `https://singmotion-ai-production.up.railway.app` (video and Hobby). The only observed active €4.99/month Hobby price/product is still labeled STAGING/sandbox in Stripe: reconcile and approve a real Production offering, taxes, consumer support and live delivery. Run the **read-only** `npm run stripe:live-preflight -- --production` on the Production host; it explicitly accepts only the exact verified Railway Production webhook origin as an alternative to `https://www.singmotion.ai`. A live webhook object alone does not prove delivery or refunds.
 5. Have qualified legal review of Impressum, privacy, AI/musical rights, pricing/withdrawal terms, retention and customer-support/contact points; demonstrate actual email deliverability.
 
 ## Phase B — private R2 production audit and migration (operator only)
@@ -27,9 +27,7 @@
 
 ## Phase B2 — modern Payload CMS production gate (no implicit release)
 
-Private Staging runs the modern Payload CMS, while current Production `main`
-still contains the old disabled demo admin. These are **different applications**;
-a cosmetic sidebar change or successful Staging CI does not migrate Production.
+Staging and Production now run the same reviewed **application code**, including the modern Payload CMS routes. This does not prove a Production CMS database migration: startup logs explicitly report `CMS_SCHEMA_INIT_DISABLED`. Production CMS backup/restore, role, publish and historical content reconciliation remain independent launch blockers.
 
 1. Export the **actual** current Production Postgres CMS schema/data and volume
    to an encrypted operator-controlled backup. Rehearse a restore separately.
@@ -38,7 +36,7 @@ a cosmetic sidebar change or successful Staging CI does not migrate Production.
    after the explicit operator switch; inspect which CMS pages were ever
    published, and retain all historically published/legal content.
    Do not delete a CMS page based only on whether a separate React route exists.
-3. Diff Production `main` against reviewed Staging release. Identify all
+3. Compare exact live Production and reviewed Staging commit SHAs, then prepare a protected, reviewed mainline release. Identify all
    customer/worker/payment/BytePlus flags; never merge unfinished public
    generation or billing into Production merely to install the CMS.
 4. Provision secure and isolated Production Payload DB config, `PAYLOAD_SECRET`,
