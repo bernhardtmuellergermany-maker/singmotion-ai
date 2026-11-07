@@ -52,7 +52,7 @@ export function customerLaunchReadiness(env:Record<string,string|undefined>=proc
      throw Error("Private, approved production provider policy required");
     policy=ownerConfirmedBytePlusPolicy();
    }
-   const review=validateCustomerWorkerPolicy(policy);
+   const review=validateCustomerWorkerPolicy(policy,Date.now(),env.RAILWAY_ENVIRONMENT_ID);
    fulfillmentConnected=review.dailyCapMicroUsd>0&&review.lifetimeCapMicroUsd>0;
    deliveryConnected=env.CUSTOMER_DELIVERY_ENABLED==="true"&&
     env.CUSTOMER_R2_STORAGE_ENABLED==="true"&&review.contract.outputHosts.length>0;
