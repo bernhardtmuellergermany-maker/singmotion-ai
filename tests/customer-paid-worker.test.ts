@@ -111,3 +111,22 @@ test("production rejects an actual copied staging pilot policy from its private 
    /Independent production customer provider policy review required/);
  }finally{await rm(root,{recursive:true,force:true})}
 });
+
+
+test("owner policy targets are identical for Staging and Production without implying verified provider dispatch",async()=>{
+ const {SHARED_BYTEPLUS_TARGET_POLICY:target,baseEstimatedBytePlusMicroUsd}=await import("../lib/commerce/shared-byteplus-target-policy.ts");
+ assert.equal(target.minInputSeconds,5);
+ assert.equal(target.maxInputSeconds,300);
+ assert.equal(target.microUsdPerGeneratedSecond,70_000);
+ assert.equal(target.dailyBudgetMicroUsd,null);
+ assert.equal(target.lifetimeBudgetMicroUsd,null);
+ assert.equal(target.delivery,"private-validated-mp4");
+ assert.equal(target.manualPerJobAuthorizationRequired,true);
+ assert.equal(target.productionAndStagingIdentical,true);
+ assert.equal(baseEstimatedBytePlusMicroUsd(300),21_000_000);
+ assert.throws(()=>baseEstimatedBytePlusMicroUsd(301));
+ // Target policy by itself must not activate a paid worker in either environment.
+ for(const environmentId of [staging,"36adc41d-7e54-4396-ad1a-fd432ba0441d"]){
+  assert.equal(customerWorkerEnabled({RAILWAY_ENVIRONMENT_ID:environmentId}),false);
+ }
+});
