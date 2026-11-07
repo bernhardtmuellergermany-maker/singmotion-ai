@@ -68,16 +68,38 @@ export async function readOnlyStripeLivePreflight(
    price.currency==="eur"&&price.unit_amount===499&&
    price.tax_behavior==="inclusive"&&recurring?.interval==="month"&&
    recurring?.interval_count===1&&recurring?.usage_type==="licensed");
+  // A live Stripe API object may still be mislabeled as a staging/sandbox
+  // product; require a real Production product review before public billing.
+  const productId=typeof price?.product==="string"&&
+   /^prod_[A-Za-z0-9_]+$/.test(price.product)?price.product:null;
+  const product=productId?await request("https://api.stripe.com/v1/products/"+
+   encodeURIComponent(productId)):null;
+  const stagingLabel=(value:unknown)=>typeof value==="string"&&
+   /(?:^|[^a-z])(?:staging|sandbox)(?:$|[^a-z])/i.test(value);
+  const productMetadata=product?.metadata&&typeof product.metadata==="object"&&
+   !Array.isArray(product.metadata)?product.metadata as Record<string,unknown>:{};
+  check("hobby-live-product-reviewed-not-staging",
+   !!productId&&product?.id===productId&&product.livemode===true&&
+   product.active===true&&
+   ![price?.nickname,price?.lookup_key,product.name,product.description,
+     productMetadata.environment].some(stagingLabel));
   const items=Array.isArray(webhooks?.data)?webhooks.data:[];
   // Video purchases and Hobby subscriptions use separate signing secrets.
   // Both endpoints must exist in the same Live account before admitting
   // either type of charge, otherwise fulfillment/quota may never arrive.
+  // Stripe currently delivers to this specific, TLS-verified Production
+  // Railway domain. The public custom host is also permitted. No arbitrary
+  // staging Railway host, wildcard or untrusted configured redirect is valid.
+  const approvedWebhookOrigins=new Set([origin,
+   ...(origin==="https://www.singmotion.ai"?
+    ["https://singmotion-ai-production.up.railway.app"]:[])]);
   const endpoint=(route:string,required:readonly string[])=>items.some(value=>{
     if(!value||typeof value!=="object")return false;
     const hook=value as Record<string,unknown>;
     const enabled=hook.enabled_events;
     return hook.livemode===true&&hook.status==="enabled"&&
-     hook.url===origin+route &&
+     typeof hook.url==="string"&&approvedWebhookOrigins.has(hook.url.slice(0,-route.length))&&
+     hook.url.endsWith(route) &&
      Array.isArray(enabled)&&required.every(t=>enabled.includes(t)||enabled.includes("*"));
   });
   check("verified-live-checkout-webhook",endpoint("/api/stripe-webhook",videoEvents));
@@ -85,6 +107,7 @@ export async function readOnlyStripeLivePreflight(
  }else{
   check("stripe-account-accepts-charges",false);
   check("hobby-price-is-active-inclusive-eur-monthly",false);
+  check("hobby-live-product-reviewed-not-staging",false);
   check("verified-live-checkout-webhook",false);
   check("verified-live-hobby-webhook",false);
  }
