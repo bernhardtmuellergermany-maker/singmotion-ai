@@ -139,3 +139,40 @@ test("shared Studio input admission is exactly 5–300 seconds in both environme
  for(const seconds of [0,4,4.999,300.001,301,Infinity,NaN])
   assert.throws(()=>assertSharedBytePlusInputSeconds(seconds),/between 5 and 300 seconds/);
 });
+
+
+test("shared BytePlus 300s audit does not mistake an owner pilot for a live provider contract",async()=>{
+ const {auditBytePlus300SecondPolicy}=await import("../lib/commerce/byteplus-300s-readiness-audit.ts");
+ const empty=auditBytePlus300SecondPolicy(undefined);
+ assert.equal(empty.reviewStructurallyComplete,false);
+ assert.equal(empty.vendorAccountVerified,false);
+ assert.equal(empty.paidDispatchApproved,false);
+ assert.ok(empty.blockers.includes("REVIEWED_POLICY_REQUIRED"));
+ const pilot=auditBytePlus300SecondPolicy(ownerConfirmedBytePlusPolicy());
+ assert.equal(pilot.maxInputSeconds,300);
+ assert.equal(pilot.dailyBudgetMicroUsd,null);
+ assert.equal(pilot.lifetimeBudgetMicroUsd,null);
+ assert.equal(pilot.reviewStructurallyComplete,false);
+ assert.ok(pilot.blockers.includes("DURATION_COVERAGE_MISSING"));
+ assert.ok(pilot.blockers.includes("INDEPENDENT_PROVIDER_EVIDENCE_REQUIRED"));
+ assert.equal(pilot.vendorAccountVerified,false);
+});
+
+test("synthetic 300s contract can pass schema coverage, never grants external billing approval",async()=>{
+ const {auditBytePlus300SecondPolicy}=await import("../lib/commerce/byteplus-300s-readiness-audit.ts");
+ const pilot=ownerConfirmedBytePlusPolicy();
+ const complete={...pilot,reviewedBy:"offline-fixture-only-not-vendor-evidence",
+  contract:{...pilot.contract,revision:"production-offline-300s-fixture-v1",
+   generatedDurationBound:{minInputSeconds:5,maxInputSeconds:300,maxAdditionalSeconds:0,
+    evidence:"Synthetic offline only; actual provider output must be verified"},
+   output:{...pilot.contract.output,maxDurationSeconds:300,durationToleranceSeconds:0},
+  }};
+ const a=auditBytePlus300SecondPolicy(complete);
+ assert.deepEqual(a.blockers,[]);
+ assert.equal(a.reviewStructurallyComplete,true);
+ assert.equal(a.vendorAccountVerified,false);
+ assert.equal(a.paidDispatchApproved,false);
+ const tooLong=structuredClone(complete);
+ tooLong.contract.generatedDurationBound.maxAdditionalSeconds=2;
+ assert.ok(auditBytePlus300SecondPolicy(tooLong).blockers.includes("REVIEWED_POLICY_REQUIRED"));
+});
