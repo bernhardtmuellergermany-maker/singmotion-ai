@@ -109,6 +109,17 @@ try{
  await download.click();
  const downloaded=await pendingDownload;
  assert.equal(downloaded.suggestedFilename(),"singmotion.mp4");
+ // Regression: a delivered order must be reached from its project card,
+ // not sent back to an editable draft or an order review.
+ await page.goto(origin+"/?card=paid_"+id);
+ const finishedCard=page.locator(".sm-carousel-card").filter({has:page.locator('a[href="/projects/paid_'+id+'"]')});
+ await finishedCard.waitFor({timeout:15000});
+ assert.equal(await finishedCard.locator("video[src^='/api/customer-video?orderId=']").count(),1,
+  "home carousel shows the authenticated finished video");
+ await finishedCard.getByRole("link",{name:/Open project/}).click();
+ await page.waitForURL(origin+"/projects/paid_"+id);
+ await page.getByRole("region",{name:"Customer video output"}).locator("video[controls]").waitFor({timeout:15000});
+ console.log("BROWSER_CHECKPOINT: completed project card opens private video, not order review");
  const stranger=await browser.newContext();
  assert.equal((await stranger.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),401);
  assert.equal((await stranger.request.get(origin+`/api/customer-orders?view=mine&orderId=${id}`)).status(),401);
