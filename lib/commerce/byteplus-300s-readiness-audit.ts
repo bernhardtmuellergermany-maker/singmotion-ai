@@ -40,7 +40,7 @@ function coveringPolicies(root:StudioPolicy){
   min:p.contract.generatedDurationBound!.minInputSeconds,
   max:p.contract.generatedDurationBound!.maxInputSeconds,
  })).sort((a,b)=>a.min-b.min);
- let coveredTo=TARGET.minInputSeconds;
+ let coveredTo:number=TARGET.minInputSeconds;
  const used:StudioPolicy[]=[];
  for(const r of ranges){
   if(r.max<coveredTo)continue;
