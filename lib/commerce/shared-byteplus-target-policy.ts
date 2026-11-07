@@ -26,3 +26,14 @@ export function baseEstimatedBytePlusMicroUsd(generatedSeconds:number){
   throw Error("Generated seconds must be within documented 300s model limit");
  return Math.ceil(generatedSeconds*SHARED_BYTEPLUS_TARGET_POLICY.microUsdPerGeneratedSecond);
 }
+
+/** Shared product input admission for new Studio reviews in both environments.
+ * Does not establish vendor pricing or authorize a provider request.
+ */
+export function assertSharedBytePlusInputSeconds(seconds:number){
+ if(!Number.isFinite(seconds)||
+    seconds<SHARED_BYTEPLUS_TARGET_POLICY.minInputSeconds||
+    seconds>SHARED_BYTEPLUS_TARGET_POLICY.maxInputSeconds)
+  throw Error("Studio input must be between 5 and 300 seconds");
+ return seconds;
+}

@@ -1,4 +1,5 @@
 import { reportedBaseChargeMicroUsd } from "./contract.ts";
+import { assertSharedBytePlusInputSeconds } from "../commerce/shared-byteplus-target-policy.ts";
 import { superAdminStudioPolicy } from "./super-admin-policy.ts";
 import { latestStudioBudget } from "./studio-budget-review.ts";
 import { euroBudget, type EuroBudget } from "./studio-budget.ts";
@@ -604,12 +605,12 @@ export class StudioWorkflow {
     const selection = parseStudioDraft(value);
     if (
       selection.owner !== owner ||
-      selection.end - selection.start < 4 ||
+      selection.end - selection.start < 5 ||
       selection.end - selection.start > 300
     )
       throw new StudioLiveError(
         "SELECTION_INVALID",
-        "Select your own image/audio and an excerpt of at least 4 seconds.",
+        "Select your own image/audio and an excerpt of 5–300 seconds.",
       );
     const tempo = await tempoAuthorization(
       this.root,
@@ -725,6 +726,9 @@ export class StudioWorkflow {
         tempo,
         Math.min(this.config.maxDurationSeconds, 300),
       );
+    // The measured encoded audio, not only the user-selected waveform span,
+    // must fit the owner-approved range in both Railway environments.
+    assertSharedBytePlusInputSeconds(media.durationSeconds);
     const policy = this.superAdmin ? rootPolicy : selectStudioPolicy(rootPolicy, media.durationSeconds);
     // Recheck after asynchronous preparation: a concurrent approval must win.
     const nowStarted = findStarted();
