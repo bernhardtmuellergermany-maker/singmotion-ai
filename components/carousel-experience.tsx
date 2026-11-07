@@ -133,7 +133,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
         // saved draft data. Match the exact media cut and instructions so that
         // unrelated drafts sharing an image or title remain visible.
         const generatedSelections=live.filter(p=>p.state!=="prepared").map(p=>p.selection);
-        const deliveredDraftIds=new Set(paid.filter(o=>o.status==="paid"&&o.videoReady===1&&o.fulfillmentState==="delivered").map(o=>o.projectId));
+        const deliveredDraftIds=new Set(paid.filter(o=>o.status==="paid"&&o.videoReady===1&&o.fulfillmentState==="delivered"&&typeof o.videoUrl==="string"&&o.videoUrl.startsWith("/api/customer-video?orderId=")).map(o=>o.projectId));
         const visibleDrafts=drafts.filter(d=>!deliveredDraftIds.has(d.id)&&!generatedSelections.some(s=>
           s.songId===d.selection.songId &&
           s.imageId===d.selection.imageId &&
