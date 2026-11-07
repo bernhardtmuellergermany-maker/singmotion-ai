@@ -86,7 +86,15 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
  try{
   const bytes=await readFile(path.join(root,"customer-byteplus-policy.json"));
   if(bytes.length<40||bytes.length>65536)throw Error("Invalid customer provider policy file");
-  return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
+  const reviewed=validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
+  // A private file is not proof of a Production review. Explicitly scope the
+  // customer contract revision to Production; never let the dated Staging
+  // fallback become a Production policy by copying JSON into a volume.
+  if(env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d" &&
+    (!reviewed.contract.revision.startsWith("production-") ||
+     reviewed.reviewedBy.startsWith("SingMotion-owner-user-confirmation-2026-11-05")))
+   throw Error("Independent production customer provider policy review required");
+  return reviewed;
  }catch(error){
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
   // A dated operator policy may be reused for private Staging only.
