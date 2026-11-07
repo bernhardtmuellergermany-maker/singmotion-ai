@@ -54,7 +54,7 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
      <div><strong>Your music video</strong><span>{ready?"Completed":"Private preview"}</span></div>
     </div>
     {ready?<a className="sm-private-download" href={order.downloadUrl!} download><Download size={17} aria-hidden="true"/> Download MP4</a>:
-     <div className="sm-private-video-secure"><ShieldCheck size={16} aria-hidden="true"/> Payment confirmed · Private processing</div>}
+     <div className="sm-private-video-secure"><ShieldCheck size={16} aria-hidden="true"/> {order?.status==="paid"?"Payment confirmed · Private processing":"Private video status pending"}</div>}
    </div>
   </div>
  </section>;
