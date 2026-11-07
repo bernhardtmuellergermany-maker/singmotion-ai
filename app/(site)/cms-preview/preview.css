@@ -1,0 +1,19 @@
+/* Private editorial overlay for CMS home preview only. */
+.sm-cms-preview-banner{position:fixed;z-index:2500;bottom:18px;left:50%;
+ transform:translateX(-50%);display:flex;flex-wrap:wrap;align-items:center;justify-content:center;
+ gap:12px;max-width:calc(100vw - 28px);padding:11px 15px;
+ border:1px solid rgba(206,193,255,.35);border-radius:15px;
+ background:rgba(17,15,32,.95);box-shadow:0 15px 48px rgba(0,0,0,.3);
+ color:#f5f1ff;font:600 12px/1.5 ui-sans-serif,system-ui,sans-serif;
+ backdrop-filter:blur(16px);}
+.sm-cms-preview-label{display:inline-flex;align-items:center;flex-shrink:0;
+ padding:5px 8px;border-radius:7px;background:#d3c2ff;color:#201630;
+ letter-spacing:.1em;font-size:10px;font-weight:800}
+.sm-cms-preview-copy{color:#d1c9e4}
+.sm-cms-preview-back{padding:7px 10px;border:1px solid rgba(208,186,255,.35);
+ border-radius:9px;color:#f6f1ff;text-decoration:none}
+.sm-cms-preview-back:hover{background:rgba(191,163,255,.15)}
+.sm-cms-preview-back:focus-visible{outline:2px solid #d8c6ff;outline-offset:3px}
+@media(max-width:600px){.sm-cms-preview-banner{bottom:10px;gap:7px;padding:9px 12px;font-size:10px}
+ .sm-cms-preview-copy{flex:1 1 145px}
+}

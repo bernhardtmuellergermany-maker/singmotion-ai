@@ -1,0 +1,848 @@
+/* Studio visual refinement: existing workflow and media controls remain unchanged. */
+.singmotion-flow{--studio-bg:#080B13;--studio-surface:#141D2B;--studio-border:#29354A;--studio-accent:#9255F2;background:var(--studio-bg);color:#f4f2fa}
+.singmotion-flow .flow-main{max-width:1200px;margin:0 auto;width:100%;padding:25px 22px 38px;justify-content:center}
+.singmotion-flow .flow-has-audio{gap:18px}
+.singmotion-flow .flow-audio{width:min(100%,1140px);gap:13px}
+.singmotion-flow .flow-track{width:100%;max-width:none;gap:11px;padding:0 2px}
+.singmotion-flow .flow-track-art{width:35px;height:35px;background:transparent;border:0}
+.singmotion-flow .flow-track-art img{width:28px;height:28px}
+.singmotion-flow .flow-track strong{font-size:13px}
+.singmotion-flow .flow-track small{font-size:11px}
+.singmotion-flow .flow-track-remove{height:31px;width:31px}
+.singmotion-flow .wave-editor{display:grid;grid-template-columns:50px minmax(0,1fr);align-items:center;gap:8px 10px;width:100%}
+.singmotion-flow .wave-viewport{grid-column:2;grid-row:1;min-width:0;order:unset}
+.singmotion-flow .wave-toolbar{grid-column:1;grid-row:1;order:unset;display:flex;align-items:center;justify-content:center;margin:0}
+.singmotion-flow .wave-toolbar button{width:44px;height:44px;padding:0;display:flex;align-items:center;justify-content:center;font-size:0;border:1px solid var(--studio-border);border-radius:12px;background:var(--studio-surface)}
+.singmotion-flow .wave-toolbar button svg{width:18px;height:18px}
+.singmotion-flow .wave-strip{height:148px;background:var(--studio-surface);border-radius:12px}
+.singmotion-flow .wave-viewport .wave-bars i{min-width:1px;max-width:3px;border-radius:2px;opacity:.9}
+.singmotion-flow .wave-viewport .wave-selection{background:rgba(146,85,242,.09)!important;border:1px solid rgba(146,85,242,.75)!important;border-radius:3px}
+.singmotion-flow .wave-viewport .wave-handle::after{background:var(--studio-accent);box-shadow:0 0 6px rgba(146,85,242,.25)}
+.singmotion-flow .wave-time{display:flex;justify-content:space-between;color:#8f9aaf;font-size:10px;padding:6px 2px 0}
+.singmotion-flow .time-inputs{grid-column:1/-1;grid-row:2;order:unset;display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;gap:12px;margin:4px 0 0;padding:10px 13px;border:1px solid var(--studio-border);border-radius:12px;background:var(--studio-surface)}
+.singmotion-flow .time-inputs label{flex:0 1 145px;min-width:110px;gap:4px;font-size:10px;color:#9ea9bf}
+.singmotion-flow .time-inputs input{min-height:32px;border:1px solid var(--studio-border);background:var(--studio-bg);border-radius:7px;color:#fff;font-size:12px}
+.singmotion-flow .time-inputs .wave-duration-badge{background:transparent;border:0;color:#c8a8ff;padding:0 6px;min-height:32px}
+.singmotion-flow .flow-composer{width:min(100%,850px);padding:15px 16px;border:1px solid var(--studio-border);border-radius:19px;background:var(--studio-surface);box-shadow:0 12px 36px #0004;gap:10px}
+.singmotion-flow .flow-composer-label{font-size:12px;font-weight:600;letter-spacing:.01em;color:#c1c9d8}
+.singmotion-flow .flow-prompt{border:0;background:transparent;padding:8px 6px;font-size:14px;line-height:1.5;box-shadow:none}
+.singmotion-flow .flow-prompt:focus{border:0;outline:2px solid rgba(146,85,242,.45);outline-offset:3px;border-radius:7px}
+.singmotion-flow .flow-photo-add,.singmotion-flow .flow-photo{background:#101726;border:1px solid var(--studio-border)}
+.singmotion-flow .flow-select,.singmotion-flow .flow-camera-menu>summary{background:#101726;border-color:var(--studio-border)}
+.singmotion-flow .flow-create{background:var(--studio-accent);border-color:var(--studio-accent)}
+@media(max-width:680px){.singmotion-flow .flow-main{padding:20px 13px 30px}.singmotion-flow .wave-editor{grid-template-columns:40px minmax(0,1fr);gap:6px}.singmotion-flow .wave-toolbar button{width:36px;height:36px}.singmotion-flow .wave-strip{height:105px}.singmotion-flow .time-inputs{padding:8px;gap:8px}.singmotion-flow .time-inputs label{flex:1 1 95px;min-width:90px}.singmotion-flow .flow-composer{padding:12px;width:100%}}
+
+
+/* Four-stage Studio flow */
+.sm-studio-step-title{width:min(1120px,94%);margin:28px auto 14px;color:#fff}.sm-studio-step-title span{font-size:13px;color:#ba8aff}.sm-studio-step-title h1{font-size:clamp(23px,2.2vw,32px);margin:5px 0 0}
+.sm-studio-audio-step{min-height:360px}.sm-studio-navigation{display:flex;justify-content:space-between;gap:20px;width:min(1120px,94%);margin:26px auto 42px}.sm-studio-navigation a,.sm-studio-navigation button{display:flex;align-items:center;justify-content:center;gap:12px;border-radius:12px;padding:15px 25px;font-weight:700;color:#fff;border:1px solid #293852;cursor:pointer}.sm-studio-back{background:#101827}.sm-studio-next,.sm-studio-generate{background:linear-gradient(110deg,#9c32f5,#bf42fc);color:#fff!important}.sm-studio-navigation button:disabled,.sm-studio-generate:disabled{opacity:.45;cursor:not-allowed}
+.sm-timeline,.sm-studio-photo-step,.sm-studio-review{width:min(1120px,94%);margin:20px auto;border:1px solid #29354c;border-radius:14px;padding:24px;background:#0d1626;color:#eaf2ff}.sm-timeline-heading{display:flex;align-items:flex-start;gap:18px}.sm-timeline-heading>svg{color:#b442f8;flex:none}.sm-timeline-heading h2{margin:0;font-size:23px}.sm-timeline-heading h2 span{font-size:13px;background:#362149;color:#e09aff;padding:4px 12px;border-radius:20px}.sm-timeline-heading p,.sm-studio-photo-step p,.sm-studio-review p{color:#bdc9df;margin:7px 0}.sm-timeline-heading>strong{margin-left:auto;font-size:13px;background:#18253c;padding:10px;border-radius:8px;white-space:nowrap}.sm-timeline-ruler{display:flex;justify-content:space-between;margin-top:28px;color:#aabbd6;font-size:12px}.sm-timeline-track{height:42px;position:relative;border:1px solid #354765;border-radius:8px;margin:8px 0 20px;overflow:hidden}.sm-timeline-track>div{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;color:white;font-weight:600;font-size:12px;overflow:hidden;white-space:nowrap;border-radius:6px;border:1px solid #ffffff50}.sm-timeline-empty{text-align:center;padding:52px 12px}.sm-timeline-empty>svg{color:#ab45f9;margin:auto}.sm-timeline-empty strong{display:block;font-size:22px;margin:9px}.sm-timeline-empty p{color:#bdc9df}.sm-timeline-empty button,.sm-timeline-add{display:inline-flex;align-items:center;gap:10px;background:#a235f5;border:0;color:white;padding:12px 22px;border-radius:10px;cursor:pointer;font-weight:600}.sm-timeline-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:16px}.sm-timeline-cards article{padding:18px;border:1px solid;border-radius:12px;background:#111b2d;min-width:0}.sm-timeline-cards header{display:flex;justify-content:space-between;align-items:center}.sm-timeline-cards header button{background:none;border:0;color:white;cursor:pointer}.sm-timeline-cards label{display:block;font-size:13px;margin-top:10px}.sm-timeline-cards input,.sm-timeline-cards select,.sm-timeline-cards textarea{display:block;width:100%;box-sizing:border-box;background:#1b2840;border:1px solid #36465e;color:#fff;border-radius:8px;padding:10px;margin-top:5px}.sm-timeline-cards textarea{resize:vertical}.sm-timeline-add{margin-top:16px;background:transparent;border:1px solid #a235f5;color:#d69dff}
+.sm-studio-photo-step{text-align:center;min-height:340px}.sm-studio-photo-card{display:flex;justify-content:center;align-items:center;margin:28px auto;min-height:145px}.sm-studio-photo-card .flow-photo-add{min-width:180px;min-height:160px}.sm-studio-photo-card .flow-photo{width:180px;height:160px}.sm-studio-photo-card .flow-photo img{max-height:100%;object-fit:contain}.sm-studio-formats{display:flex;justify-content:center;gap:15px}.sm-studio-formats button{display:flex;align-items:center;flex-direction:column;gap:8px;padding:17px 40px;background:#172137;border:1px solid #34415b;border-radius:12px;color:#fff;cursor:pointer}.sm-studio-formats button[aria-pressed=true]{border-color:#b442ff;background:#302044}.sm-studio-review{text-align:center;max-width:750px}.sm-studio-review>svg{color:#b442ff}.sm-studio-review>div{display:flex;justify-content:space-between;padding:14px 8px;border-bottom:1px solid #2c3852;text-align:left}.sm-studio-generate{display:flex;align-items:center;justify-content:center;gap:12px;border:0;border-radius:12px;padding:15px 25px;margin:26px auto 10px;cursor:pointer;font-weight:700}
+@media(max-width:650px){.sm-timeline{padding:14px}.sm-timeline-heading{flex-wrap:wrap}.sm-timeline-heading>strong{margin-left:0}.sm-timeline-heading h2{font-size:19px}.sm-studio-navigation a,.sm-studio-navigation button{padding:12px 15px}.sm-studio-formats button{padding:13px 24px}}
+
+/* Keep Continue right-aligned when the first page has no Back action. */
+.sm-studio-navigation .sm-studio-next{margin-left:auto}
+
+
+/* Fixed wizard navigation positions, independent of step content and missing buttons. */
+.singmotion-flow .flow-main{min-height:calc(100dvh - 82px);display:flex;flex-direction:column}
+.singmotion-flow .sm-studio-navigation{margin-top:auto;padding-top:28px;flex-shrink:0;display:grid;grid-template-columns:1fr 1fr;align-items:center}
+.singmotion-flow .sm-studio-navigation .sm-studio-back{grid-column:1;justify-self:start}
+.singmotion-flow .sm-studio-navigation .sm-studio-next{grid-column:2;justify-self:end;margin-left:0}
+@media(max-width:650px){.singmotion-flow .flow-main{min-height:calc(100dvh - 70px)}}
+
+/* Reuse the original compact composer on the photo-upload screen only. */
+.singmotion-flow .sm-studio-original-composer{width:min(540px,94%);margin:clamp(30px,10vh,110px) auto 24px;flex-shrink:0}
+
+/* Center the photo settings composer in the available Studio viewport. */
+.singmotion-flow .flow-main:has(.sm-studio-original-composer) .sm-studio-original-composer{margin:auto auto 0;align-self:center;flex-shrink:0}
+.singmotion-flow .flow-main:has(.sm-studio-original-composer) .sm-studio-navigation{margin-top:auto}
+
+
+/* Photo step: override legacy flex alignment that pushed the composer right. */
+.singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-original-composer{
+  position:relative;
+  left:auto;
+  right:auto;
+  transform:none;
+  width:min(540px,94%);
+  max-width:540px;
+  margin:auto auto 0;
+  align-self:center;
+  justify-self:center;
+}
+
+
+/* Responsive editor: compact cards and accessible pointer handles. */
+.singmotion-flow .sm-timeline{width:min(1480px,96%);padding:20px;margin:14px auto}
+.singmotion-flow .sm-timeline-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.singmotion-flow .sm-timeline-cards article{padding:12px;min-width:0}
+.singmotion-flow .sm-timeline-cards article>label{display:block;margin-top:9px;font-size:12px}
+.singmotion-flow .sm-timeline-cards article select,.singmotion-flow .sm-timeline-cards article textarea{padding:8px;margin-top:4px}
+.singmotion-flow .sm-timeline-cards article textarea{min-height:56px;max-height:120px;resize:vertical}
+.singmotion-flow .sm-timeline-card-header{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.singmotion-flow .sm-timeline-card-header>strong{font-size:12px;white-space:nowrap;margin-right:auto}
+.singmotion-flow .sm-timeline-card-header>label{display:flex;align-items:center;gap:3px;font-size:11px;margin:0;color:#bdc9df}
+.singmotion-flow .sm-timeline-card-header input{width:47px;min-width:0;padding:4px 2px;margin:0;font-size:11px;text-align:center}
+.singmotion-flow .sm-timeline-card-header button{padding:3px}
+.sm-timeline-dot{display:inline-block;width:11px;height:11px;border-radius:50%;flex:none}
+.sm-timeline-counter{display:block;text-align:right;color:#9baccc;font-size:10px}
+.sm-timeline-notice{font-size:12px;color:#e7b8ff}
+.singmotion-flow .sm-timeline-track>.sm-timeline-segment{display:flex;align-items:stretch;justify-content:stretch;overflow:visible;touch-action:none;user-select:none}
+.sm-timeline-segment-body{min-width:0;flex:1;display:flex;align-items:center;justify-content:center;cursor:grab;touch-action:none;user-select:none}
+.sm-timeline-segment-body:active{cursor:grabbing}
+.sm-timeline-segment-body span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none}
+.sm-timeline-handle{width:11px;min-width:11px;position:relative;cursor:ew-resize;background:#ffffff33;border-left:1px solid #ffffff60;border-right:1px solid #ffffff60;touch-action:none}
+.sm-timeline-segment [role=slider]:focus-visible{outline:2px solid #fff;outline-offset:1px}
+.sm-timeline-cards article.is-selected{box-shadow:0 0 0 1px #bf83ff77}
+@media(max-width:1100px){.singmotion-flow .sm-timeline-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.singmotion-flow .sm-timeline-cards{grid-template-columns:minmax(0,1fr)}.singmotion-flow .sm-timeline-card-header{gap:5px}}
+
+.singmotion-flow .sm-studio-final-prompt{display:block;text-align:left;margin:14px 0;padding:10px;border:1px solid #354765;border-radius:10px}
+.singmotion-flow .sm-studio-final-prompt label{display:block;font-weight:600;font-size:12px;margin-bottom:8px}
+.singmotion-flow .sm-studio-final-prompt textarea{display:block;width:100%;min-height:100px;background:#111b2d;color:#dce9ff;border:1px solid #354765;padding:10px;border-radius:8px;resize:vertical}
+.singmotion-flow .sm-studio-final-prompt small{display:block;color:#a8b8d1;margin-top:7px}
+
+
+/* Performance editor: 20% tighter footprint while retaining the 3/2/1 card grid. */
+.singmotion-flow .sm-timeline{width:min(1180px,94%);padding:16px;margin:10px auto}
+.singmotion-flow .sm-timeline-heading{gap:12px}
+.singmotion-flow .sm-timeline-heading h2{font-size:20px}
+.singmotion-flow .sm-timeline-heading p{font-size:12px}
+.singmotion-flow .sm-timeline-cards{gap:12px}
+.singmotion-flow .sm-timeline-cards article{padding:10px}
+.singmotion-flow .sm-timeline-cards article>label{margin-top:7px}
+.singmotion-flow .sm-timeline-empty{padding:25px 10px}
+.singmotion-flow .sm-timeline-track{margin-bottom:14px}
+.sm-timeline-playback{display:flex;align-items:center;gap:9px;margin-left:auto}
+.sm-timeline-playback button{width:32px;height:32px;display:grid;place-items:center;background:#273653;border:1px solid #8b54ce;color:#e8d7ff;border-radius:9px;cursor:pointer}
+.sm-timeline-playback strong{font-size:12px;background:#18253c;padding:9px;border-radius:8px;white-space:nowrap}
+.sm-timeline-playhead{position:absolute!important;top:0!important;bottom:0!important;width:2px!important;background:#f3f7ff!important;box-shadow:0 0 5px #ffffffaa;z-index:4;pointer-events:none;border-radius:0!important}
+@media(max-width:700px){.sm-timeline-playback{margin-left:0}.singmotion-flow .sm-timeline{width:96%;padding:12px}}
+
+
+/* Prevent start/end controls from jumping between rows as card width changes. */
+.singmotion-flow .sm-timeline-card-header{display:grid;grid-template-columns:11px minmax(65px,1fr) auto auto 24px;align-items:center;gap:5px;flex-wrap:nowrap}
+.singmotion-flow .sm-timeline-card-header>strong{min-width:0;white-space:nowrap;font-size:11px;margin:0}
+.singmotion-flow .sm-timeline-card-header>label{display:flex;align-items:center;gap:3px;white-space:nowrap;min-width:0;margin:0;font-size:10px}
+.singmotion-flow .sm-timeline-card-header input{box-sizing:border-box;width:48px;min-width:0;height:30px;font-size:11px;padding:3px 2px}
+.singmotion-flow .sm-timeline-card-header>button{width:24px;min-width:24px;display:grid;place-items:center}
+@media(max-width:450px){.singmotion-flow .sm-timeline-card-header{grid-template-columns:11px minmax(55px,1fr) auto auto 22px;gap:3px}.singmotion-flow .sm-timeline-card-header input{width:42px}}
+
+
+/* Card drag grip: dedicated hit target, without disturbing inline time fields. */
+.singmotion-flow .sm-timeline-card-header{position:relative;padding-left:20px}
+.singmotion-flow .sm-timeline-card-header>.sm-timeline-card-grip{
+ position:absolute;left:-4px;top:50%;transform:translateY(-50%);
+ width:20px;min-width:20px;height:30px;display:grid;place-items:center;
+ border:0;background:transparent;color:#bfa6e8;cursor:grab;
+ touch-action:none;user-select:none;padding:0
+}
+.singmotion-flow .sm-timeline-card-header>.sm-timeline-card-grip:active{cursor:grabbing}
+.singmotion-flow .sm-timeline-card-header>.sm-timeline-card-grip:focus-visible{outline:2px solid #ad62ef;border-radius:4px}
+
+
+/* Use the same Add camera menu inside the compact Performance cards. */
+.singmotion-flow .sm-timeline-add-camera{margin-top:8px}
+.singmotion-flow .sm-timeline-add-camera .flow-camera-menu{width:100%;position:relative}
+.singmotion-flow .sm-timeline-add-camera .flow-camera-menu summary{display:flex;align-items:center;gap:8px;cursor:pointer;min-height:34px;padding:7px 10px}
+.singmotion-flow .sm-timeline-add-camera .flow-camera-menu summary svg:last-child{margin-left:auto}
+.singmotion-flow .sm-timeline-add-camera .flow-camera-options{z-index:30;max-height:260px;overflow-y:auto}
+.singmotion-flow .sm-timeline-add-camera .flow-camera-options button{display:block;width:100%;text-align:left}
+.singmotion-flow .sm-timeline-add-camera .flow-camera-options small{display:block;white-space:normal}
+
+
+/* Compact final review, photo adjacent to the instruction field. */
+.singmotion-flow .sm-studio-review{width:min(600px,94%);max-width:600px;padding:16px 19px}
+.singmotion-flow .sm-studio-review h2{font-size:20px;margin:6px 0}
+.singmotion-flow .sm-studio-review>p{font-size:13px}
+.singmotion-flow .sm-studio-review>div:not(.sm-studio-review-media){padding:9px 4px;font-size:13px}
+.singmotion-flow .sm-studio-review-media{display:grid;grid-template-columns:minmax(0,135px) minmax(0,1fr);gap:12px;align-items:stretch;padding:12px 0;border:0;text-align:left}
+.singmotion-flow .sm-studio-review-photo{width:100%;height:100%;max-height:176px;object-fit:contain;border:1px solid #354765;border-radius:10px;background:#111b2d}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt{min-width:0;margin:0;padding:8px}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{min-height:96px;font-size:12px}
+.singmotion-flow .sm-studio-review .sm-studio-generate{margin:15px auto 4px}
+@media(max-width:550px){.singmotion-flow .sm-studio-review-media{grid-template-columns:1fr}.singmotion-flow .sm-studio-review-photo{height:150px;object-fit:contain}}
+
+
+/* Shared bottom navigation baseline: review card height must not move Back. */
+.singmotion-flow .flow-main{
+  box-sizing:border-box;
+  min-height:calc(100dvh - 72px);
+  display:flex;
+  flex-direction:column;
+}
+.singmotion-flow .flow-main>.sm-studio-navigation{
+  position:relative;
+  flex:none;
+  width:min(1120px,94%);
+  margin: auto auto 28px !important;
+  padding-top:18px;
+  align-self:center;
+}
+@media(max-width:650px){
+  .singmotion-flow .flow-main{min-height:calc(100dvh - 66px)}
+  .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
+}
+
+
+/* Subtle hover feedback for fixed Studio navigation. */
+.singmotion-flow .sm-studio-navigation .sm-studio-back,
+.singmotion-flow .sm-studio-navigation .sm-studio-next{
+  transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,filter .18s ease,transform .18s ease;
+}
+@media (hover:hover){
+  .singmotion-flow .sm-studio-navigation .sm-studio-back:hover:not(:disabled){
+    background-color:#1b2942;
+    border-color:#546889;
+    box-shadow:0 3px 14px #07101e55;
+    transform:translateY(-1px);
+  }
+  .singmotion-flow .sm-studio-navigation .sm-studio-next:hover:not(:disabled){
+    filter:brightness(1.12);
+    box-shadow:0 4px 18px #9c32f544;
+    transform:translateY(-1px);
+  }
+}
+.singmotion-flow .sm-studio-navigation .sm-studio-back:active:not(:disabled),
+.singmotion-flow .sm-studio-navigation .sm-studio-next:active:not(:disabled){transform:translateY(0)}
+@media (prefers-reduced-motion:reduce){
+  .singmotion-flow .sm-studio-navigation .sm-studio-back,
+  .singmotion-flow .sm-studio-navigation .sm-studio-next{transition:none}
+}
+
+
+/* Square reference thumbnail on the final generation summary. */
+.singmotion-flow .sm-studio-review-media{align-items:start}
+.singmotion-flow .sm-studio-review-photo{
+  aspect-ratio:1 / 1;
+  width:100%;
+  height:auto;
+  max-height:none;
+  object-fit:contain;
+}
+@media(max-width:550px){
+  .singmotion-flow .sm-studio-review-photo{
+    width:min(150px,100%);
+    height:auto;
+    aspect-ratio:1 / 1;
+  }
+}
+
+
+/* Drag-and-drop affordances for timeline parts and their matching section cards. */
+.singmotion-flow .sm-timeline-segment,
+.singmotion-flow .sm-timeline-cards article{
+  transition:transform .16s ease,box-shadow .16s ease,filter .16s ease,border-color .16s ease;
+}
+.singmotion-flow .sm-timeline-segment.is-dragging{
+  transform:translateY(-8px) scale(1.025);
+  box-shadow:0 12px 25px #050b1999,0 0 0 2px #e9ddffb0;
+  filter:brightness(1.14);
+  z-index:12;
+}
+.singmotion-flow .sm-timeline-cards article.is-dragging{
+  transform:translateY(-8px) scale(1.025);
+  box-shadow:0 15px 36px #030716b3,0 0 0 2px #b77dff;
+  z-index:12;
+  position:relative;
+}
+.singmotion-flow .sm-timeline-cards article.is-drop-target{
+  box-shadow:inset 0 0 0 2px #c9a3ff,0 0 20px #aa70f344;
+  transform:translateY(-2px);
+}
+.singmotion-flow .sm-timeline-segment.is-drop-target{
+  box-shadow:0 0 0 2px #e7d2ff,0 0 20px #bd70ff77;
+}
+.singmotion-flow .sm-timeline-card-grip{cursor:grab}
+.singmotion-flow .sm-timeline-card-grip:active{cursor:grabbing}
+@media(prefers-reduced-motion:reduce){
+  .singmotion-flow .sm-timeline-segment,
+  .singmotion-flow .sm-timeline-cards article{transition:none}
+}
+
+
+/* Higher specificity overrides the legacy flex header; fixed tracks prevent time fields drifting. */
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+  display:grid;
+  justify-content:stretch;
+  align-items:center;
+  grid-template-columns:11px minmax(0,1fr) 76px 76px 24px;
+  column-gap:5px;
+  padding-left:20px;
+  width:100%;
+  box-sizing:border-box;
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{
+  display:grid;
+  grid-template-columns:24px 48px;
+  gap:3px;
+  align-items:center;
+  width:76px;
+  margin:0;
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{
+  display:block;
+  width:48px;
+  margin:0;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum";
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>strong{
+  overflow:hidden;
+  text-overflow:ellipsis;
+  font-variant-numeric:tabular-nums;
+  min-width:0;
+}
+@media(max-width:450px){
+ .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{grid-template-columns:11px minmax(0,1fr) 70px 70px 22px;column-gap:3px}
+ .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{grid-template-columns:23px 44px;gap:3px;width:70px}
+ .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{width:44px}
+}
+
+
+/* Center Studio content horizontally; retain the original flex bottom navigation layout. */
+.singmotion-flow .flow-main{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+.singmotion-flow .flow-main>.sm-studio-audio-step,
+.singmotion-flow .flow-main>.sm-timeline,
+.singmotion-flow .flow-main>.sm-studio-original-composer,
+.singmotion-flow .flow-main>.sm-studio-review{
+  position:relative;
+  left:auto;
+  right:auto;
+  transform:none;
+  align-self:center;
+  margin-left:auto !important;
+  margin-right:auto !important;
+}
+.singmotion-flow .flow-main>.sm-studio-navigation{
+  align-self:center;
+  margin:auto auto 28px !important;
+}
+@media(max-width:650px){
+  .singmotion-flow .flow-main>.sm-studio-navigation{margin-bottom:18px !important}
+}
+
+
+/* Pointer-following drag preview; the real card remains in place until drop. */
+.singmotion-flow .sm-section-drag-ghost{
+  position:fixed;
+  z-index:9999;
+  pointer-events:none;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:13px 17px;
+  max-width:300px;
+  min-width:170px;
+  border:2px solid;
+  border-radius:12px;
+  color:#f7f4ff;
+  box-shadow:0 20px 45px #000b,0 0 22px #ae60f755;
+  opacity:.96;
+  transform:translate(-30px,-50%) rotate(-2deg) scale(1.03);
+  user-select:none;
+  white-space:nowrap;
+}
+.singmotion-flow .sm-section-drag-ghost-timeline{min-width:140px;padding:10px 12px}
+.singmotion-flow .sm-section-drag-ghost span:last-child{overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.singmotion-flow .sm-timeline-cards article.is-dragging{opacity:.55;transform:none;box-shadow:0 0 0 2px #b77dff}
+.singmotion-flow .sm-timeline-segment.is-dragging{opacity:.5;transform:none;box-shadow:0 0 0 2px #e9ddffb0}
+.singmotion-flow .sm-timeline-card-grip{touch-action:none}
+
+
+/* Explicit insertion position for dragged performance sections. */
+.singmotion-flow .sm-timeline-cards article.is-insert-before{box-shadow:inset 4px 0 0 #e6caff, -7px 0 14px #ad6bff55}
+.singmotion-flow .sm-timeline-cards article.is-insert-after{box-shadow:inset -4px 0 0 #e6caff, 7px 0 14px #ad6bff55}
+.singmotion-flow .sm-timeline-track>.sm-timeline-drop-marker{
+ position:absolute;top:-7px;bottom:-7px;width:3px;overflow:visible;display:block;z-index:25;
+ background:#ffeb9a;border:0;border-radius:4px;pointer-events:none;box-shadow:0 0 11px #ffd477;
+}
+.singmotion-flow .sm-timeline-drop-marker span{
+ position:absolute;left:50%;top:-27px;transform:translateX(-50%);
+ padding:3px 7px;border-radius:5px;background:#29203f;color:#ffe6a3;
+ font-size:10px;font-weight:700;white-space:nowrap;
+}
+
+
+/* One vertical centerline for all wizard panels; preserve fixed bottom navigation.
+   Both auto margins on the active panel share remaining space equally. */
+.singmotion-flow .flow-main{
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-start;
+  align-items:stretch;
+}
+.singmotion-flow .flow-main>.sm-studio-audio-step,
+.singmotion-flow .flow-main>.sm-timeline,
+.singmotion-flow .flow-main>.sm-studio-review,
+.singmotion-flow .flow-main>.sm-studio-original-composer,
+.singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-original-composer{
+  align-self:center;
+  flex-shrink:0;
+  margin-top:auto !important;
+  margin-bottom:auto !important;
+  margin-left:auto !important;
+  margin-right:auto !important;
+}
+.singmotion-flow .flow-main>.sm-studio-navigation,
+.singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
+  flex-shrink:0;
+  margin:0 auto 28px !important;
+  padding-top:18px;
+}
+@media(max-width:650px){
+  .singmotion-flow .flow-main>.sm-studio-navigation,
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
+    margin-bottom:18px !important;
+  }
+}
+
+
+/* Photo composer: explicit two-column layout prevents legacy flex overlap. */
+.singmotion-flow .sm-studio-original-composer{
+  display:grid;
+  grid-template-columns:160px minmax(0,1fr);
+  gap:14px;
+  align-items:stretch;
+  height:auto;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls{
+  grid-column:1;min-width:0;width:100%;
+  display:flex;flex-direction:column;gap:9px;
+}
+.singmotion-flow .sm-studio-original-composer .flow-image-field{
+  display:block;position:relative;min-width:0;width:100%;flex:none;
+}
+.singmotion-flow .sm-studio-original-composer .flow-image-field .flow-photo,
+.singmotion-flow .sm-studio-original-composer .flow-image-field .flow-photo-add{
+  width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+}
+.singmotion-flow .sm-studio-original-composer .flow-settings-group{
+  display:flex;flex-direction:column;gap:8px;
+  position:relative;min-width:0;width:100%;flex:none;
+}
+.singmotion-flow .sm-studio-original-composer .flow-settings-group>.flow-camera-menu{
+  position:relative;width:100%;min-width:0;margin:0;
+}
+.singmotion-flow .sm-studio-original-composer .flow-settings-group>.flow-camera-menu>summary{
+  display:flex;align-items:center;gap:5px;
+  width:100%;min-width:0;box-sizing:border-box;padding:9px 7px;
+  font-size:12px;white-space:nowrap;
+}
+.singmotion-flow .sm-studio-original-composer .flow-prompt-wrap{
+  grid-column:2;grid-row:1;display:flex;flex-direction:column;
+  min-width:0;width:100%;height:100%;box-sizing:border-box;
+  position:relative;flex:auto;
+}
+.singmotion-flow .sm-studio-original-composer .flow-prompt{
+  display:block;box-sizing:border-box;width:100%;
+  flex:1;min-height:190px;height:auto;resize:vertical;
+}
+@media(max-width:420px){
+ .singmotion-flow .sm-studio-original-composer{grid-template-columns:150px minmax(0,1fr);gap:9px}
+ .singmotion-flow .sm-studio-original-composer .flow-settings-group>.flow-camera-menu>summary{padding:8px 7px;font-size:11px}
+}
+
+/* Final review: square image viewport and readable, resizable instructions. */
+.singmotion-flow .sm-studio-review-media .sm-studio-review-photo{
+  display:block;
+  width:100%;
+  aspect-ratio:1 / 1;
+  height:auto;
+  max-height:none;
+  object-fit:cover;
+  object-position:center;
+}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{
+  resize:both;
+  overflow:auto;
+  min-height:100px;
+  min-width:100%;
+  max-width:100%;
+  box-sizing:border-box;
+  cursor:default;
+}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea[readonly]:focus{
+  outline:1px solid #526482;
+  outline-offset:0;
+}
+
+
+/* Performance cards: camera selector matches the emotion dropdown. */
+.singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu>summary{
+  box-sizing:border-box;
+  display:flex;
+  align-items:center;
+  gap:9px;
+  width:100%;
+  min-height:37px;
+  padding:8px 11px;
+  border:1px solid #36465e;
+  border-radius:8px;
+  background:#1b2840;
+  color:#fff;
+  font-size:12px;
+  font-weight:600;
+}
+.singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu>summary:hover{
+  border-color:#627596;
+}
+.singmotion-flow .sm-timeline-cards .sm-timeline-add-camera .flow-camera-menu[open]>summary{
+  border-color:#9255f2;
+}
+
+
+/* Review instructions: one visible frame, not a box inside a box. */
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt{
+  border:0;
+  box-shadow:none;
+  background:transparent;
+  padding:0;
+  border-radius:0;
+}
+.singmotion-flow .sm-studio-review-media .sm-studio-final-prompt textarea{
+  margin:0;
+}
+
+
+/* Step 3: upload tile and uploaded photo share the controls' full square width. */
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls>.flow-image-field{
+  width:100%;
+  height:auto;
+  aspect-ratio:1 / 1;
+  flex:0 0 auto;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-image-field>.flow-photo,
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-image-field>.flow-photo-add{
+  display:flex;
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  max-width:none;
+  max-height:none;
+  aspect-ratio:1 / 1;
+  box-sizing:border-box;
+  overflow:hidden;
+  border-radius:12px;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>img{
+  width:100%;
+  height:100%;
+  max-width:none;
+  max-height:none;
+  object-fit:cover;
+  object-position:center;
+}
+
+
+/* Keep the remove-photo control legible on any uploaded image. */
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo{
+  position:relative;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>button{
+  position:absolute;
+  top:8px;
+  right:8px;
+  left:auto;
+  width:30px;
+  height:30px;
+  min-width:30px;
+  display:grid;
+  place-items:center;
+  padding:0;
+  color:#fff;
+  background:#101827;
+  border:1px solid #d2def7;
+  border-radius:50%;
+  box-shadow:0 2px 10px #000b;
+  z-index:5;
+  cursor:pointer;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>button svg{
+  width:17px;
+  height:17px;
+  stroke-width:2.5;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>button:hover{
+  background:#6e2940;
+  border-color:#fff;
+}
+
+
+/* Section time controls: allow three-digit seconds without clipping, including spin buttons. */
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+  grid-template-columns:11px minmax(0,1fr) minmax(91px,auto) minmax(91px,auto) 24px;
+  column-gap:5px;
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{
+  grid-template-columns:24px minmax(65px,1fr);
+  width:auto;
+  min-width:91px;
+  gap:3px;
+}
+.singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{
+  width:100%;
+  min-width:65px;
+  height:34px;
+  padding:3px 5px;
+  font-size:12px;
+  text-align:left;
+  font-variant-numeric:tabular-nums;
+}
+@media(max-width:550px){
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+    grid-template-columns:11px minmax(0,1fr) minmax(91px,auto) minmax(91px,auto) 22px;
+    column-gap:3px;
+  }
+}
+@media(max-width:370px){
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+    grid-template-columns:11px minmax(0,1fr) 22px;
+    row-gap:8px;
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{
+    grid-row:2;
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:1 / 3}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:3}
+}
+
+
+/* Small screens: content grows naturally, navigation stays in a stable full-width row. */
+@media(max-width:700px){
+  .singmotion-flow,.singmotion-flow .flow-main{min-width:0;max-width:100%;box-sizing:border-box}
+  .singmotion-flow .flow-main{
+    width:100%;min-height:calc(100dvh - 66px);
+    height:auto;overflow:visible;
+    padding:16px 12px 20px;
+  }
+  .singmotion-flow .flow-main>.sm-studio-audio-step,
+  .singmotion-flow .flow-main>.sm-timeline,
+  .singmotion-flow .flow-main>.sm-studio-original-composer,
+  .singmotion-flow .flow-main>.sm-studio-review{
+    width:100%;max-width:100%;min-width:0;
+    box-sizing:border-box;flex-shrink:0;
+  }
+  .singmotion-flow .flow-main>.sm-studio-navigation,
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
+    width:100%;min-width:0;max-width:100%;
+    box-sizing:border-box;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    margin:0 auto 12px !important;
+    padding-top:20px;
+    gap:10px;
+  }
+  .singmotion-flow .sm-studio-navigation .sm-studio-back{grid-column:1;justify-self:start}
+  .singmotion-flow .sm-studio-navigation .sm-studio-next{grid-column:2;justify-self:end}
+  .singmotion-flow .sm-studio-navigation button{
+    min-width:0;max-width:100%;white-space:nowrap;
+    padding:12px 14px;
+  }
+  .singmotion-flow .sm-timeline-cards article{width:100%;box-sizing:border-box;min-width:0}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+    grid-template-columns:11px minmax(0,1fr) 24px;
+    grid-template-rows:auto auto;
+    row-gap:8px;
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>strong{grid-column:2;grid-row:1}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>button:last-child{grid-column:3;grid-row:1}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label{
+    grid-row:2;grid-column:auto;min-width:0;width:100%;
+    grid-template-columns:auto minmax(70px,1fr);
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:1 / 3}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:3 / 4}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{grid-template-columns:11px minmax(0,1fr) minmax(110px,1fr) 24px}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>button:last-child{grid-column:4}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:2}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:3}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header input{min-width:0;width:100%}
+  .singmotion-flow .sm-studio-original-composer{
+    grid-template-columns:minmax(120px,38%) minmax(0,1fr);
+  }
+  .singmotion-flow .sm-studio-original-composer .flow-prompt-wrap{min-width:0}
+}
+@media(max-width:400px){
+  .singmotion-flow .flow-main{padding-inline:9px}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header{
+    grid-template-columns:11px minmax(0,1fr) 24px;
+    grid-template-rows:auto auto auto;
+  }
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>button:last-child{grid-column:3;grid-row:1}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(1){grid-column:2 / 4;grid-row:2}
+  .singmotion-flow .sm-timeline-cards header.sm-timeline-card-header>label:nth-of-type(2){grid-column:2 / 4;grid-row:3}
+  .singmotion-flow .sm-studio-original-composer{grid-template-columns:1fr}
+  .singmotion-flow .sm-studio-original-composer .sm-photo-controls{grid-column:1;max-width:180px;justify-self:center}
+  .singmotion-flow .sm-studio-original-composer .flow-prompt-wrap{grid-column:1;grid-row:2}
+}
+
+
+/* Timeline dropdowns are floating popovers, not expanding card content.
+   Keep the card height, surrounding controls and Add Section fixed in place. */
+.singmotion-flow .sm-timeline-cards article{
+  overflow:visible;
+}
+.singmotion-flow .sm-timeline-cards article:has(.sm-timeline-add-camera details[open]){
+  position:relative;
+  z-index:40;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera{
+  position:relative;
+  min-width:0;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu{
+  position:relative;
+  width:100%;
+  min-width:0;
+  z-index:auto;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu[open]{
+  z-index:41;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu > .flow-camera-options{
+  position:absolute!important;
+  top:calc(100% + 5px)!important;
+  bottom:auto!important;
+  left:0!important;
+  right:auto!important;
+  transform:none!important;
+  box-sizing:border-box;
+  width:100%!important;
+  min-width:0!important;
+  max-width:100%!important;
+  max-height:min(220px,45vh)!important;
+  overflow-x:hidden!important;
+  overflow-y:auto!important;
+  margin:0!important;
+  z-index:42;
+  box-shadow:0 12px 28px rgba(0,0,0,.5);
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu:not([open]) > .flow-camera-options{
+  display:none!important;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera details.flow-camera-menu[open] > .flow-camera-options{
+  display:flex!important;
+  flex-direction:column;
+}
+.singmotion-flow .sm-timeline-cards article .sm-timeline-add-camera .flow-camera-options button{
+  width:100%;
+  min-width:0;
+  white-space:normal;
+}
+
+/* Studio reuses the same SiteHeader as the homepage. Project controls sit
+   within its action area, without changing the global header dimensions. */
+.sm-site-header .sm-studio-header-project{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  min-width:0;
+  max-width:min(34vw,370px);
+  flex:0 1 auto;
+}
+.sm-site-header .sm-studio-header-project .flow-project-name,
+.sm-site-header .sm-studio-header-project .flow-project-input{
+  display:block;
+  flex:0 1 auto;
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+  height:28px;
+  margin:0;
+  padding:4px 0;
+  border:0;
+  border-radius:0;
+  outline:0;
+  box-shadow:none;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  line-height:20px;
+  text-align:left;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  overflow:hidden;
+}
+.sm-site-header .sm-studio-header-project .flow-project-input:focus,
+.sm-site-header .sm-studio-header-project .flow-project-input:focus-visible{
+  border:0;
+  outline:0;
+  box-shadow:none;
+}
+.sm-site-header .sm-studio-header-project .flow-menu{flex:0 0 auto}
+@media(max-width:650px){
+  .sm-site-header .sm-studio-header-project{
+    max-width:min(29vw,175px);
+    gap:2px;
+  }
+  .sm-site-header .sm-studio-header-project .flow-project-name,
+  .sm-site-header .sm-studio-header-project .flow-project-input{
+    font-size:12px;
+  }
+}
+
+/* Rename is an overlay of the exact same title footprint. The hidden title
+   remains in normal layout so focus never moves the menu or changes its size. */
+.sm-site-header .sm-studio-rename-slot{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  flex:0 1 auto;
+  min-width:0;
+  max-width:100%;
+}
+.sm-site-header .sm-studio-rename-slot .flow-project-name{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  width:auto;
+}
+.sm-site-header .sm-studio-rename-slot .flow-project-input,
+.sm-site-header .sm-studio-rename-slot .flow-project-input:focus,
+.sm-site-header .sm-studio-rename-slot .flow-project-input:focus-visible{
+  position:absolute;
+  inset:0;
+  z-index:1;
+  box-sizing:border-box!important;
+  display:block;
+  width:100%!important;
+  height:100%!important;
+  min-width:0;
+  max-width:100%!important;
+  margin:0!important;
+  padding:4px 0!important;
+  border:0!important;
+  border-radius:0!important;
+  outline:0!important;
+  box-shadow:none!important;
+  background:transparent!important;
+  color:inherit!important;
+  font:inherit!important;
+  line-height:20px!important;
+  text-align:left;
+  appearance:none;
+  transition:none!important;
+}
+
+/* Keep the homepage navigation geometry, with Studio project name left of the nav. */
+.sm-site-header .sm-site-header-left{
+  display:flex;
+  align-items:center;
+  gap:clamp(10px,1.5vw,22px);
+  min-width:0;
+  flex:0 1 auto;
+}
+.sm-site-header .sm-site-header-left .sm-wordmark{flex:0 0 auto}
+.sm-site-header .sm-header-actions{margin-left:auto;flex:0 0 auto}
+@media(max-width:650px){
+ .sm-site-header .sm-site-header-left{gap:7px}
+ .sm-site-header .sm-studio-header-project{max-width:min(28vw,150px)}
+}

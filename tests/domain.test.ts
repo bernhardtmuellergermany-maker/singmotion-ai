@@ -52,18 +52,19 @@ test("file extension and size limits are enforced before expensive decoding", ()
   ] as const)
     assert.throws(() => validateFile(name, size, kind));
 });
-test("custom prompt explicitly replaces presets, without conflicting appended instructions", () => {
-  assert.match(composePrompt("Natural", "Static Close-Up", ""), /Natural/);
-  assert.equal(
-    composePrompt("Natural", "Static Close-Up", "Orbit the artist."),
-    "Orbit the artist.",
-  );
-  assert.throws(() => composePrompt("Custom", "Static Close-Up", ""));
+test("camera presets are composed with optional custom directions", () => {
+  const baseline = composePrompt("Natural", "Static camera", "");
+  assert.match(baseline, /camera fixed/);
+  const custom = composePrompt("Energetic", "Orbit left", "Sing passionately");
+  assert.match(custom, /Energetic singing performance/);
+  assert.match(custom, /arc to the left/);
+  assert.match(custom, /Sing passionately/);
+  assert.match(composePrompt("Natural", "Static Close-Up", ""), /Camera direction/);
+  assert.throws(() => composePrompt("Custom", "Static camera", ""));
   assert.throws(() => composePrompt("Natural", "Orbit", ""));
-  assert.throws(() =>
-    composePrompt("Natural", "Static Close-Up", "x".repeat(1501)),
-  );
+  assert.throws(() => composePrompt("Natural", "Static camera", "x".repeat(1501)));
 });
+
 test("state machine prohibits repeated completion and automatic retries", () => {
   assert.ok(canTransition("queued", "processing"));
   assert.ok(canTransition("processing", "failed"));

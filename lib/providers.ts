@@ -21,7 +21,9 @@ export class DisabledBytePlusAdapter implements VideoProvider {
     return assertBytePlusVerified();
   }
   async poll(): Promise<ProviderJob> {
-    throw new Error("BytePlus polling contract is not verified.");
+    throw new Error(
+      "BytePlus live polling is disabled pending signing and billing verification.",
+    );
   }
 }
 export class DisabledFalAdapter extends DisabledBytePlusAdapter {

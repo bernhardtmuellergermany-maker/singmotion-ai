@@ -1,10 +1,18 @@
+import {
+  validateOmniImage,
+  validateOmniAudio,
+  validateEncodedDuration,
+} from "./limits.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { stat, realpath, mkdir, copyFile, unlink } from "node:fs/promises";
+import { stat, realpath, mkdir, copyFile, unlink, chmod } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
 import { trimAudio, validateAudio } from "../media.ts";
-import { IMAGE_LIMIT } from "../domain.ts";
+import { IMAGE_LIMIT, composePrompt } from "../domain.ts";
+import { parseStudioDraft } from "../studio-draft.ts";
+import {ensureLocalAsset,ensureLocalMediaPath} from "../cloud-hydration.ts";
+import {customerR2Enabled,mirrorPrivateSource,validCloudRecord,readMirroredPrivateSource} from "../cloud-media.ts";
 import type { PreparedMedia } from "./store.ts";
 
 export async function sha256File(filename: string): Promise<string> {
@@ -30,6 +38,12 @@ export async function validateReference(filename: string) {
     (meta.pages || 1) !== 1
   )
     throw new Error("Use one still JPEG/PNG reference, at most 4096 × 4096.");
+  validateOmniImage({
+    format: meta.format!,
+    bytes: info.size,
+    width: meta.width,
+    height: meta.height,
+  });
   await decoder.stats();
 }
 async function privateAsset(filename: string, dataDir: string) {
@@ -45,8 +59,46 @@ export async function prepareExistingJob(
   owner: string,
   maxSeconds = 10,
 ): Promise<PreparedMedia> {
-  const { asset, job, dataDir, putAsset } = await import("../db.ts");
-  const selected = job(jobId, owner);
+  const { job } = await import("../db.ts");
+  return prepareOwnedSelection(job(jobId, owner), owner, maxSeconds);
+}
+/** A draft is a local selection, not a queued job. Resolve all assets by owner. */
+export async function prepareStudioDraft(
+  value: unknown,
+  owner: string,
+  maxSeconds = 10,
+): Promise<PreparedMedia> {
+  const draft = parseStudioDraft(value);
+  if (draft.owner !== owner)
+    throw new Error("Draft owner does not match the operator selection.");
+  const id = `draft-${createHash("sha256").update(JSON.stringify(draft)).digest("hex").slice(0, 32)}`;
+  return prepareOwnedSelection(
+    {
+      ...draft,
+      id,
+      prompt: composePrompt(
+        draft.performance,
+        draft.camera,
+        draft.customPrompt,
+      ),
+    },
+    owner,
+    maxSeconds,
+  );
+}
+async function prepareOwnedSelection(
+  selected: {
+    id: string;
+    songId: string;
+    imageId: string;
+    start: number;
+    end: number;
+    prompt: string;
+  },
+  owner: string,
+  maxSeconds: number,
+): Promise<PreparedMedia> {
+  const { asset, dataDir, db, putAsset } = await import("../db.ts");
   if (
     !Number.isFinite(maxSeconds) ||
     maxSeconds <= 0 ||
@@ -61,8 +113,11 @@ export async function prepareExistingJob(
     throw new Error(
       "A composed performance prompt is required (at most 1,500 characters).",
     );
+  await ensureLocalAsset(source);
+  await ensureLocalAsset(image);
   const sourcePath = await privateAsset(source.path, dataDir),
     imagePath = await privateAsset(image.path, dataDir);
+  const sourceSha256 = await sha256File(sourcePath);
   await validateReference(imagePath);
   const directory = path.join(dataDir, "media");
   await mkdir(directory, { recursive: true, mode: 0o700 });
@@ -78,6 +133,12 @@ export async function prepareExistingJob(
       selected.start,
       selected.end,
     );
+    validateOmniAudio({
+      format: "mp3",
+      bytes: (await stat(temp)).size,
+      duration: durationSeconds,
+    });
+    validateEncodedDuration(durationSeconds, maxSeconds);
     audioSha256 = await sha256File(temp);
     audioPath = path.join(directory, `${selected.id}-${audioSha256}.mp3`);
     await copyFile(temp, audioPath, 1).catch(async (error) => {
@@ -102,6 +163,13 @@ export async function prepareExistingJob(
     )
       throw error;
   });
+  // Provider-bound snapshots are private even if the source file was created
+  // with a more permissive host umask; the customer R2 lease requires 0600.
+  await Promise.all([chmod(audioPath, 0o600), chmod(reference, 0o600)]);
+  // Validate the copied bytes too: the source may have changed during preparation.
+  if ((await sha256File(reference)) !== imageSha256)
+    throw new Error("Reference changed while creating the immutable snapshot.");
+  await validateReference(reference);
   for (const snapshot of [
     {
       ...source,
@@ -118,17 +186,38 @@ export async function prepareExistingJob(
       name: "live-test-reference",
     },
   ]) {
-    try {
-      asset(snapshot.id, owner);
-    } catch {
-      putAsset({
-        ...snapshot,
-        bytes: (await stat(snapshot.path)).size,
-        created: Date.now(),
-      });
+    const record={
+      ...snapshot,
+      bytes:(await stat(snapshot.path)).size,
+      created:Date.now(),
+    };
+    try{
+      const existing=asset(snapshot.id,owner);
+      if(existing.path!==snapshot.path||existing.bytes!==record.bytes)
+        throw Error("Immutable Studio snapshot record differs");
+    }catch(error){
+      if(!(error instanceof Error)||!error.message.includes("File not found"))
+        throw error;
+      putAsset(record);
+    }
+    if(customerR2Enabled()){
+      // Paid-job approvals bind these immutable bytes to a snapshot, so their
+      // R2 copy must be verified before a quote/provider submission can begin.
+      const cloud=await mirrorPrivateSource(record);
+      if(!cloud||!validCloudRecord(owner,snapshot.id,cloud))
+        throw Error("Immutable Studio snapshot could not be archived");
+      await readMirroredPrivateSource(owner,snapshot.id,cloud,50*1024*1024);
+      db.exec("CREATE TABLE IF NOT EXISTS cloud_source_media(asset_id TEXT PRIMARY KEY,owner TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
+      const prior=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(snapshot.id,owner) as {key:string;sha256:string;bytes:number}|undefined;
+      if(prior&&(prior.key!==cloud.key||prior.sha256!==cloud.sha256||prior.bytes!==cloud.bytes))
+        throw Error("Immutable Studio snapshot changed after R2 archive");
+      if(!prior)db.prepare("INSERT INTO cloud_source_media VALUES(?,?,?,?,?,?)").run(snapshot.id,owner,cloud.key,cloud.sha256,cloud.bytes,Date.now());
     }
   }
+  if ((await sha256File(sourcePath)) !== sourceSha256)
+    throw new Error("Original recording changed during preparation.");
   return {
+    recording: { songId: selected.songId, sourceSha256 },
     sourceJobId: selected.id,
     owner,
     audioPath,
@@ -149,7 +238,14 @@ export async function revalidateMedia(media: PreparedMedia) {
     throw new Error(
       "Confirm the composed prompt is English before authorizing a live test.",
     );
+  await ensureLocalMediaPath(media.owner,media.audioPath);
+  await ensureLocalMediaPath(media.owner,media.imagePath);
   const duration = await validateAudio(media.audioPath, true);
+  validateOmniAudio({
+    format: "mp3",
+    bytes: (await stat(media.audioPath)).size,
+    duration,
+  });
   await validateReference(media.imagePath);
   if (
     Math.abs(duration - media.durationSeconds) > 0.001 ||

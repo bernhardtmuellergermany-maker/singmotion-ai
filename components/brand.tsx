@@ -10,11 +10,8 @@ export function Mark() {
 }
 export function Brand() {
   return (
-    <Link className="brand" href="/">
-      <Mark />
-      <span>
-        SingMotion<span className="brand-ai"> AI</span>
-      </span>
+    <Link className="brand wordmark" href="/" aria-label="SingMotion home">
+      singmotion<span>.</span>
     </Link>
   );
 }

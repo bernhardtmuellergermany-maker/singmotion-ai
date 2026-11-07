@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
@@ -53,8 +53,6 @@ test("complete private demo workflow, persistent artist and project, preview and
     )
     .toBeGreaterThanOrEqual(2);
   await page.getByRole("button", { name: "Preview selection" }).click();
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Who’s taking the stage?" }).click();
   await page.getByRole("button", { name: "Add artist", exact: true }).click();
   await page.getByLabel("Artist name").fill("Test Artist");
@@ -63,10 +61,7 @@ test("complete private demo workflow, persistent artist and project, preview and
   await expect(
     page.getByText("Test Artist", { exact: true }).first(),
   ).toBeVisible();
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Continue" }).click();
-  if (info.project.name === "mobile")
-    await page.getByRole("button", { name: "Advanced settings" }).click();
+  await page.getByRole("button", { name: "Advanced settings" }).click();
   await page
     .getByLabel("Custom Performance Prompt")
     .fill("Sing softly. Keep the camera static and the background stable.");
@@ -105,6 +100,19 @@ test("complete private demo workflow, persistent artist and project, preview and
   await expect(
     page.getByRole("button", { name: "Saved to projects" }),
   ).toBeVisible();
+  const screenshots =
+    process.env.DESIGN_SCREENSHOTS_DIR || "test-results/design";
+  mkdirSync(screenshots, { recursive: true });
+  await page.screenshot({
+    path: path.join(screenshots, `project-result-${info.project.name}.png`),
+    fullPage: true,
+  });
+  await page.goto("/projects");
+  await expect(page.locator(".project-card")).toHaveCount(1);
+  await page.screenshot({
+    path: path.join(screenshots, `projects-populated-${info.project.name}.png`),
+    fullPage: true,
+  });
   await page.goto("/artists");
   await expect(
     page.getByRole("heading", { name: "Test Artist" }),
@@ -124,11 +132,15 @@ test("complete private demo workflow, persistent artist and project, preview and
   ).toBeVisible();
   await page.reload();
   await expect(page.getByText("2 reference images")).toBeVisible();
+  await page.screenshot({
+    path: path.join(screenshots, `artists-populated-${info.project.name}.png`),
+    fullPage: true,
+  });
   await page.goto("/settings");
   page.once("dialog", (d) => d.accept());
   await page.getByRole("button", { name: "Delete all my demo data" }).click();
   await expect(page).toHaveURL("/");
-  await page.getByRole("link", { name: "Explore the studio" }).click();
+  await page.getByRole("link", { name: "Create your music video" }).click();
   await expect(page.getByText("€12.50")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Drop your song here" }),

@@ -3,16 +3,19 @@
   "version": "0.1.0",
   "private": true,
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24.22.1 <25"
   },
   "scripts": {
     "dev": "next dev --hostname 127.0.0.1",
-    "build": "next build",
+    "build": "node scripts/audit-build.mjs && node --experimental-strip-types --test tests/stripe-checkout-binding.test.ts tests/stripe-webhook-signature.test.ts tests/stripe-reviewed-video.test.ts tests/commerce-plans.test.ts tests/paid-video-status.test.ts tests/super-admin-runtime-bootstrap.test.ts tests/studio-failed-status.test.ts tests/recording-rejections.test.ts tests/paid-video-delivery.test.ts tests/paid-output-recovery.test.ts tests/paid-customer-recovery.test.ts tests/paid-recovery-batch.test.ts tests/paid-recovery-e2e.test.ts tests/inspect-paid-recovery.test.ts tests/paid-recovery-preflight.test.ts tests/customer-video-links.test.ts tests/customer-orders-query.test.ts tests/private-video-file.test.ts tests/dependency-security.test.ts tests/audit-policy.test.mjs tests/cms-database-guard.test.mjs tests/cms-compatibility.test.mjs && npm run test:release-parity && node scripts/typecheck-build.mjs && npm run test:video:release && npm run test:customer:release && next build",
     "start": "next start --hostname 0.0.0.0 -p ${PORT:-3000}",
     "worker": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/worker.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test": "node --experimental-strip-types --test --test-concurrency=2 tests/*.test.ts",
+    "test:video:release": "node --experimental-strip-types --test --test-concurrency=1 tests/production-video-gate.test.ts tests/output-normalization.test.ts tests/output-orientation.test.ts tests/output-duration-shared.test.ts tests/tempo.test.ts tests/byteplus.test.ts",
+    "test:release-parity": "node --experimental-strip-types --test tests/release-parity.test.mjs",
+    "test:customer:release": "node --experimental-strip-types --test --test-concurrency=1 tests/customer-launch-readiness.test.ts tests/customer-live-release.test.ts tests/customer-paid-worker.test.ts tests/customer-byteplus-dispatch.test.ts tests/customer-r2-inputs.test.ts tests/launch-audit.test.ts tests/stripe-live-preflight.test.ts tests/stripe-live-order-readiness.test.ts tests/stripe-hobby-checkout-validation.test.ts tests/p0-stripe-fulfillment-e2e.test.ts tests/production-private-customer-preview.test.ts tests/customer-public-release-gate.test.ts tests/customer-identity-domain.test.ts tests/customer-email-verification.test.ts tests/request-origin.test.ts",
     "test:e2e": "playwright test",
     "cleanup": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/cleanup.ts",
     "format": "prettier --write .",
@@ -21,26 +24,65 @@
     "byteplus:preflight": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-preflight.ts",
     "byteplus:live-test": "node --env-file-if-exists=.env.byteplus.local --experimental-strip-types scripts/byteplus-live-test.ts",
     "test:staging": "node scripts/test-staging.mjs",
-    "test:volume": "node scripts/test-volume.mjs"
+    "test:volume": "node scripts/test-volume.mjs",
+    "r2:check": "node --experimental-strip-types scripts/r2-connectivity.ts",
+    "launch:audit": "node --experimental-strip-types scripts/launch-audit.ts",
+    "r2:migrate": "node --experimental-strip-types scripts/migrate-test-assets-to-r2.ts",
+    "test:byteplus:offline": "node --experimental-strip-types --test tests/preflight-offline.test.ts",
+    "byteplus:first-test": "node --env-file-if-exists=.env.first-test.local --experimental-strip-types scripts/byteplus-first-test.ts",
+    "byteplus:operator": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/byteplus-operator.ts",
+    "test:byteplus:backend": "node --experimental-strip-types --test tests/operator.test.ts",
+    "cms": "tsx node_modules/payload/bin.js",
+    "cms:provision": "tsx scripts/cms-provision.ts",
+    "test:cms:compat": "node --test tests/cms-database-guard.test.mjs tests/cms-compatibility.test.mjs",
+    "test:cms": "tsx --test --test-force-exit tests/cms.integration.ts",
+    "cms:seed": "tsx scripts/cms-seed.ts",
+    "test:cms:browser": "tsx tests/cms.browser.ts",
+    "cms:recover-admin": "tsx scripts/cms-recover-admin.ts",
+    "inspect:paid-recovery": "node --experimental-strip-types scripts/inspect-paid-recovery.ts",
+    "inspect:free-promo-risk": "node --experimental-strip-types scripts/inspect-free-promo-risk.ts --staging",
+    "preflight:paid-recovery": "node --experimental-strip-types scripts/paid-recovery-preflight.ts",
+    "recover:paid-once": "node --env-file-if-exists=.env.local --experimental-strip-types scripts/paid-recovery-worker.ts",
+    "test:customer:browser": "node --experimental-strip-types tests/customer-output.browser.ts",
+    "test:cms:isolated": "node scripts/test-cms-isolated.mjs",
+    "cms:prune-drafts": "tsx scripts/cms-prune-drafts.ts",
+    "stripe:live-preflight": "node --experimental-strip-types scripts/stripe-live-preflight.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1156.0",
+    "@aws-sdk/s3-request-presigner": "3.1156.0",
+    "@payloadcms/db-postgres": "3.92.0",
+    "@payloadcms/next": "3.92.0",
+    "graphql": "16.14.0",
     "lucide-react": "^0.468.0",
-    "next": "^16.2.0",
+    "next": "16.4.3",
+    "payload": "3.92.0",
+    "pino": "9.14.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "sharp": "^0.34.0"
+    "sharp": "0.35.5",
+    "deepmerge": "file:vendor/deepmerge"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@playwright/test": "^1.58.0",
     "@tailwindcss/postcss": "^4.1.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "eslint": "^9.0.0",
-    "eslint-config-next": "^16.2.0",
+    "eslint-config-next": "16.4.3",
     "prettier": "^3.9.10",
     "tailwindcss": "^4.1.0",
+    "tsx": "4.23.15",
     "typescript": "^5.9.0"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "dompurify": "3.4.17",
+    "@esbuild-kit/core-utils": {
+      "esbuild": "0.25.12"
+    },
+    "deepmerge": "$deepmerge"
+  }
 }

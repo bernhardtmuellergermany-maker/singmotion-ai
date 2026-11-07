@@ -99,6 +99,34 @@ export function Billing({ referencePrice }: { referencePrice: number }) {
     </div>
   );
 }
+function StorageCleanup(){
+  const [usage,setUsage]=useState<{totalBytes:number;limitBytes:number;unusedBytes:number;unusedCount:number;protectedCount:number}|null>(null);
+  const [status,setStatus]=useState("");
+  const [checking,setChecking]=useState(false);
+  const mb=(bytes:number)=>(bytes/1048576).toFixed(1)+" MB";
+  async function check(mode:"preview"|"execute"){
+    setChecking(true);setStatus("");
+    try{
+      const response=await fetch("/api/media-cleanup",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,confirmation:mode==="execute"?"DELETE UNUSED UPLOADS":undefined})});
+      const result=await response.json();
+      if(!response.ok)throw Error(result.error||"Storage request failed");
+      if(mode==="preview")setUsage(result);
+      else {setStatus("Removed "+result.deleted+" unused uploads. Freed "+mb(result.freedBytes));setUsage(null);}
+    }catch(e){setStatus((e as Error).message)}
+    finally{setChecking(false)}
+  }
+  return <section className="content-card">
+    <h2>Upload storage</h2>
+    <p>Only uploads not referenced by projects, drafts or provider tasks can be removed.</p>
+    <button type="button" className="button outline" disabled={checking} onClick={()=>void check("preview")}>Check storage usage</button>
+    {usage&&<div>
+      <p>Used: {mb(usage.totalBytes)} / {mb(usage.limitBytes)}</p>
+      <p>Unused: {usage.unusedCount} uploads ({mb(usage.unusedBytes)}). Protected: {usage.protectedCount}.</p>
+      {usage.unusedCount>0&&<button type="button" className="button outline" disabled={checking} onClick={()=>{if(window.confirm("Delete only unused uploads? Drafts and completed projects stay protected."))void check("execute")}}>Delete unused uploads</button>}
+    </div>}
+    {status&&<p role="status">{status}</p>}
+  </section>;
+}
 export function Settings() {
   const router = useRouter();
   const [name, setName] = useState(""),
@@ -145,6 +173,7 @@ export function Settings() {
           <p>Preferences for this browser’s private demonstration workspace.</p>
         </div>
       </div>
+      <StorageCleanup />
       <form
         className="content-card settings-form"
         onSubmit={(e) => {

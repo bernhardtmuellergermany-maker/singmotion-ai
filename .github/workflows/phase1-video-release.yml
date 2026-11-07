@@ -1,0 +1,47 @@
+name: Phase 1 video export release checks
+
+on:
+  push:
+    branches:
+      - phase1/release-export-gates-20261106
+  pull_request:
+    branches:
+      - fix/super-admin-visible-provider-quote-20261105
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase1-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  video-export:
+    name: Verified offline video export and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "true"
+    steps:
+      - name: Exact revision under test
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: npm
+      - name: FFmpeg and ffprobe
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          ffmpeg -version
+          ffprobe -version
+      - run: npm ci
+      - name: Release parity gate unit tests
+        run: npm run test:release-parity
+      - name: Video export, original audio, orientation and watermark regressions
+        run: npm run test:video:release
+      - name: Production build runs video regressions again
+        run: npm run build

@@ -1,0 +1,47 @@
+name: Studio UI and checkout release verification
+on:
+  push:
+    branches:
+      - release/staging-production-ui-checkout-20261106
+      - fix/customer-checkout-owner-and-global-nav-20261106
+      - fix/professional-account-security-20261106
+      - fix/home-carousel-vertical-center-20261106
+      - fix/stripe-test-checkout-order-preparation-20261106
+      - fix/stripe-test-error-diagnostics-20261106
+      - fix/stripe-test-rejection-reason-20261106
+      - fix/stripe-managed-payments-video-tax-code-20261106
+      - fix/stripe-return-samesite-session-20261106
+      - fix/private-order-output-card-design-20261106
+      - fix/paid-video-review-diagnostics-20261106
+      - fix/paid-video-provider-response-20261106
+      - fix/byteplus-permanent-rejection-order-state-20261106
+  workflow_dispatch:
+concurrency:
+  group: studio-release-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - name: Lint and typecheck
+        run: |
+          npm run lint
+          npm run typecheck
+      - name: Install FFmpeg for video regression tests
+        run: sudo apt-get install -y ffmpeg
+      - name: Customer payment security and production build
+        run: |
+          node --experimental-strip-types --test tests/studio-order-key.test.ts tests/stripe-error-diagnostics.test.ts tests/stripe-video-tax-code.test.ts
+          npm run test:customer:release
+          npm run build

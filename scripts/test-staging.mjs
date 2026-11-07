@@ -77,7 +77,13 @@ try {
     "/artists",
     "/billing",
     "/admin",
+    "/api/cms/staff",
+    "/api/cms/cms-assets/file/example.webp",
+    "/cms-preview/home",
     "/api/session",
+    "/api/studio-live",
+    "/api/admin/studio-activation",
+    "/api/studio-live?id=unknown&video=1",
     "/api/assets/example",
     "/media/demo.mp4",
     "/favicon.ico",
@@ -113,6 +119,28 @@ try {
   const page = await fetch(origin + "/studio", { headers: { authorization } });
   assert.equal(page.status, 200);
   assert.match(page.headers.get("cache-control"), /no-store/);
+  const privateTicket = page.headers.get("set-cookie")?.match(/sm_private_gate=[^;]+/)?.[0];
+  assert.ok(privateTicket, "Basic authentication issues an HttpOnly mobile preview ticket");
+  assert.match(page.headers.get("set-cookie"), /HttpOnly/i);
+  // Mobile WebViews can omit cached Basic authorization on subsequent fetch.
+  assert.equal(
+    (await fetch(origin + "/studio", {headers: {cookie: privateTicket}})).status,
+    200,
+    "mobile preview cookie must authenticate a new page without Basic",
+  );
+  assert.equal(
+    (await fetch(origin + "/api/studio-live", {headers: {cookie: privateTicket}})).status,
+    200,
+    "mobile preview cookie must reach route-level API authorization",
+  );
+  assert.equal(
+    (await fetch(origin + "/api/session", {
+      method: "POST",
+      headers: {cookie: privateTicket, origin: "https://untrusted.example"},
+    })).status,
+    403,
+    "a stolen preview cookie cannot authorize cross-origin mutations",
+  );
   const html = await page.text();
   const asset = html.match(/src="([^\"]*\/_next\/static\/[^\"]+)"/)?.[1];
   assert.ok(asset, "Rendered page has a real Next asset");
@@ -133,7 +161,8 @@ try {
   });
   assert.equal(session.status, 200);
   assert.match(session.headers.get("set-cookie"), /Secure/i);
-  const cookie = session.headers.get("set-cookie").split(";")[0];
+  const cookie = session.headers.get("set-cookie")?.match(/sm_session=[^;]+/)?.[0];
+  assert.ok(cookie, "The media session cookie is independent of the mobile preview cookie");
   const disabled = await fetch(origin + "/api/jobs", {
     method: "POST",
     headers: {

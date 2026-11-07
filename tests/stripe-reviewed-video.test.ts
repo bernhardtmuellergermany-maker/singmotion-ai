@@ -1,0 +1,240 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { reviewedVideoInputDigest, reviewedVideoQuoteDigest } from "../lib/commerce/reviewed-video.ts";
+import type { PreparedMedia } from "../lib/live/store.ts";
+import { CommerceStore } from "../lib/commerce/store.ts";
+import { PlanLedger } from "../lib/commerce/plans.ts";
+import { submitReviewedPaidVideo } from "../lib/commerce/paid-video-worker.ts";
+
+const approvedProviderCost={inclusiveMaxMicroUsd:700000,dailyCapMicroUsd:5000000,lifetimeCapMicroUsd:25000000,reviewEvidence:"reviewed-inclusive-provider-pricing-test-only"};
+
+const media = {
+  owner:"test-owner",audioPath:"/private/audio.wav",imagePath:"/private/image.png",
+  audioSha256: "a".repeat(64), imageSha256: "b".repeat(64),
+  durationSeconds: 8.1234, prompt: "Sing naturally, camera static.", outputFormat: "9:16",
+} as PreparedMedia;
+
+test("review commitments include actual prepared audio, image, prompt and output format", () => {
+  const a = reviewedVideoInputDigest(media);
+  assert.match(a, /^[a-f0-9]{64}$/);
+  assert.equal(a, reviewedVideoInputDigest({...media}));
+  for (const change of [
+    {audioSha256:"c".repeat(64)}, {imageSha256:"c".repeat(64)},
+    {prompt:"Move the camera."}, {durationSeconds:9.5}, {outputFormat:"16:9" as const},
+  ]) assert.notEqual(a,reviewedVideoInputDigest({...media,...change}));
+  const quote = reviewedVideoQuoteDigest(a,1250,"verified-inclusive-price-2026");
+  assert.notEqual(quote,reviewedVideoQuoteDigest(a,1300,"verified-inclusive-price-2026"));
+  assert.throws(()=>reviewedVideoInputDigest({...media,audioSha256:"browser-id"}),/reviewed/i);
+  assert.match(reviewedVideoQuoteDigest(a,0,"verified-inclusive-price-2026"),/^[a-f0-9]{64}$/);
+});
+
+test("customer tempo orders bind original recording and restoration to their paid quote",()=>{
+  const tempo={
+    rate:0.9 as const,
+    originalPath:"/private/original.mp3",
+    originalSha256:"d".repeat(64),
+    originalDuration:7.5,
+    originalDecodedSeconds:7.5,
+    providerDecodedSeconds:8.333,
+    sourceSha256:"e".repeat(64),
+    songId:"owned-song",
+    authorizationDigest:"f".repeat(64),
+  };
+  const originalDigest=reviewedVideoInputDigest(media);
+  const slowed={...media,tempo};
+  const slowedDigest=reviewedVideoInputDigest(slowed);
+  assert.notEqual(slowedDigest,originalDigest);
+  assert.equal(slowedDigest,reviewedVideoInputDigest({...slowed}));
+  assert.notEqual(slowedDigest,reviewedVideoInputDigest({
+    ...slowed,tempo:{...tempo,originalSha256:"a".repeat(64)},
+  }));
+  assert.notEqual(slowedDigest,reviewedVideoInputDigest({
+    ...slowed,tempo:{...tempo,originalDuration:8},
+  }));
+  assert.notEqual(slowedDigest,reviewedVideoInputDigest({
+    ...slowed,tempo:{...tempo,authorizationDigest:"b".repeat(64)},
+  }));
+});
+
+test("server-owned quote controls binding of actual prepared media to customer order", () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = store.order({
+      account:null,email:"customer@example.test",project:"studio-reviewed-project",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"prepared-media-binding",
+    }).id;
+    assert.equal(store.reviewedOrderReadyForCheckout(id), false);
+    assert.equal(store.bindPreparedOrderMedia(id, media), true);
+    assert.equal(store.reviewedOrderReadyForCheckout(id), true);
+    assert.equal(store.bindPreparedOrderMedia(id, media), false);
+    assert.throws(() => store.bindPreparedOrderMedia(id, {...media,prompt:"different performance"}), /conflict/);
+    const actual = store.db.prepare("SELECT input_digest,review_digest FROM customer_order_inputs WHERE order_id=?").get(id);
+    const digest = reviewedVideoInputDigest(media);
+    assert.equal(actual?.input_digest, digest);
+    assert.equal(actual?.review_digest, reviewedVideoQuoteDigest(digest,1250,"verified-inclusive-price-2026"));
+  } finally { store.close(); }
+});
+
+test("trusted checkout preparation is atomic for validated media and reviewed quote", () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const request = {account:null,email:"buyer@example.test",project:"verified-project",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"atomic-prepared-order",media};
+    assert.throws(() => store.preparedVideoOrder({...request,media:{...media,audioSha256:"invalid"}}),/prepared/);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,0);
+    const created = store.preparedVideoOrder(request);
+    assert.equal(store.reviewedOrderReadyForCheckout(created.id),true);
+    assert.throws(() => store.preparedVideoOrder({...request,media:{...media,prompt:"Different camera"}}),/conflict/);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,1);
+    assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_order_inputs").get()?.n,1);
+  } finally {store.close();}
+});
+
+test("paid customer media cannot be changed after review before BytePlus dispatch", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const created = store.preparedVideoOrder({
+      account:null,email:"buyer@example.test",project:"verified-video",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"verified-paid-dispatch",media,
+    });
+    const id = created.id;
+    assert.throws(() => store.assertPaidOrderMediaUnchanged(id,media),/Claimed/);
+    store.bindStripeCheckout(id,"cs_test_verified_dispatch");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_verified_dispatch",orderId:id,
+      cents:1250,currency:"EUR" as const,evidence:"cs_test_verified_dispatch",
+    };}});
+    assert.equal(store.claimPaidFulfillment(id),true);
+    assert.doesNotThrow(() => store.assertPaidOrderMediaUnchanged(id,media));
+    assert.throws(() => store.assertPaidOrderMediaUnchanged(id,{...media,prompt:"Modified camera"}),/changed/);
+    assert.throws(() => store.assertPaidOrderMediaUnchanged(id,{...media,imageSha256:"c".repeat(64)}),/changed/);
+    assert.equal(store.paidSubmissionStatus(id),null);
+  } finally {store.close();}
+});
+
+test("trusted worker dispatches verified paid media exactly once", async () => {
+  const store=new CommerceStore(":memory:");
+  try {
+    const id=store.preparedVideoOrder({account:null,email:"buyer@example.test",
+      project:"verified-worker",cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"verified-worker",media}).id;
+    store.bindStripeCheckout(id,"cs_test_worker");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_worker",orderId:id,cents:1250,
+      currency:"EUR" as const,evidence:"cs_test_worker",
+    };}});
+    let submits=0;
+    const ops={providerCost:approvedProviderCost,prepare:async()=>media,verify:async()=>{},submit:async()=>{submits++;return "provider_job_123";}};
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"submitted");
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
+    assert.equal(submits,1);
+    assert.equal(store.paidProviderJob(id)?.jobId,"provider_job_123");
+  } finally {store.close();}
+});
+
+test("ambiguous paid provider response never triggers automatic retry", async () => {
+  const store=new CommerceStore(":memory:");
+  try {
+    const id=store.preparedVideoOrder({account:null,email:"buyer@example.test",
+      project:"uncertain-worker",cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"uncertain-worker",media}).id;
+    store.bindStripeCheckout(id,"cs_test_uncertain");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_uncertain",orderId:id,cents:1250,
+      currency:"EUR" as const,evidence:"cs_test_uncertain",
+    };}});
+    let calls=0;
+    const ops={providerCost:approvedProviderCost,prepare:async()=>media,verify:async()=>{},submit:async()=>{calls++;throw Error("response lost");}};
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"submission-uncertain");
+    assert.equal(await submitReviewedPaidVideo(store,id,ops),"already-claimed");
+    assert.equal(calls,1);
+    assert.equal(store.paidSubmissionStatus(id),"submitted_or_unknown");
+    assert.equal(store.paidProviderJob(id),null);
+  } finally {store.close();}
+});
+
+test("paid worker reads the stored immutable media snapshot instead of browser input", async () => {
+ const store = new CommerceStore(":memory:");
+ try {
+   const id=store.preparedVideoOrder({account:null,email:"buyer@example.test",project:"snapshot",
+     cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"snapshot-test",media}).id;
+   assert.throws(()=>store.paidPreparedMedia(id),/Claimed/);
+   store.bindStripeCheckout(id,"cs_test_snapshot");
+   await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+     provider:"stripe",eventId:"evt_snapshot",orderId:id,cents:1250,
+     currency:"EUR" as const,evidence:"cs_test_snapshot",
+   };}});
+   assert.equal(store.claimPaidFulfillment(id),true);
+   assert.equal(store.paidPreparedMedia(id).imageSha256,media.imageSha256);
+   assert.equal(store.paidPreparedMedia(id).audioPath,media.audioPath);
+ } finally {store.close();}
+});
+
+test("paid worker defaults to saved customer snapshot without browser-provided media", async () => {
+  const store = new CommerceStore(":memory:");
+  try {
+    const id = store.preparedVideoOrder({
+      account:null,email:"buyer@example.test",project:"saved-worker-media",
+      cents:1250,quoteEvidence:"verified-inclusive-price-2026",
+      key:"saved-worker-media",media,
+    }).id;
+    store.bindStripeCheckout(id,"cs_test_saved_worker");
+    await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+      provider:"stripe",eventId:"evt_saved_worker",orderId:id,cents:1250,
+      currency:"EUR" as const,evidence:"cs_test_saved_worker",
+    };}});
+    const observed: PreparedMedia[] = [];
+    assert.equal(await submitReviewedPaidVideo(store,id,{
+      verify:async()=>{},
+      providerCost:approvedProviderCost,
+      submit:async(prepared)=>{observed.push(prepared);return "provider_saved_001";},
+    }),"submitted");
+    assert.equal(observed[0]?.imageSha256,media.imageSha256);
+    assert.equal(observed[0]?.audioPath,media.audioPath);
+    assert.equal(store.paidProviderJob(id)?.jobId,"provider_saved_001");
+  } finally {store.close();}
+});
+
+test("customer quote reservation is idempotent and rejects different media",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const owned={...media,owner:"customer-"+account,durationSeconds:10};
+  const request={account,email:"buyer@example.test",project:"song-1",cents:250,
+    quoteEvidence:"verified-inclusive-price-2026",key:"idempotent-quote-001",media:owned};
+  const a=store.preparedVideoOrder(request);
+  const b=store.preparedVideoOrder(request);
+  assert.equal(a.id,b.id);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_split_quotes").get()?.n,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_orders").get()?.n,1);
+  assert.throws(()=>store.preparedVideoOrder({...request,media:{...owned,prompt:"Changed performance"}}),/conflict/);
+ }finally{store.close()}
+});
+test("first-time guest checkout prepares without missing subscription tables",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const a=store.preparedVideoOrder({account:null,email:"buyer@example.test",project:"guest-song",
+    cents:1250,quoteEvidence:"verified-inclusive-price-2026",key:"guest-no-plan-001",media});
+  assert.ok(a.id);
+ }finally{store.close()}
+});
+
+test("fully included paid-period Hobby order queues once without a Stripe charge",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account="11111111-1111-4111-8111-111111111111";
+  const now=Date.now(),start=now-60000,end=now+86400000;
+  new PlanLedger(store.db);
+  store.db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_start,current_period_end,updated_at,paid_through) VALUES(?,?,?,?,?,?,?,?,?)").run(account,"hobby","stripe","sub_test_allowance","active",start,end,now,end);
+  const owned={...media,owner:"customer-"+account,durationSeconds:5};
+  const request={account,email:"buyer@example.test",project:"included-song",cents:0,quoteEvidence:"verified-hobby-included-quote-2026",key:"included-hobby-001",media:owned};
+  const first=store.preparedVideoOrder(request);
+  const second=store.preparedVideoOrder(request);
+  assert.equal(first.id,second.id);
+  assert.equal(store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(first.id)?.status,"paid");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue WHERE order_id=?").get(first.id)?.n,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM stripe_checkout_sessions WHERE order_id=?").get(first.id)?.n,0);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_plan_usage WHERE provider_attempt_id=? AND state='reserved'").get(first.id)?.n,1);
+ }finally{store.close()}
+});

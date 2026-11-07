@@ -32,6 +32,61 @@ try {
   );
 }
 console.log(`Persistent storage ready (UID ${process.getuid?.()}).`);
+if (process.env.PRODUCTION_R2_READONLY_PREFLIGHT_ENABLED === "true") {
+  // Optional HEAD-only diagnostic. Failure cannot start the paid customer
+  // worker or open public checkout, and never blocks the existing demo server.
+  const { productionR2ReadOnlyPreflight } = await import("./production-r2-readonly-preflight.ts");
+  const status = await productionR2ReadOnlyPreflight();
+  console.log("PRODUCTION_R2_READONLY_PREFLIGHT " + status);
+}
+if(process.env.STAGING_R2_RUNTIME_CANARY_ENABLED==="true"){
+  if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.getuid?.()!==1000)
+    throw new Error("Private R2 hydration canary is permitted on nonroot Staging only.");
+  // Unlike Railway preDeploy, this runs AFTER the secure container entrypoint
+  // mounted the persistent volume and dropped privileges to UID/GID 1000.
+  const {canary}=await import("./r2-storage-canary.ts");
+  await canary("runtime");
+}
+
+if (process.env.R2_MIGRATE_TEST_DATA === "true") {
+  // Explicit staging-only one-shot pass on the mounted persistent volume.
+  // Failure prevents starting new web/worker instances with partial records.
+  const {migrateTestAssetsToR2}=await import("./migrate-test-assets-to-r2.ts");
+  const result=await migrateTestAssetsToR2();
+  console.log("R2_MIGRATION_VERIFIED "+JSON.stringify(result));
+}
+
+// Startup-only private Studio diagnostic. Read-only: no paid provider requests.
+if (process.env.BYTEPLUS_STUDIO_ENABLED === "true") {
+  try {
+    const [{ studioGate, studioConfig }, { studioReadiness, loadRuntimeStudioPolicy }] =
+      await Promise.all([
+        import("../lib/live/studio-policy.ts"),
+        import("../lib/live/studio-runtime.ts"),
+      ]);
+    const checks = [
+      ["studio-gate", () => studioGate(studioConfig())],
+      ["studio-policy", () => loadRuntimeStudioPolicy(directory, process.env, process.env.SUPER_ADMIN_PRIVATE_GENERATION_ENABLED === "true")],
+      ["studio-recovery", () => studioReadiness(directory)],
+    ];
+    for (const [name, check] of checks) {
+      try {
+        const result = await check();
+        const bootstrap = name === "studio-policy" && result?.contract?.revision === "super-admin-runtime-bootstrap-v1";
+        console.log("PRIVATE_STUDIO_CHECK", name, bootstrap ? "BOOTSTRAP_READY" : "READY");
+      }
+      catch (error) {
+        const code = error && typeof error === "object" && "code" in error
+          ? String(error.code).replace(/[^A-Z0-9_]/g, "").slice(0, 64)
+          : "UNEXPECTED";
+        console.warn("PRIVATE_STUDIO_CHECK", name, code);
+      }
+    }
+  } catch {
+    console.warn("PRIVATE_STUDIO_CHECK", "diagnostic", "UNAVAILABLE");
+  }
+}
+
 import { spawn } from "node:child_process";
 const web = spawn(
   process.execPath,

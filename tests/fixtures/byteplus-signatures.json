@@ -1,0 +1,46 @@
+{
+  "sourceCommit": "eddcf2bf0bfb5dd6d8bb52dc9c09b9efc21b0715",
+  "sourceSha256": {
+    "Util": "c00d2374e3fcbb625fc55e1c3e8c533bbfcde3fd9aeb90112a86457c48a9a50f",
+    "MetaData": "847f8aa794636036301bd9d441dc9d7a4d54787b985b10a6db63f7a396f5bfe7",
+    "SignerV4": "3b073ed4481552611d2acefe948b429a1432cc19abe606086c1c26bc745b5921"
+  },
+  "timestamp": "20261015T052958Z",
+  "accessKeyId": "example-access-key",
+  "secretAccessKey": "example-secret-key",
+  "vectors": [
+    {
+      "action": "CVSync2AsyncSubmitTask",
+      "body": "{\"req_key\":\"realman_avatar_picture_omni20_cv\",\"image_urls\":[\"https://input.example.test/i?token=fictional\"],\"audio_url\":\"https://input.example.test/a?token=fictional\",\"prompt\":\"Sing softly — 静かに\"}",
+      "headers": {
+        "content-type": "application/json",
+        "host": "cv.byteplusapi.com",
+        "x-date": "20261015T052958Z",
+        "x-content-sha256": "bc42f0c45c359f637938cd797bf7786fed8915419fc6c95739eb80f490672d3e",
+        "authorization": "HMAC-SHA256 Credential=example-access-key/20261015/ap-singapore-1/cv/request, SignedHeaders=content-type;host;x-content-sha256;x-date, Signature=5b7e4dfeb46d22970fc69d1b36a76ffc95dbce672c84b32882e844bdb70967cf"
+      }
+    },
+    {
+      "action": "CVSync2AsyncGetResult",
+      "body": "{\"req_key\":\"realman_avatar_picture_omni20_cv\",\"task_id\":\"7392616336519610409\"}",
+      "headers": {
+        "content-type": "application/json",
+        "host": "cv.byteplusapi.com",
+        "x-date": "20261015T052958Z",
+        "x-content-sha256": "d6497f55d5350aacfea8ce69d8de79e8cd8c8fcd214b5e1b10f1fcf99d12fd33",
+        "authorization": "HMAC-SHA256 Credential=example-access-key/20261015/ap-singapore-1/cv/request, SignedHeaders=content-type;host;x-content-sha256;x-date, Signature=77154acf2593135ced8f3188c01c71f1e95980819b95a5331c18e8182ef3c909"
+      }
+    },
+    {
+      "action": "CVCancelTask",
+      "body": "{\"req_key\":\"realman_avatar_picture_omni20_cv\",\"task_id\":\"7392616336519610409\"}",
+      "headers": {
+        "content-type": "application/json",
+        "host": "cv.byteplusapi.com",
+        "x-date": "20261015T052958Z",
+        "x-content-sha256": "d6497f55d5350aacfea8ce69d8de79e8cd8c8fcd214b5e1b10f1fcf99d12fd33",
+        "authorization": "HMAC-SHA256 Credential=example-access-key/20261015/ap-singapore-1/cv/request, SignedHeaders=content-type;host;x-content-sha256;x-date, Signature=2754d541dd7bb7f5e167513701bea9f2a690e60c10aae6a196d3370c84c7515c"
+      }
+    }
+  ]
+}

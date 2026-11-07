@@ -1,0 +1,146 @@
+/* Private customer output: the same 9:16, dark-cinematic visual language
+   as the homepage carousel, without its absolute-position carousel layout. */
+.sm-private-output{
+  width:100%;
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  margin:24px auto 20px;
+  color:#faf9ff;
+}
+.sm-private-output-error{margin:0 0 12px;color:#f3b1c0;font-size:13px}
+.sm-private-video-card{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:min(100%,330px);
+  min-width:0;
+  overflow:hidden;
+  border:1px solid rgba(147,121,204,.48);
+  border-radius:19px;
+  background:linear-gradient(150deg,#181b30,#111522);
+  box-shadow:0 18px 55px rgba(0,0,0,.35);
+}
+.sm-private-video-frame{
+  position:relative;
+  width:100%;
+  aspect-ratio:9/16;
+  min-width:0;
+  overflow:hidden;
+  background:radial-gradient(ellipse at 50% 44%,rgba(86,46,143,.19),transparent 60%),#0e1020;
+}
+.sm-private-video-frame::after{
+  content:"";
+  position:absolute;
+  inset:9px;
+  pointer-events:none;
+  border:1px dashed rgba(166,145,218,.17);
+  border-radius:12px;
+  z-index:1;
+}
+.sm-private-video-frame video{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#080a12;
+  display:block;
+  z-index:1;
+}
+.sm-private-video-placeholder{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  gap:12px;
+  padding:54px 25px 58px;
+}
+.sm-private-video-halo{
+  display:grid;
+  place-items:center;
+  width:66px;
+  height:66px;
+  border-radius:50%;
+  border:2px solid #9255f2;
+  color:#d4b4ff;
+  background:radial-gradient(circle at 50% 15%,#44266d,#160e30);
+  box-shadow:0 0 30px rgba(146,85,242,.2);
+  margin-bottom:10px;
+}
+.sm-private-video-placeholder h2{font-size:clamp(20px,2.5vw,25px);line-height:1.2;letter-spacing:-.03em;font-weight:750;margin:0;color:#fff}
+.sm-private-video-placeholder p{max-width:250px;margin:0;font-size:13px;line-height:1.55;color:#b4b2c9}
+.sm-private-video-brand{
+  position:absolute;
+  z-index:3;
+  top:17px;
+  left:17px;
+  padding:6px 9px;
+  background:rgba(8,10,22,.72);
+  color:#fff;
+  border:1px solid rgba(192,164,255,.2);
+  border-radius:20px;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.1;
+  backdrop-filter:blur(8px);
+}
+.sm-private-video-brand b{color:#a85cff}
+.sm-private-video-state{
+  position:absolute;
+  z-index:3;
+  bottom:14px;
+  left:14px;
+  right:14px;
+  display:block;
+  overflow-wrap:anywhere;
+  padding:10px 12px;
+  border-radius:10px;
+  border:1px solid rgba(192,164,255,.22);
+  background:rgba(13,13,28,.84);
+  color:#e8e3f2;
+  font-size:12px;
+  font-weight:650;
+  line-height:1.4;
+  backdrop-filter:blur(8px);
+}
+.sm-private-video-scrim{pointer-events:none;position:absolute;bottom:0;left:0;right:0;height:66px;background:linear-gradient(transparent,#090b14aa)}
+.sm-private-video-footer{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  padding:16px 17px 18px;
+  background:linear-gradient(150deg,#181b30,#111522);
+}
+.sm-private-video-footheading{display:flex;align-items:center;gap:10px;color:#b68aff}
+.sm-private-video-footheading>div{display:flex;flex-direction:column;gap:3px;min-width:0}
+.sm-private-video-footheading strong{color:#f7f3ff;font-size:14px;line-height:1.25}
+.sm-private-video-footheading span{color:#aba9bf;font-size:12px}
+.sm-private-video-secure{display:flex;align-items:center;gap:7px;color:#c5bed6;font-size:11px;line-height:1.4}
+.sm-private-video-secure svg{color:#a78adc;flex-shrink:0}
+.sm-private-download{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  min-height:44px;
+  text-align:center;
+  text-decoration:none;
+  border-radius:10px;
+  background:#9255f2;
+  color:white;
+  font-size:13px;
+  font-weight:700;
+  padding:11px 13px;
+}
+.sm-private-download:hover{background:#a779ff}
+.sm-private-download:focus-visible{outline:2px solid #d6b6ff;outline-offset:3px}
+@media(max-width:480px){
+  .sm-private-output{margin:20px auto 14px}
+  .sm-private-video-card{width:min(100%,320px)}
+  .sm-private-video-placeholder{padding:52px 22px 56px}
+}

@@ -1,0 +1,2122 @@
+/* Cinematic 3D carousel; standalone Studio remains untouched. */
+.sm-carousel-page{min-height:100svh;background:radial-gradient(ellipse 65% 56% at 50% 54%,rgba(67,33,108,.15),transparent 74%),#090d16;color:#faf9ff;overflow:hidden}
+.sm-carousel-header{position:relative;z-index:20}
+.sm-carousel-main{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100svh - 76px);padding:18px 18px 34px}
+.sm-carousel-stage{width:100%;height:min(75vh,710px);min-height:430px;position:relative;perspective:1100px;perspective-origin:center center;touch-action:pan-y;transform-style:preserve-3d}
+.sm-carousel-card{--distance:0;--drag:0;position:absolute;top:50%;left:50%;height:min(72vh,690px);max-height:calc(100svh - 160px);aspect-ratio:9/16;width:auto;max-width:min(90vw,400px);overflow:hidden;display:flex;align-items:center;justify-content:center;transform-origin:center center;transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px) + var(--drag) * 1px)) translateZ(calc(var(--depth) * -110px)) rotateY(calc(var(--distance) * -35deg)) scale(calc(1 - var(--depth) * .12));opacity:calc(1 - var(--depth) * .2);filter:brightness(calc(1 - var(--depth) * .22));transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1);border-radius:19px;border:1px solid rgba(147,121,204,.36);background:linear-gradient(150deg,#181b30,#111522);box-shadow:0 18px 55px rgba(0,0,0,.5);will-change:transform,opacity}
+.sm-carousel-card:before{content:"";position:absolute;inset:9px;border-radius:12px;border:1px dashed rgba(166,145,218,.13);pointer-events:none;z-index:2}
+.sm-carousel-card.is-active{z-index:6;filter:none;opacity:1}
+.sm-carousel-card.is-inactive{z-index:2;cursor:pointer}
+.sm-carousel-card.is-inactive>*{pointer-events:none}
+.sm-carousel-home,.sm-carousel-login{width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(9px,1.6vh,18px);padding:clamp(18px,3.5vw,30px);text-align:center;overflow:hidden}
+.sm-carousel-song-icon{display:grid;place-items:center;flex:none;width:64px;height:64px;border:2px solid #9255f2;border-radius:50%;background:radial-gradient(circle at 48% 20%,#432b76,#160e30);box-shadow:0 0 26px rgba(146,85,242,.22)}
+.sm-carousel-home h1,.sm-carousel-login h1{font-size:clamp(21px,2.4vw,29px);font-weight:740;line-height:1.18;letter-spacing:-.035em;margin:0}
+.sm-carousel-home>p,.sm-carousel-login>p{font-size:clamp(12px,1.2vw,15px);color:#aeb1c9;line-height:1.55;margin:0}
+.sm-carousel-drop{width:100%;min-height:150px;flex-shrink:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:13px;border:1px dashed rgba(171,114,246,.53);background:#20203578;border-radius:14px;padding:18px 10px;cursor:pointer;transition:border-color .2s,background .2s}
+.sm-carousel-drop:hover,.sm-carousel-drop:focus-within{border-color:#c193ff;background:#33274c7d}
+.sm-carousel-drop svg{color:#b68aff;filter:drop-shadow(0 0 9px #9355f250)}
+.sm-carousel-drop strong{font-size:13px;line-height:1.35;font-weight:610}
+.sm-carousel-drop small{color:#a0a0b8;font-size:11px}
+.sm-carousel-drop input[type=file]{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sm-carousel-audio-ready{display:flex;align-items:center;justify-content:center;gap:7px;max-width:100%;font-size:11px;color:#c8bef5}
+.sm-carousel-audio-ready span{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;max-width:230px}
+.sm-carousel-audio-ready small{flex:none}
+.sm-carousel-primary{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;max-width:290px;padding:13px 12px;border:0;border-radius:11px;background:#9255f2;color:#fff;text-decoration:none;font-size:14px;font-weight:650;cursor:pointer}
+.sm-carousel-primary:hover,.sm-carousel-primary:focus-visible{background:#a779ff}
+.sm-login-explanation{font-size:12px!important;margin:10px 0!important}
+.sm-carousel-inline-error,.sm-carousel-error{color:#ffc1ce;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.sm-carousel-error{position:absolute;top:2px;max-width:90%;z-index:10}
+.sm-carousel-project{position:relative;width:100%;height:100%;overflow:hidden;background:linear-gradient(150deg,#1b1d36,#101524)}
+.sm-carousel-project.has-status{background:radial-gradient(circle at 50% 40%,#32204c,#141929 65%,#0f1421)}
+.sm-carousel-poster,.sm-carousel-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.sm-carousel-poster{opacity:.5}
+.sm-carousel-video{z-index:1;opacity:1}
+.sm-carousel-status{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;padding:30px;text-align:center;z-index:2;background:linear-gradient(#10132070,#11152888)}
+.sm-carousel-status svg{color:#b58aff}
+.sm-carousel-status strong{font-size:22px}
+.sm-carousel-status p{color:#bec0d1;font-size:13px;line-height:1.5;max-width:230px}
+.sm-carousel-project-footer{position:absolute;left:0;right:0;bottom:0;z-index:4;display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:75px 23px 27px;background:linear-gradient(transparent,rgba(5,6,14,.9) 78%)}
+.sm-carousel-project-footer>strong{font-size:17px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sm-carousel-open{display:flex;align-items:center;justify-content:space-between;gap:8px;color:#fff;background:#9255f2;border-radius:10px;padding:12px 14px;text-decoration:none;font-size:13px;font-weight:650}
+.sm-carousel-open:hover{background:#a779ff}
+.sm-carousel-sound{position:absolute;top:18px;right:18px;z-index:5;display:grid;place-items:center;width:38px;height:38px;color:white;background:#0b0e18ad;border:1px solid #ffffff54;border-radius:50%;cursor:pointer;backdrop-filter:blur(8px)}
+.sm-carousel-controls{display:flex;align-items:center;justify-content:center;gap:18px;margin-top:10px;z-index:10;color:#aeb2c8;font-size:12px}
+.sm-carousel-controls button{display:grid;place-items:center;width:39px;height:39px;border:1px solid #30364e;border-radius:50%;background:#151b2b;color:#f4f0fd;cursor:pointer}
+.sm-carousel-controls button:hover:not(:disabled){border-color:#9255f2;background:#261f40}
+.sm-carousel-controls button:disabled{opacity:.3;cursor:default}
+.sm-carousel-loading{color:#aeb0c6;font-size:12px;margin-top:8px}
+.sm-spinning{animation:sm-carousel-spin 1.4s linear infinite}
+@keyframes sm-carousel-spin{to{transform:rotate(360deg)}}
+@media(max-width:690px){.sm-carousel-main{min-height:calc(100svh - 68px);padding:10px 10px 25px}.sm-carousel-stage{height:min(75svh,680px);min-height:360px}.sm-carousel-card{height:min(70svh,630px);max-height:calc(100svh - 160px);border-radius:15px;transform:translate(-50%,-50%) translateX(calc(var(--distance) * 65vw + var(--drag) * 1px)) rotateY(calc(var(--distance) * -34deg)) scale(calc(1 - var(--depth) * .12))}.sm-carousel-home,.sm-carousel-login{padding:18px;gap:10px}.sm-carousel-song-icon{width:53px;height:53px}.sm-carousel-home h1,.sm-carousel-login h1{font-size:22px}.sm-carousel-drop{min-height:120px;padding:12px 8px;gap:8px}.sm-carousel-drop svg{width:30px;height:30px}.sm-carousel-drop strong{font-size:12px}.sm-carousel-drop small{font-size:10px}}
+@media(prefers-reduced-motion:reduce){.sm-carousel-card{transition:none!important}.sm-spinning{animation:none!important}}
+
+/* Preserve the exact 9:16 ratio even when the viewport is short or narrow. */
+.sm-carousel-card{width:min(90vw,400px,calc((100svh - 170px) * .5625));height:auto;max-height:none}
+@media(max-width:690px){.sm-carousel-card{width:min(88vw,calc((100svh - 160px) * .5625));height:auto;max-height:none}}
+
+/* Only immediate neighbors respond to hover; preserve the center card's focus. */
+.sm-carousel-card.is-neighbor{cursor:pointer}
+.sm-carousel-card.is-neighbor>*{pointer-events:none}
+.sm-carousel-card.is-distant{pointer-events:none}
+.sm-carousel-card.is-neighbor:focus-visible{outline:2px solid #b99aff;outline-offset:4px}
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-neighbor:hover{
+    transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-55px) rotateY(calc(var(--distance) * -24deg)) scale(.94);
+    filter:brightness(1);
+    opacity:1;
+    border-color:rgba(183,140,255,.85);
+    box-shadow:0 24px 65px rgba(0,0,0,.57),0 0 28px rgba(146,85,242,.24);
+    transition:transform .23s ease-out,filter .23s ease-out,opacity .23s ease-out,border-color .23s ease-out,box-shadow .23s ease-out;
+  }
+}
+.sm-carousel-card{transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1),border-color .28s ease,box-shadow .35s ease,background .3s ease}
+@media(prefers-reduced-motion:reduce){.sm-carousel-card.is-neighbor:hover{transition:none}}
+/* Compact floating pagination integrated with the 3D cards. */
+.sm-carousel-controls{display:inline-flex;align-items:center;justify-content:center;gap:8px;width:max-content;max-width:calc(100vw - 24px);padding:6px 9px;margin-top:13px;border:1px solid rgba(147,121,204,.24);border-radius:999px;background:rgba(17,19,35,.77);box-shadow:0 9px 30px rgba(0,0,0,.26),inset 0 1px 0 rgba(255,255,255,.04);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+.sm-carousel-controls .sm-carousel-nav-arrow{width:28px;height:28px;display:grid;place-items:center;border:0;border-radius:50%;background:transparent;color:#bbb8ce;transition:color .25s,background .25s,transform .25s}
+.sm-carousel-controls .sm-carousel-nav-arrow:hover:not(:disabled),.sm-carousel-controls .sm-carousel-nav-arrow:focus-visible{background:rgba(146,85,242,.16);color:#c5a4ff;transform:scale(1.07)}
+.sm-carousel-controls .sm-carousel-nav-arrow:disabled{opacity:.26}
+.sm-carousel-indicators{display:flex;align-items:center;justify-content:center;gap:5px;min-height:26px}
+.sm-carousel-controls .sm-carousel-indicator{display:grid;place-items:center;width:auto;min-width:15px;height:26px;padding:0 3px;border:0;border-radius:8px;background:transparent;cursor:pointer;transition:background .25s}
+.sm-carousel-indicator span{display:block;width:6px;height:6px;border-radius:99px;background:#74728e;transition:width .26s cubic-bezier(.22,1,.36,1),background .26s,box-shadow .26s}
+.sm-carousel-indicator.is-current span{width:23px;height:6px;background:#a27bff;box-shadow:0 0 12px rgba(162,123,255,.25)}
+.sm-carousel-controls .sm-carousel-indicator:hover,.sm-carousel-controls .sm-carousel-indicator:focus-visible{background:rgba(146,85,242,.12)}
+.sm-carousel-indicator:hover span{background:#b8a5de}
+.sm-carousel-indicator.is-current:hover span{background:#b99aff}
+@media(max-width:690px){.sm-carousel-controls{margin-top:8px;padding:5px 7px;gap:5px}.sm-carousel-controls .sm-carousel-nav-arrow{width:26px;height:26px}}
+@media(prefers-reduced-motion:reduce){.sm-carousel-controls *,.sm-carousel-indicator span{transition:none!important}}
+
+/* Public showcase: identical full-bleed 9:16 carousel canvas, left of Home. */
+.sm-showcase-card{position:relative;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 40%,#3a275a,#12182b 67%)}
+.sm-showcase-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.sm-showcase-fallback{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:18px;color:#b69bdd;font-size:14px;text-align:center;padding:25px}
+.sm-showcase-fallback svg{filter:drop-shadow(0 0 15px #9355f266)}
+.sm-showcase-label{position:absolute;top:21px;left:17px;z-index:4;padding:7px 10px;border:1px solid #ffffff33;border-radius:999px;background:#0b1022a8;color:#e9e1ff;font-size:11px;letter-spacing:.025em;backdrop-filter:blur(8px)}
+.sm-showcase-card .sm-carousel-open{width:100%;border:0;cursor:pointer}
+
+/* Make adjacent cards reliably hoverable above distant cards but below center. */
+.sm-carousel-card.is-neighbor{z-index:4}
+.sm-carousel-card.is-neighbor:focus-visible{z-index:5;border-color:#b78cff;filter:brightness(1);opacity:1}
+
+/* Explicit interaction layer: side cards are navigable even with nested video/content. */
+.sm-carousel-card.is-neighbor{position:absolute;cursor:pointer}
+.sm-carousel-card .sm-carousel-side-hit{position:absolute;inset:0;z-index:12;display:block;width:100%;height:100%;border:0;border-radius:inherit;background:transparent;cursor:pointer;pointer-events:auto}
+.sm-carousel-card .sm-carousel-side-hit:focus-visible{outline:3px solid #c7a4ff;outline-offset:-5px}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active:hover{
+    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1.015);
+    border-color:#b78cff;
+    box-shadow:0 28px 72px rgba(0,0,0,.56),0 0 30px rgba(146,85,242,.17);
+    background:linear-gradient(150deg,#211c38,#111522);
+  }
+}
+
+/* Side hit zones sit outside the active card; independent of 3D hit testing. */
+.sm-carousel-stage{--sm-card-width:min(90vw,400px,calc((100svh - 170px) * .5625));transform-style:flat}
+.sm-carousel-side-zone{position:absolute;top:50%;z-index:20;width:clamp(35px,10vw,110px);height:62%;transform:translate(-50%,-50%);padding:0;border:0;background:transparent;cursor:pointer;border-radius:15px;touch-action:pan-y}
+.sm-carousel-side-zone.is-left{left:calc(50% - var(--sm-card-width) / 2 - clamp(18px,5vw,55px))}
+.sm-carousel-side-zone.is-right{left:calc(50% + var(--sm-card-width) / 2 + clamp(18px,5vw,55px))}
+.sm-carousel-side-zone:focus-visible{outline:2px solid #bd96ff;outline-offset:0}
+@media (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-neighbor.is-side-hovered{
+    transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-55px) rotateY(calc(var(--distance) * -24deg)) scale(.94);
+    filter:brightness(1);opacity:1;border-color:rgba(183,140,255,.85);
+    box-shadow:0 24px 65px rgba(0,0,0,.57),0 0 28px rgba(146,85,242,.24);
+    transition:transform .23s ease-out,filter .23s ease-out,opacity .23s ease-out,border-color .23s ease-out,box-shadow .23s ease-out;
+ }
+}
+@media(max-width:690px){
+ .sm-carousel-stage{--sm-card-width:min(88vw,calc((100svh - 160px) * .5625))}
+ .sm-carousel-side-zone{width:max(24px,7vw);height:60%}
+ .sm-carousel-side-zone.is-left{left:calc(50% - var(--sm-card-width) / 2 - 10px)}
+ .sm-carousel-side-zone.is-right{left:calc(50% + var(--sm-card-width) / 2 + 10px)}
+}
+
+/* Floating global project search */
+.sm-carousel-search-trigger{display:grid;place-items:center;width:37px;height:37px;border:0;background:transparent;color:#c7c6db;border-radius:50%;cursor:pointer}
+.sm-carousel-search-trigger:hover,.sm-carousel-search-trigger:focus-visible{background:#302344;color:#d5b9ff}
+.sm-project-search-backdrop{position:fixed;inset:0;z-index:80;background:rgba(5,8,17,.4);display:flex;justify-content:center;align-items:flex-start;padding:clamp(75px,12vh,115px) 16px 30px}
+.sm-project-search{width:min(100%,470px);max-height:min(70svh,560px);display:flex;flex-direction:column;overflow:hidden;border:1px solid rgba(173,131,232,.35);border-radius:18px;background:rgba(18,21,38,.97);color:#f4f1fe;box-shadow:0 25px 90px #000a,0 0 36px rgba(124,70,213,.10);backdrop-filter:blur(18px)}
+.sm-project-search-top{display:flex;align-items:center;gap:11px;padding:14px 17px;border-bottom:1px solid #ffffff17;color:#ab83ed}
+.sm-project-search-top input{min-width:0;flex:1;border:0;outline:0;background:transparent;color:#fff;font:inherit;font-size:14px}
+.sm-project-search-top input::placeholder{color:#8a89a4}
+.sm-project-search-top button{border:0;background:transparent;color:#aaa3be;cursor:pointer;display:grid;place-items:center;padding:5px;border-radius:6px}
+.sm-project-search-top button:hover{background:#382b51;color:white}
+.sm-project-search-list{overflow:auto;padding:8px;max-height:450px}
+.sm-project-search-result{width:100%;display:flex;justify-content:space-between;align-items:center;gap:12px;min-height:48px;padding:10px 12px;text-align:left;border:0;border-radius:10px;background:transparent;color:#f2effb;cursor:pointer}
+.sm-project-search-result:hover,.sm-project-search-result.is-highlighted{background:rgba(147,100,220,.16)}
+.sm-project-search-result-name{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:13px}
+.sm-project-search-result-status{flex:none;font-size:11px;color:#a2a0bd;text-transform:capitalize}
+.sm-project-search-empty{margin:0;padding:20px 15px;color:#9ea0ba;font-size:13px;text-align:center}
+@media(max-width:650px){.sm-project-search-backdrop{padding:73px 12px 15px}.sm-project-search{border-radius:14px;max-height:70svh}.sm-carousel-search-trigger{width:33px;height:33px}}
+
+/* Header-integrated expanding project search — no popup or results panel. */
+.sm-carousel-header .sm-header-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sm-inline-search{width:38px;height:38px;display:flex;align-items:center;gap:0;overflow:hidden;flex-shrink:0;box-sizing:border-box;border:1px solid transparent;border-radius:999px;background:transparent;transition:width .3s cubic-bezier(.22,1,.36,1),background .3s,border-color .3s,box-shadow .3s}
+.sm-inline-search.is-open{width:min(310px,34vw);background:#171c30;border-color:#7354ad;box-shadow:0 0 15px rgba(135,89,210,.14)}
+.sm-inline-search-icon{border:0;background:transparent;flex:0 0 36px;height:36px;display:grid;place-items:center;color:#c3bbd7;cursor:pointer;padding:0}
+.sm-inline-search-icon:hover{color:#c19dff}
+.sm-inline-search input{flex:1;width:0;min-width:0;opacity:0;border:0!important;background:transparent!important;box-shadow:none!important;outline:0;color:#f8f6ff!important;font:inherit;font-size:13px;padding:0;transition:opacity .22s}
+.sm-inline-search input::-webkit-search-cancel-button{display:none}
+.sm-inline-search input::placeholder{color:#8f91ab}
+.sm-inline-search.is-open input{opacity:1}
+.sm-inline-search-close{width:0;flex:0 0 0;opacity:0;overflow:hidden;border:0;background:transparent;color:#bcb4cf;cursor:pointer;padding:0;transition:opacity .2s}
+.sm-inline-search.is-open .sm-inline-search-close{width:31px;flex-basis:31px;opacity:1;display:grid;place-items:center}
+.sm-inline-search-close:hover{color:#fff}
+.sm-carousel-search-empty{position:absolute;top:50%;left:50%;transform:translate(-50%,-40%);z-index:9;pointer-events:none;display:flex;flex-direction:column;gap:7px;text-align:center;color:#e8e1fa;font-size:16px}
+.sm-carousel-search-empty span{font-size:13px;color:#a5a2bb}
+@media(max-width:690px){.sm-carousel-header .sm-header-actions{gap:3px}.sm-inline-search{width:32px;height:34px}.sm-inline-search-icon{height:32px;flex-basis:30px}.sm-inline-search.is-open{width:min(205px,42vw)}.sm-inline-search input{font-size:12px}}
+@media(max-width:410px){.sm-inline-search.is-open{width:min(160px,40vw)}}
+@media(prefers-reduced-motion:reduce){.sm-inline-search,.sm-inline-search input,.sm-inline-search-close{transition:none}}
+
+/* Super-admin-only showcase publishing control (shown only after admin authorization). */
+.sm-showcase-admin{display:flex;flex-direction:column;gap:4px;width:100%;margin-bottom:7px;position:relative;z-index:6}
+.sm-showcase-admin select{width:100%;max-width:100%;height:32px;border:1px solid rgba(177,139,239,.58);border-radius:9px;background:#161b30;color:#ebe0ff;font-size:11px;padding:0 9px;cursor:pointer}
+.sm-showcase-admin select:focus-visible{outline:2px solid #ae8bf4;outline-offset:2px}
+.sm-showcase-admin small{font-size:10px;color:#ffb1bb}
+
+
+/* Legals: new dark SingMotion presentation, without altering legal CMS copy. */
+.legal-refresh{min-height:100dvh;background:radial-gradient(ellipse 60% 42% at 50% 8%,rgba(89,56,162,.20),transparent 78%),#080b15;color:#f6f3fd;position:relative;isolation:isolate}
+.legal-refresh .premium-site{background:transparent!important;color:#f6f3fd!important;min-height:0}
+.legal-refresh .premium-site .marketing-header{max-width:1140px;border-bottom:1px solid rgba(190,177,227,.12);height:86px}
+.legal-refresh .premium-site .marketing-header a,.legal-refresh .premium-site .marketing-header nav{color:#e1dbf4}
+.legal-refresh .premium-site main{max-width:1060px;padding:28px clamp(22px,5vw,65px) 90px}
+.legal-refresh .premium-site .hero.content-hero{display:block;max-width:830px;min-height:0;padding:74px 0 48px;border-bottom:1px solid rgba(200,186,238,.15)}
+.legal-refresh .premium-site .hero-copy{max-width:850px}
+.legal-refresh .premium-site .hero h1{color:#fff;font-size:clamp(36px,6vw,66px);font-weight:720;line-height:1.08;letter-spacing:-.045em;max-width:820px}
+.legal-refresh .premium-site .hero-copy>p{color:#b5adc9;max-width:740px;font-size:15px;line-height:1.8}
+.legal-refresh .premium-site .eyebrow{color:#b993ff;letter-spacing:.2em}
+.legal-refresh .premium-site .how-section{border:1px solid rgba(186,164,236,.17);background:linear-gradient(135deg,rgba(27,29,52,.94),rgba(16,20,38,.93));border-radius:20px;margin:22px 0;padding:clamp(24px,4vw,42px);box-shadow:0 14px 40px #0002}
+.legal-refresh .premium-site .how-section h2,.legal-refresh .premium-site .closing-cta h2{color:#f7f3ff;font-size:clamp(20px,2.4vw,28px);letter-spacing:-.025em}
+.legal-refresh .premium-site .how-section p,.legal-refresh .premium-site .how-section li{color:#bbb7cb;line-height:1.8;font-size:14px}
+.legal-refresh .premium-site .pricing-section.closing-cta{background:rgba(24,23,44,.65);border:1px solid rgba(186,164,236,.14);border-radius:18px;padding:30px;margin:20px 0}
+.legal-refresh .premium-site .button.primary{background:#7955c7;color:#fff}
+.legal-refresh .premium-site footer{border-top:1px solid rgba(186,164,236,.14);background:#090c17;color:#aca7be}
+.legal-refresh .premium-site footer a{color:#aca7be}
+.legal-admin-access{max-width:1060px;margin:0 auto;padding:18px clamp(22px,5vw,65px) 32px;display:flex;align-items:center;justify-content:flex-end;gap:15px;border-top:1px solid rgba(190,177,227,.12);color:#817d98}
+.legal-admin-access span{font-size:9px;letter-spacing:.18em}
+.legal-admin-access a,.legal-admin-access button{border:0;background:transparent;padding:8px 0;font:inherit;font-size:11px;color:#a09ab5;text-decoration:none;cursor:pointer}
+.legal-admin-access a:hover,.legal-admin-access button:hover{color:#dfccff}
+@media(max-width:650px){.legal-refresh .premium-site .marketing-header{padding:0 22px}.legal-refresh .premium-site .hero.content-hero{padding:42px 0 30px}.legal-refresh .premium-site main{padding-bottom:48px}.legal-admin-access{justify-content:flex-start;flex-wrap:wrap}}
+
+/* Compact dedicated legal overview */
+.sm-legal{background:radial-gradient(ellipse at 48% -8%,rgba(104,60,180,.20),transparent 60%),#080b15;color:#eceaf7;min-height:100vh;font-family:inherit}
+.sm-legal-top{height:82px;border-bottom:1px solid #ffffff13;max-width:1100px;padding:0 28px;margin:auto;display:flex;align-items:center;justify-content:space-between}
+.sm-legal a{text-decoration:none;color:inherit}
+.sm-legal-brand{font-size:18px;font-weight:800;letter-spacing:.04em}.sm-legal-brand span,.sm-legal h1 span{color:#a778fa}
+.sm-legal-back{font-size:12px;color:#aaa5bf!important}
+.sm-legal-main{max-width:940px;margin:auto;padding:68px 26px 55px}
+.sm-legal-intro{max-width:740px;margin-bottom:25px}
+.sm-legal-kicker,.sm-legal-num{font-size:10px;font-weight:750;letter-spacing:.20em;color:#b68df8}
+.sm-legal h1{font-size:clamp(48px,8vw,78px);font-weight:750;letter-spacing:-.065em;line-height:1.04;margin:14px 0}
+.sm-legal-intro>p{font-size:15px;color:#b8b3cb;line-height:1.65}
+.sm-legal-intro>small{display:block;color:#a2a0b5;font-size:11px;line-height:1.65;margin-top:20px}
+.sm-legal-nav{display:flex;gap:7px;flex-wrap:wrap;margin:30px 0 25px}
+.sm-legal-nav a{border:1px solid #a58ac344;border-radius:20px;font-size:11px;padding:8px 13px;color:#d6cbed;background:#a58ac30c}
+.sm-legal-nav a:hover{background:#9872d830}
+.sm-legal-panel{scroll-margin-top:25px;background:linear-gradient(125deg,#1b1b33,#111525);border:1px solid #c3a8f02b;border-radius:18px;padding:clamp(24px,4vw,38px);margin:15px 0}
+.sm-legal-panel h2{font-size:clamp(22px,3vw,29px);line-height:1.2;letter-spacing:-.03em;margin:12px 0 17px}
+.sm-legal-panel p,.sm-legal-panel address{font-size:13px;line-height:1.84;color:#bcb7d0;margin:12px 0;font-style:normal}
+.sm-legal-panel strong{color:#f1eafa}
+.sm-legal-panel address{border-left:2px solid #a779ec;padding:8px 0 8px 20px;background:#ffffff04}
+.sm-legal-footer{max-width:940px;margin:0 auto;padding:18px 26px 38px;border-top:1px solid #ffffff15;color:#858096;font-size:11px;display:flex;align-items:center;flex-wrap:wrap;justify-content:space-between;gap:14px}
+.sm-legal-footer .legal-admin-access{border:0;margin:0;padding:0;gap:10px}
+@media(max-width:580px){.sm-legal-top{padding:0 18px;height:72px}.sm-legal-main{padding:44px 17px}.sm-legal-footer{padding:18px 17px 35px}.sm-legal-footer .legal-admin-access{justify-content:flex-start}}
+
+/* Legal access belongs to the document flow, not the site footer. */
+.sm-legal-meta{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:30px 0 12px;padding:21px 4px;border-top:1px solid rgba(192,177,228,.15);color:#9d97b3}
+.sm-legal-meta>p{margin:0;font-size:12px;color:#b6afc9}
+.sm-legal-meta .legal-admin-access{margin:0;max-width:none;padding:0;border:0;gap:12px}
+.sm-legal-meta .legal-admin-access span{display:none}
+.sm-legal-meta .legal-admin-access a,.sm-legal-meta .legal-admin-access button{font-size:12px;color:#b9a2d8}
+.sm-legal-copyright{margin:8px 4px 0;color:#69677f;font-size:10px}
+@media(max-width:560px){.sm-legal-meta{align-items:flex-start;flex-direction:column;gap:5px}}
+
+/* Legals reuses the homepage background, header, wordmark, menus, and hover styles. */
+.sm-legal{background:radial-gradient(ellipse 65% 56% at 50% 54%,rgba(67,33,108,.15),transparent 74%),#090d16;color:#faf9ff}
+.sm-legal .home-gallery-header{position:relative;z-index:30}
+.sm-legal-search{width:36px;height:36px;display:grid;place-items:center;color:#c3bbd7;transition:color .2s}
+.sm-legal-search:hover,.sm-legal-search:focus-visible{color:#c19dff}
+.sm-legal .sm-legal-main{padding-top:clamp(35px,6vw,68px)}
+
+/* Keep showcase controls crisp above moving video/3D card compositing. */
+.sm-showcase-card .sm-carousel-project-footer{isolation:isolate;transform:translateZ(2px);-webkit-font-smoothing:antialiased}
+.sm-showcase-card .sm-carousel-project-footer>strong{font-weight:750;text-shadow:0 1px 2px rgba(0,0,0,.85);letter-spacing:-.015em}
+.sm-showcase-card .sm-carousel-open{font-weight:750;text-shadow:none;backface-visibility:hidden;transform:translateZ(1px);box-shadow:0 2px 12px rgba(0,0,0,.22)}
+.sm-showcase-card .sm-showcase-label{backdrop-filter:none;background:rgba(9,13,24,.90);font-weight:650;text-shadow:none}
+
+
+/* FAQ uses the same global brand header, palette and page background as Legals/carousel. */
+.sm-help-faq .sm-legal-main{max-width:920px}
+.sm-help-group{margin:34px 0}
+.sm-help-group-header{padding:0 4px 14px}
+.sm-help-group-header h2{font-size:clamp(20px,2.5vw,27px);font-weight:700;letter-spacing:-.035em;margin:9px 0 0;color:#f6f2ff}
+.sm-help-questions{border:1px solid rgba(195,168,240,.23);border-radius:17px;overflow:hidden;background:linear-gradient(125deg,#1b1b33,#111525)}
+.sm-help-question+.sm-help-question{border-top:1px solid rgba(195,168,240,.15)}
+.sm-help-question summary{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:19px clamp(18px,3vw,28px);font-size:14px;font-weight:610;line-height:1.5;color:#f3efff;list-style:none;cursor:pointer;transition:background .2s,color .2s}
+.sm-help-question summary::-webkit-details-marker{display:none}
+.sm-help-question summary:hover{background:rgba(157,103,242,.095);color:#fff}
+.sm-help-question summary svg{flex:none;color:#b796ef;transition:transform .2s}
+.sm-help-question[open] summary svg{transform:rotate(180deg)}
+.sm-help-question p{padding:0 clamp(18px,3vw,28px) 23px;font-size:13px;line-height:1.82;color:#bdb8cf;max-width:800px}
+.sm-help-bottom{margin-top:40px;padding:24px 4px;border-top:1px solid rgba(195,168,240,.18);color:#aca6bf;font-size:13px;line-height:1.7}
+.sm-help-bottom a{color:#b99afa;text-decoration:underline;text-underline-offset:3px}
+.sm-help-bottom a:hover{color:#dec8ff}
+
+/* Sharper active-card hover: resize the layout box rather than scaling a
+   pre-rasterized 3D texture containing video, labels and buttons. */
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active{transition:width .35s cubic-bezier(.22,1,.36,1),transform .35s cubic-bezier(.22,1,.36,1),border-color .28s ease,box-shadow .35s ease}
+  .sm-carousel-card.is-active:hover{
+    width:calc(min(90vw,400px,calc((100svh - 170px) * .5625)) * 1.015);
+    transform:translate(-50%,-50%) translateY(-10px) translateX(calc(var(--drag) * 1px)) rotateY(0deg) scale(1);
+    filter:none;opacity:1;
+  }
+}
+@media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .sm-carousel-card.is-active:hover{width:calc(min(88vw,calc((100svh - 160px) * .5625)) * 1.015)}
+}
+
+/* Dark scrollbar: stable width, consistent SingMotion palette. */
+html{scrollbar-color:#38304b #090d16}
+html::-webkit-scrollbar{width:11px}
+html::-webkit-scrollbar-track{background:#090d16}
+html::-webkit-scrollbar-thumb{background:#38304b;border:3px solid #090d16;border-radius:99px}
+html::-webkit-scrollbar-thumb:hover{background:#7753aa}
+/* Search within Help and Legals; results jump to matched text. */
+.sm-page-search{position:relative;display:flex;align-items:center;z-index:50}
+.sm-page-search .sm-legal-search{border:0;background:transparent;cursor:pointer}
+.sm-page-search-panel{position:absolute;top:calc(100% + 14px);right:0;width:min(380px,calc(100vw - 34px));border:1px solid rgba(178,143,236,.38);border-radius:14px;background:#141727;color:#f3eeff;box-shadow:0 18px 50px #0008;padding:10px;z-index:55}
+.sm-page-search-field{display:flex;align-items:center;gap:7px}
+.sm-page-search-field input{min-width:0;flex:1;background:#202238!important;color:#fff!important;border:1px solid #6d548f!important;border-radius:9px;padding:9px 11px;font-size:13px}
+.sm-page-search-field button{border:0;background:transparent;color:#c9b8df;cursor:pointer;padding:7px}
+.sm-page-search-results{max-height:320px;overflow-y:auto;margin-top:8px;display:flex;flex-direction:column;gap:3px}
+.sm-page-search-results button{border:0;background:transparent;color:#d8d0ec;text-align:left;padding:10px;border-radius:7px;font-size:12px;line-height:1.5;cursor:pointer}
+.sm-page-search-results button:hover,.sm-page-search-results button:focus-visible{background:#33294b;color:#fff}
+.sm-page-search-results p{padding:10px;color:#b9aac8;font-size:12px}
+.sm-search-hit{outline:2px solid #ae80f8;outline-offset:5px;border-radius:4px;transition:outline-color 1.5s}
+
+/* Help/Legals now use the same inline header search as the carousel; no popup. */
+.sm-page-search.sm-inline-search{position:relative;z-index:10}
+.sm-page-search .sm-page-search-count{flex:none;color:#b6acd0;font-size:10px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sm-page-search.is-open{width:min(290px,38vw)}
+@media(max-width:690px){.sm-page-search.is-open{width:min(205px,42vw)}}
+@media(max-width:410px){.sm-page-search.is-open{width:min(160px,40vw)}}
+
+/* The second visible layer is interactive as well, for every future project. */
+.sm-carousel-card.is-distant{z-index:3;pointer-events:auto;cursor:pointer}
+.sm-carousel-card.is-distant>*:not(.sm-carousel-side-hit){pointer-events:none}
+.sm-carousel-card.is-distant .sm-carousel-side-hit{pointer-events:auto}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-distant.is-distant-hovered{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance) * min(36vw,335px))) translateZ(-185px) rotateY(calc(var(--distance) * -29deg)) scale(.80);
+  filter:brightness(.82);opacity:.78;border-color:rgba(183,140,255,.75);
+  box-shadow:0 20px 54px rgba(0,0,0,.52),0 0 23px rgba(146,85,242,.16);
+  transition:transform .25s ease-out,filter .25s ease-out,opacity .25s ease-out,border-color .25s ease-out,box-shadow .25s ease-out;
+ }
+}
+@media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-distant.is-distant-hovered{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance) * 65vw)) rotateY(calc(var(--distance) * -29deg)) scale(.80);
+ }
+}
+
+/* Studio refinement: homepage-inspired, glow-free, compact floating composer. */
+.product-theme.singmotion-flow{background:#090d16!important;color:#faf9ff}
+.product-theme.singmotion-flow .flow-main{position:relative;max-width:none;width:100%;min-height:calc(100svh - 70px);padding:25px 20px 245px;justify-content:center;gap:22px}
+.product-theme.singmotion-flow .flow-drop{gap:8px;padding:12px 18px;max-width:260px;transition:transform .2s ease,color .2s ease}
+.product-theme.singmotion-flow .flow-drop:hover{transform:scale(1.015)}
+.product-theme.singmotion-flow .flow-drop .flow-upload-symbol{width:46px;height:46px;color:#a579eb;margin:0 0 9px;filter:none;box-shadow:none}
+.product-theme.singmotion-flow .flow-drop:hover .flow-upload-symbol{color:#c8a9ff}
+.product-theme.singmotion-flow .flow-drop strong{font-size:18px;font-weight:600;letter-spacing:-.025em}
+.product-theme.singmotion-flow .flow-drop span{font-size:13px;color:#aaa9bc}
+.product-theme.singmotion-flow .flow-drop small{font-size:11px;color:#7e809b}
+.product-theme.singmotion-flow .flow-audio{width:min(100%,960px);max-height:calc(100svh - 340px);overflow-y:auto}
+.product-theme.singmotion-flow .flow-composer{position:fixed;left:50%;bottom:clamp(20px,4vh,42px);transform:translateX(-50%);z-index:15;width:min(700px,calc(100vw - 36px));max-width:100%;padding:13px 14px;gap:10px;border:1px solid rgba(147,121,204,.36);border-radius:19px;background:#131724;box-shadow:0 13px 35px rgba(0,0,0,.29)}
+.product-theme.singmotion-flow .flow-composer-top{display:flex;align-items:stretch;gap:12px}
+.product-theme.singmotion-flow .flow-photo-add,.product-theme.singmotion-flow .flow-photo{height:auto;min-height:88px;width:116px;flex:0 0 116px;display:flex;flex-direction:column;justify-content:center;gap:9px;border:1px solid #33334c;border-radius:12px;background:#191d2e;color:#d8d6e6;transition:background .2s,border-color .2s,transform .2s}
+.product-theme.singmotion-flow .flow-photo-add:hover,.product-theme.singmotion-flow .flow-photo:hover{background:#22263a;border-color:#a582db;transform:scale(1.012)}
+.product-theme.singmotion-flow .flow-photo-add span{font-size:12px}
+.product-theme.singmotion-flow .flow-photo-add svg{width:25px;height:25px}
+.product-theme.singmotion-flow .flow-prompt-wrap{flex:1;min-width:0;display:flex;flex-direction:column;gap:0;border:1px solid #30344d;background:#0f1422;border-radius:12px;padding:12px 14px}
+.product-theme.singmotion-flow .flow-composer-label{font-size:12px;font-weight:400;letter-spacing:0;color:#a9a9bd;line-height:1.35}
+.product-theme.singmotion-flow textarea.flow-prompt{min-height:50px;height:100%;resize:vertical;border:0!important;outline:0;background:transparent!important;padding:7px 0 0;font-size:12px;box-shadow:none}
+.product-theme.singmotion-flow textarea.flow-prompt:focus{outline:none;border:0}
+.product-theme.singmotion-flow .flow-prompt-wrap:focus-within{border-color:#8b67c5}
+.product-theme.singmotion-flow .flow-composer-bottom{display:flex;align-items:stretch;gap:10px}
+.product-theme.singmotion-flow .flow-settings-group{min-width:0;flex:1 1 auto;border:0;background:transparent;gap:10px;display:flex;overflow:visible}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu,.product-theme.singmotion-flow .flow-settings-group .flow-format{border:1px solid #32364e;border-radius:11px;background:#101522;min-width:0}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu{flex:1 1 190px}
+.product-theme.singmotion-flow .flow-settings-group .flow-format{flex:0 1 132px}
+.product-theme.singmotion-flow .flow-create{flex:0 0 auto;min-width:188px;border:1px solid #8558df;border-radius:11px;background:#723fe0;box-shadow:none;font-size:12px;transition:background .2s}
+.product-theme.singmotion-flow .flow-create:not(:disabled):hover{background:#8955e9;filter:none}
+.product-theme.singmotion-flow .flow-create:disabled{background:#30283d;border-color:#48405a;box-shadow:none}
+.product-theme.singmotion-flow .flow-missing,.product-theme.singmotion-flow .flow-error{max-width:min(700px,calc(100vw - 36px))}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .flow-main{padding:18px 12px 255px;min-height:calc(100svh - 65px)}
+ .product-theme.singmotion-flow .flow-composer{bottom:max(12px,env(safe-area-inset-bottom));width:calc(100vw - 22px);padding:10px;gap:8px}
+ .product-theme.singmotion-flow .flow-photo-add,.product-theme.singmotion-flow .flow-photo{width:78px;flex-basis:78px;min-height:92px}
+ .product-theme.singmotion-flow .flow-composer-bottom{gap:7px}
+ .product-theme.singmotion-flow .flow-settings-group{gap:7px}
+ .product-theme.singmotion-flow .flow-create{min-width:105px;font-size:11px}
+ .product-theme.singmotion-flow .flow-audio{max-height:calc(100svh - 375px)}
+}
+@media(max-width:410px){
+ .product-theme.singmotion-flow .flow-composer-bottom{flex-wrap:wrap}
+ .product-theme.singmotion-flow .flow-settings-group{flex:1 1 100%;min-height:42px}
+ .product-theme.singmotion-flow .flow-create{min-height:43px;flex:1}
+ .product-theme.singmotion-flow .flow-main{padding-bottom:300px}
+}
+@media(max-height:620px){.product-theme.singmotion-flow .flow-composer{position:relative;left:auto;bottom:auto;transform:none;margin-top:16px}.product-theme.singmotion-flow .flow-main{padding-bottom:30px;justify-content:flex-start}.product-theme.singmotion-flow .flow-audio{max-height:none}}
+
+/* Premium Studio finish: crisp hover lift, no decorative glow. */
+.product-theme.singmotion-flow .flow-composer{
+  background:#171a2b;border-color:rgba(160,136,203,.36);border-radius:20px;
+  box-shadow:0 16px 42px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.045);
+  transition:background-color .25s ease,border-color .25s ease,box-shadow .25s ease;
+}
+@media(hover:hover) and (pointer:fine){
+ .product-theme.singmotion-flow .flow-composer:hover{
+   border-color:rgba(183,140,255,.65);background:#1a1d30;
+   box-shadow:0 19px 48px rgba(0,0,0,.39),inset 0 1px 0 rgba(255,255,255,.065);
+ }
+ .product-theme.singmotion-flow .flow-photo-add:hover,
+ .product-theme.singmotion-flow .flow-photo:hover{
+   transform:translateY(-3px) scale(1.02);background:#27263e;border-color:#ac8be5;
+   box-shadow:0 8px 18px rgba(0,0,0,.23);
+ }
+ .product-theme.singmotion-flow .flow-settings-group .flow-camera-menu:hover,
+ .product-theme.singmotion-flow .flow-settings-group .flow-format:hover{
+   background:#24263a;border-color:rgba(183,140,255,.72);
+   transform:translateY(-2px);
+ }
+ .product-theme.singmotion-flow .flow-create:not(:disabled):hover{
+   transform:translateY(-2px) scale(1.012);
+   background:#9262ed;border-color:#c5a0ff;
+   box-shadow:0 9px 21px rgba(0,0,0,.26);
+ }
+ .product-theme.singmotion-flow .flow-drop:hover{
+   transform:translateY(-3px) scale(1.02);
+   color:#e9e1ff;
+ }
+ .product-theme.singmotion-flow .flow-track-remove:hover{
+   background:#30243e;color:#fff;transform:scale(1.055);
+ }
+}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu,
+.product-theme.singmotion-flow .flow-settings-group .flow-format{
+ transition:background-color .2s,border-color .2s,transform .2s;
+}
+.product-theme.singmotion-flow .flow-create{transition:background-color .2s,border-color .2s,transform .2s,box-shadow .2s}
+.product-theme.singmotion-flow .flow-composer-label{font-weight:550;color:#c9c2db}
+.product-theme.singmotion-flow .flow-prompt-wrap{border-color:#3b3953;background:#101425;transition:border-color .2s,background-color .2s}
+.product-theme.singmotion-flow .flow-prompt-wrap:hover{border-color:#71608d;background:#14182a}
+.product-theme.singmotion-flow .flow-prompt-wrap:focus-within{border-color:#a281d9;background:#14182a}
+.product-theme.singmotion-flow .flow-create:not(:disabled){background:#7847dc;border-color:#996bed}
+.product-theme.singmotion-flow .flow-drop strong{font-weight:650;letter-spacing:-.035em}
+.product-theme.singmotion-flow .flow-audio{
+ width:min(100%,940px);gap:16px;
+}
+.product-theme.singmotion-flow .flow-track{
+ border:1px solid rgba(151,130,190,.3);border-radius:16px;
+ background:#151a2b;padding:11px 14px;
+ box-shadow:0 8px 27px rgba(0,0,0,.19);
+}
+.product-theme.singmotion-flow .flow-track strong{font-weight:650;color:#f5f2ff}
+.product-theme.singmotion-flow .flow-track small{color:#a9a2bd}
+.product-theme.singmotion-flow .flow-track-remove{transition:background-color .2s,color .2s,transform .2s}
+.product-theme.singmotion-flow .wave-strip{background:#151b2b;border:1px solid rgba(151,130,190,.26);border-radius:13px}
+.product-theme.singmotion-flow .wave-toolbar button{transition:background-color .2s,border-color .2s,transform .2s}
+@media(hover:hover) and (pointer:fine){
+ .product-theme.singmotion-flow .wave-toolbar button:hover{
+  background:#29253c;border-color:#a47de2;transform:translateY(-2px);
+ }
+}
+.product-theme.singmotion-flow .flow-photo img{border-radius:11px}
+.product-theme.singmotion-flow .flow-photo{overflow:visible}
+@media(prefers-reduced-motion:reduce){
+ .product-theme.singmotion-flow .flow-composer,
+ .product-theme.singmotion-flow .flow-composer *,
+ .product-theme.singmotion-flow .flow-drop{transition:none!important}
+}
+
+/* Consistent, custom Studio settings dropdowns and the same chevron on both. */
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:0 1 132px}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu{position:relative;overflow:visible;z-index:16}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu[open]{z-index:60;border-color:#ae8de3;background:#242439}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{height:44px;padding:0 12px;gap:9px;list-style:none;display:flex;align-items:center}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary::-webkit-details-marker{display:none}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary .flow-chevron{margin-left:auto;flex:none;transition:transform .2s ease;color:#c1b0dd}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu[open]>summary .flow-chevron{transform:rotate(180deg)}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options{position:absolute;bottom:calc(100% + 8px);top:auto;left:0;min-width:max(100%,235px);width:max-content;max-width:min(310px,85vw);padding:6px;border:1px solid #64537c;border-radius:12px;background:#191b2d;box-shadow:0 13px 30px #0008;overflow-y:auto}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button{display:flex;align-items:center;gap:10px;padding:10px 11px;border-radius:8px;width:100%;min-width:0;text-align:left;font-size:12px;color:#eee8fc;background:transparent;white-space:normal}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button small{display:block;font-size:10px;color:#a9a1ba;line-height:1.45;margin-left:auto;max-width:175px}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button:hover{background:#302a43!important}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options button.is-active{background:#3a3050!important}
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu .flow-format-options{min-width:170px;width:190px;left:auto;right:0}
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu .flow-format-options button small{max-width:none}
+@media(max-width:690px){.product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:0 1 95px}.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{gap:5px;padding:0 7px}.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu .flow-camera-options{max-width:min(280px,85vw)}}
+
+/* Studio workspace: waveform controls + composer form one normal-flow stack. */
+.product-theme.singmotion-flow .flow-main{
+  min-height:calc(100svh - 70px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:30px 20px 48px;gap:14px;
+}
+.product-theme.singmotion-flow .flow-workspace{
+  width:100%;max-width:1020px;min-width:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:28px;
+}
+.product-theme.singmotion-flow .flow-workspace-media{
+  width:min(100%,960px);min-width:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.product-theme.singmotion-flow .flow-workspace-media .flow-audio{
+  width:100%;max-height:none;overflow:visible;gap:16px;
+}
+.product-theme.singmotion-flow .flow-workspace-media .flow-drop{margin:0}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  position:relative;left:auto;bottom:auto;transform:none;
+  margin:0;width:min(100%,700px);max-width:100%;
+}
+.product-theme.singmotion-flow .flow-main .flow-missing{margin:0;text-align:center}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .flow-main{min-height:calc(100svh - 65px);padding:24px 12px 40px;justify-content:center}
+  .product-theme.singmotion-flow .flow-workspace{gap:26px}
+  .product-theme.singmotion-flow .flow-workspace>.flow-composer{width:100%;bottom:auto}
+  .product-theme.singmotion-flow .flow-workspace-media .flow-audio{max-height:none}
+}
+@media(max-height:670px){
+  .product-theme.singmotion-flow .flow-main{justify-content:flex-start}
+  .product-theme.singmotion-flow .flow-workspace>.flow-composer{margin-top:0}
+}
+
+/* Lift the complete Studio settings panel subtly without affecting document flow. */
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+  .product-theme.singmotion-flow .flow-workspace>.flow-composer{
+    transition:transform .24s cubic-bezier(.22,1,.36,1),background-color .25s ease,border-color .25s ease,box-shadow .25s ease;
+  }
+  .product-theme.singmotion-flow .flow-workspace>.flow-composer:hover{
+    transform:translateY(-5px);
+  }
+}
+
+/* Studio finishing touches: clean rounded dropdown outlines and more breathing room. */
+.product-theme.singmotion-flow .flow-workspace{gap:38px}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu{
+  border:1px solid #393750;
+  border-radius:12px;
+  background:#121625;
+  background-clip:padding-box;
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{
+  border:0!important;
+  border-radius:11px;
+  background:transparent!important;
+  box-shadow:none!important;
+  outline-offset:2px;
+  overflow:hidden;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu:hover{
+  border-color:#a88ad7;
+  background:#222439;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu[open]{
+  border-color:#b492e3;
+  background:#222439;
+}
+.product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary:focus-visible{
+  outline:2px solid #bd98f6;
+  outline-offset:2px;
+  border-radius:11px;
+}
+/* Let the textarea's native bottom-right resize handle work; the panel grows in flow. */
+.product-theme.singmotion-flow .flow-prompt-wrap{min-height:94px;overflow:visible}
+.product-theme.singmotion-flow textarea.flow-prompt{
+  flex:0 0 auto;
+  height:68px;
+  min-height:60px;
+  max-height:300px;
+  resize:vertical!important;
+  overflow:auto;
+  border-radius:6px;
+}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .flow-workspace{gap:32px}
+}
+
+/* Keep auto-growing prompt comfortably bounded; scroll internally beyond cap. */
+.product-theme.singmotion-flow textarea.flow-prompt{max-height:240px;overflow-y:auto;resize:vertical;flex:none}
+.product-theme.singmotion-flow .flow-prompt-wrap{align-self:stretch}
+
+/* Responsive carousel depth: distances scale with actual card size, not viewport width. */
+.sm-carousel-stage{
+  --sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625));
+  --sm-carousel-step:clamp(185px,calc(var(--sm-card-width)*.83),335px);
+}
+.sm-carousel-card{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step) + var(--drag)*1px)) translateZ(calc(var(--depth)*-110px)) rotateY(calc(var(--distance)*-35deg)) scale(calc(1 - var(--depth)*.12));
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-neighbor.is-side-hovered{
+   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) translateZ(-55px) rotateY(calc(var(--distance)*-24deg)) scale(.94);
+ }
+ .sm-carousel-card.is-distant.is-distant-hovered{
+   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) translateZ(-185px) rotateY(calc(var(--distance)*-29deg)) scale(.80);
+ }
+}
+@media(max-width:690px){
+ .sm-carousel-stage{--sm-card-width:min(88vw,calc((100svh - 160px)*.5625));--sm-carousel-step:65vw}
+ .sm-carousel-card{
+   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step) + var(--drag)*1px)) rotateY(calc(var(--distance)*-34deg)) scale(calc(1 - var(--depth)*.12));
+ }
+}
+@media(max-width:690px) and (hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
+ .sm-carousel-card.is-distant.is-distant-hovered{
+  transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) rotateY(calc(var(--distance)*-29deg)) scale(.80);
+ }
+}
+
+/* Explicit browser workspace disconnect, separate from admin sign-out. */
+.sm-carousel-demo-disconnect{border:0;background:none;color:#aea8c4;font-size:11px;padding:7px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.sm-carousel-demo-disconnect:hover,.sm-carousel-demo-disconnect:focus-visible{color:#d9c5ff}
+
+/* Studio adapts to actual CSS viewport dimensions (including Windows display scaling).
+   Allow height-driven flow and make the creation controls wrap before squeezing. */
+.product-theme.singmotion-flow{min-width:0;min-height:100svh}
+.product-theme.singmotion-flow .flow-main{box-sizing:border-box;width:100%;max-width:none;min-height:calc(100svh - 70px);height:auto;overflow:visible;padding:clamp(20px,4vh,44px) clamp(12px,3vw,32px) 48px}
+.product-theme.singmotion-flow .flow-workspace{width:min(100%,1020px);max-width:100%;gap:clamp(26px,4vh,42px)}
+.product-theme.singmotion-flow .flow-workspace-media{width:min(100%,960px)}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{width:min(100%,700px);box-sizing:border-box;min-width:0}
+.product-theme.singmotion-flow .flow-composer-top,.product-theme.singmotion-flow .flow-composer-bottom{min-width:0}
+.product-theme.singmotion-flow .flow-prompt-wrap{min-width:0}
+.product-theme.singmotion-flow .wave-editor,.product-theme.singmotion-flow .wave-viewport,.product-theme.singmotion-flow .flow-audio{min-width:0;max-width:100%}
+@media(max-width:850px){
+ .product-theme.singmotion-flow .flow-composer-bottom{flex-wrap:wrap}
+ .product-theme.singmotion-flow .flow-settings-group{flex:1 1 100%;min-height:44px}
+ .product-theme.singmotion-flow .flow-create{flex:1 1 100%;min-height:44px}
+}
+@media(max-width:560px){
+ .product-theme.singmotion-flow .flow-main{padding:22px 12px 35px;min-height:calc(100svh - 65px)}
+ .product-theme.singmotion-flow .flow-workspace{gap:26px}
+ .product-theme.singmotion-flow .flow-workspace>.flow-composer{padding:10px;border-radius:16px}
+ .product-theme.singmotion-flow .flow-composer-top{gap:9px}
+ .product-theme.singmotion-flow .flow-photo-add,.product-theme.singmotion-flow .flow-photo{width:72px;flex:0 0 72px;min-height:92px}
+ .product-theme.singmotion-flow .flow-prompt-wrap{padding:9px}
+ .product-theme.singmotion-flow .flow-composer-label{font-size:11px}
+ .product-theme.singmotion-flow .flow-settings-group details.flow-camera-menu>summary{min-width:0}
+ .product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:0 0 106px}
+ .product-theme.singmotion-flow .flow-settings-group .flow-camera-menu:not(.flow-format-menu){flex:1 1 0}
+ .product-theme.singmotion-flow .flow-create{min-width:0}
+ .product-theme.singmotion-flow .flow-track{min-width:0}
+}
+@media(max-height:740px){
+ .product-theme.singmotion-flow .flow-main{justify-content:flex-start}
+ .product-theme.singmotion-flow .flow-workspace{justify-content:flex-start}
+}
+
+/* The legacy empty-state grid targeted two direct children. Studio now uses
+   one shared workspace; prevent the grid from placing that group at the left. */
+.product-theme.singmotion-flow .flow-main.flow-empty,
+.product-theme.singmotion-flow .flow-main.flow-has-audio{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  grid-template-columns:none;
+  grid-template-rows:none;
+  align-content:normal;
+  width:100%;
+  min-height:calc(100svh - 70px);
+  padding:clamp(20px,4vh,44px) clamp(12px,3vw,32px) 48px;
+  gap:14px;
+}
+.product-theme.singmotion-flow .flow-main>.flow-workspace{
+  width:min(100%,1020px);
+  margin-inline:auto;
+  align-self:center;
+  justify-content:center;
+  align-items:center;
+}
+@media(max-height:740px){
+ .product-theme.singmotion-flow .flow-main.flow-empty,
+ .product-theme.singmotion-flow .flow-main.flow-has-audio{justify-content:flex-start}
+}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .flow-main.flow-empty,
+ .product-theme.singmotion-flow .flow-main.flow-has-audio{
+   min-height:calc(100svh - 65px);
+   padding:22px 12px 35px;
+ }
+}
+
+/* Modern Studio waveform — reuse existing player/selection logic. */
+.product-theme.singmotion-flow .studio-modern-wave{width:100%;display:grid;grid-template-columns:1fr;gap:18px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+ grid-column:1;grid-row:1;position:relative;width:100%;min-width:0;
+ padding:16px 20px 12px 88px;border:1px solid #303950;border-radius:19px;
+ background:#111727;box-shadow:0 12px 30px rgba(0,0,0,.18);
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar{
+ position:absolute;top:0;left:0;width:0;height:0;margin:0;padding:0;border:0;display:block;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar>span{display:none}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{
+ position:absolute;left:18px;top:47px;width:50px;height:50px;
+ border:0;border-radius:50%;background:#813bee;color:#fff;
+ display:grid;place-items:center;padding:0;z-index:2;
+ transition:transform .2s,background-color .2s;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button:hover{transform:translateY(-2px);background:#9c58ff}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+ width:100%;height:104px;background:transparent;border:0;border-radius:0;overflow:visible;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-bars i{border-radius:3px;opacity:1}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+ background:rgba(146,85,242,.23)!important;border:0!important;border-left:2px solid #e4d7ff!important;border-right:2px solid #e4d7ff!important;border-radius:3px!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+ background:#efe5ff;box-shadow:none;width:7px;border-radius:4px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{
+ display:flex;justify-content:space-between;padding-top:10px;font-size:11px;color:#b4b5cc;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+ grid-column:1;grid-row:2;display:flex;justify-content:space-around;align-items:center;
+ flex-wrap:wrap;gap:12px 20px;margin:0;padding:0;background:transparent;border:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{
+ display:flex;flex-direction:row;align-items:center;gap:12px;
+ flex:0 1 auto;min-width:0;font-size:12px;color:#bbc0d5;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust{
+ display:flex;align-items:center;overflow:hidden;border:1px solid #343c53;border-radius:11px;background:#12192b;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{
+ width:84px;min-width:0;min-height:42px;border:0;border-radius:0;background:transparent;color:#fff;text-align:center;font:inherit;font-size:13px;appearance:textfield;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input::-webkit-inner-spin-button,
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{
+ width:37px;height:42px;border:0;border-left:1px solid #303850;background:#192137;color:#e6e6f2;display:grid;place-items:center;cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button:hover{background:#322449;color:#fff}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+ display:flex;align-items:center;gap:12px;min-height:42px;border:0;background:transparent;color:#f7f2ff;font-size:14px;font-weight:650;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge span{font-size:12px;font-weight:400;color:#abb2c7}
+.product-theme.singmotion-flow .studio-modern-wave>audio{display:none}
+.product-theme.singmotion-flow .studio-modern-wave>.quiet{font-size:11px;opacity:.8;text-align:center}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:12px 10px 10px 58px;border-radius:14px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{width:38px;height:38px;top:44px;left:10px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:90px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-time{font-size:9px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{justify-content:center;gap:10px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{width:65px}
+}
+
+.product-theme.singmotion-flow .studio-modern-wave{position:relative}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar{z-index:5}
+.product-theme.singmotion-flow .studio-modern-wave>audio{display:block;position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+
+/* Compact audio/editor alignment: only tune layout, retain live waveform mechanics. */
+.product-theme.singmotion-flow .flow-workspace{gap:28px}
+.product-theme.singmotion-flow .flow-workspace-media .flow-audio{gap:0}
+.product-theme.singmotion-flow .studio-modern-wave{gap:14px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+  padding:12px 18px 12px 78px;
+  border-radius:18px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px;min-height:28px;margin:0 0 5px -60px;
+}
+.product-theme.singmotion-flow .studio-wave-filename{
+  min-width:0;display:flex;align-items:baseline;gap:10px;
+}
+.product-theme.singmotion-flow .studio-wave-filename strong{
+  max-width:min(48vw,420px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-size:12px;font-weight:600;color:#eae5f6;
+}
+.product-theme.singmotion-flow .studio-wave-filename small{flex:none;font-size:10px;color:#969eb5}
+.product-theme.singmotion-flow .studio-wave-remove{
+  flex:none;width:28px;height:28px;border:1px solid #32384e;border-radius:8px;
+  display:grid;place-items:center;background:#141a29;color:#bfc1d3;cursor:pointer;
+  transition:border-color .18s,background-color .18s,color .18s;
+}
+.product-theme.singmotion-flow .studio-wave-remove:hover{color:#ffb1c2;background:#32202e;border-color:#91596f}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{top:60px;left:17px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:96px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{padding-top:6px}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  justify-content:center;gap:12px 22px;flex-wrap:wrap;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{gap:9px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{width:74px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{width:34px}
+.product-theme.singmotion-flow .studio-modern-wave>.quiet{display:none}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{width:min(100%,730px)}
+.product-theme.singmotion-flow .flow-composer-bottom{display:flex;flex-wrap:nowrap;gap:10px}
+.product-theme.singmotion-flow .flow-composer-bottom>.flow-settings-group{
+ flex:0 1 60%;display:flex;min-width:0;gap:10px;
+}
+.product-theme.singmotion-flow .flow-settings-group .flow-camera-menu:not(.flow-format-menu){flex:7 1 0}
+.product-theme.singmotion-flow .flow-settings-group .flow-format-menu{flex:5 1 0;min-width:0}
+.product-theme.singmotion-flow .flow-composer-bottom>.flow-create{flex:1 1 40%;min-width:0}
+.product-theme.singmotion-flow .flow-image-field{width:116px;flex:0 0 116px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add,
+.product-theme.singmotion-flow .flow-image-field .flow-photo{width:100%;flex:1 1 auto;min-height:86px}
+.product-theme.singmotion-flow .flow-image-hint{color:#a99fbf;font-size:10px;line-height:1.3}
+.product-theme.singmotion-flow .flow-composer-top{align-items:stretch}
+@media(max-width:850px){
+ .product-theme.singmotion-flow .flow-composer-bottom{flex-wrap:wrap}
+ .product-theme.singmotion-flow .flow-composer-bottom>.flow-settings-group{flex:1 1 100%}
+ .product-theme.singmotion-flow .flow-composer-bottom>.flow-create{flex:1 1 100%;min-height:43px}
+}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .flow-workspace{gap:26px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:10px 10px 10px 56px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{margin-left:-46px;gap:6px}
+ .product-theme.singmotion-flow .studio-wave-filename{gap:6px}
+ .product-theme.singmotion-flow .studio-wave-filename strong{max-width:42vw;font-size:11px}
+ .product-theme.singmotion-flow .studio-wave-filename small{font-size:9px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{top:58px;left:9px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:90px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{gap:10px}
+ .product-theme.singmotion-flow .flow-image-field{width:76px;flex-basis:76px}
+}
+
+/* Final reference alignment: lightweight waveform, stable timing controls. */
+.product-theme.singmotion-flow .flow-workspace{gap:28px}
+.product-theme.singmotion-flow .studio-modern-wave{gap:16px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+ border:0!important;border-radius:0!important;background:transparent!important;
+ box-shadow:none!important;padding:8px 4px 6px 74px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+ margin:0 0 2px -70px;padding:0 0 2px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:98px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{top:48px;left:13px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{padding-top:7px}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+ width:min(100%,800px);margin-inline:auto;
+ display:grid;grid-template-columns:minmax(0,230px) minmax(0,230px) minmax(0,145px);
+ align-items:center;justify-content:center;column-gap:18px;row-gap:10px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{
+ width:230px;min-width:0;max-width:100%;display:grid;
+ grid-template-columns:42px minmax(0,1fr);align-items:center;gap:9px;
+ font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust{
+ min-width:0;width:100%;display:grid;grid-template-columns:minmax(0,1fr) 34px 34px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{
+ box-sizing:border-box;width:100%;min-width:0;font-variant-numeric:tabular-nums;
+ font-feature-settings:"tnum" 1;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{
+ box-sizing:border-box;width:34px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+ min-width:145px;justify-content:flex-start;white-space:nowrap;
+ font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1;
+}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+ width:min(100%,730px);background:#151927;border-color:#34344c;
+ box-shadow:0 11px 28px rgba(0,0,0,.22);
+}
+.product-theme.singmotion-flow .flow-image-field{
+ gap:0;align-self:stretch;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{
+ min-height:0;height:100%;flex:1 1 auto;
+}
+@media(max-width:760px){
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  grid-template-columns:repeat(2,minmax(0,230px));justify-content:center;gap:10px 14px;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+  grid-column:1/-1;justify-content:center;
+ }
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:8px 4px 5px 52px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{margin-left:-49px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{top:46px;left:5px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{grid-template-columns:minmax(0,1fr);max-width:300px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs label{width:100%}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{grid-column:1}
+}
+
+/* Reference-matched Studio composition. Keep all selectors scoped to Studio. */
+.product-theme.singmotion-flow .flow-workspace-media{width:min(100%,980px)}
+.product-theme.singmotion-flow .flow-workspace{gap:28px}
+.product-theme.singmotion-flow .studio-modern-wave{gap:17px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+  box-sizing:border-box;border:1px solid rgba(105,118,157,.22)!important;
+  border-radius:18px!important;background:rgba(16,21,35,.34)!important;
+  box-shadow:none!important;padding:10px 13px 10px 76px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+  margin:0 0 2px -63px;min-height:25px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+  height:98px;background:transparent;border:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{
+  width:44px;height:44px;top:54px;left:16px;box-shadow:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  background:rgba(146,85,242,.17)!important;
+  border:0!important;
+  border-left:1px solid rgba(194,164,249,.65)!important;
+  border-right:1px solid rgba(194,164,249,.65)!important;
+  border-radius:2px!important;box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  border:0!important;box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  width:6px!important;border-radius:5px;background:#cfc0f2!important;
+  box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{
+  padding-top:7px;color:#adb0c4;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  column-gap:17px;row-gap:10px;
+}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  width:min(100%,730px);background:#151927;
+  border:1px solid rgba(136,127,166,.34);border-radius:18px;
+  box-shadow:0 8px 24px rgba(0,0,0,.19);
+}
+.product-theme.singmotion-flow .flow-composer-label{
+  font-size:13px;font-weight:550;color:#d8d3e6;line-height:1.4;
+}
+.product-theme.singmotion-flow .flow-image-field{width:132px;flex:0 0 132px}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{border-radius:12px}
+.product-theme.singmotion-flow .flow-composer-top{gap:12px}
+.product-theme.singmotion-flow .flow-composer-bottom{gap:9px}
+.product-theme.singmotion-flow .flow-settings-group{gap:9px}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:9px 8px 8px 55px}
+  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{margin-left:-45px}
+  .product-theme.singmotion-flow .studio-modern-wave .wave-toolbar button{left:9px;top:54px;width:37px;height:37px}
+  .product-theme.singmotion-flow .flow-image-field{width:84px;flex-basis:84px}
+}
+
+/* Identical 1:1 image placeholder and uploaded thumbnail; preview crop only. */
+.product-theme.singmotion-flow .flow-image-field{
+  align-self:flex-start;
+  width:132px;
+  flex:0 0 132px;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{
+  box-sizing:border-box;
+  display:flex;
+  width:100%;
+  height:auto;
+  aspect-ratio:1 / 1;
+  min-height:0;
+  max-height:none;
+  flex:0 0 auto;
+  border-radius:12px;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo img{
+  display:block;
+  width:100%;
+  height:100%;
+  aspect-ratio:1 / 1;
+  object-fit:cover;
+  object-position:center;
+  border-radius:inherit;
+}
+@media(max-width:690px){
+  .product-theme.singmotion-flow .flow-image-field{width:84px;flex:0 0 84px}
+}
+
+/* Live estimate stays legible and aligned without changing Studio controls. */
+.product-theme.singmotion-flow .flow-create{gap:7px;white-space:nowrap}
+.product-theme.singmotion-flow .flow-generate-label{flex:0 1 auto;min-width:0}
+.product-theme.singmotion-flow .flow-generate-price{font-variant-numeric:tabular-nums;flex:none;font-size:11px;font-weight:650;padding:4px 6px;border-radius:6px;background:rgba(0,0,0,.15)}
+@media(max-width:850px){.product-theme.singmotion-flow .flow-create{min-height:44px}}
+@media(max-width:520px){.product-theme.singmotion-flow .flow-create{font-size:11px}.product-theme.singmotion-flow .flow-generate-price{font-size:10px;padding:3px 5px}}
+
+/* Studio alignment: center the shared workspace as one block.
+   Auto block margins distribute spare height, but collapse to zero when
+   the workspace needs natural scrolling on short viewports. */
+.product-theme.singmotion-flow .flow-main.flow-empty,
+.product-theme.singmotion-flow .flow-main.flow-has-audio{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  box-sizing:border-box;
+  height:auto;
+  min-height:calc(100dvh - 70px);
+  padding:32px 24px max(32px,env(safe-area-inset-bottom));
+}
+.product-theme.singmotion-flow .flow-main>.flow-workspace{
+  margin-block:auto;
+  margin-inline:auto;
+  flex:0 0 auto;
+  width:min(100%,1020px);
+  align-items:center;
+  justify-content:center;
+}
+.product-theme.singmotion-flow .flow-main.flow-empty>.flow-workspace{gap:44px}
+.product-theme.singmotion-flow .flow-main.flow-has-audio>.flow-workspace{gap:28px}
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  box-sizing:border-box;
+  width:min(100%,740px);
+  padding:18px;
+}
+.product-theme.singmotion-flow .flow-composer-top{
+  display:flex;
+  align-items:center;
+  gap:24px;
+  min-width:0;
+}
+.product-theme.singmotion-flow .flow-image-field{
+  width:128px;
+  flex:0 0 128px;
+  align-self:center;
+}
+.product-theme.singmotion-flow .flow-image-field .flow-photo,
+.product-theme.singmotion-flow .flow-image-field .flow-photo-add{
+  width:128px;
+  height:128px;
+  aspect-ratio:1 / 1;
+  flex:none;
+}
+.product-theme.singmotion-flow .flow-composer-top .flow-prompt-wrap{
+  flex:1 1 0;
+  min-width:0;
+}
+@media(max-width:690px){
+ .product-theme.singmotion-flow .flow-main.flow-empty,
+ .product-theme.singmotion-flow .flow-main.flow-has-audio{
+   min-height:calc(100dvh - 65px);
+   padding:24px 12px max(28px,env(safe-area-inset-bottom));
+ }
+ .product-theme.singmotion-flow .flow-main.flow-empty>.flow-workspace{gap:30px}
+ .product-theme.singmotion-flow .flow-main.flow-has-audio>.flow-workspace{gap:26px}
+ .product-theme.singmotion-flow .flow-workspace>.flow-composer{padding:12px}
+ .product-theme.singmotion-flow .flow-composer-top{gap:12px}
+ .product-theme.singmotion-flow .flow-image-field{width:84px;flex-basis:84px}
+ .product-theme.singmotion-flow .flow-image-field .flow-photo,
+ .product-theme.singmotion-flow .flow-image-field .flow-photo-add{width:84px;height:84px}
+}
+
+/* Slightly narrower performance composition; keep image and inputs aligned. */
+.product-theme.singmotion-flow .flow-workspace>.flow-composer{
+  width:min(100%,600px);
+}
+
+/* Final audio refinement: one compact toolbar and visually restrained waveform. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+ padding:11px 14px 12px!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+ display:flex;align-items:center;justify-content:space-between;gap:15px;
+ padding:0;margin:0 0 13px!important;min-height:40px;
+}
+.product-theme.singmotion-flow .studio-wave-filename{
+ flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:10px;
+ color:#b5a9d3;
+}
+.product-theme.singmotion-flow .studio-wave-filename strong{
+ font-size:12px;max-width:38vw;
+}
+.product-theme.singmotion-flow .studio-wave-actions{
+ display:flex;align-items:center;gap:8px;flex:none;
+}
+.product-theme.singmotion-flow .studio-wave-play,
+.product-theme.singmotion-flow .studio-wave-remove{
+ box-sizing:border-box;width:39px;height:39px;display:grid;place-items:center;
+ border-radius:10px;cursor:pointer;box-shadow:none;
+ transition:background-color .18s ease,color .18s ease;
+}
+.product-theme.singmotion-flow .studio-wave-play{
+ border:1px solid #8056d9;background:#7944da;color:#fff;
+}
+.product-theme.singmotion-flow .studio-wave-play:hover{background:#9058ee}
+.product-theme.singmotion-flow .studio-wave-remove{
+ border:1px solid rgba(135,140,163,.2);background:transparent;color:#9ea5bb;
+}
+.product-theme.singmotion-flow .studio-wave-remove:hover{background:rgba(136,47,67,.13);color:#f6abbc}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:104px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-bars i{border-radius:999px}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+ background:rgba(144,80,238,.17)!important;
+ border-left:1px solid rgba(185,158,242,.5)!important;
+ border-right:1px solid rgba(185,158,242,.5)!important;
+ border-top:0!important;border-bottom:0!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+ border-radius:6px;width:6px!important;background:#cdb9f3!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+ grid-template-columns:minmax(0,190px) minmax(0,190px) minmax(0,188px);
+ column-gap:16px;max-width:640px;align-items:center;
+}
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs label{
+ width:190px;grid-template-columns:34px minmax(0,1fr);gap:7px;
+ font-size:12px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust{
+ grid-template-columns:minmax(0,1fr) 29px 29px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust input{
+ min-height:38px;font-size:12px;padding-inline:3px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time-adjust button{
+ width:29px;height:38px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+ display:flex;flex-direction:column;align-items:flex-start;justify-content:center;
+ gap:2px;min-width:0;min-height:45px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge>span:first-child{
+ font-size:11px;font-weight:500;color:#a5abc0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-duration-value{
+ font-size:22px;line-height:1.2;font-weight:650;color:#c49dff;
+ font-variant-numeric:tabular-nums;
+}
+@media(max-width:760px){
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  grid-template-columns:repeat(2,minmax(0,190px));justify-content:center;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{
+  grid-column:1/-1;align-items:center;
+ }
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+  gap:6px;
+ }
+ .product-theme.singmotion-flow .studio-wave-filename{gap:5px}
+ .product-theme.singmotion-flow .studio-wave-filename strong{max-width:30vw;font-size:11px}
+ .product-theme.singmotion-flow .studio-wave-filename small{font-size:9px}
+ .product-theme.singmotion-flow .studio-wave-actions{gap:4px}
+ .product-theme.singmotion-flow .studio-wave-play,
+ .product-theme.singmotion-flow .studio-wave-remove{width:36px;height:36px}
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs{
+  grid-template-columns:minmax(0,190px);justify-content:center;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs label{width:190px}
+ .product-theme.singmotion-flow .studio-modern-wave .wave-duration-badge{grid-column:1}
+}
+
+/* Studio timing row: compact editing tools at left, primary duration at right. */
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:row;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  width:max-content;
+  max-width:100%;
+  gap:18px;
+  padding:0;
+  margin:0 auto;
+}
+.product-theme.singmotion-flow .studio-timing-edits{
+  display:flex;
+  flex:0 0 auto;
+  gap:14px;
+  align-items:center;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  display:flex;
+  flex:0 0 auto;
+  width:auto;
+  max-width:none;
+  gap:7px;
+  align-items:center;
+  font-size:12px;
+  color:#b6b8c8;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  display:grid;
+  flex:none;
+  width:166px;
+  height:38px;
+  grid-template-columns:minmax(0,1fr) 30px 30px;
+  border:1px solid rgba(129,139,171,.28);
+  border-radius:9px;
+  background:#151a29;
+  overflow:hidden;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust input{
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  height:38px;
+  min-height:0;
+  padding:0 5px;
+  text-align:center;
+  font-size:12px;
+  font-variant-numeric:tabular-nums;
+  color:#eceaf5;
+  background:transparent;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button{
+  box-sizing:border-box;
+  width:30px;
+  height:38px;
+  padding:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-row>.wave-duration-badge{
+  box-sizing:border-box;
+  display:flex;
+  flex:0 0 auto;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  min-width:168px;
+  min-height:64px;
+  gap:3px;
+  padding:9px 15px;
+  border:1px solid rgba(156,96,235,.43);
+  border-radius:12px;
+  background:rgba(119,62,188,.12);
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-row>.wave-duration-badge>span:first-child{
+  font-size:12px;
+  font-weight:500;
+  color:#bfb2d8;
+  line-height:1.25;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-row .wave-duration-value{
+  font-size:24px;
+  font-weight:650;
+  line-height:1.15;
+  color:#c69cff;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.01em;
+}
+@media(max-width:760px){
+ .product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{
+  width:100%;
+  gap:12px;
+ }
+ .product-theme.singmotion-flow .studio-timing-edits{
+  flex-wrap:wrap;
+  justify-content:center;
+  gap:10px 14px;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-row>.wave-duration-badge{
+  align-items:center;
+ }
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-timing-edits{width:100%;gap:9px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  width:auto;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  width:158px;
+ }
+}
+
+/* Timing row alignment: matching label/control columns, duration is the result. */
+.product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:flex-start;
+  justify-content:center;
+  gap:24px;
+  width:max-content;
+  max-width:100%;
+  margin-inline:auto;
+}
+.product-theme.singmotion-flow .studio-timing-edits{
+  display:flex;
+  flex:0 0 auto;
+  align-items:flex-start;
+  gap:18px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field,
+.product-theme.singmotion-flow .studio-modern-wave .studio-duration-field{
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:flex-start;
+  gap:7px;
+  margin:0;
+  padding:0;
+  align-self:flex-start;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  width:158px;
+  flex:0 0 158px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field>span,
+.product-theme.singmotion-flow .studio-modern-wave .studio-duration-field>.studio-timing-label{
+  display:block;
+  font-size:12px;
+  font-weight:500;
+  line-height:17px;
+  color:#b8bad0;
+  margin:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  width:158px;
+  height:42px;
+  grid-template-columns:minmax(0,1fr) 30px 30px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust input{
+  height:42px;
+  min-height:0;
+  font-size:16px;
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button{
+  height:42px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-duration-field{
+  flex:0 0 auto;
+  min-width:188px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-duration-field>.wave-duration-badge{
+  display:flex;
+  box-sizing:border-box;
+  align-items:center;
+  justify-content:center;
+  width:188px;
+  height:42px;
+  min-width:0;
+  min-height:0;
+  padding:0 13px;
+  margin:0;
+  border-radius:10px;
+  background:rgba(119,62,188,.11);
+  border:1px solid rgba(156,96,235,.43);
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-duration-field .wave-duration-value{
+  font-size:23px;
+  line-height:1;
+  font-weight:650;
+  color:#c69cff;
+  font-variant-numeric:tabular-nums;
+}
+@media(max-width:760px){
+  .product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{gap:16px}
+  .product-theme.singmotion-flow .studio-timing-edits{gap:12px}
+}
+@media(max-width:420px){
+  .product-theme.singmotion-flow .studio-modern-wave .time-inputs.studio-timing-row{
+    gap:14px;
+  }
+  .product-theme.singmotion-flow .studio-timing-edits{
+    justify-content:center;
+    flex-wrap:wrap;
+    gap:12px;
+  }
+}
+
+/* Home uploaded-audio state: compact player inside unchanged 9:16 card. */
+.sm-carousel-home:has(.sm-home-uploaded){gap:clamp(7px,1.25vh,12px)}
+.sm-carousel-home:has(.sm-home-uploaded)>p{line-height:1.45}
+.sm-home-uploaded{display:flex;flex-direction:column;align-items:center;gap:11px;width:100%;min-width:0;animation:sm-home-audio-appear .28s ease-out both}
+.sm-home-audio-player{width:100%;min-width:0;box-sizing:border-box;padding:13px 13px 11px;border:1px solid rgba(132,121,178,.35);border-radius:15px;background:rgba(18,23,41,.45)}
+.sm-home-audio-heading{display:flex;align-items:center;gap:10px;text-align:left;min-width:0}
+.sm-home-audio-file-icon{display:grid;place-items:center;width:43px;height:43px;flex:none;border-radius:11px;background:#8746e9;color:#fff}
+.sm-home-audio-file{display:flex;flex:1 1 0;min-width:0;flex-direction:column;gap:4px}
+.sm-home-audio-file strong{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:12px;font-weight:650;color:#f3efff}
+.sm-home-audio-file span{font-size:11px;color:#a7a2c3}
+.sm-home-audio-check{flex:none;color:#40d69d}
+.sm-home-audio-wave{height:49px;display:flex;align-items:center;justify-content:space-between;gap:2px;width:100%;margin:10px 0 9px;overflow:hidden}
+.sm-home-audio-wave i{flex:1 1 0;min-width:1px;border-radius:5px;transition:background-color .1s linear}
+.sm-home-audio-playback{display:flex;align-items:center;gap:10px}
+.sm-home-audio-play{width:37px;height:37px;flex:none;border:0;border-radius:50%;background:#9255f2;color:white;display:grid;place-items:center;cursor:pointer}
+.sm-home-audio-play:hover{background:#a779ff}
+.sm-home-audio-progress{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.sm-home-audio-progress input{width:100%;height:14px;margin:0;accent-color:#a578f8;cursor:pointer}
+.sm-home-audio-progress span{font-size:10px;color:#a9aac4;font-variant-numeric:tabular-nums;text-align:left}
+.sm-home-replace-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sm-home-replace{display:flex;align-items:center;justify-content:center;gap:7px;border:0;background:transparent;color:#bd8dff;font-size:11px;padding:6px 9px;cursor:pointer}
+.sm-home-replace:hover{color:#dbc1ff}
+.sm-home-replace:disabled{opacity:.6;cursor:wait}
+@keyframes sm-home-audio-appear{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.sm-home-uploaded{animation:none}}
+@media(max-width:690px){.sm-home-audio-player{padding:10px}.sm-home-audio-wave{height:38px;margin:7px 0}.sm-home-audio-file-icon{width:36px;height:36px}.sm-home-audio-file strong{font-size:11px}.sm-home-uploaded{gap:5px}}
+
+/* Start/End as subdued sibling cards to the existing Selected duration. */
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  box-sizing:border-box;
+  width:158px;
+  height:66px;
+  flex:0 0 158px;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+  justify-content:center;
+  gap:3px;
+  padding:7px 9px;
+  border:1px solid rgba(129,139,171,.28);
+  border-radius:10px;
+  background:rgba(119,62,188,.055);
+  box-shadow:none;
+  transition:border-color .18s ease,background-color .18s ease;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field:hover,
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field:focus-within{
+  border-color:rgba(155,135,204,.47);
+  background:rgba(119,62,188,.09);
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field>span{
+  font-size:12px;
+  font-weight:500;
+  line-height:16px;
+  color:#b8bad0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust{
+  box-sizing:border-box;
+  width:100%;
+  height:30px;
+  min-height:0;
+  grid-template-columns:minmax(0,1fr) 24px 24px;
+  display:grid;
+  gap:1px;
+  border:0;
+  border-radius:0;
+  background:transparent;
+  overflow:visible;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust input{
+  box-sizing:border-box;
+  width:100%;
+  height:30px;
+  min-height:0;
+  padding:0 2px 0 0;
+  border:0;
+  border-radius:0;
+  outline-offset:0;
+  background:transparent;
+  color:#f5f3fb;
+  font-size:16px;
+  line-height:30px;
+  text-align:left;
+  font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button{
+  display:grid;
+  place-items:center;
+  width:24px;
+  height:28px;
+  padding:0;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#beb7d2;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button:hover,
+.product-theme.singmotion-flow .studio-modern-wave .studio-timing-field .wave-time-adjust button:focus-visible{
+  background:rgba(151,100,226,.17);
+  color:#fff;
+}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-timing-edits .studio-timing-field{
+  width:158px;
+  flex:0 0 158px;
+ }
+}
+
+/* Audio filename/total duration: reference-style compact two-line metadata. */
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta{
+  display:flex;
+  align-items:center;
+  min-width:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{
+  display:flex;
+  align-items:center;
+  justify-content:flex-start;
+  gap:11px;
+  flex:1 1 0;
+  min-width:0;
+  text-align:left;
+  color:#b583f1;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename>svg{
+  flex:0 0 18px;
+  color:#b889f1;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:center;
+  gap:4px;
+  flex:1 1 0;
+  min-width:0;
+  text-align:left;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>strong{
+  display:block;
+  width:100%;
+  max-width:none;
+  min-width:0;
+  overflow:hidden;
+  white-space:nowrap;
+  text-overflow:ellipsis;
+  font-size:16px;
+  line-height:1.25;
+  font-weight:600;
+  color:#f4f2fa;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>small{
+  display:block;
+  font-size:14px;
+  line-height:1.25;
+  font-weight:400;
+  font-variant-numeric:tabular-nums;
+  color:#a8a6c0;
+  white-space:nowrap;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-actions{flex:0 0 auto}
+@media(max-width:520px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{gap:8px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>strong{font-size:14px}
+ .product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text>small{font-size:12px}
+}
+
+/* Unified Studio audio editor — one subtle player, toolbar above waveform. */
+.product-theme.singmotion-flow .studio-modern-wave{
+  width:100%;
+  display:block;
+  position:relative;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-viewport{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  width:100%;
+  box-sizing:border-box;
+  padding:16px 20px 13px!important;
+  border:1px solid #282d42!important;
+  background:#0d111d!important;
+  border-radius:22px!important;
+  box-shadow:none!important;
+  overflow:visible;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta.studio-unified-toolbar{
+  display:flex;
+  flex-wrap:nowrap;
+  align-items:center;
+  justify-content:space-between;
+  min-height:46px;
+  width:100%;
+  margin:0 0 14px!important;
+  padding:0!important;
+  gap:16px;
+  background:none;
+  border:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{
+  flex:1 1 175px;
+  min-width:0;
+  max-width:none;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text strong{
+  font-size:15px;
+  line-height:1.2;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-file-text small{font-size:13px}
+.product-theme.singmotion-flow .studio-modern-wave .studio-wave-actions.studio-unified-actions{
+  display:flex;
+  flex:0 0 auto;
+  align-items:center;
+  gap:clamp(10px,1.5vw,22px);
+  min-width:0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-unified-actions .studio-wave-play{
+  width:60px;
+  height:38px;
+  flex:0 0 60px;
+  border:none;
+  border-radius:999px;
+  background:#f4f2fa;
+  color:#252238;
+  box-shadow:none;
+  transition:background-color .18s ease;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-unified-actions .studio-wave-play:hover{
+  transform:none;
+  background:#dfd9ed;
+  color:#252238;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time{
+  display:flex;
+  position:relative;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  flex:0 0 auto;
+  min-width:65px;
+  font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time>span,
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration>span{
+  font-size:11px;
+  line-height:15px;
+  font-weight:400;
+  color:#aaa8be;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time-trigger{
+  border:0;
+  background:transparent;
+  color:#f4f2fa;
+  font-family:inherit;
+  font-size:13px;
+  font-weight:600;
+  line-height:18px;
+  letter-spacing:0;
+  font-variant-numeric:tabular-nums;
+  padding:0 3px;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time-trigger:hover{
+  color:#c9a8ff;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-time:nth-of-type(3){
+  border-left:1px solid rgba(141,141,169,.21);
+  padding-left:clamp(10px,1.5vw,20px);
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration{
+  box-sizing:border-box;
+  display:flex;
+  flex:0 0 auto;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  min-width:129px;
+  min-height:47px;
+  padding:5px 12px;
+  gap:3px;
+  border:1px solid rgba(155,82,231,.46);
+  border-radius:10px;
+  background:rgba(119,62,188,.13);
+  font-variant-numeric:tabular-nums;
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration strong{
+  font-size:19px;
+  line-height:22px;
+  font-weight:650;
+  color:#c59aff;
+  white-space:nowrap;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-wave-remove{
+  width:37px;
+  height:38px;
+  border:0;
+  background:transparent;
+  color:#a5a5b9;
+}
+.product-theme.singmotion-flow .studio-unified-actions .studio-wave-remove:hover{
+  background:transparent;
+  color:#f7a6b8;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+  width:100%;
+  height:102px;
+  margin:0;
+  overflow:visible;
+  border:0;
+  background:transparent;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-bars i{
+  border-radius:999px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  background:rgba(149,79,232,.18)!important;
+  border:0!important;
+  border-left:1px solid rgba(191,158,235,.55)!important;
+  border-right:1px solid rgba(191,158,235,.55)!important;
+  box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  width:6px!important;
+  border-radius:6px;
+  background:#cdb5ef!important;
+  box-shadow:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-time{
+  width:100%;
+  padding-top:8px;
+  color:#a8a6c0;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover{
+  position:absolute;
+  top:100%;
+  right:0;
+  z-index:15;
+  display:flex;
+  align-items:center;
+  gap:4px;
+  padding:8px;
+  border:1px solid #36374e;
+  border-radius:10px;
+  background:#151a29;
+  box-shadow:0 8px 24px rgba(0,0,0,.26);
+  min-width:max-content;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover input{
+  width:85px;
+  min-width:0;
+  height:32px;
+  box-sizing:border-box;
+  font-size:13px;
+  padding:4px;
+  border:1px solid #44415c;
+  background:#0d111d;
+  color:#fff;
+  border-radius:6px;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover button{
+  width:28px;
+  height:32px;
+  border:0;
+  border-radius:6px;
+  background:#222337;
+  color:#ece6fc;
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover .studio-inline-time-done{
+  width:auto;
+  padding:0 8px;
+  font-size:11px;
+}
+@media(max-width:840px){
+  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-meta.studio-unified-toolbar{
+    flex-wrap:wrap;
+    gap:9px;
+  }
+  .product-theme.singmotion-flow .studio-modern-wave .studio-wave-filename{flex:1 1 100%}
+  .product-theme.singmotion-flow .studio-wave-actions.studio-unified-actions{
+    width:100%;
+    justify-content:space-between;
+    gap:8px;
+  }
+}
+@media(max-width:520px){
+  .product-theme.singmotion-flow .studio-modern-wave .wave-viewport{padding:12px 10px!important;border-radius:17px!important}
+  .product-theme.singmotion-flow .studio-wave-actions.studio-unified-actions{flex-wrap:wrap;justify-content:center;gap:8px 12px}
+  .product-theme.singmotion-flow .studio-unified-actions .studio-inline-duration{min-width:119px}
+  .product-theme.singmotion-flow .studio-modern-wave .wave-strip{height:90px}
+}
+
+/* Home song player practical controls: clear audio and seek through the full track. */
+.sm-home-audio-heading{min-width:0}
+.sm-home-audio-delete{
+  flex:0 0 auto;display:grid;place-items:center;width:36px;height:36px;
+  padding:0;border:0;border-radius:9px;background:transparent;
+  color:#b5acc8;cursor:pointer;transition:color .18s,background-color .18s;
+}
+.sm-home-audio-delete:hover,.sm-home-audio-delete:focus-visible{
+  color:#ffadba;background:rgba(168,64,88,.13);
+}
+.sm-home-audio-delete:disabled{opacity:.5;cursor:not-allowed}
+.sm-home-audio-wave{cursor:pointer;touch-action:none;user-select:none}
+.sm-home-audio-wave:focus-visible{outline:2px solid #a579f8;outline-offset:4px;border-radius:5px}
+.sm-home-audio-progress input[type=range]{
+  display:block;box-sizing:border-box;width:100%;min-width:0;
+  margin:0;padding:0;touch-action:pan-x;cursor:pointer;
+}
+
+/* Compact final generation confirmation; no changes to checkout or billing logic. */
+.product-theme.sm-confirm-simple{width:min(92vw,530px);max-width:530px;padding:26px;box-sizing:border-box}
+.product-theme.sm-confirm-simple h2{font-size:25px;line-height:1.2;margin:0 0 18px}
+.product-theme.sm-confirm-simple .sm-confirm-summary{
+ display:flex;flex-direction:column;gap:0;background:rgba(23,26,42,.5);
+ border:1px solid rgba(122,113,159,.28);border-radius:15px;padding:4px 16px;
+}
+.product-theme.sm-confirm-simple .sm-confirm-summary>div{
+ display:flex;justify-content:space-between;align-items:center;gap:16px;
+ min-height:51px;border-bottom:1px solid rgba(122,113,159,.18);
+}
+.product-theme.sm-confirm-simple .sm-confirm-summary>div:last-child{border-bottom:0}
+.product-theme.sm-confirm-simple .sm-confirm-summary span{color:#aaa8c0;font-size:14px}
+.product-theme.sm-confirm-simple .sm-confirm-summary strong{
+ font-size:17px;color:#f4f2fa;font-weight:650;font-variant-numeric:tabular-nums;
+}
+.product-theme.sm-confirm-simple .sm-confirm-song{
+ min-width:0;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.product-theme.sm-confirm-simple .sm-confirm-consent{
+ margin:20px 0 0;display:flex;gap:12px;align-items:flex-start;
+}
+.product-theme.sm-confirm-simple .sm-confirm-consent>span{
+ font-size:13px;line-height:1.55;color:#c6c5d8;
+}
+.product-theme.sm-confirm-simple .sm-confirm-links{
+ margin:7px 0 18px 28px;font-size:12px;color:#9997b1;
+}
+.product-theme.sm-confirm-simple .sm-confirm-links a{color:#ba8dff}
+.product-theme.sm-confirm-simple .sm-confirm-notice{font-size:12px;margin:7px 0;color:#bfb7d1}
+.product-theme.sm-confirm-simple .product-actions{display:flex;gap:12px;margin-top:20px}
+.product-theme.sm-confirm-simple .product-actions>button{flex:1 1 0;min-width:0}
+@media(max-width:520px){
+ .product-theme.sm-confirm-simple{padding:18px}
+ .product-theme.sm-confirm-simple h2{font-size:21px}
+ .product-theme.sm-confirm-simple .sm-confirm-summary strong{font-size:15px}
+}
+
+/* Precise grabbing even when the Studio selection is five seconds or shorter. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-strip{
+  position:relative;
+  overflow:visible!important;
+  touch-action:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  z-index:3;
+  cursor:grab!important;
+  touch-action:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection:active{
+  cursor:grabbing!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  position:absolute;
+  z-index:10!important;
+  width:28px!important;
+  min-width:28px!important;
+  height:100%!important;
+  margin-left:-14px!important;
+  padding:0!important;
+  border:0!important;
+  background:transparent!important;
+  cursor:ew-resize!important;
+  touch-action:none!important;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  pointer-events:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle:focus-visible{
+  outline:2px solid #cdb5ef;
+  outline-offset:-2px;
+  border-radius:8px;
+}
+
+/* Studio waveform: a visual selection keeps its exact width while its
+   transparent touch target remains usable for sub-five-second clips.
+   Handles own the bottom lane; the selection owns the upper lane. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  pointer-events:auto;
+  user-select:none;
+  -webkit-user-select:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection-hit{
+  position:absolute;
+  display:block;
+  left:50%;
+  top:0;
+  width:max(100%, 36px);
+  height:calc(100% - 40px);
+  min-height:40px;
+  transform:translateX(-50%);
+  background:transparent;
+  cursor:grab;
+  touch-action:none;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection:active .wave-selection-hit{
+  cursor:grabbing;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  top:auto!important;
+  bottom:0!important;
+  height:40px!important;
+}
+
+/* Minimal trim edges: keyboard-accessible hit targets remain, but no bulky grips. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::before,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  content:none!important;
+  display:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  border-left:1px solid #b978ff!important;
+  border-right:1px solid #b978ff!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  width:20px!important;
+  min-width:20px!important;
+  margin-left:-10px!important;
+  background:transparent!important;
+  box-shadow:none!important;
+  border:0!important;
+  border-radius:0!important;
+}
+
+/* Edge handles: center the invisible hit area precisely on each trim boundary.
+   A tiny accent sits 5px outside the selection, not over its audio content. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  width:24px!important;
+  min-width:24px!important;
+  margin-left:0!important;
+  transform:translateX(-50%)!important;
+  top:auto!important;
+  bottom:0!important;
+  height:40px!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::before{
+  content:none!important;
+  display:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after{
+  content:""!important;
+  display:block!important;
+  position:absolute!important;
+  top:8px!important;
+  bottom:auto!important;
+  width:3px!important;
+  height:24px!important;
+  border:0!important;
+  border-radius:3px!important;
+  background:rgba(194,157,248,.85)!important;
+  box-shadow:0 0 0 1px rgba(120,71,188,.15)!important;
+  transform:none!important;
+  pointer-events:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-start::after{
+  left:4px!important;
+  right:auto!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-end::after{
+  right:4px!important;
+  left:auto!important;
+}
+
+/* Small destructive action on saved draft carousel cards. */
+.product-theme .sm-carousel-project{position:relative}
+.sm-carousel-project .sm-carousel-draft-delete{
+  position:absolute;
+  z-index:25;
+  top:12px;
+  right:12px;
+  display:grid;
+  place-items:center;
+  width:32px;
+  height:32px;
+  padding:0;
+  border:1px solid rgba(196,178,216,.28);
+  border-radius:10px;
+  background:rgba(23,25,39,.78);
+  color:#c9badb;
+  cursor:pointer;
+  touch-action:manipulation;
+}
+.sm-carousel-project .sm-carousel-draft-delete:hover,
+.sm-carousel-project .sm-carousel-draft-delete:focus-visible{
+  color:#ffb3bb;
+  border-color:rgba(255,179,187,.65);
+  background:rgba(67,31,47,.85);
+}
+.sm-carousel-project .sm-carousel-draft-delete:disabled{opacity:.4;cursor:wait}
+
+/* Center both subtle trim grips vertically in the waveform and horizontally
+   exactly on their selection boundaries. Retain the full invisible hit target. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  top:50%!important;
+  bottom:auto!important;
+  transform:translate(-50%,-50%)!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-start::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-end::after{
+  top:50%!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translate(-50%,-50%)!important;
+}
+
+/* Trim interaction priority: the entire selected interior must remain draggable,
+   including clips below 5s. Edge sliders only catch the OUTSIDE half of each edge. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection{
+  z-index:12!important;
+  pointer-events:auto!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-selection-hit{
+  left:0!important;
+  width:100%!important;
+  min-width:0!important;
+  transform:none!important;
+  height:100%!important;
+  min-height:0!important;
+  pointer-events:none!important;
+}
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle{
+  z-index:10!important;
+}
+
+/* Keep the native textarea resize corner at the bottom of the prompt card.
+   The textarea fills the available vertical space instead of leaving a gap. */
+.product-theme.singmotion-flow .flow-prompt-wrap{
+  padding-bottom:4px;
+}
+.product-theme.singmotion-flow textarea.flow-prompt{
+  flex:1 1 auto!important;
+  min-height:68px;
+  margin-bottom:0;
+  resize:vertical!important;
+}
+
+/* Visible trim markers: twice as tall, bright white, centered on each boundary.
+   Preserve the existing invisible edge hit targets and draggable selection interior. */
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-start::after,
+.product-theme.singmotion-flow .studio-modern-wave .wave-handle-end::after{
+  top:50%!important;
+  left:50%!important;
+  right:auto!important;
+  transform:translate(-50%,-50%)!important;
+  height:48px!important;
+  width:3px!important;
+  background:#fff!important;
+  border-radius:3px!important;
+  box-shadow:0 0 5px rgba(255,255,255,.28)!important;
+}
+
+/* Account registration – clear hierarchy inside the existing carousel card. */
+.sm-carousel-login .sm-account-intro{max-width:320px;margin:0 auto 12px;color:#c7c2d7;font-size:13px;line-height:1.5;text-align:center}
+.sm-carousel-login .sm-account-form{display:grid;gap:10px;width:100%;max-width:340px;margin:0 auto;text-align:left}
+.sm-carousel-login .sm-account-label{display:grid;gap:5px;color:#e8e1f8;font-size:12px;font-weight:600}
+.sm-carousel-login .sm-account-label input{width:100%;min-width:0;padding:12px;border-radius:10px;border:1px solid #65577f;background:#17182c;color:#fff;font-size:14px;outline:none}
+.sm-carousel-login .sm-account-label input:focus-visible{border-color:#ba8fff;box-shadow:0 0 0 2px #b68df23d}
+.sm-carousel-login .sm-account-label input::placeholder{color:#aaa0bd}
+.sm-carousel-login .sm-account-hint{font-size:11px;color:#bbb1cd;line-height:1.4;margin:0}
+.sm-carousel-login .sm-account-consent{display:flex;gap:9px;align-items:flex-start;font-size:11px;color:#cfc7de;line-height:1.45}
+.sm-carousel-login .sm-account-consent input{flex:none;margin:2px 0 0;accent-color:#ae8bea}
+.sm-carousel-login .sm-account-consent a{color:#d6bbff;text-decoration:underline}
+.sm-carousel-login .sm-account-form>.sm-carousel-primary{width:100%;min-height:44px}
+.sm-carousel-login{overflow-y:auto;max-height:100%;scrollbar-width:thin}
+
+.sm-carousel-login .sm-account-showcase-link{display:block;text-align:center;color:#dbc3ff;text-decoration:underline;font-size:12px;padding:7px}
+
+.sm-carousel-login .sm-account-password-wrap{position:relative;display:block;width:100%}
+.sm-carousel-login .sm-account-password-wrap input{padding-right:48px}
+.sm-carousel-login .sm-account-password-wrap .sm-account-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);display:grid;place-items:center;width:36px;height:36px;padding:0;border:0;border-radius:8px;background:transparent;color:#cbbce4;cursor:pointer}
+.sm-carousel-login .sm-account-password-wrap .sm-account-eye:hover,.sm-carousel-login .sm-account-password-wrap .sm-account-eye:focus-visible{background:rgba(146,85,242,.18);color:white;outline-offset:1px}
+
+/* Full-width centered authentication action, matching the input field width. */
+.sm-carousel-login .sm-account-form>.sm-carousel-primary{box-sizing:border-box;width:100%;max-width:none;min-height:46px;justify-content:center;text-align:center;margin:0}
+
+.sm-carousel-login .sm-account-divider{display:flex;align-items:center;gap:12px;color:#a99dbd;font-size:12px;text-align:center}
+.sm-carousel-login .sm-account-divider:before,.sm-carousel-login .sm-account-divider:after{content:"";height:1px;flex:1;background:rgba(175,150,217,.27)}
+.sm-carousel-login .sm-account-google{box-sizing:border-box;display:flex;width:100%;max-width:none;min-height:46px;align-items:center;justify-content:center;gap:10px;background:rgba(250,248,255,.94);border:1px solid #ddd8e8;border-radius:11px;color:#242133;font-size:14px;font-weight:650;text-decoration:none}
+.sm-carousel-login .sm-account-google:hover,.sm-carousel-login .sm-account-google:focus-visible{background:#fff;border-color:#ad91dc}
+.sm-carousel-login .sm-google-g{font-weight:800;font-size:20px;color:#4285f4}
+
+.sm-carousel-login .sm-account-signout-all{display:block;width:100%;max-width:340px;margin:0 auto;padding:10px 12px;border:1px solid rgba(189,169,225,.38);border-radius:10px;color:#ded0f5;background:rgba(37,30,53,.65);font-size:12px;font-weight:600;cursor:pointer}
+.sm-carousel-login .sm-account-signout-all:hover:not(:disabled){background:rgba(77,48,110,.75)}
+
+.sm-carousel-login .sm-account-settings-link{display:block;width:100%;max-width:340px;margin:0 auto;padding:12px;text-align:center;border-radius:10px;background:rgba(146,85,242,.22);border:1px solid rgba(173,135,240,.5);color:#f0e8ff;text-decoration:none;font-weight:700;font-size:13px;box-sizing:border-box}
+.sm-carousel-login .sm-account-settings-link:hover{background:rgba(146,85,242,.38)}
+
+/* Account card buttons align with the primary full-width action. */
+.sm-carousel-login .sm-account-settings-link{width:100%;max-width:290px;min-height:46px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
+
+/* Shared site navigation on public, pricing, account and workspace pages. */
+.sm-site-header{position:sticky;top:0;z-index:100;background:rgba(9,13,22,.96);border-bottom:1px solid rgba(145,102,195,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);width:100%;flex-shrink:0}
+.sm-site-header .sm-header-actions{display:flex;align-items:center;gap:12px;min-width:0}
+.sm-site-header .sm-wordmark{text-decoration:none;white-space:nowrap}
+.sm-site-header .home-gallery-account{flex-shrink:0}
+@media(max-width:650px){.sm-site-header .sm-header-actions{gap:7px}}
+
+/* Original seamless SingMotion header: no horizontal rule on any shared-header route. */
+.sm-site-header{border:0!important;border-bottom:0!important;box-shadow:none!important}
+
+/* Homepage is the visual source of truth: header has no separate tinted layer. */
+.sm-carousel-page > .sm-site-header, .sm-plans-page > .sm-site-header, .home-gallery > .sm-site-header{
+ background:transparent!important;
+ backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important;
+ border:0!important;
+ box-shadow:none!important;
+}
+
+/* Fixed site navigation everywhere SiteHeader is used.
+   Reserve exactly the header height so content never slides underneath. */
+.sm-site-header,
+.sm-carousel-page > .sm-site-header,
+.sm-plans-page > .sm-site-header,
+.home-gallery > .sm-site-header {
+  position:fixed!important;
+  top:0!important;
+  left:0!important;
+  right:0!important;
+  z-index:1000!important;
+  width:100%!important;
+  height:88px!important;
+  margin:0!important;
+  padding:0 clamp(22px,3vw,52px)!important;
+}
+/* Reserve header room in document flow on every route, including nested layouts.
+   The spacer follows SiteHeader so all pages scroll below the fixed navigation. */
+.sm-site-header-space{
+  display:block;
+  flex:0 0 88px;
+  width:100%;
+  height:88px;
+  min-height:88px;
+  pointer-events:none;
+}
+.sm-carousel-page:has(> .sm-site-header),
+.home-gallery:has(> .sm-site-header),
+.product-theme:has(> .sm-site-header) {
+  padding-top:0;
+}
+@media(max-width:650px){
+  .sm-site-header,
+  .sm-carousel-page > .sm-site-header,
+  .sm-plans-page > .sm-site-header,
+  .home-gallery > .sm-site-header {height:72px!important}
+  .sm-site-header-space{height:72px;min-height:72px;flex-basis:72px}
+  .sm-carousel-page:has(> .sm-site-header),
+  .home-gallery:has(> .sm-site-header),
+  .product-theme:has(> .sm-site-header) {padding-top:0}
+}
+
+/* Visually center the entire landing carousel group in the viewport.
+   Header remains fixed; the cards and their controls shift together.
+   Scope to the landing page so account, orders and other pages are unchanged. */
+@media (min-width:691px) and (min-height:650px){
+  .sm-carousel-landing > .sm-carousel-main{
+    transform:translateY(-clamp(18px,3.5svh,34px));
+  }
+}
+@media (max-width:690px) and (min-height:650px){
+  .sm-carousel-landing > .sm-carousel-main{
+    transform:translateY(-12px);
+  }
+}

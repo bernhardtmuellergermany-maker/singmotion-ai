@@ -1,0 +1,30 @@
+name: STAGING Commerce Guardrails
+on:
+  push:
+    branches:
+      - fix/tempo-distinguish-provider-errors-20261028
+    paths:
+      - 'lib/commerce/**'
+      - 'app/(site)/api/stripe-webhook/**'
+      - 'app/(site)/api/customer-orders/**'
+      - 'tests/stripe-*.test.ts'
+      - 'tests/commerce-plans.test.ts'
+      - 'app/(site)/api/hobby-*/**'
+      - '.github/workflows/staging-commerce.yml'
+  workflow_dispatch:
+jobs:
+  quota-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - name: Commerce quota, checkout, signatures and refund regression tests
+        run: node --experimental-strip-types --test tests/commerce-plans.test.ts tests/stripe-*.test.ts
+      - name: TypeScript check
+        run: npm run typecheck

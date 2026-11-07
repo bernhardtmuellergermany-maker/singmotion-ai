@@ -1,8 +1,86 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import {productionCustomerReleaseApproved,PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "./commerce/customer-live-config.ts";
 
 type Environment = Record<string, string | undefined>;
+/**
+ * A short-lived, server-signed private-gate ticket for mobile browsers.
+ * It is distinct from CMS/staff authentication and never grants a role.
+ * Changing STAGING_PASSWORD invalidates every issued ticket.
+ */
+/** Only trusted, server-configured public origins authorize mobile-cookie mutations.
+ * Railway reverse proxies can expose an internal http origin in request.nextUrl.
+ * Neither Host nor X-Forwarded-* are valid CSRF authority.
+ */
+export function privateGateMutationOriginAllowed(
+  origin: string | null,
+  pathname: string,
+  internalRequestOrigin: string,
+  env: Environment = process.env,
+): boolean {
+  if (!origin || origin === "null") return false;
+  const cmsRoute = pathname === "/api/cms" || pathname.startsWith("/api/cms/");
+  const expected = cmsRoute ? env.CMS_ORIGIN : (env.APP_ORIGIN || env.PUBLIC_SITE_ORIGIN);
+  // Never derive an authenticated mutation's trusted origin from its request
+  // Host. On Railway the internal request URL is proxy-controlled metadata,
+  // not an independently configured CSRF authority. Fail closed if the
+  // corresponding origin is missing, malformed or non-HTTPS.
+  if (expected) {
+    try {
+      const url = new URL(expected);
+      const secure = url.protocol === "https:" ||
+        (!env.RAILWAY_ENVIRONMENT_ID && url.protocol === "http:" &&
+         ["localhost", "127.0.0.1"].includes(url.hostname));
+      return secure && url.origin === expected &&
+        !url.username && !url.password && origin === expected;
+    } catch { return false; }
+  }
+  // Preserve ordinary direct local development without Railway or a private
+  // gate; never use this fallback for protected previews.
+  return !env.RAILWAY_ENVIRONMENT_ID && !stagingEnabled(env) &&
+    origin === internalRequestOrigin;
+}
+
+export const PRIVATE_GATE_COOKIE = "sm_private_gate";
+export const PRIVATE_GATE_TTL_SECONDS = 12 * 60 * 60;
+const PRIVATE_GATE_VERSION = "v1";
+export function issuePrivateGateTicket(
+  env: Environment = process.env,
+  now = Date.now(),
+): string {
+  validateStaging(env);
+  if (!stagingEnabled(env)) throw new Error("Private gate disabled");
+  const issued = Math.floor(now / 1000);
+  const payload = `${PRIVATE_GATE_VERSION}.${issued}`;
+  const signature = createHmac("sha256", env.STAGING_PASSWORD!)
+    .update("SingMotion private gate\n" + (env.RAILWAY_ENVIRONMENT_ID || "none") + "\n" + payload)
+    .digest("hex");
+  return payload + "." + signature;
+}
+export function validPrivateGateTicket(
+  token: string | undefined | null,
+  env: Environment = process.env,
+  now = Date.now(),
+): boolean {
+  if (!token || token.length > 160 || !stagingEnabled(env)) return false;
+  try { validateStaging(env); } catch { return false; }
+  const match = /^(v1)\.([1-9][0-9]{8,12})\.([a-f0-9]{64})$/.exec(token);
+  if (!match) return false;
+  const issued = Number(match[2]);
+  const current = Math.floor(now / 1000);
+  if (!Number.isSafeInteger(issued) || issued > current + 60 ||
+      current - issued > PRIVATE_GATE_TTL_SECONDS) return false;
+  const expected = issuePrivateGateTicket(env, issued * 1000);
+  return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+}
+
 export function stagingEnabled(env: Environment = process.env) {
-  // Railway cannot accidentally disable its access gate.
+  // Public production is an independent, explicit decision. Never turn the
+  // private staging service public, and never mistake an arbitrary Railway
+  // environment for an approved Live service.
+  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID)
+   return !(env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true" &&
+     env.STAGING_AUTH_ENABLED!=="true" &&
+     productionCustomerReleaseApproved(env));
   return (
     Boolean(env.RAILWAY_ENVIRONMENT_ID) ||
     env.STAGING_AUTH_ENABLED === "true" ||
@@ -35,6 +113,8 @@ export function stagingAccess(
   } catch {
     return 503;
   }
+  if (authorization?.startsWith("SingMotionSession "))
+    return validPrivateGateTicket(authorization.slice("SingMotionSession ".length), env) ? 200 : 401;
   if (
     !authorization ||
     authorization.length > 4096 ||
@@ -71,4 +151,9 @@ export function stagingDenial(
       },
     },
   );
+}
+
+/** Only Stripe-signed server POST endpoints bypass browser Basic Auth. */
+export function isSignedStripeWebhookRoute(method:string,pathname:string):boolean {
+  return method==="POST" && (pathname==="/api/stripe-webhook" || pathname==="/api/hobby-webhook");
 }
