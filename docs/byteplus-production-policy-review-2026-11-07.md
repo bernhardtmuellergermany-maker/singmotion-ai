@@ -45,3 +45,16 @@ Der Maximalpreis einer 30-Sekunden-Eingabe bei bis zu 32 generierten Sekunden w�
 - Stripe-Live-Webhooks, Rückerstattung-/Dispute-E2E, private Customer-R2-E2E, Restore- und Rechts-/Supportnachweise.
 
 **Entscheidung:** Dieser Entwurf verbessert die Nachvollziehbarkeit und darf als Basis für einen späteren Owner-Review verwendet werden. Bis zur Freigabe bleibt `POLICY_REVIEW_REQUIRED` ein gültiges und bewusstes Fail-Closed-Ergebnis. Nie fiktive `reviewedBy`, `billingEvidence`, `outputEvidence` oder `expiresAt` in eine aktive Policy eintragen.
+
+## Implementierte zusätzliche Production-Sicherung (Release 2026-11-07)
+
+Der Customer-Worker verweigert jetzt eine private Production-Policy, wenn die
+`contract.revision` nicht ausdrücklich mit `production-` beginnt oder die
+Staging-Pilotreview-Kennung benutzt wird. Eine kopierte Staging-Datei kann
+keine Production-Freigabe ersetzen. Diese Herkunftsprüfung ist ein zusätzlicher
+Schutz, **kein** Nachweis einer echten Provider- oder Owner-Freigabe.
+
+Die endgültige Production-Policy muss unverändert alle Validierungen in
+`validateCustomerWorkerPolicy` bestehen und separat bestätigte Rechnungsdaten,
+Output-Hosts, Kostenlimits sowie den erforderlichen Owner-Review enthalten.
+Production-Kundenworker und Live-Checkout bleiben bis dahin gesperrt.
