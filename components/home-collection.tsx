@@ -10,7 +10,8 @@ import { validateFile, type Asset } from "@/lib/domain";
 import type { Job } from "@/lib/domain";
 import type { StudioProject } from "@/lib/live/studio";
 
-type Draft = { id: string; artistName: string; updated?: number; selection: { imageId?: string; songId?: string; start: number; end: number } };
+type PaidOrderTile = {orderId:string;projectId:string;status:string;fulfillmentState:string|null;videoReady:number;videoUrl:string|null;created:number};
+type Draft = { id: string; artistName: string; projectName?:string; updated?: number; selection: { imageId?: string; songId?: string; start: number; end: number } };
 const cleanTitle = (name: string) => { const s = name.trim(); return !s || /^(?:[a-f0-9]{8}-[a-f0-9-]{20,}|(?:live_|job_|draft_)[a-f0-9-]{8,})$/i.test(s) ? "Untitled Project" : s; };
 type Tile = { id: string; name: string; href: string; imageId?: string; seconds: number; created: number; state?: string; videoUrl?: string };
 export function HomeCollection() {
@@ -30,14 +31,31 @@ export function HomeCollection() {
           api<Job[]>("jobs"),
           api<{ projects: StudioProject[] }>("studio-live"),
           api<Draft[]>("studio-drafts"),
+          fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
+            .then(async response=>response.ok?await response.json() as {orders:PaidOrderTile[]}:{orders:[]}),
         ]);
         if (!active) return;
         const jobs = responses[0].status === "fulfilled" ? responses[0].value : [];
         const live = responses[1].status === "fulfilled" ? responses[1].value.projects || [] : [];
         const drafts = responses[2].status === "fulfilled" ? responses[2].value : [];
+        const paid = responses[3].status === "fulfilled" ? responses[3].value.orders || [] : [];
+        const draftsById = new Map(drafts.map(d => [d.id,d]));
+        const deliveredOrders = paid.filter(o =>
+          o.status === "paid" && o.fulfillmentState === "delivered" && o.videoReady === 1 &&
+          /^[a-f0-9-]{36}$/.test(o.orderId) &&
+          typeof o.videoUrl === "string" && o.videoUrl.startsWith("/api/customer-video?orderId="));
+        const deliveredDraftIds = new Set(deliveredOrders.map(o => o.projectId));
         // Every source is already restricted to the private media session on the server.
         // Never display public examples or fabricate content in the user's collection.
         const items: Tile[] = [
+          ...deliveredOrders.map(o => ({
+            id:"paid_"+o.orderId,
+            name:cleanTitle(draftsById.get(o.projectId)?.projectName||draftsById.get(o.projectId)?.artistName||"Your music video"),
+            href:"/projects/paid_"+encodeURIComponent(o.orderId),
+            imageId:draftsById.get(o.projectId)?.selection.imageId,
+            seconds:Math.max(0,(draftsById.get(o.projectId)?.selection.end||0)-(draftsById.get(o.projectId)?.selection.start||0)),
+            created:o.created||Date.now(),state:"completed",videoUrl:o.videoUrl!,
+          })),
           ...live.map(p => ({
             id: "live_" + p.id, name: cleanTitle(p.artistName || ""),
             href: "/projects/live_" + encodeURIComponent(p.id),
@@ -52,7 +70,7 @@ export function HomeCollection() {
             created: j.created, state: j.status,
             videoUrl: j.status === "completed" && j.outputId ? `/api/assets/${encodeURIComponent(j.outputId)}` : undefined,
           })),
-          ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).map(d => ({
+          ...(workspace.owner?.startsWith("customer-") ? drafts : drafts.slice(0,3)).filter(d=>!deliveredDraftIds.has(d.id)).map(d => ({
             id: "draft_" + d.id, name: cleanTitle(d.artistName || ""),
             href: "/studio?draft=" + encodeURIComponent(d.id),
             imageId: d.selection.imageId,
