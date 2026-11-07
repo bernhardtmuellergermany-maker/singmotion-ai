@@ -49,7 +49,7 @@ export function customerWorkerEnabled(env:Record<string,string|undefined>){
   env.CUSTOMER_R2_STORAGE_ENABLED==="true";
 }
 
-export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now()):ReviewedCustomerWorkerPolicy{
+export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now(),environmentId?:string):ReviewedCustomerWorkerPolicy{
  const p=raw as ReviewedCustomerWorkerPolicy;
  if(!p||typeof p!=="object" ||
     !Number.isSafeInteger(p.dailyCapMicroUsd)||p.dailyCapMicroUsd<1 ||
@@ -70,6 +70,12 @@ export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now()):Reviewe
   throw Error("Verified inclusive customer billing terms required");
  if(Date.parse(p.expiresAt)-now>30*86400000)
   throw Error("Customer provider review cannot extend more than 30 days");
+ // The private file itself does not establish Production provenance. Never
+ // accept the Staging pilot merely because it was copied to a live volume.
+ if(environmentId==="36adc41d-7e54-4396-ad1a-fd432ba0441d" &&
+    (!p.contract.revision.startsWith("production-") ||
+     p.reviewedBy.startsWith("SingMotion-owner-user-confirmation-2026-11-05")))
+  throw Error("Independent production customer provider policy review required");
  for(const seconds of [
   reviewed.contract.generatedDurationBound!.minInputSeconds,
   reviewed.contract.generatedDurationBound!.maxInputSeconds,
@@ -86,15 +92,8 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
  try{
   const bytes=await readFile(path.join(root,"customer-byteplus-policy.json"));
   if(bytes.length<40||bytes.length>65536)throw Error("Invalid customer provider policy file");
-  const reviewed=validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")));
-  // A private file is not proof of a Production review. Explicitly scope the
-  // customer contract revision to Production; never let the dated Staging
-  // fallback become a Production policy by copying JSON into a volume.
-  if(env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d" &&
-    (!reviewed.contract.revision.startsWith("production-") ||
-     reviewed.reviewedBy.startsWith("SingMotion-owner-user-confirmation-2026-11-05")))
-   throw Error("Independent production customer provider policy review required");
-  return reviewed;
+  return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")),
+   Date.now(),env.RAILWAY_ENVIRONMENT_ID);
  }catch(error){
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
   // A dated operator policy may be reused for private Staging only.
