@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { applicationOrigin } from "../lib/request-origin.ts";
+import { privateGateMutationOriginAllowed } from "../lib/staging.ts";
 const deployed = {
   NODE_ENV: "production",
   STAGING_AUTH_ENABLED: "true",
@@ -99,4 +100,43 @@ test("Railway Studio rejects a stale APP_ORIGIN and accepts only its corrected H
     ])
       assert.notEqual(untrusted, expected);
   }
+});
+
+
+test("private cookie mutation Origin rejects untrusted Host fallback in both Railway environments",()=>{
+ for(const id of ["dfaeabed-03df-43ed-aa71-50f343a75041",
+  "36adc41d-7e54-4396-ad1a-fd432ba0441d"]){
+  const base={RAILWAY_ENVIRONMENT_ID:id,STAGING_AUTH_ENABLED:"true"};
+  const path="/api/customer-auth";
+  const untrusted="https://attacker.invalid";
+  assert.equal(privateGateMutationOriginAllowed(untrusted,path,untrusted,base),false);
+  assert.equal(privateGateMutationOriginAllowed("http://internal:8080",path,"http://internal:8080",base),false);
+  for(const configured of ["http://www.singmotion.ai",
+   "https://user:secret@www.singmotion.ai",
+   "https://www.singmotion.ai/customer-auth",
+   "https://www.singmotion.ai/",
+   "not-a-url"]){
+   assert.equal(privateGateMutationOriginAllowed(configured,path,configured,
+    {...base,APP_ORIGIN:configured}),false,configured);
+  }
+  assert.equal(privateGateMutationOriginAllowed("https://www.singmotion.ai",path,
+   "http://internal:8080",{...base,APP_ORIGIN:"https://www.singmotion.ai"}),true);
+  assert.equal(privateGateMutationOriginAllowed("https://evil.invalid",path,
+   "http://internal:8080",{...base,APP_ORIGIN:"https://www.singmotion.ai"}),false);
+  assert.equal(privateGateMutationOriginAllowed("https://www.singmotion.ai","/api/cms/pages",
+   "https://www.singmotion.ai",{...base,APP_ORIGIN:"https://www.singmotion.ai",
+    CMS_ORIGIN:"https://cms.singmotion.ai"}),false);
+  assert.equal(privateGateMutationOriginAllowed("https://cms.singmotion.ai","/api/cms/pages",
+   "http://internal:8080",{...base,APP_ORIGIN:"https://www.singmotion.ai",
+    CMS_ORIGIN:"https://cms.singmotion.ai"}),true);
+ }
+});
+
+test("unprotected loopback development can still use local request origin",()=>{
+ assert.equal(privateGateMutationOriginAllowed("http://localhost:3000","/api/session",
+  "http://localhost:3000",{STAGING_AUTH_ENABLED:"false"}),true);
+ assert.equal(privateGateMutationOriginAllowed("http://evil.invalid","/api/session",
+  "http://localhost:3000",{STAGING_AUTH_ENABLED:"false"}),false);
+ assert.equal(privateGateMutationOriginAllowed("http://localhost:3000","/api/session",
+  "http://localhost:3000",{STAGING_AUTH_ENABLED:"true"}),false);
 });
