@@ -130,3 +130,12 @@ test("owner policy targets are identical for Staging and Production without impl
   assert.equal(customerWorkerEnabled({RAILWAY_ENVIRONMENT_ID:environmentId}),false);
  }
 });
+
+
+test("shared Studio input admission is exactly 5–300 seconds in both environments",async()=>{
+ const {assertSharedBytePlusInputSeconds,SHARED_BYTEPLUS_TARGET_POLICY:target}=await import("../lib/commerce/shared-byteplus-target-policy.ts");
+ assert.equal(target.productionAndStagingIdentical,true);
+ for(const seconds of [5,30,59.999,299.999,300])assert.equal(assertSharedBytePlusInputSeconds(seconds),seconds);
+ for(const seconds of [0,4,4.999,300.001,301,Infinity,NaN])
+  assert.throws(()=>assertSharedBytePlusInputSeconds(seconds),/between 5 and 300 seconds/);
+});
