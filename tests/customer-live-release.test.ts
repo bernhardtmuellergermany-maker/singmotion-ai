@@ -77,6 +77,12 @@ test("production requires a private real-customer policy on persistent volume, n
   await assert.rejects(loadCustomerWorkerPolicy(root,e),/private production customer provider policy/);
   const policy=ownerConfirmedBytePlusPolicy();
   await writeFile(path.join(root,"customer-byteplus-policy.json"),JSON.stringify(policy),{mode:0o600});
+  await assert.rejects(loadCustomerWorkerPolicy(root,e),
+   /Independent production customer provider policy review required/);
+  assert.equal(customerLaunchReadiness(e).readyForPaidOrders,false);
+  const independent={...policy,reviewedBy:"independent-production-policy-review-offline",
+   contract:{...policy.contract,revision:"production-isolated-offline-fixture"}};
+  await writeFile(path.join(root,"customer-byteplus-policy.json"),JSON.stringify(independent),{mode:0o600});
   assert.equal((await loadCustomerWorkerPolicy(root,e)).contract.billing.microUsdPerSecond,70000);
   assert.equal(customerLaunchReadiness(e).readyForPaidOrders,true);
   const store=new CommerceStore(":memory:");
