@@ -853,22 +853,22 @@
 .singmotion-flow .sm-studio-review-carousel{
   width:100%;max-width:100%;min-width:0;box-sizing:border-box;
   flex:0 0 auto;align-self:center;
-  margin:auto auto 0;padding:0;overflow-x:clip;overflow-y:visible;color:#edf0fa;
+  margin:auto auto auto;padding:0;overflow-x:clip;overflow-y:visible;color:#edf0fa;
 }
 .singmotion-flow .sm-review-stage{
   position:relative;width:100%;
   /* Reserve the COMPLETE 9:16 card height, not a shorter percentage of the
      viewport. Flex children must not shrink and clip either edge. */
-  height:calc(var(--sm-card-width) * 16 / 9 + 24px);
+  height:calc(var(--sm-card-width) * 5 / 4 + 20px);
   min-height:0;flex:none;
   perspective:1100px;perspective-origin:center center;
-  touch-action:pan-y;--sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625));
-  --sm-carousel-step:clamp(185px,calc(var(--sm-card-width)*.83),335px);
+  touch-action:pan-y;--sm-card-width:min(84vw,360px,calc((100svh - 220px)*.8));
+  --sm-carousel-step:clamp(170px,calc(var(--sm-card-width)*.82),310px);
 }
 .singmotion-flow .sm-review-stage>.sm-review-panel{
   position:absolute;top:50%;left:50%;box-sizing:border-box;
   width:var(--sm-card-width);max-width:var(--sm-card-width);
-  height:auto;max-height:none;aspect-ratio:9/16;
+  height:auto;max-height:none;aspect-ratio:4/5;
   padding:0;border-radius:19px;overflow:hidden;
   border:1px solid rgba(147,121,204,.36);
   box-shadow:0 18px 55px rgba(0,0,0,.5);
@@ -942,9 +942,9 @@
      whole viewport for the 9:16 card. Reserve room for header, actions and
      mobile browser UI and scale BOTH cards together. */
   .singmotion-flow .sm-review-stage{
-    --sm-card-width:min(78vw,340px,max(155px,calc((100dvh - 300px)*.5625)));
+    --sm-card-width:min(84vw,360px,max(180px,calc((100dvh - 290px)*.8)));
     --sm-carousel-step:calc(var(--sm-card-width) * .82);
-    height:calc(var(--sm-card-width) * 16 / 9 + 16px);
+    height:calc(var(--sm-card-width) * 5 / 4 + 16px);
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
     min-height:calc(100dvh - 72px);
@@ -953,7 +953,7 @@
     padding-bottom:10px;
   }
   .singmotion-flow .flow-main>.sm-studio-review-carousel{
-    margin:auto auto 0;
+    margin:auto auto auto;
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
     margin:0 auto 10px !important;
