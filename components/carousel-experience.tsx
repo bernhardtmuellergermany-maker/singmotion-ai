@@ -72,6 +72,8 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
   ]:["showcase","home","login",...tiles.map(t=>t.id)];
   const showcaseProject=tiles.find(t=>t.name.trim().toLocaleLowerCase()==="varkai"&&!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_"))) || tiles.find(t=>!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_")));
   const activeIndex=Math.max(0,ids.indexOf(current));
+  // Prime only the first two video cards, never the whole private project list.
+  const firstVideoIds=ids.filter(id=>id==="showcase"||tiles.some(tile=>tile.id===id&&tile.state.toLowerCase()==="completed"&&!!tile.videoUrl)).slice(0,2);
   // Signed shortest distance around a circular carousel. Both ends stay
   // adjacent instead of making the side cards disappear at the boundary.
   const circularDistance=(index:number)=>{
@@ -284,7 +286,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
                   </label>}
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
-            </div>:id==="login"?<AccountPanel active={distance===0}/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
+            </div>:id==="login"?<AccountPanel active={distance===0}/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} eagerPreview={firstVideoIds.includes(id)} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
         })}
         {([-1,1] as const).map(direction=>{
@@ -305,7 +307,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
     </main>
   </div>;
 }
-function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:boolean;deleting:boolean;onDelete:()=>void}){
+function ProjectCarouselCard({tile,active,eagerPreview,deleting,onDelete}:{tile:Tile;active:boolean;eagerPreview:boolean;deleting:boolean;onDelete:()=>void}){
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [mediaError,setMediaError]=useState(false);
@@ -325,8 +327,8 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   const explanation=label==="Draft"?"Continue editing this saved draft.":label==="Prepared"?"Ready for your next step.":label==="Processing"?"Your music video is being generated.":label==="Pending"?"Waiting for the provider.":label==="Failed"?"Open to review the failed attempt.":"Open to view your project.";
   return <div className={"sm-carousel-project "+(complete?"has-video":"has-status")}>
     {tile.id.startsWith("draft_")&&<button type="button" className="sm-carousel-draft-delete" aria-label={`Delete draft ${tile.name}`} title="Delete draft" disabled={deleting} onPointerDown={e=>e.stopPropagation()} onTouchStart={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onDelete();}}><Trash2 size={16} aria-hidden="true"/></button>}
-    {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading="lazy"/>}
-    {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
+    {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading={eagerPreview?"eager":"lazy"}/>}
+    {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active||eagerPreview?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
     {complete&&!mediaError?<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const v=video.current;if(!v)return;v.muted=sound;setSound(!sound);}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>:<div className="sm-carousel-status">
       {label==="Failed"?<AlertCircle size={35}/>:label==="Prepared"||label==="Draft"?<CheckCircle2 size={35}/>:<LoaderCircle className={label==="Pending"||label==="Processing"?"sm-spinning":""} size={35}/>}
       <strong>{label}</strong><p>{mediaError?"Video preview unavailable. Open the project to inspect it.":explanation}</p>
@@ -461,7 +463,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   },[active,visible,videoUrl]);
   return <div className="sm-showcase-card">
     {posterUrl&&<img className="sm-showcase-poster" src={posterUrl} alt="" loading="eager"/>}
-    {hasVideo&&visible&&!failed&&<video ref={video} className="sm-carousel-video" src={active?videoUrl:undefined} poster={posterUrl||undefined} muted playsInline loop preload="metadata" onError={()=>setFailed(true)}/>}
+    {hasVideo&&visible&&!failed&&<video ref={video} className="sm-carousel-video" src={videoUrl} poster={posterUrl||undefined} muted playsInline loop preload="auto" onError={()=>setFailed(true)}/>}
     {hasVideo&&visible&&!failed&&<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute showcase video":"Unmute showcase video"} onClick={e=>{e.stopPropagation();const v=video.current;if(v){v.muted=sound;setSound(!sound);}}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>}
     {(!hasVideo||failed)&&<div className="sm-showcase-fallback"><Music2 size={38}/><span>{failed?"Showcase video unavailable":"Showcase video coming soon"}</span></div>}
     <span className="sm-showcase-label">Lip-Synced with SingMotion AI</span>
