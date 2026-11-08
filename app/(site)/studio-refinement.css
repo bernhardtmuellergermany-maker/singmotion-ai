@@ -864,7 +864,7 @@
   height:calc(var(--sm-card-width) * 16 / 9 + 20px);
   min-height:0;flex:none;
   perspective:1100px;perspective-origin:center center;
-  touch-action:pan-y;--sm-card-width:min(81vw,360px,calc((100svh - 170px)*.50625));
+  touch-action:pan-y;--sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625));
   --sm-carousel-step:clamp(170px,calc(var(--sm-card-width)*.82),310px);
 }
 .singmotion-flow .sm-review-stage>.sm-review-panel{
@@ -944,7 +944,7 @@
      whole viewport for the 9:16 card. Reserve room for header, actions and
      mobile browser UI and scale BOTH cards together. */
   .singmotion-flow .sm-review-stage{
-    --sm-card-width:min(79.2vw,calc((100svh - 160px)*.50625));
+    --sm-card-width:min(88vw,calc((100svh - 160px)*.5625));
     --sm-carousel-step:calc(var(--sm-card-width) * .82);
     height:calc(var(--sm-card-width) * 16 / 9 + 12px);
   }
@@ -1025,7 +1025,7 @@
     /* Center the 9:16 cards in the visible area ABOVE the fixed button row.
        The row is 110px reserved globally; extra clearance balances the
        formerly large top gap and near-zero bottom gap of the review card. */
-    padding-bottom:calc(190px + env(safe-area-inset-bottom,0px));
+    padding-bottom:calc(160px + env(safe-area-inset-bottom,0px));
   }
   .singmotion-flow .flow-main>.sm-studio-navigation,
   .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation,
