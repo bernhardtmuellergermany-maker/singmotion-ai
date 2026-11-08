@@ -938,14 +938,41 @@
   font-size:12px;line-height:1.55;margin:9px 0;
 }
 @media(max-width:690px){
+  /* Studio also has bottom navigation; unlike the homepage, it cannot use the
+     whole viewport for the 9:16 card. Reserve room for header, actions and
+     mobile browser UI and scale BOTH cards together. */
   .singmotion-flow .sm-review-stage{
-    --sm-card-width:min(88vw,calc((100svh - 160px)*.5625));
-    --sm-carousel-step:65vw;
+    --sm-card-width:min(78vw,340px,max(155px,calc((100dvh - 300px)*.5625)));
+    --sm-carousel-step:calc(var(--sm-card-width) * .82);
+    height:calc(var(--sm-card-width) * 16 / 9 + 16px);
+  }
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+    min-height:calc(100dvh - 72px);
+    box-sizing:border-box;
+    padding-top:10px;
+    padding-bottom:10px;
+  }
+  .singmotion-flow .flow-main>.sm-studio-review-carousel{
+    margin:auto auto 0;
+  }
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
+    margin:0 auto 10px !important;
+    padding-top:12px;
   }
   .singmotion-flow .sm-review-stage>.sm-review-panel{
     border-radius:15px;
     transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) rotateY(calc(var(--distance)*-34deg)) scale(calc(1 - var(--depth)*.12));
   }
+  .singmotion-flow .sm-review-details-inner{padding:16px 13px 18px}
+  .singmotion-flow .sm-review-details h2{font-size:18px;margin-bottom:10px}
+  .singmotion-flow .sm-review-details dl>div{padding:7px 0;gap:7px}
+  .singmotion-flow .sm-review-details dt,.singmotion-flow .sm-review-details dd{font-size:11px}
+  .singmotion-flow .sm-review-instructions{margin-top:11px}
+  .singmotion-flow .sm-review-instructions p{font-size:11px;line-height:1.45}
+  .singmotion-flow .sm-review-top{padding:12px}
+  .singmotion-flow .sm-review-status{font-size:11px;padding:6px 9px}
+  .singmotion-flow .sm-review-bottom{padding:48px 14px 15px}
+  .singmotion-flow .sm-review-bottom strong{font-size:18px}
 }
 @media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){
   .singmotion-flow .sm-review-stage>.sm-review-panel.is-neighbor:hover{
