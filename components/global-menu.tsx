@@ -25,13 +25,9 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
         { href: "/plans", label: "Plans & Pricing" },
         { href: "/help", label: "Help & FAQ" },
         { href: "/contact", label: "Contact & Support" },
-        { href: "/legal", label: "Imprint / Legal Notice" },
-        { href: "/privacy", label: "Privacy Policy" },
-        { href: "/cookies", label: "Cookies & Tracking" },
-        { href: "/terms", label: "Terms of Service" },
-        { href: "/withdrawal", label: "Withdrawal Rights" },
-        { href: "/rights", label: "Music, Image & Voice Rights" },
-        { href: "/ai-transparency", label: "AI Transparency" }
+        { href: "/legal", label: "Legal & Privacy" },
+        { href: "/terms", label: "Terms & Consumer Rights" },
+        { href: "/ai-transparency", label: "AI & Media Rights" }
       ] as const).map(item => (
         <Link key={item.href} href={item.href} target={openInNewTab ? "_blank" : undefined} rel={openInNewTab ? "noopener noreferrer" : undefined} onClick={() => { if (menu.current) menu.current.open = false; }}>{item.label}</Link>
       ))}
