@@ -2147,7 +2147,8 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
     box-sizing: border-box;
   }
   .sm-carousel-landing .sm-carousel-card.is-active.is-account-card:has(.sm-carousel-login[data-mode="register"]) {
-    height: calc(100dvh - 174px);
+    /* Shorter card after removing the duplicate Google registration action. */
+    height: min(570px, calc(100dvh - 174px));
   }
   .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login {
     box-sizing: border-box;
