@@ -401,12 +401,12 @@ export function StudioWizard({
             {draft.imageId&&<img className="sm-studio-review-photo" alt="Uploaded artist reference" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/>}
             <div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" rows={5} readOnly aria-readonly="true" value={draft.customPrompt}/></div>
           </section>
-          <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Review Order <ArrowRight size={20}/></button>
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
           {step<2&&(step!==0||Boolean(draft.song&&audioValid))&&<button type="button" className="sm-studio-next" disabled={busy} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
           {step===2&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setStep(3)}>Review Project <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Review Order <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>
