@@ -2209,24 +2209,32 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
   }
 }
 
-/* Keep every carousel card on the same responsive geometry, including account
-   registration. Perspective scaling is presentation only, never a different size. */
+/* Every carousel tile keeps the original portrait 9:16 ratio.
+   Login/registration scroll *inside* the same card instead of stretching it.
+   The width responds to available phone height as well as screen width. */
 @media (max-width: 690px) {
   .sm-carousel-landing .sm-carousel-stage,
   .sm-carousel-landing .sm-carousel-stage:has(.sm-carousel-card.is-active.is-account-card) {
-    height: min(620px, calc(100dvh - 146px));
+    --sm-card-width: min(88vw, 360px, calc((100svh - 180px) * 0.5625));
+    height: min(75svh, 680px);
     min-height: 0;
-    --sm-card-width: min(calc(100vw - 28px), 360px);
   }
   .sm-carousel-landing .sm-carousel-card,
   .sm-carousel-landing .sm-carousel-card.is-active.is-account-card,
   .sm-carousel-landing .sm-carousel-card.is-active.is-account-card:has(.sm-carousel-login[data-mode="register"]) {
     box-sizing: border-box;
-    width: min(calc(100vw - 28px), 360px);
+    width: var(--sm-card-width);
     min-width: 0;
-    max-width: min(calc(100vw - 28px), 360px);
-    height: min(570px, calc(100dvh - 174px));
-    max-height: min(570px, calc(100dvh - 174px));
-    aspect-ratio: auto;
+    max-width: var(--sm-card-width);
+    height: auto;
+    max-height: none;
+    aspect-ratio: 9 / 16;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: none;
   }
 }
