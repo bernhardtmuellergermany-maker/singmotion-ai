@@ -374,7 +374,7 @@ function AccountPanel({active}:{active:boolean}){
    if(now-lastCheck<1500)return;
    lastCheck=now;
    void readCustomerAuthStatus()
-    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email??null:null);setStaff(d.authenticated&&d.kind==="staff");});
+    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email??null:null);setStaff(d.authenticated===true&&d.kind==="staff");});
   };
   refresh();
   window.addEventListener("focus",refresh);
