@@ -71,6 +71,18 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
   ]:["showcase","home","login",...tiles.map(t=>t.id)];
   const showcaseProject=tiles.find(t=>t.name.trim().toLocaleLowerCase()==="varkai"&&!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_"))) || tiles.find(t=>!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_")));
   const activeIndex=Math.max(0,ids.indexOf(current));
+  // Signed shortest distance around a circular carousel. Both ends stay
+  // adjacent instead of making the side cards disappear at the boundary.
+  const circularDistance=(index:number)=>{
+    const count=ids.length;
+    if(count<2)return 0;
+    const forward=(index-activeIndex+count)%count;
+    return forward>count/2?forward-count:forward;
+  };
+  const adjacent=(direction:-1|1)=>{
+    if(ids.length<2)return null;
+    return ids[(activeIndex+direction+ids.length)%ids.length];
+  };
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
   useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";void Promise.resolve().then(()=>setSearchOpen(true));const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
@@ -196,8 +208,9 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
     finally{setDeletingDraft(null);}
   };
   const step=(offset:number)=>{
+    if(ids.length<2)return;
     const i=Math.max(0,ids.indexOf(currentRef.current));
-    const target=ids[Math.max(0,Math.min(ids.length-1,i+offset))];
+    const target=ids[(i+offset%ids.length+ids.length)%ids.length];
     if(target)navigate(target);
   };
   async function selectAudio(file?:File){
@@ -250,7 +263,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
       {error&&<p className="sm-carousel-error" role="alert">{error}</p>}
       <div className="sm-carousel-stage" aria-label="Music video cards" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {ids.map((id,i)=>{
-          const distance=i-activeIndex;
+          const distance=circularDistance(i);
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
@@ -274,7 +287,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
           </section>;
         })}
         {([-1,1] as const).map(direction=>{
-          const target=ids[activeIndex+direction];
+          const target=adjacent(direction);
           if(!target)return null;
           return <button key={direction} type="button"
             className={"sm-carousel-side-zone "+(direction<0?"is-left":"is-right")}
