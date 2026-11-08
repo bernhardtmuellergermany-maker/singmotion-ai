@@ -1042,3 +1042,33 @@
     box-sizing:border-box;
   }
 }
+
+
+/* Review page: size cards to the actual free height between the Studio header
+   and its fixed action row. A homepage-sized card cannot fit both at once on
+   a short phone viewport; preserve 9:16 while guaranteeing bottom clearance. */
+@media(max-width:690px){
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+    min-height:calc(100dvh - 72px);
+    height:auto;
+    box-sizing:border-box;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    padding-top:12px;
+    padding-bottom:calc(118px + env(safe-area-inset-bottom,0px));
+    overflow:visible;
+  }
+  .singmotion-flow .flow-main>.sm-studio-review-carousel{
+    flex:none;
+    position:relative;
+    top:auto;
+    margin:auto auto!important;
+  }
+  .singmotion-flow .sm-review-stage{
+    /* The full portrait card AND its 12px stage margin fit above the buttons. */
+    --sm-card-width:min(79.2vw,max(155px,calc((100dvh - 300px)*.5625)));
+    --sm-carousel-step:calc(var(--sm-card-width) * .82);
+    height:calc(var(--sm-card-width) * 16 / 9 + 12px);
+  }
+}
