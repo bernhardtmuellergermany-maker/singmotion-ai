@@ -254,7 +254,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
-          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant"+(hoveredSide===id?" is-distant-hovered":""))} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={undefined} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
+          return <section key={id} className={"sm-carousel-card "+(id==="login"?"is-account-card ":"")+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant"+(hoveredSide===id?" is-distant-hovered":""))} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={undefined} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
             {distance!==0&&<button type="button" className="sm-carousel-side-hit" onPointerEnter={()=>setHoveredSide(id)} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide(id)} onBlur={()=>setHoveredSide(null)} aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
             {id==="showcase"?<ShowcaseCard active={distance===0} visible={visible} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
@@ -396,7 +396,7 @@ function AccountPanel(){
    setPassword("");setAccount(action==="logout"?null:d.email);window.location.reload();
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
- return <div className="sm-carousel-login">
+ return <div className="sm-carousel-login" data-mode={mode}>
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
   {!account&&<p className="sm-account-intro">{mode==="register"?"Save your videos and drafts in your own private workspace.":"Sign in to access your videos and projects from this account."}</p>}
