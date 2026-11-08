@@ -1006,3 +1006,14 @@
     background:linear-gradient(180deg,rgba(9,13,22,0),#090d16 22%);
   }
 }
+
+
+/* Final mobile review spacing: move ONLY the carousel upward. Keep the
+   shared Studio navigation in its established bottom position. The shifted
+   wrapper retains its original layout footprint, so actions never move. */
+@media(max-width:690px){
+  .singmotion-flow .flow-main>.sm-studio-review-carousel{
+    position:relative;
+    top:-26px;
+  }
+}
