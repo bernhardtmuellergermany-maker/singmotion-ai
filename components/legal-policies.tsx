@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { SiteHeader } from "./site-header";
-import { SiteFooter } from "./site-footer";
 
 type Section = { title: string; paragraphs: string[] };
 const revision = "8 November 2026";
@@ -92,7 +91,6 @@ export function LegalPolicyPage({slug}:{slug:string}){
       {page.sections.map((section,i)=><section key={section.title} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
       <p className="sm-legal-copyright">© SingMotion AI · A published notice does not replace verified contracts, technical controls, or professional legal review.</p>
     </main>
-    <SiteFooter/>
   </div>;
 }
 export function legalPageMetadata(slug:string){const p=pages[slug];return p?{title:p.title,description:p.intro}:null;}
