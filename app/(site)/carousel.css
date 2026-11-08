@@ -2208,3 +2208,25 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
     padding: 14px 12px 18px;
   }
 }
+
+/* Keep every carousel card on the same responsive geometry, including account
+   registration. Perspective scaling is presentation only, never a different size. */
+@media (max-width: 690px) {
+  .sm-carousel-landing .sm-carousel-stage,
+  .sm-carousel-landing .sm-carousel-stage:has(.sm-carousel-card.is-active.is-account-card) {
+    height: min(620px, calc(100dvh - 146px));
+    min-height: 0;
+    --sm-card-width: min(calc(100vw - 28px), 360px);
+  }
+  .sm-carousel-landing .sm-carousel-card,
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card,
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card:has(.sm-carousel-login[data-mode="register"]) {
+    box-sizing: border-box;
+    width: min(calc(100vw - 28px), 360px);
+    min-width: 0;
+    max-width: min(calc(100vw - 28px), 360px);
+    height: min(570px, calc(100dvh - 174px));
+    max-height: min(570px, calc(100dvh - 174px));
+    aspect-ratio: auto;
+  }
+}
