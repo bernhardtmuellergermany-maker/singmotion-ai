@@ -99,7 +99,7 @@ export async function POST(req:NextRequest){
        method:"POST",
        headers:{"Authorization":"Bearer "+process.env.RESEND_API_KEY,"Content-Type":"application/json"},
        body:JSON.stringify({
-         from:process.env.ACCOUNT_EMAIL_FROM,
+         from:process.env.CONTACT_CONFIRMATION_FROM || "SingMotion AI <no-reply@singmotion.ai>",
          to:[email],
          reply_to:process.env.CONTACT_EMAIL_TO,
          subject:receiptSubject,
