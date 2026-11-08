@@ -995,16 +995,7 @@
     overflow:visible;
     padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));
   }
-  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
-    position:sticky;
-    bottom:env(safe-area-inset-bottom,0px);
-    z-index:15;
-    width:100%;
-    box-sizing:border-box;
-    margin:auto auto 0!important;
-    padding:8px 0 8px;
-    background:linear-gradient(180deg,rgba(9,13,22,0),#090d16 22%);
-  }
+
 }
 
 
@@ -1015,5 +1006,32 @@
   .singmotion-flow .flow-main>.sm-studio-review-carousel{
     position:relative;
     top:-26px;
+  }
+}
+
+/* One shared mobile action baseline for EVERY Studio step. The review carousel
+   must not own a separate sticky footer: that previously shifted the buttons
+   relative to audio, performance and photo steps. Keep room in the document so
+   the fixed actions never cover the end of the cards or form fields. */
+@media(max-width:700px){
+  .singmotion-flow .flow-main{
+    padding-bottom:calc(110px + env(safe-area-inset-bottom,0px));
+  }
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+    padding-bottom:calc(110px + env(safe-area-inset-bottom,0px));
+  }
+  .singmotion-flow .flow-main>.sm-studio-navigation,
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation,
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
+    position:fixed;
+    inset:auto auto calc(16px + env(safe-area-inset-bottom,0px)) 50%;
+    transform:translateX(-50%);
+    z-index:40;
+    width:calc(100% - 24px);
+    max-width:1120px;
+    margin:0!important;
+    padding:8px 0;
+    background:linear-gradient(180deg,rgba(9,13,22,0),rgba(9,13,22,.93) 25%);
+    box-sizing:border-box;
   }
 }
