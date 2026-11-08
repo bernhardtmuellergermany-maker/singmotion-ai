@@ -848,43 +848,72 @@
 }
 
 
-/* Studio review uses the same size and 3D transforms as the homepage carousel.
-   Exactly two 9:16 cards, with no separate view tabs or instruction label. */
-.singmotion-flow .sm-studio-review-carousel{
-  width:100%;max-width:100%;min-width:0;box-sizing:border-box;
-  flex:0 0 auto;align-self:center;
-  /* Place the review carousel near the header, as on the homepage; leave
-     the remaining vertical space BELOW it so bottom actions stay anchored. */
-  margin:18px auto auto;padding:0;overflow-x:clip;overflow-y:visible;color:#edf0fa;
+/* Studio preview reuses the homepage's 9:16 carousel geometry and 3D motion.
+   Its only difference: the same fixed Studio action row reserves space below. */
+.singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:stretch;
+  min-height:calc(100dvh - 72px);
+  height:auto;
+  padding-top:12px;
+  padding-bottom:132px;
+  overflow:visible;
+}
+.singmotion-flow .flow-main>.sm-studio-review-carousel{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  flex:none;
+  align-self:center;
+  position:relative;
+  top:auto;
+  margin:auto auto!important;
+  padding:0;
+  overflow-x:clip;
+  overflow-y:visible;
+  color:#edf0fa;
 }
 .singmotion-flow .sm-review-stage{
-  position:relative;width:100%;
-  /* Reserve the COMPLETE 9:16 card height, not a shorter percentage of the
-     viewport. Flex children must not shrink and clip either edge. */
-  height:calc(var(--sm-card-width) * 16 / 9 + 20px);
-  min-height:0;flex:none;
-  perspective:1100px;perspective-origin:center center;
-  touch-action:pan-y;--sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625));
-  --sm-carousel-step:clamp(170px,calc(var(--sm-card-width)*.82),310px);
+  /* Same home width rule, capped only to prevent collision with the buttons. */
+  --sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625),calc((100dvh - 244px)*.5625));
+  --sm-carousel-step:clamp(185px,calc(var(--sm-card-width)*.83),335px);
+  position:relative;
+  width:100%;
+  height:calc(var(--sm-card-width)*16/9 + 12px);
+  min-height:0;
+  flex:none;
+  perspective:1100px;
+  perspective-origin:center center;
+  transform-style:flat;
+  touch-action:pan-y;
 }
 .singmotion-flow .sm-review-stage>.sm-review-panel{
-  position:absolute;top:50%;left:50%;box-sizing:border-box;
-  width:var(--sm-card-width);max-width:var(--sm-card-width);
-  height:auto;max-height:none;aspect-ratio:9/16;
-  padding:0;border-radius:19px;overflow:hidden;
+  position:absolute;
+  top:50%;
+  left:50%;
+  box-sizing:border-box;
+  width:var(--sm-card-width);
+  max-width:var(--sm-card-width);
+  height:auto;
+  max-height:none;
+  aspect-ratio:9/16;
+  padding:0;
+  border-radius:19px;
+  overflow:hidden;
   border:1px solid rgba(147,121,204,.36);
+  background:linear-gradient(150deg,#181b30,#111522);
   box-shadow:0 18px 55px rgba(0,0,0,.5);
   transform:translate(-50%,-50%) translateX(calc(var(--distance)*var(--sm-carousel-step))) translateZ(calc(var(--depth)*-110px)) rotateY(calc(var(--distance)*-35deg)) scale(calc(1 - var(--depth)*.12));
   opacity:calc(1 - var(--depth)*.2);
   filter:brightness(calc(1 - var(--depth)*.22));
   transition:transform .64s cubic-bezier(.22,1,.36,1),opacity .64s cubic-bezier(.22,1,.36,1),filter .64s cubic-bezier(.22,1,.36,1);
 }
-.singmotion-flow .sm-review-stage>.sm-review-panel.is-active{
-  z-index:6;filter:none;opacity:1;
-}
-.singmotion-flow .sm-review-stage>.sm-review-panel.is-neighbor{
-  z-index:4;cursor:pointer;
-}
+.singmotion-flow .sm-review-stage>.sm-review-panel.is-active{z-index:6;filter:none;opacity:1}
+.singmotion-flow .sm-review-stage>.sm-review-panel.is-neighbor{z-index:4;cursor:pointer}
 .singmotion-flow .sm-review-stage>.sm-review-panel.is-inactive>*:not(.sm-carousel-side-hit){pointer-events:none}
 .singmotion-flow .sm-review-stage>.sm-review-panel .sm-carousel-side-hit{
   position:absolute;inset:0;z-index:12;pointer-events:auto;
@@ -939,27 +968,16 @@
   white-space:pre-wrap;overflow-wrap:anywhere;color:#cbd2e5;
   font-size:12px;line-height:1.55;margin:9px 0;
 }
+
 @media(max-width:690px){
-  /* Studio also has bottom navigation; unlike the homepage, it cannot use the
-     whole viewport for the 9:16 card. Reserve room for header, actions and
-     mobile browser UI and scale BOTH cards together. */
-  .singmotion-flow .sm-review-stage{
-    --sm-card-width:min(88vw,calc((100svh - 160px)*.5625));
-    --sm-carousel-step:calc(var(--sm-card-width) * .82);
-    height:calc(var(--sm-card-width) * 16 / 9 + 12px);
-  }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
     min-height:calc(100dvh - 72px);
-    box-sizing:border-box;
-    padding-top:10px;
-    padding-bottom:10px;
-  }
-  .singmotion-flow .flow-main>.sm-studio-review-carousel{
-    margin:auto auto auto;
-  }
-  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
-    margin:0 auto 10px !important;
     padding-top:12px;
+    padding-bottom:calc(132px + env(safe-area-inset-bottom,0px));
+  }
+  .singmotion-flow .sm-review-stage{
+    --sm-card-width:min(88vw,calc((100svh - 160px)*.5625),calc((100dvh - 244px)*.5625));
+    --sm-carousel-step:65vw;
   }
   .singmotion-flow .sm-review-stage>.sm-review-panel{
     border-radius:15px;
@@ -985,51 +1003,16 @@
 @media(prefers-reduced-motion:reduce){
   .singmotion-flow .sm-review-panel{transition:none}
 }
-
-/* Full homepage-size 9:16 Studio cards. Bottom actions stay in their familiar
-   bottom-aligned row; short viewports scroll instead of cropping the cards. */
-@media(max-width:690px){
-  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
-    min-height:calc(100dvh - 72px);
-    height:auto;
-    overflow:visible;
-    padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));
-  }
-
-}
-
-
-/* Center the smaller cards between the header and the shared bottom actions,
-   without a translation that would change visible top/bottom spacing. */
-@media(max-width:690px){
-  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
-    justify-content:center;
-    padding-top:12px;
-  }
-  .singmotion-flow .flow-main>.sm-studio-review-carousel{
-    position:relative;
-    top:auto;
-    margin:auto auto auto;
-  }
-}
-
-/* One shared mobile action baseline for EVERY Studio step. The review carousel
-   must not own a separate sticky footer: that previously shifted the buttons
-   relative to audio, performance and photo steps. Keep room in the document so
-   the fixed actions never cover the end of the cards or form fields. */
+/* All Studio steps share ONE bottom action baseline. No review-only sticky row. */
 @media(max-width:700px){
   .singmotion-flow .flow-main{
     padding-bottom:calc(110px + env(safe-area-inset-bottom,0px));
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
-    /* Center the 9:16 cards in the visible area ABOVE the fixed button row.
-       The row is 110px reserved globally; extra clearance balances the
-       formerly large top gap and near-zero bottom gap of the review card. */
-    padding-bottom:calc(160px + env(safe-area-inset-bottom,0px));
+    padding-bottom:calc(132px + env(safe-area-inset-bottom,0px));
   }
   .singmotion-flow .flow-main>.sm-studio-navigation,
-  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation,
-  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation{
     position:fixed;
     inset:auto auto calc(16px + env(safe-area-inset-bottom,0px)) 50%;
     transform:translateX(-50%);
@@ -1040,35 +1023,5 @@
     padding:8px 0;
     background:linear-gradient(180deg,rgba(9,13,22,0),rgba(9,13,22,.93) 25%);
     box-sizing:border-box;
-  }
-}
-
-
-/* Review page: size cards to the actual free height between the Studio header
-   and its fixed action row. A homepage-sized card cannot fit both at once on
-   a short phone viewport; preserve 9:16 while guaranteeing bottom clearance. */
-@media(max-width:690px){
-  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
-    min-height:calc(100dvh - 72px);
-    height:auto;
-    box-sizing:border-box;
-    display:flex;
-    flex-direction:column;
-    justify-content:center;
-    padding-top:12px;
-    padding-bottom:calc(118px + env(safe-area-inset-bottom,0px));
-    overflow:visible;
-  }
-  .singmotion-flow .flow-main>.sm-studio-review-carousel{
-    flex:none;
-    position:relative;
-    top:auto;
-    margin:auto auto!important;
-  }
-  .singmotion-flow .sm-review-stage{
-    /* The full portrait card AND its 12px stage margin fit above the buttons. */
-    --sm-card-width:min(79.2vw,max(155px,calc((100dvh - 300px)*.5625)));
-    --sm-carousel-step:calc(var(--sm-card-width) * .82);
-    height:calc(var(--sm-card-width) * 16 / 9 + 12px);
   }
 }
