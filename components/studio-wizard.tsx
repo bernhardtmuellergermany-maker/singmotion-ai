@@ -395,21 +395,17 @@ export function StudioWizard({
           <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
         </section>}
         {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
-          <div className="sm-review-tabs" role="group" aria-label="Choose project card">
-            <button type="button" className={reviewCard==="preview"?"is-selected":""} aria-pressed={reviewCard==="preview"} onClick={()=>setReviewCard("preview")}>Project</button>
-            <button type="button" className={reviewCard==="details"?"is-selected":""} aria-pressed={reviewCard==="details"} onClick={()=>setReviewCard("details")}>Details</button>
-          </div>
-          <div className="sm-review-stage"
+          <div className="sm-carousel-stage sm-review-stage"
             onTouchStart={e=>{reviewTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
             onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
           >
-            <article className={"sm-review-panel sm-review-front "+(reviewCard==="preview"?"is-front":"is-behind")} aria-label="Project image and status">
+            <article className={"sm-carousel-card sm-review-panel sm-review-front "+(reviewCard==="preview"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="preview"?0:-1,"--depth":reviewCard==="preview"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project image and status">
               {draft.imageId?<img className="sm-review-cover" src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt="Selected artist reference"/>:<div className="sm-review-placeholder"><ImagePlus size={42}/><span>No artist image selected</span></div>}
               <div className="sm-review-top"><span className="sm-review-status">Ready for review</span></div>
               <div className="sm-review-bottom"><strong title={projectName}>{projectName||"Untitled Project"}</strong><span>{draft.outputFormat} · {sourceTimestamp(Math.max(0,draft.end-draft.start))} clip</span></div>
-              {reviewCard!=="preview"&&<button type="button" className="sm-review-side-hit" aria-label="Show project card" onClick={()=>setReviewCard("preview")}/>}
+              {reviewCard!=="preview"&&<button type="button" className="sm-carousel-side-hit sm-review-side-hit" aria-label="Show project card" onClick={()=>setReviewCard("preview")}/>}
             </article>
-            <article className={"sm-review-panel sm-review-details "+(reviewCard==="details"?"is-front":"is-behind")} aria-label="Project details">
+            <article className={"sm-carousel-card sm-review-panel sm-review-details "+(reviewCard==="details"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="details"?0:1,"--depth":reviewCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
               <div className="sm-review-details-inner">
                 <h2>Project details</h2>
                 <dl>
@@ -422,10 +418,9 @@ export function StudioWizard({
                 </dl>
                 <div className="sm-review-instructions"><strong>Final performance instructions</strong><p>{draft.customPrompt||"No additional instructions"}</p></div>
               </div>
-              {reviewCard!=="details"&&<button type="button" className="sm-review-side-hit" aria-label="Show project details" onClick={()=>setReviewCard("details")}/>}
+              {reviewCard!=="details"&&<button type="button" className="sm-carousel-side-hit sm-review-side-hit" aria-label="Show project details" onClick={()=>setReviewCard("details")}/>}
             </article>
           </div>
-          <p className="sm-review-swipe-hint">Swipe or tap the side card to switch between project and details.</p>
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
