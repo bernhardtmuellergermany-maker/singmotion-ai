@@ -1,5 +1,5 @@
 import { HelpFAQ } from "@/components/help-faq";
-import { LegalOverview } from "@/components/legal-overview";
+import { LegalPolicyPage, legalPageMetadata, legalSlugs } from "@/components/legal-policies";
 import { LegalAdminAccess } from "@/components/legal-admin-access";
 import { publishedPage } from "@/cms/content";
 import { Website } from "@/components/cms/website";
@@ -12,7 +12,7 @@ export default async function Page({
   params: Promise<{ info: string }>;
 }) {
   const slug = (await params).info;
-  if (slug === "legal") return <LegalOverview />;
+  if (legalSlugs.includes(slug)) return <LegalPolicyPage slug={slug} />;
   if (slug === "help") {
     // The published CMS "help" page supplies structured FAQ groups through Cards blocks.
     // Until an editor publishes those blocks, preserve the existing curated FAQ.
@@ -71,7 +71,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ info: string }>;
 }) {
-  if ((await params).info === "legal") return { title: "Legals & Imprint", description: "Legal notice, privacy and terms of SingMotion AI." };
+  const legal = legalPageMetadata((await params).info);
+  if (legal) return legal;
   if ((await params).info === "help") return { title: "Help & FAQ", description: "Frequently asked questions about SingMotion AI." };
   const page = await publishedPage((await params).info);
   return page ? { title: page.title, description: page.description } : {};
