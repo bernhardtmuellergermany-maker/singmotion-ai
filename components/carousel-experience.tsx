@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, Trash2, AlertCircle, LoaderCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { SiteHeader } from "./site-header";
+import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import { HomeUploadedAudio } from "./home-uploaded-audio";
 import { api, ensureSession, resetSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
@@ -283,7 +284,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
                   </label>}
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
-            </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
+            </div>:id==="login"?<AccountPanel active={distance===0}/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
         })}
         {([-1,1] as const).map(direction=>{
@@ -337,7 +338,7 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   </div>;
 }
 
-function AccountPanel(){
+function AccountPanel({active}:{active:boolean}){
  const [guestPreview,setGuestPreview]=useState<{counts:{uploads:number;artists:number;drafts:number;jobs:number;videoProjects:number};pendingProjects:number}|null>(null),[importMessage,setImportMessage]=useState("");
  async function importGuest(mode:"preview"|"execute"){
   setBusy(true);setImportMessage("");
@@ -358,26 +359,29 @@ function AccountPanel(){
  }
  const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false);
  const [recoveryAvailable,setRecoveryAvailable]=useState(false);
- useEffect(()=>{fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[]);
+ useEffect(()=>{if(!active)return;fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[active]);
  const [googleAvailable,setGoogleAvailable]=useState(false);
 
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
- useEffect(()=>{fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[]);
+ useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[active]);
  useEffect(()=>{
+  if(!active)return;
   let live=true;
+  let lastCheck=0;
   const refresh=()=>{
    if(document.visibilityState==="hidden")return;
-   fetch("/api/customer-auth",{cache:"no-store",credentials:"same-origin"})
-    .then(r=>r.ok?r.json():null)
-    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email:null);setStaff(d.authenticated&&d.kind==="staff");})
-    .catch(()=>{});
+   const now=Date.now();
+   if(now-lastCheck<1500)return;
+   lastCheck=now;
+   void readCustomerAuthStatus()
+    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email??null:null);setStaff(d.authenticated&&d.kind==="staff");});
   };
   refresh();
   window.addEventListener("focus",refresh);
   document.addEventListener("visibilitychange",refresh);
   window.addEventListener("pageshow",refresh);
   return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
- },[]);
+ },[active]);
  async function logoutAll(){
   if(!window.confirm("Sign out this account on all devices?"))return;
   setBusy(true);setError("");
