@@ -10,7 +10,10 @@ export const defaultFooterLinks = [
     "pricing",
     "about",
     "privacy",
+    "cookies",
     "terms",
+    "withdrawal",
+    "ai-transparency",
     "legal",
     "rights",
   ].map((p) => ({
