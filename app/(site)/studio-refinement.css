@@ -864,7 +864,7 @@
   height:calc(var(--sm-card-width) * 16 / 9 + 20px);
   min-height:0;flex:none;
   perspective:1100px;perspective-origin:center center;
-  touch-action:pan-y;--sm-card-width:min(90vw,400px,calc((100svh - 170px)*.5625));
+  touch-action:pan-y;--sm-card-width:min(81vw,360px,calc((100svh - 170px)*.50625));
   --sm-carousel-step:clamp(170px,calc(var(--sm-card-width)*.82),310px);
 }
 .singmotion-flow .sm-review-stage>.sm-review-panel{
@@ -944,7 +944,7 @@
      whole viewport for the 9:16 card. Reserve room for header, actions and
      mobile browser UI and scale BOTH cards together. */
   .singmotion-flow .sm-review-stage{
-    --sm-card-width:min(88vw,calc((100svh - 160px)*.5625));
+    --sm-card-width:min(79.2vw,calc((100svh - 160px)*.50625));
     --sm-carousel-step:calc(var(--sm-card-width) * .82);
     height:calc(var(--sm-card-width) * 16 / 9 + 12px);
   }
@@ -955,7 +955,7 @@
     padding-bottom:10px;
   }
   .singmotion-flow .flow-main>.sm-studio-review-carousel{
-    margin:8px auto auto;
+    margin:auto auto auto;
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
     margin:0 auto 10px !important;
@@ -999,13 +999,17 @@
 }
 
 
-/* Final mobile review spacing: move ONLY the carousel upward. Keep the
-   shared Studio navigation in its established bottom position. The shifted
-   wrapper retains its original layout footprint, so actions never move. */
+/* Center the smaller cards between the header and the shared bottom actions,
+   without a translation that would change visible top/bottom spacing. */
 @media(max-width:690px){
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+    justify-content:center;
+    padding-top:12px;
+  }
   .singmotion-flow .flow-main>.sm-studio-review-carousel{
     position:relative;
-    top:-26px;
+    top:auto;
+    margin:auto auto auto;
   }
 }
 
