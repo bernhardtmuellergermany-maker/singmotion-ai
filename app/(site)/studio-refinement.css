@@ -853,7 +853,9 @@
 .singmotion-flow .sm-studio-review-carousel{
   width:100%;max-width:100%;min-width:0;box-sizing:border-box;
   flex:0 0 auto;align-self:center;
-  margin:auto auto auto;padding:0;overflow-x:clip;overflow-y:visible;color:#edf0fa;
+  /* Place the review carousel near the header, as on the homepage; leave
+     the remaining vertical space BELOW it so bottom actions stay anchored. */
+  margin:18px auto auto;padding:0;overflow-x:clip;overflow-y:visible;color:#edf0fa;
 }
 .singmotion-flow .sm-review-stage{
   position:relative;width:100%;
@@ -953,7 +955,7 @@
     padding-bottom:10px;
   }
   .singmotion-flow .flow-main>.sm-studio-review-carousel{
-    margin:auto auto auto;
+    margin:16px auto auto;
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel)>.sm-studio-navigation{
     margin:0 auto 10px !important;
