@@ -68,6 +68,53 @@ export async function POST(req:NextRequest){
      signal:AbortSignal.timeout(10000),cache:"no-store",
    });
    if(!sent.ok){console.error("CONTACT_DELIVERY_FAILED",sent.status);return response({error:"Message could not be delivered. Please try again later."},503)}
-   return response({sent:true});
+   // An acknowledgement is sent only after the support request has been accepted.
+   // It is plain text, so customer-supplied content cannot execute HTML or scripts.
+   const receivedAt=new Date().toISOString();
+   const receiptSubject="SingMotion AI - We received your message";
+   const receiptText=[
+     "Hello "+name+",",
+     "",
+     "Thank you for contacting SingMotion AI.",
+     "Your message was received by our support email service.",
+     "This is an automatic acknowledgement, not a resolution or a promised response deadline.",
+     "",
+     "Received (UTC): "+receivedAt,
+     "Topic: "+TOPICS[topic],
+     "Your reference: "+(reference||"Not provided"),
+     "",
+     "Copy of your message:",
+     "----------------------------------------",
+     message,
+     "----------------------------------------",
+     "",
+     "If you did not send this message, you can disregard this email.",
+     "Please do not send passwords, card details, or sensitive identity documents.",
+     "",
+     "SingMotion AI Support",
+     "support@singmotion.ai",
+   ].join("\n");
+   try{
+     const receipt=await fetch("https://api.resend.com/emails",{
+       method:"POST",
+       headers:{"Authorization":"Bearer "+process.env.RESEND_API_KEY,"Content-Type":"application/json"},
+       body:JSON.stringify({
+         from:process.env.ACCOUNT_EMAIL_FROM,
+         to:[email],
+         reply_to:process.env.CONTACT_EMAIL_TO,
+         subject:receiptSubject,
+         text:receiptText,
+       }),
+       signal:AbortSignal.timeout(10000),cache:"no-store",
+     });
+     if(!receipt.ok){
+       console.error("CONTACT_ACKNOWLEDGEMENT_FAILED",receipt.status);
+       return response({sent:true,confirmationSent:false});
+     }
+     return response({sent:true,confirmationSent:true});
+   }catch{
+     console.error("CONTACT_ACKNOWLEDGEMENT_UNAVAILABLE");
+     return response({sent:true,confirmationSent:false});
+   }
  }catch{console.error("CONTACT_DELIVERY_UNAVAILABLE");return response({error:"Message delivery is temporarily unavailable."},503)}
 }
