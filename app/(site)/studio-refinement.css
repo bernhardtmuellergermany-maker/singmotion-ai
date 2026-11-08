@@ -859,16 +859,16 @@
   position:relative;width:100%;
   /* Reserve the COMPLETE 9:16 card height, not a shorter percentage of the
      viewport. Flex children must not shrink and clip either edge. */
-  height:calc(var(--sm-card-width) * 5 / 4 + 20px);
+  height:calc(var(--sm-card-width) * 4 / 3 + 20px);
   min-height:0;flex:none;
   perspective:1100px;perspective-origin:center center;
-  touch-action:pan-y;--sm-card-width:min(84vw,360px,calc((100svh - 220px)*.8));
+  touch-action:pan-y;--sm-card-width:min(90vw,390px,calc((100svh - 220px)*.75));
   --sm-carousel-step:clamp(170px,calc(var(--sm-card-width)*.82),310px);
 }
 .singmotion-flow .sm-review-stage>.sm-review-panel{
   position:absolute;top:50%;left:50%;box-sizing:border-box;
   width:var(--sm-card-width);max-width:var(--sm-card-width);
-  height:auto;max-height:none;aspect-ratio:4/5;
+  height:auto;max-height:none;aspect-ratio:3/4;
   padding:0;border-radius:19px;overflow:hidden;
   border:1px solid rgba(147,121,204,.36);
   box-shadow:0 18px 55px rgba(0,0,0,.5);
@@ -942,9 +942,9 @@
      whole viewport for the 9:16 card. Reserve room for header, actions and
      mobile browser UI and scale BOTH cards together. */
   .singmotion-flow .sm-review-stage{
-    --sm-card-width:min(84vw,360px,max(180px,calc((100dvh - 290px)*.8)));
+    --sm-card-width:min(90vw,390px,max(180px,calc((100dvh - 260px)*.75)));
     --sm-carousel-step:calc(var(--sm-card-width) * .82);
-    height:calc(var(--sm-card-width) * 5 / 4 + 16px);
+    height:calc(var(--sm-card-width) * 4 / 3 + 16px);
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
     min-height:calc(100dvh - 72px);
