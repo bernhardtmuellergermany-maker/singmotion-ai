@@ -1022,7 +1022,10 @@
     padding-bottom:calc(110px + env(safe-area-inset-bottom,0px));
   }
   .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
-    padding-bottom:calc(110px + env(safe-area-inset-bottom,0px));
+    /* Center the 9:16 cards in the visible area ABOVE the fixed button row.
+       The row is 110px reserved globally; extra clearance balances the
+       formerly large top gap and near-zero bottom gap of the review card. */
+    padding-bottom:calc(190px + env(safe-area-inset-bottom,0px));
   }
   .singmotion-flow .flow-main>.sm-studio-navigation,
   .singmotion-flow .flow-main:has(.sm-studio-original-composer)>.sm-studio-navigation,
