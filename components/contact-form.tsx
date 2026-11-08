@@ -47,7 +47,7 @@ export function ContactForm(){
     const res=await fetch("/api/contact",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({topic,name,email,reference,message,consent,humanToken,website:(event.currentTarget.elements.namedItem("website") as HTMLInputElement|null)?.value||""})});
     const body=await res.json().catch(()=>({}));
     if(!res.ok)throw new Error(body.error||"Your message could not be sent.");
-    setResult("Your message was sent successfully. Keep a copy for your records.");setMessage("");setHumanToken("");
+    setResult(body.confirmationSent===true ? "Your message was sent. A confirmation email with a copy of your message has been requested for your inbox. Please also check your spam folder." : "Your message was sent to support, but the confirmation email could not be sent. Please keep a copy of your message.");setMessage("");setHumanToken("");
    }catch(e){setError(e instanceof Error?e.message:"Sending failed. Please try again later.");}
    finally{setBusy(false);}
  }
