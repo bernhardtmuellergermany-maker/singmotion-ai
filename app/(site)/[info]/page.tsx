@@ -1,4 +1,5 @@
 import { HelpFAQ } from "@/components/help-faq";
+import { ContactForm } from "@/components/contact-form";
 import { LegalPolicyPage, legalPageMetadata, legalSlugs } from "@/components/legal-policies";
 import { LegalAdminAccess } from "@/components/legal-admin-access";
 import { publishedPage } from "@/cms/content";
@@ -13,6 +14,7 @@ export default async function Page({
 }) {
   const slug = (await params).info;
   if (legalSlugs.includes(slug)) return <LegalPolicyPage slug={slug} />;
+  if (slug === "contact") return <ContactForm />;
   if (slug === "help" || slug === "faq") {
     // The published CMS "help" page supplies structured FAQ groups through Cards blocks.
     // Until an editor publishes those blocks, preserve the existing curated FAQ.
@@ -49,18 +51,6 @@ export default async function Page({
         heading,
         body,
       })),
-      {
-        blockType: "cta",
-        heading: "Explore SingMotion",
-        buttonLabel: "Explore the demo studio",
-        url: "/studio",
-      },
-      {
-        blockType: "cta",
-        heading: "Account information",
-        buttonLabel: "Sign up information",
-        url: "/signup",
-      },
     ],
   };
   return slug === "legal" ? <div className="legal-refresh"><Website page={fallback}/><LegalAdminAccess/></div> : <Website page={fallback} />;
@@ -73,6 +63,7 @@ export async function generateMetadata({
 }) {
   const legal = legalPageMetadata((await params).info);
   if (legal) return legal;
+  if ((await params).info === "contact") return { title: "Contact & Support", description: "Contact SingMotion AI support about projects, generation, orders, privacy and media rights." };
   if ((await params).info === "help") return { title: "Help & Best Practices", description: "SingMotion AI practical studio guidance and BytePlus input tips." };
   if ((await params).info === "faq") return { title: "FAQ", description: "Answers to common questions about SingMotion AI videos, limits and orders." };
   const page = await publishedPage((await params).info);
