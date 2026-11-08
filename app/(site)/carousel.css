@@ -2120,3 +2120,90 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
     transform:translateY(-12px);
   }
 }
+
+
+/* Registration has more fields than a 9:16 video card: give it a true phone
+   layout instead of clipping the form inside the fixed carousel aspect ratio.
+   Preserve page-level horizontal overflow protection and keyboard access. */
+@media (max-width: 690px) {
+  .sm-carousel-landing {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+  .sm-carousel-landing .sm-carousel-main {
+    min-width: 0;
+  }
+  .sm-carousel-landing .sm-carousel-stage:has(.sm-carousel-card.is-active.is-account-card) {
+    height: calc(100dvh - 156px);
+    min-height: 0;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card {
+    width: min(calc(100vw - 28px), 420px);
+    max-width: calc(100vw - 28px);
+    aspect-ratio: auto;
+    height: min(660px, calc(100dvh - 174px));
+    max-height: calc(100dvh - 174px);
+    box-sizing: border-box;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card:has(.sm-carousel-login[data-mode="register"]) {
+    height: calc(100dvh - 174px);
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    max-height: 100%;
+    padding: 18px 18px 22px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login::-webkit-scrollbar {
+    display: none;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login[data-mode="register"] {
+    justify-content: flex-start;
+    gap: 9px;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login[data-mode="register"] .sm-carousel-song-icon {
+    width: 42px;
+    height: 42px;
+    margin: 0;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login[data-mode="register"] h1 {
+    font-size: clamp(21px, 5.5vw, 27px);
+    line-height: 1.18;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-account-intro {
+    margin: 0 auto 2px;
+    font-size: 12px;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-account-form {
+    width: 100%;
+    min-width: 0;
+    gap: 9px;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-account-label input {
+    box-sizing: border-box;
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 16px;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-account-hint {
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-account-google,
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-account-form > .sm-carousel-primary {
+    min-height: 44px;
+  }
+}
+@media (max-width: 390px) {
+  .sm-carousel-landing .sm-carousel-card.is-active.is-account-card .sm-carousel-login {
+    padding: 14px 12px 18px;
+  }
+}
