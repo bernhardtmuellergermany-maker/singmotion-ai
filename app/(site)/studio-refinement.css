@@ -867,12 +867,12 @@
   background:#513178;border-color:#a365f4;color:white;
 }
 .singmotion-flow .sm-review-stage{
-  position:relative;width:100%;height:min(660px,calc((min(82vw,350px,calc((100svh - 190px)*.5625)))*16/9 + 12px));
+  position:relative;width:100%;height:min(640px,calc(100svh - 178px),146vw);
   min-height:0;isolation:isolate;perspective:1100px;
 }
 .singmotion-flow .sm-review-panel{
   position:absolute;top:0;left:50%;box-sizing:border-box;
-  width:min(82vw,350px,calc((100svh - 190px)*.5625));
+  width:min(82vw,350px,calc((100svh - 190px) * 0.5625));
   max-width:calc(100% - 20px);height:auto;aspect-ratio:9/16;
   border-radius:20px;overflow:hidden;
   border:1px solid #4b4169;background:#111729;
@@ -950,7 +950,7 @@
 }
 @media(max-width:700px){
   .singmotion-flow .sm-review-stage{
-    height:calc(min(82vw,350px,calc((100svh - 190px)*.5625))*16/9 + 12px);
+    height:min(640px,calc(100svh - 178px),146vw);
   }
 }
 @media(prefers-reduced-motion:reduce){
