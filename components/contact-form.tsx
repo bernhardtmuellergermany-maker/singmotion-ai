@@ -33,9 +33,9 @@ export function ContactForm(){
    const container=document.getElementById("sm-contact-turnstile");
    let widgetId:string|undefined;
    let script:HTMLScriptElement|null=null;
-   type Turnstile={render:(el:HTMLElement,options:{sitekey:string;callback:(token:string)=>void;"expired-callback":()=>void;"error-callback":()=>void})=>string;remove:(id:string)=>void};
+   type Turnstile={render:(el:HTMLElement,options:{sitekey:string;action:string;callback:(token:string)=>void;"expired-callback":()=>void;"error-callback":()=>void})=>string;remove:(id:string)=>void};
    const w=window as typeof window & {turnstile?:Turnstile};
-   const render=()=>{if(active&&container&&w.turnstile&&!widgetId)widgetId=w.turnstile.render(container,{sitekey:config.siteKey,callback:t=>{if(active)setHumanToken(t);},"expired-callback":()=>setHumanToken(""),"error-callback":()=>setHumanToken("")});};
+   const render=()=>{if(active&&container&&w.turnstile&&!widgetId)widgetId=w.turnstile.render(container,{sitekey:config.siteKey,action:"singmotion_contact",callback:t=>{if(active)setHumanToken(t);},"expired-callback":()=>setHumanToken(""),"error-callback":()=>setHumanToken("")});};
    if(w.turnstile)render();
    else {script=document.createElement("script");script.src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";script.async=true;script.defer=true;script.onload=render;document.head.appendChild(script);}
    return()=>{active=false;if(widgetId&&w.turnstile)w.turnstile.remove(widgetId);if(script)script.remove();};
