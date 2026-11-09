@@ -39,6 +39,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
       - run: npm ci
+      - name: Contact Turnstile action and hostname security
+        run: node --experimental-strip-types --test tests/contact-turnstile.test.ts
       - name: Release parity and production fail-closed gates
         run: |
           npm run test:release-parity
