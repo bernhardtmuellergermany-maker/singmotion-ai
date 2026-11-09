@@ -4,7 +4,7 @@ import { CommerceStore } from "@/lib/commerce/store";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
-import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,customerStripeCredential,customerStripeWebhookSecret,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,customerStripeCredential,customerStripeWebhookSecret,privateProductionSandboxSettlementAllowed,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
@@ -82,10 +82,11 @@ export async function POST(req: NextRequest) {
   // as Checkout before any new signed paid receipt can be settled. Staging
   // retains its existing test behavior, and signed reversals remain accepted
   // independently after the pilot kill switch is turned off.
-  const productionPilotTest=checkoutMode==="test" &&
-    process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+  const customerReady=checkoutMode==="test"&&
+   process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"
+    ? customerLaunchReadiness().readyForPaidOrders : false;
   const settlementEnabled=!!checkoutMode &&
-   (!productionPilotTest || customerLaunchReadiness().readyForPaidOrders) &&
+   privateProductionSandboxSettlementAllowed(process.env,checkoutMode,customerReady) &&
    (checkoutMode!=="live"||(customerLaunchReadiness().readyForPaidOrders&&
      auditSingMotionLaunch(process.env,"production").ready));
   const secret=mode?customerStripeWebhookSecret(process.env,mode):null;
