@@ -34,8 +34,9 @@ export function configuredStripePaymentMode(env:Record<string,string|undefined>)
 export function configuredStripeReversalMode(env:Record<string,string|undefined>):StripePaymentMode|null{
  const key=env.STRIPE_SECRET_KEY||"";
  const secret=env.STRIPE_WEBHOOK_SECRET||"";
- if(!/^whsec_[A-Za-z0-9_]+$/.test(secret))return null;
- if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&/^sk_test_[A-Za-z0-9_]+$/.test(key))
+ if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&
+    /^whsec_[A-Za-z0-9_]+$/.test(secret)&&
+    /^sk_test_[A-Za-z0-9_]+$/.test(key))
   return "test";
  // A paused private Production pilot must still authenticate TEST refunds and
  // disputes. This classifier never reopens checkout, settlement or dispatch.
@@ -51,6 +52,7 @@ export function configuredStripeReversalMode(env:Record<string,string|undefined>
     /^whsec_[A-Za-z0-9_]+$/.test(env.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET||""))
   return "test";
  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
+    /^whsec_[A-Za-z0-9_]+$/.test(secret)&&
     /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key))
   return "live";
  return null;
