@@ -45,6 +45,8 @@ export async function POST(req: NextRequest) {
     const input = JSON.parse(raw);
     if (typeof input.orderId !== "string" || !/^[a-f0-9-]{36}$/.test(input.orderId))
       return reply({ error: "Invalid order." }, 400);
+    if(input.immediateStart !== true || input.acknowledgedWithdrawalConsequences !== true)
+      return reply({error:"Both explicit production-start acknowledgements are required."},400);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const accountId = store.session(req.cookies.get("sm_customer")?.value || "");
     // Real videos are delivered only to the authenticated owning account.
@@ -63,6 +65,9 @@ export async function POST(req: NextRequest) {
         !Number.isSafeInteger(cents) || cents <= 0 ||
         typeof order.quote_evidence !== "string" || order.quote_evidence.length < 20)
       return reply({ error: "Order is not eligible for Checkout." }, 409);
+    // Persist the exact acknowledgement version and reviewed commercial snapshot
+    // before creating a payable Stripe Session. Client flags alone are insufficient.
+    store.recordEarlyPerformanceConsent(String(order.id),accountId);
     const form = new URLSearchParams({
       mode: "payment",
       ...stripeVideoCheckoutLineItem(cents),
