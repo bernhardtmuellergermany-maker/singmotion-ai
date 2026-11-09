@@ -27,7 +27,7 @@ export function recordWithdrawal(db:DatabaseSync,v:WithdrawalDeclaration){
    .run(id,v.name,v.orderReference,v.email,receivedAt);
  return {id,receivedAt,...v};
 }
-export async function sendRightsEmail(input:{to:string;subject:string;text:string},env:NodeJS.ProcessEnv=process.env,sender:typeof fetch=fetch){
+export async function sendRightsEmail(input:{to:string;subject:string;text:string},env:Record<string,string|undefined>=process.env,sender:typeof fetch=fetch){
  if(!env.RESEND_API_KEY||!env.ACCOUNT_EMAIL_FROM)return false;
  try {
   const result=await sender("https://api.resend.com/emails",{
@@ -50,7 +50,7 @@ export function withdrawalReceiptText(v:WithdrawalDeclaration & {id:string;recei
 
 /** Durable email outbox retry. Run periodically from the existing worker.
  * Never changes the original acceptance timestamp or resolves legal validity. */
-export async function retryPendingWithdrawalReceipts(file:string,env:NodeJS.ProcessEnv=process.env,sender:typeof fetch=fetch){
+export async function retryPendingWithdrawalReceipts(file:string,env:Record<string,string|undefined>=process.env,sender:typeof fetch=fetch){
  if(!env.RESEND_API_KEY||!env.ACCOUNT_EMAIL_FROM)return {attempted:0,sent:0};
  const db=new DatabaseSync(file);
  db.exec("PRAGMA busy_timeout=5000");
