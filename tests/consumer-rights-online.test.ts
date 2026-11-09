@@ -1,8 +1,11 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
+import {mkdtempSync,rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import path from "node:path";
 import {readFileSync} from "node:fs";
-import {validateWithdrawal,recordWithdrawal,withdrawalReceiptText,sendRightsEmail} from "../lib/commerce/consumer-rights.ts";
+import {validateWithdrawal,recordWithdrawal,withdrawalReceiptText,sendRightsEmail,retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 
 test("electronic withdrawal stores exact declaration and UTC receipt in durable database",()=>{
  const db=new DatabaseSync(":memory:");
@@ -48,4 +51,31 @@ test("public statutory form has a second explicit confirm step and no authentica
  assert.match(dispatch,/hasContractConfirmation\(orderId\)/);
  const webhook=read("app/(site)/api/stripe-webhook/route.ts");
  assert.match(webhook,/ensurePaidContractConfirmation/);
+});
+
+test("failed email receipts remain in durable outbox and are retried",async()=>{
+ const dir=mkdtempSync(path.join(tmpdir(),"sm-withdrawal-"));
+ const file=path.join(dir,"commerce.sqlite");
+ try{
+  const db=new DatabaseSync(file);
+  const saved=recordWithdrawal(db,{name:"Example Consumer",orderReference:"12345",email:"person@example.de"});
+  db.close();
+  const sent:string[]=[];
+  const result=await retryPendingWithdrawalReceipts(file,
+   {RESEND_API_KEY:"test",ACCOUNT_EMAIL_FROM:"SingMotion <no-reply@example.de>",CONTACT_EMAIL_TO:"operator@example.de"},
+   async(_url,options)=>{
+    const request=JSON.parse(String(options?.body)) as {to:string[]};
+    sent.push(request.to[0]);
+    return new Response(null,{status:202});
+   });
+  assert.equal(result.sent,1);
+  assert.deepEqual(sent,["person@example.de","operator@example.de"]);
+  const check=new DatabaseSync(file);
+  const row=check.prepare("SELECT receipt_sent_at,operator_notified_at FROM consumer_withdrawals WHERE id=?").get(saved.id);
+  assert.ok(row?.receipt_sent_at);
+  assert.ok(row?.operator_notified_at);
+  check.close();
+  const second=await retryPendingWithdrawalReceipts(file,{RESEND_API_KEY:"test",ACCOUNT_EMAIL_FROM:"test@example.de"});
+  assert.equal(second.attempted,0);
+ }finally{rmSync(dir,{recursive:true,force:true});}
 });
