@@ -6,6 +6,7 @@
 import {readFile} from "node:fs/promises";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
+import {assessProductionSandboxPilot,REQUESTED_PILOT} from "./customer-sandbox-pilot-policy.ts";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
 import {ensurePaidContractConfirmation} from "./contract-confirmation.ts";
@@ -35,11 +36,12 @@ export type ReviewedCustomerWorkerPolicy={
 
 export function customerWorkerEnabled(env:Record<string,string|undefined>){
  const live=productionCustomerReleaseApproved(env);
+ const privatePilot=assessProductionSandboxPilot(env).ready;
  const test=env.RAILWAY_ENVIRONMENT_ID===STAGING &&
    env.STRIPE_CHECKOUT_ENABLED==="true" &&
    /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
    /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
- return (test||live) &&
+ return (test||live||privatePilot) &&
   env.CUSTOMER_PAID_WORKER_ENABLED==="true" &&
   env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
@@ -86,6 +88,16 @@ export function validateCustomerWorkerPolicy(raw:unknown,now=Date.now(),environm
  }
  return p;
 }
+/** Enforce owner-approved pilot spend inside the durable per-order reservation ledger. */
+export function boundPrivatePilotPolicy(policy:ReviewedCustomerWorkerPolicy,env:Record<string,string|undefined>):ReviewedCustomerWorkerPolicy{
+ if(env.RAILWAY_ENVIRONMENT_ID!=="36adc41d-7e54-4396-ad1a-fd432ba0441d" ||
+    !assessProductionSandboxPilot(env).ready)return policy;
+ if(policy.contract.billing.microUsdPerSecond!==REQUESTED_PILOT.providerRateMicroUsdPerGeneratedSecond)
+  throw Error("Sandbox pilot provider rate mismatch");
+ const cap=REQUESTED_PILOT.provisionalProviderCeilingMicroUsd;
+ return {...policy,dailyCapMicroUsd:Math.min(policy.dailyCapMicroUsd,cap),
+  lifetimeCapMicroUsd:Math.min(policy.lifetimeCapMicroUsd,cap)};
+}
 export async function loadCustomerWorkerPolicy(root:string,env:Record<string,string|undefined>=process.env){
  // A private, explicitly approved policy takes precedence. If none was
  // installed, use the dated 2026-11-05 owner-attested billing/delivery policy
@@ -93,8 +105,8 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
  try{
   const bytes=await readFile(path.join(root,"customer-byteplus-policy.json"));
   if(bytes.length<40||bytes.length>65536)throw Error("Invalid customer provider policy file");
-  return validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")),
-   Date.now(),env.RAILWAY_ENVIRONMENT_ID);
+  return boundPrivatePilotPolicy(validateCustomerWorkerPolicy(JSON.parse(bytes.toString("utf8")),
+   Date.now(),env.RAILWAY_ENVIRONMENT_ID),env);
  }catch(error){
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
   // A protected Railway variable can supply a reviewed server-only policy
@@ -104,8 +116,8 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
   if(configured!==undefined){
    const size=Buffer.byteLength(configured,"utf8");
    if(size<40||size>65536)throw Error("Invalid customer provider policy configuration");
-   return validateCustomerWorkerPolicy(JSON.parse(configured),Date.now(),
-    env.RAILWAY_ENVIRONMENT_ID);
+   return boundPrivatePilotPolicy(validateCustomerWorkerPolicy(JSON.parse(configured),Date.now(),
+    env.RAILWAY_ENVIRONMENT_ID),env);
   }
   // A dated operator policy may be reused for private Staging only.
   // Production needs its own separately reviewed policy, finite per-job
