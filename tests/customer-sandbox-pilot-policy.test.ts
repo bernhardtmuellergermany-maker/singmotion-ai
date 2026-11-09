@@ -63,7 +63,7 @@ test("sandbox approval fails shut if ANY required gate is missing or inconsisten
 });
 
 test("private Production Sandbox uses its own test API key and webhook secret, never live secrets",()=>{
- const e={...full(),STRIPE_SECRET_KEY:"sk_live_liveaccount",STRIPE_WEBHOOK_SECRET:"whsec_liveaccount"};
+ const e:Record<string,string>={...full(),STRIPE_SECRET_KEY:"sk_live_liveaccount",STRIPE_WEBHOOK_SECRET:"whsec_liveaccount"};
  assert.equal(configuredStripePaymentMode(e),"test");
  assert.equal(customerStripeCredential(e,"test"),e.PRODUCTION_SANDBOX_STRIPE_SECRET_KEY);
  assert.equal(customerStripeWebhookSecret(e,"test"),e.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET);
