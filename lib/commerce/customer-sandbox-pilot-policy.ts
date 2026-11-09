@@ -10,6 +10,27 @@ export const REQUESTED_PILOT=Object.freeze({
  // Intentionally conservative maximum provider reservation, NOT an FX conversion.
  provisionalProviderCeilingMicroUsd:70_000_000,
 });
+/** An operator-reviewed worst-case EUR conversion and extra-fee ceiling is
+ * required in addition to a hard USD spending reservation. An ECB spot quote
+ * is not a guaranteed settlement rate. Integer arithmetic always rounds the
+ * allowed USD reservation DOWN, so the owner EUR budget is never rounded up.
+ * No external provider call, exchange-rate lookup or spending occurs here. */
+export function privatePilotEurBudgetCap(env:Record<string,string|undefined>):number|null{
+ const ppmText=env.CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM||"";
+ const extraText=env.CUSTOMER_SANDBOX_MAX_EXTRA_EUR_CENTS||"";
+ if(!/^[1-9][0-9]{5,6}$/.test(ppmText)||!/^(?:0|[1-9][0-9]{0,4})$/.test(extraText))
+  return null;
+ const ppm=Number(ppmText),fees=Number(extraText);
+ if(!Number.isSafeInteger(ppm)||ppm<500_000||ppm>5_000_000||
+    !Number.isSafeInteger(fees)||fees<0||fees>=REQUESTED_PILOT.ownerBudgetEuroCents)
+  return null;
+ const availableMicroEur=BigInt(REQUESTED_PILOT.ownerBudgetEuroCents-fees)*10_000n;
+ const maxMicroUsd=(availableMicroEur*1_000_000n)/BigInt(ppm);
+ const bounded=maxMicroUsd<BigInt(REQUESTED_PILOT.provisionalProviderCeilingMicroUsd)?
+  maxMicroUsd:BigInt(REQUESTED_PILOT.provisionalProviderCeilingMicroUsd);
+ if(bounded<1n)return null;
+ return Number(bounded);
+}
 export type PilotAssessment={ready:boolean;blockers:string[]};
 export function assessProductionSandboxPilot(env:Record<string,string|undefined>):PilotAssessment{
  const blockers:string[]=[];
@@ -31,6 +52,7 @@ export function assessProductionSandboxPilot(env:Record<string,string|undefined>
  // PUBLIC Production launch remains blocked on its independent E2E proof.
  check(env.CUSTOMER_SANDBOX_COST_ALERTS_VERIFIED==="true","COST_MONITORING_AND_KILL_SWITCH_REQUIRED");
  check(env.CUSTOMER_SANDBOX_EUR_BUDGET_GUARD_VERIFIED==="true","EUR_BUDGET_GUARD_REQUIRED");
+ check(privatePilotEurBudgetCap(env)!==null,"EUR_FX_AND_EXTRA_FEES_CEILING_REQUIRED");
  check(env.CUSTOMER_SANDBOX_LEGAL_TEST_REVIEW_APPROVED==="true","LEGAL_REVIEW_FOR_TEST_PARTICIPANTS_REQUIRED");
  check(env.CUSTOMER_SANDBOX_RATE_MICRO_USD_PER_SECOND==="70000","PRICE_ASSUMPTION_MISMATCH");
  check(env.CUSTOMER_SANDBOX_OWNER_BUDGET_EUR_CENTS==="10000","OWNER_BUDGET_MISMATCH");
