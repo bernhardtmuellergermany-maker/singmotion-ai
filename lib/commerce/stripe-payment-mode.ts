@@ -88,3 +88,13 @@ export function customerStripeWebhookSecret(env:Record<string,string|undefined>,
  const secret=privateSandbox?env.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET:env.STRIPE_WEBHOOK_SECRET;
  return secret&&/^whsec_[A-Za-z0-9_]+$/.test(secret)?secret:null;
 }
+
+/** Require complete Checkout and fulfillment readiness before accepting any
+ * newly signed Production Sandbox settlement. Staging's existing test flow
+ * remains independent; this helper does not admit refunds or disputes. */
+export function privateProductionSandboxSettlementAllowed(
+ env:Record<string,string|undefined>,mode:StripePaymentMode|null,paidOrdersReady:boolean
+):boolean{
+ if(!mode)return false;
+ return !(mode==="test"&&env.RAILWAY_ENVIRONMENT_ID===PRODUCTION) || paidOrdersReady;
+}
