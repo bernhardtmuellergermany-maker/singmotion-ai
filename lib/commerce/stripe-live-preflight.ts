@@ -81,6 +81,9 @@ export async function readOnlyStripeLivePreflight(
   check("hobby-live-product-reviewed-not-staging",
    !!productId&&product?.id===productId&&product.livemode===true&&
    product.active===true&&
+   // A live Stripe object still needs explicit Production classification.
+   // Missing or staging-labelled metadata must never unlock customer billing.
+   productMetadata.environment==="production"&&
    ![price?.nickname,price?.lookup_key,product.name,product.description,
      productMetadata.environment].some(stagingLabel));
   const items=Array.isArray(webhooks?.data)?webhooks.data:[];
