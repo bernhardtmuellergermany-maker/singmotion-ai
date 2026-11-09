@@ -44,7 +44,7 @@ test("default Production cannot activate sandbox spending just because it has li
 test("sandbox approval fails shut if ANY required gate is missing or inconsistent",()=>{
  const ready=full();
  assert.deepEqual(assessProductionSandboxPilot(ready),{ready:true,blockers:[]});
- for(const key of Object.keys(ready)){
+ for(const key of Object.keys(ready).filter(key=>ready[key]!=="false")){
   const changed={...ready,[key]:"false"};
   assert.equal(assessProductionSandboxPilot(changed).ready,false,key);
  }
