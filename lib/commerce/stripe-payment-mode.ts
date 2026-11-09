@@ -37,6 +37,19 @@ export function configuredStripeReversalMode(env:Record<string,string|undefined>
  if(!/^whsec_[A-Za-z0-9_]+$/.test(secret))return null;
  if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&/^sk_test_[A-Za-z0-9_]+$/.test(key))
   return "test";
+ // A paused private Production pilot must still authenticate TEST refunds and
+ // disputes. This classifier never reopens checkout, settlement or dispatch.
+ // Require the private site and disabled live launch even if its live account
+ // credentials remain installed for future use.
+ if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
+    env.STAGING_AUTH_ENABLED==="true" &&
+    (env.STAGING_PASSWORD?.length||0)>=32 &&
+    env.PRODUCTION_PUBLIC_ACCESS_ENABLED!=="true" &&
+    env.PUBLIC_CUSTOMER_LAUNCH_APPROVED!=="true" &&
+    env.STRIPE_LIVE_CHECKOUT_ENABLED!=="true" &&
+    /^sk_test_[A-Za-z0-9_]+$/.test(env.PRODUCTION_SANDBOX_STRIPE_SECRET_KEY||"")&&
+    /^whsec_[A-Za-z0-9_]+$/.test(env.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET||""))
+  return "test";
  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
     /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key))
   return "live";
