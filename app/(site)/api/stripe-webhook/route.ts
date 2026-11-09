@@ -3,7 +3,7 @@ import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
-import {configuredStripePaymentMode,stripeSessionIdMatchesMode,stripeKeyMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
@@ -74,11 +74,15 @@ export async function POST(req: NextRequest) {
   // Never receive live orders unless the separate Production release audit
   // has verified paid fulfillment, private output and all human approvals.
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  const mode=configuredStripePaymentMode(process.env);
-  if (!secret || !mode ||
-      (mode==="live"&&(!customerLaunchReadiness().readyForPaidOrders||
-        !auditSingMotionLaunch(process.env,"production").ready)))
-    return NextResponse.json({ error: "Stripe Checkout is disabled." }, { status: 503 });
+  const checkoutMode=configuredStripePaymentMode(process.env);
+  // Independently authenticated reversal processing survives a checkout stop.
+  // It cannot enable a new payment or provider submission.
+  const mode=checkoutMode||configuredStripeReversalMode(process.env);
+  const settlementEnabled=!!checkoutMode &&
+   (checkoutMode!=="live"||(customerLaunchReadiness().readyForPaidOrders&&
+     auditSingMotionLaunch(process.env,"production").ready));
+  if (!secret || !mode)
+    return NextResponse.json({ error: "Stripe webhook verification is unavailable." }, { status: 503 });
   const signature = req.headers.get("stripe-signature");
   if (!signature) return NextResponse.json({ error: "Missing signature." }, { status: 400 });
   let store: CommerceStore | undefined;
@@ -86,6 +90,8 @@ export async function POST(req: NextRequest) {
     const raw = await readBoundedStripeWebhookBody(req);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const event=verifyStripePaymentEvent(raw,signature,secret,mode);
+    if(!stripeWebhookEventAdmitted(event.type,settlementEnabled))
+      return NextResponse.json({error:"Stripe payment settlement is paused."},{status:503});
     if(event.type==="checkout.session.completed"||
        event.type==="checkout.session.async_payment_succeeded"){
       // A signed completed Checkout may still be unpaid for delayed methods.
