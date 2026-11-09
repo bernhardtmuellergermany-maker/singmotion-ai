@@ -3,15 +3,20 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
-import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {configuredStripePaymentMode,configuredStripeReversalMode} from "@/lib/commerce/stripe-payment-mode";
+import {pausedHobbyWebhookAction} from "@/lib/commerce/stripe-hobby-pause-policy";
 import {hobbyInvoicePaidThrough} from "@/lib/commerce/stripe-hobby-invoice";
 import {readBoundedStripeWebhookBody,StripeWebhookPayloadTooLarge,verifyStripePaymentEvent} from "@/lib/commerce/stripe-webhook";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function POST(req:NextRequest){
  const secret=process.env.STRIPE_HOBBY_WEBHOOK_SECRET;
- const mode=configuredStripePaymentMode(process.env);
- if(!mode||process.env.HOBBY_SUBSCRIPTIONS_ENABLED!=="true"||
-    !secret||!/^whsec_[A-Za-z0-9_]+$/.test(secret))
+ // A checkout shutdown must not block cancellation/expiry reconciliation
+ // for already-bound subscriptions. This mode is read-only for Stripe and
+ // cannot authorize a new subscription or entitlement.
+ const checkoutMode=configuredStripePaymentMode(process.env);
+ const mode=checkoutMode||configuredStripeReversalMode(process.env);
+ const settlementEnabled=!!checkoutMode&&process.env.HOBBY_SUBSCRIPTIONS_ENABLED==="true";
+ if(!mode||!secret||!/^whsec_[A-Za-z0-9_]+$/.test(secret))
   return NextResponse.json({error:"Unavailable"},{status:503});
  const expectedLive=mode==="live";
  let event:{id?:string;livemode?:boolean;type?:string;data?:{object?:Record<string,unknown>}};
@@ -49,6 +54,12 @@ export async function POST(req:NextRequest){
   // A delayed webhook for a previous subscription must not overwrite a newer
   // Stripe subscription or reinstate an expired billing period.
   const previous=store.db.prepare("SELECT provider_subscription_id,current_period_start,current_period_end,status FROM customer_subscriptions WHERE account_id=?").get(accountId) as {provider_subscription_id:string|null;current_period_start:number;current_period_end:number;status:string}|undefined;
+  const action=pausedHobbyWebhookAction(settlementEnabled,status,previous?.provider_subscription_id,current.id);
+  // A signed later payment must be retried, not silently acknowledged.
+  // A paused system may revoke only the exact subscription it previously
+  // bound; no new entitlement or unrelated account mapping can be inserted.
+  if(action==="retry")return NextResponse.json({error:"Hobby settlement paused"},{status:503});
+  if(action==="ignore")return NextResponse.json({received:true});
   if(previous){
    if(previous.provider_subscription_id!==current.id && previous.status==="active" && previous.current_period_end>Date.now())
      return NextResponse.json({received:true});

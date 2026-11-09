@@ -3,7 +3,8 @@ import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
-import {configuredStripePaymentMode,stripeSessionIdMatchesMode,stripeKeyMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,customerStripeCredential,customerStripeWebhookSecret,privateProductionSandboxSettlementAllowed,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
@@ -25,7 +26,7 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
  return await response.json() as StripeLookup;
 }
 async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:StripePaymentMode){
- const key=process.env.STRIPE_SECRET_KEY||"";
+ const key=customerStripeCredential(process.env,mode)||"";
  const object=event.data?.object;
  if(!object||typeof object.id!=="string")throw Error("Missing reversal object");
  const refund=event.type==="refund.created"||event.type==="refund.updated";
@@ -73,12 +74,24 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
 export async function POST(req: NextRequest) {
   // Never receive live orders unless the separate Production release audit
   // has verified paid fulfillment, private output and all human approvals.
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
-  const mode=configuredStripePaymentMode(process.env);
-  if (!secret || !mode ||
-      (mode==="live"&&(!customerLaunchReadiness().readyForPaidOrders||
-        !auditSingMotionLaunch(process.env,"production").ready)))
-    return NextResponse.json({ error: "Stripe Checkout is disabled." }, { status: 503 });
+  const checkoutMode=configuredStripePaymentMode(process.env);
+  // Independently authenticated reversal processing survives a checkout stop.
+  // It cannot enable a new payment or provider submission.
+  const mode=checkoutMode||configuredStripeReversalMode(process.env);
+  // The private Production TEST pilot must pass the exact same readiness gate
+  // as Checkout before any new signed paid receipt can be settled. Staging
+  // retains its existing test behavior, and signed reversals remain accepted
+  // independently after the pilot kill switch is turned off.
+  const customerReady=checkoutMode==="test"&&
+   process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"
+    ? customerLaunchReadiness().readyForPaidOrders : false;
+  const settlementEnabled=!!checkoutMode &&
+   privateProductionSandboxSettlementAllowed(process.env,checkoutMode,customerReady) &&
+   (checkoutMode!=="live"||(customerLaunchReadiness().readyForPaidOrders&&
+     auditSingMotionLaunch(process.env,"production").ready));
+  const secret=mode?customerStripeWebhookSecret(process.env,mode):null;
+  if (!secret || !mode)
+    return NextResponse.json({ error: "Stripe webhook verification is unavailable." }, { status: 503 });
   const signature = req.headers.get("stripe-signature");
   if (!signature) return NextResponse.json({ error: "Missing signature." }, { status: 400 });
   let store: CommerceStore | undefined;
@@ -86,6 +99,8 @@ export async function POST(req: NextRequest) {
     const raw = await readBoundedStripeWebhookBody(req);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const event=verifyStripePaymentEvent(raw,signature,secret,mode);
+    if(!stripeWebhookEventAdmitted(event.type,settlementEnabled))
+      return NextResponse.json({error:"Stripe payment settlement is paused."},{status:503});
     if(event.type==="checkout.session.completed"||
        event.type==="checkout.session.async_payment_succeeded"){
       // A signed completed Checkout may still be unpaid for delayed methods.
@@ -95,6 +110,13 @@ export async function POST(req: NextRequest) {
          event.data.object.payment_status==="unpaid")
         return NextResponse.json({received:true},{headers:{"Cache-Control":"no-store"}});
       await store.webhook(raw,signature,stripeCheckoutAdapter(secret,mode));
+      // Stripe may replay a signed receipt after an email outage: the contract
+      // confirmation is idempotent and the provider remains blocked until sent.
+      const paidOrderId=event.data?.object?.metadata?.orderId;
+      if(typeof paidOrderId==="string" && /^[a-f0-9-]{36}$/.test(paidOrderId) &&
+         store.hasEarlyPerformanceConsent(paidOrderId) &&
+         !(await ensurePaidContractConfirmation(store,paidOrderId)))
+        return NextResponse.json({error:"Contract confirmation delivery pending."},{status:503});
     }
     else if(["refund.created","refund.updated","charge.dispute.created"].includes(event.type||""))
       await reconcileReversal(store,event,mode);

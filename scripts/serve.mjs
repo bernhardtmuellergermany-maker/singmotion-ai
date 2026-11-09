@@ -39,6 +39,13 @@ if (process.env.PRODUCTION_R2_READONLY_PREFLIGHT_ENABLED === "true") {
   const status = await productionR2ReadOnlyPreflight();
   console.log("PRODUCTION_R2_READONLY_PREFLIGHT " + status);
 }
+if(process.env.PRODUCTION_R2_WRITE_PREFLIGHT_ENABLED==="true"){
+  // A one-shot, explicitly enabled private R2 verification. Never opens a
+  // customer checkout, grants storage release or submits provider work.
+  const {productionR2WritePreflight}=await import("./production-r2-write-preflight.ts");
+  const status=await productionR2WritePreflight();
+  console.log("PRODUCTION_R2_WRITE_PREFLIGHT "+status);
+}
 if(process.env.STAGING_R2_RUNTIME_CANARY_ENABLED==="true"){
   if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.getuid?.()!==1000)
     throw new Error("Private R2 hydration canary is permitted on nonroot Staging only.");

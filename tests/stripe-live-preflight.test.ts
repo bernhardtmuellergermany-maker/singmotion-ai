@@ -128,6 +128,9 @@ test("an active LIVE Stripe price linked to a staging or sandbox product cannot 
   {[priceUrl]:{...price,nickname:"Hobby 4.99 EUR/month STAGING"}},
   {[priceUrl]:{...price,lookup_key:"singmotion_hobby_monthly_staging"}},
   {[productUrl]:{...product,metadata:{environment:"staging"}}},
+  {[productUrl]:{...product,metadata:{}}},
+  {[productUrl]:{...product,metadata:{environment:"Production"}}},
+  {[productUrl]:{...product,metadata:{environment:"test"}}},
   {[productUrl]:{...product,description:"Subscription sandbox testing."}},
   {[productUrl]:{...product,active:false}},
  ]){

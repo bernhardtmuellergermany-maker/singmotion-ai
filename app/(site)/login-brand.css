@@ -40,3 +40,6 @@
 .sm-login-main{min-height:calc(100svh - 76px)}
 .product-header nav.sm-header-actions{gap:14px}
 @media(max-width:650px){.home-gallery-header,.sm-login-header,.singmotion-flow .flow-header,.product-header{height:68px;padding:0 16px}.home-gallery-header .sm-wordmark,.sm-login-header .sm-wordmark,.singmotion-flow .flow-header-left .sm-wordmark,.product-header .sm-wordmark{font-size:16px}.sm-header-actions{gap:8px}.sm-global-menu>summary{width:32px;height:34px}.sm-login-main{min-height:calc(100svh - 68px)}.singmotion-flow .flow-main{min-height:calc(100svh - 68px)}}
+
+/* Keep the expanded legal navigation usable on small mobile viewports. */
+.sm-global-menu-list{max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;min-width:min(260px,calc(100vw - 32px));z-index:300}

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight, Search, X, ArrowRight, CloudUpload, LogIn, Music2, UserRound, Volume2, VolumeX, Play, Trash2, AlertCircle, LoaderCircle, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { SiteHeader } from "./site-header";
+import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import { HomeUploadedAudio } from "./home-uploaded-audio";
 import { api, ensureSession, resetSession, upload } from "@/lib/client";
 import { validateFile, type Asset, type Job } from "@/lib/domain";
@@ -71,6 +72,20 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
   ]:["showcase","home","login",...tiles.map(t=>t.id)];
   const showcaseProject=tiles.find(t=>t.name.trim().toLocaleLowerCase()==="varkai"&&!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_"))) || tiles.find(t=>!!t.videoUrl&&(t.state.toLowerCase()==="completed"||t.id.startsWith("live_")));
   const activeIndex=Math.max(0,ids.indexOf(current));
+  // Prime only the first two video cards, never the whole private project list.
+  const firstVideoIds=ids.filter(id=>id==="showcase"||tiles.some(tile=>tile.id===id&&tile.state.toLowerCase()==="completed"&&!!tile.videoUrl)).slice(0,2);
+  // Signed shortest distance around a circular carousel. Both ends stay
+  // adjacent instead of making the side cards disappear at the boundary.
+  const circularDistance=(index:number)=>{
+    const count=ids.length;
+    if(count<2)return 0;
+    const forward=(index-activeIndex+count)%count;
+    return forward>count/2?forward-count:forward;
+  };
+  const adjacent=(direction:-1|1)=>{
+    if(ids.length<2)return null;
+    return ids[(activeIndex+direction+ids.length)%ids.length];
+  };
   useEffect(()=>{const timer=setTimeout(()=>setSearchQuery(searchText),250);return()=>clearTimeout(timer);},[searchText]);
   useEffect(()=>{if(searchOpen)searchInput.current?.focus();},[searchOpen]);
   useEffect(()=>{if(new URLSearchParams(window.location.search).get("search")==="1"){priorCard.current="home";void Promise.resolve().then(()=>setSearchOpen(true));const url=new URL(window.location.href);url.searchParams.delete("search");window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);}},[]);
@@ -196,8 +211,9 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
     finally{setDeletingDraft(null);}
   };
   const step=(offset:number)=>{
+    if(ids.length<2)return;
     const i=Math.max(0,ids.indexOf(currentRef.current));
-    const target=ids[Math.max(0,Math.min(ids.length-1,i+offset))];
+    const target=ids[(i+offset%ids.length+ids.length)%ids.length];
     if(target)navigate(target);
   };
   async function selectAudio(file?:File){
@@ -250,11 +266,11 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
       {error&&<p className="sm-carousel-error" role="alert">{error}</p>}
       <div className="sm-carousel-stage" aria-label="Music video cards" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
         {ids.map((id,i)=>{
-          const distance=i-activeIndex;
+          const distance=circularDistance(i);
           const visible=Math.abs(distance)<=2;
           if(!visible)return null;
           const tile=tiles.find(t=>t.id===id);
-          return <section key={id} className={"sm-carousel-card "+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant"+(hoveredSide===id?" is-distant-hovered":""))} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={undefined} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
+          return <section key={id} className={"sm-carousel-card "+(id==="login"?"is-account-card ":"")+(distance===0?"is-active":Math.abs(distance)===1?"is-neighbor"+(hoveredSide===id?" is-side-hovered":""):"is-distant"+(hoveredSide===id?" is-distant-hovered":""))} aria-label={id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio upload":id==="login"?"Login":tile?.name} aria-hidden={undefined} style={{"--distance":distance,"--depth":Math.abs(distance),"--drag":distance===0?dragging:0} as React.CSSProperties} >
             {distance!==0&&<button type="button" className="sm-carousel-side-hit" onPointerEnter={()=>setHoveredSide(id)} onPointerLeave={()=>setHoveredSide(null)} onFocus={()=>setHoveredSide(id)} onBlur={()=>setHoveredSide(null)} aria-label={`Show ${id==="showcase"?"SingMotion AI Showcase":id==="home"?"Audio Upload":id==="login"?"Login":tile?.name||"project"}`} onClick={()=>navigate(id)}/> }
             {id==="showcase"?<ShowcaseCard active={distance===0} visible={visible} onCreate={()=>navigate("home")} published={publishedShowcase} onPublish={setPublishedShowcase}/>:id==="home"?<div className="sm-carousel-home">
               <span className="sm-carousel-song-icon"><Music2 size={29}/></span>
@@ -270,11 +286,11 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
                   </label>}
               {uploadError&&<p className="sm-carousel-inline-error" role="alert">{uploadError}</p>}
               {audio&&<button className="sm-carousel-primary" type="button" onClick={continueToStudio}>Continue <ArrowRight size={17}/></button>}
-            </div>:id==="login"?<AccountPanel/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
+            </div>:id==="login"?<AccountPanel active={distance===0}/>:tile?<ProjectCarouselCard tile={tile} active={distance===0} eagerPreview={firstVideoIds.includes(id)} deleting={deletingDraft===tile.id} onDelete={()=>void deleteDraft(tile)}/>:null}
           </section>;
         })}
         {([-1,1] as const).map(direction=>{
-          const target=ids[activeIndex+direction];
+          const target=adjacent(direction);
           if(!target)return null;
           return <button key={direction} type="button"
             className={"sm-carousel-side-zone "+(direction<0?"is-left":"is-right")}
@@ -291,7 +307,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
     </main>
   </div>;
 }
-function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:boolean;deleting:boolean;onDelete:()=>void}){
+function ProjectCarouselCard({tile,active,eagerPreview,deleting,onDelete}:{tile:Tile;active:boolean;eagerPreview:boolean;deleting:boolean;onDelete:()=>void}){
   const video=useRef<HTMLVideoElement>(null);
   const [sound,setSound]=useState(false);
   const [mediaError,setMediaError]=useState(false);
@@ -311,8 +327,8 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   const explanation=label==="Draft"?"Continue editing this saved draft.":label==="Prepared"?"Ready for your next step.":label==="Processing"?"Your music video is being generated.":label==="Pending"?"Waiting for the provider.":label==="Failed"?"Open to review the failed attempt.":"Open to view your project.";
   return <div className={"sm-carousel-project "+(complete?"has-video":"has-status")}>
     {tile.id.startsWith("draft_")&&<button type="button" className="sm-carousel-draft-delete" aria-label={`Delete draft ${tile.name}`} title="Delete draft" disabled={deleting} onPointerDown={e=>e.stopPropagation()} onTouchStart={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onDelete();}}><Trash2 size={16} aria-hidden="true"/></button>}
-    {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading="lazy"/>}
-    {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
+    {tile.imageId&&<img className="sm-carousel-poster" src={"/api/assets/"+encodeURIComponent(tile.imageId)} alt="" loading={eagerPreview?"eager":"lazy"}/>}
+    {complete&&!mediaError&&<video ref={video} className="sm-carousel-video" src={active||eagerPreview?tile.videoUrl:undefined} poster={tile.imageId?"/api/assets/"+encodeURIComponent(tile.imageId):undefined} muted playsInline loop preload="metadata" onError={()=>setMediaError(true)}/>}
     {complete&&!mediaError?<button className="sm-carousel-sound" type="button" aria-label={sound?"Mute video":"Unmute video"} onClick={e=>{e.stopPropagation();const v=video.current;if(!v)return;v.muted=sound;setSound(!sound);}}>{sound?<Volume2 size={19}/>:<VolumeX size={19}/>}</button>:<div className="sm-carousel-status">
       {label==="Failed"?<AlertCircle size={35}/>:label==="Prepared"||label==="Draft"?<CheckCircle2 size={35}/>:<LoaderCircle className={label==="Pending"||label==="Processing"?"sm-spinning":""} size={35}/>}
       <strong>{label}</strong><p>{mediaError?"Video preview unavailable. Open the project to inspect it.":explanation}</p>
@@ -324,7 +340,7 @@ function ProjectCarouselCard({tile,active,deleting,onDelete}:{tile:Tile;active:b
   </div>;
 }
 
-function AccountPanel(){
+function AccountPanel({active}:{active:boolean}){
  const [guestPreview,setGuestPreview]=useState<{counts:{uploads:number;artists:number;drafts:number;jobs:number;videoProjects:number};pendingProjects:number}|null>(null),[importMessage,setImportMessage]=useState("");
  async function importGuest(mode:"preview"|"execute"){
   setBusy(true);setImportMessage("");
@@ -345,26 +361,29 @@ function AccountPanel(){
  }
  const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false);
  const [recoveryAvailable,setRecoveryAvailable]=useState(false);
- useEffect(()=>{fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[]);
+ useEffect(()=>{if(!active)return;fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[active]);
  const [googleAvailable,setGoogleAvailable]=useState(false);
 
  const [staff,setStaff]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
- useEffect(()=>{fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[]);
+ useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[active]);
  useEffect(()=>{
+  if(!active)return;
   let live=true;
+  let lastCheck=0;
   const refresh=()=>{
    if(document.visibilityState==="hidden")return;
-   fetch("/api/customer-auth",{cache:"no-store",credentials:"same-origin"})
-    .then(r=>r.ok?r.json():null)
-    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email:null);setStaff(d.authenticated&&d.kind==="staff");})
-    .catch(()=>{});
+   const now=Date.now();
+   if(now-lastCheck<1500)return;
+   lastCheck=now;
+   void readCustomerAuthStatus()
+    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email??null:null);setStaff(d.authenticated===true&&d.kind==="staff");});
   };
   refresh();
   window.addEventListener("focus",refresh);
   document.addEventListener("visibilitychange",refresh);
   window.addEventListener("pageshow",refresh);
   return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
- },[]);
+ },[active]);
  async function logoutAll(){
   if(!window.confirm("Sign out this account on all devices?"))return;
   setBusy(true);setError("");
@@ -396,7 +415,7 @@ function AccountPanel(){
    setPassword("");setAccount(action==="logout"?null:d.email);window.location.reload();
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
- return <div className="sm-carousel-login">
+ return <div className="sm-carousel-login" data-mode={mode}>
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
   {!account&&<p className="sm-account-intro">{mode==="register"?"Save your videos and drafts in your own private workspace.":"Sign in to access your videos and projects from this account."}</p>}
@@ -412,7 +431,7 @@ function AccountPanel(){
    {mode==="register"&&<><label className="sm-account-label">Confirm password<span className="sm-account-password-wrap"><input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label><p className="sm-account-hint">Use at least 20 characters. Your projects remain private to your account.</p><p className="sm-account-hint">STAGING test account. Email verification is not yet available; please do not use a password from another service.</p></>}
    {mode==="login"&&(recoveryAvailable?<Link className="sm-account-recovery-link" href="/account/reset-password">Forgot password?</Link>:<p className="sm-account-hint">Password recovery will be available after email setup.</p>)}
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
-   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
+   {googleAvailable&&mode==="login"&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
   </form>}
   {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}

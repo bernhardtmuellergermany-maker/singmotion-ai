@@ -118,30 +118,43 @@ export default function Waveform({
         Math.max(start + 5, Math.min(val, start + 300, duration)),
       );
   }
+  // An interrupted play() promise is expected when a user quickly taps Pause
+  // or Replay. It must not be displayed as an audio-loading failure.
+  const playRequest = useRef(0);
+  function startPlayback(a: HTMLAudioElement) {
+    const request = ++playRequest.current;
+    setError("");
+    void a.play().catch((reason: unknown) => {
+      if (request !== playRequest.current) return;
+      if (reason instanceof DOMException && reason.name === "AbortError") return;
+      setError("Playback could not start. Try the audio controls.");
+    });
+  }
   function toggle() {
     const a = audio.current;
     if (!a) return;
-    if (playing) {
+    if (!a.paused) {
+      ++playRequest.current;
       a.pause();
+      setError("");
       return;
     }
     segment.current = true;
     // Resume a paused selection; restart only after reaching its end or leaving it.
     if (a.currentTime < start || a.currentTime >= end - 0.015) a.currentTime = start;
-    void a
-      .play()
-      .catch(() =>
-        setError("Playback could not start. Try the audio controls."),
-      );
+    setPosition(a.currentTime);
+    startPlayback(a);
   }
   function replay() {
-    const a=audio.current;
-    if(!a)return;
-    segment.current=true;
-    a.pause();
-    a.currentTime=start;
+    const a = audio.current;
+    if (!a) return;
+    segment.current = true;
+    // Seeking a playing element does not require pause(): pause() can reject
+    // an in-flight play() call on Chrome/Android and show a false error.
+    a.currentTime = start;
     setPosition(start);
-    void a.play().catch(()=>setError("Playback could not start. Try the audio controls."));
+    if (a.paused) startPlayback(a);
+    else setError("");
   }
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
   const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
@@ -340,7 +353,7 @@ export default function Waveform({
         controls
         src={url}
         preload="metadata"
-        onPlay={() => setPlaying(true)}
+        onPlay={() => { setPlaying(true); setError(""); }}
         onPause={() => setPlaying(false)}
         onTimeUpdate={() => {
           const a = audio.current;

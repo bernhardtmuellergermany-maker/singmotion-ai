@@ -74,6 +74,7 @@ export function StudioWizard({
   const firstDraftSave = useRef(true);
   const deletingDraft = useRef(false);
   const performanceInput = useRef<HTMLTextAreaElement>(null);
+  const reviewTouch = useRef<{x:number;y:number}|null>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
     [projectKey, setProjectKey] = useState("");
@@ -86,6 +87,7 @@ export function StudioWizard({
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
     [error, setError] = useState(""),
+    [reviewCard, setReviewCard] = useState<"preview"|"details">("preview"),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16");
   useEffect(() => {
@@ -392,21 +394,39 @@ export function StudioWizard({
           </div>
           <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
         </section>}
-        {step===3&&<section className="sm-studio-review"><Sparkles size={30}/><h2>Ready to generate your video?</h2><p>Review your selection before continuing to generation.</p>
-          <div><span>Song</span><strong>{draft.song?.name||"Missing audio"}</strong></div>
-          <div><span>Source audio cut</span><strong>Start {sourceTimestamp(draft.start)} · End {sourceTimestamp(draft.end)}</strong></div>
-          <div><span>Clip duration</span><strong>{sourceTimestamp(Math.max(0,draft.end-draft.start))}</strong></div>
-          <div><span>Video format</span><strong>{draft.outputFormat}</strong></div>
-          <section className="sm-studio-review-media" aria-label="Photo and final instructions">
-            {draft.imageId&&<img className="sm-studio-review-photo" alt="Uploaded artist reference" src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/>}
-            <div className="sm-studio-final-prompt"><label htmlFor="studio-final-prompt">Final performance instructions (review before generation)</label><textarea id="studio-final-prompt" rows={5} readOnly aria-readonly="true" value={draft.customPrompt}/></div>
-          </section>
-          <button type="button" className="sm-studio-generate" disabled={!available} onClick={()=>setConfirm(true)}>Review Order <ArrowRight size={20}/></button>
+        {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
+          <div className="sm-carousel-stage sm-review-stage"
+            onTouchStart={e=>{reviewTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+            onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
+          >
+            <article className={"sm-carousel-card sm-review-panel sm-review-front "+(reviewCard==="preview"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="preview"?0:-1,"--depth":reviewCard==="preview"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project image and status">
+              {draft.imageId?<img className="sm-review-cover" src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt="Selected artist reference"/>:<div className="sm-review-placeholder"><ImagePlus size={42}/><span>No artist image selected</span></div>}
+              <div className="sm-review-top"><span className="sm-review-status">Ready for review</span></div>
+              <div className="sm-review-bottom"><strong title={projectName}>{projectName||"Untitled Project"}</strong><span>{draft.outputFormat} · {sourceTimestamp(Math.max(0,draft.end-draft.start))} clip</span></div>
+              {reviewCard!=="preview"&&<button type="button" className="sm-carousel-side-hit sm-review-side-hit" aria-label="Show project card" onClick={()=>setReviewCard("preview")}/>}
+            </article>
+            <article className={"sm-carousel-card sm-review-panel sm-review-details "+(reviewCard==="details"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="details"?0:1,"--depth":reviewCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
+              <div className="sm-review-details-inner">
+                <h2>Project details</h2>
+                <dl>
+                  <div><dt>Project</dt><dd>{projectName||"Untitled Project"}</dd></div>
+                  <div><dt>Status</dt><dd>Ready for review</dd></div>
+                  <div><dt>Song</dt><dd>{draft.song?.name||"Missing audio"}</dd></div>
+                  <div><dt>Source audio cut</dt><dd>Start {sourceTimestamp(draft.start)} · End {sourceTimestamp(draft.end)}</dd></div>
+                  <div><dt>Clip duration</dt><dd>{sourceTimestamp(Math.max(0,draft.end-draft.start))}</dd></div>
+                  <div><dt>Video format</dt><dd>{draft.outputFormat}</dd></div>
+                </dl>
+                <div className="sm-review-instructions"><strong>Final performance instructions</strong><p>{draft.customPrompt||"No additional instructions"}</p></div>
+              </div>
+              {reviewCard!=="details"&&<button type="button" className="sm-carousel-side-hit sm-review-side-hit" aria-label="Show project details" onClick={()=>setReviewCard("details")}/>}
+            </article>
+          </div>
         </section>}
         <nav className="sm-studio-navigation" aria-label="Studio steps">
           {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
           {step<2&&(step!==0||Boolean(draft.song&&audioValid))&&<button type="button" className="sm-studio-next" disabled={busy} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
           {step===2&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setStep(3)}>Review Project <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Review Order <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>

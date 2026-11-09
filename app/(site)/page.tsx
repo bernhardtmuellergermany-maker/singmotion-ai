@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CarouselExperience } from "@/components/carousel-experience";
-export const dynamic = "force-dynamic";
+// The public carousel shell contains no server-personalized data;
+// allow Next.js to cache it while private projects load client-side.
 export const metadata: Metadata = {
   title: "SingMotion AI — Your music. Your performance.",
   description: "Create a singing performance video using your own music and photo in your private SingMotion AI studio.",

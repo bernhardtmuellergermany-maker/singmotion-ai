@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, LockKeyhole } from "lucide-react";
 
 import { SiteHeader } from "../site-header";
-import { SiteFooter, defaultFooterLinks } from "../site-footer";
 import { navigation } from "../../cms/content";
 import { safeLink } from "../../cms/policy";
 // Deliberately no raw HTML, arbitrary CSS, scripts, or remote image URLs.
@@ -42,15 +41,6 @@ export async function Website({
     label: "Open studio",
     url: "/studio",
   };
-  // Informational header links are retained in the footer, including custom URLs.
-  const infoLinks = headerLinks.filter((item) => item.url !== "/studio");
-  const footerLinks = [
-    ...infoLinks,
-    ...(nav?.footer?.links || []),
-    ...defaultFooterLinks,
-  ].filter(
-    (item, i, all) => all.findIndex((other) => other.url === item.url) === i,
-  );
   return (
     <div
       className={`marketing premium-site product-theme ${isHome ? "home-site" : ""}`}
@@ -208,7 +198,6 @@ export async function Website({
           }
         })}
       </main>
-      <SiteFooter links={footerLinks} copyright={nav?.copyright || undefined} />
     </div>
   );
 }

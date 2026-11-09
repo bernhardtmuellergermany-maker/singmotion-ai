@@ -2,6 +2,7 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {UserRound} from "lucide-react";
+import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import "./header-account-menu.css";
 
 /** Shared account menu. Authentication is verified server-side, never inferred from cookies in JS. */
@@ -12,8 +13,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const [error,setError]=useState("");
  useEffect(()=>{
   let active=true;
-  const refresh=()=>{void fetch("/api/customer-auth",{credentials:"same-origin",cache:"no-store"})
-   .then(async r=>r.ok?await r.json():null)
+  const refresh=()=>{void readCustomerAuthStatus()
    .then(v=>{if(active){setIdentity(v?.authenticated===true?(v.kind==="staff"?"staff":"customer"):"guest");}})
    .catch(()=>{if(active)setIdentity("guest")})};
   refresh();

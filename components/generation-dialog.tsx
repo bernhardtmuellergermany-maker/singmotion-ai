@@ -25,6 +25,8 @@ export function GenerationDialog({
     lock = useRef(false),
     router = useRouter();
   const [rights, setRights] = useState(false),
+    [immediateStart,setImmediateStart] = useState(false),
+    [withdrawalConsequences,setWithdrawalConsequences] = useState(false),
     [terms, setTerms] = useState(""),
     [plan, setPlan] = useState<StudioProject | null>(null),
     [error, setError] = useState(""),
@@ -176,7 +178,7 @@ export function GenerationDialog({
     const response = await fetch("/api/stripe-checkout", {
       method: "POST", credentials: "same-origin", cache: "no-store",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({orderId}),
+      body: JSON.stringify({orderId,immediateStart,acknowledgedWithdrawalConsequences:withdrawalConsequences}),
     });
     const body = await response.json() as {
       url?:unknown;error?:string;code?:string;
@@ -199,7 +201,7 @@ export function GenerationDialog({
     window.location.assign(url.href);
   }
   async function prepareCustomerOrder() {
-    if (busy || !rights || !customerOrdersAvailable || !customerCheckoutEnabled ||
+    if (busy || !rights || !immediateStart || !withdrawalConsequences || !customerOrdersAvailable || !customerCheckoutEnabled ||
         !terms || !customerQuote || quotePending ||
         promoCode.trim().toUpperCase() !== appliedPromo) return;
     setBusy(true);
@@ -367,6 +369,16 @@ export function GenerationDialog({
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
+      {customerOrdersAvailable && <div className="sm-confirm-notice" aria-label="Early digital performance acknowledgements">
+        <label className="consent sm-confirm-consent">
+          <input type="checkbox" checked={immediateStart} disabled={busy} onChange={e=>setImmediateStart(e.target.checked)}/>
+          <span>Ich verlange ausdrücklich, dass SingMotion AI nach bestätigter Testzahlung vor Ablauf der Widerrufsfrist mit der individuellen Videogenerierung beginnt.</span>
+        </label>
+        <label className="consent sm-confirm-consent">
+          <input type="checkbox" checked={withdrawalConsequences} disabled={busy} onChange={e=>setWithdrawalConsequences(e.target.checked)}/>
+          <span>Ich habe zur Kenntnis genommen, dass mein Widerrufsrecht bei digitalen Inhalten unter den gesetzlichen Voraussetzungen durch den Beginn der Ausführung erlöschen kann. Gesetzliche Rechte bei Mängeln bleiben erhalten.</span>
+        </label>
+      </div>}
       {pilot !== true && !customerOrdersAvailable && (
         <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Super Admin anmelden">
           <p>Für echte BytePlus-Videos bitte als Super Admin anmelden. Dein gewähltes Bild und Audio bleiben erhalten.</p>
@@ -386,7 +398,7 @@ export function GenerationDialog({
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : "Generate Video"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !immediateStart || !withdrawalConsequences || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : "Generate Video"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>
