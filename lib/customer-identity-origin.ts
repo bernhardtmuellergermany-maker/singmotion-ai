@@ -1,4 +1,5 @@
 import { applicationOrigin } from "./request-origin.ts";
+import {assessProductionSandboxPilot} from "./commerce/customer-sandbox-pilot-policy.ts";
 import { productionCustomerReleaseApproved, productionPrivateCustomerPreviewEnabled, PRODUCTION_RAILWAY_ENVIRONMENT_ID } from "./commerce/customer-live-config.ts";
 
 type Env = Record<string, string | undefined>;
@@ -15,7 +16,7 @@ export function customerIdentityOrigin(env: Env): string | null {
   if (env.CUSTOMER_ACCOUNTS_ENABLED !== "true") return null;
   const candidate = id === STAGING ? STAGING_ORIGIN :
     id === PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
-    (productionPrivateCustomerPreviewEnabled(env) || productionCustomerReleaseApproved(env)) ?
+    (productionPrivateCustomerPreviewEnabled(env) || productionCustomerReleaseApproved(env) || assessProductionSandboxPilot(env).ready) ?
       PRODUCTION_ORIGIN : null;
   if (!candidate || env.APP_ORIGIN !== candidate) return null;
   return applicationOrigin(candidate + "/api/customer-auth", new URL(candidate).host, env) === candidate ? candidate : null;
