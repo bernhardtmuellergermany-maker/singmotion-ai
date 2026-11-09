@@ -22,6 +22,8 @@ export const defaultFooterLinks = [
         ? "FAQ"
         : p === "legal"
           ? "Legal notice"
+          : p === "withdrawal"
+          ? "Vertrag widerrufen"
           : p === "help"
             ? "Help & Tips"
             : p.charAt(0).toUpperCase() + p.slice(1),
