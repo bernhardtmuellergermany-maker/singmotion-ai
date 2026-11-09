@@ -7,7 +7,7 @@ import {stagingDenial} from "@/lib/staging";
 import {configuredStripePaymentMode,stripeSessionIdMatchesMode} from "@/lib/commerce/stripe-payment-mode";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {applicationOrigin} from "@/lib/request-origin";
-import {verifiedHobbyCheckoutSession,verifiedReusableHobbyCheckoutSession} from "@/lib/commerce/stripe-hobby-checkout";
+import {verifiedHobbyCheckoutSession,verifiedReusableHobbyCheckoutSession,verifiedHobbyLiveProduct} from "@/lib/commerce/stripe-hobby-checkout";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const ready=()=>configuredStripePaymentMode(process.env)!==null&&
  customerLaunchReadiness().readyForPaidOrders&&
@@ -33,6 +33,30 @@ export async function POST(req:NextRequest){
   if(!store.emailVerified(accountId))return NextResponse.json({error:"Verify your email before subscribing.",code:"EMAIL_NOT_VERIFIED"},{status:403});
   const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId) as {email:string}|undefined;
   if(!account)return NextResponse.json({error:"Account missing"},{status:404});
+  // Verify the authoritative Stripe Price before any Checkout session is created.
+  // A misconfigured test Price must never silently charge a different amount.
+  const priceResponse=await fetch("https://api.stripe.com/v1/prices/"+encodeURIComponent(process.env.STRIPE_HOBBY_PRICE_ID!),{
+   headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)
+  });
+  if(!priceResponse.ok)return NextResponse.json({error:"Hobby pricing verification unavailable"},{status:503});
+  const price=await priceResponse.json() as {id?:string;livemode?:boolean;active?:boolean;currency?:string;unit_amount?:number;tax_behavior?:string;recurring?:{interval?:string;interval_count?:number;usage_type?:string};product?:string;nickname?:string;lookup_key?:string};
+  if(price.livemode!==expectedLive||price.id!==process.env.STRIPE_HOBBY_PRICE_ID||price.active!==true||
+     price.currency!=="eur"||price.unit_amount!==499||price.tax_behavior!=="inclusive"||
+     price.recurring?.interval!=="month"||price.recurring?.interval_count!==1||
+     price.recurring?.usage_type!=="licensed")
+   return NextResponse.json({error:"Configured Hobby Stripe price does not match the advertised plan"},{status:503});
+  // A LIVE API price may still belong to a staging/sandbox product. Verify
+  // against Stripe before returning any pending session or creating a new one.
+  if(expectedLive){
+   if(typeof price.product!=="string"||!/^prod_[A-Za-z0-9_]+$/.test(price.product))
+    return NextResponse.json({error:"Production Hobby product is not approved"},{status:503});
+   const productResponse=await fetch("https://api.stripe.com/v1/products/"+encodeURIComponent(price.product),{
+    headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)
+   });
+   if(!productResponse.ok)return NextResponse.json({error:"Hobby product verification unavailable"},{status:503});
+   if(!verifiedHobbyLiveProduct(price,await productResponse.json()))
+    return NextResponse.json({error:"Production Hobby product is not approved"},{status:503});
+  }
   // Prevent duplicate active subscriptions, but permit a new checkout after a
   // fully canceled one. Re-check Stripe instead of trusting a stale local row.
   new PlanLedger(store.db);
@@ -61,18 +85,6 @@ export async function POST(req:NextRequest){
       }catch{return NextResponse.json({error:"Pending Checkout could not be verified."},{status:503})}
     }
   }
-  // Verify the authoritative Stripe Price before any Checkout session is created.
-  // A misconfigured test Price must never silently charge a different amount.
-  const priceResponse=await fetch("https://api.stripe.com/v1/prices/"+encodeURIComponent(process.env.STRIPE_HOBBY_PRICE_ID!),{
-   headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY},cache:"no-store",signal:AbortSignal.timeout(10000)
-  });
-  if(!priceResponse.ok)return NextResponse.json({error:"Hobby pricing verification unavailable"},{status:503});
-  const price=await priceResponse.json() as {id?:string;livemode?:boolean;active?:boolean;currency?:string;unit_amount?:number;tax_behavior?:string;recurring?:{interval?:string;interval_count?:number;usage_type?:string}};
-  if(price.livemode!==expectedLive||price.id!==process.env.STRIPE_HOBBY_PRICE_ID||price.active!==true||
-     price.currency!=="eur"||price.unit_amount!==499||price.tax_behavior!=="inclusive"||
-     price.recurring?.interval!=="month"||price.recurring?.interval_count!==1||
-     price.recurring?.usage_type!=="licensed")
-   return NextResponse.json({error:"Configured Hobby Stripe price does not match the advertised plan"},{status:503});
   const form=new URLSearchParams({"mode":"subscription","line_items[0][price]":process.env.STRIPE_HOBBY_PRICE_ID!,"line_items[0][quantity]":"1","client_reference_id":accountId,"customer_email":account.email,"subscription_data[metadata][singmotionAccountId]":accountId,"subscription_data[metadata][singmotionPlan]":"hobby","metadata[singmotionAccountId]":accountId,"success_url":origin+"/account/settings?checkout=success","cancel_url":origin+"/account/settings?checkout=cancelled"});
   const res=await fetch("https://api.stripe.com/v1/checkout/sessions",{method:"POST",headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY,"Content-Type":"application/x-www-form-urlencoded","Idempotency-Key":"sm-hobby-"+accountId+"-"+new Date().toISOString().slice(0,13)},body:form,cache:"no-store",signal:AbortSignal.timeout(12000)});
   if(!res.ok)return NextResponse.json({error:"Stripe Checkout unavailable"},{status:502});
