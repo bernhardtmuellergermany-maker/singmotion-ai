@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {assessProductionSandboxPilot,REQUESTED_PILOT,privatePilotEurBudgetCap} from "../lib/commerce/customer-sandbox-pilot-policy.ts";
-import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,customerStripeCredential,customerStripeWebhookSecret} from "../lib/commerce/stripe-payment-mode.ts";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,privateProductionSandboxSettlementAllowed,customerStripeCredential,customerStripeWebhookSecret} from "../lib/commerce/stripe-payment-mode.ts";
 import {customerWorkerEnabled,boundPrivatePilotPolicy} from "../lib/commerce/customer-paid-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -148,4 +148,16 @@ test("paused private Production Sandbox accepts signed TEST reversals but not ne
  ]){
   assert.notEqual(configuredStripeReversalMode({...paused,[key]:value}),"test",key);
  }
+});
+
+test("private Production signed sandbox payments fail closed until the same readiness as Checkout",()=>{
+ const approved=full();
+ const staging={...approved,RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"};
+ assert.equal(privateProductionSandboxSettlementAllowed(approved,"test",false),false);
+ assert.equal(privateProductionSandboxSettlementAllowed(approved,"test",true),true);
+ assert.equal(privateProductionSandboxSettlementAllowed(staging,"test",false),true);
+ assert.equal(privateProductionSandboxSettlementAllowed(approved,"live",false),true);
+ assert.equal(privateProductionSandboxSettlementAllowed(approved,null,true),false);
+ assert.equal(stripeWebhookEventAdmitted("checkout.session.completed",false),false);
+ assert.equal(stripeWebhookEventAdmitted("refund.created",false),true);
 });
