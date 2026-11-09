@@ -21,7 +21,6 @@ const full=()=>{
  CUSTOMER_R2_STORAGE_ENABLED:"true",
  CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED:"true",
  CUSTOMER_SANDBOX_CONTRACT_REVIEW_APPROVED:"true",
- CUSTOMER_SANDBOX_VIDEO_E2E_VERIFIED:"true",
  CUSTOMER_SANDBOX_COST_ALERTS_VERIFIED:"true",
  CUSTOMER_SANDBOX_EUR_BUDGET_GUARD_VERIFIED:"true",
  CUSTOMER_SANDBOX_LEGAL_TEST_REVIEW_APPROVED:"true",
@@ -98,4 +97,8 @@ test("private Production provider reservation enforces conservative lifetime and
  assert.throws(()=>boundPrivatePilotPolicy({...fixture,contract:{...fixture.contract,billing:{
   ...fixture.contract.billing,microUsdPerSecond:700}}},e),/rate mismatch/);
  assert.equal(boundPrivatePilotPolicy(fixture,{...e,PRODUCTION_SANDBOX_PILOT_ENABLED:"false"}).lifetimeCapMicroUsd,500_000_000);
+});
+
+test("first bounded private pilot order does not require claiming an E2E test has already succeeded",()=>{
+ assert.equal(assessProductionSandboxPilot({...full(),CUSTOMER_SANDBOX_VIDEO_E2E_VERIFIED:"false"}).ready,true);
 });
