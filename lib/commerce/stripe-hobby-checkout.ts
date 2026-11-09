@@ -32,3 +32,21 @@ export function verifiedReusableHobbyCheckoutSession(
     throw Error("Hobby Checkout reservation conflict");
   return verified;
 }
+
+/** Live subscription checkout must reject any staging-labeled Stripe product.
+ * This is checked against Stripe's fresh price + product responses before
+ * creating OR resuming a Checkout session; no local configuration can bypass it.
+ */
+export function verifiedHobbyLiveProduct(price:unknown,product:unknown):boolean{
+ if(!price||typeof price!=="object"||!product||typeof product!=="object")return false;
+ const p=price as Record<string,unknown>;
+ const v=product as Record<string,unknown>;
+ const meta=v.metadata&&typeof v.metadata==="object"&&!Array.isArray(v.metadata)?
+  v.metadata as Record<string,unknown>:{};
+ const staging=(x:unknown)=>typeof x==="string"&&
+  /(?:^|[^a-z])(?:staging|sandbox)(?:$|[^a-z])/i.test(x);
+ return typeof p.product==="string"&&/^prod_[A-Za-z0-9_]+$/.test(p.product)&&
+  v.id===p.product&&v.livemode===true&&v.active===true&&
+  meta.environment==="production"&&
+  ![p.nickname,p.lookup_key,v.name,v.description,meta.environment].some(staging);
+}
