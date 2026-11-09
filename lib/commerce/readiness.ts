@@ -6,7 +6,7 @@ import {readFileSync} from "node:fs";
 import path from "node:path";
 import {configuredStripePaymentMode} from "./stripe-payment-mode.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
-import {customerWorkerEnabled,validateCustomerWorkerPolicy} from "./customer-paid-worker.ts";
+import {customerWorkerEnabled,validateCustomerWorkerPolicy,boundPrivatePilotPolicy} from "./customer-paid-worker.ts";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {loadBytePlusCredentials} from "../live/signing.ts";
 import {loadR2Config} from "../live/r2-config.ts";
@@ -48,11 +48,16 @@ export function customerLaunchReadiness(env:Record<string,string|undefined>=proc
     policy=JSON.parse(bytes.toString("utf8"));
    }catch(error){
     if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
-    if(mode!=="test" || env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING!=="true")
-     throw Error("Private, approved production provider policy required");
-    policy=ownerConfirmedBytePlusPolicy();
+    if(env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
+     if(!env.CUSTOMER_BYTEPLUS_POLICY_JSON)throw Error("Production reviewed provider policy required");
+     policy=JSON.parse(env.CUSTOMER_BYTEPLUS_POLICY_JSON);
+    }else{
+     if(mode!=="test" || env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING!=="true")
+      throw Error("Private, approved production provider policy required");
+     policy=ownerConfirmedBytePlusPolicy();
+    }
    }
-   const review=validateCustomerWorkerPolicy(policy,Date.now(),env.RAILWAY_ENVIRONMENT_ID);
+   const review=boundPrivatePilotPolicy(validateCustomerWorkerPolicy(policy,Date.now(),env.RAILWAY_ENVIRONMENT_ID),env);
    fulfillmentConnected=review.dailyCapMicroUsd>0&&review.lifetimeCapMicroUsd>0;
    deliveryConnected=env.CUSTOMER_DELIVERY_ENABLED==="true"&&
     env.CUSTOMER_R2_STORAGE_ENABLED==="true"&&review.contract.outputHosts.length>0;
