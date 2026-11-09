@@ -1,6 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
-import {assessProductionSandboxPilot,REQUESTED_PILOT} from "../lib/commerce/customer-sandbox-pilot-policy.ts";
+import {assessProductionSandboxPilot,REQUESTED_PILOT,privatePilotEurBudgetCap} from "../lib/commerce/customer-sandbox-pilot-policy.ts";
 import {configuredStripePaymentMode,customerStripeCredential,customerStripeWebhookSecret} from "../lib/commerce/stripe-payment-mode.ts";
 import {customerWorkerEnabled,boundPrivatePilotPolicy} from "../lib/commerce/customer-paid-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
@@ -27,6 +27,8 @@ const full=()=>{
  CUSTOMER_SANDBOX_RATE_MICRO_USD_PER_SECOND:"70000",
  CUSTOMER_SANDBOX_OWNER_BUDGET_EUR_CENTS:"10000",
  CUSTOMER_SANDBOX_MAX_RESERVED_MICRO_USD:"70000000",
+ CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"1200000",
+ CUSTOMER_SANDBOX_MAX_EXTRA_EUR_CENTS:"1000",
  };
  return env;
 };
@@ -101,4 +103,20 @@ test("private Production provider reservation enforces conservative lifetime and
 
 test("first bounded private pilot order does not require claiming an E2E test has already succeeded",()=>{
  assert.equal(assessProductionSandboxPilot({...full(),CUSTOMER_SANDBOX_VIDEO_E2E_VERIFIED:"false"}).ready,true);
+});
+
+test("private sandbox budget reserves upper EUR conversion and extra costs without upward rounding",()=>{
+ const e=full();
+ assert.equal(privatePilotEurBudgetCap(e),70_000_000);
+ assert.equal(privatePilotEurBudgetCap({...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"1500000"}),60_000_000);
+ assert.equal(privatePilotEurBudgetCap({...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"1500000",CUSTOMER_SANDBOX_MAX_EXTRA_EUR_CENTS:"2500"}),50_000_000);
+ assert.equal(privatePilotEurBudgetCap({...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"false"}),null);
+ assert.equal(privatePilotEurBudgetCap({...e,CUSTOMER_SANDBOX_MAX_EXTRA_EUR_CENTS:"10000"}),null);
+ assert.equal(privatePilotEurBudgetCap({...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"0"}),null);
+ assert.equal(assessProductionSandboxPilot({...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"false"}).ready,false);
+ const fixture={dailyCapMicroUsd:200_000_000,lifetimeCapMicroUsd:500_000_000,
+  contract:{billing:{microUsdPerSecond:70_000}}} as unknown as Parameters<typeof boundPrivatePilotPolicy>[0];
+ const tighter=boundPrivatePilotPolicy(fixture,{...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"1500000"});
+ assert.equal(tighter.dailyCapMicroUsd,60_000_000);
+ assert.equal(tighter.lifetimeCapMicroUsd,60_000_000);
 });
