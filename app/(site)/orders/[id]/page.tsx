@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import Link from "next/link";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { dataDir } from "@/lib/db";
@@ -84,6 +85,7 @@ export default async function Page({
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
             {authenticatedOwner && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} />}
             {order.status==="awaiting_payment" && <p>Payment has not been confirmed. No video generation has started. Complete secure Checkout to begin processing.</p>}
+            <p className="sm-order-assurance">Probleme mit dem Video oder der Lieferung? <Link href="/contact">Reklamation und Support</Link>. Gesetzliche Ansprüche bleiben bestehen. <Link href="/withdrawal">Vertrag widerrufen</Link> ist davon getrennt.</p>
             {order.status==="paid" && !videoReady && <p className="sm-order-assurance">Your payment is confirmed. We will show the video here once processing and private validation are complete. You do not need to pay again.</p>}
           </>
         ) : checkout === "success" && /^[a-f0-9-]{36}$/.test(id) ? (
