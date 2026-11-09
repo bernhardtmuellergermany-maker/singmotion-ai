@@ -5,6 +5,7 @@ on:
     branches:
       - phase2/customer-launch-safety-20261106
       - fix/require-production-stripe-product-20261109
+      - fix/hobby-revocation-survives-checkout-stop-20261109
       - fix/stripe-reversal-after-checkout-pause-20261109
       - fix/contact-turnstile-action-bound-20261109
       - fix/hobby-live-checkout-production-product-20261109
@@ -40,6 +41,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
       - run: npm ci
+      - name: Hobby cancellation safety while checkout is paused
+        run: node --experimental-strip-types --test tests/stripe-hobby-pause-policy.test.ts
       - name: Contact Turnstile action and hostname security
         run: node --experimental-strip-types --test tests/contact-turnstile.test.ts
       - name: Release parity and production fail-closed gates
