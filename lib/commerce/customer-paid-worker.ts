@@ -6,7 +6,7 @@
 import {readFile} from "node:fs/promises";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
-import {assessProductionSandboxPilot,REQUESTED_PILOT} from "./customer-sandbox-pilot-policy.ts";
+import {assessProductionSandboxPilot,REQUESTED_PILOT,privatePilotEurBudgetCap} from "./customer-sandbox-pilot-policy.ts";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
 import {ensurePaidContractConfirmation} from "./contract-confirmation.ts";
@@ -94,7 +94,9 @@ export function boundPrivatePilotPolicy(policy:ReviewedCustomerWorkerPolicy,env:
     !assessProductionSandboxPilot(env).ready)return policy;
  if(policy.contract.billing.microUsdPerSecond!==REQUESTED_PILOT.providerRateMicroUsdPerGeneratedSecond)
   throw Error("Sandbox pilot provider rate mismatch");
- const cap=REQUESTED_PILOT.provisionalProviderCeilingMicroUsd;
+ const cap=privatePilotEurBudgetCap(env);
+ if(cap===null||cap>REQUESTED_PILOT.provisionalProviderCeilingMicroUsd)
+  throw Error("Reviewed EUR sandbox spending ceiling required");
  return {...policy,dailyCapMicroUsd:Math.min(policy.dailyCapMicroUsd,cap),
   lifetimeCapMicroUsd:Math.min(policy.lifetimeCapMicroUsd,cap)};
 }
