@@ -78,7 +78,14 @@ export async function POST(req: NextRequest) {
   // Independently authenticated reversal processing survives a checkout stop.
   // It cannot enable a new payment or provider submission.
   const mode=checkoutMode||configuredStripeReversalMode(process.env);
+  // The private Production TEST pilot must pass the exact same readiness gate
+  // as Checkout before any new signed paid receipt can be settled. Staging
+  // retains its existing test behavior, and signed reversals remain accepted
+  // independently after the pilot kill switch is turned off.
+  const productionPilotTest=checkoutMode==="test" &&
+    process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d";
   const settlementEnabled=!!checkoutMode &&
+   (!productionPilotTest || customerLaunchReadiness().readyForPaidOrders) &&
    (checkoutMode!=="live"||(customerLaunchReadiness().readyForPaidOrders&&
      auditSingMotionLaunch(process.env,"production").ready));
   const secret=mode?customerStripeWebhookSecret(process.env,mode):null;
