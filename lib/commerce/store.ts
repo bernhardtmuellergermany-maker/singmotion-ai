@@ -45,6 +45,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_holds(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,cents INTEGER NOT NULL,state TEXT NOT NULL);
  CREATE TABLE IF NOT EXISTS payment_events(event_key TEXT PRIMARY KEY,receipt_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS stripe_checkout_sessions(order_id TEXT PRIMARY KEY,session_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_early_performance_consents(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,notice_version TEXT NOT NULL,review_digest TEXT NOT NULL,acknowledged_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
  CREATE TABLE IF NOT EXISTS customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT UNIQUE NOT NULL,evidence_hash TEXT NOT NULL,created INTEGER NOT NULL);
@@ -674,6 +675,41 @@ export class CommerceStore {
       this.audit("stripe-dispute-reconciliation","verified-dispute",input.orderId+":"+hash(input.evidence));
       return true;
     });
+  }
+  /** Immutable, account-bound evidence for two separately displayed acknowledgements.
+   * This does not itself establish statutory expiry or replace contract confirmation. */
+  recordEarlyPerformanceConsent(orderId: string, accountId: string) {
+    return this.tx(() => {
+      const row = this.db.prepare(`
+        SELECT o.status,o.account_id,i.review_digest
+        FROM customer_orders o
+        JOIN customer_order_inputs i ON i.order_id=o.id
+        WHERE o.id=?
+      `).get(orderId);
+      if(!row || row.status!=="awaiting_payment" || row.account_id!==accountId ||
+         typeof row.review_digest!=="string" || !this.reviewedOrderReadyForCheckout(orderId))
+        throw Error("Consent requires a reviewed owned order");
+      const version="early-performance-v1-2026-11-09";
+      const prior=this.db.prepare("SELECT account_id,notice_version,review_digest FROM customer_early_performance_consents WHERE order_id=?").get(orderId);
+      if(prior){
+        if(prior.account_id!==accountId || prior.notice_version!==version || prior.review_digest!==row.review_digest)
+          throw Error("Consent snapshot conflict");
+        return;
+      }
+      this.db.prepare("INSERT INTO customer_early_performance_consents(order_id,account_id,notice_version,review_digest,acknowledged_at) VALUES(?,?,?,?,?)")
+        .run(orderId,accountId,version,row.review_digest,Date.now());
+      this.audit("customer-early-performance-consent",version,orderId);
+    });
+  }
+  /** A provider dispatch must not rely on client-only acknowledgement. */
+  hasEarlyPerformanceConsent(orderId: string): boolean {
+    const row=this.db.prepare(`
+      SELECT c.notice_version,c.review_digest,i.review_digest AS current_digest
+      FROM customer_early_performance_consents c
+      JOIN customer_order_inputs i ON i.order_id=c.order_id
+      WHERE c.order_id=?
+    `).get(orderId);
+    return Boolean(row && row.notice_version==="early-performance-v1-2026-11-09" && row.review_digest===row.current_digest);
   }
   /** Bind the exact Stripe-created Checkout Session before accepting any payment. */
   bindStripeCheckout(orderId: string, sessionId: string) {
