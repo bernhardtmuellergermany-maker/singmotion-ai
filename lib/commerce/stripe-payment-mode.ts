@@ -4,6 +4,7 @@
  * A classified Live environment remains unable to charge until the
  * verified customer order, provider and delivery runtime is connected.
  */
+import {assessProductionSandboxPilot} from "./customer-sandbox-pilot-policy.ts";
 export type StripePaymentMode="test"|"live";
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -13,6 +14,8 @@ export function configuredStripePaymentMode(env:Record<string,string|undefined>)
  if(!/^whsec_[A-Za-z0-9_]+$/.test(webhookSecret))return null;
  if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&
     env.STRIPE_CHECKOUT_ENABLED==="true"&&/^sk_test_[A-Za-z0-9_]+$/.test(key))
+   return "test";
+ if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&assessProductionSandboxPilot(env).ready)
    return "test";
  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true"&&
@@ -57,4 +60,16 @@ export function stripeSessionIdMatchesMode(value:string,mode:StripePaymentMode):
 export function stripeKeyMatchesMode(key:string,mode:StripePaymentMode):boolean{
  return mode==="live"?/^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key):
   /^sk_test_[A-Za-z0-9_]+$/.test(key);
+}
+
+/** Never reuse a Production live Stripe credential for its private test pilot. */
+export function customerStripeCredential(env:Record<string,string|undefined>,mode:StripePaymentMode):string|null{
+ const privateSandbox=mode==="test"&&env.RAILWAY_ENVIRONMENT_ID===PRODUCTION;
+ const key=privateSandbox?env.PRODUCTION_SANDBOX_STRIPE_SECRET_KEY:env.STRIPE_SECRET_KEY;
+ return key&&stripeKeyMatchesMode(key,mode)?key:null;
+}
+export function customerStripeWebhookSecret(env:Record<string,string|undefined>,mode:StripePaymentMode):string|null{
+ const privateSandbox=mode==="test"&&env.RAILWAY_ENVIRONMENT_ID===PRODUCTION;
+ const secret=privateSandbox?env.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET:env.STRIPE_WEBHOOK_SECRET;
+ return secret&&/^whsec_[A-Za-z0-9_]+$/.test(secret)?secret:null;
 }
