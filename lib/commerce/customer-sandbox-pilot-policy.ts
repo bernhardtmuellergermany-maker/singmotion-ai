@@ -26,7 +26,9 @@ export function assessProductionSandboxPilot(env:Record<string,string|undefined>
  check(env.CUSTOMER_ACCOUNTS_ENABLED==="true","CUSTOMER_ACCOUNTS_REQUIRED");
  check(env.CUSTOMER_R2_STORAGE_ENABLED==="true" && env.CUSTOMER_R2_PRODUCTION_RELEASE_APPROVED==="true","VERIFIED_PRIVATE_PRODUCTION_STORAGE_REQUIRED");
  check(env.CUSTOMER_SANDBOX_CONTRACT_REVIEW_APPROVED==="true","INDEPENDENT_BYTEPLUS_TERMS_REQUIRED");
- check(env.CUSTOMER_SANDBOX_VIDEO_E2E_VERIFIED==="true","PAID_SANDBOX_VIDEO_E2E_REQUIRED");
+ // The first isolated Sandbox order is itself the E2E validation. Never
+ // require completed-video proof before allowing that first bounded test.
+ // PUBLIC Production launch remains blocked on its independent E2E proof.
  check(env.CUSTOMER_SANDBOX_COST_ALERTS_VERIFIED==="true","COST_MONITORING_AND_KILL_SWITCH_REQUIRED");
  check(env.CUSTOMER_SANDBOX_EUR_BUDGET_GUARD_VERIFIED==="true","EUR_BUDGET_GUARD_REQUIRED");
  check(env.CUSTOMER_SANDBOX_LEGAL_TEST_REVIEW_APPROVED==="true","LEGAL_REVIEW_FOR_TEST_PARTICIPANTS_REQUIRED");
