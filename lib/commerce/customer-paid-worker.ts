@@ -8,6 +8,7 @@ import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import path from "node:path";
 import {CommerceStore} from "./store.ts";
+import {ensurePaidContractConfirmation} from "./contract-confirmation.ts";
 import {dispatchReviewedCustomerBytePlus} from "./customer-byteplus-dispatch.ts";
 import {CustomerR2PrivateInputDelivery} from "./customer-r2-inputs.ts";
 import {verifyPrivatePaidMediaSnapshot} from "./verify-paid-media.ts";
