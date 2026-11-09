@@ -22,6 +22,34 @@ export function configuredStripePaymentMode(env:Record<string,string|undefined>)
    return "live";
  return null;
 }
+/**
+ * A checkout kill switch must NOT disable authenticated refund/dispute
+ * reconciliation for orders already paid. This classifier authenticates
+ * ONLY signed reversal webhooks in the exact Stripe account environment;
+ * it never authorizes checkout, settlement or provider dispatch.
+ */
+export function configuredStripeReversalMode(env:Record<string,string|undefined>):StripePaymentMode|null{
+ const key=env.STRIPE_SECRET_KEY||"";
+ const secret=env.STRIPE_WEBHOOK_SECRET||"";
+ if(!/^whsec_[A-Za-z0-9_]+$/.test(secret))return null;
+ if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&/^sk_test_[A-Za-z0-9_]+$/.test(key))
+  return "test";
+ if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
+    /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key))
+  return "live";
+ return null;
+}
+
+/** Do not acknowledge a delayed paid event when new settlement is paused:
+ * Stripe must retry it after checkout/fulfillment is restored. Reversals
+ * remain enforceable even while a checkout kill switch is active.
+ */
+export function stripeWebhookEventAdmitted(type:string|undefined,settlementEnabled:boolean):boolean{
+ if(["refund.created","refund.updated","charge.dispute.created"].includes(type||""))return true;
+ if(["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(type||""))
+  return settlementEnabled;
+ return settlementEnabled;
+}
 export function stripeSessionIdMatchesMode(value:string,mode:StripePaymentMode):boolean{
  return mode==="live"?/^cs_live_[A-Za-z0-9_]+$/.test(value):
   /^cs_test_[A-Za-z0-9_]+$/.test(value);
