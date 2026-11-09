@@ -47,3 +47,38 @@ export function withdrawalReceiptText(v:WithdrawalDeclaration & {id:string;recei
  "","Gesetzliche Ansprüche und die Prüfung der Rechtslage bleiben unberührt.",
  "SingMotion AI · support@singmotion.ai"].join("\n");
 }
+
+/** Durable email outbox retry. Run periodically from the existing worker.
+ * Never changes the original acceptance timestamp or resolves legal validity. */
+export async function retryPendingWithdrawalReceipts(file:string,env:NodeJS.ProcessEnv=process.env,sender:typeof fetch=fetch){
+ if(!env.RESEND_API_KEY||!env.ACCOUNT_EMAIL_FROM)return {attempted:0,sent:0};
+ const db=new DatabaseSync(file);
+ db.exec("PRAGMA busy_timeout=5000");
+ let attempted=0,sent=0;
+ try{
+  ensureWithdrawalTable(db);
+  const entries=db.prepare(`SELECT id,name,order_reference,email,received_at,receipt_sent_at,operator_notified_at
+   FROM consumer_withdrawals
+   WHERE receipt_sent_at IS NULL OR operator_notified_at IS NULL
+   ORDER BY received_at ASC LIMIT 3`).all() as Array<{
+    id:string;name:string;order_reference:string;email:string;received_at:string;
+    receipt_sent_at:string|null;operator_notified_at:string|null;
+   }>;
+  for(const row of entries){
+   const receipt={id:row.id,name:row.name,orderReference:row.order_reference,
+    email:row.email,receivedAt:row.received_at};
+   attempted++;
+   const body=withdrawalReceiptText(receipt);
+   if(!row.receipt_sent_at){
+    const ok=await sendRightsEmail({to:row.email,subject:"SingMotion AI – Eingang deiner Widerrufserklärung",text:body},env,sender);
+    if(ok){db.prepare("UPDATE consumer_withdrawals SET receipt_sent_at=? WHERE id=? AND receipt_sent_at IS NULL").run(new Date().toISOString(),row.id);sent++;}
+   }
+   if(!row.operator_notified_at){
+    const to=env.CONTACT_EMAIL_TO||"support@singmotion.ai";
+    const ok=await sendRightsEmail({to,subject:"[SingMotion AI] Neue Widerrufserklärung "+row.id,text:body},env,sender);
+    if(ok)db.prepare("UPDATE consumer_withdrawals SET operator_notified_at=? WHERE id=? AND operator_notified_at IS NULL").run(new Date().toISOString(),row.id);
+   }
+  }
+ }finally{db.close();}
+ return {attempted,sent};
+}
