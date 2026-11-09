@@ -64,6 +64,7 @@ export async function dispatchReviewedCustomerBytePlus(
  const order=store.db.prepare("SELECT account_id,status FROM customer_orders WHERE id=?")
   .get(orderId) as {account_id:string|null;status:string}|undefined;
  if(!order?.account_id||order.status!=="paid")throw Error("Paid authenticated account order required");
+ if(!store.hasEarlyPerformanceConsent(orderId))throw Error("Early performance acknowledgement missing");
  if(review.signal.aborted)throw Error("Provider submission aborted");
  return submitReviewedPaidVideo(store,orderId,{
   verify:review.verify,
