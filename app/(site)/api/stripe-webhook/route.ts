@@ -3,6 +3,7 @@ import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
+import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
 import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
@@ -101,6 +102,13 @@ export async function POST(req: NextRequest) {
          event.data.object.payment_status==="unpaid")
         return NextResponse.json({received:true},{headers:{"Cache-Control":"no-store"}});
       await store.webhook(raw,signature,stripeCheckoutAdapter(secret,mode));
+      // Stripe may replay a signed receipt after an email outage: the contract
+      // confirmation is idempotent and the provider remains blocked until sent.
+      const paidOrderId=event.data?.object?.metadata?.orderId;
+      if(typeof paidOrderId==="string" && /^[a-f0-9-]{36}$/.test(paidOrderId) &&
+         store.hasEarlyPerformanceConsent(paidOrderId) &&
+         !(await ensurePaidContractConfirmation(store,paidOrderId)))
+        return NextResponse.json({error:"Contract confirmation delivery pending."},{status:503});
     }
     else if(["refund.created","refund.updated","charge.dispute.created"].includes(event.type||""))
       await reconcileReversal(store,event,mode);
