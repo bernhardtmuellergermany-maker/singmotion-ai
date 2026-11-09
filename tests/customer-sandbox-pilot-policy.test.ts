@@ -129,6 +129,7 @@ test("paused private Production Sandbox accepts signed TEST reversals but not ne
  };
  assert.equal(configuredStripePaymentMode(paused),null);
  assert.equal(configuredStripeReversalMode(paused),"test");
+ assert.equal(configuredStripeReversalMode({...paused,STRIPE_SECRET_KEY:"",STRIPE_WEBHOOK_SECRET:""}),"test");
  assert.equal(customerStripeCredential(paused,"test"),paused.PRODUCTION_SANDBOX_STRIPE_SECRET_KEY);
  assert.equal(customerStripeWebhookSecret(paused,"test"),paused.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET);
  assert.equal(stripeWebhookEventAdmitted("refund.created",false),true);
