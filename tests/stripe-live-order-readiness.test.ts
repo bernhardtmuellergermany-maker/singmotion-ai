@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createHmac} from "node:crypto";
-import {configuredStripePaymentMode,stripeSessionIdMatchesMode} from "../lib/commerce/stripe-payment-mode.ts";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode} from "../lib/commerce/stripe-payment-mode.ts";
 import {verifyStripePaymentEvent,stripeCheckoutAdapter,verifiedStripeCheckoutSession} from "../lib/commerce/stripe-webhook.ts";
 import {CommerceStore} from "../lib/commerce/store.ts";
 
@@ -107,4 +107,40 @@ test("Verified live receipt can settle only its immutable live-bound order once"
   assert.equal(store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(order.id)?.state,"pending");
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_fulfillment_queue").get()?.n,1);
  }finally{store.close()}
+});
+
+test("P0 checkout kill switch preserves only signed refund/dispute reconciliation",()=>{
+ assert.equal(configuredStripeReversalMode(liveEnv),"live");
+ for(const patch of [
+  {STRIPE_LIVE_CHECKOUT_ENABLED:"false"},
+  {PUBLIC_CUSTOMER_LAUNCH_APPROVED:"false"},
+  {STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"false"},
+ ]) {
+  const paused={...liveEnv,...patch};
+  assert.equal(configuredStripePaymentMode(paused),null);
+  assert.equal(configuredStripeReversalMode(paused),"live");
+ }
+ for(const patch of [
+  {RAILWAY_ENVIRONMENT_ID:stage},
+  {RAILWAY_ENVIRONMENT_ID:"unknown"},
+  {STRIPE_SECRET_KEY:"sk_test_not_live"},
+  {STRIPE_SECRET_KEY:""},
+  {STRIPE_WEBHOOK_SECRET:""},
+ ])assert.equal(configuredStripeReversalMode({...liveEnv,...patch}),null);
+ const stagingEnv={RAILWAY_ENVIRONMENT_ID:stage,STRIPE_SECRET_KEY:"sk_test_fixture",STRIPE_WEBHOOK_SECRET:secret};
+ assert.equal(configuredStripePaymentMode(stagingEnv),null);
+ assert.equal(configuredStripeReversalMode(stagingEnv),"test");
+ assert.equal(configuredStripeReversalMode({...stagingEnv,STRIPE_SECRET_KEY:"sk_live_wrong"}),null);
+ for(const eventType of ["refund.created","refund.updated","charge.dispute.created"]){
+  assert.equal(stripeWebhookEventAdmitted(eventType,false),true);
+ }
+ for(const eventType of [
+  "checkout.session.completed","checkout.session.async_payment_succeeded",
+  "payment_intent.succeeded","invoice.paid",undefined,
+ ]){
+  assert.equal(stripeWebhookEventAdmitted(eventType,false),false);
+  assert.equal(stripeWebhookEventAdmitted(eventType,true),true);
+ }
+ const tampered=signed({...liveEvent,type:"refund.created",livemode:false});
+ assert.throws(()=>verifyStripePaymentEvent(tampered.raw,tampered.signature,secret,"live"),/mode mismatch/);
 });
