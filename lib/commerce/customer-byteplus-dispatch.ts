@@ -65,6 +65,7 @@ export async function dispatchReviewedCustomerBytePlus(
   .get(orderId) as {account_id:string|null;status:string}|undefined;
  if(!order?.account_id||order.status!=="paid")throw Error("Paid authenticated account order required");
  if(!store.hasEarlyPerformanceConsent(orderId))throw Error("Early performance acknowledgement missing");
+ if(!store.hasContractConfirmation(orderId))throw Error("Durable contract confirmation missing");
  if(review.signal.aborted)throw Error("Provider submission aborted");
  return submitReviewedPaidVideo(store,orderId,{
   verify:review.verify,
