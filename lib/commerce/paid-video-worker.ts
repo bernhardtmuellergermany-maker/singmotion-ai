@@ -19,6 +19,8 @@ export async function submitReviewedPaidVideo(
 ): Promise<"already-claimed" | "submitted" | "submission-uncertain"> {
   if (!/^[a-f0-9-]{36}$/.test(orderId)) throw Error("Invalid paid order reference");
   if (!operations.providerCost) throw Error("Reviewed provider cost policy required");
+  // Never incur irreversible BytePlus costs for an order without durable consent.
+  if (!store.hasEarlyPerformanceConsent(orderId)) throw Error("Early performance acknowledgement missing");
   if (!store.claimPaidFulfillment(orderId)) return "already-claimed";
   // Prepare before opening the network submission barrier. An invalid input
   // leaves a claimed order for manual inspection, never auto-resubmits.
