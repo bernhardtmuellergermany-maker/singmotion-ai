@@ -96,9 +96,19 @@ export async function loadCustomerWorkerPolicy(root:string,env:Record<string,str
    Date.now(),env.RAILWAY_ENVIRONMENT_ID);
  }catch(error){
   if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
+  // A protected Railway variable can supply a reviewed server-only policy
+  // when the private volume has no policy file. Never override an existing
+  // file, including an invalid one; never accept a staging pilot in Production.
+  const configured=env.CUSTOMER_BYTEPLUS_POLICY_JSON;
+  if(configured!==undefined){
+   const size=Buffer.byteLength(configured,"utf8");
+   if(size<40||size>65536)throw Error("Invalid customer provider policy configuration");
+   return validateCustomerWorkerPolicy(JSON.parse(configured),Date.now(),
+    env.RAILWAY_ENVIRONMENT_ID);
+  }
   // A dated operator policy may be reused for private Staging only.
-  // Production must install its own separately approved per-volume customer
-  // policy including independent daily/lifetime spending caps and output hosts.
+  // Production needs its own separately reviewed policy, finite per-job
+  // reservation ceilings and approved exact output hosts.
   if(env.RAILWAY_ENVIRONMENT_ID!==STAGING||
      env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING!=="true")
    throw Error("An approved private production customer provider policy is required");
