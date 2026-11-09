@@ -176,3 +176,38 @@ test("synthetic 300s contract can pass schema coverage, never grants external bi
  tooLong.contract.generatedDurationBound.maxAdditionalSeconds=2;
  assert.ok(auditBytePlus300SecondPolicy(tooLong).blockers.includes("REVIEWED_POLICY_REQUIRED"));
 });
+
+test("Railway protected JSON policy is a strictly validated fallback, not a file override",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"singmotion-customer-policy-env-"));
+ const prod="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+ const productionFixture={...syntheticPolicy(),contract:{
+  ...syntheticPolicy().contract,revision:"production-offline-test-only-v1"}};
+ const full={RAILWAY_ENVIRONMENT_ID:prod,CUSTOMER_BYTEPLUS_POLICY_JSON:JSON.stringify(productionFixture)};
+ try{
+  assert.equal((await loadCustomerWorkerPolicy(root,full)).contract.revision,
+   "production-offline-test-only-v1");
+  await assert.rejects(loadCustomerWorkerPolicy(root,{...full,
+   CUSTOMER_BYTEPLUS_POLICY_JSON:JSON.stringify(syntheticPolicy())}),
+   /Independent production customer provider policy review required/);
+  await assert.rejects(loadCustomerWorkerPolicy(root,{...full,
+   CUSTOMER_BYTEPLUS_POLICY_JSON:JSON.stringify(ownerConfirmedBytePlusPolicy())}),
+   /Independent production customer provider policy review required/);
+  for(const input of ["", "not-json", "x".repeat(65537), JSON.stringify({
+   ...productionFixture,billingEvidence:"" })]){
+   await assert.rejects(loadCustomerWorkerPolicy(root,{...full,
+    CUSTOMER_BYTEPLUS_POLICY_JSON:input}),/Invalid|JSON|review|contract/i);
+  }
+  // A pre-existing file, even when invalid, MUST NOT be silently replaced
+  // by a Railway variable; this prevents environmental policy confusion.
+  await writeFile(path.join(root,"customer-byteplus-policy.json"),"invalid");
+  await assert.rejects(loadCustomerWorkerPolicy(root,full),/JSON|Invalid/i);
+  await writeFile(path.join(root,"customer-byteplus-policy.json"),
+   JSON.stringify(syntheticPolicy()));
+  await assert.rejects(loadCustomerWorkerPolicy(root,full),
+   /Independent production customer provider policy review required/);
+  await writeFile(path.join(root,"customer-byteplus-policy.json"),
+   JSON.stringify({...productionFixture,reviewedBy:"production-offline-file-review"}));
+  assert.equal((await loadCustomerWorkerPolicy(root,{...full,
+   CUSTOMER_BYTEPLUS_POLICY_JSON:"malformed"})).reviewedBy,"production-offline-file-review");
+ }finally{await rm(root,{recursive:true,force:true})}
+});
