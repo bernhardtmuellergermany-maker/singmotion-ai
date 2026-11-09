@@ -1,6 +1,9 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {assessProductionSandboxPilot,REQUESTED_PILOT} from "../lib/commerce/customer-sandbox-pilot-policy.ts";
+import {configuredStripePaymentMode,customerStripeCredential,customerStripeWebhookSecret} from "../lib/commerce/stripe-payment-mode.ts";
+import {customerWorkerEnabled,boundPrivatePilotPolicy} from "../lib/commerce/customer-paid-worker.ts";
+import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const full=()=>{
  const env:Record<string,string>={
@@ -58,4 +61,41 @@ test("sandbox approval fails shut if ANY required gate is missing or inconsisten
   CUSTOMER_SANDBOX_OWNER_BUDGET_EUR_CENTS:"100000"}).ready,false);
  assert.equal(assessProductionSandboxPilot({...ready,
   CUSTOMER_SANDBOX_RATE_MICRO_USD_PER_SECOND:"700"}).ready,false);
+});
+
+test("private Production Sandbox uses its own test API key and webhook secret, never live secrets",()=>{
+ const e={...full(),STRIPE_SECRET_KEY:"sk_live_liveaccount",STRIPE_WEBHOOK_SECRET:"whsec_liveaccount"};
+ assert.equal(configuredStripePaymentMode(e),"test");
+ assert.equal(customerStripeCredential(e,"test"),e.PRODUCTION_SANDBOX_STRIPE_SECRET_KEY);
+ assert.equal(customerStripeWebhookSecret(e,"test"),e.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET);
+ assert.equal(productionCustomerReleaseApproved(e),false);
+ assert.equal(configuredStripePaymentMode({...e,PRODUCTION_SANDBOX_PILOT_ENABLED:"false"}),null);
+ assert.equal(configuredStripePaymentMode({...e,STRIPE_LIVE_CHECKOUT_ENABLED:"true"}),null);
+ assert.equal(configuredStripePaymentMode({...e,PRODUCTION_PUBLIC_ACCESS_ENABLED:"true"}),null);
+ assert.equal(customerStripeCredential({...e,PRODUCTION_SANDBOX_STRIPE_SECRET_KEY:"sk_live_wrong"},"test"),null);
+});
+test("private Production worker requires every worker flag, scoped owner, and activation time",()=>{
+ const e={...full(),CUSTOMER_PAID_WORKER_ENABLED:"true",
+  CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true",
+  CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING:"true",
+  CUSTOMER_PAID_WORKER_ACTIVATED_AT:"1"};
+ assert.equal(customerWorkerEnabled(e),true);
+ for(const flag of ["CUSTOMER_PAID_WORKER_ENABLED","CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED",
+   "CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING","CUSTOMER_PAID_WORKER_ACTIVATED_AT"]){
+  assert.equal(customerWorkerEnabled({...e,[flag]:"false"}),false,flag);
+ }
+ assert.equal(customerWorkerEnabled({...e,PRODUCTION_SANDBOX_PILOT_ENABLED:"false"}),false);
+});
+test("private Production provider reservation enforces conservative lifetime and daily USD ceiling",()=>{
+ const e=full();
+ const fixture={dailyCapMicroUsd:200_000_000,lifetimeCapMicroUsd:500_000_000,
+  contract:{billing:{microUsdPerSecond:70_000}}} as unknown as Parameters<typeof boundPrivatePilotPolicy>[0];
+ const bounded=boundPrivatePilotPolicy(fixture,e);
+ assert.equal(bounded.dailyCapMicroUsd,70_000_000);
+ assert.equal(bounded.lifetimeCapMicroUsd,70_000_000);
+ assert.equal(fixture.lifetimeCapMicroUsd,500_000_000);
+ assert.equal(boundPrivatePilotPolicy({...fixture, dailyCapMicroUsd:35_000_000},e).dailyCapMicroUsd,35_000_000);
+ assert.throws(()=>boundPrivatePilotPolicy({...fixture,contract:{...fixture.contract,billing:{
+  ...fixture.contract.billing,microUsdPerSecond:700}}},e),/rate mismatch/);
+ assert.equal(boundPrivatePilotPolicy(fixture,{...e,PRODUCTION_SANDBOX_PILOT_ENABLED:"false"}).lifetimeCapMicroUsd,500_000_000);
 });
