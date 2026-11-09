@@ -46,6 +46,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS payment_events(event_key TEXT PRIMARY KEY,receipt_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS stripe_checkout_sessions(order_id TEXT PRIMARY KEY,session_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_early_performance_consents(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,notice_version TEXT NOT NULL,review_digest TEXT NOT NULL,acknowledged_at INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_contract_confirmations(order_id TEXT PRIMARY KEY,notice_version TEXT NOT NULL,sent_at INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT NOT NULL CHECK(state IN ('pending','processing','delivered','failed')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_jobs(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,job_id TEXT NOT NULL,created INTEGER NOT NULL,UNIQUE(provider,job_id));
  CREATE TABLE IF NOT EXISTS customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT UNIQUE NOT NULL,evidence_hash TEXT NOT NULL,created INTEGER NOT NULL);
@@ -710,6 +711,22 @@ export class CommerceStore {
       WHERE c.order_id=?
     `).get(orderId);
     return Boolean(row && row.notice_version==="early-performance-v1-2026-11-09" && row.review_digest===row.current_digest);
+  }
+  /** E-mail on a durable medium must be delivered before starting the costly provider job.
+   * A stored consent alone cannot make statutory withdrawal rights expire. */
+  markContractConfirmationSent(orderId:string){
+    return this.tx(()=>{
+      const order=this.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(orderId);
+      if(!order || order.status!=="paid" || !this.hasEarlyPerformanceConsent(orderId))
+        throw Error("Paid order and valid acknowledgement required");
+      this.db.prepare("INSERT OR IGNORE INTO customer_contract_confirmations VALUES(?,?,?)")
+        .run(orderId,"early-performance-v1-2026-11-09",Date.now());
+      this.audit("contract-confirmation","durable-email-sent",orderId);
+    });
+  }
+  hasContractConfirmation(orderId:string):boolean{
+    const record=this.db.prepare("SELECT notice_version FROM customer_contract_confirmations WHERE order_id=?").get(orderId);
+    return Boolean(record && record.notice_version==="early-performance-v1-2026-11-09" && this.hasEarlyPerformanceConsent(orderId));
   }
   /** Bind the exact Stripe-created Checkout Session before accepting any payment. */
   bindStripeCheckout(orderId: string, sessionId: string) {
