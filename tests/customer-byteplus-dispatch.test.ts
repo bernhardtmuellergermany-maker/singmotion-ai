@@ -79,6 +79,9 @@ test("authenticated paid customer submits once with durable spend and task recor
    cents:125,quoteEvidence:"reviewed-inclusive-verified-customer-quote",
    key:"customer-byteplus-offline-1",media,
   }).id;
+  assert.equal(store.hasEarlyPerformanceConsent(id),false);
+  store.recordEarlyPerformanceConsent(id,account);
+  assert.equal(store.hasEarlyPerformanceConsent(id),true);
   store.bindStripeCheckout(id,"cs_test_dispatch_customer_1");
   await store.webhook(new Uint8Array(),"signed",{async verify(){return {
    eventId:"evt_dispatch_customer_1",provider:"stripe",orderId:id,cents:125,
