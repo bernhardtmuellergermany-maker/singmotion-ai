@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
+import {contactTurnstileAccepted} from "@/lib/contact-turnstile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,9 +46,8 @@ export async function POST(req:NextRequest){
    });
    if(!verify.ok)return response({error:"Human verification could not be checked."},503);
    const result=await verify.json() as {success?:boolean;hostname?:string;action?:string};
-   if(result.success!==true)return response({error:"Human verification failed or expired. Please retry."},400);
    const trustedHosts=allowed.flatMap(o=>{try{return [new URL(o!).hostname]}catch{return []}});
-   if(!result.hostname||!trustedHosts.includes(result.hostname))return response({error:"Human verification host mismatch."},403);
+   if(!contactTurnstileAccepted(result,trustedHosts))return response({error:"Human verification failed, expired, or mismatched. Please retry."},403);
  }catch{return response({error:"Human verification service unavailable."},503)}
  const subject="[SingMotion AI Contact] "+TOPICS[topic];
  const body=[

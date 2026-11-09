@@ -5,6 +5,7 @@ on:
     branches:
       - phase2/customer-launch-safety-20261106
       - fix/require-production-stripe-product-20261109
+      - fix/contact-turnstile-action-bound-20261109
       - fix/hobby-live-checkout-production-product-20261109
   pull_request:
     branches:
@@ -38,6 +39,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg
       - run: npm ci
+      - name: Contact Turnstile action and hostname security
+        run: node --experimental-strip-types --test tests/contact-turnstile.test.ts
       - name: Release parity and production fail-closed gates
         run: |
           npm run test:release-parity
