@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - phase2/customer-launch-safety-20261106
+      - fix/require-production-stripe-product-20261109
   pull_request:
     branches:
       - phase1/release-export-gates-20261106
