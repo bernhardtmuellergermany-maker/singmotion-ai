@@ -87,6 +87,15 @@ test("authenticated paid customer submits once with durable spend and task recor
    eventId:"evt_dispatch_customer_1",provider:"stripe",orderId:id,cents:125,
    currency:"EUR" as const,evidence:"cs_test_dispatch_customer_1"
   }}});
+  // A verified payment and consent still do NOT authorize external BytePlus cost
+  // until the durable contract confirmation has actually been sent.
+  networkCalls=0;
+  await assert.rejects(
+   dispatchReviewedCustomerBytePlus(store,id,review(),{
+    RAILWAY_ENVIRONMENT_ID:STAGING,CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true"
+   }),/Durable contract confirmation missing/);
+  assert.equal(networkCalls,0);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_provider_submissions WHERE order_id=?").get(id)?.n,0);
   store.markContractConfirmationSent(id);
   assert.equal(store.hasContractConfirmation(id),true);
   const env={RAILWAY_ENVIRONMENT_ID:STAGING,CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true"};
@@ -97,5 +106,60 @@ test("authenticated paid customer submits once with durable spend and task recor
   assert.equal(store.paidProviderJob(id)?.jobId,"synthetic-task-0001");
   assert.equal(store.paidSubmissionStatus(id),"acknowledged");
   assert.equal(store.db.prepare("SELECT inclusive_micro_usd AS cost FROM customer_provider_cost_reservations WHERE order_id=?").get(id)?.cost,499800);
+ }finally{store.close()}
+});
+
+test("P0: paid customer without explicit pre-payment consent never reaches BytePlus",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  store.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(account,"buyer@example.test","test-hash",Date.now());
+  const id=store.preparedVideoOrder({
+   account,email:"buyer@example.test",project:"missing-consent-song",
+   cents:125,quoteEvidence:"reviewed-inclusive-verified-customer-quote",
+   key:"customer-byteplus-no-consent",media,
+  }).id;
+  store.bindStripeCheckout(id,"cs_test_dispatch_customer_noconsent");
+  await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+   eventId:"evt_dispatch_customer_noconsent",provider:"stripe",orderId:id,cents:125,
+   currency:"EUR" as const,evidence:"cs_test_dispatch_customer_noconsent"
+  }}});
+  networkCalls=0;
+  await assert.rejects(dispatchReviewedCustomerBytePlus(store,id,review(),{
+   RAILWAY_ENVIRONMENT_ID:STAGING,CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true"
+  }),/Early performance acknowledgement missing/);
+  assert.equal(networkCalls,0);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_provider_submissions WHERE order_id=?").get(id)?.n,0);
+ }finally{store.close()}
+});
+
+test("P0: uncertain provider response reserves cost and cannot submit or charge again",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  store.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(account,"buyer@example.test","test-hash",Date.now());
+  const id=store.preparedVideoOrder({
+   account,email:"buyer@example.test",project:"uncertain-provider-song",
+   cents:125,quoteEvidence:"reviewed-inclusive-verified-customer-quote",
+   key:"customer-byteplus-uncertain",media,
+  }).id;
+  store.recordEarlyPerformanceConsent(id,account);
+  store.bindStripeCheckout(id,"cs_test_dispatch_customer_uncertain");
+  await store.webhook(new Uint8Array(),"signed",{async verify(){return {
+   eventId:"evt_dispatch_customer_uncertain",provider:"stripe",orderId:id,cents:125,
+   currency:"EUR" as const,evidence:"cs_test_dispatch_customer_uncertain"
+  }}});
+  store.markContractConfirmationSent(id);
+  let submits=0;
+  const unavailable=review();
+  unavailable.protocol=new BytePlusProtocol(async()=>{
+   submits++;
+   throw Error("Network response lost AFTER provider might have accepted");
+  });
+  const env={RAILWAY_ENVIRONMENT_ID:STAGING,CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true"};
+  assert.equal(await dispatchReviewedCustomerBytePlus(store,id,unavailable,env),"submission-uncertain");
+  assert.equal(await dispatchReviewedCustomerBytePlus(store,id,unavailable,env),"already-claimed");
+  assert.equal(submits,1);
+  assert.equal(store.paidSubmissionStatus(id),"submitted_or_unknown");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_provider_cost_reservations WHERE order_id=?").get(id)?.n,1);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_provider_submissions WHERE order_id=?").get(id)?.n,1);
  }finally{store.close()}
 });
