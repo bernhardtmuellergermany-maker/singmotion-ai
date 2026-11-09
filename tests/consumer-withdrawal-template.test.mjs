@@ -8,7 +8,7 @@ test("withdrawal page exposes statutory model template and true operator contact
   "Erich-Kästner-Str. 37","16312 Bernau bei Berlin","support@singmotion.ai",
   "Bestellt am","Anschrift des/der Verbraucher","Unterschrift","Anlage 2 EGBGB"])
   assert.ok(form.includes(value),value);
- assert.match(page,/slug==="withdrawal" \? <WithdrawalTemplate\/>/);
+ assert.match(page,/slug==="withdrawal" \? <><OnlineWithdrawal\/><WithdrawalTemplate\/><\/>/);
 });
 test("email preparation is not silently treated as submitted statutory withdrawal",()=>{
  assert.match(form,/mailto:/);
