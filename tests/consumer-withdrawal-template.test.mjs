@@ -13,7 +13,7 @@ test("withdrawal page exposes statutory model template and true operator contact
 test("email preparation is not silently treated as submitted statutory withdrawal",()=>{
  assert.match(form,/mailto:/);
  assert.match(form,/selbst absenden/);
- assert.match(form,/kein Versand/);
+ assert.match(form,/ein Versand über diese Webseite findet nicht statt/);
  assert.match(form,/Online-Widerrufsfunktion/);
  assert.doesNotMatch(form,/<form|<button|fetch\(/);
 });
