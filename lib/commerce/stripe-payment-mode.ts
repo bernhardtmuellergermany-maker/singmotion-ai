@@ -11,11 +11,11 @@ const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 export function configuredStripePaymentMode(env:Record<string,string|undefined>):StripePaymentMode|null{
  const key=env.STRIPE_SECRET_KEY||"";
  const webhookSecret=env.STRIPE_WEBHOOK_SECRET||"";
+ if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&assessProductionSandboxPilot(env).ready)
+   return "test";
  if(!/^whsec_[A-Za-z0-9_]+$/.test(webhookSecret))return null;
  if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&
     env.STRIPE_CHECKOUT_ENABLED==="true"&&/^sk_test_[A-Za-z0-9_]+$/.test(key))
-   return "test";
- if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&assessProductionSandboxPilot(env).ready)
    return "test";
  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true"&&
