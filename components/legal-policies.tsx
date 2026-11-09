@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { WithdrawalTemplate } from "./withdrawal-template";
 import { SiteHeader } from "./site-header";
 
 type Section = { title: string; paragraphs: string[] };
@@ -90,6 +91,7 @@ export function LegalPolicyPage({slug}:{slug:string}){
       <div className="sm-legal-intro"><span className="sm-legal-kicker">SINGMOTION AI · LEGAL & TRUST</span><h1>{page.title}</h1><p>{page.intro}</p><small>Last updated {revision} · Operator details supplied; remaining vendor and legal approvals pending.</small></div>
       <nav className="sm-legal-nav" aria-label="Legal pages">{[["legal","Imprint"],["privacy","Privacy"],["cookies","Cookies"],["terms","Terms"],["withdrawal","Withdrawal"],["rights","Media rights"],["ai-transparency","AI transparency"]].map(([s,label])=><Link key={s} href={`/${s}`}>{label}</Link>)}</nav>
       {page.sections.map((section,i)=><section key={section.title} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
+      {slug==="withdrawal" ? <WithdrawalTemplate/> : null}
       <p className="sm-legal-copyright">© SingMotion AI · A published notice does not replace verified contracts, technical controls, or professional legal review.</p>
     </main>
   </div>;

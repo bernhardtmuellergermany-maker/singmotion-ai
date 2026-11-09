@@ -5,6 +5,7 @@ on:
     branches:
       - phase2/customer-launch-safety-20261106
       - fix/require-production-stripe-product-20261109
+      - fix/consumer-withdrawal-template-20261109
       - fix/verified-legal-operator-imprint-20261109
       - fix/production-customer-byteplus-policy-railway-20261109
       - fix/hobby-revocation-survives-checkout-stop-20261109
@@ -45,6 +46,8 @@ jobs:
       - run: npm ci
       - name: Hobby cancellation safety while checkout is paused
         run: node --experimental-strip-types --test tests/stripe-hobby-pause-policy.test.ts
+      - name: Statutory sample withdrawal form regression
+        run: node --test tests/consumer-withdrawal-template.test.mjs
       - name: Verified imprint and privacy contact regressions
         run: node --test tests/legal-operator-details.test.mjs
       - name: Contact Turnstile action and hostname security
