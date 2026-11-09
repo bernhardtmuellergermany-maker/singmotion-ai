@@ -3,7 +3,7 @@ import {sendRightsEmail} from "./consumer-rights.ts";
 
 /** Confirmation is delivered via email after verified settlement and before provider dispatch.
  * This is not a legal determination that the right of withdrawal has expired. */
-export async function ensurePaidContractConfirmation(store:CommerceStore,orderId:string,env:NodeJS.ProcessEnv=process.env,sender:typeof fetch=fetch){
+export async function ensurePaidContractConfirmation(store:CommerceStore,orderId:string,env:Record<string,string|undefined>=process.env,sender:typeof fetch=fetch){
  if(!store.hasEarlyPerformanceConsent(orderId))return false; // Legacy paid orders cannot be retroactively consented.
  if(store.hasContractConfirmation(orderId))return true;
  const o=store.db.prepare("SELECT id,email,price_cents,currency,created,status FROM customer_orders WHERE id=?").get(orderId) as
