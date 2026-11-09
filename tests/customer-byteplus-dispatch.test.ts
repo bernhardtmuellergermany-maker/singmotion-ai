@@ -87,6 +87,8 @@ test("authenticated paid customer submits once with durable spend and task recor
    eventId:"evt_dispatch_customer_1",provider:"stripe",orderId:id,cents:125,
    currency:"EUR" as const,evidence:"cs_test_dispatch_customer_1"
   }}});
+  store.markContractConfirmationSent(id);
+  assert.equal(store.hasContractConfirmation(id),true);
   const env={RAILWAY_ENVIRONMENT_ID:STAGING,CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED:"true"};
   networkCalls=0;
   assert.equal(await dispatchReviewedCustomerBytePlus(store,id,review(),env),"submitted");
