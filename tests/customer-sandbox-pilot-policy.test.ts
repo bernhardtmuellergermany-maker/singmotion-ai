@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {assessProductionSandboxPilot,REQUESTED_PILOT,privatePilotEurBudgetCap} from "../lib/commerce/customer-sandbox-pilot-policy.ts";
-import {configuredStripePaymentMode,customerStripeCredential,customerStripeWebhookSecret} from "../lib/commerce/stripe-payment-mode.ts";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,customerStripeCredential,customerStripeWebhookSecret} from "../lib/commerce/stripe-payment-mode.ts";
 import {customerWorkerEnabled,boundPrivatePilotPolicy} from "../lib/commerce/customer-paid-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -119,4 +119,32 @@ test("private sandbox budget reserves upper EUR conversion and extra costs witho
  const tighter=boundPrivatePilotPolicy(fixture,{...e,CUSTOMER_SANDBOX_EUR_PER_USD_UPPER_PPM:"1500000"});
  assert.equal(tighter.dailyCapMicroUsd,60_000_000);
  assert.equal(tighter.lifetimeCapMicroUsd,60_000_000);
+});
+
+test("paused private Production Sandbox accepts signed TEST reversals but not new settlements",()=>{
+ const paused:Record<string,string>={...full(),
+  PRODUCTION_SANDBOX_PILOT_ENABLED:"false",
+  STRIPE_SECRET_KEY:"sk_live_otheraccount",
+  STRIPE_WEBHOOK_SECRET:"whsec_otheraccount",
+ };
+ assert.equal(configuredStripePaymentMode(paused),null);
+ assert.equal(configuredStripeReversalMode(paused),"test");
+ assert.equal(customerStripeCredential(paused,"test"),paused.PRODUCTION_SANDBOX_STRIPE_SECRET_KEY);
+ assert.equal(customerStripeWebhookSecret(paused,"test"),paused.PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET);
+ assert.equal(stripeWebhookEventAdmitted("refund.created",false),true);
+ assert.equal(stripeWebhookEventAdmitted("refund.updated",false),true);
+ assert.equal(stripeWebhookEventAdmitted("charge.dispute.created",false),true);
+ assert.equal(stripeWebhookEventAdmitted("checkout.session.completed",false),false);
+ assert.equal(stripeWebhookEventAdmitted("checkout.session.async_payment_succeeded",false),false);
+ for(const [key,value] of [
+  ["STAGING_AUTH_ENABLED","false"],
+  ["STAGING_PASSWORD","tiny"],
+  ["PRODUCTION_PUBLIC_ACCESS_ENABLED","true"],
+  ["PUBLIC_CUSTOMER_LAUNCH_APPROVED","true"],
+  ["STRIPE_LIVE_CHECKOUT_ENABLED","true"],
+  ["PRODUCTION_SANDBOX_STRIPE_SECRET_KEY","sk_live_wrong"],
+  ["PRODUCTION_SANDBOX_STRIPE_WEBHOOK_SECRET","false"],
+ ]){
+  assert.notEqual(configuredStripeReversalMode({...paused,[key]:value}),"test",key);
+ }
 });
