@@ -4,7 +4,7 @@ import { CommerceStore } from "@/lib/commerce/store";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
-import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,customerStripeCredential,customerStripeWebhookSecret,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
@@ -26,7 +26,7 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
  return await response.json() as StripeLookup;
 }
 async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:StripePaymentMode){
- const key=process.env.STRIPE_SECRET_KEY||"";
+ const key=customerStripeCredential(process.env,mode)||"";
  const object=event.data?.object;
  if(!object||typeof object.id!=="string")throw Error("Missing reversal object");
  const refund=event.type==="refund.created"||event.type==="refund.updated";
@@ -74,7 +74,6 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
 export async function POST(req: NextRequest) {
   // Never receive live orders unless the separate Production release audit
   // has verified paid fulfillment, private output and all human approvals.
-  const secret = process.env.STRIPE_WEBHOOK_SECRET;
   const checkoutMode=configuredStripePaymentMode(process.env);
   // Independently authenticated reversal processing survives a checkout stop.
   // It cannot enable a new payment or provider submission.
@@ -82,6 +81,7 @@ export async function POST(req: NextRequest) {
   const settlementEnabled=!!checkoutMode &&
    (checkoutMode!=="live"||(customerLaunchReadiness().readyForPaidOrders&&
      auditSingMotionLaunch(process.env,"production").ready));
+  const secret=mode?customerStripeWebhookSecret(process.env,mode):null;
   if (!secret || !mode)
     return NextResponse.json({ error: "Stripe webhook verification is unavailable." }, { status: 503 });
   const signature = req.headers.get("stripe-signature");
