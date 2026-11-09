@@ -3,7 +3,7 @@ import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import { customerLaunchReadiness } from "@/lib/commerce/readiness";
 import {verifiedStripeCheckoutSession} from "@/lib/commerce/stripe-webhook";
-import {configuredStripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
+import {configuredStripePaymentMode,customerStripeCredential} from "@/lib/commerce/stripe-payment-mode";
 import {sanitizedStripeCheckoutError} from "@/lib/commerce/stripe-error-diagnostics";
 import {stripeVideoCheckoutLineItem,stripeVideoCheckoutIdempotencyKey} from "@/lib/commerce/stripe-video-checkout-line-item";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
@@ -22,8 +22,8 @@ export async function POST(req: NextRequest) {
   if (denied) return denied;
   // Checkout mode is fixed by the actual Railway environment and credential
   // prefix. A live key alone cannot authorize accepting real payments.
-  const key = process.env.STRIPE_SECRET_KEY;
   const mode = configuredStripePaymentMode(process.env);
+  const key = mode?customerStripeCredential(process.env,mode):null;
   // Do not collect money before real paid-order generation and delivery work.
   if (!mode || !customerLaunchReadiness().readyForPaidOrders ||
       (mode==="live"&&!auditSingMotionLaunch(process.env,"production").ready) ||
