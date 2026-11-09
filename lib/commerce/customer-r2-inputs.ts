@@ -11,6 +11,7 @@ import {S3Client,PutObjectCommand,GetObjectCommand} from "@aws-sdk/client-s3";
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import {CommerceStore} from "./store.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
+import {assessProductionSandboxPilot} from "./customer-sandbox-pilot-policy.ts";
 import {loadR2Config,r2ClientConfig,type R2Config} from "../live/r2-config.ts";
 import {assertInputLifetime,inputDeliveryPolicy} from "../live/input-policy.ts";
 import type {PrivateInputDelivery,InputLease} from "../live/byteplus.ts";
@@ -56,7 +57,7 @@ export class CustomerR2PrivateInputDelivery implements PrivateInputDelivery{
   this.orderId=orderId;
   this.dataDir=dataDir;
   if(env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" &&
-     !productionCustomerReleaseApproved(env))
+     !productionCustomerReleaseApproved(env) && !assessProductionSandboxPilot(env).ready)
    throw Error("Customer input leasing requires protected staging or approved production");
   if(!/^[a-f0-9-]{36}$/.test(orderId))throw Error("Invalid paid order reference");
   this.config=loadR2Config(env);
