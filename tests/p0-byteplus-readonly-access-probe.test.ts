@@ -47,6 +47,17 @@ test("readonly BytePlus probe makes only one GetResult call with random noncusto
  assert.equal(called,1);
  assert.ok(bodyId.length>0);
 });
+test("readonly BytePlus probe accepts string-coded task not found or signed 10000/not_found",async()=>{
+ assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({
+  status:500,body:{code:"50510",message:"redacted"},
+ })),"verified_readonly");
+ assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({
+  status:200,body:{code:10000,data:{status:"not_found"}},
+ })),"verified_readonly");
+ assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({
+  status:200,body:{code:50420,message:"Must never log this body"},
+ })),"provider_rejected_code_50420");
+});
 test("readonly probe refuses to equate authentication errors with 300s release",async()=>{
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>{throw new BytePlusTransportError("authentication",403)}),"authentication_failed");
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({status:200,body:{code:10000,data:{status:"in_queue"}}})),"provider_rejected");
