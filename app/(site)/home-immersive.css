@@ -126,3 +126,16 @@
 }
 @keyframes sm-reel-enter{from{opacity:.64;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
 @media(prefers-reduced-motion:reduce){.sm-immersive-video-frame{animation:none!important}.sm-immersive-placeholder-track{transition:none!important}}
+
+/* Fix: the fullscreen artwork was painted behind the hero's opaque background.
+   Create a local stacking context so the background layer remains visible. */
+.sm-immersive-hero{isolation:isolate}
+.sm-immersive-atmosphere{z-index:-2;opacity:1;visibility:visible}
+.sm-immersive-hero::before{z-index:-1}
+@media(min-width:761px){
+ .sm-immersive-atmosphere{
+  background-image:linear-gradient(180deg,rgba(8,5,21,.20) 0%,rgba(9,5,23,.30) 42%,rgba(9,5,23,.72) 82%,#080715 100%),url("/artwork/singmotion-stage.webp");
+  background-size:cover;
+  background-position:center 36%;
+ }
+}
