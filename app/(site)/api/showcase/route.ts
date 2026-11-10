@@ -65,8 +65,11 @@ async function store(){
   }
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_channel_config (channel TEXT PRIMARY KEY, explicitly_configured INTEGER NOT NULL DEFAULT 1)");
   const configColumns=s.db.prepare("PRAGMA table_info(public_showcase_channel_config)").all() as {name:string}[];
-  if(!configColumns.some(col=>col.name==="random_order"))
+  if(!configColumns.some(col=>col.name==="random_order")){
     s.db.exec("ALTER TABLE public_showcase_channel_config ADD COLUMN random_order INTEGER NOT NULL DEFAULT 0");
+    // Start the new mobile-only shuffle mode enabled. CMS can turn it off.
+    s.db.prepare("UPDATE public_showcase_channel_config SET random_order=1 WHERE channel='mobile'").run();
+  }
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_uploads(id TEXT PRIMARY KEY,title TEXT NOT NULL,filename TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,created_at INTEGER NOT NULL)");
   return s;
 }
@@ -129,7 +132,7 @@ async function handler(req:NextRequest){
       }
       if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
         const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
-        const randomOrder=channel==="mobile"&&config?.random_order===1;
+        const randomOrder=channel==="mobile"&&(config?.random_order??1)===1;
         const published=validated();
         const videos=(randomOrder?shuffled(published):published).map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
         // Preserve the explicitly published legacy feed until its new mobile
@@ -177,7 +180,7 @@ async function handler(req:NextRequest){
         const published=validated();
         const selectedIds=published.map(v=>v.attempt_id);
         const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
-        return json({channel,randomOrder:channel==="mobile"&&config?.random_order===1,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
+        return json({channel,randomOrder:channel==="mobile"&&(config?.random_order??1)===1,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
       }
       if(req.method==="POST"){
         const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown;randomOrder?:unknown};
