@@ -298,8 +298,7 @@ export function ImmersiveHome(){
            setAudiblePortrait(nextIndex);
            if(nextIndex!==null){const v=videos?.[i];if(v?.paused)void v.play().catch(()=>{setAudiblePortrait(null);if(v)v.muted=true;});}
          }}>{audiblePortrait===i?<Volume2 size={24}/>:<VolumeX size={24}/>}</button>
-       </>:<div className="sm-desktop-portrait-fallback"><Play size={28}/><small>Coming soon</small></div>}
-       {item.url&&<small>{item.title}</small>}
+       </>:<div className="sm-desktop-portrait-fallback" aria-label="Video coming soon"><Play size={28}/></div>}
       </div>)}
     </div>
    </section>
