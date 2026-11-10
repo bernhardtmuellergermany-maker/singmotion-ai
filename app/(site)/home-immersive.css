@@ -714,3 +714,39 @@
  .sm-mobile-reels.is-refreshing .sm-mobile-reel:first-child{filter:brightness(.96)}
 }
 @media(prefers-reduced-motion:reduce){.sm-mobile-reel:first-child{transition:none!important}}
+
+/* Three-layer cinema carousel: one crisp active player in front, with two
+   different, subdued video previews visibly recessed behind it. */
+@media(min-width:761px){
+ .sm-immersive-home .sm-moving-carousel{
+  width:min(1400px,98vw);
+  overflow:visible!important;
+  perspective:1200px;
+ }
+ .sm-immersive-home .sm-moving-card{
+  width:min(700px,42vw);
+  transform:translate(calc(-50% + var(--slot)),-50%) scale(.80);
+ }
+ .sm-immersive-home .sm-moving-card.is-side{
+  z-index:1;opacity:.67;filter:brightness(.62) saturate(.85);
+  border-color:#9c46ce80;box-shadow:0 5px 22px #0008;
+ }
+ .sm-immersive-home .sm-moving-card.is-center{
+  z-index:4;opacity:1;filter:none;
+  transform:translate(calc(-50% + var(--slot)),-50%) scale(1);
+  box-shadow:0 0 30px #a932ed52,0 28px 60px #000b;
+ }
+ .sm-immersive-home .sm-moving-card.is-center.is-leaving{
+  transform:translate(calc(-50% + var(--slot)),-50%) scale(.80);
+  filter:brightness(.62) saturate(.85);opacity:.67;
+ }
+ .sm-immersive-home .sm-moving-card.is-side.is-entering{
+  transform:translate(calc(-50% + var(--slot)),-50%) scale(1);
+  filter:none;opacity:1;z-index:5;
+ }
+ .sm-moving-preview{pointer-events:none;object-fit:cover}
+ .sm-moving-card.is-side .sm-moving-caption{display:none}
+}
+@media(min-width:761px) and (max-width:980px){
+ .sm-immersive-home .sm-moving-card{width:43vw}
+}
