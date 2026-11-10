@@ -104,6 +104,21 @@ export async function deliverReviewedPaidVideo(
  if(queue?.state!=="processing"||store.paidProviderJob(orderId)?.provider!=="byteplus")
   throw Error("Acknowledged, claimed BytePlus job required");
  const media=store.paidPreparedMedia(orderId);
+ // The final format is an immutable, server-reviewed property of THIS paid
+ // order, not a global BytePlus policy or a client query parameter.
+ const output =
+  media.outputFormat==="9:16" ? {width:720,height:1280} :
+  media.outputFormat==="16:9" ? {width:1280,height:720} :
+  media.outputFormat==="custom" && media.customOutput &&
+   Number.isInteger(media.customOutput.width) &&
+   Number.isInteger(media.customOutput.height) &&
+   Math.min(media.customOutput.width,media.customOutput.height)===720 &&
+   Math.max(media.customOutput.width,media.customOutput.height)<=1280 &&
+   media.customOutput.width%2===0 && media.customOutput.height%2===0
+   ? media.customOutput : null;
+ if (media.outputFormat==="custom"&&!output)
+   throw Error("Custom order lacks server-reviewed export dimensions");
+ if(output)contract={...contract,output:{...contract.output,...output}};
  const root=path.join(dataDir,"media");
  await mkdir(root,{recursive:true,mode:0o700});
  const file=path.join(root,`paid-${orderId}.mp4`);
