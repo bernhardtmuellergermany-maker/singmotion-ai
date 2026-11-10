@@ -898,3 +898,32 @@
 @media(prefers-reduced-motion:reduce){
  .sm-immersive-home .sm-mobile-intro-fallback::before{animation:none!important}
 }
+
+/* Seamless reel-style handoff: the video feed is physically attached directly
+   below the fully opaque fallback screen. Both move one viewport in sync. */
+@media(max-width:760px){
+ .sm-immersive-home .sm-mobile-intro-fallback{
+  opacity:1!important;
+  visibility:visible;
+  transform:translate3d(0,0,0);
+  transition:transform .72s cubic-bezier(.25,.7,.25,1),visibility 0s .72s!important;
+ }
+ .sm-immersive-home .sm-mobile-intro-fallback.is-hidden{
+  opacity:1!important;
+  transform:translate3d(0,-100%,0)!important;
+  visibility:hidden;
+  transition:transform .72s cubic-bezier(.25,.7,.25,1),visibility 0s .72s!important;
+ }
+ .sm-immersive-home .sm-mobile-reels.intro-pending{
+  transform:translate3d(0,100%,0);
+  transition:transform .72s cubic-bezier(.25,.7,.25,1)!important;
+ }
+ .sm-immersive-home .sm-mobile-reels.intro-complete{
+  transform:translate3d(0,0,0);
+  transition:transform .72s cubic-bezier(.25,.7,.25,1)!important;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-immersive-home .sm-mobile-intro-fallback,
+ .sm-immersive-home .sm-mobile-reels{transition:none!important}
+}
