@@ -243,15 +243,16 @@ export function GenerationDialog({
           throw Error(result.error || "Order preparation failed.");
         orderId = result.orderId;
         setSavedOrderId(orderId);
-        if(result.guestAccessUrl){
-          // A guest must be able to save the secret link before leaving for Stripe.
-          setGuestAccessUrl(result.guestAccessUrl);
+        if (!result.checkoutReady) {
+          // Never invite a guest to Stripe when the immutable server-side
+          // reviewed quote is not yet eligible for paid checkout.
+          if(result.guestAccessUrl)setGuestAccessUrl(result.guestAccessUrl);
+          router.push(result.guestAccessUrl || `/orders/${orderId}`);
           return;
         }
-        if (!result.checkoutReady) {
-          // No Stripe charge may be requested for included-only or free
-          // promotion orders. Their existing authorization flows remain.
-          router.push(`/orders/${orderId}`);
+        if(result.guestAccessUrl){
+          // A guest must save the secret link before leaving for Stripe.
+          setGuestAccessUrl(result.guestAccessUrl);
           return;
         }
       }
