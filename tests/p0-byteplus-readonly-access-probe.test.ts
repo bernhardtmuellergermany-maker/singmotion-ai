@@ -60,7 +60,7 @@ test("readonly BytePlus probe accepts string-coded task not found or signed 1000
 });
 test("readonly probe refuses to equate authentication errors with 300s release",async()=>{
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>{throw new BytePlusTransportError("authentication",403)}),"authentication_failed");
- assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({status:200,body:{code:10000,data:{status:"in_queue"}}})),"provider_rejected");
+ assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({status:200,body:{code:10000,data:{status:"in_queue"}}})),"provider_rejected_code_10000");
  assert.equal(await readonlyBytePlusAccessProbe({...env,BYTEPLUS_SECRET_ACCESS_KEY:""}),"blocked");
 });
 test("startup probe never blocks web/worker and does not expose credentials or provider payloads",()=>{
