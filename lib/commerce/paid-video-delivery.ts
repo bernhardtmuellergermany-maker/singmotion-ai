@@ -98,7 +98,7 @@ export async function deliverReviewedPaidVideo(
    {account_id:string|null;status:string;guest_hash:string|null}|undefined;
  const guestOwner=!order?.account_id?store.guestMediaOwner(orderId):null;
  if(!order||order.status!=="paid"||(!order.account_id&&(!order.guest_hash||!guestOwner)))
-  throw Error("Paid owned customer or guest order required");
+  throw Error("Paid customer order required");
  const queue=store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(orderId) as {state:string}|undefined;
  if(queue?.state==="delivered")return "already-delivered";
  if(queue?.state!=="processing"||store.paidProviderJob(orderId)?.provider!=="byteplus")
