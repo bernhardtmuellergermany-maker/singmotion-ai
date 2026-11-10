@@ -811,3 +811,37 @@
   transform:none;
  }
 }
+
+/* Desktop CTA: stretch a CMS-selected artboard across the entire final section
+   rather than using cover (which cropped the wave on ultrawide screens). */
+@media(min-width:761px){
+ .sm-immersive-home .sm-immersive-below .sm-immersive-final{
+  position:relative;
+  width:100%;max-width:none;
+  margin:0;min-height:clamp(290px,21vw,390px);
+  padding:55px clamp(26px,7.3vw,145px);
+  background-color:#090515;
+  background-image:linear-gradient(90deg,rgba(8,5,23,.24),rgba(8,5,23,.10)),url("/api/showcase-media?kind=final-cta-bg");
+  background-size:100% 100%,100% 100%;
+  background-position:center center;
+  background-repeat:no-repeat;
+ }
+ .sm-immersive-home .sm-immersive-final h2,
+ .sm-immersive-home .sm-immersive-final .sm-immersive-cta{
+  position:relative;z-index:1;
+ }
+}
+/* The opening image belongs to the intro only. Reels must NEVER each display
+   the CMS fallback; their loading surface is just a neutral dark frame. */
+@media(max-width:760px){
+ .sm-immersive-home .sm-mobile-reel-loading{
+  position:absolute;inset:0;z-index:0;
+  background:#090715;
+  pointer-events:none;
+ }
+ .sm-immersive-home .sm-mobile-reel-backup{display:none!important}
+ .sm-immersive-home .sm-mobile-reel-video{background:transparent}
+ .sm-immersive-home .sm-mobile-intro-fallback{
+  pointer-events:none!important;
+ }
+}
