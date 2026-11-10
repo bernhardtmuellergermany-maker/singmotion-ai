@@ -13,6 +13,7 @@ on:
       - fix/p0-studio-checkout-diagnostics-20261110
       - fix/p0-r2-nonblocking-prod-canary-20261110
       - fix/p0-production-private-mp4-canary-20261110
+      - fix/p0-byteplus-readonly-access-probe-20261110
       - fix/consumer-withdrawal-template-20261109
       - fix/verified-legal-operator-imprint-20261109
       - fix/production-customer-byteplus-policy-railway-20261109
