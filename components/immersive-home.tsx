@@ -23,6 +23,8 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const [muted,setMuted]=useState(true);
  const [broken,setBroken]=useState(false);
  const video=useRef<HTMLVideoElement>(null);
+ useEffect(()=>{if(video.current){video.current.muted=true;video.current.defaultMuted=true;}},[]);
+
  const touchX=useRef<number|null>(null);
  const count=slides.length;
  const wrap=(index:number)=>(index+count*10)%count;
@@ -66,10 +68,12 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
        aria-hidden={Math.abs(slot)>1?true:undefined}>
       {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={cover}
         playsInline loop muted={muted} preload="metadata" className="sm-moving-video"
+        onLoadedMetadata={e=>{if(muted)e.currentTarget.muted=true}}
         onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
         onError={()=>{setBroken(true);setPlaying(false)}} onClick={toggle} aria-label={item.title}/>:
        isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={cover}
-        muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
+        muted playsInline loop preload="metadata" aria-hidden="true" tabIndex={-1}
+        onLoadedMetadata={e=>{e.currentTarget.muted=true}}
         onLoadedData={e=>e.currentTarget.pause()}/>:
        <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+cover+"')"}}/>}
       {isCenter&&(!playing||!item.url||broken)&&<button className="sm-moving-play" type="button" disabled={!item.url||broken}
@@ -87,13 +91,19 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
 /** Shuffle only already-public CMS entries, avoiding immediate repeats. */
 function nextMobileBatch(pool:ShowcaseClip[],last?:string,count=12):ShowcaseClip[]{
  if(!pool.length)return [];
+ // Deduplicate URLs so duplicate CMS entries can never stall the shuffle.
+ const unique=[...new Map(pool.map(item=>[item.url,item])).values()];
  const result:ShowcaseClip[]=[];
  let previous=last;
  while(result.length<count){
-  const bag=[...pool];
+  const bag=[...unique];
   for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}
   if(bag.length>1&&bag[0].url===previous){const alternate=bag.findIndex(v=>v.url!==previous);if(alternate>0)[bag[0],bag[alternate]]=[bag[alternate],bag[0]];}
-  for(const item of bag){if(item.url!==previous||pool.length===1){result.push(item);previous=item.url;}if(result.length===count)break;}
+  for(const item of bag){
+   if(item.url===previous&&bag.length>1)continue;
+   result.push(item);previous=item.url;
+   if(result.length>=count)break;
+  }
  }
  return result;
 }
@@ -107,6 +117,10 @@ export function ImmersiveHome(){
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
  const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
  const portraitGrid=useRef<HTMLDivElement>(null);
+ useEffect(()=>{
+  // No desktop video may inherit audible playback from a previous render.
+  portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video").forEach(v=>{v.muted=true;v.defaultMuted=true;});
+ },[portraitClips]);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(false);
  const unlockSoundAfterGesture=useRef(false);
@@ -127,7 +141,12 @@ export function ImmersiveHome(){
   return()=>window.clearTimeout(timer);
  },[]);
  useEffect(()=>{
-  if(introElapsed&&clips.length>0&&loaded[0]&&!failed[0])setIntroDismissed(true);
+  // The intro must NEVER trap scrolling or leave the site on a static image:
+  // dismiss after buffering, and always release after a short grace period.
+  if(!introElapsed)return;
+  if(loaded[0]||failed[0]||!clips.length){setIntroDismissed(true);return;}
+  const safety=window.setTimeout(()=>setIntroDismissed(true),1600);
+  return()=>window.clearTimeout(safety);
  },[introElapsed,clips.length,loaded,failed]);
  useEffect(()=>{
   let active=true;
@@ -273,6 +292,8 @@ export function ImmersiveHome(){
   }
  };
  const startTouch=(e:React.TouchEvent)=>{
+  // Any deliberate swipe immediately unlocks the feed, even while buffering.
+  if(!introDismissed)setIntroDismissed(true);
   const t=e.touches[0];
   if(t){
    touchStart.current={x:t.clientX,y:t.clientY,atTop:(feed.current?.scrollTop??0)<3};
