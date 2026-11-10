@@ -58,6 +58,32 @@ test("readonly BytePlus probe never treats a BytePlus 50510 risk error as authen
   status:200,body:{code:50420,message:"Must never log this body"},
  })),"provider_rejected_code_50420");
 });
+test("one transient BytePlus 50500 read failure gets exactly one read-only retry, never a submission",async()=>{
+ let calls=0;
+ const seen:string[]=[];
+ const result=await readonlyBytePlusAccessProbe(env,async request=>{
+  calls++;
+  const url=new URL(request.url);
+  assert.equal(url.searchParams.get("Action"),"CVSync2AsyncGetResult");
+  const body=JSON.parse(request.body) as {task_id:string};
+  seen.push(body.task_id);
+  return calls===1 ? {status:500,body:{code:50500,message:"redacted"}} :
+    {status:200,body:{code:10000,data:{status:"not_found"}}};
+ });
+ assert.equal(result,"verified_readonly");
+ assert.equal(calls,2);
+ assert.equal(seen[0],seen[1]);
+});
+test("repeated BytePlus 50500 remains explicitly unverified after two reads",async()=>{
+ let calls=0;
+ const result=await readonlyBytePlusAccessProbe(env,async request=>{
+  calls++;
+  assert.equal(new URL(request.url).searchParams.get("Action"),"CVSync2AsyncGetResult");
+  return {status:500,body:{code:50500}};
+ });
+ assert.equal(result,"provider_rejected_code_50500");
+ assert.equal(calls,2);
+});
 test("readonly probe refuses to equate authentication errors with 300s release",async()=>{
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>{throw new BytePlusTransportError("authentication",403)}),"authentication_failed");
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({status:200,body:{code:10000,data:{status:"in_queue"}}})),"provider_rejected_code_10000");
