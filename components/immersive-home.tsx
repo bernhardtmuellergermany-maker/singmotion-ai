@@ -194,7 +194,8 @@ export function ImmersiveHome(){
  useEffect(()=>{
   const videos=feed.current?.querySelectorAll<HTMLVideoElement>("video");
   if(!videos)return;
-  videos.forEach((video,i)=>{
+  videos.forEach(video=>{
+   const i=Number(video.dataset.feedIndex);
    if(i===currentClip&&!document.hidden&&!failed[i]){
     video.muted=muted;
     void video.play().catch(()=>{
@@ -209,7 +210,7 @@ export function ImmersiveHome(){
   });
   const visibility=()=>{
    if(document.hidden)videos.forEach(v=>v.pause());
-   else{const v=videos[currentClip];if(v&&!failed[currentClip]){v.muted=muted;void v.play().catch(()=>{
+   else{const v=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);if(v&&!failed[currentClip]){v.muted=muted;void v.play().catch(()=>{
      if(!v.muted){unlockSoundAfterGesture.current=true;v.muted=true;setMuted(true);void v.play().catch(()=>{});}
     });}}
   };
@@ -242,7 +243,7 @@ export function ImmersiveHome(){
     mobilePool.current=pool;
     setCurrentClip(0);setFailed({});setLoaded({});
     setClips(nextMobileBatch(pool,clips[currentClip]?.url,Math.max(12,pool.length)));
-    feed.current?.scrollTo({top:0,behavior:"instant"});
+    feed.current?.scrollTo({top:0,behavior:"auto"});
    }
   }catch{ /* Keep previously approved videos available on network errors. */ }
   finally{setPullOffset(0);setRefreshing(false);setFeedBusy(false);}
@@ -262,7 +263,7 @@ export function ImmersiveHome(){
    const drop=24, height=container.clientHeight;
    setClips(prev=>prev.slice(drop));
    setCurrentClip(next-drop);
-   window.requestAnimationFrame(()=>container.scrollTo({top:container.scrollTop-drop*height,behavior:"instant"}));
+   window.requestAnimationFrame(()=>container.scrollTo({top:container.scrollTop-drop*height,behavior:"auto"}));
   }
  };
  const startTouch=(e:React.TouchEvent)=>{
@@ -271,7 +272,7 @@ export function ImmersiveHome(){
    touchStart.current={x:t.clientX,y:t.clientY,atTop:(feed.current?.scrollTop??0)<3};
    if(unlockSoundAfterGesture.current){
     unlockSoundAfterGesture.current=false;
-    const activeVideo=feed.current?.querySelectorAll<HTMLVideoElement>("video")[currentClip];
+    const activeVideo=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);
     if(activeVideo){
      activeVideo.muted=false;
      void activeVideo.play().then(()=>setMuted(false)).catch(()=>{
@@ -315,9 +316,9 @@ export function ImmersiveHome(){
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
     <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
-     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className={"sm-mobile-reel"+(i===0&&currentClip===0&&clips.length>1?" is-discovery":"")} key={item.url||i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`,transition:"none"}:undefined}>
+     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className={"sm-mobile-reel"+(i===0&&currentClip===0&&clips.length>1?" is-discovery":"")} key={item.url+"-"+i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`,transition:"none"}:undefined}>
        <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("/api/showcase-media?kind=mobile-fallback")`,opacity:loaded[i]&&!failed[i]?0:1}} aria-hidden="true"/>
-       {item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" src={item.url} playsInline muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
+       {item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
