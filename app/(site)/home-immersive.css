@@ -1,0 +1,82 @@
+/* PHASE 1 HOMEPAGE ONLY. No global nav, account, studio or checkout changes. */
+.sm-immersive-home{--sm-purple:#b330ef;--sm-ink:#090716;background:#080715;color:#f9f6ff;min-height:100svh;overflow-x:clip}
+.sm-immersive-home *{box-sizing:border-box}
+.sm-immersive-home a{color:inherit}
+.sm-immersive-first-screen{min-height:100svh;position:relative;isolation:isolate}
+.sm-immersive-home .sm-immersive-header{position:absolute;top:0;left:0;right:0;z-index:40;background:transparent!important;border:0!important;box-shadow:none!important;min-height:70px;height:70px;padding-inline:clamp(17px,3vw,55px)}
+.sm-immersive-home .sm-site-header-space{display:none}
+.sm-immersive-home .sm-immersive-header .sm-wordmark{font-weight:800;color:#fff;text-shadow:0 2px 15px #02000a}
+.sm-immersive-home .sm-immersive-header .sm-wordmark span{color:#e043f8}
+.sm-immersive-home .sm-immersive-header .sm-global-menu summary{color:#fff;border-color:#bc77ee76;background:#0b071ba6}
+.sm-immersive-home .sm-immersive-header .sm-header-actions{gap:12px}
+.sm-immersive-hero{position:relative;min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:clamp(88px,10vh,116px) 20px 60px;overflow:hidden;background:#070816}
+.sm-immersive-atmosphere{position:absolute;inset:0;z-index:-2;background:linear-gradient(180deg,rgba(9,5,24,.32) 0%,rgba(11,5,22,.68) 63%,#080715 100%),url("/artwork/singmotion-stage.webp") center 32%/cover no-repeat;filter:saturate(1.1)}
+.sm-immersive-hero:before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse 60% 46% at 50% 65%,rgba(144,33,209,.28),transparent 80%)}
+.sm-immersive-desktop-intro{text-align:center;z-index:4;margin-bottom:clamp(18px,3.7vh,36px)}
+.sm-immersive-desktop-intro h1{margin:0 auto 9px;max-width:1000px;font-size:clamp(36px,5.2vw,78px);line-height:1.04;letter-spacing:-.045em;font-weight:820;text-shadow:0 3px 25px #090619ad}
+.sm-immersive-desktop-intro h1 span,.sm-immersive-below h2 span{color:#c43af5}
+.sm-immersive-desktop-intro p{margin:14px 0 20px;font-size:clamp(15px,1.5vw,19px);color:#e2ddef}
+.sm-immersive-cta{display:inline-flex;align-items:center;justify-content:center;gap:14px;text-align:center;min-height:54px;min-width:min(320px,100%);padding:12px 26px;background:linear-gradient(105deg,#be30ec,#8628ef 85%);border:1px solid #ef70ff;border-radius:999px;box-shadow:0 8px 24px #9d2de75e,inset 0 1px 0 #ffffff55;text-decoration:none;font-size:16px;font-weight:750;transition:filter .2s,transform .2s}
+.sm-immersive-cta:hover,.sm-immersive-cta:focus-visible{filter:brightness(1.12);transform:translateY(-2px)}
+.sm-immersive-video-stage{width:min(870px,78vw);height:min(45vh,480px);min-height:265px;position:relative;z-index:2;display:grid;place-items:center;perspective:900px}
+.sm-immersive-video-frame{height:100%;max-width:100%;aspect-ratio:16/9;position:relative;overflow:hidden;border:1px solid #b858f27d;border-radius:20px;background:linear-gradient(120deg,#24133e,#090912);box-shadow:0 18px 65px #000b,0 0 30px #8d21d950}
+.sm-immersive-player{display:block;width:100%;height:100%;object-fit:contain;background:#0d0a16}
+.sm-immersive-video-poster{width:100%;height:100%;display:grid;place-items:end center;padding:22px;background:url("/artwork/singmotion-stage.webp") center/cover no-repeat}
+.sm-immersive-video-poster span{padding:9px 12px;border-radius:999px;background:#100b1aad;color:#fff;font-size:12px}
+.sm-immersive-video-frame:before{content:"";position:absolute;inset:0;background:linear-gradient(0deg,#0a0719bf,transparent 30%);pointer-events:none;z-index:1}
+.sm-immersive-video-controls{position:absolute;bottom:16px;right:16px;z-index:3;display:flex;gap:8px}
+.sm-immersive-video-controls button{display:grid;place-items:center;width:42px;height:42px;border-radius:50%;border:1px solid #ffffff68;color:#fff;background:#0c0819bf;cursor:pointer}
+.sm-immersive-video-controls button:hover,.sm-immersive-video-controls button:focus-visible{background:#8027ca}
+.sm-immersive-video-caption{position:absolute;bottom:24px;left:20px;z-index:2;font-size:12px;font-weight:650;color:#fff;text-shadow:0 1px 7px #000}
+.sm-immersive-scroll-cue{position:absolute;bottom:15px;left:50%;transform:translateX(-50%);z-index:7;display:grid;place-items:center;width:35px;height:35px;border:1px solid #9b6dbc77;border-radius:50%;color:#fff;opacity:.8}
+.sm-immersive-mobile-overlay{display:none}
+.sm-immersive-below{background:radial-gradient(ellipse 75% 40% at 50% 30%,#3b12484a,transparent),#090715;padding-top:60px}
+.sm-immersive-below section{max-width:1190px;margin:auto;padding:44px 22px 70px;text-align:center}
+.sm-immersive-below h2{margin:0 0 10px;font-size:clamp(28px,4vw,44px);font-weight:800;letter-spacing:-.035em;line-height:1.1}
+.sm-immersive-below section>p{margin:0 0 32px;color:#b6acc8;font-size:15px}
+.sm-immersive-steps ol{padding:0;margin:40px 0 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;list-style:none}
+.sm-immersive-steps li{display:flex;flex-direction:column;align-items:center;gap:10px;min-width:0}
+.sm-immersive-steps li svg{width:58px;height:58px;padding:15px;border:1px solid #ab4fea;border-radius:50%;color:#e3b2ff;background:#100a20}
+.sm-immersive-steps li strong{font-size:15px;color:#fff}
+.sm-immersive-steps li span{font-size:13px;line-height:1.55;color:#b9b2ca;max-width:200px}
+.sm-immersive-creation-grid{display:flex;justify-content:center;gap:20px}
+.sm-immersive-creation{display:block;width:clamp(155px,22vw,230px);aspect-ratio:9/16;border:1px solid #ad54e5;border-radius:17px;overflow:hidden;position:relative;box-shadow:0 13px 35px #0006;text-align:left;background:#171026}
+.sm-immersive-creation video{width:100%;height:100%;object-fit:cover;display:block}
+.sm-immersive-creation span{position:absolute;bottom:0;left:0;right:0;padding:35px 12px 13px;background:linear-gradient(transparent,#08050eea);font-size:12px;color:#fff}
+.sm-immersive-no-example{color:#b4aac3}
+.sm-immersive-below .sm-immersive-final{max-width:1100px;padding:60px 25px 90px;display:flex;align-items:center;justify-content:space-between;gap:35px;text-align:left}
+.sm-immersive-final h2{max-width:550px}
+.sm-immersive-footer{display:flex;justify-content:space-between;align-items:center;gap:25px;flex-wrap:wrap;padding:22px clamp(18px,5vw,70px) 35px;border-top:1px solid #ffffff1d}
+.sm-immersive-footer-logo{text-decoration:none;font-size:18px;font-weight:800}
+.sm-immersive-footer-logo span{color:#dd3afa}
+.sm-immersive-footer nav{display:flex;flex-wrap:wrap;gap:8px 23px}
+.sm-immersive-footer nav a{text-decoration:none;font-size:12px;color:#c4b9d0}
+.sm-immersive-footer nav a:hover{text-decoration:underline}
+@media(min-width:1000px){.sm-immersive-video-stage:before,.sm-immersive-video-stage:after{content:"";position:absolute;top:14%;width:20%;height:65%;border-radius:18px;background:linear-gradient(135deg,#6d22854d,#0a071bcb),url("/artwork/singmotion-stage.webp") center/cover no-repeat;opacity:.48;filter:brightness(.66);z-index:-1}.sm-immersive-video-stage:before{left:-15%;transform:rotateY(27deg)}.sm-immersive-video-stage:after{right:-15%;transform:rotateY(-27deg)}}
+@media(max-width:760px){
+ .sm-immersive-home .sm-immersive-header{height:64px;min-height:64px;padding-inline:14px}
+ .sm-immersive-home .sm-immersive-header .sm-wordmark{font-size:20px}
+ .sm-immersive-first-screen{height:100svh;min-height:480px}
+ .sm-immersive-hero{height:100svh;min-height:480px;display:block;padding:0}
+ .sm-immersive-atmosphere{background:linear-gradient(0deg,#070511 0%,transparent 45%),url("/artwork/singmotion-stage.webp") center/cover no-repeat}
+ .sm-immersive-desktop-intro{display:none}
+ .sm-immersive-video-stage{position:absolute;inset:0;width:100%;height:100%;min-height:0;display:block;perspective:none}
+ .sm-immersive-video-frame{width:100%;height:100%;max-width:none;aspect-ratio:auto;border:0;border-radius:0;box-shadow:none;background:#0b0718}
+ .sm-immersive-player{object-fit:cover;object-position:center}
+ .sm-immersive-video-poster{background-position:center;align-items:center}
+ .sm-immersive-video-frame:before{background:linear-gradient(0deg,#090613 0%,#09061375 32%,transparent 60%,#0906131c)}
+ .sm-immersive-video-controls{bottom:clamp(205px,26vh,290px);right:14px}
+ .sm-immersive-video-caption{display:none}
+ .sm-immersive-mobile-overlay{position:absolute;bottom:max(65px,env(safe-area-inset-bottom) + 38px);left:0;right:0;z-index:6;display:flex;flex-direction:column;align-items:stretch;gap:14px;padding:20px clamp(20px,6vw,35px);text-align:left}
+ .sm-immersive-eyebrow{align-self:flex-start;padding:7px 14px;border:1px solid #bd63e8;border-radius:999px;color:#e3a7ff;font-size:14px;font-weight:700}
+ .sm-immersive-mobile-overlay h1{font-size:clamp(31px,7vw,46px);line-height:1.09;letter-spacing:-.04em;font-weight:800;max-width:460px;margin:0 0 11px}
+ .sm-immersive-mobile-overlay .sm-immersive-cta{width:100%;min-width:0}
+ .sm-immersive-scroll-cue{bottom:12px}
+ .sm-immersive-below{padding-top:30px}
+ .sm-immersive-steps ol{grid-template-columns:repeat(2,minmax(0,1fr));gap:32px 15px}
+ .sm-immersive-below .sm-immersive-final{flex-direction:column;text-align:center;padding:55px 21px 75px}
+ .sm-immersive-footer{justify-content:center;text-align:center}
+ .sm-immersive-footer nav{justify-content:center}
+}
+@media(max-width:390px){.sm-immersive-mobile-overlay h1{font-size:32px}.sm-immersive-mobile-overlay{bottom:max(55px,env(safe-area-inset-bottom) + 33px)}.sm-immersive-video-controls{bottom:245px}}
+@media(prefers-reduced-motion:reduce){.sm-immersive-home *{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
