@@ -8,6 +8,7 @@ import { probe } from "../lib/media.ts";
 import {
   downloadValidatedOutput,
   validateOutput,
+  hasNoNonSquarePixelAspect,
   type OutputValidationContract,
 } from "../lib/live/output.ts";
 
@@ -189,4 +190,11 @@ test("paid BytePlus 30 FPS source is converted to validated 25 FPS without chang
    assert.deepEqual(await readFile(raw),bytes);
   }
  }finally{await rm(root,{recursive:true,force:true})}
+});
+
+test("provider SAR metadata: absent and unknown-square forms can normalize; non-square pixel ratios remain forbidden",()=>{
+  for(const sar of [undefined,null,"N/A","0:1","1:1","2:2","100:100"])
+    assert.equal(hasNoNonSquarePixelAspect(sar),true,String(sar));
+  for(const sar of ["2:1","1:2","3:2","0:2","",false,2,{}, "1:0","1:1:1","999999:999999"])
+    assert.equal(hasNoNonSquarePixelAspect(sar),false,String(sar));
 });
