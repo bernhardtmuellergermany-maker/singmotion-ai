@@ -927,3 +927,49 @@
  .sm-immersive-home .sm-mobile-intro-fallback,
  .sm-immersive-home .sm-mobile-reels{transition:none!important}
 }
+
+/* Mobile reels: no opening artwork, no bounce, and no moving the video
+   when pulling down. Only a small TikTok-style refresh disc is animated. */
+@media(max-width:760px){
+ .sm-immersive-home .sm-mobile-intro-fallback,
+ .sm-immersive-home .sm-mobile-refresh-underlay{display:none!important}
+ .sm-immersive-home .sm-mobile-reels,
+ .sm-immersive-home .sm-mobile-reels.intro-pending,
+ .sm-immersive-home .sm-mobile-reels.intro-complete{
+  transform:none!important;
+  transition:none!important;
+  background:#090715!important;
+ }
+ .sm-immersive-home .sm-mobile-reel,
+ .sm-immersive-home .sm-mobile-reel:first-child,
+ .sm-immersive-home .sm-mobile-reel-video{
+  animation:none!important;
+  transform:none!important;
+  transition:none!important;
+ }
+ .sm-immersive-home .sm-mobile-refresh-indicator{
+  position:absolute;top:max(104px,env(safe-area-inset-top) + 65px);
+  left:50%;z-index:19;
+  width:53px;height:53px;border-radius:50%;
+  background:#fff;color:#07070b;
+  display:grid;place-items:center;
+  box-shadow:0 4px 19px #0006;
+  pointer-events:none;
+  transform:translate3d(-50%,var(--refresh-pull),0);
+  transition:transform .1s ease-out;
+ }
+ .sm-immersive-home .sm-mobile-refresh-indicator svg{
+  transform:rotate(var(--refresh-rotation));
+ }
+ .sm-immersive-home .sm-mobile-refresh-indicator.is-loading svg{
+  animation:sm-refresh-spinner .72s linear infinite;
+ }
+ .sm-immersive-home .sm-mobile-swipe-hint{
+  animation:sm-mobile-hint-fade 3.1s ease-out both!important;
+ }
+ .sm-immersive-home .sm-mobile-swipe-hint>span{animation:none!important}
+}
+@keyframes sm-refresh-spinner{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){
+ .sm-immersive-home .sm-mobile-refresh-indicator svg{animation:none!important}
+}
