@@ -226,7 +226,7 @@ export function ImmersiveHome(){
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
     {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Turn on video sound":"Mute video"} onClick={()=>setMuted(v=>!v)}>{muted?<VolumeX size={22}/>:<Volume2 size={22}/>}</button>}
-    <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Explore how it works"><ChevronDown size={23}/></a>
+    <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Sanft zum Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
    </main>
   </div>
   <div className="sm-immersive-below">
