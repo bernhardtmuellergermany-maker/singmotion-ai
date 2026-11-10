@@ -216,7 +216,7 @@ export function GenerationDialog({
       const account=workspace.owner?.startsWith("customer-")===true;
       if (!workspace.owner || selection.owner !== workspace.owner)
         throw Error("This project's private uploads belong to another session. Reopen Studio in the original browser.");
-      if (!account && !/^[^\s@]+@[^\\s@]+\.[^\s@]+$/.test(guestEmail.trim()))
+      if (!account && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))
         throw Error("Enter a valid email address for your guest order confirmation.");
       if (savedOrderId && guestAccessUrl) {
         setCheckoutStep("redirecting");
@@ -422,7 +422,7 @@ export function GenerationDialog({
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !immediateStart || !withdrawalConsequences || !terms || !customerQuote || quotePending || (selection.owner.startsWith("customer-") && promoCode.trim().toUpperCase()!==appliedPromo) || (!selection.owner.startsWith("customer-") && !guestAccessUrl && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(guestEmail.trim()))} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : guestAccessUrl?"Continue to Stripe Checkout":"Generate Video"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !immediateStart || !withdrawalConsequences || !terms || !customerQuote || quotePending || (selection.owner.startsWith("customer-") && promoCode.trim().toUpperCase()!==appliedPromo) || (!selection.owner.startsWith("customer-") && !guestAccessUrl && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : guestAccessUrl?"Continue to Stripe Checkout":"Generate Video"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>
