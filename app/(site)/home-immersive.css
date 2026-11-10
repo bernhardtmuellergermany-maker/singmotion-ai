@@ -200,3 +200,52 @@
  }
  .sm-immersive-below{display:none!important}
 }
+
+/* Desktop sequence from the reference: a complete image hero FIRST, then a
+   separately scrollable, functional 16:9 video carousel. Mobile remains reels. */
+@media(min-width:761px){
+ .sm-immersive-first-screen,.sm-immersive-hero{height:100svh;min-height:650px}
+ .sm-immersive-hero{justify-content:flex-start;padding:clamp(168px,21vh,260px) 24px 50px}
+ .sm-immersive-desktop-intro{margin:0;max-width:1060px}
+ .sm-immersive-desktop-intro h1{max-width:970px;font-size:clamp(48px,5vw,75px);line-height:1.04;text-wrap:balance}
+ .sm-immersive-desktop-intro .sm-immersive-cta{margin-top:5px}
+ .sm-immersive-hero>.sm-immersive-video-stage,.sm-immersive-hero>.sm-immersive-feed-position{display:none}
+ .sm-immersive-scroll-cue{bottom:30px}
+ .sm-immersive-below{padding-top:0}
+ .sm-immersive-below .sm-desktop-showcase{max-width:none;width:100%;padding:68px 0 36px;overflow:hidden;scroll-margin-top:0}
+ .sm-desktop-carousel{width:min(1110px,94vw);height:clamp(290px,41vw,465px);margin:auto;position:relative;display:flex;align-items:center;justify-content:center;isolation:isolate}
+ .sm-desktop-active-card{position:relative;z-index:3;width:min(750px,70vw);aspect-ratio:16/9;overflow:hidden;border:1px solid #ce48f5;border-radius:19px;background:#130a22;box-shadow:0 0 26px #8c1ad866,0 25px 45px #000a}
+ .sm-desktop-main-video{display:block;position:absolute;inset:0;width:100%;height:100%;object-fit:cover;cursor:pointer}
+ .sm-desktop-video-empty{position:absolute;inset:0;background-position:center;background-size:cover}
+ .sm-desktop-active-card:after{content:"";position:absolute;inset:55% 0 0;background:linear-gradient(transparent,#0805139e);pointer-events:none;z-index:1}
+ .sm-desktop-center-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:66px;height:66px;border:1px solid #d744fa;border-radius:50%;display:grid;place-items:center;color:#fff;background:#160821a8;padding-left:5px;backdrop-filter:blur(8px);z-index:5}
+ .sm-desktop-center-play:disabled{opacity:1;cursor:default}
+ .sm-desktop-card-footer{position:absolute;bottom:20px;left:20px;right:70px;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:11px;text-shadow:0 1px 7px #000}
+ .sm-desktop-card-footer span{max-width:65%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .sm-desktop-mute{position:absolute;right:16px;bottom:13px;z-index:5;display:grid;place-items:center;width:37px;height:37px;border:1px solid #ffffffa5;border-radius:50%;background:#0b0717a6;color:#fff}
+ .sm-desktop-side{position:absolute;top:18%;width:29%;height:64%;z-index:1;overflow:hidden;border:1px solid #6c368e;border-radius:19px;background:#150a24;color:#fff;cursor:pointer;transition:transform .3s ease,filter .3s ease;filter:brightness(.65)}
+ .sm-desktop-side:hover,.sm-desktop-side:focus-visible{filter:brightness(.95);transform:translateY(-4px)}
+ .sm-desktop-side-prev{left:-1%;transform:perspective(680px) rotateY(13deg)}
+ .sm-desktop-side-next{right:-1%;transform:perspective(680px) rotateY(-13deg)}
+ .sm-desktop-side-prev:hover{transform:perspective(680px) rotateY(13deg) translateY(-4px)}
+ .sm-desktop-side-next:hover{transform:perspective(680px) rotateY(-13deg) translateY(-4px)}
+ .sm-desktop-side-picture{position:absolute;inset:0;background-size:cover;background-position:center}
+ .sm-desktop-side-name{position:absolute;bottom:14px;left:12px;right:12px;text-align:left;font-size:11px;text-shadow:0 2px 8px black;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+ .sm-desktop-carousel-navigation{display:flex;align-items:center;justify-content:center;gap:20px;margin:0 auto}
+ .sm-desktop-carousel-navigation>button{height:39px;width:39px;border:1px solid #8740b5;border-radius:50%;background:#1c102b;color:#fff;display:grid;place-items:center}
+ .sm-desktop-carousel-navigation>button:hover{background:#63238f}
+ .sm-desktop-carousel-dots{display:flex;align-items:center;gap:9px}
+ .sm-desktop-carousel-dots button{width:8px;height:8px;padding:0;border:0;border-radius:50%;background:#6a4c77}
+ .sm-desktop-carousel-dots button.active{width:24px;border-radius:999px;background:#c638fa}
+ .sm-desktop-slide-count{color:#c6accf;font-size:12px;min-width:34px}
+}
+@media(min-width:761px) and (max-width:1050px){
+ .sm-immersive-first-screen,.sm-immersive-hero{min-height:590px}
+ .sm-desktop-carousel{height:clamp(270px,45vw,440px)}
+ .sm-desktop-active-card{width:72vw}
+ .sm-desktop-side{width:24%}
+}
+@media(max-width:760px){
+ .sm-desktop-showcase{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){.sm-desktop-side{transition:none!important}}
