@@ -789,3 +789,25 @@
 @media(prefers-reduced-motion:reduce){
  .sm-mobile-intro-fallback,.sm-mobile-reel:first-child{transition:none!important}
 }
+
+/* Mobile hotfix: preserve native vertical swiping even during fallback intro,
+   and never blank the backing image while fingers are moving. */
+@media(max-width:760px){
+ .sm-immersive-hero .sm-mobile-reels{
+  touch-action:pan-y!important;
+  overflow-y:auto!important;
+  overscroll-behavior-y:contain;
+  -webkit-overflow-scrolling:touch;
+ }
+ .sm-immersive-hero .sm-mobile-reel,
+ .sm-immersive-hero .sm-mobile-reel-video{
+  touch-action:pan-y!important;
+ }
+ .sm-mobile-intro-fallback,.sm-mobile-refresh-underlay{pointer-events:none!important}
+ .sm-mobile-reels.is-dragging .sm-mobile-reel-backup{
+  opacity:1;
+ }
+ .sm-mobile-reels.is-dragging .sm-mobile-reel:first-child:not([style]){
+  transform:none;
+ }
+}
