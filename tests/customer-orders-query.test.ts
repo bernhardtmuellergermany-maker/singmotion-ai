@@ -12,6 +12,7 @@ test("the existing paid output loads an older owned order beyond the latest 50",
   db.exec(`CREATE TABLE customer_orders(
    id TEXT PRIMARY KEY,account_id TEXT,project_id TEXT,price_cents INTEGER,
    currency TEXT,status TEXT,created INTEGER);
+   CREATE TABLE customer_guest_order_claims(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,claimed_at INTEGER NOT NULL);
    CREATE TABLE customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT);
    CREATE TABLE customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT);
    CREATE TABLE free_promo_video_deliveries(order_id TEXT PRIMARY KEY,account_id TEXT,sha256 TEXT,bytes INTEGER,created INTEGER);`);

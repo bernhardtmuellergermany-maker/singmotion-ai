@@ -1,6 +1,7 @@
 import { pollStudioProjects } from "../lib/live/studio-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
+import {retryVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { copyFile, unlink, writeFile } from "node:fs/promises";
@@ -26,6 +27,7 @@ const approvedLiveCustomer=process.env.DEMO_MODE==="false" &&
 if(!approvedLiveCustomer)demoOnly();
 let nextCustomerPaidPoll=0;
 let nextWithdrawalReceiptRetry=0;
+let nextVideoReadyEmailRetry=0;
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
@@ -43,6 +45,11 @@ while (!stopping) {
     nextWithdrawalReceiptRetry=Date.now()+60_000;
     try{await retryPendingWithdrawalReceipts(path.join(dataDir,"commerce.sqlite"));}
     catch{console.warn("Withdrawal confirmation outbox retry unavailable");}
+  }
+  if(Date.now()>=nextVideoReadyEmailRetry){
+    nextVideoReadyEmailRetry=Date.now()+60_000;
+    try{await retryVideoReadyNotifications(path.join(dataDir,"commerce.sqlite"));}
+    catch{console.warn("Video-ready mail outbox retry unavailable");}
   }
   // A separately reviewed contract, TEST Stripe key, private R2 and two explicit
   // customer worker flags are all required before automatic paid processing.

@@ -20,11 +20,12 @@ export function ownedCustomerOrderStatuses(
    CASE WHEN (q.state='delivered' AND d.asset_id IS NOT NULL AND o.status='paid')
        OR (o.status='free_delivered' AND f.order_id IS NOT NULL) THEN 1 ELSE 0 END AS videoReady
    FROM customer_orders o
+   LEFT JOIN customer_guest_order_claims gc ON gc.order_id=o.id
    LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id
    LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
    LEFT JOIN free_promo_video_deliveries f ON f.order_id=o.id AND f.account_id=o.account_id
-   WHERE o.account_id=? AND (? IS NULL OR o.project_id=?) AND (? IS NULL OR o.id=?)
+   WHERE (o.account_id=? OR gc.account_id=?) AND (? IS NULL OR o.project_id=?) AND (? IS NULL OR o.id=?)
    ORDER BY o.created DESC,o.id DESC LIMIT ?`).all(
-    accountId,filter.projectId,filter.projectId,filter.orderId,filter.orderId,filter.limit
+    accountId,accountId,filter.projectId,filter.projectId,filter.orderId,filter.orderId,filter.limit
    ) as Record<string,unknown>[];
 }

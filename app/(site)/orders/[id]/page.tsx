@@ -42,7 +42,7 @@ export default async function Page({
       const account = store.session(c.get("sm_customer")?.value || "");
       const guestToken = c.get(`sm_guest_${id}`)?.value;
       order = store.ownedOrder(id, account, guestToken);
-      authenticatedOwner = Boolean(account && order && order.account_id === account);
+      authenticatedOwner = Boolean(account && order && (order.account_id === account || store.guestClaimedBy(id,account)));
       guestOwner = Boolean(order && !order.account_id && guestToken);
       if(authenticatedOwner && store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get())
         promotion = store.db.prepare("SELECT code,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?")
