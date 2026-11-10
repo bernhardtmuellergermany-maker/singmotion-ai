@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {ArrowRight,Music2,ImagePlus,Play,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight} from "lucide-react";
+import {ArrowRight,Music2,ImagePlus,Sparkles,Play,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight} from "lucide-react";
 import {SiteHeader} from "./site-header";
 import {showcase} from "@/lib/showcase";
 
@@ -20,7 +20,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const [settling,setSettling]=useState(false);
  const [target,setTarget]=useState<number|null>(null);
  const [playing,setPlaying]=useState(false);
- const [muted,setMuted]=useState(false);
+ const [muted,setMuted]=useState(true);
  const [broken,setBroken]=useState(false);
  const video=useRef<HTMLVideoElement>(null);
  const touchX=useRef<number|null>(null);
@@ -99,12 +99,19 @@ export function ImmersiveHome(){
  const [failed,setFailed]=useState<Record<number,boolean>>({});
  const [loaded,setLoaded]=useState<Record<number,boolean>>({});
  const [dragging,setDragging]=useState(false);
- const [portraitSlide,setPortraitSlide]=useState(0);
+ const [footerLinks,setFooterLinks]=useState<{label:string;url:string}[]>([]);
  const feed=useRef<HTMLDivElement>(null);
  const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
  const [refreshing,setRefreshing]=useState(false);
  const [pullOffset,setPullOffset]=useState(0);
- const clip=clips[currentClip]??null;
+ useEffect(()=>{
+  let active=true;
+  fetch("/api/site-footer",{cache:"no-store"}).then(r=>r.ok?r.json():null)
+   .then(data=>{if(active&&Array.isArray(data?.links))setFooterLinks(data.links);})
+   .catch(()=>{});
+  return()=>{active=false};
+ },[]);
+  const clip=clips[currentClip]??null;
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  useEffect(()=>{
   let active=true;
@@ -270,25 +277,19 @@ export function ImmersiveHome(){
     <p>In just a few steps to your own music video.</p>
     <ol>
      <li><Music2 aria-hidden="true"/><strong>1. Upload your audio</strong><span>Add your song or choose from your library.</span></li>
-     <li><ImagePlus aria-hidden="true"/><strong>2. Describe the performance</strong><span>Tell us how it should look or add a photo of yourself.</span></li>
-     <li><Play aria-hidden="true"/><strong>3. Generate the video</strong><span>Get your AI music video in seconds.</span></li>
+     <li><ImagePlus aria-hidden="true"/><strong>2. Upload a photo</strong><span>Add a photo of yourself or your artist.</span></li>
+     <li><Sparkles aria-hidden="true"/><strong>3. Describe the performance</strong><span>Write your style, mood, scene and performance prompt.</span></li>
+     <li><Play aria-hidden="true"/><strong>4. Generate the video</strong><span>Create your AI music video.</span></li>
     </ol>
    </section>
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion.</p>
-    <div className="sm-immersive-placeholder-gallery" aria-label="Desktop portrait video carousel">
-      <div className="sm-immersive-placeholder-track" role="group" aria-label="9 by 16 portrait video collection" style={{transform:"translateX(-"+portraitSlide*6.25+"%)"}}>
-        {(portraitClips.length?portraitClips:[{title:"Coming soon",url:""}]).map((item,n)=><div key={item.url||n} className={"sm-immersive-placeholder-card"+(portraitSlide===n?" is-selected":"")}>
-          {item.url?<video src={item.url} playsInline muted loop preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} onClick={e=>{const v=e.currentTarget;if(v.paused)void v.play().catch(()=>{});else v.pause();}} aria-label={item.title}/>:<span className="sm-immersive-placeholder-play"><Play size={28} fill="currentColor"/></span>}
-          <small>{item.title}</small>
-        </div>)}
-      </div>
-      <div className="sm-immersive-placeholder-nav">
-        <button type="button" disabled={portraitSlide===0} onClick={()=>setPortraitSlide(i=>Math.max(0,i-1))} aria-label="Previous portrait">‹</button>
-        <span>{Math.min(portraitSlide+1,Math.max(1,portraitClips.length))} / {Math.max(1,portraitClips.length)}</span>
-        <button type="button" disabled={portraitSlide>=Math.max(0,portraitClips.length-1)} onClick={()=>setPortraitSlide(i=>Math.min(Math.max(0,portraitClips.length-1),i+1))} aria-label="Next portrait">›</button>
-      </div>
+    <div className="sm-desktop-portrait-grid" aria-label="Four featured portrait videos">
+      {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card">
+       {item.url?<video src={item.url} playsInline muted loop preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} onClick={e=>{const v=e.currentTarget;if(v.paused)void v.play().catch(()=>{});else v.pause();}} aria-label={item.title}/>:<div className="sm-desktop-portrait-fallback"><Play size={28}/><small>Coming soon</small></div>}
+       {item.url&&<small>{item.title}</small>}
+      </div>)}
     </div>
    </section>
    <section className="sm-immersive-final" aria-labelledby="sm-ready-title">
@@ -298,7 +299,7 @@ export function ImmersiveHome(){
    <footer className="sm-immersive-footer">
     <Link className="sm-immersive-footer-logo" href="/">SingMotion <span>AI</span></Link>
     <nav aria-label="Service and legal">
-     <Link href="/plans">Prices</Link><Link href="/help">Help</Link><Link href="/contact">Contact</Link><Link href="/legal">Legal &amp; Privacy</Link><Link href="/terms">Terms</Link>
+     {footerLinks.map((item,i)=><Link href={item.url} key={item.url+"-"+i}>{item.label}</Link>)}
     </nav>
    </footer>
   </div>
