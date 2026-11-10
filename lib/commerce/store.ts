@@ -53,6 +53,8 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS free_promo_video_deliveries(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_guest_media_owners(order_id TEXT PRIMARY KEY,media_owner TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_guest_order_claims(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,claimed_at INTEGER NOT NULL);
+ CREATE INDEX IF NOT EXISTS idx_customer_guest_claim_account ON customer_guest_order_claims(account_id);
  CREATE TABLE IF NOT EXISTS customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_cost_reservations(order_id TEXT PRIMARY KEY,inclusive_micro_usd INTEGER NOT NULL,review_hash TEXT NOT NULL,reserved_at INTEGER NOT NULL);
@@ -462,7 +464,8 @@ export class CommerceStore {
     if (
       !o ||
       !(
-        (account && o.account_id === account) ||
+        (account && (o.account_id === account ||
+          (!!this.db.prepare("SELECT 1 FROM customer_guest_order_claims WHERE order_id=? AND account_id=?").get(id,account)))) ||
         (!o.account_id &&
           guestToken &&
           o.guest_hash === hash(guestToken) &&
@@ -471,6 +474,32 @@ export class CommerceStore {
     )
       throw Error("Order unavailable");
     return o;
+  }
+  /** A successful claim grants account access while retaining immutable guest
+   * media/R2 ownership. Never rewrite source assets or a paid provider job. */
+  claimGuestOrder(orderId:string,accountId:string,guestToken:string):boolean{
+    return this.tx(()=>{
+      const order=this.ownedOrder(orderId,null,guestToken);
+      if(order.account_id!==null||!this.guestMediaOwner(orderId))
+        throw Error("Claim requires a verified guest purchase");
+      const verified=this.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId) as {email:string}|undefined;
+      if(!verified||verified.email!==order.email||!this.emailVerified(accountId))
+        throw Error("Verified matching customer email required");
+      const existing=this.db.prepare("SELECT account_id FROM customer_guest_order_claims WHERE order_id=?").get(orderId) as {account_id:string}|undefined;
+      if(existing){
+        if(existing.account_id!==accountId)throw Error("Guest order already claimed");
+        return false;
+      }
+      const changed=this.db.prepare("INSERT OR IGNORE INTO customer_guest_order_claims VALUES(?,?,?)")
+        .run(orderId,accountId,Date.now());
+      if(changed.changes!==1)throw Error("Concurrent guest order claim");
+      this.audit(accountId,"guest-video-claimed",orderId);
+      return true;
+    });
+  }
+  guestClaimedBy(orderId:string,accountId:string):boolean{
+    return !!this.db.prepare("SELECT 1 FROM customer_guest_order_claims WHERE order_id=? AND account_id=?")
+      .get(orderId,accountId);
   }
   /** Durable guest media ownership is independent of a mutable browser draft. */
   guestMediaOwner(orderId:string):string|null{
