@@ -1005,3 +1005,14 @@
   width:21px;height:21px;stroke-width:2;
  }
 }
+
+/* Refresh gesture owns downward drags at scrollTop 0; prevent overscroll
+   rubber-banding underneath the circle. Ordinary upward reels still scroll. */
+@media(max-width:760px){
+ .sm-immersive-home .sm-immersive-hero .sm-mobile-reels{
+  overscroll-behavior-y:none!important;
+ }
+ .sm-immersive-home .sm-mobile-reels.is-refreshing .sm-mobile-reel:first-child{
+  filter:none!important;
+ }
+}
