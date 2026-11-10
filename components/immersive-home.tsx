@@ -71,7 +71,7 @@ export function ImmersiveHome(){
    setPlaying(false);
    setFailed(false);
    setLoadingVideo(true);
-   setCurrentClip(index=>Math.max(0,Math.min(clips.length-1,index+direction)));
+   setCurrentClip(index=>(index+direction+clips.length)%clips.length);
  };
  const touchStart=(event:React.TouchEvent)=>{
    const t=event.touches[0];if(t){swipeStart.current={x:t.clientX,y:t.clientY};pullStartedAt.current=currentClip===0?Date.now():null;}
