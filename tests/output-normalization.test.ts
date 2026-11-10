@@ -8,6 +8,7 @@ import { probe } from "../lib/media.ts";
 import {
   downloadValidatedOutput,
   validateOutput,
+  hasNoNonSquarePixelAspect,
   type OutputValidationContract,
 } from "../lib/live/output.ts";
 
@@ -189,4 +190,101 @@ test("paid BytePlus 30 FPS source is converted to validated 25 FPS without chang
    assert.deepEqual(await readFile(raw),bytes);
   }
  }finally{await rm(root,{recursive:true,force:true})}
+});
+
+test("BytePlus 786x1178 30fps source can be normalized to reviewed landscape 1280x720 without altering AAC packet contents",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"sm-provider-landscape-"));
+ const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
+ const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
+ const policy:OutputValidationContract={outputHosts:["approved.example.test"],
+  output:{width:1280,height:720,fps:25,videoCodec:"h264",audioCodec:"aac",
+   durationToleranceSeconds:0.15,maxDurationSeconds:2}};
+ try{
+  const source=path.join(root,"source.mp4"),dest=path.join(root,"landscape.mp4");
+  ff(["-f","lavfi","-i","color=blue:s=786x1178:r=30:d=1","-f","lavfi","-i",
+   "sine=frequency=440:duration=1","-t","1","-c:v","libx264","-threads","2",
+   "-preset","ultrafast","-pix_fmt","yuv420p","-c:a","aac",source]);
+  const original=await readFile(source),audio=hash(source);
+  await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
+   async()=>new Response(Uint8Array.from(original)));
+  await validateOutput(dest,1,policy);
+  const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
+  assert.equal(video.width,1280);
+  assert.equal(video.height,720);
+  assert.equal(video.avg_frame_rate,"25/1");
+  assert.equal(hash(dest),audio);
+  assert.deepEqual(await readFile(source),original);
+ }finally{await rm(root,{recursive:true,force:true})}
+});
+
+test("observed BytePlus 960x960 source delivers to reviewed portrait and landscape 720p without changing soundtrack",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"sm-provider-square-"));
+ const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
+ const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
+ try{
+  const source=path.join(root,"square.mp4");
+  ff(["-f","lavfi","-i","color=red:s=960x960:r=30:d=1",
+   "-f","lavfi","-i","sine=frequency=440:duration=1",
+   "-t","1","-c:v","libx264","-threads","2","-preset","ultrafast",
+   "-pix_fmt","yuv420p","-c:a","aac",source]);
+  const bytes=await readFile(source),sourceHash=hash(source);
+  for(const [width,height] of [[720,1280],[1280,720]]){
+   const contract:OutputValidationContract={
+    outputHosts:["approved.example.test"],
+    output:{width,height,fps:25,videoCodec:"h264",audioCodec:"aac",
+     durationToleranceSeconds:0.15,maxDurationSeconds:2},
+   };
+   const dest=path.join(root,`delivery-${width}x${height}.mp4`);
+   await assert.rejects(validateOutput(source,1,contract),/DIMENSIONS/);
+   await downloadValidatedOutput("https://approved.example.test/video",dest,1,contract,
+    async()=>new Response(Uint8Array.from(bytes)));
+   await validateOutput(dest,1,contract);
+   const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
+   assert.equal(video.width,width);
+   assert.equal(video.height,height);
+   assert.equal(video.avg_frame_rate,"25/1");
+   assert.equal(hash(dest),sourceHash);
+  }
+  assert.deepEqual(await readFile(source),bytes);
+  const other:OutputValidationContract={outputHosts:["approved.example.test"],
+   output:{width:720,height:960,fps:25,videoCodec:"h264",audioCodec:"aac",
+    durationToleranceSeconds:0.15,maxDurationSeconds:2}};
+  await assert.rejects(downloadValidatedOutput("https://approved.example.test/video",
+   path.join(root,"invalid.mp4"),1,other,async()=>new Response(Uint8Array.from(bytes))),
+   /DIMENSIONS/);
+ }finally{await rm(root,{recursive:true,force:true})}
+});
+
+test("checkout orientation is exact: a reviewed 720p video with opposite orientation is re-encoded to the chosen rectangle",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"sm-paid-orientation-"));
+ const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
+ const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
+ try{
+  for(const [sourceRect,width,height] of [["720x1280",1280,720],["1280x720",720,1280]] as const){
+   const source=path.join(root,"source-"+sourceRect+".mp4");
+   ff(["-f","lavfi","-i","color=green:s="+sourceRect+":r=25:d=1",
+    "-f","lavfi","-i","sine=frequency=440:duration=1","-t","1",
+    "-c:v","libx264","-threads","2","-preset","ultrafast",
+    "-pix_fmt","yuv420p","-c:a","aac",source]);
+   const original=await readFile(source),audio=hash(source);
+   const policy:OutputValidationContract={outputHosts:["approved.example.test"],
+    output:{width,height,fps:25,videoCodec:"h264",audioCodec:"aac",
+     durationToleranceSeconds:0.15,maxDurationSeconds:2}};
+   const dest=path.join(root,"delivered-"+sourceRect+".mp4");
+   await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
+    async()=>new Response(Uint8Array.from(original)));
+   const video=(await probe(dest)).streams.find(s=>s.codec_type==="video")!;
+   assert.equal(video.width,width);
+   assert.equal(video.height,height);
+   assert.equal(hash(dest),audio);
+   assert.deepEqual(await readFile(source),original);
+  }
+ }finally{await rm(root,{recursive:true,force:true})}
+});
+
+test("provider SAR metadata: absent and unknown-square forms can normalize; non-square pixel ratios remain forbidden",()=>{
+  for(const sar of [undefined,null,"N/A","0:1","1:1","2:2","100:100"])
+    assert.equal(hasNoNonSquarePixelAspect(sar),true,String(sar));
+  for(const sar of ["2:1","1:2","3:2","0:2","",false,2,{}, "1:0","1:1:1","999999:999999"])
+    assert.equal(hasNoNonSquarePixelAspect(sar),false,String(sar));
 });

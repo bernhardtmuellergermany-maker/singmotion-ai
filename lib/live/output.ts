@@ -54,6 +54,16 @@ export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
     );
   return url;
 }
+/** FFprobe uses "N/A"/"0:1" when SAR is absent, not non-square. Reject
+ * any EXPLICIT non-square pixel aspect ratio; decoded frames and output are
+ * independently checked after normalization. No broad SAR/rotation bypass. */
+export function hasNoNonSquarePixelAspect(sar:unknown):boolean {
+  if(sar===undefined||sar===null||sar==="N/A"||sar==="0:1")return true;
+  if(typeof sar!=="string")return false;
+  const match=/^([1-9][0-9]{0,4}):([1-9][0-9]{0,4})$/.exec(sar);
+  return !!match&&Number(match[1])===Number(match[2]);
+}
+
 /** Only bounded numeric dimensions, never paths, URLs or probe metadata, enter diagnostics. */
 export function outputDimensionDiagnostic(
   width: unknown,
@@ -137,6 +147,13 @@ export async function validateOutput(
         audio.codec_name !== (contract.output.audioCodec ?? "aac")))
   )
     throw new Error("OUTPUT_CODEC_MISMATCH");
+  // Bounded numeric evidence only: no URLs, filenames or customer metadata.
+  const sourceDimensionMismatch = contract.discover720p
+    ? !Number.isInteger(video?.width) || !Number.isInteger(video?.height) ||
+      Math.min(video.width!,video.height!)!==720 || Math.max(video.width!,video.height!)>4096
+    : !matchesReviewedDimensions(video?.width,video?.height,contract.output.width,contract.output.height);
+  if(sourceDimensionMismatch)console.warn("OUTPUT_DIMENSION_REJECTED",outputDimensionDiagnostic(
+    video?.width,video?.height,contract.output.width,contract.output.height,contract.discover720p===true));
   if (
     contract.discover720p
       ? !Number.isInteger(video.width) ||
@@ -267,13 +284,29 @@ export async function validateDownloadedOutput(
     [24, 24000 / 1001, 30, 30000 / 1001].some(
       fps => Math.abs(actualFps - fps) < 0.005,
     );
-  const knownSourceRectangle =
-    !contract.discover720p &&
-    contract.output.width === 720 &&
-    contract.output.height === 1280 &&
-    video?.width === 786 && video.height === 1178;
-  if (!knownSourceRectangle && !normalizeFps) {
+  const reviewedOutputRectangle =
+    (contract.output.width === 720 && contract.output.height === 1280) ||
+    (contract.output.width === 1280 && contract.output.height === 720);
+  // Only the two observed BytePlus source rectangles may be resized to
+  // the explicitly reviewed 720p portrait/landscape export. The square
+  // 960x960 source was confirmed by the paid Staging recovery on 2026-11-10.
+  // All codec, duration, fps, pixel aspect and full-decode checks still apply.
+  const reviewedSourceRectangle =
+    !contract.discover720p && reviewedOutputRectangle &&
+    ((video?.width === 786 && video.height === 1178) ||
+     (video?.width === 960 && video.height === 960));
+  // Width and height are not interchangeable for a customer order. The
+  // shared provider validator accepts reviewed 720p rotations, but delivery
+  // MUST match the exact orientation chosen at checkout.
+  const needsOrientationFit = reviewedOutputRectangle &&
+    video?.width === contract.output.height &&
+    video?.height === contract.output.width;
+  if (!reviewedSourceRectangle && !normalizeFps && !needsOrientationFit) {
     await validateOutput(file, duration, contract);
+    if (reviewedOutputRectangle && (
+      video?.width !== contract.output.width ||
+      video?.height !== contract.output.height
+    )) throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
     return;
   }
   const metadata = video as typeof video & {
@@ -285,23 +318,39 @@ export async function validateDownloadedOutput(
     contract.output.videoCodec !== "h264" ||
     contract.output.audioCodec !== "aac" ||
     source.streams.length !== 2 ||
-    metadata?.sample_aspect_ratio !== "1:1" ||
+    !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ||
     metadata.side_data_list?.some(
       (s) => s.rotation !== undefined && s.rotation !== 0,
     )
-  ) throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
+  ) {
+    // Fixed, non-customer diagnostic only: no paths, media names, provider
+    // URLs, frame pixels, audio samples or FFmpeg stderr.
+    const policyReason = contract.discover720p ? "discover-mode" :
+      contract.output.videoCodec !== "h264" ? "video-contract" :
+      contract.output.audioCodec !== "aac" ? "audio-contract" :
+      source.streams.length !== 2 ? "stream-count" :
+      !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ? "sample-aspect-ratio" :
+      "rotation";
+    console.warn("OUTPUT_NORMALIZATION_REJECTED", "source-policy-" + policyReason);
+    throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
+  }
   // Decode and validate the entire untrusted source before local
-  // conversion. Only the reviewed 786x1178 source rectangle or the
-  // reviewed 720p portrait/landscape rectangle can be accepted.
+  // conversion. Only the observed 786x1178 or 960x960 sources and the
+  // reviewed 720p portrait/landscape rectangles can be accepted.
   await validateOutput(file, duration, {
     ...contract,
     output: {
       ...contract.output,
-      ...(knownSourceRectangle ? { width: 786, height: 1178 } : {}),
+      ...(reviewedSourceRectangle ? { width: video!.width!, height: video!.height! } : {}),
       ...(normalizeFps ? { fps: actualFps } : {}),
     },
   });
   await fitValidatedRectangle(file, duration, contract, normalizeFps);
+  const exported = (await probe(file)).streams.find(s => s.codec_type === "video");
+  if (reviewedOutputRectangle && (
+    exported?.width !== contract.output.width ||
+    exported?.height !== contract.output.height
+  )) throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
 }
 /** Local export only; does not send an aspect-ratio parameter to BytePlus. */
 export function exportContract<T extends OutputValidationContract>(
@@ -427,28 +476,29 @@ async function fitValidatedRectangle(
       const after = result.streams.find(
         (s) => s.codec_type === kind,
       ) as typeof before;
-      if (
+      const reason =
         ![before, after].every(
           (s) =>
-            Number.isFinite(Number(s.duration)) &&
-            Number.isFinite(Number(s.start_time)),
-        ) ||
+            Number.isFinite(Number(s?.duration)) &&
+            Number.isFinite(Number(s?.start_time)),
+        ) ? "missing-stream-timeline" :
         Math.abs(Number(before.duration) - Number(after.duration)) >
-          1 / contract.output.fps + (normalizeFps ? 0.01 : 0) ||
-        // MP4 remuxing with stream-copy MP3 may move start_time by one
-        // codec/frame tick while leaving the packet payload unchanged.
-        // Reject shifts beyond one output video frame plus 10ms rounding.
+          1 / contract.output.fps + (normalizeFps ? 0.01 : 0) ? "stream-duration-drift" :
         Math.abs(Number(before.start_time) - Number(after.start_time)) >
-          1 / contract.output.fps + 0.01 ||
+          1 / contract.output.fps + 0.01 ? "stream-start-drift" :
         (kind === "video" && !normalizeFps &&
           before.nb_frames !== undefined &&
           after.nb_frames !== undefined &&
-          before.nb_frames !== after.nb_frames)
-      )
+          before.nb_frames !== after.nb_frames) ? "video-frame-count-drift" : null;
+      if (reason) {
+        console.warn("OUTPUT_NORMALIZATION_REJECTED", kind + "-" + reason);
         throw new Error("OUTPUT_NORMALIZATION_TIMING_FAILED");
+      }
     }
-    if ((await audioHash(file)) !== (await audioHash(normalized)))
+    if ((await audioHash(file)) !== (await audioHash(normalized))) {
+      console.warn("OUTPUT_NORMALIZATION_REJECTED", "audio-packet-mismatch");
       throw new Error("OUTPUT_NORMALIZATION_AUDIO_CHANGED");
+    }
     // Only the newly downloaded private temporary file is replaced, never a
     // retained customer upload, ledger record or previously published MP4.
     await rename(normalized, file);
