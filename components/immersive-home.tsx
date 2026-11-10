@@ -96,6 +96,7 @@ export function ImmersiveHome(){
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(true);
  const [failed,setFailed]=useState<Record<number,boolean>>({});
+ const [loaded,setLoaded]=useState<Record<number,boolean>>({});
  const [dragging,setDragging]=useState(false);
  const [portraitSlide,setPortraitSlide]=useState(0);
  const feed=useRef<HTMLDivElement>(null);
@@ -214,8 +215,8 @@ export function ImmersiveHome(){
     </div>
     <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url||i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`,transition:"none"}:undefined}>
-       <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("${cover}")`}} aria-hidden="true"/>
-       {item.url&&!failed[i]&&<video className="sm-mobile-reel-video" src={item.url} playsInline muted loop preload={Math.abs(currentClip-i)<=1?"auto":"metadata"} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
+       <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("/api/showcase-media?kind=mobile-fallback")`,opacity:loaded[i]&&!failed[i]?0:1}} aria-hidden="true"/>
+       {item.url&&!failed[i]&&<video className="sm-mobile-reel-video" src={item.url} playsInline muted loop preload={Math.abs(currentClip-i)<=1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
