@@ -94,9 +94,11 @@ export async function deliverReviewedPaidVideo(
  transport?:OutputTransport,
 ):Promise<"delivered"|"already-delivered">{
  if(!/^[a-f0-9-]{36}$/.test(orderId))throw Error("Invalid paid order reference");
- const order=store.db.prepare("SELECT account_id,status FROM customer_orders WHERE id=?").get(orderId) as
-   {account_id:string|null;status:string}|undefined;
- if(!order?.account_id||order.status!=="paid")throw Error("Paid customer order required");
+ const order=store.db.prepare("SELECT account_id,status,guest_hash FROM customer_orders WHERE id=?").get(orderId) as
+   {account_id:string|null;status:string;guest_hash:string|null}|undefined;
+ const guestOwner=!order?.account_id?store.guestMediaOwner(orderId):null;
+ if(!order||order.status!=="paid"||(!order.account_id&&(!order.guest_hash||!guestOwner)))
+  throw Error("Paid customer order required");
  const queue=store.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(orderId) as {state:string}|undefined;
  if(queue?.state==="delivered")return "already-delivered";
  if(queue?.state!=="processing"||store.paidProviderJob(orderId)?.provider!=="byteplus")
@@ -154,7 +156,7 @@ export async function deliverReviewedPaidVideo(
  }
  const details=await stat(file);
  const assetId=`customer-video-${orderId}`;
- const owner=`customer-${order.account_id}`;
+ const owner=order.account_id?`customer-${order.account_id}`:guestOwner!;
  const prior=db.prepare("SELECT 1 FROM assets WHERE id=?").get(assetId);
  if(prior){
   const stored=asset(assetId,owner);
@@ -168,12 +170,12 @@ export async function deliverReviewedPaidVideo(
  }
  // The R2 copy is strictly optional outside protected staging; when enabled,
  // a delivered receipt must never point at an unverified remote archive.
- const accountId=order.account_id;
+ const accountId=order.account_id??orderId;
  const cloud=await deliveryStage("private-archive",()=>mirrorPrivatePaidVideo(accountId,orderId,file,details.size));
  if(cloud){
   // The output is not downloadable until we have reread and SHA-256 verified
   // the full private R2 object. HEAD metadata alone is insufficient.
-  const body=await paidR2ByteRange(order.account_id,orderId,cloud,0,cloud.bytes-1);
+  const body=await paidR2ByteRange(accountId,orderId,cloud,0,cloud.bytes-1);
   const reader=body.getReader();
   const digest=createHash("sha256");
   let size=0;
@@ -189,10 +191,10 @@ export async function deliverReviewedPaidVideo(
   if(size!==cloud.bytes||digest.digest("hex")!==cloud.sha256)
    throw Error("Cloud paid video content verification failed");
   store.db.exec("CREATE TABLE IF NOT EXISTS cloud_paid_videos(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,key TEXT UNIQUE NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL)");
-  const previous=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,order.account_id) as {key:string;sha256:string;bytes:number}|undefined;
+  const previous=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,accountId) as {key:string;sha256:string;bytes:number}|undefined;
   if(previous && (previous.key!==cloud.key||previous.sha256!==cloud.sha256||previous.bytes!==cloud.bytes))
    throw Error("Paid R2 archive requires operator reconciliation");
-  if(!previous)store.db.prepare("INSERT INTO cloud_paid_videos(order_id,account_id,key,sha256,bytes,created) VALUES(?,?,?,?,?,?)").run(orderId,order.account_id,cloud.key,cloud.sha256,cloud.bytes,Date.now());
+  if(!previous)store.db.prepare("INSERT INTO cloud_paid_videos(order_id,account_id,key,sha256,bytes,created) VALUES(?,?,?,?,?,?)").run(orderId,accountId,cloud.key,cloud.sha256,cloud.bytes,Date.now());
  }
  const evidence=`private-validated-byteplus-output:${orderId}:${details.size}`;
  store.recordPaidVideoDelivery(orderId,assetId,evidence);

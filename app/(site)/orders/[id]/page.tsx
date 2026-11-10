@@ -29,6 +29,7 @@ export default async function Page({
     fulfillmentState: string | null = null,
     videoReady = false,
     authenticatedOwner = false,
+    guestOwner = false,
     promotion: {code:string;original_cents:number;discount_cents:number;state:string}|null = null,
     store: CommerceStore | undefined;
   if (
@@ -42,6 +43,7 @@ export default async function Page({
       const guestToken = c.get(`sm_guest_${id}`)?.value;
       order = store.ownedOrder(id, account, guestToken);
       authenticatedOwner = Boolean(account && order && order.account_id === account);
+      guestOwner = Boolean(order && !order.account_id && guestToken);
       if(authenticatedOwner && store.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='promo_redemptions'").get())
         promotion = store.db.prepare("SELECT code,original_cents,discount_cents,state FROM promo_redemptions WHERE order_id=?")
           .get(id) as {code:string;original_cents:number;discount_cents:number;state:string} | undefined ?? null;
@@ -78,12 +80,13 @@ export default async function Page({
               No payment or AI provider job has been started.
             </p>}
 
-            {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState &&
+            {(authenticatedOwner||guestOwner) && order.status==="awaiting_payment" && !fulfillmentState &&
               Number(order.price_cents)>0 && customerLaunchReadiness().readyForPaidOrders &&
               <CustomerVideoCheckout orderId={id}
                 staging={process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"}/>}
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
-            {authenticatedOwner && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} />}
+            {(authenticatedOwner||guestOwner) && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} guest={guestOwner} />}
+            {guestOwner && <p className="sm-order-assurance">No customer account required. Keep your private order link safe; it is needed to reopen this video on a new device.</p>}
             {order.status==="awaiting_payment" && <p>Payment has not been confirmed. No video generation has started. Complete secure Checkout to begin processing.</p>}
             <p className="sm-order-assurance">Probleme mit dem Video oder der Lieferung? <Link href="/contact">Reklamation und Support</Link>. Gesetzliche Ansprüche bleiben bestehen. <Link href="/withdrawal">Vertrag widerrufen</Link> ist davon getrennt.</p>
             {order.status==="paid" && !videoReady && <p className="sm-order-assurance">Your payment is confirmed. We will show the video here once processing and private validation are complete. You do not need to pay again.</p>}

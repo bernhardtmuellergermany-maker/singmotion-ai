@@ -62,16 +62,18 @@ export async function dispatchReviewedCustomerBytePlus(
      !productionCustomerReleaseApproved(env) && !assessProductionSandboxPilot(env).ready) ||
     env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED!=="true")
   throw Error("Customer provider dispatch not authorized for this environment");
- const order=store.db.prepare("SELECT account_id,status FROM customer_orders WHERE id=?")
-  .get(orderId) as {account_id:string|null;status:string}|undefined;
- if(!order?.account_id||order.status!=="paid")throw Error("Paid authenticated account order required");
+ const order=store.db.prepare("SELECT account_id,status,guest_hash FROM customer_orders WHERE id=?")
+  .get(orderId) as {account_id:string|null;status:string;guest_hash:string|null}|undefined;
+ const owner=order?.account_id?`customer-${order.account_id}`:store.guestMediaOwner(orderId);
+ if(!order||order.status!=="paid"||!owner||(!order.account_id&&!order.guest_hash))
+  throw Error("Paid authenticated account or reviewed guest order required");
  if(!store.hasEarlyPerformanceConsent(orderId))throw Error("Early performance acknowledgement missing");
  if(!store.hasContractConfirmation(orderId))throw Error("Durable contract confirmation missing");
  if(review.signal.aborted)throw Error("Provider submission aborted");
  return submitReviewedPaidVideo(store,orderId,{
   verify:review.verify,
   providerCost:(media)=>{
-   if(media.owner!==`customer-${order.account_id}`)
+   if(media.owner!==owner)
     throw Error("Customer media owner mismatch");
    return reviewedCustomerBytePlusCost(media,review);
   },

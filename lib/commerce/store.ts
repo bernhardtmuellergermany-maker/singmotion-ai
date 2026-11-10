@@ -52,6 +52,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT UNIQUE NOT NULL,evidence_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS free_promo_video_deliveries(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,sha256 TEXT NOT NULL,bytes INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_order_inputs(order_id TEXT PRIMARY KEY,input_digest TEXT NOT NULL,review_digest TEXT NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_guest_media_owners(order_id TEXT PRIMARY KEY,media_owner TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_submissions(order_id TEXT PRIMARY KEY,provider TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('submitted_or_unknown','acknowledged')),created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_provider_cost_reservations(order_id TEXT PRIMARY KEY,inclusive_micro_usd INTEGER NOT NULL,review_hash TEXT NOT NULL,reserved_at INTEGER NOT NULL);
@@ -333,7 +334,7 @@ export class CommerceStore {
           id,
           input.account,
           token ? hash(token) : null,
-          token ? Date.now() + 86400000 : null,
+          token ? Date.now() + 90*86400000 : null,
           input.email,
           input.project,
           input.cents,
@@ -432,6 +433,11 @@ export class CommerceStore {
         }
       }
       this.bindPreparedOrderMedia(created.id, media);
+      if(!input.account){
+        const priorOwner=this.db.prepare("SELECT media_owner FROM customer_guest_media_owners WHERE order_id=?").get(created.id) as {media_owner:string}|undefined;
+        if(priorOwner && priorOwner.media_owner!==media.owner)throw Error("Guest media owner conflict");
+        if(!priorOwner)this.db.prepare("INSERT INTO customer_guest_media_owners VALUES(?,?,?)").run(created.id,media.owner,Date.now());
+      }
       const snapshot = JSON.stringify(media);
       if (snapshot.length > 16000 || !media.audioPath || !media.imagePath || !media.owner)
         throw Error("Private prepared media snapshot required");
@@ -465,6 +471,36 @@ export class CommerceStore {
     )
       throw Error("Order unavailable");
     return o;
+  }
+  /** Durable guest media ownership is independent of a mutable browser draft. */
+  guestMediaOwner(orderId:string):string|null{
+    const row=this.db.prepare(`SELECT g.media_owner FROM customer_guest_media_owners g
+      JOIN customer_orders o ON o.id=g.order_id AND o.account_id IS NULL
+      WHERE g.order_id=?`).get(orderId) as {media_owner:string}|undefined;
+    return row?.media_owner??null;
+  }
+  /** Authenticated guest capability is checked against the exact order ID,
+   * not a site-wide login; no cookie-less checkout or provider call is possible. */
+  recordGuestEarlyPerformanceConsent(orderId:string,guestToken:string){
+    return this.tx(()=>{
+      this.ownedOrder(orderId,null,guestToken);
+      if(!this.guestMediaOwner(orderId)||!this.reviewedOrderReadyForCheckout(orderId))
+        throw Error("Reviewed guest order required");
+      const row=this.db.prepare("SELECT review_digest FROM customer_order_inputs WHERE order_id=?")
+        .get(orderId) as {review_digest:string}|undefined;
+      if(!row)throw Error("Guest review missing");
+      const accountRef="guest:"+orderId,version="early-performance-v1-2026-11-09";
+      const prior=this.db.prepare("SELECT account_id,notice_version,review_digest FROM customer_early_performance_consents WHERE order_id=?")
+        .get(orderId) as {account_id:string;notice_version:string;review_digest:string}|undefined;
+      if(prior){
+        if(prior.account_id!==accountRef||prior.notice_version!==version||prior.review_digest!==row.review_digest)
+          throw Error("Guest consent snapshot conflict");
+        return;
+      }
+      this.db.prepare("INSERT INTO customer_early_performance_consents(order_id,account_id,notice_version,review_digest,acknowledged_at) VALUES(?,?,?,?,?)")
+        .run(orderId,accountRef,version,row.review_digest,Date.now());
+      this.audit("guest-early-performance-consent",version,orderId);
+    });
   }
   reserveCredit(id: string, account: string) {
     return this.tx(() => {

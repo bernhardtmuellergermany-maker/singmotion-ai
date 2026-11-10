@@ -26,10 +26,16 @@ export async function GET(req: NextRequest) {
   let streaming=false;
   try{
     const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
-    if(!accountId)return deniedVideo(401);
-    const assetId=store.ownedDeliveredVideoAsset(orderId,accountId);
+    const guestToken=req.cookies.get("sm_guest_"+orderId)?.value;
+    if(!accountId&&!guestToken)return deniedVideo(401);
+    store.ownedOrder(orderId,accountId,guestToken);
+    const guestOwner=store.guestMediaOwner(orderId);
+    const storageOwner=guestOwner??(accountId?`customer-${accountId}`:null);
+    if(!storageOwner)return deniedVideo();
+    const assetId=store.ownedDeliveredVideoAsset(orderId,accountId,guestToken);
     if(!assetId)return deniedVideo();
-    const video=asset(assetId,`customer-${accountId}`);
+    const video=asset(assetId,storageOwner);
+    const archiveIdentity=guestOwner?orderId:accountId!;
     if(video.kind!=="video"||video.mime!=="video/mp4")return deniedVideo();
     let inCloud:CloudPaidVideoRecord|undefined;
     try{
@@ -42,7 +48,7 @@ export async function GET(req: NextRequest) {
       // local file-integrity failures or the paid owner/session authorization.
       if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
       if(!store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_paid_videos'").get())throw error;
-      inCloud=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,accountId) as CloudPaidVideoRecord|undefined;
+      inCloud=store.db.prepare("SELECT key,sha256,bytes FROM cloud_paid_videos WHERE order_id=? AND account_id=?").get(orderId,archiveIdentity) as CloudPaidVideoRecord|undefined;
       if(!inCloud||inCloud.bytes!==video.bytes)throw error;
     }
     const size=inCloud?.bytes??video.bytes;
@@ -51,7 +57,7 @@ export async function GET(req: NextRequest) {
       headers:{...headers,"Content-Range":`bytes */${size}`}});
     const {start,end,status}=range;
     const body=inCloud
-      ? await paidR2ByteRange(accountId,orderId,inCloud,start,end,req.signal)
+      ? await paidR2ByteRange(archiveIdentity,orderId,inCloud,start,end,req.signal)
       : streamVerifiedPaidVideoRange(fileHandle!,start,end,req.signal);
     streaming=true;
     return new Response(body,{status,headers:{...headers,

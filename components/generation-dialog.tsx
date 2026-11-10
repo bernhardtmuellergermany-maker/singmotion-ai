@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ensureSession, resetSession } from "@/lib/client";
+import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
 const usd = (n: number) => `USD ${(n / 1000000).toFixed(2)}`;
@@ -39,6 +39,8 @@ export function GenerationDialog({
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
     [customerCheckoutEnabled,setCustomerCheckoutEnabled] = useState(false),
     [savedOrderId,setSavedOrderId] = useState(""),
+    [guestEmail,setGuestEmail] = useState(""),
+    [guestAccessUrl,setGuestAccessUrl] = useState(""),
     [customerQuote, setCustomerQuote] = useState<{plan:string;includedBalanceSeconds:number;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number;promotion?:{discountCents:number;finalCents:number;kind:string;percent:number|null}|null}|null>(null),
     [promoCode,setPromoCode] = useState(""),
     [appliedPromo,setAppliedPromo] = useState(""),
@@ -208,14 +210,19 @@ export function GenerationDialog({
     setCheckoutStep("preparing");
     setError("");
     try {
-      // Ensure a fresh media session after login. A restored guest draft must
-      // never be charged as if its files belonged to the customer account.
-      resetSession();
+      // Guests retain their private upload workspace; resetting it would
+      // orphan their verified assets and make delivery impossible.
       const workspace = await ensureSession() as {owner?:string};
-      if (!workspace.owner?.startsWith("customer-"))
-        throw Error("Please sign in to your customer account before generating a paid video.");
-      if (selection.owner !== workspace.owner)
-        throw Error("This project was prepared in another session. Reopen Studio while signed in and import or reupload your audio and image before paying.");
+      const account=workspace.owner?.startsWith("customer-")===true;
+      if (!workspace.owner || selection.owner !== workspace.owner)
+        throw Error("This project's private uploads belong to another session. Reopen Studio in the original browser.");
+      if (!account && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))
+        throw Error("Enter a valid email address for your guest order confirmation.");
+      if (savedOrderId && guestAccessUrl) {
+        setCheckoutStep("redirecting");
+        await openCustomerCheckout(savedOrderId);
+        return;
+      }
       let orderId = savedOrderId;
       if (!orderId) {
         const response = await fetch("/api/customer-orders", {
@@ -225,16 +232,22 @@ export function GenerationDialog({
             projectId: requestKey, requestKey, draft: selection,
             consent: true, termsVersion: terms,
             ...(appliedPromo ? {promoCode: appliedPromo} : {}),
+            ...(!account ? {email:guestEmail.trim()} : {}),
           }),
         });
         const result = await response.json() as {
           orderId?:string;error?:string;checkoutReady?:boolean;
-          includedOnly?:boolean;promotionAwaitingActivation?:boolean;
+          includedOnly?:boolean;promotionAwaitingActivation?:boolean;guestAccessUrl?:string;
         };
         if (!response.ok || !result.orderId)
           throw Error(result.error || "Order preparation failed.");
         orderId = result.orderId;
         setSavedOrderId(orderId);
+        if(result.guestAccessUrl){
+          // A guest must be able to save the secret link before leaving for Stripe.
+          setGuestAccessUrl(result.guestAccessUrl);
+          return;
+        }
         if (!result.checkoutReady) {
           // No Stripe charge may be requested for included-only or free
           // promotion orders. Their existing authorization flows remain.
@@ -347,7 +360,7 @@ export function GenerationDialog({
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
       {customerQuote && <p className="sm-confirm-notice" role="status">Your {customerQuote.plan==="hobby"?"Hobby":"pay-as-you-go"} estimate: {customerQuote.estimatedBillableSeconds} chargeable seconds, {customerQuote.includedSeconds} included, {customerQuote.extraSeconds} payable. {customerQuote.plan==="hobby"?`${customerQuote.includedBalanceSeconds} included seconds currently available. `:""}This is not a final charge. Generated output duration may differ; the binding total must be confirmed before payment or generation.</p>}
-      {customerOrdersAvailable && <section aria-label="Promotion code" className="sm-confirm-notice">
+      {customerOrdersAvailable && selection.owner.startsWith("customer-") && <section aria-label="Promotion code" className="sm-confirm-notice">
         <label htmlFor="generation-promo-code">Promotion code (optional)</label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
           <input id="generation-promo-code" type="text" maxLength={40} autoComplete="off"
@@ -369,6 +382,17 @@ export function GenerationDialog({
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
+      {customerOrdersAvailable && !selection.owner.startsWith("customer-") && <div className="sm-confirm-notice">
+        <label htmlFor="guest-buyer-email">E-Mail für die Gastbestellung</label>
+        <input id="guest-buyer-email" type="email" autoComplete="email" required
+          maxLength={254} disabled={busy || !!savedOrderId} value={guestEmail}
+          onChange={e=>setGuestEmail(e.target.value)} placeholder="deine@email.de"/>
+        <p>Kein Konto erforderlich. Speichere den privaten Bestelllink vor dem Bezahlen.</p>
+        {guestAccessUrl&&<p role="status">
+          Dein privater Bestelllink: <a href={guestAccessUrl}>{guestAccessUrl}</a>
+          {" "}Bitte kopieren oder als Lesezeichen speichern, bevor du fortfährst.
+        </p>}
+      </div>}
       {customerOrdersAvailable && <div className="sm-confirm-notice" aria-label="Early digital performance acknowledgements">
         <label className="consent sm-confirm-consent">
           <input type="checkbox" checked={immediateStart} disabled={busy} onChange={e=>setImmediateStart(e.target.checked)}/>
@@ -398,7 +422,7 @@ export function GenerationDialog({
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerOrdersAvailable ?
-          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !immediateStart || !withdrawalConsequences || !terms || !customerQuote || quotePending || promoCode.trim().toUpperCase()!==appliedPromo} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : "Generate Video"}</button> :
+          <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !immediateStart || !withdrawalConsequences || !terms || !customerQuote || quotePending || (selection.owner.startsWith("customer-") && promoCode.trim().toUpperCase()!==appliedPromo) || (!selection.owner.startsWith("customer-") && !guestAccessUrl && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : guestAccessUrl?"Continue to Stripe Checkout":"Generate Video"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
     </dialog>

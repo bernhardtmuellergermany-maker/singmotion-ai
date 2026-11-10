@@ -49,14 +49,14 @@ export async function POST(req: NextRequest) {
       return reply({error:"Both explicit production-start acknowledgements are required."},400);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const accountId = store.session(req.cookies.get("sm_customer")?.value || "");
-    // Real videos are delivered only to the authenticated owning account.
-    // A guest order cannot be sent to BytePlus or privately downloaded by
-    // our current paid customer pipeline, so never collect Stripe money for it.
-    if(!accountId)return reply({error:"Sign in before paying for a real video."},401);
-    if(!store.emailVerified(accountId))return reply({error:"Verify your email before paying for a video.",code:"EMAIL_NOT_VERIFIED"},403);
-    const order = store.ownedOrder(input.orderId, accountId);
-    if(order.account_id!==accountId)
-      return reply({error:"Customer-owned video order required."},403);
+    const guestToken=!accountId?req.cookies.get("sm_guest_"+input.orderId)?.value:undefined;
+    if(!accountId&&!guestToken)return reply({error:"Private guest order link required."},401);
+    if(accountId&&!store.emailVerified(accountId))
+      return reply({error:"Verify your email before paying for a video.",code:"EMAIL_NOT_VERIFIED"},403);
+    const order=store.ownedOrder(input.orderId,accountId,guestToken);
+    if(accountId ? order.account_id!==accountId : order.account_id!==null ||
+       !store.guestMediaOwner(input.orderId))
+      return reply({error:"Verified private video order required."},403);
     // Payment cannot open until the reviewed input snapshot is permanently bound.
     if (!store.reviewedOrderReadyForCheckout(String(order.id)))
       return reply({ error: "Video inputs must be reviewed before Checkout." }, 409);
@@ -67,7 +67,8 @@ export async function POST(req: NextRequest) {
       return reply({ error: "Order is not eligible for Checkout." }, 409);
     // Persist the exact acknowledgement version and reviewed commercial snapshot
     // before creating a payable Stripe Session. Client flags alone are insufficient.
-    store.recordEarlyPerformanceConsent(String(order.id),accountId);
+    if(accountId)store.recordEarlyPerformanceConsent(String(order.id),accountId);
+    else store.recordGuestEarlyPerformanceConsent(String(order.id),guestToken!);
     const form = new URLSearchParams({
       mode: "payment",
       ...stripeVideoCheckoutLineItem(cents),

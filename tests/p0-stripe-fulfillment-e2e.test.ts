@@ -137,3 +137,71 @@ test("P0 ambiguous BytePlus acceptance never repeats a paid provider request aft
   assert.ok(!store.ownedDeliveredVideoAsset(order.id,account));
  }finally{store.close()}
 });
+
+
+test("P0 guest checkout requires private order capability and delivers paid BytePlus video without an account",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const guestOwner="4fc6a1a7-6434-4f52-a8b7-24a589cf9d71";
+  const created=store.preparedVideoOrder({
+   account:null,email:"guest-p0@example.test",project:"guest-private-video",
+   cents:price,quoteEvidence:"verified-independent-guest-quote-2026",
+   key:"guest-private-p0-order",media:media(guestOwner),
+  });
+  assert.ok(created.guestToken);
+  assert.equal(store.guestMediaOwner(created.id),guestOwner);
+  assert.throws(()=>store.ownedOrder(created.id,null,"wrong-token"),/unavailable/);
+  assert.throws(()=>store.recordGuestEarlyPerformanceConsent(created.id,"wrong-token"),/unavailable/);
+  store.recordGuestEarlyPerformanceConsent(created.id,created.guestToken!);
+  assert.equal(store.hasEarlyPerformanceConsent(created.id),true);
+  assert.ok(store.reviewedOrderReadyForCheckout(created.id));
+  const checkout="cs_test_guest_verified_p0";
+  store.bindStripeCheckout(created.id,checkout);
+  const paid=signedPayment(created.id,checkout,"evt_guest_first");
+  const adapter=stripeCheckoutAdapter(signingSecret,"test");
+  await store.webhook(paid.raw,paid.signature,adapter);
+  await store.webhook(paid.raw,paid.signature,adapter);
+  let providerCalls=0;
+  const result=await submitReviewedPaidVideo(store,created.id,{
+   verify:async()=>{},
+   providerCost:{inclusiveMaxMicroUsd:700000,dailyCapMicroUsd:5000000,
+    lifetimeCapMicroUsd:25000000,reviewEvidence:"guest-offline-reviewed-total-cost"},
+   submit:async()=>{providerCalls++;return "byteplus-guest-p0-verified";},
+  });
+  assert.equal(result,"submitted");
+  assert.equal(providerCalls,1);
+  assert.equal(store.recordPaidVideoDelivery(created.id,"guest-private-asset-001",
+   "verified-private-guest-r2-download-2026"),true);
+  assert.equal(store.finalizePaidFulfillment(created.id,{
+   state:"delivered",deliveryEvidence:"verified-guest-byteplus-private-delivery-2026",
+  }),true);
+  assert.equal(store.ownedDeliveredVideoAsset(created.id,null,created.guestToken!),
+   "guest-private-asset-001");
+  assert.throws(()=>store.ownedDeliveredVideoAsset(created.id,null,"another-guest"),/unavailable/);
+  assert.equal(await submitReviewedPaidVideo(store,created.id,{
+   verify:async()=>{},providerCost:{inclusiveMaxMicroUsd:700000,
+    dailyCapMicroUsd:5000000,lifetimeCapMicroUsd:25000000,
+    reviewEvidence:"guest-offline-reviewed-total-cost"},
+   submit:async()=>{providerCalls++;return "should-never-submit";},
+  }),"already-claimed");
+  assert.equal(providerCalls,1);
+ }finally{store.close()}
+});
+
+test("P0 guest quote idempotency cannot rebind a previous order to changed private media",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const first=store.preparedVideoOrder({
+   account:null,email:"guest-immutable@example.test",project:"guest-order",
+   cents:price,quoteEvidence:"guest-price-review-immutable-fixture-2026",
+   key:"guest-idempotent-one",media:media("492efbc2-a7a9-4d74-a8bb-8dc93de25147"),
+  });
+  assert.ok(first.guestToken);
+  assert.throws(()=>store.preparedVideoOrder({
+   account:null,email:"guest-immutable@example.test",project:"guest-order",
+   cents:price,quoteEvidence:"guest-price-review-immutable-fixture-2026",
+   key:"guest-idempotent-one",media:media("aa7f9db1-b2b8-43c9-af99-9a210b9e0aa1"),
+  }),/Idempotency|owner conflict/);
+  assert.equal(store.guestMediaOwner(first.id),"492efbc2-a7a9-4d74-a8bb-8dc93de25147");
+ }finally{store.close()}
+});
