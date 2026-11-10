@@ -1,5 +1,6 @@
 import { pollStudioProjects } from "../lib/live/studio-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
+import {customerLaunchReadiness} from "../lib/commerce/readiness.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 import {retryVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
 import { randomUUID } from "node:crypto";
@@ -38,6 +39,13 @@ process.on("SIGINT", () => {
 console.log(
   "SingMotion worker ready. Demo and Studio recovery are separate; paid customer dispatch requires independently reviewed policy, bounded spend and explicit staging enablement.",
 );
+// Startup evidence for operational launch diagnosis. No tokens, credentials,
+// customer identifiers, media paths or payment details are logged.
+const paidReadiness=customerLaunchReadiness();
+console.info("CUSTOMER_CHECKOUT_READINESS",JSON.stringify({
+ ready:paidReadiness.readyForPaidOrders,
+ blockers:paidReadiness.blockers,
+}));
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
