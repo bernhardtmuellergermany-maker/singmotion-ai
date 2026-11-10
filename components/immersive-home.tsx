@@ -345,9 +345,9 @@ export function ImmersiveHome(){
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
-    {(pullOffset>0||feedBusy)&&<div className={"sm-mobile-refresh-indicator"+(feedBusy?" is-loading":"")} style={{"--refresh-pull":Math.min(92,pullOffset*.25)+"px","--refresh-rotation":Math.round(pullOffset/Math.max(refreshThreshold(),1)*310)+"deg"} as React.CSSProperties} role="status" aria-label={feedBusy?"Videos werden aktualisiert":refreshing?"Loslassen zum Aktualisieren":"Zum Aktualisieren weiterziehen"}>
+    <div className={"sm-mobile-refresh-indicator"+(feedBusy?" is-loading":pullOffset>0?" is-pulling":"")} style={{"--refresh-y":Math.round(-68+Math.min(1,pullOffset/refreshThreshold())*202)+"px","--refresh-rotation":Math.round(pullOffset/refreshThreshold()*340)+"deg"} as React.CSSProperties} role="status" aria-hidden={pullOffset===0&&!feedBusy} aria-label={feedBusy?"Videos werden aktualisiert":refreshing?"Loslassen zum Aktualisieren":"Zum Aktualisieren weiterziehen"}>
       <RotateCw size={29} strokeWidth={3}/>
-    </div>}
+    </div>
     <div className="sm-mobile-reel-content">
      <h1>Turn your song into a music video.</h1>
      <p>Make your music come alive with SingMotion AI.</p>
