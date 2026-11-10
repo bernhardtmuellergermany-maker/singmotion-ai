@@ -89,8 +89,25 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  </section>;
 }
 
+/** Shuffle only already-public CMS entries, avoiding immediate repeats. */
+function nextMobileBatch(pool:ShowcaseClip[],last?:string,count=12):ShowcaseClip[]{
+ if(!pool.length)return [];
+ const result:ShowcaseClip[]=[];
+ let previous=last;
+ while(result.length<count){
+  const bag=[...pool];
+  for(let i=bag.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[bag[i],bag[j]]=[bag[j],bag[i]];}
+  if(bag.length>1&&bag[0].url===previous){const alternate=bag.findIndex(v=>v.url!==previous);if(alternate>0)[bag[0],bag[alternate]]=[bag[alternate],bag[0]];}
+  for(const item of bag){if(item.url!==previous||pool.length===1){result.push(item);previous=item.url;}if(result.length===count)break;}
+ }
+ return result;
+}
+
 export function ImmersiveHome(){
  const [clips,setClips]=useState<ShowcaseClip[]>([]);
+ const mobilePool=useRef<ShowcaseClip[]>([]);
+ const [feedBusy,setFeedBusy]=useState(false);
+ const appendPending=useRef(false);
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
  const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
@@ -140,7 +157,11 @@ export function ImmersiveHome(){
       localStorage.setItem("sm-mobile-last-first-clip",publicClips[0].url);
      }catch{}
     }
-    setClips(publicClips);
+    mobilePool.current=publicClips;
+    setCurrentClip(0);
+    setFailed({});
+    setLoaded({});
+    setClips(nextMobileBatch(publicClips,undefined,Math.max(12,publicClips.length)));
    })
    .catch(()=>{if(active)setClips([])});
   fetch("/api/showcase?channel=desktop_portrait",{cache:"no-store"})
@@ -195,6 +216,37 @@ export function ImmersiveHome(){
   document.addEventListener("visibilitychange",visibility);
   return()=>document.removeEventListener("visibilitychange",visibility);
  },[clips,currentClip,muted,failed]);
+ // Unlimited random browsing from CMS-approved videos only. New batches are
+ // appended ahead of the viewport, without fetching or rendering whole movies.
+ useEffect(()=>{
+  if(!mobilePool.current.length||appendPending.current||currentClip<clips.length-5)return;
+  appendPending.current=true;
+  setClips(prev=>[...prev,...nextMobileBatch(mobilePool.current,prev.at(-1)?.url,12)]);
+ },[currentClip,clips.length]);
+ useEffect(()=>{appendPending.current=false},[clips.length]);
+ const refreshFeed=async()=>{
+  if(feedBusy)return;
+  setFeedBusy(true);
+  try{
+   const response=await fetch("/api/showcase?channel=mobile",{cache:"no-store"});
+   if(!response.ok)throw Error("Feed temporarily unavailable");
+   const data=await response.json();
+   const entries=Array.isArray(data?.videos)?data.videos:[data];
+   const pool:ShowcaseClip[]=entries.flatMap((item:unknown)=>{
+    if(!item||typeof item!=="object")return [];
+    const v=item as {videoUrl?:unknown;title?:unknown};
+    if(typeof v.videoUrl!=="string"||!(v.videoUrl.startsWith("/")&&!v.videoUrl.startsWith("//")||v.videoUrl.startsWith("https://")))return [];
+    return [{url:v.videoUrl,title:typeof v.title==="string"?v.title:showcase.title}];
+   });
+   if(pool.length){
+    mobilePool.current=pool;
+    setCurrentClip(0);setFailed({});setLoaded({});
+    setClips(nextMobileBatch(pool,clips[currentClip]?.url,Math.max(12,pool.length)));
+    feed.current?.scrollTo({top:0,behavior:"instant"});
+   }
+  }catch{ /* Keep previously approved videos available on network errors. */ }
+  finally{setPullOffset(0);setRefreshing(false);setFeedBusy(false);}
+ };
  const moveTo=(index:number)=>{
   const container=feed.current;
   if(!container||index<0||index>=clips.length)return;
@@ -205,6 +257,13 @@ export function ImmersiveHome(){
   if(!container||!container.clientHeight)return;
   const next=Math.max(0,Math.min(clips.length-1,Math.round(container.scrollTop/container.clientHeight)));
   setCurrentClip(prev=>prev===next?prev:next);
+  // Bound DOM growth for long sessions while preserving scroll position.
+  if(next>50&&clips.length>80){
+   const drop=24, height=container.clientHeight;
+   setClips(prev=>prev.slice(drop));
+   setCurrentClip(next-drop);
+   window.requestAnimationFrame(()=>container.scrollTo({top:container.scrollTop-drop*height,behavior:"instant"}));
+  }
  };
  const startTouch=(e:React.TouchEvent)=>{
   const t=e.touches[0];
@@ -236,7 +295,7 @@ export function ImmersiveHome(){
   const t=e.changedTouches[0],start=touchStart.current;
   touchStart.current=null;
   if(t&&start&&start.atTop&&currentClip===0&&t.clientY-start.y>125&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4){
-   window.location.reload();return;
+   setPullOffset(36);void refreshFeed();return;
   }
   setRefreshing(false);
   setPullOffset(0);
@@ -255,10 +314,10 @@ export function ImmersiveHome(){
      <p>With SingMotion AI — your song, your performance.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
+    <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className={"sm-mobile-reel"+(i===0&&currentClip===0&&clips.length>1?" is-discovery":"")} key={item.url||i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`,transition:"none"}:undefined}>
        <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("/api/showcase-media?kind=mobile-fallback")`,opacity:loaded[i]&&!failed[i]?0:1}} aria-hidden="true"/>
-       {item.url&&!failed[i]&&<video className="sm-mobile-reel-video" src={item.url} playsInline muted={muted} loop preload={Math.abs(currentClip-i)<=1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
+       {item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" src={item.url} playsInline muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
