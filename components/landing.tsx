@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Play, UserRound } from "lucide-react";
+import { ArrowRight, ChevronDown, ChevronLeft, ChevronRight, MoreVertical, Play, UserRound } from "lucide-react";
 
 type ShowcaseVideo = { id: string; title: string; src?: string; poster?: string };
 const landscape: ShowcaseVideo[] = [
@@ -20,6 +20,7 @@ const portrait: ShowcaseVideo[] = [
 function VideoTile({ item, active = true, vertical = false }: { item: ShowcaseVideo; active?: boolean; vertical?: boolean }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     if (!active && videoRef.current) {
@@ -30,7 +31,7 @@ function VideoTile({ item, active = true, vertical = false }: { item: ShowcaseVi
 
   const toggle = () => {
     const video = videoRef.current;
-    if (!video) return; // Empty mockup slots never pretend to play.
+    if (!video || failed) return; // Empty mockup slots never pretend to play.
     if (video.paused) {
       void video.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     } else {
@@ -41,11 +42,12 @@ function VideoTile({ item, active = true, vertical = false }: { item: ShowcaseVi
 
   return (
     <div className={`sm-video-tile ${vertical ? "sm-video-portrait" : "sm-video-landscape"}`}>
-      {item.src ? (
+      {item.src && !failed ? (
         <video
           ref={videoRef}
           src={item.src}
-          poster={item.poster}
+          poster={item.poster ?? "/media/landing-mobile-fallback.webp"}
+          onError={() => { setFailed(true); setPlaying(false); }}
           playsInline
           preload="metadata"
           loop
@@ -57,13 +59,13 @@ function VideoTile({ item, active = true, vertical = false }: { item: ShowcaseVi
       ) : (
         <div className="sm-video-empty" role="img" aria-label={`${item.title}: video coming soon`} />
       )}
-      {(!playing || !item.src) && (
+      {(!playing || !item.src || failed) && (
         <button
           type="button"
           className="sm-video-play"
-          aria-label={item.src ? `Play ${item.title}` : `${item.title} — coming soon`}
+          aria-label={item.src && !failed ? `Play ${item.title}` : `${item.title} — coming soon`}
           onClick={toggle}
-          disabled={!item.src}
+          disabled={!item.src || failed}
         >
           <Play size={vertical ? 26 : 30} fill="currentColor" strokeWidth={1.5} />
         </button>
