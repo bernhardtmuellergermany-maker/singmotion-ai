@@ -845,3 +845,24 @@
   pointer-events:none!important;
  }
 }
+
+/* One seamless CMS artwork across Stunning Creations and the lower CTA.
+   The artwork's wave stays at the bottom, while the top remains dark
+   behind the portrait cards. No separate image on the CTA. */
+@media(min-width:761px){
+ .sm-immersive-home .sm-immersive-featured-backdrop{
+  width:100%;margin:0;
+  background-color:#080615;
+  background-image:url("/api/showcase-media?kind=final-cta-bg");
+  background-repeat:no-repeat;
+  background-position:center bottom;
+  background-size:100% 100%;
+ }
+ .sm-immersive-home .sm-immersive-featured-backdrop .sm-immersive-creations,
+ .sm-immersive-home .sm-immersive-featured-backdrop .sm-immersive-final{
+  background:transparent!important;
+ }
+ .sm-immersive-home .sm-immersive-featured-backdrop .sm-immersive-final{
+  border-top:0;
+ }
+}
