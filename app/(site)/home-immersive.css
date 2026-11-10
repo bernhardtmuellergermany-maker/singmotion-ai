@@ -973,3 +973,20 @@
 @media(prefers-reduced-motion:reduce){
  .sm-immersive-home .sm-mobile-refresh-indicator svg{animation:none!important}
 }
+
+/* Pull refresh moves from beyond the top edge into the screen as the finger
+   pulls downward; no sudden mount/pop, and the video remains stationary. */
+@media(max-width:760px){
+ .sm-immersive-home .sm-mobile-refresh-indicator{
+  top:0;
+  transform:translate3d(-50%,var(--refresh-y,-68px),0);
+  transition:transform .32s cubic-bezier(.2,.8,.25,1);
+  will-change:transform;
+ }
+ .sm-immersive-home .sm-mobile-refresh-indicator.is-pulling{
+  transition:transform .065s linear;
+ }
+ .sm-immersive-home .sm-mobile-refresh-indicator.is-loading{
+  transition:transform .2s ease-out;
+ }
+}
