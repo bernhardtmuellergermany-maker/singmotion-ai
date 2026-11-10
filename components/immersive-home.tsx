@@ -94,7 +94,8 @@ export function ImmersiveHome(){
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
  const [currentClip,setCurrentClip]=useState(0);
- const [muted,setMuted]=useState(true);
+ const [muted,setMuted]=useState(false);
+ const unlockSoundAfterGesture=useRef(false);
  const [failed,setFailed]=useState<Record<number,boolean>>({});
  const [loaded,setLoaded]=useState<Record<number,boolean>>({});
  const [dragging,setDragging]=useState(false);
@@ -155,12 +156,21 @@ export function ImmersiveHome(){
   videos.forEach((video,i)=>{
    if(i===currentClip&&!document.hidden&&!failed[i]){
     video.muted=muted;
-    void video.play().catch(()=>{if(!video.muted)setMuted(true);});
+    void video.play().catch(()=>{
+      if(!video.muted){
+       unlockSoundAfterGesture.current=true;
+       video.muted=true;
+       setMuted(true);
+       void video.play().catch(()=>{});
+      }
+    });
    }else{video.pause();}
   });
   const visibility=()=>{
    if(document.hidden)videos.forEach(v=>v.pause());
-   else{const v=videos[currentClip];if(v&&!failed[currentClip]){v.muted=muted;void v.play().catch(()=>{if(!v.muted)setMuted(true);});}}
+   else{const v=videos[currentClip];if(v&&!failed[currentClip]){v.muted=muted;void v.play().catch(()=>{
+     if(!v.muted){unlockSoundAfterGesture.current=true;v.muted=true;setMuted(true);void v.play().catch(()=>{});}
+    });}}
   };
   document.addEventListener("visibilitychange",visibility);
   return()=>document.removeEventListener("visibilitychange",visibility);
@@ -178,7 +188,19 @@ export function ImmersiveHome(){
  };
  const startTouch=(e:React.TouchEvent)=>{
   const t=e.touches[0];
-  if(t)touchStart.current={x:t.clientX,y:t.clientY,atTop:(feed.current?.scrollTop??0)<3};
+  if(t){
+   touchStart.current={x:t.clientX,y:t.clientY,atTop:(feed.current?.scrollTop??0)<3};
+   if(unlockSoundAfterGesture.current){
+    unlockSoundAfterGesture.current=false;
+    const activeVideo=feed.current?.querySelectorAll<HTMLVideoElement>("video")[currentClip];
+    if(activeVideo){
+     activeVideo.muted=false;
+     void activeVideo.play().then(()=>setMuted(false)).catch(()=>{
+      activeVideo.muted=true;setMuted(true);
+     });
+    }
+   }
+  }
  };
  const moveTouch=(e:React.TouchEvent)=>{
   const t=e.touches[0],start=touchStart.current;
@@ -225,7 +247,7 @@ export function ImmersiveHome(){
      <p>Make your music come alive with SingMotion AI.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{const next=!muted;setMuted(next);const v=feed.current?.querySelectorAll<HTMLVideoElement>("video")[currentClip];if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
+    {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{unlockSoundAfterGesture.current=false;const next=!muted;setMuted(next);const v=feed.current?.querySelectorAll<HTMLVideoElement>("video")[currentClip];if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}
     <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Sanft zum Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
    </main>
