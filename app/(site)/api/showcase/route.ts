@@ -19,7 +19,7 @@ type Slot=typeof slots[number];
 const isSlot=(slot:string):slot is Slot=>slots.some(s=>s===slot);
 type Channel="desktop"|"desktop_portrait"|"mobile";
 const isChannel=(v:unknown):v is Channel=>v==="desktop"||v==="desktop_portrait"||v==="mobile";
-type ChannelEntry=Selected&{channel:Channel;sort_order:number;policy_json:string};
+type ChannelEntry=Selected&{channel:Channel;sort_order:number;policy_json:string|null};
 const superAdminPolicy=(value:string)=>{try{return (JSON.parse(value) as {reviewedBy?:string}).reviewedBy==="authenticated-super-admin-server-policy";}catch{return false}};
 
 async function store(){
@@ -56,6 +56,7 @@ async function store(){
     }catch(error){s.db.exec("ROLLBACK");throw error;}
   }
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_channel_config (channel TEXT PRIMARY KEY, explicitly_configured INTEGER NOT NULL DEFAULT 1)");
+  s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_uploads(id TEXT PRIMARY KEY,title TEXT NOT NULL,filename TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,created_at INTEGER NOT NULL)");
   return s;
 }
 async function admin(req:NextRequest){
@@ -75,9 +76,12 @@ async function handler(req:NextRequest){
     // Legacy slot calls below remain compatible with existing pages.
     if(channelParam!==null){
       const channel=channelParam as Channel;
-      const entries=()=>s.db.prepare("SELECT e.channel,e.attempt_id,e.owner,e.artist_name,e.sort_order,p.policy_json FROM public_showcase_entries e JOIN live_studio_projects p ON p.attempt_id=e.attempt_id AND p.owner=e.owner WHERE e.channel=? ORDER BY e.sort_order,e.rowid").all(channel) as ChannelEntry[];
+      const entries=()=>s.db.prepare("SELECT e.channel,e.attempt_id,e.owner,e.artist_name,e.sort_order,p.policy_json FROM public_showcase_entries e LEFT JOIN live_studio_projects p ON p.attempt_id=e.attempt_id AND p.owner=e.owner WHERE e.channel=? ORDER BY e.sort_order,e.rowid").all(channel) as ChannelEntry[];
       const validated=()=>entries().filter(entry=>{
-        if(!superAdminPolicy(entry.policy_json))return false;
+        if(entry.attempt_id.startsWith("upload-")){
+          return !!s.db.prepare("SELECT 1 FROM public_showcase_uploads WHERE id=?").get(entry.attempt_id);
+        }
+        if(!entry.policy_json||!superAdminPolicy(entry.policy_json))return false;
         try{const a=s.get(entry.attempt_id);return a.state==="completed"&&!!a.outputPath;}catch{return false;}
       });
       const selectedVideo=req.nextUrl.searchParams.get("id");
@@ -85,10 +89,22 @@ async function handler(req:NextRequest){
         if(!selectedVideo)return json({error:"Missing published video ID"},400);
         const selected=validated().find(e=>e.attempt_id===selectedVideo);
         if(!selected)return json({error:"Video not published"},404);
-        const attempt=s.get(selected.attempt_id);
-        const base=await realpath(path.join(dataDir,"live-output"));
-        const file=await realpath(attempt.outputPath!);
-        if(!file.startsWith(base+path.sep)||!(await stat(file)).isFile())return json({error:"Video unavailable"},404);
+        let file:string;
+        let mime="video/mp4";
+        if(selected.attempt_id.startsWith("upload-")){
+          const uploaded=s.db.prepare("SELECT filename,mime FROM public_showcase_uploads WHERE id=?").get(selected.attempt_id) as {filename:string;mime:string}|undefined;
+          if(!uploaded)return json({error:"Video unavailable"},404);
+          const base=await realpath(path.join(dataDir,"showcase-media"));
+          file=await realpath(path.join(base,uploaded.filename));
+          if(!file.startsWith(base+path.sep))return json({error:"Video unavailable"},404);
+          mime=uploaded.mime;
+        }else{
+          const attempt=s.get(selected.attempt_id);
+          const base=await realpath(path.join(dataDir,"live-output"));
+          file=await realpath(attempt.outputPath!);
+          if(!file.startsWith(base+path.sep))return json({error:"Video unavailable"},404);
+        }
+        if(!(await stat(file)).isFile())return json({error:"Video unavailable"},404);
         const size=(await stat(file)).size;let start=0,end=size-1,status=200;
         const range=req.headers.get("range");
         if(range){
@@ -98,7 +114,7 @@ async function handler(req:NextRequest){
           if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
           status=206;
         }
-        return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":"video/mp4","Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
+        return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":mime,"Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
       }
       if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
         const videos=validated().map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
@@ -130,11 +146,14 @@ async function handler(req:NextRequest){
         }
         return {...row,approved,state,outputReady};
       });
-      const eligible=classified.filter(row=>row.approved&&row.outputReady).map(row=>({id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}));
+      const completedStudio=classified.filter(row=>row.approved&&row.outputReady).map(row=>({id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}));
+      const uploaded=s.db.prepare("SELECT id,title FROM public_showcase_uploads ORDER BY created_at DESC").all() as {id:string;title:string}[];
+      const eligible=[...completedStudio,...uploaded.map(row=>({id:row.id,name:row.title,owner:"cms-upload",artistName:row.title}))];
       const inventory={
         totalStudioRecords:all.length,
         verifiedSuperAdmin:classified.filter(row=>row.approved).length,
-        completedSuperAdmin:eligible.length,
+        completedSuperAdmin:completedStudio.length,
+        uploadedVideos:uploaded.length,
         incompleteSuperAdmin:classified.filter(row=>row.approved&&!row.outputReady&&row.state!=="missing").length,
         missingOutputRecord:classified.filter(row=>row.approved&&row.state==="missing").length,
         unverifiedLegacy:classified.filter(row=>!row.approved).length,
