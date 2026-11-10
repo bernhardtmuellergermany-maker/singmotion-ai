@@ -4,7 +4,7 @@ import {useCallback,useEffect,useState} from "react";
 
 type Channel="mobile"|"desktop"|"desktop_portrait";
 type Project={id:string;name:string;selected:boolean};
-type Listing={projects:Project[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number}};
+type Listing={projects:Project[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number;totalStudioRecords?:number;verifiedSuperAdmin?:number;incompleteSuperAdmin?:number;missingOutputRecord?:number;unverifiedLegacy?:number}};
 const channels:{id:Channel;label:string;hint:string}[]=[
  {id:"mobile",label:"Mobile · Inspiration Feed (9:16)",hint:"Unlimited SingMotion-approved ideas for vertical swipe browsing"},
  {id:"desktop",label:"Desktop · Top carousel (16:9)",hint:"Featured landscape performances below the fullscreen hero"},
@@ -19,6 +19,7 @@ export function ShowcaseManager(){
  const [loading,setLoading]=useState(true);
  const [saving,setSaving]=useState(false);
  const [message,setMessage]=useState("");
+ const [inventory,setInventory]=useState<Listing["inventory"]|null>(null);
  const load=useCallback(async()=>{
   setLoading(true);setMessage("");
   try{
@@ -26,6 +27,7 @@ export function ShowcaseManager(){
    const data=await res.json() as Listing&{error?:string};
    if(!res.ok)throw Error(data.error||"Could not load Super Admin videos");
    setAvailable(data.projects||[]);
+   setInventory(data.inventory||null);
    const ids=(data.published||[]).map(item=>item.id);
    setOrdered(ids);setSaved(ids);
   }catch(e){setMessage((e as Error).message);}
@@ -70,6 +72,12 @@ export function ShowcaseManager(){
      </span>
     </li>)}
    </ol>
+   {inventory&&<div style={{border:"1px solid #704c81",borderRadius:10,padding:12,marginTop:16,background:"#21122d",fontSize:13}} role="status">
+    <strong>Video-Bestand dieser Staging-Umgebung</strong>
+    <p style={{margin:"7px 0 2px"}}>Alle Studio-Einträge: {inventory.totalStudioRecords??"–"} · Als Super Admin bestätigt: {inventory.verifiedSuperAdmin??"–"} · Verfügbare fertige Videos: {inventory.completedSuperAdmin}</p>
+    <p style={{margin:"4px 0"}}>Noch nicht fertig / ohne Ausgabe: {inventory.incompleteSuperAdmin??"–"} · Fehlende alte Ausgabe-Einträge: {inventory.missingOutputRecord??"–"} · Ohne überprüfbaren Super-Admin-Nachweis: {inventory.unverifiedLegacy??"–"}</p>
+    <p style={{margin:"6px 0 0",opacity:.8}}>Die Auswahl ist nicht auf drei Videos begrenzt. Fehlende alte Produktionen können in einer anderen Umgebung liegen oder noch nicht als sichere Veröffentlichungsquelle erfasst sein. Sie werden nicht automatisch öffentlich gemacht.</p>
+   </div>}
    <h3 style={{fontSize:16,margin:"22px 0 8px"}}>Available completed Super Admin videos ({available.length})</h3>
    <div style={{maxHeight:280,overflowY:"auto",display:"grid",gap:6}}>
     {available.filter(x=>!ordered.includes(x.id)).map(x=><button key={x.id} type="button" onClick={()=>add(x.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"#2a1739",color:"#fff",border:"1px solid #68417d"}}>+ {x.name}</button>)}
