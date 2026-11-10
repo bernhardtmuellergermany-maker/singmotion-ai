@@ -866,3 +866,35 @@
   border-top:0;
  }
 }
+
+/* Discovery bounce belongs to the one-time CMS fallback intro, never a video.
+   Keep the existing 2.6s upward exit and native reel scrolling intact. */
+@media(max-width:760px){
+ .sm-immersive-home .sm-mobile-reel,
+ .sm-immersive-home .sm-mobile-reel-video{
+  animation:none!important;
+ }
+ .sm-immersive-home .sm-mobile-intro-fallback{
+  background-image:none;
+  overflow:hidden;
+ }
+ .sm-immersive-home .sm-mobile-intro-fallback::before{
+  content:"";position:absolute;inset:0;
+  background-color:#080615;
+  background-image:linear-gradient(180deg,#09051518 0%,#09051504 45%,#08051290 100%),url("/api/showcase-media?kind=mobile-fallback");
+  background-position:center;background-size:cover;background-repeat:no-repeat;
+  animation:sm-fallback-discovery-bounce .85s cubic-bezier(.25,.72,.2,1) .22s 2;
+  pointer-events:none;
+ }
+ .sm-immersive-home .sm-mobile-intro-fallback.is-hidden::before{
+  animation:none;
+ }
+}
+@keyframes sm-fallback-discovery-bounce{
+  0%,100%{transform:translate3d(0,0,0)}
+  40%{transform:translate3d(0,-22px,0)}
+  68%{transform:translate3d(0,7px,0)}
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-immersive-home .sm-mobile-intro-fallback::before{animation:none!important}
+}
