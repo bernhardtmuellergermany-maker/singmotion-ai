@@ -596,3 +596,76 @@
  .sm-mobile-reel.is-discovery,.sm-mobile-swipe-hint,.sm-mobile-swipe-hint>span{animation:none!important}
  .sm-mobile-swipe-hint{opacity:.9}
 }
+
+/* Desktop showcase final layout: side previews remain fully within viewport.
+   Offset is a percentage of each card's width; cap at 220px for three-up visibility. */
+@media(min-width:761px){
+ .sm-immersive-home .sm-mobile-swipe-hint{display:none!important}
+ .sm-immersive-home .sm-moving-carousel{
+  width:min(1400px,99vw);max-width:99vw;
+  overflow:visible!important;height:clamp(340px,42vw,555px);
+ }
+ .sm-immersive-home .sm-moving-card{
+  width:min(660px,49vw);
+  transform:translate(calc(-50% + var(--slot)), -50%) scale(.82);
+ }
+ .sm-immersive-home .sm-moving-card.is-center{
+  transform:translate(calc(-50% + var(--slot)), -50%) scale(1);
+ }
+ .sm-immersive-home .sm-moving-card.is-center.is-leaving{
+  transform:translate(calc(-50% + var(--slot)), -50%) scale(.82);
+ }
+ .sm-immersive-home .sm-moving-card.is-side.is-entering{
+  transform:translate(calc(-50% + var(--slot)), -50%) scale(1);
+ }
+ .sm-immersive-home .sm-immersive-steps{max-width:1260px}
+ .sm-immersive-home .sm-immersive-steps ol{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(15px,2.5vw,30px);margin:38px auto 0;max-width:1170px;
+ }
+ .sm-immersive-home .sm-immersive-steps li{
+  padding:22px 12px 24px;border:1px solid #9c50cd3d;
+  border-radius:18px;background:linear-gradient(150deg,#2c113a73,#120a23a6);
+  min-height:235px;justify-content:flex-start;
+ }
+ .sm-immersive-home .sm-immersive-steps li svg{
+  width:65px;height:65px;flex:none;border-color:#c145fa;
+ }
+ .sm-immersive-home .sm-immersive-steps li strong{
+  font-size:clamp(15px,1.25vw,18px);line-height:1.25;
+ }
+ .sm-immersive-home .sm-immersive-steps li span{
+  max-width:220px;font-size:clamp(12px,1vw,15px);
+  line-height:1.5;
+ }
+ .sm-desktop-portrait-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:clamp(10px,1.6vw,22px);width:min(1120px,95%);
+  margin:34px auto 0;
+ }
+ .sm-desktop-portrait-card{
+  aspect-ratio:9/16;position:relative;overflow:hidden;
+  border:1px solid #b94beb;border-radius:18px;
+  background:radial-gradient(ellipse at 45% 25%,#512d6e,#11091d 85%);
+  box-shadow:0 0 22px #af31f045;display:grid;place-items:center;
+ }
+ .sm-desktop-portrait-card video{width:100%;height:100%;object-fit:cover;display:block;cursor:pointer}
+ .sm-desktop-portrait-card>small{
+  position:absolute;bottom:0;left:0;right:0;z-index:2;
+  padding:18px 10px 11px;background:linear-gradient(transparent,#0c0718df);
+  color:white;font-size:12px;text-align:left;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis;
+ }
+ .sm-desktop-portrait-fallback{
+  display:flex;flex-direction:column;gap:12px;align-items:center;
+  color:#ddbdf1;font-size:13px;
+ }
+}
+@media(min-width:761px) and (max-width:980px){
+ .sm-immersive-home .sm-moving-carousel{height:390px}
+ .sm-immersive-home .sm-moving-card{width:48vw}
+ .sm-immersive-home .sm-immersive-steps li{min-height:225px}
+}
+@media(max-width:760px){
+ .sm-desktop-portrait-grid{display:none}
+}
