@@ -361,15 +361,24 @@ export async function validateDownloadedOutput(
 /** Local export only; does not send an aspect-ratio parameter to BytePlus. */
 export function exportContract<T extends OutputValidationContract>(
   contract: T,
-  format?: "9:16" | "16:9",
+  format?: "9:16" | "16:9" | "custom",
+  customOutput?: {width:number;height:number},
 ): T {
   if (!format) return contract;
+  if(format==="custom" && (
+    !customOutput ||
+    !Number.isInteger(customOutput.width) ||
+    !Number.isInteger(customOutput.height) ||
+    Math.min(customOutput.width,customOutput.height)!==720 ||
+    Math.max(customOutput.width,customOutput.height)>1280 ||
+    customOutput.width%2!==0 || customOutput.height%2!==0
+  )) throw Error("Invalid server-reviewed Custom output rectangle");
   return {
     ...contract,
     output: {
       ...contract.output,
-      width: format === "9:16" ? 720 : 1280,
-      height: format === "9:16" ? 1280 : 720,
+      width: format==="custom" ? customOutput!.width : format === "9:16" ? 720 : 1280,
+      height: format==="custom" ? customOutput!.height : format === "9:16" ? 1280 : 720,
     },
   };
 }
@@ -377,13 +386,14 @@ export async function fitOutputFormat(
   file: string,
   duration: number,
   contract: OutputValidationContract,
-  format: "9:16" | "16:9",
+  format: "9:16" | "16:9" | "custom",
+  customOutput?: {width:number;height:number},
 ) {
   await validateOutput(file, duration, contract);
   const video = (await probe(file)).streams.find(
     (s) => s.codec_type === "video",
   );
-  const target = exportContract(contract, format);
+  const target = exportContract(contract, format, customOutput);
   if (
     video?.width === target.output.width &&
     video.height === target.output.height
