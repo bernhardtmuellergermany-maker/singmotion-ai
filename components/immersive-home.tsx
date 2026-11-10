@@ -61,8 +61,8 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
     const isCenter=offset===0;
     const isSide=Math.abs(offset)===1;
     const slot=offset+motion;
-    return <div key={offset} className={"sm-moving-card"+(isCenter?" is-center":"")+(isSide?" is-side":"")+(settling?" no-transition":"")}
-       style={{"--slot":slot} as React.CSSProperties}
+    return <div key={offset} className={"sm-moving-card"+(isCenter?" is-center":"")+(isSide?" is-side":"")+(motion!==0&&isCenter?" is-leaving":"")+(motion!==0&&slot===0?" is-entering":"")+(settling?" no-transition":"")}
+       style={{"--slot":(slot*83)+"%"} as React.CSSProperties}
        onTransitionEnd={isCenter?endMove:undefined}
        aria-hidden={Math.abs(slot)>1?true:undefined}>
       {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={cover}
