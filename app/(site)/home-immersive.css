@@ -524,3 +524,32 @@
  .sm-mobile-reel-mute{display:grid!important}
  .sm-mobile-reel-backup{transition:opacity .18s ease}
 }
+
+/* Mockup alignment: lower the headline, supporting text and CTA as one group.
+   Keep CMS hero imagery and responsive mobile feed unchanged. */
+@media(min-width:761px){
+ .sm-immersive-hero{
+  padding-top:clamp(195px,41svh,440px);
+ }
+ .sm-immersive-scroll-cue{
+  bottom:clamp(45px,7.8svh,76px);
+  width:30px;height:64px;padding:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+  border:0;border-radius:0;background:transparent;
+  opacity:.94;color:#f5ddff;text-decoration:none;
+ }
+ .sm-scroll-mouse{
+  display:flex;justify-content:center;align-items:flex-start;
+  height:36px;width:19px;padding-top:9px;border:1.5px solid #eed8ff;
+  border-radius:12px;background:#0c081238;box-shadow:0 0 12px #d545fa33;
+ }
+ .sm-scroll-mouse-dot{width:3px;height:8px;border-radius:9px;background:#fff;animation:sm-scroll-dot 1.9s ease-in-out infinite}
+ .sm-immersive-scroll-cue>svg{flex:none;opacity:.96}
+ .sm-immersive-scroll-cue:hover{background:transparent;transform:translateX(-50%) translateY(4px)}
+}
+@keyframes sm-scroll-dot{0%,100%{opacity:.35;transform:translateY(0)}55%{opacity:1;transform:translateY(7px)}}
+@media(min-width:761px) and (max-height:650px){
+ .sm-immersive-hero{padding-top:39svh}
+ .sm-immersive-scroll-cue{bottom:20px}
+}
+@media(prefers-reduced-motion:reduce){.sm-scroll-mouse-dot{animation:none}}
