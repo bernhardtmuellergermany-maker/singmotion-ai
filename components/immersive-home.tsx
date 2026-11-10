@@ -7,14 +7,14 @@ import {showcase} from "@/lib/showcase";
 
 /** Home-only visual presentation of the existing public, owner-approved showcase.
  * No private project discovery, new endpoints, checkout or login mechanisms.
- * The public API currently exposes ONE approved video; do not invent a feed. */
+ * The public API serves only per-channel, explicitly approved videos. */
 type ShowcaseClip = {title:string;url:string};
 
 /** A five-card filmstrip translates as one carousel, then recycles offscreen cards.
  * Only owner-approved video URLs are playable; upcoming slots stay labeled.
  */
 function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
- const slides:ShowcaseClip[]=clips.length>=3?clips:[...clips,...Array.from({length:3-clips.length},(_,i)=>({title:"Music video coming soon "+(i+1),url:""}))];
+ const slides:ShowcaseClip[]=clips.length?clips:[{title:"Music video coming soon",url:""}];
  const [selected,setSelected]=useState(0);
  const [motion,setMotion]=useState(0);
  const [settling,setSettling]=useState(false);
@@ -91,6 +91,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
 
 export function ImmersiveHome(){
  const [clips,setClips]=useState<ShowcaseClip[]>([]);
+ const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(true);
  const [failed,setFailed]=useState<Record<number,boolean>>({});
@@ -104,7 +105,7 @@ export function ImmersiveHome(){
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  useEffect(()=>{
   let active=true;
-  fetch("/api/showcase",{cache:"no-store"})
+  fetch("/api/showcase?channel=mobile",{cache:"no-store"})
    .then(r=>r.ok?r.json():null)
    .then(data=>{
     if(!active)return;
@@ -119,6 +120,19 @@ export function ImmersiveHome(){
     setClips(publicClips);
    })
    .catch(()=>{if(active)setClips([])});
+  fetch("/api/showcase?channel=desktop",{cache:"no-store"})
+   .then(r=>r.ok?r.json():null)
+   .then(data=>{
+     if(!active)return;
+     const items=Array.isArray(data?.videos)?data.videos:[];
+     setDesktopClips(items.flatMap((item:unknown)=>{
+       if(!item||typeof item!=="object")return [];
+       const x=item as {videoUrl?:unknown;title?:unknown};
+       return typeof x.videoUrl==="string"&&(x.videoUrl.startsWith("/")&&!x.videoUrl.startsWith("//")||x.videoUrl.startsWith("https://"))?
+         [{title:typeof x.title==="string"?x.title:showcase.title,url:x.videoUrl}]:[];
+     }));
+   })
+   .catch(()=>{if(active)setDesktopClips([])});
   return()=>{active=false};
  },[]);
  useEffect(()=>{
@@ -203,7 +217,7 @@ export function ImmersiveHome(){
    </main>
   </div>
   <div className="sm-immersive-below">
-   <DesktopShowcaseCarousel clips={clips}/>
+   <DesktopShowcaseCarousel clips={desktopClips}/>
    <section id="how-it-works" className="sm-immersive-steps" aria-labelledby="sm-how-title">
     <h2 id="sm-how-title">How it <span>works</span></h2>
     <p>In just a few steps to your own music video.</p>
