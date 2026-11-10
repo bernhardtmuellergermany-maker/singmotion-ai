@@ -137,7 +137,9 @@ export function ImmersiveHome(){
  const feed=useRef<HTMLDivElement>(null);
  const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
  const [refreshing,setRefreshing]=useState(false);
- const [pullOffset,setPullOffset]=useState(0);
+ const refreshCircle=useRef<HTMLDivElement>(null);
+ const pullDistance=useRef(0);
+ const refreshGesture=useRef(false);
  useEffect(()=>{
   let active=true;
   fetch("/api/site-footer",{cache:"no-store"}).then(r=>r.ok?r.json():null)
@@ -244,6 +246,16 @@ export function ImmersiveHome(){
   setClips(prev=>[...prev,...nextMobileBatch(mobilePool.current,prev.at(-1)?.url,12)]);
  },[currentClip,clips.length,isMobileViewport]);
  useEffect(()=>{appendPending.current=false},[clips.length]);
+ const resetRefreshCircle=()=>{
+  pullDistance.current=0;
+  refreshGesture.current=false;
+  const circle=refreshCircle.current;
+  if(circle){
+   circle.classList.remove("is-pulling");
+   circle.style.setProperty("--refresh-y","-68px");
+   circle.style.setProperty("--refresh-rotation","0deg");
+  }
+ };
  const refreshFeed=async()=>{
   if(feedBusy)return;
   setFeedBusy(true);
@@ -265,7 +277,7 @@ export function ImmersiveHome(){
     feed.current?.scrollTo({top:0,behavior:"auto"});
    }
   }catch{ /* Keep previously approved videos available on network errors. */ }
-  finally{setPullOffset(0);setRefreshing(false);setFeedBusy(false);}
+  finally{resetRefreshCircle();setRefreshing(false);setFeedBusy(false);}
  };
  const moveTo=(index:number)=>{
   const container=feed.current;
@@ -305,25 +317,43 @@ export function ImmersiveHome(){
   const height=feed.current?.clientHeight||window.innerHeight;
   return Math.min(260,Math.max(140,height*.42));
  };
- const moveTouch=(e:React.TouchEvent)=>{
-  const t=e.touches[0],start=touchStart.current;
-  if(!t||!start)return;
-  const distance=t.clientY-start.y;
-  const vertical=Math.abs(distance)>Math.abs(t.clientX-start.x)*1.4;
-  if(start.atTop&&currentClip===0&&distance>0&&vertical){
-   // Only the indicator moves; the video/reel itself never shifts.
-   setPullOffset(Math.min(refreshThreshold(),distance));
-   setRefreshing(distance>=refreshThreshold());
-  }
- };
- const finishTouch=(e:React.TouchEvent)=>{
-  const t=e.changedTouches[0],start=touchStart.current;
+ // Native, explicitly non-passive handler is essential: preventDefault stops
+ // mobile Safari/Chrome from moving the native snap-scroller during refresh.
+ // Update CSS properties directly rather than re-rendering every video per frame.
+ useEffect(()=>{
+  const element=feed.current;
+  if(!element||!isMobileViewport)return;
+  const onMove=(event:TouchEvent)=>{
+   const touch=event.touches[0],start=touchStart.current;
+   if(!touch||!start||feedBusy)return;
+   const dy=touch.clientY-start.y,dx=touch.clientX-start.x;
+   if(!refreshGesture.current){
+    if(!start.atTop||currentClip!==0||dy<=5||dy<=Math.abs(dx)*1.4)return;
+    refreshGesture.current=true;
+   }
+   if(event.cancelable)event.preventDefault();
+   const distance=Math.max(0,dy);
+   pullDistance.current=distance;
+   const threshold=refreshThreshold();
+   const progress=Math.min(1,distance/threshold);
+   const circle=refreshCircle.current;
+   if(circle){
+    circle.classList.add("is-pulling");
+    circle.style.setProperty("--refresh-y",Math.round(-68+progress*202)+"px");
+    circle.style.setProperty("--refresh-rotation",Math.round(progress*340)+"deg");
+   }
+   const ready=distance>=threshold;
+   setRefreshing(previous=>previous===ready?previous:ready);
+  };
+  element.addEventListener("touchmove",onMove,{passive:false});
+  return()=>element.removeEventListener("touchmove",onMove);
+ },[currentClip,isMobileViewport,feedBusy]);
+ const finishTouch=()=>{
   touchStart.current=null;
-  const distance=t&&start?t.clientY-start.y:0;
-  const valid=!!t&&!!start&&start.atTop&&currentClip===0&&
-   distance>=refreshThreshold()&&Math.abs(distance)>Math.abs(t.clientX-start.x)*1.4;
-  if(valid){setPullOffset(refreshThreshold());setRefreshing(true);void refreshFeed();return;}
-  setPullOffset(0);setRefreshing(false);
+  const valid=refreshGesture.current&&pullDistance.current>=refreshThreshold();
+  resetRefreshCircle();
+  if(valid&&!feedBusy){setRefreshing(true);void refreshFeed();return;}
+  setRefreshing(false);
  };
  const wheel=(event:React.WheelEvent)=>{
   if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
@@ -338,14 +368,14 @@ export function ImmersiveHome(){
      <p>With SingMotion AI — your song, your performance.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
+    <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;resetRefreshCircle();setRefreshing(false)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
        <div className="sm-mobile-reel-loading" aria-hidden="true"/>
        {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
-    <div className={"sm-mobile-refresh-indicator"+(feedBusy?" is-loading":pullOffset>0?" is-pulling":"")} style={{"--refresh-y":Math.round(-68+Math.min(1,pullOffset/refreshThreshold())*202)+"px","--refresh-rotation":Math.round(pullOffset/refreshThreshold()*340)+"deg"} as React.CSSProperties} role="status" aria-hidden={pullOffset===0&&!feedBusy} aria-label={feedBusy?"Videos werden aktualisiert":refreshing?"Loslassen zum Aktualisieren":"Zum Aktualisieren weiterziehen"}>
+    <div ref={refreshCircle} className={"sm-mobile-refresh-indicator"+(feedBusy?" is-loading":"")} style={{"--refresh-y":"-68px","--refresh-rotation":"0deg"} as React.CSSProperties} role="status" aria-hidden={!refreshing&&!feedBusy} aria-label={feedBusy?"Videos werden aktualisiert":refreshing?"Loslassen zum Aktualisieren":"Zum Aktualisieren weiterziehen"}>
       <RotateCw size={29} strokeWidth={3}/>
     </div>
     <div className="sm-mobile-reel-content">
