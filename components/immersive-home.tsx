@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {ArrowRight,Music2,ImagePlus,Sparkles,Play,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight} from "lucide-react";
+import {ArrowRight,Music2,ImagePlus,Sparkles,Play,Volume2,VolumeX,ChevronDown} from "lucide-react";
 import {SiteHeader} from "./site-header";
 import {showcase} from "@/lib/showcase";
 
@@ -14,7 +14,7 @@ type ShowcaseClip = {title:string;url:string};
  * Only owner-approved video URLs are playable; upcoming slots stay labeled.
  */
 function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
- const slides:ShowcaseClip[]=clips.length?clips:[{title:"Music video coming soon",url:""}];
+ const slides:ShowcaseClip[]=clips.length?clips.slice(0,3):[{title:"Music video coming soon",url:""}];
  const [selected,setSelected]=useState(0);
  const [motion,setMotion]=useState(0);
  const [settling,setSettling]=useState(false);
@@ -26,7 +26,6 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const touchX=useRef<number|null>(null);
  const count=slides.length;
  const wrap=(index:number)=>(index+count*10)%count;
- const active=slides[selected];
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  const move=(direction:number,destination?:number)=>{
   if(motion!==0||settling)return;
@@ -50,7 +49,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
   if(element.paused)void element.play().catch(()=>setPlaying(false));
   else element.pause();
  };
- const slots=[-2,-1,0,1,2];
+ const slots=[-1,0,1];
  return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
   <div className="sm-moving-carousel" tabIndex={0} aria-label="Use left and right arrows to move through music videos"
    onKeyDown={e=>{if(e.key==="ArrowLeft"){e.preventDefault();move(-1)}else if(e.key==="ArrowRight"){e.preventDefault();move(1)}}}
@@ -78,13 +77,6 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
       <div className="sm-moving-caption"><strong>{isCenter?"SingMotion AI Showcase":item.title}</strong><span>{item.url?item.title:"Coming soon"}</span></div>
     </div>;
    })}
-  </div>
-  <div className="sm-desktop-carousel-navigation">
-   <button type="button" aria-label="Previous video" onClick={()=>move(-1)} disabled={motion!==0}><ChevronLeft size={22}/></button>
-   <div className="sm-desktop-carousel-dots" role="group" aria-label="Choose video">{slides.map((item,i)=><button key={i} className={selected===i?"active":""} type="button" aria-label={"Show video "+(i+1)} aria-current={selected===i?"true":undefined}
-      disabled={motion!==0} onClick={()=>{if(i!==selected)move(i>selected?1:-1,i)}}/>)}</div>
-   <button type="button" aria-label="Next video" onClick={()=>move(1)} disabled={motion!==0}><ChevronRight size={22}/></button>
-   <span className="sm-desktop-slide-count" aria-live="polite">{selected+1} / {count}</span>
   </div>
  </section>;
 }
