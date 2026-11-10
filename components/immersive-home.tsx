@@ -99,6 +99,7 @@ export function ImmersiveHome(){
  const feed=useRef<HTMLDivElement>(null);
  const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
  const [refreshing,setRefreshing]=useState(false);
+ const [pullOffset,setPullOffset]=useState(0);
  const clip=clips[currentClip]??null;
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  useEffect(()=>{
@@ -155,7 +156,11 @@ export function ImmersiveHome(){
   const t=e.touches[0],start=touchStart.current;
   if(!t||!start)return;
   if(Math.abs(t.clientY-start.y)>8)setDragging(true);
-  if(start.atTop&&t.clientY-start.y>40&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4)setRefreshing(true);
+  if(start.atTop&&currentClip===0&&t.clientY>start.y&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4){
+   const distance=t.clientY-start.y;
+   setPullOffset(Math.min(86,distance*.48));
+   setRefreshing(distance>125);
+  }
  };
  const finishTouch=(e:React.TouchEvent)=>{
   const t=e.changedTouches[0],start=touchStart.current;
@@ -164,6 +169,7 @@ export function ImmersiveHome(){
    window.location.reload();return;
   }
   setRefreshing(false);
+  setPullOffset(0);
   window.setTimeout(()=>setDragging(false),300);
  };
  const wheel=(event:React.WheelEvent)=>{
@@ -179,20 +185,20 @@ export function ImmersiveHome(){
      <p>With SingMotion AI — your song, your performance.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
-     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url||i} aria-label={item.title}>
+    <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
+     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url||i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`,transition:"none"}:undefined}>
        <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("${cover}")`}} aria-hidden="true"/>
        {item.url&&!failed[i]&&<video className="sm-mobile-reel-video" src={item.url} playsInline muted loop preload={Math.abs(currentClip-i)<=1?"auto":"metadata"} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
-       {i===currentClip&&<div className="sm-mobile-reel-content">
-        <h1>Turn your song into a music video.</h1>
-        <p>Make your music come alive with SingMotion AI.</p>
-        <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
-       </div>}
-       {i===currentClip&&item.url&&!failed[i]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Turn on video sound":"Mute video"} onClick={()=>setMuted(v=>!v)}>{muted?<VolumeX size={22}/>:<Volume2 size={22}/>}</button>}
      </section>)}
     </div>
-    {refreshing&&currentClip===0&&<div className="sm-mobile-refresh-hint" aria-live="polite">Release to refresh</div>}
+    <div className="sm-mobile-reel-content">
+     <h1>Turn your song into a music video.</h1>
+     <p>Make your music come alive with SingMotion AI.</p>
+     <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
+    </div>
+    {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Turn on video sound":"Mute video"} onClick={()=>setMuted(v=>!v)}>{muted?<VolumeX size={22}/>:<Volume2 size={22}/>}</button>}
+    {pullOffset>12&&currentClip===0&&<div className="sm-mobile-refresh-hint" aria-live="polite">{refreshing?"Release to refresh":"Pull down to refresh"}</div>}
     {clips.length>1&&<div className="sm-immersive-feed-position" aria-live="polite">{currentClip+1} / {clips.length}</div>}
     <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Explore how it works"><ChevronDown size={23}/></a>
    </main>
