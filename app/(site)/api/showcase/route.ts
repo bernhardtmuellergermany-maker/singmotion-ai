@@ -91,12 +91,14 @@ async function handler(req:NextRequest){
         const current=s.db.prepare("SELECT attempt_id FROM public_showcase_selection WHERE slot='main'").get() as {attempt_id:string}|undefined;
         const choices=eligible.filter(row=>row.id!==current?.attempt_id).slice(0,2);
         if(choices.length!==2)return json({error:"Two additional completed Super Admin videos are not available in this private workspace."},409);
-        s.db.transaction(()=>{
+        s.db.exec("BEGIN IMMEDIATE");
+        try{
           for(const [index,row] of choices.entries()){
             const target=index===0?"second":"third";
             s.db.prepare("INSERT INTO public_showcase_selection (slot,attempt_id,owner,artist_name) VALUES (?,?,?,?) ON CONFLICT(slot) DO UPDATE SET attempt_id=excluded.attempt_id,owner=excluded.owner,artist_name=excluded.artist_name").run(target,row.id,actor.owner,row.name);
           }
-        })();
+          s.db.exec("COMMIT");
+        }catch(error){s.db.exec("ROLLBACK");throw error;}
         return json({ok:true,published:choices.map((row,index)=>({slot:index===0?"second":"third",title:row.name}))});
       }
       const target=typeof body.slot==="string"?body.slot:"main";
