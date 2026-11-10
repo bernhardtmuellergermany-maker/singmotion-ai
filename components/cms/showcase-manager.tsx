@@ -30,7 +30,7 @@ export function ShowcaseManager(){
  const mobileBgInput=useRef<HTMLInputElement>(null);
  const [backgroundRevision,setBackgroundRevision]=useState(0);
  const [backgroundSaving,setBackgroundSaving]=useState<string|null>(null);
- const upload=async(kind:"video"|"desktop-bg"|"mobile-fallback",file:File|null)=>{
+ const upload=async(kind:"video"|"desktop-bg"|"mobile-fallback"|"final-cta-bg",file:File|null)=>{
   if(!file)return;
   setUploadMessage("");setUploading(true);setBackgroundSaving(kind);
   try{
@@ -46,7 +46,7 @@ export function ShowcaseManager(){
     setUploadMessage("Video hochgeladen. Wähle es unten für einen oder mehrere Bereiche aus und klicke auf Veröffentlichen.");
    }else{
     setBackgroundRevision(Date.now());
-    setUploadMessage(kind==="desktop-bg"?"Desktop-Hintergrund aktualisiert.":"Mobiles Fallback-Bild aktualisiert.");
+    setUploadMessage(kind==="desktop-bg"?"Desktop-Hintergrund aktualisiert.":kind==="final-cta-bg"?"CTA-Hintergrund aktualisiert.":"Mobiles Fallback-Bild aktualisiert.");
    }
   }catch(e){setUploadMessage((e as Error).message);}
   finally{setUploading(false);setBackgroundSaving(null);}
@@ -109,6 +109,11 @@ export function ShowcaseManager(){
      <strong>Desktop Fullscreen-Hero</strong>
      <img src={"/api/showcase-media?kind=desktop-bg&v="+backgroundRevision} alt="Aktueller Desktop-Hintergrund" style={{width:"100%",height:135,objectFit:"cover",borderRadius:8}}/>
      <input ref={desktopBgInput} type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} onChange={e=>void upload("desktop-bg",e.target.files?.[0]||null)}/>
+    </label>
+    <label style={{display:"grid",gap:8}}>
+     <strong>Unterer CTA-Bereich (Mockup-Wellen)</strong>
+     <img src={"/api/showcase-media?kind=final-cta-bg&v="+backgroundRevision} alt="Hintergrund des unteren Create-CTA" style={{width:"100%",height:135,objectFit:"cover",borderRadius:8}}/>
+     <input type="file" accept="image/jpeg,image/png,image/webp" disabled={uploading} aria-label="CTA Hintergrund hochladen" onChange={e=>void upload("final-cta-bg",e.target.files?.[0]||null)}/>
     </label>
     <label style={{display:"grid",gap:8}}>
      <strong>Mobile Video-Fallback</strong>
