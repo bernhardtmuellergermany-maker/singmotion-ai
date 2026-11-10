@@ -118,6 +118,14 @@ if (process.env.PRODUCTION_R2_WRITE_PREFLIGHT_ENABLED === "true") {
     .then(status => console.log("PRODUCTION_R2_WRITE_PREFLIGHT " + status))
     .catch(() => console.warn("PRODUCTION_R2_WRITE_PREFLIGHT blocked"));
 }
+
+if (process.env.PRODUCTION_R2_MP4_PREFLIGHT_ENABLED === "true") {
+  console.log("PRODUCTION_R2_MP4_PREFLIGHT started");
+  void import("./production-r2-mp4-preflight.ts")
+    .then(({productionR2Mp4Preflight}) => productionR2Mp4Preflight())
+    .then(status => console.log("PRODUCTION_R2_MP4_PREFLIGHT " + status))
+    .catch(() => console.warn("PRODUCTION_R2_MP4_PREFLIGHT blocked"));
+}
 let stopping = false;
 function stop(code) {
   if (stopping) return;
