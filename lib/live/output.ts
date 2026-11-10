@@ -289,7 +289,12 @@ export async function validateDownloadedOutput(
     metadata.side_data_list?.some(
       (s) => s.rotation !== undefined && s.rotation !== 0,
     )
-  ) throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
+  ) {
+    // Fixed, non-customer diagnostic only: no paths, media names, provider
+    // URLs, frame pixels, audio samples or FFmpeg stderr.
+    console.warn("OUTPUT_NORMALIZATION_REJECTED", "source-policy");
+    throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
+  }
   // Decode and validate the entire untrusted source before local
   // conversion. Only the reviewed 786x1178 source rectangle or the
   // reviewed 720p portrait/landscape rectangle can be accepted.
@@ -427,28 +432,29 @@ async function fitValidatedRectangle(
       const after = result.streams.find(
         (s) => s.codec_type === kind,
       ) as typeof before;
-      if (
+      const reason =
         ![before, after].every(
           (s) =>
-            Number.isFinite(Number(s.duration)) &&
-            Number.isFinite(Number(s.start_time)),
-        ) ||
+            Number.isFinite(Number(s?.duration)) &&
+            Number.isFinite(Number(s?.start_time)),
+        ) ? "missing-stream-timeline" :
         Math.abs(Number(before.duration) - Number(after.duration)) >
-          1 / contract.output.fps + (normalizeFps ? 0.01 : 0) ||
-        // MP4 remuxing with stream-copy MP3 may move start_time by one
-        // codec/frame tick while leaving the packet payload unchanged.
-        // Reject shifts beyond one output video frame plus 10ms rounding.
+          1 / contract.output.fps + (normalizeFps ? 0.01 : 0) ? "stream-duration-drift" :
         Math.abs(Number(before.start_time) - Number(after.start_time)) >
-          1 / contract.output.fps + 0.01 ||
+          1 / contract.output.fps + 0.01 ? "stream-start-drift" :
         (kind === "video" && !normalizeFps &&
           before.nb_frames !== undefined &&
           after.nb_frames !== undefined &&
-          before.nb_frames !== after.nb_frames)
-      )
+          before.nb_frames !== after.nb_frames) ? "video-frame-count-drift" : null;
+      if (reason) {
+        console.warn("OUTPUT_NORMALIZATION_REJECTED", kind + "-" + reason);
         throw new Error("OUTPUT_NORMALIZATION_TIMING_FAILED");
+      }
     }
-    if ((await audioHash(file)) !== (await audioHash(normalized)))
+    if ((await audioHash(file)) !== (await audioHash(normalized))) {
+      console.warn("OUTPUT_NORMALIZATION_REJECTED", "audio-packet-mismatch");
       throw new Error("OUTPUT_NORMALIZATION_AUDIO_CHANGED");
+    }
     // Only the newly downloaded private temporary file is replaced, never a
     // retained customer upload, ledger record or previously published MP4.
     await rename(normalized, file);
