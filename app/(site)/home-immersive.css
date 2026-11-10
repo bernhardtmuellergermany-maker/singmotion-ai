@@ -690,3 +690,27 @@
 @media(prefers-reduced-motion:reduce){
  .sm-desktop-portrait-card .sm-desktop-portrait-sound{transition:none!important}
 }
+
+/* Final CTA: artwork is maintained from the Super Admin CMS, independent
+   of the hero and mobile fallback images. */
+@media(min-width:761px){
+ .sm-immersive-home .sm-immersive-below .sm-immersive-final{
+  max-width:none;width:100%;min-height:310px;
+  padding:68px max(7vw,25px);
+  background-image:linear-gradient(90deg,#08051770,#08051724),url("/api/showcase-media?kind=final-cta-bg");
+  background-size:cover;background-position:center;background-repeat:no-repeat;
+ }
+ .sm-immersive-home .sm-moving-carousel{
+  width:min(1400px,98vw);max-width:98vw;overflow:visible!important;
+ }
+ .sm-immersive-home .sm-moving-card{width:min(700px,44vw)}
+ .sm-immersive-home .sm-moving-card.is-side{opacity:.84;filter:brightness(.72)}
+ .sm-immersive-home .sm-desktop-carousel-navigation{display:none!important}
+}
+/* Smooth, reversible refresh tug: video never changes scale. */
+@media(max-width:760px){
+ .sm-mobile-reel:first-child{transition:transform .43s cubic-bezier(.2,.85,.24,1)!important}
+ .sm-mobile-reels.is-dragging .sm-mobile-reel:first-child{transition:none!important}
+ .sm-mobile-reels.is-refreshing .sm-mobile-reel:first-child{filter:brightness(.96)}
+}
+@media(prefers-reduced-motion:reduce){.sm-mobile-reel:first-child{transition:none!important}}
