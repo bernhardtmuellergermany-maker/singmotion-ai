@@ -10,6 +10,12 @@ import { applicationOrigin } from "@/lib/request-origin";
 import { privateCustomerVideoLinks } from "@/lib/commerce/customer-video-links";
 import { customerOrderStatusFilter, ownedCustomerOrderStatuses } from "@/lib/commerce/customer-orders-query";
 import {requireRights,recordRights} from "@/lib/rights";
+import {session as mediaSession} from "@/lib/db";
+import {prepareStudioDraft} from "@/lib/live/media";
+import {quotePlanSeconds} from "@/lib/commerce/plans";
+import {reviewedVideoInputDigest} from "@/lib/commerce/reviewed-video";
+import {OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS} from "@/lib/commerce/owner-confirmed-provider-policy";
+import {createHash} from "node:crypto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,7 +73,7 @@ export async function POST(req: NextRequest) {
       return respond({error:"Invalid Studio project."},400);
     store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     const accountId=store.session(req.cookies.get("sm_customer")?.value || "");
-    if (!accountId) return respond({error:"Customer login required."},401);
+    if (!accountId) return await prepareGuestOrder(req,store,payload);
     if(!store.emailVerified(accountId))return respond({error:"Verify your email before preparing paid video orders.",code:"EMAIL_NOT_VERIFIED"},403);
     const account=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(accountId);
     if (!account || typeof account.email!=="string")
@@ -178,4 +184,56 @@ export async function DELETE(req: NextRequest) {
     // Never reveal another account's order or whether its payment exists.
     return respond({error:"Order cannot be cancelled automatically. Contact support if Checkout has started."},409);
   }finally{store?.close();}
+}
+
+/**
+ * Password-gated site guests can purchase without creating a customer account.
+ * Their uploaded media remains in their original private Studio workspace.
+ * A per-order random capability protects Checkout and later private delivery.
+ */
+async function prepareGuestOrder(req:NextRequest,store:CommerceStore,payload:Record<string,unknown>){
+  if(typeof payload.email!=="string" ||
+     !/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(payload.email.trim()) ||
+     payload.promoCode!==undefined)
+    return respond({error:"Enter a valid delivery email; promotions require a customer account."},400);
+  const email=payload.email.trim().toLowerCase();
+  const media=mediaSession(req.cookies.get("sm_session")?.value);
+  const owner=media?.owner;
+  if(!owner||!/^[a-f0-9-]{36}$/.test(owner)||
+     !payload.draft||typeof payload.draft!=="object"||
+     (payload.draft as {owner?:unknown}).owner!==owner)
+    return respond({error:"Your private guest Studio session and uploaded files must match."},403);
+  try{requireRights(payload.consent,payload.termsVersion);}
+  catch{return respond({error:"Confirm your rights and current terms."},409);}
+  const projectId=String(payload.projectId);
+  if(!/^[A-Za-z0-9_-]{1,160}$/.test(projectId))
+    return respond({error:"Invalid guest project"},400);
+  const prepared=await prepareStudioDraft(payload.draft,owner,OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS);
+  const quote=quotePlanSeconds("free",0,prepared.durationSeconds);
+  if(quote.extraCents<=0)throw Error("Invalid guest price");
+  const key=reviewedCustomerOrderKey({accountId:"guest:"+owner,projectId,draft:payload.draft});
+  const inputDigest=reviewedVideoInputDigest(prepared);
+  const quoteEvidence="reviewed-guest-studio-eur-v1:"+createHash("sha256")
+    .update(JSON.stringify({owner,projectId,inputDigest,cents:quote.extraCents,
+      seconds:quote.seconds,currency:"EUR"})).digest("hex");
+  const created=store.preparedVideoOrder({account:null,email,project:projectId,
+    cents:quote.extraCents,quoteEvidence,key,media:prepared});
+  const reviewed=store.db.prepare("SELECT input_digest FROM customer_order_inputs WHERE order_id=?")
+    .get(created.id) as {input_digest:string}|undefined;
+  if(!reviewed||reviewed.input_digest!==inputDigest)throw Error("Guest immutable input mismatch");
+  recordRights(store.db,owner,created.id,String(payload.termsVersion),{
+    session:owner,content:inputDigest,
+  });
+  const previousToken=req.cookies.get("sm_guest_"+created.id)?.value;
+  // Never issue a second capability after a retry, or reveal a prior token.
+  if(!created.guestToken){
+    if(!previousToken) return respond({error:"Existing guest order: reopen your saved private order link."},409);
+    store.ownedOrder(created.id,null,previousToken);
+  }
+  const response=respond({orderId:created.id,checkoutReady:store.reviewedOrderReadyForCheckout(created.id),
+    guest:true,...(created.guestToken?{guestAccessUrl:`/orders/${created.id}#access=${encodeURIComponent(created.guestToken)}`}:{})},201);
+  if(created.guestToken)response.cookies.set("sm_guest_"+created.id,created.guestToken,{
+    httpOnly:true,secure:true,sameSite:"lax",path:"/",maxAge:90*86400,
+  });
+  return response;
 }
