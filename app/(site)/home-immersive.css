@@ -162,7 +162,7 @@
  .sm-immersive-first-screen,.sm-immersive-hero,.sm-immersive-video-stage,
  .sm-immersive-video-frame{height:100%;min-height:0;max-height:100%;overflow:hidden}
  .sm-immersive-first-screen{position:relative}
- .sm-immersive-hero{position:relative;touch-action:pan-y;overscroll-behavior:none}
+ .sm-immersive-hero{position:relative;touch-action:none;overscroll-behavior:none}
  .sm-immersive-video-stage{position:absolute;inset:0}
  .sm-immersive-video-frame{position:absolute;inset:0;width:100%;border:0;border-radius:0;animation:none}
  .sm-immersive-video-backup{background-size:cover;background-position:center}
