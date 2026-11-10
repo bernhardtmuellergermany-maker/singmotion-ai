@@ -38,6 +38,7 @@ export function GenerationDialog({
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
     [customerCheckoutEnabled,setCustomerCheckoutEnabled] = useState(false),
+    [checkoutUnavailableReason,setCheckoutUnavailableReason] = useState(""),
     [savedOrderId,setSavedOrderId] = useState(""),
     [guestEmail,setGuestEmail] = useState(""),
     [guestAccessUrl,setGuestAccessUrl] = useState(""),
@@ -51,7 +52,7 @@ export function GenerationDialog({
     let current = true;
     void fetch("/api/customer-orders", { cache: "no-store" })
       .then(async r => r.ok ? r.json() : null)
-      .then(v => { if (current) {setCustomerOrdersAvailable(v?.available === true);setCustomerCheckoutEnabled(v?.checkoutEnabled===true);} })
+      .then(v => { if (current) {setCustomerOrdersAvailable(v?.available === true);setCustomerCheckoutEnabled(v?.checkoutEnabled===true);setCheckoutUnavailableReason(typeof v?.checkoutUnavailableReason==="string" ? v.checkoutUnavailableReason : "");} })
       .catch(() => {});
     void Promise.all([
       api<{ version: string }>("rights"),
@@ -405,8 +406,8 @@ export function GenerationDialog({
         </label>
       </div>}
       {pilot !== true && !customerOrdersAvailable && (
-        <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Super Admin anmelden">
-          <p>Für echte BytePlus-Videos bitte als Super Admin anmelden. Dein gewähltes Bild und Audio bleiben erhalten.</p>
+        <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Optionale Super-Admin-Anmeldung">
+          <p>Die normale Gast- und Kundenbestellung ist hier derzeit nicht freigegeben. Eine Super-Admin-Anmeldung ist nur für den separat genehmigten Betreiberzugang vorgesehen; sie ersetzt keine Checkout-Freigabe. Bild und Audio bleiben erhalten.</p>
           <label>E-Mail <input type="email" name="email" autoComplete="username" required disabled={loginBusy}/></label>
           <label>Passwort <input type="password" name="password" autoComplete="current-password" required disabled={loginBusy}/></label>
           <button type="submit" className="product-secondary" disabled={loginBusy}>
@@ -415,8 +416,8 @@ export function GenerationDialog({
         </form>
       )}
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
-      {pilot === false && !customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Customer generation is not available yet.</p>}
-      {customerOrdersAvailable && <p role="status" className="sm-confirm-notice">{customerCheckoutEnabled ? "Generate your video by continuing to secure Stripe Checkout. Payment is required before processing; generation starts only after Stripe confirms payment." : "Secure payment is not available yet. No paid generation can start."}</p>}
+      {pilot === false && !customerOrdersAvailable && <p role="alert" className="sm-confirm-notice">Gast- und Kunden-Videobestellungen sind in dieser Umgebung noch nicht aktiviert. Der angezeigte Preis ist nur eine Schätzung; es wird keine Zahlung ausgelöst.</p>}
+      {customerOrdersAvailable && <p role={customerCheckoutEnabled ? "status" : "alert"} className="sm-confirm-notice">{customerCheckoutEnabled ? "Nach der bestätigten Stripe-Zahlung wird das Video privat verarbeitet und bereitgestellt." : (checkoutUnavailableReason || "Sicherer Checkout und BytePlus-Videogenerierung sind hier noch nicht freigegeben. Es erfolgt keine Zahlung.")}</p>}
       {!customerOrdersAvailable && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
