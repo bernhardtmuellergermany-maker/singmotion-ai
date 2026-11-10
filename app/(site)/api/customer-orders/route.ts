@@ -14,7 +14,7 @@ import {session as mediaSession} from "@/lib/db";
 import {prepareStudioDraft} from "@/lib/live/media";
 import {quotePlanSeconds} from "@/lib/commerce/plans";
 import {reviewedVideoInputDigest} from "@/lib/commerce/reviewed-video";
-import {OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS} from "@/lib/commerce/owner-confirmed-provider-policy";
+import {reviewedCustomerOrderMaxSeconds} from "@/lib/commerce/reviewed-customer-duration";
 import {createHash} from "node:crypto";
 
 export const runtime = "nodejs";
@@ -208,7 +208,8 @@ async function prepareGuestOrder(req:NextRequest,store:CommerceStore,payload:Rec
   const projectId=String(payload.projectId);
   if(!/^[A-Za-z0-9_-]{1,160}$/.test(projectId))
     return respond({error:"Invalid guest project"},400);
-  const prepared=await prepareStudioDraft(payload.draft,owner,OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS);
+  const maxSeconds=await reviewedCustomerOrderMaxSeconds(dataDir);
+  const prepared=await prepareStudioDraft(payload.draft,owner,maxSeconds);
   const quote=quotePlanSeconds("free",0,prepared.durationSeconds);
   if(quote.extraCents<=0)throw Error("Invalid guest price");
   const key=reviewedCustomerOrderKey({accountId:"guest:"+owner,projectId,draft:payload.draft});
