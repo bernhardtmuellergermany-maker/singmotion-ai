@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import {redirect} from "next/navigation";
 import { ImmersiveHome } from "@/components/immersive-home";
 import { CarouselExperience } from "@/components/carousel-experience";
 import "./home-immersive.css";
@@ -15,6 +16,7 @@ export default async function Home({searchParams}:{searchParams:Promise<{card?:s
   const params=await searchParams;
   // Existing /login redirects, account links and private project carousel
   // deep links remain supported. No changes to any authentication route.
+  if(params?.card==="login")redirect("/login");
   if(typeof params?.card==="string"&&params.card.length>0)
     return <CarouselExperience />;
   return <ImmersiveHome />;
