@@ -178,6 +178,8 @@
 .sm-showcase-admin .sm-showcase-publish-two:hover:not(:disabled){background:#63309c}
 .sm-showcase-admin .sm-showcase-publish-two:disabled{opacity:.55;cursor:not-allowed}
 .sm-showcase-admin small[role=status]{color:#bcf0cb}
+.sm-showcase-access-message{position:relative;z-index:7;margin:6px 0;color:#fff1c3;font-size:11px;line-height:1.45;background:#1e1838ce;border:1px solid #ad829a6b;border-radius:8px;padding:9px}
+
 
 
 
