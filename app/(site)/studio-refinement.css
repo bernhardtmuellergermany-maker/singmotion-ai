@@ -543,6 +543,29 @@
 }
 
 
+/* Customer's selected 9:16 or 16:9 crop previews the same centered cover
+   framing used by the FFmpeg MP4 export. Never show a square fake preview. */
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-image-field:has(.flow-photo){
+  max-width:280px;
+  margin-inline:auto;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo{
+  min-height:0;
+  overflow:hidden;
+}
+.singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo>img{
+  object-fit:cover;
+  object-position:50% 50%;
+}
+.singmotion-flow .sm-photo-crop-note{
+  margin:0;
+  max-width:280px;
+  color:#b8c4de;
+  font-size:12px;
+  line-height:1.5;
+  text-align:center;
+}
+
 /* Keep the remove-photo control legible on any uploaded image. */
 .singmotion-flow .sm-studio-original-composer .sm-photo-controls .flow-photo{
   position:relative;

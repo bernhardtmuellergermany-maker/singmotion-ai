@@ -391,6 +391,9 @@ async function fitValidatedRectangle(
   contract: OutputValidationContract,
   normalizeFps = false,
 ) {
+  // Center crop matches CSS object-fit:cover/object-position:center in the
+  // pre-checkout customer preview. Preserve aspect ratio; never stretch, pad
+  // with black bars, or alter the original provider audio packets.
   const source = await probe(file);
   const limits = outputTransferLimits(contract);
   if ((await stat(file)).size > limits.maxBytes)
@@ -437,7 +440,7 @@ async function fitValidatedRectangle(
         "-map",
         "0:a:0",
         "-vf",
-        `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
+        `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,setsar=1,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
         "-c:v",
         "libx264",
         "-threads",
