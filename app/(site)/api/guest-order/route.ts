@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const response = json({ ok: true });
     response.cookies.set(`sm_guest_${body.id}`, body.token, {
       httpOnly: true,
-      sameSite: "strict",
+      // Stripe returns from a different site. Lax keeps the private HttpOnly\n      // capability available on the first safe top-level GET after payment.\n      sameSite: "lax",
       secure: req.nextUrl.protocol === "https:",
       path: "/",
       maxAge: 90*86400,
