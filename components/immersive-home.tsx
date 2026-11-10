@@ -300,7 +300,11 @@ export function ImmersiveHome(){
  const startTouch=(e:React.TouchEvent)=>{
   const t=e.touches[0];
   if(t){
-   touchStart.current={x:t.clientX,y:t.clientY,atTop:(feed.current?.scrollTop??0)<3};
+   // Every touch begins a fresh, independent pull attempt.
+   pullDistance.current=0;
+   refreshGesture.current=false;
+   const atTop=(feed.current?.scrollTop??0)<=24;
+   touchStart.current={x:t.clientX,y:t.clientY,atTop};
    if(unlockSoundAfterGesture.current){
     unlockSoundAfterGesture.current=false;
     const activeVideo=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);
@@ -328,7 +332,7 @@ export function ImmersiveHome(){
    if(!touch||!start||feedBusy)return;
    const dy=touch.clientY-start.y,dx=touch.clientX-start.x;
    if(!refreshGesture.current){
-    if(!start.atTop||currentClip!==0||dy<=5||dy<=Math.abs(dx)*1.4)return;
+    if(!start.atTop||dy<=5||dy<=Math.abs(dx)*1.4)return;
     refreshGesture.current=true;
    }
    if(event.cancelable)event.preventDefault();
@@ -347,14 +351,24 @@ export function ImmersiveHome(){
   };
   element.addEventListener("touchmove",onMove,{passive:false});
   return()=>element.removeEventListener("touchmove",onMove);
- },[currentClip,isMobileViewport,feedBusy]);
- const finishTouch=()=>{
+ },[isMobileViewport,feedBusy]);
+ const finishTouch=(event:React.TouchEvent)=>{
+  const start=touchStart.current;
+  const end=event.changedTouches[0];
   touchStart.current=null;
-  const valid=refreshGesture.current&&pullDistance.current>=refreshThreshold();
-  if(valid&&!feedBusy){
+  // Only the FINAL finger position at release counts. Pulling fully and
+  // pushing back up before release must never trigger a refresh.
+  const finalDistance=start&&end?Math.max(0,end.clientY-start.y):0;
+  const finalVertical=!!start&&!!end&&finalDistance>Math.abs(end.clientX-start.x)*1.4;
+  const valid=!!start&&start.atTop&&refreshGesture.current&&
+   finalVertical&&finalDistance>=refreshThreshold()&&!feedBusy;
+  if(valid){
    refreshGesture.current=false;
    refreshCircle.current?.classList.remove("is-pulling");
-   setRefreshing(true);void refreshFeed();return;
+   feed.current?.scrollTo({top:0,behavior:"auto"});
+   setRefreshing(true);
+   void refreshFeed();
+   return;
   }
   resetRefreshCircle();
   setRefreshing(false);
