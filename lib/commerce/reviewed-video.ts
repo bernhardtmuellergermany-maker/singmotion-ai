@@ -10,7 +10,14 @@ export function reviewedVideoInputDigest(media: PreparedMedia): string {
   if (!validHash(media.audioSha256) || !validHash(media.imageSha256) ||
       !media.prompt?.trim() || media.prompt.length > 1500 ||
       !Number.isFinite(media.durationSeconds) || media.durationSeconds <= 0 ||
-      (media.outputFormat !== undefined && media.outputFormat !== "9:16" && media.outputFormat !== "16:9"))
+      (media.outputFormat !== undefined && media.outputFormat !== "9:16" && media.outputFormat !== "16:9" && media.outputFormat !== "custom") ||
+      (media.outputFormat === "custom" && (!media.customOutput ||
+        !Number.isInteger(media.customOutput.width) || !Number.isInteger(media.customOutput.height) ||
+        media.customOutput.width < 2 || media.customOutput.height < 2 ||
+        Math.min(media.customOutput.width,media.customOutput.height) !== 720 ||
+        Math.max(media.customOutput.width,media.customOutput.height) > 1280 ||
+        media.customOutput.width % 2 !== 0 ||
+        media.customOutput.height % 2 !== 0)))
     throw Error("Reviewed prepared video inputs required");
   return sha256(JSON.stringify({
     version: 1,
@@ -19,6 +26,7 @@ export function reviewedVideoInputDigest(media: PreparedMedia): string {
     durationSeconds: Math.round(media.durationSeconds * 1000) / 1000,
     prompt: media.prompt,
     outputFormat: media.outputFormat ?? null,
+    ...(media.outputFormat === "custom" ? {customOutput:media.customOutput} : {}),
     // Legacy orders remain digest-compatible. Tempo orders additionally bind
     // their original soundtrack and restoration instructions before payment.
     ...(media.tempo ? {tempo:{

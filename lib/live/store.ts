@@ -21,7 +21,9 @@ export type LiveState =
   | "failed"
   | "uncertain";
 export interface PreparedMedia {
-  outputFormat?: "9:16" | "16:9";
+  outputFormat?: "9:16" | "16:9" | "custom";
+  /** Trusted dimensions of the original owned photograph, bound before checkout. */
+  customOutput?: {width:number;height:number};
   /** Recorded from the owned original at preparation; never inferred for legacy rows. */
   recording?: { songId: string; sourceSha256: string };
   tempo?: import("./tempo.ts").TempoMetadata;

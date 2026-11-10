@@ -1,8 +1,8 @@
 import { composePrompt, validateSelection } from "./domain.ts";
 export interface StudioDraftExport {
   version: 1;
-  outputFormat?: "9:16" | "16:9";
-  formatMode?: "auto" | "9:16" | "16:9";
+  outputFormat?: "9:16" | "16:9" | "custom";
+  formatMode?: "auto" | "9:16" | "16:9" | "custom";
   owner: string;
   songId: string;
   imageId: string;
@@ -34,10 +34,11 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     Object.keys(v).some((key) => !keys.includes(key)) ||
     v.version !== 1 ||
     (v.formatMode !== undefined &&
-      !["auto", "9:16", "16:9"].includes(String(v.formatMode))) ||
+      !["auto", "9:16", "16:9", "custom"].includes(String(v.formatMode))) ||
     (v.outputFormat !== undefined &&
       v.outputFormat !== "9:16" &&
-      v.outputFormat !== "16:9") ||
+      v.outputFormat !== "16:9" &&
+      v.outputFormat !== "custom") ||
     ["owner", "songId", "imageId"].some(
       (key) =>
         typeof v[key] !== "string" ||
@@ -55,10 +56,10 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   return {
     version: 1,
     ...(v.formatMode
-      ? { formatMode: v.formatMode as "auto" | "9:16" | "16:9" }
+      ? { formatMode: v.formatMode as "auto" | "9:16" | "16:9" | "custom" | "custom" }
       : {}),
     ...(v.outputFormat
-      ? { outputFormat: v.outputFormat as "9:16" | "16:9" }
+      ? { outputFormat: v.outputFormat as "9:16" | "16:9" | "custom" | "custom" }
       : {}),
     owner: v.owner as string,
     songId: v.songId as string,

@@ -284,11 +284,17 @@ export async function validateDownloadedOutput(
     [24, 24000 / 1001, 30, 30000 / 1001].some(
       fps => Math.abs(actualFps - fps) < 0.005,
     );
+  // The paid contract can bind a Custom rectangle computed from an owned
+  // source image. Restrict dimensions to 720p short side and 1280 long side.
   const reviewedOutputRectangle =
-    (contract.output.width === 720 && contract.output.height === 1280) ||
-    (contract.output.width === 1280 && contract.output.height === 720);
-  // Only the two observed BytePlus source rectangles may be resized to
-  // the explicitly reviewed 720p portrait/landscape export. The square
+    Number.isInteger(contract.output.width) &&
+    Number.isInteger(contract.output.height) &&
+    Math.min(contract.output.width,contract.output.height) === 720 &&
+    Math.max(contract.output.width,contract.output.height) <= 1280 &&
+    contract.output.width % 2 === 0 &&
+    contract.output.height % 2 === 0;
+  // Only observed BytePlus source rectangles may be resized to the
+  // server-bound 720p target rectangle. The square
   // 960x960 source was confirmed by the paid Staging recovery on 2026-11-10.
   // All codec, duration, fps, pixel aspect and full-decode checks still apply.
   const reviewedSourceRectangle =
@@ -335,8 +341,8 @@ export async function validateDownloadedOutput(
     throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   }
   // Decode and validate the entire untrusted source before local
-  // conversion. Only the observed 786x1178 or 960x960 sources and the
-  // reviewed 720p portrait/landscape rectangles can be accepted.
+  // conversion. Only observed provider source rectangles and bounded 720p
+  // targets are accepted; paid Custom size is validated before checkout.
   await validateOutput(file, duration, {
     ...contract,
     output: {
@@ -355,15 +361,24 @@ export async function validateDownloadedOutput(
 /** Local export only; does not send an aspect-ratio parameter to BytePlus. */
 export function exportContract<T extends OutputValidationContract>(
   contract: T,
-  format?: "9:16" | "16:9",
+  format?: "9:16" | "16:9" | "custom",
+  customOutput?: {width:number;height:number},
 ): T {
   if (!format) return contract;
+  if(format==="custom" && (
+    !customOutput ||
+    !Number.isInteger(customOutput.width) ||
+    !Number.isInteger(customOutput.height) ||
+    Math.min(customOutput.width,customOutput.height)!==720 ||
+    Math.max(customOutput.width,customOutput.height)>1280 ||
+    customOutput.width%2!==0 || customOutput.height%2!==0
+  )) throw Error("Invalid server-reviewed Custom output rectangle");
   return {
     ...contract,
     output: {
       ...contract.output,
-      width: format === "9:16" ? 720 : 1280,
-      height: format === "9:16" ? 1280 : 720,
+      width: format==="custom" ? customOutput!.width : format === "9:16" ? 720 : 1280,
+      height: format==="custom" ? customOutput!.height : format === "9:16" ? 1280 : 720,
     },
   };
 }
@@ -371,13 +386,14 @@ export async function fitOutputFormat(
   file: string,
   duration: number,
   contract: OutputValidationContract,
-  format: "9:16" | "16:9",
+  format: "9:16" | "16:9" | "custom",
+  customOutput?: {width:number;height:number},
 ) {
   await validateOutput(file, duration, contract);
   const video = (await probe(file)).streams.find(
     (s) => s.codec_type === "video",
   );
-  const target = exportContract(contract, format);
+  const target = exportContract(contract, format, customOutput);
   if (
     video?.width === target.output.width &&
     video.height === target.output.height

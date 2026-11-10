@@ -282,6 +282,37 @@ test("checkout orientation is exact: a reviewed 720p video with opposite orienta
  }finally{await rm(root,{recursive:true,force:true})}
 });
 
+test("Custom original-photo sizes export from observed BytePlus square media without padding and with intact audio",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"sm-custom-"));
+ const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
+ const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
+ try{
+  const raw=path.join(root,"source.mp4");
+  ff(["-f","lavfi","-i","color=red:s=960x960:r=25:d=1",
+   "-f","lavfi","-i","sine=frequency=440:duration=1","-t","1",
+   "-c:v","libx264","-threads","2","-preset","ultrafast","-pix_fmt","yuv420p",
+   "-c:a","aac",raw]);
+  const bytes=await readFile(raw),audio=hash(raw);
+  for(const [width,height] of [[720,720],[900,720],[720,900]]){
+   const output={width,height};
+   const contract:OutputValidationContract={outputHosts:["approved.example.test"],
+    output:{...output,fps:25,videoCodec:"h264",audioCodec:"aac",
+      durationToleranceSeconds:0.15,maxDurationSeconds:2}};
+   const dest=path.join(root,`custom-${width}x${height}.mp4`);
+   await downloadValidatedOutput("https://approved.example.test/video",dest,1,contract,
+     async()=>new Response(Uint8Array.from(bytes)));
+   await validateOutput(dest,1,contract);
+   const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
+   assert.equal(video.width,width);assert.equal(video.height,height);
+   assert.equal(hash(dest),audio);
+   const pixels=ff(["-i",dest,"-frames:v","1","-f","rawvideo","-pix_fmt","rgb24","-"]);
+   for(const [x,y] of [[0,0],[Math.floor(width/2),Math.floor(height/2)],[width-1,height-1]]){
+     assert.ok(pixels[(y*width+x)*3]>170,`black bars at ${width}x${height}: ${x},${y}`);
+   }
+  }
+ }finally{await rm(root,{recursive:true,force:true})}
+});
+
 test("provider SAR metadata: absent and unknown-square forms can normalize; non-square pixel ratios remain forbidden",()=>{
   for(const sar of [undefined,null,"N/A","0:1","1:1","2:2","100:100"])
     assert.equal(hasNoNonSquarePixelAspect(sar),true,String(sar));

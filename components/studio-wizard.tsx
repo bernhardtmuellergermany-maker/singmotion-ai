@@ -62,8 +62,8 @@ const initial = {
   performance: "Natural",
   camera: "Static camera",
   customPrompt: "",
-  outputFormat: "9:16" as "9:16" | "16:9",
-  formatMode: "auto" as "auto" | "9:16" | "16:9",
+  outputFormat: "9:16" as "9:16" | "16:9" | "custom",
+  formatMode: "auto" as "auto" | "9:16" | "16:9" | "custom",
 };
 export function StudioWizard({
   content = defaultStudioContent,
@@ -89,7 +89,9 @@ export function StudioWizard({
     [error, setError] = useState(""),
     [reviewCard, setReviewCard] = useState<"preview"|"details">("preview"),
     [confirm, setConfirm] = useState(false),
-    [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16");
+    [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
+    [photoRatio, setPhotoRatio] = useState(1),
+    [photoAspectSupported, setPhotoAspectSupported] = useState(true);
   useEffect(() => {
     let current = true;
     void ensureSession()
@@ -134,6 +136,10 @@ export function StudioWizard({
               saved.image?.height ?? null,
             ),
           );
+          if(saved.image?.width && saved.image?.height){
+            setPhotoRatio(saved.image.width/saved.image.height);
+            setPhotoAspectSupported(Math.max(saved.image.width/saved.image.height,saved.image.height/saved.image.width)<=1280/720);
+          }
           setReady(true);
           return;
         }
@@ -154,6 +160,8 @@ export function StudioWizard({
           setDraft(fresh);
           setStep(0);
           setDetectedFormat("9:16");
+          setPhotoRatio(1);
+          setPhotoAspectSupported(true);
           localStorage.setItem("singmotion-studio", JSON.stringify(fresh));
           window.history.replaceState(window.history.state, "", "/studio");
           setReady(true);
@@ -167,10 +175,11 @@ export function StudioWizard({
             if (restored.imageId) {
               const img = new Image();
               img.onload = () => {
-                if (current)
-                  setDetectedFormat(
-                    photoFormat(img.naturalWidth, img.naturalHeight),
-                  );
+                if (current){
+                  setDetectedFormat(photoFormat(img.naturalWidth, img.naturalHeight));
+                  setPhotoRatio(img.naturalWidth/img.naturalHeight);
+                  setPhotoAspectSupported(Math.max(img.naturalWidth/img.naturalHeight,img.naturalHeight/img.naturalWidth)<=1280/720);
+                }
               };
               img.src = `/api/assets/${encodeURIComponent(restored.imageId)}`;
             }
@@ -281,6 +290,10 @@ export function StudioWizard({
       else {
         const detected = photoFormat(asset.width, asset.height);
         setDetectedFormat(detected);
+        if(asset.width && asset.height){
+          setPhotoRatio(asset.width/asset.height);
+          setPhotoAspectSupported(Math.max(asset.width/asset.height,asset.height/asset.width)<=1280/720);
+        }
         update({
           imageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
@@ -319,7 +332,7 @@ export function StudioWizard({
         }
       : null;
 
-  const available = !!selection && audioValid && !!prompt && !busy;
+  const available = !!selection && audioValid && !!prompt && !busy && (draft.outputFormat!=="custom" || photoAspectSupported);
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -385,12 +398,12 @@ export function StudioWizard({
         {step===1&&<PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start} audioUrl={draft.song?`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined} sections={timeline} onChange={updateTimeline}/>}
         {step===2&&<section className="flow-composer sm-studio-original-composer" aria-label="Photo and video settings">
           <div className="sm-photo-controls">
-            <div className="flow-image-field" style={draft.imageId ? {aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"} : undefined}>{draft.imageId?<div className="flow-photo" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}><img alt={`Center-cropped ${draft.outputFormat} preview of the uploaded artist`} src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div>:
+            <div className="flow-image-field" style={draft.imageId ? {aspectRatio:draft.outputFormat==="custom"?String(photoRatio):draft.outputFormat==="9:16"?"9 / 16":"16 / 9"} : undefined}>{draft.imageId?<div className="flow-photo" style={{aspectRatio:draft.outputFormat==="custom"?String(photoRatio):draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}><img alt={`Center-cropped ${draft.outputFormat} preview of the uploaded artist`} src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div>:
               <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}</div>
-            {draft.imageId&&<p className="sm-photo-crop-note" role="status">Crop preview: {draft.outputFormat}. Areas outside this frame will be cropped from the video. The subject stays centered.</p>}
+            {draft.imageId&&<p className="sm-photo-crop-note" role="status">{draft.outputFormat==="custom"?(photoAspectSupported?"Custom: original photo aspect ratio; no crop.":"Custom: this photo is too wide or tall for the supported 720p output. Choose 9:16 or 16:9."):`Crop preview: ${draft.outputFormat}. Areas outside this frame will be cropped from the video. The subject stays centered.`}</p>}
             <div className="flow-settings-group" role="group" aria-label="Video settings">
               <details className="flow-camera-menu"><summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{const sentence=`Camera movement: ${option}. ${cameraPrompt[option]||cameraHelp[option]||""}`;const field=performanceInput.current;const at=field?.selectionStart??draft.customPrompt.length;const before=draft.customPrompt.slice(0,at),after=draft.customPrompt.slice(at);const combined=before+(before&&!before.endsWith("\n")?"\n":"")+sentence+(after&&!after.startsWith("\n")?"\n":"")+after;if(combined.length>1000){setError("Performance description cannot exceed 1,000 characters.");return;}update({camera:option,customPrompt:combined,performance:"Custom"});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option as keyof typeof cameraHelp]||option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp]||""}</small></button>)}</div></details>
-              <details className="flow-camera-menu flow-format-menu"><summary aria-label="Video format">{draft.outputFormat==="9:16"?<Smartphone size={18}/>:<Monitor size={18}/>}<span>{draft.outputFormat}</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options flow-format-options" role="group" aria-label="Video aspect ratio">{(["9:16","16:9"] as const).map(format=><button type="button" key={format} className={draft.outputFormat===format?"is-active":""} onClick={e=>{update({outputFormat:format,formatMode:format});e.currentTarget.closest("details")!.open=false;}}>{format==="9:16"?<Smartphone size={17}/>:<Monitor size={17}/>}<span>{format}</span></button>)}</div></details>
+              <details className="flow-camera-menu flow-format-menu"><summary aria-label="Video format">{draft.outputFormat==="9:16"?<Smartphone size={18}/>:<Monitor size={18}/>}<span>{draft.outputFormat==="custom"?"Custom":draft.outputFormat}</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options flow-format-options" role="group" aria-label="Video aspect ratio">{(["9:16","16:9","custom"] as const).map(format=><button type="button" key={format} className={draft.outputFormat===format?"is-active":""} onClick={e=>{update({outputFormat:format,formatMode:format});e.currentTarget.closest("details")!.open=false;}}>{format==="9:16"?<Smartphone size={17}/>:format==="16:9"?<Monitor size={17}/>:<ImagePlus size={17}/>}<span>{format==="custom"?"Custom · photo":format}</span></button>)}</div></details>
             </div>
           </div>
           <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
