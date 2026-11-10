@@ -289,7 +289,8 @@ export async function validateDownloadedOutput(
     (contract.output.width === 1280 && contract.output.height === 720);
   // BytePlus's observed portrait source 786x1178 may be padded to either
   // explicitly reviewed 720p export orientation. This never accepts any
-  // other source dimensions, fps, codec or aspect ratio.
+  // other source dimensions, fps, codec or aspect ratio. Keep the source
+  // admission independent of a customer's chosen landscape output ratio.
   const knownSourceRectangle =
     !contract.discover720p && reviewedOutputRectangle &&
     video?.width === 786 && video.height === 1178;
