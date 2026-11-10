@@ -94,6 +94,7 @@ async function prepareOwnedSelection(
     start: number;
     end: number;
     prompt: string;
+    outputFormat?: "9:16" | "16:9" | "custom";
   },
   owner: string,
   maxSeconds: number,
@@ -119,6 +120,23 @@ async function prepareOwnedSelection(
     imagePath = await privateAsset(image.path, dataDir);
   const sourceSha256 = await sha256File(sourcePath);
   await validateReference(imagePath);
+  // The customer's custom output is derived from the decoded OWNED photo,
+  // never from browser-supplied dimensions or metadata attached to payment.
+  const photo = await sharp(imagePath).metadata();
+  const transposed = [5,6,7,8].includes(photo.orientation ?? 1);
+  const sourceWidth = transposed ? photo.height! : photo.width!;
+  const sourceHeight = transposed ? photo.width! : photo.height!;
+  const shortSide = Math.min(sourceWidth,sourceHeight);
+  const longSide = Math.max(sourceWidth,sourceHeight);
+  if (selected.outputFormat === "custom" && (
+      !Number.isInteger(shortSide) || !Number.isInteger(longSide) ||
+      shortSide < 1 || longSide / shortSide > 1280 / 720
+  )) throw Error("Custom original photo ratio exceeds supported 720p output bounds; choose 9:16 or 16:9.");
+  const customOutput = selected.outputFormat === "custom" ? (
+    sourceWidth >= sourceHeight
+      ? {width:Math.round(sourceWidth/sourceHeight*720/2)*2,height:720}
+      : {width:720,height:Math.round(sourceHeight/sourceWidth*720/2)*2}
+  ) : undefined;
   const directory = path.join(dataDir, "media");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   // Content-addressed immutable copies bind approval to the exact reviewed inputs.
@@ -217,6 +235,8 @@ async function prepareOwnedSelection(
   if ((await sha256File(sourcePath)) !== sourceSha256)
     throw new Error("Original recording changed during preparation.");
   return {
+    ...(selected.outputFormat ? { outputFormat:selected.outputFormat } : {}),
+    ...(customOutput ? { customOutput } : {}),
     recording: { songId: selected.songId, sourceSha256 },
     sourceJobId: selected.id,
     owner,
