@@ -331,3 +331,67 @@
 @media(prefers-reduced-motion:reduce){
  .sm-mobile-reel-backup{transition:none}
 }
+
+/* Final mockup sizing: proportional typography and hero spacing at every desktop height. */
+@media(min-width:761px){
+ html:has(.sm-immersive-home){scroll-behavior:smooth;scroll-padding-top:0}
+ .sm-immersive-first-screen,.sm-immersive-hero{height:100svh;min-height:0}
+ .sm-immersive-hero{padding:clamp(125px,39svh,460px) 22px 44px;justify-content:flex-start}
+ .sm-immersive-desktop-intro{max-width:760px;margin:0 auto}
+ .sm-immersive-desktop-intro h1{
+  max-width:720px;margin:0 auto 0;
+  font-size:clamp(43px,5.45vw,72px);line-height:1.03;
+  letter-spacing:-.046em;font-weight:820;text-wrap:balance;
+ }
+ .sm-immersive-desktop-intro p{
+  margin:13px auto 16px;max-width:640px;
+  font-size:clamp(14px,1.65vw,17px);line-height:1.4;
+ }
+ .sm-immersive-desktop-intro .sm-immersive-cta{
+  min-width:255px;min-height:49px;padding:11px 21px;
+  font-size:14px;margin:0;gap:13px;
+ }
+ .sm-immersive-scroll-cue{bottom:clamp(19px,5vh,43px);transition:transform .2s,background .2s}
+ .sm-immersive-scroll-cue:hover{transform:translateX(-50%) translateY(4px);background:#30104cbd}
+ .sm-immersive-below .sm-desktop-showcase{padding:clamp(55px,8vh,95px) 0 36px}
+ .sm-moving-carousel{
+  position:relative;width:min(1170px,98vw);height:clamp(310px,42vw,520px);
+  margin:0 auto;overflow:hidden;isolation:isolate;touch-action:pan-y;
+ }
+ .sm-moving-card{
+  position:absolute;top:50%;left:50%;width:min(680px,62vw);
+  aspect-ratio:16/9;overflow:hidden;border-radius:19px;
+  border:1px solid #a935df;background:#120a20;
+  box-shadow:0 0 22px #b521e43f,0 18px 50px #0008;
+  transform:translate(calc(-50% + var(--slot)*83%),-50%) scale(.81);
+  opacity:.52;filter:brightness(.6);
+  transition:transform .55s cubic-bezier(.22,.8,.21,1),opacity .55s,filter .55s;
+  z-index:1;will-change:transform;
+ }
+ .sm-moving-card.is-side{opacity:.82;filter:brightness(.74);z-index:2}
+ .sm-moving-card.is-center{opacity:1;filter:brightness(1);transform:translate(calc(-50% + var(--slot)*83%),-50%) scale(1);z-index:3}
+ .sm-moving-card.no-transition{transition:none!important}
+ .sm-moving-video,.sm-moving-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+ .sm-moving-video{cursor:pointer}
+ .sm-moving-poster{background-position:center;background-size:cover}
+ .sm-moving-card:after{content:"";position:absolute;left:0;right:0;bottom:0;height:34%;background:linear-gradient(transparent,#080513ae);pointer-events:none}
+ .sm-moving-side-tap{position:absolute;inset:0;z-index:8;border:0;background:transparent;cursor:pointer}
+ .sm-moving-card:not(.is-center) .sm-moving-caption{opacity:.65}
+ .sm-moving-caption{position:absolute;left:16px;right:65px;bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:#fff;z-index:6;text-shadow:0 1px 9px #000;pointer-events:none}
+ .sm-moving-caption span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
+ .sm-moving-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:7;display:grid;place-items:center;width:64px;height:64px;padding-left:4px;background:#170927ba;border:1px solid #d445f9;border-radius:50%;color:#fff;cursor:pointer;backdrop-filter:blur(9px)}
+ .sm-moving-play:disabled{cursor:default;opacity:1}
+ .sm-moving-mute{position:absolute;right:17px;bottom:12px;z-index:7;display:grid;place-items:center;width:40px;height:40px;color:white;background:#100a1dc5;border:1px solid #ffffff8a;border-radius:50%}
+ .sm-desktop-carousel-navigation{margin-top:6px}
+ .sm-desktop-carousel-navigation button:disabled{opacity:.48}
+}
+@media(min-width:761px) and (max-height:610px){
+ .sm-immersive-hero{padding-top:40svh}
+ .sm-immersive-desktop-intro h1{font-size:clamp(39px,5vw,54px)}
+ .sm-immersive-desktop-intro p{margin:11px auto 13px}
+ .sm-immersive-desktop-intro .sm-immersive-cta{min-height:46px}
+}
+@media(prefers-reduced-motion:reduce){
+ html:has(.sm-immersive-home){scroll-behavior:auto}
+ .sm-moving-card,.sm-immersive-scroll-cue{transition:none!important}
+}
