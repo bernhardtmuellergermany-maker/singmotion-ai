@@ -39,13 +39,6 @@ if (process.env.PRODUCTION_R2_READONLY_PREFLIGHT_ENABLED === "true") {
   const status = await productionR2ReadOnlyPreflight();
   console.log("PRODUCTION_R2_READONLY_PREFLIGHT " + status);
 }
-if(process.env.PRODUCTION_R2_WRITE_PREFLIGHT_ENABLED==="true"){
-  // A one-shot, explicitly enabled private R2 verification. Never opens a
-  // customer checkout, grants storage release or submits provider work.
-  const {productionR2WritePreflight}=await import("./production-r2-write-preflight.ts");
-  const status=await productionR2WritePreflight();
-  console.log("PRODUCTION_R2_WRITE_PREFLIGHT "+status);
-}
 if(process.env.STAGING_R2_RUNTIME_CANARY_ENABLED==="true"){
   if(process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041"||process.getuid?.()!==1000)
     throw new Error("Private R2 hydration canary is permitted on nonroot Staging only.");
@@ -112,6 +105,19 @@ const worker = spawn(
   ["--experimental-strip-types", "scripts/worker.ts"],
   { stdio: "inherit" },
 );
+
+// Production R2 canary MUST NOT block the webserver's first healthy response.
+// A temporary S3 network slowdown used to obscure the preflight result and
+// prevented us from diagnosing private output storage on the live environment.
+// The canary uses an isolated random object, not any customer asset, and never
+// grants payment, storage release or provider authorization.
+if (process.env.PRODUCTION_R2_WRITE_PREFLIGHT_ENABLED === "true") {
+  console.log("PRODUCTION_R2_WRITE_PREFLIGHT started");
+  void import("./production-r2-write-preflight.ts")
+    .then(({productionR2WritePreflight}) => productionR2WritePreflight())
+    .then(status => console.log("PRODUCTION_R2_WRITE_PREFLIGHT " + status))
+    .catch(() => console.warn("PRODUCTION_R2_WRITE_PREFLIGHT blocked"));
+}
 let stopping = false;
 function stop(code) {
   if (stopping) return;
