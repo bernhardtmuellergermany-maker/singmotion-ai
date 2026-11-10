@@ -110,6 +110,8 @@ export function ImmersiveHome(){
      </div>
     </section>
     <div className="sm-immersive-mobile-overlay">
+     <h1>Turn your song into a music video.</h1>
+     <p>Make your music come alive with SingMotion AI.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
     {clips.length>1&&<div className="sm-immersive-feed-position" aria-live="polite">{currentClip+1} / {clips.length}</div>}
