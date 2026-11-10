@@ -12,7 +12,7 @@ import {
   type OutputValidationContract,
 } from "../lib/live/output.ts";
 
-test("786x1178 source becomes padded 720x1280 with unchanged timeline and audio; no broad acceptance", async () => {
+test("786x1178 source center-crops to full-frame 720x1280 without distortion or black padding; no broad acceptance", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "sm-normalize-"));
   const policy: OutputValidationContract = {
     outputHosts: ["approved.example.test"],
@@ -84,9 +84,9 @@ test("786x1178 source becomes padded 720x1280 with unchanged timeline and audio;
     const pixel = (x: number, y: number) => [
       ...pixels.subarray((y * 720 + x) * 3, (y * 720 + x) * 3 + 3),
     ];
-    assert.ok(pixel(360, 50).every((c) => c < 10)); // top padding
-    assert.ok(pixel(360, 1230).every((c) => c < 10)); // bottom padding
-    assert.ok(pixel(360, 110)[0] > 200); // content: about 1078px tall, not stretched or cropped
+    for (const [x, y] of [[360, 50], [360, 1230], [12, 12], [705, 1265]]) {
+      assert.ok(pixel(x, y)[0] > 180, `expected full-frame content at ${x},${y}, not black bars`);
+    }
     assert.deepEqual(await readFile(raw), bytes);
     let counter = 0;
     const rejected = async (
