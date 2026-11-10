@@ -92,6 +92,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
 export function ImmersiveHome(){
  const [clips,setClips]=useState<ShowcaseClip[]>([]);
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
+ const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(true);
  const [failed,setFailed]=useState<Record<number,boolean>>({});
@@ -120,6 +121,18 @@ export function ImmersiveHome(){
     setClips(publicClips);
    })
    .catch(()=>{if(active)setClips([])});
+  fetch("/api/showcase?channel=desktop_portrait",{cache:"no-store"})
+    .then(r=>r.ok?r.json():null)
+    .then(data=>{
+      if(!active)return;
+      const videos=Array.isArray(data?.videos)?data.videos:[];
+      setPortraitClips(videos.flatMap((item:unknown)=>{
+        if(!item||typeof item!=="object")return [];
+        const v=item as {title?:unknown;videoUrl?:unknown};
+        return typeof v.videoUrl==="string"&&(v.videoUrl.startsWith("/")&&!v.videoUrl.startsWith("//")||v.videoUrl.startsWith("https://"))?
+          [{title:typeof v.title==="string"?v.title:showcase.title,url:v.videoUrl}]:[];
+      }));
+    }).catch(()=>{if(active)setPortraitClips([])});
   fetch("/api/showcase?channel=desktop",{cache:"no-store"})
    .then(r=>r.ok?r.json():null)
    .then(data=>{
@@ -230,23 +243,17 @@ export function ImmersiveHome(){
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion.</p>
-    {clip&&!failed?<div className="sm-immersive-creation-grid">
-     <a href="#content" className="sm-immersive-creation" aria-label="View approved SingMotion showcase video">
-      <video src={clip.url} playsInline muted preload="none" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"}/>
-      <span>{clip.title}</span>
-     </a>
-    </div>:<p className="sm-immersive-no-example">Approved showcase videos will appear here.</p>}
-    <div className="sm-immersive-placeholder-gallery" aria-label="Upcoming portrait video carousel">
-      <div className="sm-immersive-placeholder-track" role="group" aria-label="9 by 16 video placeholders" style={{transform:"translateX(-"+portraitSlide*25+"%)"}}>
-        {[0,1,2,3].map((n)=><div key={n} className={"sm-immersive-placeholder-card"+(portraitSlide===n?" is-selected":"")} role="img" aria-label={"Portrait showcase "+(n+1)+", video coming soon"}>
-          <span className="sm-immersive-placeholder-play"><Play size={28} fill="currentColor"/></span>
-          <small>Coming soon</small>
+    <div className="sm-immersive-placeholder-gallery" aria-label="Desktop portrait video carousel">
+      <div className="sm-immersive-placeholder-track" role="group" aria-label="9 by 16 portrait video collection" style={{transform:"translateX(-"+portraitSlide*25+"%)"}}>
+        {(portraitClips.length?portraitClips:[{title:"Coming soon",url:""}]).map((item,n)=><div key={item.url||n} className={"sm-immersive-placeholder-card"+(portraitSlide===n?" is-selected":"")}>
+          {item.url?<video src={item.url} playsInline muted loop preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} onClick={e=>{const v=e.currentTarget;if(v.paused)void v.play().catch(()=>{});else v.pause();}} aria-label={item.title}/>:<span className="sm-immersive-placeholder-play"><Play size={28} fill="currentColor"/></span>}
+          <small>{item.title}</small>
         </div>)}
       </div>
       <div className="sm-immersive-placeholder-nav">
         <button type="button" disabled={portraitSlide===0} onClick={()=>setPortraitSlide(i=>Math.max(0,i-1))} aria-label="Previous portrait">‹</button>
-        <span>{portraitSlide+1} / 4</span>
-        <button type="button" disabled={portraitSlide===3} onClick={()=>setPortraitSlide(i=>Math.min(3,i+1))} aria-label="Next portrait">›</button>
+        <span>{Math.min(portraitSlide+1,Math.max(1,portraitClips.length))} / {Math.max(1,portraitClips.length)}</span>
+        <button type="button" disabled={portraitSlide>=Math.max(0,portraitClips.length-1)} onClick={()=>setPortraitSlide(i=>Math.min(Math.max(0,portraitClips.length-1),i+1))} aria-label="Next portrait">›</button>
       </div>
     </div>
    </section>
