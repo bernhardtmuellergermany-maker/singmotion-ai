@@ -6,7 +6,7 @@ import { reviewedVideoInputDigest } from "./reviewed-video.ts";
 import { CommerceStore } from "./store.ts";
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
 import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
-import {OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS} from "./owner-confirmed-provider-policy.ts";
+import {reviewedCustomerOrderMaxSeconds} from "./reviewed-customer-duration.ts";
 
 /** Server-only Studio -> commerce gateway. No public endpoint, no charge and no
  * BytePlus request. Caller must authenticate the account AND media owner. */
@@ -38,8 +38,7 @@ export async function prepareCustomerStudioOrder(
   // separately reserved subscription fulfillment pipeline, never Checkout.
   // Never take a Stripe payment for audio outside the currently activated
   // provider/customer pricing interval. Encoded MP3 duration is authoritative.
-  const maxSeconds=env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" ?
-    OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS : 300;
+  const maxSeconds=await reviewedCustomerOrderMaxSeconds(dataDir,env);
   let media = await prepareStudioDraft(input.draft, input.mediaOwner, maxSeconds);
   if (env.AUDIO_TEMPO_ENABLED === "true") {
     if (!media.recording?.songId || !/^[a-f0-9]{64}$/.test(media.recording.sourceSha256))
