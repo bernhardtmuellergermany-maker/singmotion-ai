@@ -669,3 +669,24 @@
 @media(max-width:760px){
  .sm-desktop-portrait-grid{display:none}
 }
+
+/* Stunning Creations: videos autoplay muted and show only a centered sound control. */
+@media(min-width:761px){
+ .sm-desktop-portrait-card .sm-desktop-portrait-sound{
+  position:absolute;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%);
+  display:grid;place-items:center;width:54px;height:54px;
+  border:1px solid #dc73ffb7;border-radius:50%;
+  background:#12091b9c;color:#fff;backdrop-filter:blur(7px);
+  box-shadow:0 0 15px #a123d757;cursor:pointer;
+  transition:background .2s,border-color .2s,transform .2s;
+ }
+ .sm-desktop-portrait-card .sm-desktop-portrait-sound:hover,
+ .sm-desktop-portrait-card .sm-desktop-portrait-sound:focus-visible{
+  border-color:#f1bbff;background:#8f29bbcf;
+  transform:translate(-50%,-50%) scale(1.07);
+ }
+ .sm-desktop-portrait-card>small{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-desktop-portrait-card .sm-desktop-portrait-sound{transition:none!important}
+}
