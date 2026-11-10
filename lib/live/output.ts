@@ -295,8 +295,18 @@ export async function validateDownloadedOutput(
     !contract.discover720p && reviewedOutputRectangle &&
     ((video?.width === 786 && video.height === 1178) ||
      (video?.width === 960 && video.height === 960));
-  if (!reviewedSourceRectangle && !normalizeFps) {
+  // Width and height are not interchangeable for a customer order. The
+  // shared provider validator accepts reviewed 720p rotations, but delivery
+  // MUST match the exact orientation chosen at checkout.
+  const needsOrientationFit = reviewedOutputRectangle &&
+    video?.width === contract.output.height &&
+    video?.height === contract.output.width;
+  if (!reviewedSourceRectangle && !normalizeFps && !needsOrientationFit) {
     await validateOutput(file, duration, contract);
+    if (reviewedOutputRectangle && (
+      video?.width !== contract.output.width ||
+      video?.height !== contract.output.height
+    )) throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
     return;
   }
   const metadata = video as typeof video & {
@@ -336,6 +346,11 @@ export async function validateDownloadedOutput(
     },
   });
   await fitValidatedRectangle(file, duration, contract, normalizeFps);
+  const exported = (await probe(file)).streams.find(s => s.codec_type === "video");
+  if (reviewedOutputRectangle && (
+    exported?.width !== contract.output.width ||
+    exported?.height !== contract.output.height
+  )) throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
 }
 /** Local export only; does not send an aspect-ratio parameter to BytePlus. */
 export function exportContract<T extends OutputValidationContract>(
