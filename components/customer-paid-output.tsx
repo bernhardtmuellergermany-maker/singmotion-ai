@@ -6,7 +6,7 @@ import {customerPaidVideoLabel} from "../lib/commerce/customer-video-links";
 
 type CustomerOrder={orderId:string;projectId:string;status:string;fulfillmentState:string|null;
  videoReady:number;videoUrl:string|null;downloadUrl:string|null};
-export function CustomerPaidOutput({orderId}:{orderId:string}){
+export function CustomerPaidOutput({orderId,guest=false}:{orderId:string;guest?:boolean}){
  const [order,setOrder]=useState<CustomerOrder|null>(null);
  const [error,setError]=useState("");
  const [loaded,setLoaded]=useState(false);
@@ -15,16 +15,26 @@ export function CustomerPaidOutput({orderId}:{orderId:string}){
   async function poll(){
    if(document.visibilityState!=="hidden"){
     try{
-     const response=await fetch(`/api/customer-orders?view=mine&orderId=${encodeURIComponent(orderId)}`,{credentials:"same-origin",cache:"no-store"});
+     const response=await fetch(guest
+       ?`/api/orders/${encodeURIComponent(orderId)}`
+       :`/api/customer-orders?view=mine&orderId=${encodeURIComponent(orderId)}`,
+       {credentials:"same-origin",cache:"no-store"});
      if(!response.ok)throw Error("Order status unavailable");
-     const data=await response.json() as {orders:CustomerOrder[]};
-     if(live){setOrder(data.orders.find(o=>o.orderId===orderId)||null);setLoaded(true);setError("");}
+     const data=await response.json() as {orders?:CustomerOrder[];paymentStatus?:string;
+       fulfillmentStatus?:string|null;videoReady?:boolean};
+     const item=guest?{
+       orderId,projectId:"",status:data.paymentStatus||"unknown",
+       fulfillmentState:data.fulfillmentStatus??null,videoReady:data.videoReady?1:0,
+       videoUrl:data.videoReady?`/api/customer-video?orderId=${encodeURIComponent(orderId)}`:null,
+       downloadUrl:data.videoReady?`/api/customer-video?orderId=${encodeURIComponent(orderId)}&download=1`:null,
+     }:data.orders?.find(o=>o.orderId===orderId)||null;
+     if(live){setOrder(item);setLoaded(true);setError("");}
     }catch{if(live)setError("Unable to refresh video status.");}
    }
    if(live)timer=setTimeout(poll,5000);
   }
   void poll();return()=>{live=false;clearTimeout(timer)};
- },[orderId]);
+ },[orderId,guest]);
  const ready=order?.status==="paid"&&order.videoReady===1&&!!order.videoUrl&&!!order.downloadUrl;
  const status=customerPaidVideoLabel(order,loaded);
  const review=order?.fulfillmentState==="failed"||order?.fulfillmentState==="requires-review";
