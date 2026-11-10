@@ -373,8 +373,6 @@ export class CommerceStore {
       // Never persist media prepared for another customer, even from a trusted caller.
       if(input.account && media.owner!==`customer-${input.account}`)
         throw Error("Customer media ownership mismatch");
-      if(!input.account && !/^[a-f0-9-]{36}$/.test(media.owner))
-        throw Error("Guest media must belong to a verified private guest session");
       // Reject unprepared inputs before writing any order.
       reviewedVideoInputDigest(media);
       // An idempotent retry must reuse the committed quote, not reprice
