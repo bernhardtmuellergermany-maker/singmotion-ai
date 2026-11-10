@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
       httpOnly: true,
       sameSite: "strict",
       secure: req.nextUrl.protocol === "https:",
-      path: `/orders/${body.id}`,
-      maxAge: 86400,
+      path: "/",
+      maxAge: 90*86400,
     });
     return response;
   } catch {
