@@ -17,8 +17,8 @@ type Selected={attempt_id:string;owner:string;artist_name:string;project_name?:s
 const slots=["main","second","third"] as const;
 type Slot=typeof slots[number];
 const isSlot=(slot:string):slot is Slot=>slots.some(s=>s===slot);
-type Channel="desktop"|"mobile";
-const isChannel=(v:unknown):v is Channel=>v==="desktop"||v==="mobile";
+type Channel="desktop"|"desktop_portrait"|"mobile";
+const isChannel=(v:unknown):v is Channel=>v==="desktop"||v==="desktop_portrait"||v==="mobile";
 type ChannelEntry=Selected&{channel:Channel;sort_order:number;policy_json:string};
 const superAdminPolicy=(value:string)=>{try{return (JSON.parse(value) as {reviewedBy?:string}).reviewedBy==="authenticated-super-admin-server-policy";}catch{return false}};
 
@@ -27,6 +27,18 @@ async function store(){
   s.db.exec("CREATE TABLE IF NOT EXISTS live_studio_projects (attempt_id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection_json TEXT NOT NULL, policy_json TEXT NOT NULL, artist_name TEXT NOT NULL, diagnostic TEXT, started_at INTEGER)");
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_selection (slot TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, owner TEXT NOT NULL, artist_name TEXT NOT NULL)");
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_entries (channel TEXT NOT NULL CHECK(channel IN ('desktop','mobile')),attempt_id TEXT NOT NULL,owner TEXT NOT NULL,artist_name TEXT NOT NULL,sort_order INTEGER NOT NULL,PRIMARY KEY(channel,attempt_id))");
+  // Safely expand the earlier two-channel table to three independently curated surfaces.
+  const tableSql=(s.db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='public_showcase_entries'").get() as {sql:string}|undefined)?.sql||"";
+  if(!tableSql.includes("desktop_portrait")){
+    s.db.exec("BEGIN IMMEDIATE");
+    try{
+      s.db.exec("CREATE TABLE public_showcase_entries_v2 (channel TEXT NOT NULL CHECK(channel IN ('desktop','desktop_portrait','mobile')),attempt_id TEXT NOT NULL,owner TEXT NOT NULL,artist_name TEXT NOT NULL,sort_order INTEGER NOT NULL,PRIMARY KEY(channel,attempt_id))");
+      s.db.exec("INSERT INTO public_showcase_entries_v2 SELECT channel,attempt_id,owner,artist_name,sort_order FROM public_showcase_entries");
+      s.db.exec("DROP TABLE public_showcase_entries");
+      s.db.exec("ALTER TABLE public_showcase_entries_v2 RENAME TO public_showcase_entries");
+      s.db.exec("COMMIT");
+    }catch(error){s.db.exec("ROLLBACK");throw error;}
+  }
   // One-time migration of already published selections only; never publish
   // other completed or private videos automatically.
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_migrations (version INTEGER PRIMARY KEY)");
