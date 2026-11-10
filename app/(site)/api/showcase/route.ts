@@ -91,7 +91,7 @@ async function handler(req:NextRequest){
         const size=(await stat(file)).size;let start=0,end=size-1,status=200;
         const range=req.headers.get("range");
         if(range){
-          const m=/^bytes=(\\d+)-(\\d*)$/.exec(range);
+          const m=/^bytes=(\d+)-(\d*)$/.exec(range);
           if(!m)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
           start=Number(m[1]);end=m[2]?Number(m[2]):size-1;
           if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
