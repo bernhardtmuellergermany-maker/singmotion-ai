@@ -19,6 +19,7 @@ export function ImmersiveHome(){
  const [muted,setMuted]=useState(true);
  const [failed,setFailed]=useState(false);
  const [visible,setVisible]=useState(true);
+ const [portraitSlide,setPortraitSlide]=useState(0);
  useEffect(()=>{
   let active=true;
   fetch("/api/showcase",{cache:"no-store"})
@@ -75,7 +76,7 @@ export function ImmersiveHome(){
    const start=swipeStart.current;swipeStart.current=null;
    const t=event.changedTouches[0];if(!start||!t)return;
    const dy=t.clientY-start.y,dx=t.clientX-start.x;
-   if(Math.abs(dy)>65&&Math.abs(dy)>Math.abs(dx)*1.2)advance(dy<0?1:-1);
+   if(Math.abs(dy)>65&&Math.abs(dy)>Math.abs(dx)*1.2){if(dy>110&&currentClip===0){window.location.reload();return;}advance(dy<0?1:-1);}
  };
  const wheel=(event:React.WheelEvent)=>{
    if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches && Math.abs(event.deltaY)>30 && !swipeLock.current){
@@ -99,11 +100,11 @@ export function ImmersiveHome(){
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
     <section className="sm-immersive-video-stage" aria-label="SingMotion AI music video showcase">
-     <div className="sm-immersive-video-frame">
-      {clip&&!failed?<video key={clip.url} ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="metadata" onError={()=>setFailed(true)} aria-label={clip.title}/>:
+     <div className="sm-immersive-video-frame" key={currentClip}>
+      {clip&&!failed?<video key={clip.url} ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="metadata" onError={()=>setFailed(true)} onClick={toggle} aria-label={clip.title}/>:
        <div className="sm-immersive-video-poster" role="img" aria-label="SingMotion music video showcase artwork"><span>{failed?"Showcase video currently unavailable": "Music video showcase"}</span></div>}
       <div className="sm-immersive-video-controls">
-       {clip&&!failed&&<><button type="button" onClick={toggle} aria-label={playing?"Pause video":"Play video"}>{playing?<Pause size={21}/>:<Play size={21}/>}</button>
+       {clip&&!failed&&<><button type="button" className="sm-immersive-play-toggle" onClick={toggle} aria-label={playing?"Pause video":"Play video"}>{playing?<Pause size={21}/>:<Play size={21}/>}</button>
        <button type="button" onClick={toggleSound} aria-label={muted?"Turn on video sound":"Mute video"}>{muted?<VolumeX size={21}/>:<Volume2 size={21}/>}</button></>}
       </div>
       <span className="sm-immersive-video-caption">SingMotion AI Showcase</span>
@@ -138,6 +139,19 @@ export function ImmersiveHome(){
       <span>{clip.title}</span>
      </a>
     </div>:<p className="sm-immersive-no-example">Approved showcase videos will appear here.</p>}
+    <div className="sm-immersive-placeholder-gallery" aria-label="Upcoming portrait video carousel">
+      <div className="sm-immersive-placeholder-track" role="group" aria-label="9 by 16 video placeholders" style={{transform:"translateX(-"+portraitSlide*25+"%)"}}>
+        {[0,1,2,3].map((n)=><div key={n} className={"sm-immersive-placeholder-card"+(portraitSlide===n?" is-selected":"")} role="img" aria-label={"Portrait showcase "+(n+1)+", video coming soon"}>
+          <span className="sm-immersive-placeholder-play"><Play size={28} fill="currentColor"/></span>
+          <small>Coming soon</small>
+        </div>)}
+      </div>
+      <div className="sm-immersive-placeholder-nav">
+        <button type="button" disabled={portraitSlide===0} onClick={()=>setPortraitSlide(i=>Math.max(0,i-1))} aria-label="Previous portrait">‹</button>
+        <span>{portraitSlide+1} / 4</span>
+        <button type="button" disabled={portraitSlide===3} onClick={()=>setPortraitSlide(i=>Math.min(3,i+1))} aria-label="Next portrait">›</button>
+      </div>
+    </div>
    </section>
    <section className="sm-immersive-final" aria-labelledby="sm-ready-title">
     <h2 id="sm-ready-title">Ready to create your next <span>music video?</span></h2>
