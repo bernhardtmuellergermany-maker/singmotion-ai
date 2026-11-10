@@ -750,3 +750,42 @@
 @media(min-width:761px) and (max-width:980px){
  .sm-immersive-home .sm-moving-card{width:43vw}
 }
+
+/* Mobile launch transition: keep one lightweight CMS fallback image in front
+   while the first video buffers underneath; reveal it by sliding upward. */
+.sm-mobile-intro-fallback,.sm-mobile-refresh-underlay{display:none}
+@media(max-width:760px){
+ .sm-mobile-intro-fallback,
+ .sm-mobile-refresh-underlay{
+  position:absolute;inset:0;display:block;
+  pointer-events:none;
+  background-color:#080615;
+  background-image:linear-gradient(180deg,#09051518 0%,#09051504 45%,#08051290 100%),url("/api/showcase-media?kind=mobile-fallback");
+  background-position:center center;background-size:cover;
+  background-repeat:no-repeat;
+ }
+ .sm-mobile-refresh-underlay{z-index:2}
+ .sm-mobile-intro-fallback{
+  z-index:4;opacity:1;transform:translate3d(0,0,0);
+  transition:transform .88s cubic-bezier(.21,.78,.24,1),opacity .75s ease;
+  will-change:transform;
+ }
+ .sm-mobile-intro-fallback.is-hidden{
+  opacity:0;transform:translate3d(0,-100%,0);visibility:hidden;
+  transition:transform .88s cubic-bezier(.21,.78,.24,1),opacity .75s ease,visibility 0s .88s;
+ }
+ .sm-mobile-reels{background:transparent!important;z-index:3}
+ .sm-mobile-reel:first-child{
+  transition:transform .48s cubic-bezier(.18,.82,.26,1)!important;
+  will-change:transform;
+ }
+ .sm-mobile-reels.is-dragging .sm-mobile-reel:first-child{
+  transition:none!important;
+ }
+ .sm-mobile-reels.is-refreshing .sm-mobile-reel:first-child{
+  transition:transform .48s cubic-bezier(.18,.82,.26,1)!important;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-mobile-intro-fallback,.sm-mobile-reel:first-child{transition:none!important}
+}
