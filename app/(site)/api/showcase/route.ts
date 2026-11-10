@@ -55,6 +55,7 @@ async function store(){
       s.db.exec("COMMIT");
     }catch(error){s.db.exec("ROLLBACK");throw error;}
   }
+  s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_channel_config (channel TEXT PRIMARY KEY, explicitly_configured INTEGER NOT NULL DEFAULT 1)");
   return s;
 }
 async function admin(req:NextRequest){
@@ -101,6 +102,18 @@ async function handler(req:NextRequest){
       }
       if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
         const videos=validated().map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
+        // Preserve the explicitly published legacy feed until its new mobile
+        // playlist is curated in CMS. Never import other/private projects.
+        const configured=!!s.db.prepare("SELECT 1 FROM public_showcase_channel_config WHERE channel=?").get(channel);
+        if(channel==="mobile"&&videos.length===0&&!configured){
+          const legacy=s.db.prepare("SELECT slot,attempt_id,owner,artist_name FROM public_showcase_selection ORDER BY CASE slot WHEN 'main' THEN 0 WHEN 'second' THEN 1 ELSE 2 END").all() as (Selected&{slot:string})[];
+          const publicOld=legacy.filter(row=>{
+            const verified=s.db.prepare("SELECT policy_json FROM live_studio_projects WHERE attempt_id=? AND owner=?").get(row.attempt_id,row.owner) as {policy_json:string}|undefined;
+            if(!verified||!superAdminPolicy(verified.policy_json))return false;
+            try{const output=s.get(row.attempt_id);return output.state==="completed"&&!!output.outputPath;}catch{return false;}
+          }).map(row=>({id:row.attempt_id,title:row.artist_name,videoUrl:"/api/showcase?video=1&slot="+row.slot}));
+          return json({channel,legacyFallback:true,title:publicOld[0]?.title||"SingMotion AI Showcase",videoUrl:publicOld[0]?.videoUrl||"",videos:publicOld});
+        }
         return json({channel,title:videos[0]?.title||"SingMotion AI Showcase",videoUrl:videos[0]?.videoUrl||"",videos});
       }
       if(!await admin(req))return json({error:"Super-admin authorization required"},403);
@@ -144,6 +157,7 @@ async function handler(req:NextRequest){
           s.db.prepare("DELETE FROM public_showcase_entries WHERE channel=?").run(channel);
           const add=s.db.prepare("INSERT INTO public_showcase_entries(channel,attempt_id,owner,artist_name,sort_order) VALUES(?,?,?,?,?)");
           for(const [index,p] of chosen.entries()){if(p)add.run(channel,p.id,p.owner,p.name,index);}
+          s.db.prepare("INSERT OR REPLACE INTO public_showcase_channel_config(channel,explicitly_configured) VALUES(?,1)").run(channel);
           s.db.exec("COMMIT");
         }catch(error){s.db.exec("ROLLBACK");throw error;}
         return json({ok:true,channel,published:chosen.length});
