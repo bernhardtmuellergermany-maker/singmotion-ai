@@ -44,10 +44,15 @@ export async function GET(req: NextRequest) {
       return respond({orders:safeOrders});
     } finally {store.close();}
   }
+  const readiness=customerLaunchReadiness();
   return respond({
     available: process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
       process.env.CUSTOMER_ORDER_PREPARATION_ENABLED === "true",
-    checkoutEnabled: customerLaunchReadiness().readyForPaidOrders,
+    checkoutEnabled: readiness.readyForPaidOrders,
+    // Public, non-secret categories only. An estimate is never evidence of
+    // a working Stripe/BytePlus delivery system.
+    checkoutUnavailableReason: readiness.readyForPaidOrders ? null :
+      "Stripe Checkout und private BytePlus-Videolieferung sind für diese Umgebung noch nicht vollständig freigegeben.",
   });
 }
 
