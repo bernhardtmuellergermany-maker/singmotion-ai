@@ -292,7 +292,13 @@ export async function validateDownloadedOutput(
   ) {
     // Fixed, non-customer diagnostic only: no paths, media names, provider
     // URLs, frame pixels, audio samples or FFmpeg stderr.
-    console.warn("OUTPUT_NORMALIZATION_REJECTED", "source-policy");
+    const policyReason = contract.discover720p ? "discover-mode" :
+      contract.output.videoCodec !== "h264" ? "video-contract" :
+      contract.output.audioCodec !== "aac" ? "audio-contract" :
+      source.streams.length !== 2 ? "stream-count" :
+      metadata?.sample_aspect_ratio !== "1:1" ? "sample-aspect-ratio" :
+      "rotation";
+    console.warn("OUTPUT_NORMALIZATION_REJECTED", "source-policy-" + policyReason);
     throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   }
   // Decode and validate the entire untrusted source before local
