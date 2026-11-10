@@ -10,54 +10,82 @@ import {showcase} from "@/lib/showcase";
  * The public API currently exposes ONE approved video; do not invent a feed. */
 type ShowcaseClip = {title:string;url:string};
 
-/** Desktop-only, independent player: switching a slide always swaps its actual source. */
+/** A five-card filmstrip translates as one carousel, then recycles offscreen cards.
+ * Only owner-approved video URLs are playable; upcoming slots stay labeled.
+ */
 function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const slides:ShowcaseClip[]=clips.length>=3?clips:[...clips,...Array.from({length:3-clips.length},(_,i)=>({title:"Music video coming soon "+(i+1),url:""}))];
  const [selected,setSelected]=useState(0);
+ const [motion,setMotion]=useState(0);
+ const [settling,setSettling]=useState(false);
+ const [target,setTarget]=useState<number|null>(null);
  const [playing,setPlaying]=useState(false);
  const [muted,setMuted]=useState(true);
  const [broken,setBroken]=useState(false);
  const video=useRef<HTMLVideoElement>(null);
- const startX=useRef<number|null>(null);
- const current=slides[selected%slides.length];
- const navigate=(direction:number)=>{
-   video.current?.pause();
-   setPlaying(false);
-   setBroken(false);
-   setSelected(i=>(i+direction+slides.length)%slides.length);
+ const touchX=useRef<number|null>(null);
+ const count=slides.length;
+ const wrap=(index:number)=>(index+count*10)%count;
+ const active=slides[selected];
+ const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
+ const move=(direction:number,destination?:number)=>{
+  if(motion!==0||settling)return;
+  video.current?.pause();
+  setPlaying(false);
+  setMotion(direction>0?-1:1);
+  setTarget(destination===undefined?wrap(selected+(direction>0?1:-1)):wrap(destination));
+ };
+ const endMove=(e:React.TransitionEvent<HTMLDivElement>)=>{
+  if(e.target!==e.currentTarget||e.propertyName!=="transform"||motion===0)return;
+  setSettling(true);
+  setSelected(target??wrap(selected-motion));
+  setMotion(0);
+  setTarget(null);
+  setBroken(false);
+  window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>setSettling(false)));
  };
  const toggle=()=>{
-   const node=video.current;
-   if(!node||broken)return;
-   if(node.paused) void node.play().catch(()=>setPlaying(false));
-   else node.pause();
+  const element=video.current;
+  if(!element||broken)return;
+  if(element.paused)void element.play().catch(()=>setPlaying(false));
+  else element.pause();
  };
- const neighbor=(delta:number)=>slides[(selected+delta+slides.length)%slides.length];
- const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
+ const slots=[-2,-1,0,1,2];
  return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
-   <div className="sm-desktop-carousel" onTouchStart={e=>{startX.current=e.touches[0]?.clientX??null}} onTouchEnd={e=>{const x=e.changedTouches[0]?.clientX;if(x!==undefined&&startX.current!==null&&Math.abs(x-startX.current)>55)navigate(x<startX.current?1:-1);startX.current=null}} onKeyDown={e=>{if(e.key==="ArrowLeft"){e.preventDefault();navigate(-1)}if(e.key==="ArrowRight"){e.preventDefault();navigate(1)}}} tabIndex={0} aria-label="Browse showcased videos with arrow keys or swipe">
-     <button className="sm-desktop-side sm-desktop-side-prev" type="button" aria-label="Previous video" onClick={()=>navigate(-1)}>
-       <span className="sm-desktop-side-picture" style={{backgroundImage:`linear-gradient(#09051555,#09051577),url("${cover}")`}}/>
-       <span className="sm-desktop-side-name">{neighbor(-1).title}</span>
-     </button>
-     <div className="sm-desktop-active-card">
-       {current.url&&!broken?<video key={current.url} ref={video} className="sm-desktop-main-video" src={current.url} poster={cover} preload="metadata" playsInline loop muted={muted} onClick={toggle} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onError={()=>{setBroken(true);setPlaying(false)}} aria-label={current.title}/>:
-        <div className="sm-desktop-video-empty" style={{backgroundImage:`linear-gradient(#0b061744,#0b0617b0),url("${cover}")`}} role="img" aria-label="Video coming soon"/>}
-       {(!playing||!current.url||broken)&&<button className="sm-desktop-center-play" type="button" disabled={!current.url||broken} onClick={toggle} aria-label={current.url&&!broken?"Play "+current.title:"Video coming soon"}><Play size={29} fill="currentColor"/></button>}
-       <div className="sm-desktop-card-footer"><strong>SingMotion AI Showcase</strong><span>{current.url&&!broken?current.title:"Coming soon"}</span></div>
-       {current.url&&!broken&&<button type="button" className="sm-desktop-mute" onClick={()=>setMuted(v=>!v)} aria-label={muted?"Unmute video":"Mute video"}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button>}
-     </div>
-     <button className="sm-desktop-side sm-desktop-side-next" type="button" aria-label="Next video" onClick={()=>navigate(1)}>
-       <span className="sm-desktop-side-picture" style={{backgroundImage:`linear-gradient(#09051555,#09051577),url("${cover}")`}}/>
-       <span className="sm-desktop-side-name">{neighbor(1).title}</span>
-     </button>
-   </div>
-   <div className="sm-desktop-carousel-navigation">
-     <button type="button" aria-label="Previous video" onClick={()=>navigate(-1)}><ChevronLeft size={22}/></button>
-     <div className="sm-desktop-carousel-dots" role="group" aria-label="Choose video">{slides.map((item,i)=><button key={i} className={selected===i?"active":""} type="button" aria-label={"Show video "+(i+1)} aria-current={selected===i?"true":undefined} onClick={()=>navigate(i-selected)}/>)}</div>
-     <button type="button" aria-label="Next video" onClick={()=>navigate(1)}><ChevronRight size={22}/></button>
-     <span className="sm-desktop-slide-count" aria-live="polite">{selected+1} / {slides.length}</span>
-   </div>
+  <div className="sm-moving-carousel" tabIndex={0} aria-label="Use left and right arrows to move through music videos"
+   onKeyDown={e=>{if(e.key==="ArrowLeft"){e.preventDefault();move(-1)}else if(e.key==="ArrowRight"){e.preventDefault();move(1)}}}
+   onTouchStart={e=>{touchX.current=e.touches[0]?.clientX??null}}
+   onTouchEnd={e=>{const x=e.changedTouches[0]?.clientX;if(x!==undefined&&touchX.current!==null&&Math.abs(x-touchX.current)>50)move(x<touchX.current?1:-1);touchX.current=null}}>
+   {slots.map(offset=>{
+    const item=slides[wrap(selected+offset)];
+    const isCenter=offset===0;
+    const isSide=Math.abs(offset)===1;
+    const slot=offset+motion;
+    return <div key={offset} className={"sm-moving-card"+(isCenter?" is-center":"")+(isSide?" is-side":"")+(settling?" no-transition":"")}
+       style={{"--slot":slot} as React.CSSProperties}
+       onTransitionEnd={isCenter?endMove:undefined}
+       aria-hidden={Math.abs(slot)>1?true:undefined}>
+      {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={cover}
+        playsInline loop muted={muted} preload="metadata" className="sm-moving-video"
+        onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
+        onError={()=>{setBroken(true);setPlaying(false)}} onClick={toggle} aria-label={item.title}/>:
+       <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+cover+"')"}}/>}
+      {isCenter&&(!playing||!item.url||broken)&&<button className="sm-moving-play" type="button" disabled={!item.url||broken}
+         aria-label={item.url&&!broken?"Play "+item.title:"Video coming soon"} onClick={toggle}><Play size={30} fill="currentColor"/></button>}
+      {isCenter&&item.url&&!broken&&<button className="sm-moving-mute" type="button" aria-label={muted?"Unmute video":"Mute video"}
+         onClick={()=>setMuted(m=>!m)}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button>}
+      {isSide&&<button className="sm-moving-side-tap" type="button" aria-label={offset<0?"Previous video":"Next video"} onClick={()=>move(offset<0?-1:1)}/>}
+      <div className="sm-moving-caption"><strong>{isCenter?"SingMotion AI Showcase":item.title}</strong><span>{item.url?item.title:"Coming soon"}</span></div>
+    </div>;
+   })}
+  </div>
+  <div className="sm-desktop-carousel-navigation">
+   <button type="button" aria-label="Previous video" onClick={()=>move(-1)} disabled={motion!==0}><ChevronLeft size={22}/></button>
+   <div className="sm-desktop-carousel-dots" role="group" aria-label="Choose video">{slides.map((item,i)=><button key={i} className={selected===i?"active":""} type="button" aria-label={"Show video "+(i+1)} aria-current={selected===i?"true":undefined}
+      disabled={motion!==0} onClick={()=>{if(i!==selected)move(i>selected?1:-1,i)}}/>)}</div>
+   <button type="button" aria-label="Next video" onClick={()=>move(1)} disabled={motion!==0}><ChevronRight size={22}/></button>
+   <span className="sm-desktop-slide-count" aria-live="polite">{selected+1} / {count}</span>
+  </div>
  </section>;
 }
 
