@@ -100,3 +100,29 @@
  .sm-immersive-mobile-overlay{bottom:max(18px,env(safe-area-inset-bottom) + 8px)}
  .sm-immersive-video-controls{bottom:max(200px,env(safe-area-inset-bottom) + 194px)}
 }
+
+/* Mockup alignment and interactive portrait showcase slots. */
+@media(min-width:761px){
+ .sm-immersive-hero{justify-content:flex-start;padding-top:clamp(112px,13vh,164px)}
+ .sm-immersive-desktop-intro{max-width:1050px}
+ .sm-immersive-desktop-intro h1{max-width:970px;text-wrap:balance;line-height:1.01;letter-spacing:-.055em}
+ .sm-immersive-desktop-intro p{max-width:650px;margin-inline:auto}
+ .sm-immersive-video-stage{width:min(990px,83vw);height:auto;min-height:0}
+ .sm-immersive-video-frame{height:auto;width:min(760px,100%);aspect-ratio:16/9}
+}
+.sm-immersive-placeholder-gallery{width:min(100%,1020px);margin:28px auto 0;overflow:hidden}
+.sm-immersive-placeholder-track{display:flex;align-items:stretch;width:400%;transition:transform .45s cubic-bezier(.2,.85,.25,1)}
+.sm-immersive-placeholder-card{height:auto;aspect-ratio:9/16;width:calc(25% / 4 - 18px);margin-right:18px;flex:0 0 calc(25% / 4 - 18px);position:relative;display:grid;place-items:center;background:radial-gradient(ellipse at 50% 20%,#643075,#140c24 75%);border:1px solid #ab46ed;border-radius:16px;box-shadow:0 8px 24px #0006}
+.sm-immersive-placeholder-play{display:grid;place-items:center;width:56px;height:56px;border:1px solid #e68afa;border-radius:50%;background:#11071cbb;color:#fff;padding-left:4px}
+.sm-immersive-placeholder-card small{position:absolute;bottom:16px;font-size:12px;color:#d1bdd8}
+.sm-immersive-placeholder-nav{display:flex;align-items:center;justify-content:center;gap:25px;margin-top:18px;color:#d6bbdf;font-size:12px}
+.sm-immersive-placeholder-nav button{height:38px;width:38px;border:1px solid #914bb3;border-radius:50%;background:#170b24;color:#fff;font-size:27px}
+.sm-immersive-placeholder-nav button:disabled{opacity:.3;cursor:default}
+@media(max-width:760px){
+ .sm-immersive-video-controls .sm-immersive-play-toggle{display:none}
+ .sm-immersive-player{cursor:pointer}
+ .sm-immersive-video-frame{animation:sm-reel-enter .38s cubic-bezier(.2,.7,.2,1) both}
+ .sm-immersive-mobile-overlay h1{max-width:410px;text-wrap:balance;line-height:1.06}
+}
+@keyframes sm-reel-enter{from{opacity:.64;transform:translateY(18px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@media(prefers-reduced-motion:reduce){.sm-immersive-video-frame{animation:none!important}.sm-immersive-placeholder-track{transition:none!important}}
