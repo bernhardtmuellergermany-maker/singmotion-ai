@@ -33,6 +33,8 @@ export async function GET(req:NextRequest) {
  try {
    const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
    const guestOwner=!accountId?mediaSession(req.cookies.get("sm_session")?.value)?.owner:null;
+   if(!accountId && seconds>30)
+     return reply({error:"Guest generation currently supports 5–30 seconds per video."},409);
    if(!accountId && (!guestOwner || !/^[a-f0-9-]{36}$/.test(guestOwner)))
      return reply({error:"Private guest Studio workspace required"},401);
    const state=accountId?new PlanLedger(store.db).snapshot(accountId):{
