@@ -303,7 +303,7 @@ export function ImmersiveHome(){
    // Every touch begins a fresh, independent pull attempt.
    pullDistance.current=0;
    refreshGesture.current=false;
-   const atTop=(feed.current?.scrollTop??0)<=24;
+   const atTop=(feed.current?.scrollTop??0)<=48;
    touchStart.current={x:t.clientX,y:t.clientY,atTop};
    if(unlockSoundAfterGesture.current){
     unlockSoundAfterGesture.current=false;
@@ -317,10 +317,8 @@ export function ImmersiveHome(){
    }
   }
  };
- const refreshThreshold=()=>{
-  const height=feed.current?.clientHeight||window.innerHeight;
-  return Math.min(260,Math.max(140,height*.42));
- };
+ // A short, easy pull (independent of swipe speed or screen height).
+ const refreshThreshold=()=>105;
  // Native, explicitly non-passive handler is essential: preventDefault stops
  // mobile Safari/Chrome from moving the native snap-scroller during refresh.
  // Update CSS properties directly rather than re-rendering every video per frame.
@@ -332,7 +330,7 @@ export function ImmersiveHome(){
    if(!touch||!start||feedBusy)return;
    const dy=touch.clientY-start.y,dx=touch.clientX-start.x;
    if(!refreshGesture.current){
-    if(!start.atTop||dy<=5||dy<=Math.abs(dx)*1.4)return;
+    if(!start.atTop||dy<=2||dy<=Math.abs(dx)*.9)return;
     refreshGesture.current=true;
    }
    if(event.cancelable)event.preventDefault();
@@ -343,7 +341,7 @@ export function ImmersiveHome(){
    const circle=refreshCircle.current;
    if(circle){
     circle.classList.add("is-pulling");
-    circle.style.setProperty("--refresh-y",Math.round(-68+progress*202)+"px");
+    circle.style.setProperty("--refresh-y",Math.round(-68+progress*168)+"px");
     circle.style.setProperty("--refresh-rotation",Math.round(progress*340)+"deg");
    }
    const ready=distance>=threshold;
@@ -359,9 +357,11 @@ export function ImmersiveHome(){
   // Only the FINAL finger position at release counts. Pulling fully and
   // pushing back up before release must never trigger a refresh.
   const finalDistance=start&&end?Math.max(0,end.clientY-start.y):0;
-  const finalVertical=!!start&&!!end&&finalDistance>Math.abs(end.clientX-start.x)*1.4;
-  const valid=!!start&&start.atTop&&refreshGesture.current&&
-   finalVertical&&finalDistance>=refreshThreshold()&&!feedBusy;
+  const finalVertical=!!start&&!!end&&finalDistance>Math.abs(end.clientX-start.x)*.9;
+  // A quick flick may produce few touchmove events; release position still
+  // determines completion. Reversing before release cancels as expected.
+  const valid=!!start&&start.atTop&&finalVertical&&
+   finalDistance>=refreshThreshold()&&!feedBusy;
   if(valid){
    refreshGesture.current=false;
    refreshCircle.current?.classList.remove("is-pulling");
