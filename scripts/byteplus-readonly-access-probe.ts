@@ -41,7 +41,7 @@ export async function readonlyBytePlusAccessProbe(
   const obj=payload as Record<string,unknown>;
   const rawCode=obj.code;
   const code=typeof rawCode==="number"&&Number.isSafeInteger(rawCode)?rawCode:
-    typeof rawCode==="string"&&/^\\d{1,6}$/.test(rawCode)?Number(rawCode):null;
+    typeof rawCode==="string"&&/^[0-9]{1,6}$/.test(rawCode)?Number(rawCode):null;
   // Some provider accounts represent error codes as strings. A task-not-found
   // response is expected for our cryptographically random never-submitted ID.
   // A normal successful status envelope may instead say "not_found".
