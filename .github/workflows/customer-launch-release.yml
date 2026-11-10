@@ -9,6 +9,7 @@ on:
       - feat/guest-paid-video-no-account-20261110
       - feat/video-ready-email-guest-claim-20261110
       - fix/p0-guest-checkout-session-and-links-20261110
+      - fix/enable-reviewed-300s-orders-20261110
       - fix/consumer-withdrawal-template-20261109
       - fix/verified-legal-operator-imprint-20261109
       - fix/production-customer-byteplus-policy-railway-20261109
