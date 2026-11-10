@@ -444,6 +444,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   const [adminProjects,setAdminProjects]=useState<{id:string;name:string;selected:boolean}[]|null>(null);
   const [selecting,setSelecting]=useState(false);
   const [selectionError,setSelectionError]=useState("");
+  const [publishNotice,setPublishNotice]=useState("");
   // Start buffering the public Showcase stream in parallel with its metadata.
   const videoUrl=published===null?"/api/showcase?video=1":published.videoUrl;
   const posterUrl=showcase.posterUrl;
@@ -451,6 +452,15 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
   useEffect(()=>{void Promise.resolve().then(()=>setFailed(false));},[videoUrl]);
   useEffect(()=>{fetch("/api/showcase?admin=1",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(data=>{if(data?.projects)setAdminProjects(data.projects);}).catch(()=>{});},[]);
   const chooseShowcase=async(id:string)=>{setSelecting(true);setSelectionError("");try{const r=await fetch("/api/showcase",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id})});const d=await r.json();if(!r.ok)throw new Error(d.error||"Selection failed");onPublish({title:d.title,videoUrl:d.videoUrl+"#"+Date.now()});setAdminProjects(old=>old?.map(p=>({...p,selected:p.id===id}))||null);}catch(e){setSelectionError((e as Error).message);}finally{setSelecting(false);}};
+  const publishTwo=async()=>{
+    setSelecting(true);setSelectionError("");setPublishNotice("");
+    try{
+      const r=await fetch("/api/showcase",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"publish-next-two"})});
+      const d=await r.json();
+      if(!r.ok)throw Error(d.error||"Could not publish two additional Super Admin videos.");
+      setPublishNotice("Two additional Super Admin videos are now public for mobile swiping.");
+    }catch(e){setSelectionError((e as Error).message)}finally{setSelecting(false)}
+  };
   useEffect(()=>{
     const v=video.current;
     if(!v)return;
@@ -469,7 +479,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
     <span className="sm-showcase-label">Lip-Synced with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
       <strong>{published?.title || showcase.title}</strong>
-      {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose completed showcase project" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose showcase video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select>{selectionError&&<small role="alert">{selectionError}</small>}</div>}
+      {adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}><select aria-label="Choose Super Admin showcase video" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose Super Admin video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><button type="button" className="sm-showcase-publish-two" onClick={()=>void publishTwo()} disabled={selecting||adminProjects.length<2}>{selecting?"Publishing…":"Publish 2 more Super Admin videos"}</button>{publishNotice&&<small role="status">{publishNotice}</small>}{selectionError&&<small role="alert">{selectionError}</small>}</div>}
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
   </div>;
