@@ -287,14 +287,15 @@ export async function validateDownloadedOutput(
   const reviewedOutputRectangle =
     (contract.output.width === 720 && contract.output.height === 1280) ||
     (contract.output.width === 1280 && contract.output.height === 720);
-  // BytePlus's observed portrait source 786x1178 may be padded to either
-  // explicitly reviewed 720p export orientation. This never accepts any
-  // other source dimensions, fps, codec or aspect ratio. Keep the source
-  // admission independent of a customer's chosen landscape output ratio.
-  const knownSourceRectangle =
+  // Only the two observed BytePlus source rectangles may be resized to
+  // the explicitly reviewed 720p portrait/landscape export. The square
+  // 960x960 source was confirmed by the paid Staging recovery on 2026-11-10.
+  // All codec, duration, fps, pixel aspect and full-decode checks still apply.
+  const reviewedSourceRectangle =
     !contract.discover720p && reviewedOutputRectangle &&
-    video?.width === 786 && video.height === 1178;
-  if (!knownSourceRectangle && !normalizeFps) {
+    ((video?.width === 786 && video.height === 1178) ||
+     (video?.width === 960 && video.height === 960));
+  if (!reviewedSourceRectangle && !normalizeFps) {
     await validateOutput(file, duration, contract);
     return;
   }
@@ -324,13 +325,13 @@ export async function validateDownloadedOutput(
     throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   }
   // Decode and validate the entire untrusted source before local
-  // conversion. Only the reviewed 786x1178 source rectangle or the
-  // reviewed 720p portrait/landscape rectangle can be accepted.
+  // conversion. Only the observed 786x1178 or 960x960 sources and the
+  // reviewed 720p portrait/landscape rectangles can be accepted.
   await validateOutput(file, duration, {
     ...contract,
     output: {
       ...contract.output,
-      ...(knownSourceRectangle ? { width: 786, height: 1178 } : {}),
+      ...(reviewedSourceRectangle ? { width: video!.width!, height: video!.height! } : {}),
       ...(normalizeFps ? { fps: actualFps } : {}),
     },
   });
