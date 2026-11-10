@@ -9,7 +9,7 @@ import {loadBytePlusCredentials} from "../lib/live/signing.ts";
 
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
-export type BytePlusProbeStatus="skipped"|"verified_readonly"|"provider_rejected"|"authentication_failed"|"blocked";
+export type BytePlusProbeStatus="skipped"|"verified_readonly"|"provider_rejected"|"authentication_failed"|"blocked"|`provider_rejected_code_${number}`;
 
 export async function readonlyBytePlusAccessProbe(
  env:Record<string,string|undefined>=process.env,
@@ -38,12 +38,23 @@ export async function readonlyBytePlusAccessProbe(
   const response=await requestTransport(req,AbortSignal.timeout(17000));
   const payload=response.body;
   if(!payload||typeof payload!=="object"||Array.isArray(payload))return "provider_rejected";
-  const code=(payload as Record<string,unknown>).code;
-  // 50510 is documented as nonexistent task. An authenticated provider
-  // response to our random task provides credential/endpoint evidence, not
-  // model quota, a 300s contract, pricing evidence or billable task success.
-  if(code===50510)return "verified_readonly";
-  if(response.status===401||response.status===403||code===50401||code===50403)return "authentication_failed";
+  const obj=payload as Record<string,unknown>;
+  const rawCode=obj.code;
+  const code=typeof rawCode==="number"&&Number.isSafeInteger(rawCode)?rawCode:
+    typeof rawCode==="string"&&/^\\d{1,6}$/.test(rawCode)?Number(rawCode):null;
+  // Some provider accounts represent error codes as strings. A task-not-found
+  // response is expected for our cryptographically random never-submitted ID.
+  // A normal successful status envelope may instead say "not_found".
+  const data=obj.data&&typeof obj.data==="object"&&!Array.isArray(obj.data)?
+    obj.data as Record<string,unknown>:null;
+  if((code===50510&&(response.status===500||response.status===200))||
+     (code===10000&&response.status===200&&data?.status==="not_found"))
+    return "verified_readonly";
+  if(response.status===401||response.status===403||code===50401||code===50403)
+    return "authentication_failed";
+  // Numeric code only: no BytePlus message, raw payload or credentials.
+  if(code!==null&&code>=0&&code<=999999)
+    return `provider_rejected_code_${code}`;
   return "provider_rejected";
  }catch(error){
   if(error instanceof BytePlusTransportError&&error.kind==="authentication")return "authentication_failed";
