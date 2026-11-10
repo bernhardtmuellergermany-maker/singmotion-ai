@@ -42,13 +42,13 @@ export async function readonlyBytePlusAccessProbe(
   const rawCode=obj.code;
   const code=typeof rawCode==="number"&&Number.isSafeInteger(rawCode)?rawCode:
     typeof rawCode==="string"&&/^[0-9]{1,6}$/.test(rawCode)?Number(rawCode):null;
-  // Some provider accounts represent error codes as strings. A task-not-found
-  // response is expected for our cryptographically random never-submitted ID.
-  // A normal successful status envelope may instead say "not_found".
+  // BytePlus's documented task-not-found status is data.status=not_found
+  // with top-level code 10000. Code 50510 is a risk/content-filter error,
+  // NOT proof of authentication (see OmniHuman service error tables).
+  // A random never-submitted task must never be interpreted as 50510 success.
   const data=obj.data&&typeof obj.data==="object"&&!Array.isArray(obj.data)?
     obj.data as Record<string,unknown>:null;
-  if((code===50510&&(response.status===500||response.status===200))||
-     (code===10000&&response.status===200&&data?.status==="not_found"))
+  if(code===10000&&response.status===200&&data?.status==="not_found")
     return "verified_readonly";
   if(response.status===401||response.status===403||code===50401||code===50403)
     return "authentication_failed";
