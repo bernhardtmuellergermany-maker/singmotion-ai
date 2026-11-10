@@ -120,6 +120,17 @@ export function ImmersiveHome(){
      if(typeof url!=="string"||!(url.startsWith("/")&&!url.startsWith("//")||url.startsWith("https://")))return [];
      return [{title:typeof entry.title==="string"?entry.title:showcase.title,url}];
     });
+    // Avoid showing the same first public clip on consecutive visits when shuffle is on.
+    if(data?.randomOrder===true&&publicClips.length>1){
+     try{
+      const previous=localStorage.getItem("sm-mobile-last-first-clip");
+      if(previous===publicClips[0].url){
+       const alternative=publicClips.findIndex(item=>item.url!==previous);
+       if(alternative>0)[publicClips[0],publicClips[alternative]]=[publicClips[alternative],publicClips[0]];
+      }
+      localStorage.setItem("sm-mobile-last-first-clip",publicClips[0].url);
+     }catch{}
+    }
     setClips(publicClips);
    })
    .catch(()=>{if(active)setClips([])});
