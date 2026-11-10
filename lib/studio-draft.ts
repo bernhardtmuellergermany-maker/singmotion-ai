@@ -56,10 +56,10 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   return {
     version: 1,
     ...(v.formatMode
-      ? { formatMode: v.formatMode as "auto" | "9:16" | "16:9" | "custom" }
+      ? { formatMode: v.formatMode as "auto" | "9:16" | "16:9" | "custom" | "custom" }
       : {}),
     ...(v.outputFormat
-      ? { outputFormat: v.outputFormat as "9:16" | "16:9" | "custom" }
+      ? { outputFormat: v.outputFormat as "9:16" | "16:9" | "custom" | "custom" }
       : {}),
     owner: v.owner as string,
     songId: v.songId as string,
