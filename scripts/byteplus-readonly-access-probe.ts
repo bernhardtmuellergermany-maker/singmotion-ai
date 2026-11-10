@@ -35,7 +35,16 @@ export async function readonlyBytePlusAccessProbe(
  });
  const requestTransport=transport??createSignedTransport(fetch,()=>creds,()=>new Date(),12000);
  try{
-  const response=await requestTransport(req,AbortSignal.timeout(17000));
+  // BytePlus documents 50500/50501 as transient internal failures. Retry only
+  // this read-only GetResult once, with the SAME synthetic non-customer task ID.
+  // No submit/cancel/recharge or unknown task recovery is attempted here.
+  let response=await requestTransport(req,AbortSignal.timeout(17000));
+  const firstCode=(response.body&&typeof response.body==="object"&&!Array.isArray(response.body))
+    ? (response.body as Record<string,unknown>).code : null;
+  if((firstCode===50500||firstCode==="50500"||firstCode===50501||firstCode==="50501")&&
+      (response.status===500||response.status===200)) {
+    response=await requestTransport(req,AbortSignal.timeout(17000));
+  }
   const payload=response.body;
   if(!payload||typeof payload!=="object"||Array.isArray(payload))return "provider_rejected";
   const obj=payload as Record<string,unknown>;
