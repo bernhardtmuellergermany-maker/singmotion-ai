@@ -374,6 +374,7 @@ export function ImmersiveHome(){
      <li><Play aria-hidden="true"/><strong>4. Generate the video</strong><span>Create your AI music video.</span></li>
     </ol>
    </section>
+   <div className="sm-immersive-featured-backdrop">
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion.</p>
@@ -396,6 +397,7 @@ export function ImmersiveHome(){
     <h2 id="sm-ready-title">Ready to create your<br/>next <span>music video?</span></h2>
     <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
    </section>
+   </div>
    <footer className="sm-immersive-footer">
     <Link className="sm-immersive-footer-logo" href="/">SingMotion <span>AI</span></Link>
     <nav aria-label="Service and legal">
