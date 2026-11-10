@@ -3,7 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { hasRole } from "@/cms/policy";
 import { stagingDenial } from "@/lib/staging";
-import { dataDir, session } from "@/lib/db";
+import { dataDir } from "@/lib/db";
 import { openStudioStore } from "@/lib/live/studio";
 import { createReadStream } from "node:fs";
 import { stat, realpath } from "node:fs/promises";
@@ -71,19 +71,20 @@ async function handler(req:NextRequest){
       return json({title:videos[0]?.title||"SingMotion AI Showcase",videoUrl:videos[0]?.videoUrl||"",videos});
     }
     if(!await admin(req))return json({error:"Super-admin authorization required"},403);
-    // A Super Admin can publish only THEIR OWN projects that were GENERATED
-    // with the server-authenticated Super Admin policy. Admin role alone
-    // does not authorize publication of somebody else's private video.
-    const actor=session(req.cookies.get("sm_session")?.value);
-    if(!actor||actor.owner.startsWith("customer-"))return json({error:"Super-admin media session required"},403);
-    const owned=s.db.prepare("SELECT attempt_id,owner,artist_name,project_name,policy_json FROM live_studio_projects WHERE owner=? ORDER BY rowid DESC LIMIT 500").all(actor.owner) as (Selected&{policy_json:string})[];
-    const eligible=owned.filter(row=>superAdminPolicy(row.policy_json)).flatMap(row=>{
+    // CMS Super Admin identity is the publication authorization. Private
+    // operator sessions are ephemeral; historical Super Admin recordings
+    // often belong to an older media-session owner. Filter by the immutable
+    // server-authenticated generation policy instead of current session.
+    // This cannot include customer, guest, or editor-generated projects.
+    const rows=s.db.prepare("SELECT attempt_id,owner,artist_name,project_name,policy_json FROM live_studio_projects ORDER BY rowid DESC LIMIT 500").all() as (Selected&{policy_json:string})[];
+    const verified=rows.filter(row=>superAdminPolicy(row.policy_json));
+    const eligible=verified.flatMap(row=>{
       try{const a=s.get(row.attempt_id);return a.state==="completed"&&a.outputPath?[{id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner}]:[]}catch{return []}
     });
     if(req.method==="GET"){
       const projects=eligible.map(row=>({...row,selected:selected?.attempt_id===row.id}));
       const selectedIds=Object.fromEntries(slots.map(slotName=>[slotName,(s.db.prepare("SELECT attempt_id FROM public_showcase_selection WHERE slot=?").get(slotName) as {attempt_id:string}|undefined)?.attempt_id||null]));
-      return json({projects,selectedId:selectedIds.main,selectedIds});
+      return json({projects,selectedId:selectedIds.main,selectedIds,inventory:{totalRecorded:rows.length,superAdminRecorded:verified.length,completedSuperAdmin:eligible.length}});
     }
     if(req.method==="POST"){
       const body=await req.json() as {id?:unknown;slot?:unknown;action?:unknown};
@@ -95,7 +96,7 @@ async function handler(req:NextRequest){
         try{
           for(const [index,row] of choices.entries()){
             const target=index===0?"second":"third";
-            s.db.prepare("INSERT INTO public_showcase_selection (slot,attempt_id,owner,artist_name) VALUES (?,?,?,?) ON CONFLICT(slot) DO UPDATE SET attempt_id=excluded.attempt_id,owner=excluded.owner,artist_name=excluded.artist_name").run(target,row.id,actor.owner,row.name);
+            s.db.prepare("INSERT INTO public_showcase_selection (slot,attempt_id,owner,artist_name) VALUES (?,?,?,?) ON CONFLICT(slot) DO UPDATE SET attempt_id=excluded.attempt_id,owner=excluded.owner,artist_name=excluded.artist_name").run(target,row.id,row.owner,row.name);
           }
           s.db.exec("COMMIT");
         }catch(error){s.db.exec("ROLLBACK");throw error;}
@@ -106,7 +107,7 @@ async function handler(req:NextRequest){
       if(typeof body.id!=="string"||body.id.length>160)return json({error:"Invalid project ID"},400);
       const eligibleRow=eligible.find(row=>row.id===body.id);
       if(!eligibleRow)return json({error:"Completed Super Admin project from this private workspace required"},403);
-      s.db.prepare("INSERT INTO public_showcase_selection (slot,attempt_id,owner,artist_name) VALUES (?,?,?,?) ON CONFLICT(slot) DO UPDATE SET attempt_id=excluded.attempt_id,owner=excluded.owner,artist_name=excluded.artist_name").run(target,eligibleRow.id,actor.owner,eligibleRow.name);
+      s.db.prepare("INSERT INTO public_showcase_selection (slot,attempt_id,owner,artist_name) VALUES (?,?,?,?) ON CONFLICT(slot) DO UPDATE SET attempt_id=excluded.attempt_id,owner=excluded.owner,artist_name=excluded.artist_name").run(target,eligibleRow.id,eligibleRow.owner,eligibleRow.name);
       return json({ok:true,title:eligibleRow.name,videoUrl:"/api/showcase?video=1&slot="+target});
     }
     return json({error:"Method not allowed"},405);
