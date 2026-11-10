@@ -17,12 +17,32 @@ type Selected={attempt_id:string;owner:string;artist_name:string;project_name?:s
 const slots=["main","second","third"] as const;
 type Slot=typeof slots[number];
 const isSlot=(slot:string):slot is Slot=>slots.some(s=>s===slot);
+type Channel="desktop"|"mobile";
+const isChannel=(v:unknown):v is Channel=>v==="desktop"||v==="mobile";
+type ChannelEntry=Selected&{channel:Channel;sort_order:number;policy_json:string};
 const superAdminPolicy=(value:string)=>{try{return (JSON.parse(value) as {reviewedBy?:string}).reviewedBy==="authenticated-super-admin-server-policy";}catch{return false}};
 
 async function store(){
   const s=await openStudioStore(dataDir);
   s.db.exec("CREATE TABLE IF NOT EXISTS live_studio_projects (attempt_id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection_json TEXT NOT NULL, policy_json TEXT NOT NULL, artist_name TEXT NOT NULL, diagnostic TEXT, started_at INTEGER)");
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_selection (slot TEXT PRIMARY KEY, attempt_id TEXT NOT NULL, owner TEXT NOT NULL, artist_name TEXT NOT NULL)");
+  s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_entries (channel TEXT NOT NULL CHECK(channel IN ('desktop','mobile')),attempt_id TEXT NOT NULL,owner TEXT NOT NULL,artist_name TEXT NOT NULL,sort_order INTEGER NOT NULL,PRIMARY KEY(channel,attempt_id))");
+  // One-time migration of already published selections only; never publish
+  // other completed or private videos automatically.
+  s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_migrations (version INTEGER PRIMARY KEY)");
+  const migrated=s.db.prepare("SELECT version FROM public_showcase_migrations WHERE version=1").get();
+  if(!migrated){
+    s.db.exec("BEGIN IMMEDIATE");
+    try{
+      const old=s.db.prepare("SELECT attempt_id,owner,artist_name FROM public_showcase_selection ORDER BY CASE slot WHEN 'main' THEN 0 WHEN 'second' THEN 1 ELSE 2 END").all() as Selected[];
+      for(const [i,entry] of old.entries()){
+        for(const channel of ["desktop","mobile"] as const)
+          s.db.prepare("INSERT OR IGNORE INTO public_showcase_entries(channel,attempt_id,owner,artist_name,sort_order) VALUES(?,?,?,?,?)").run(channel,entry.attempt_id,entry.owner,entry.artist_name,i);
+      }
+      s.db.prepare("INSERT INTO public_showcase_migrations(version) VALUES(1)").run();
+      s.db.exec("COMMIT");
+    }catch(error){s.db.exec("ROLLBACK");throw error;}
+  }
   return s;
 }
 async function admin(req:NextRequest){
@@ -36,6 +56,70 @@ async function handler(req:NextRequest){
   if(denial)return denial;
   try{
     const s=await store();
+    const channelParam=req.nextUrl.searchParams.get("channel");
+    if(channelParam!==null&&!isChannel(channelParam))return json({error:"Invalid channel"},400);
+    // Channel-scoped calls power CMS curation and both independent feeds.
+    // Legacy slot calls below remain compatible with existing pages.
+    if(channelParam!==null){
+      const channel=channelParam as Channel;
+      const entries=()=>s.db.prepare("SELECT e.channel,e.attempt_id,e.owner,e.artist_name,e.sort_order,p.policy_json FROM public_showcase_entries e JOIN live_studio_projects p ON p.attempt_id=e.attempt_id AND p.owner=e.owner WHERE e.channel=? ORDER BY e.sort_order,e.rowid").all(channel) as ChannelEntry[];
+      const validated=()=>entries().filter(entry=>{
+        if(!superAdminPolicy(entry.policy_json))return false;
+        try{const a=s.get(entry.attempt_id);return a.state==="completed"&&!!a.outputPath;}catch{return false;}
+      });
+      const selectedVideo=req.nextUrl.searchParams.get("id");
+      if(req.method==="GET"&&req.nextUrl.searchParams.has("video")){
+        if(!selectedVideo)return json({error:"Missing published video ID"},400);
+        const selected=validated().find(e=>e.attempt_id===selectedVideo);
+        if(!selected)return json({error:"Video not published"},404);
+        const attempt=s.get(selected.attempt_id);
+        const base=await realpath(path.join(dataDir,"live-output"));
+        const file=await realpath(attempt.outputPath!);
+        if(!file.startsWith(base+path.sep)||!(await stat(file)).isFile())return json({error:"Video unavailable"},404);
+        const size=(await stat(file)).size;let start=0,end=size-1,status=200;
+        const range=req.headers.get("range");
+        if(range){
+          const m=/^bytes=(\\d+)-(\\d*)$/.exec(range);
+          if(!m)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+          start=Number(m[1]);end=m[2]?Number(m[2]):size-1;
+          if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+          status=206;
+        }
+        return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":"video/mp4","Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
+      }
+      if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
+        const videos=validated().map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
+        return json({channel,title:videos[0]?.title||"SingMotion AI Showcase",videoUrl:videos[0]?.videoUrl||"",videos});
+      }
+      if(!await admin(req))return json({error:"Super-admin authorization required"},403);
+      // Only authenticated Super Admin-created, COMPLETED output is eligible.
+      const all=s.db.prepare("SELECT attempt_id,owner,artist_name,project_name,policy_json FROM live_studio_projects ORDER BY rowid DESC").all() as (Selected&{policy_json:string})[];
+      const eligible=all.filter(row=>superAdminPolicy(row.policy_json)).flatMap(row=>{
+        try{const a=s.get(row.attempt_id);return a.state==="completed"&&!!a.outputPath?[{id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}]:[];}catch{return [];}
+      });
+      if(req.method==="GET"){
+        const published=validated();
+        const selectedIds=published.map(v=>v.attempt_id);
+        return json({channel,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory:{completedSuperAdmin:eligible.length,published:published.length}});
+      }
+      if(req.method==="POST"){
+        const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown};
+        // An explicit complete ordered set supports publishing, removal,
+        // reordering, and clearing without any fixed three-item ceiling.
+        if(body.action!=="set-list"||!Array.isArray(body.ids)||body.ids.length>500||!body.ids.every((id:unknown)=>typeof id==="string"&&id.length>0&&id.length<=160)||new Set(body.ids).size!==body.ids.length)return json({error:"Invalid ordered showcase selection"},400);
+        const chosen=body.ids.map(id=>eligible.find(p=>p.id===id));
+        if(chosen.some(v=>!v))return json({error:"Only completed Super Admin videos may be published"},403);
+        s.db.exec("BEGIN IMMEDIATE");
+        try{
+          s.db.prepare("DELETE FROM public_showcase_entries WHERE channel=?").run(channel);
+          const add=s.db.prepare("INSERT INTO public_showcase_entries(channel,attempt_id,owner,artist_name,sort_order) VALUES(?,?,?,?,?)");
+          for(const [index,p] of chosen.entries()){if(p)add.run(channel,p.id,p.owner,p.name,index);}
+          s.db.exec("COMMIT");
+        }catch(error){s.db.exec("ROLLBACK");throw error;}
+        return json({ok:true,channel,published:chosen.length});
+      }
+      return json({error:"Method not allowed"},405);
+    }
     const slot=req.nextUrl.searchParams.get("slot")||"main";
     if(!isSlot(slot))return json({error:"Invalid showcase slot"},400);
     const selected=s.db.prepare("SELECT attempt_id,owner,artist_name FROM public_showcase_selection WHERE slot=?").get(slot) as Selected|undefined;
