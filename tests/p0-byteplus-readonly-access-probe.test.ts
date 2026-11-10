@@ -41,16 +41,16 @@ test("readonly BytePlus probe makes only one GetResult call with random noncusto
   assert.deepEqual(Object.keys(body).sort(),["req_key","task_id"]);
   assert.match(body.task_id,/^singmotion-probe-never-submitted-[a-f0-9-]{36}$/);
   bodyId=body.task_id;
-  return {status:500,body:{code:50510,message:"test ID not found"}};
+  return {status:200,body:{code:10000,data:{status:"not_found"}}};
  };
  assert.equal(await readonlyBytePlusAccessProbe(env,mock),"verified_readonly");
  assert.equal(called,1);
  assert.ok(bodyId.length>0);
 });
-test("readonly BytePlus probe accepts string-coded task not found or signed 10000/not_found",async()=>{
+test("readonly BytePlus probe never treats a BytePlus 50510 risk error as authentication",async()=>{
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({
   status:500,body:{code:"50510",message:"redacted"},
- })),"verified_readonly");
+ })),"provider_rejected_code_50510");
  assert.equal(await readonlyBytePlusAccessProbe(env,async()=>({
   status:200,body:{code:10000,data:{status:"not_found"}},
  })),"verified_readonly");
