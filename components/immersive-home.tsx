@@ -322,7 +322,6 @@ export function ImmersiveHome(){
   const distance=t&&start?t.clientY-start.y:0;
   const valid=!!t&&!!start&&start.atTop&&currentClip===0&&
    distance>=refreshThreshold()&&Math.abs(distance)>Math.abs(t.clientX-start.x)*1.4;
-  setDragging(false);
   if(valid){setPullOffset(refreshThreshold());setRefreshing(true);void refreshFeed();return;}
   setPullOffset(0);setRefreshing(false);
  };
