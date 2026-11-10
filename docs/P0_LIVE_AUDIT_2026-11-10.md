@@ -26,7 +26,7 @@
 
 ## 4. Source parity / release gate
 
-- Production and Staging use the same branch `fix/customer-tempo-delivery-duration-20261107`; production successful deployment SHA `a5834336df433530054303ffce7ab332edbf3db2`. Staging current deployed SHA must be independently recorded for an exact parity check.
+- Production and Staging use the same branch `fix/customer-tempo-delivery-duration-20261107`; production successful deployment SHA `a5834336df433530054303ffce7ab332edbf3db2`. Staging's latest successful deployment was independently checked: SHA `a5834336df433530054303ffce7ab332edbf3db2` (2026-11-09 21:30 UTC), which **matches** current production SHA. Exact deployed-commit parity: PASS for this baseline; this is not proof that new PRs are integrated.
 - Main is still a different older commit; the newest green GitHub Actions customer-launch verification `42620202464` on 2026-11-09 ran at SHA `46d6b3ffe6fe3a44743ef0ade7997c37c3bcd993`. Green CI on that branch **does not validate the currently deployed production SHA or unmerged PRs.**
 - Prepare one reviewed integration branch, run complete offline/customer/Chromium release tests and staged acceptance, promote identical reviewed SHA to Production, run actual production audits, then require explicit Go/No-Go human approval.
 - Current production service health: online, no recent service failures reported. This is operational health only, not a launch authorization.
