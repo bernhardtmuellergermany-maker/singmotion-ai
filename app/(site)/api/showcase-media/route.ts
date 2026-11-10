@@ -35,7 +35,7 @@ export async function GET(req:NextRequest){
   if(!imageKind(kind))return respond({error:"Invalid background"},400);
   const s=await tables();
   const row=s.db.prepare("SELECT filename FROM public_showcase_backgrounds WHERE kind=?").get(kind) as {filename:string}|undefined;
-  if(!row)return Response.redirect(new URL("/artwork/singmotion-stage.webp",req.url),307);
+  if(!row)return kind==="final-cta-bg"?new Response(null,{status:404,headers:{"Cache-Control":"no-store"}}):Response.redirect(new URL("/artwork/singmotion-stage.webp",req.url),307);
   const bytes=await readFile(path.join(root,row.filename));
   return new Response(new Uint8Array(bytes),{headers:{"Content-Type":"image/webp","Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff"}});
  }catch(e){console.error("Showcase artwork unavailable",e);return Response.redirect(new URL("/artwork/singmotion-stage.webp",req.url),307);}
