@@ -15,7 +15,9 @@ export function reviewedVideoInputDigest(media: PreparedMedia): string {
         !Number.isInteger(media.customOutput.width) || !Number.isInteger(media.customOutput.height) ||
         media.customOutput.width < 2 || media.customOutput.height < 2 ||
         Math.min(media.customOutput.width,media.customOutput.height) !== 720 ||
-        Math.max(media.customOutput.width,media.customOutput.height) > 1280))
+        Math.max(media.customOutput.width,media.customOutput.height) > 1280 ||
+        media.customOutput.width % 2 !== 0 ||
+        media.customOutput.height % 2 !== 0)))
     throw Error("Reviewed prepared video inputs required");
   return sha256(JSON.stringify({
     version: 1,
