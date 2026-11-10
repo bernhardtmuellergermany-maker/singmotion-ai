@@ -216,7 +216,7 @@ export function GenerationDialog({
       const account=workspace.owner?.startsWith("customer-")===true;
       if (!workspace.owner || selection.owner !== workspace.owner)
         throw Error("This project's private uploads belong to another session. Reopen Studio in the original browser.");
-      if (!account && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(guestEmail.trim()))
+      if (!account && !/^[^\s@]+@[^\\s@]+\.[^\s@]+$/.test(guestEmail.trim()))
         throw Error("Enter a valid email address for your guest order confirmation.");
       if (savedOrderId && guestAccessUrl) {
         setCheckoutStep("redirecting");
@@ -389,7 +389,7 @@ export function GenerationDialog({
           onChange={e=>setGuestEmail(e.target.value)} placeholder="deine@email.de"/>
         <p>Kein Konto erforderlich. Speichere den privaten Bestelllink vor dem Bezahlen.</p>
         {guestAccessUrl&&<p role="status">
-          Dein privater Bestelllink: <a href={guestAccessUrl}>{typeof window==="undefined"?"Bestellung öffnen":new URL(guestAccessUrl,window.location.origin).href}</a>
+          Dein privater Bestelllink: <a href={guestAccessUrl}>{guestAccessUrl}</a>
           {" "}Bitte kopieren oder als Lesezeichen speichern, bevor du fortfährst.
         </p>}
       </div>}
