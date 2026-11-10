@@ -19,6 +19,8 @@ export function ImmersiveHome(){
  const [muted,setMuted]=useState(true);
  const [failed,setFailed]=useState(false);
  const [visible,setVisible]=useState(true);
+ const [loadingVideo,setLoadingVideo]=useState(true);
+ const pullStartedAt=useRef<number|null>(null);
  const [portraitSlide,setPortraitSlide]=useState(0);
  useEffect(()=>{
   let active=true;
@@ -37,6 +39,7 @@ export function ImmersiveHome(){
     });
     setClips(publicClips);
     setCurrentClip(0);
+    setLoadingVideo(true);
    })
    .catch(()=>{if(active)setClips([])});
   return()=>{active=false};
@@ -67,16 +70,22 @@ export function ImmersiveHome(){
    player.current?.pause();
    setPlaying(false);
    setFailed(false);
+   setLoadingVideo(true);
    setCurrentClip(index=>Math.max(0,Math.min(clips.length-1,index+direction)));
  };
  const touchStart=(event:React.TouchEvent)=>{
-   const t=event.touches[0];if(t)swipeStart.current={x:t.clientX,y:t.clientY};
+   const t=event.touches[0];if(t){swipeStart.current={x:t.clientX,y:t.clientY};pullStartedAt.current=currentClip===0?Date.now():null;}
  };
  const touchEnd=(event:React.TouchEvent)=>{
    const start=swipeStart.current;swipeStart.current=null;
    const t=event.changedTouches[0];if(!start||!t)return;
    const dy=t.clientY-start.y,dx=t.clientX-start.x;
-   if(Math.abs(dy)>65&&Math.abs(dy)>Math.abs(dx)*1.2){if(dy>110&&currentClip===0){window.location.reload();return;}advance(dy<0?1:-1);}
+   if(Math.abs(dy)>65&&Math.abs(dy)>Math.abs(dx)*1.2){
+    // Pull-to-refresh only from the first reel; allow a deliberate downward drag.
+    if(dy>115&&currentClip===0&&pullStartedAt.current!==null){window.location.reload();return;}
+    advance(dy<0?1:-1);
+   }
+   pullStartedAt.current=null;
  };
  const wheel=(event:React.WheelEvent)=>{
    if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches && Math.abs(event.deltaY)>30 && !swipeLock.current){
@@ -101,7 +110,9 @@ export function ImmersiveHome(){
     </div>
     <section className="sm-immersive-video-stage" aria-label="SingMotion AI music video showcase">
      <div className="sm-immersive-video-frame" key={currentClip}>
-      {clip&&!failed?<video key={clip.url} ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="metadata" onError={()=>setFailed(true)} onClick={toggle} aria-label={clip.title}/>:
+      <div className="sm-immersive-video-backup" style={{backgroundImage:`linear-gradient(0deg,rgba(8,5,18,.55),rgba(8,5,18,.1)),url("${showcase.posterUrl||"/artwork/singmotion-stage.webp"}")`}} aria-hidden="true"/>
+      {loadingVideo&&clip&&!failed&&<div className="sm-immersive-video-loading" aria-hidden="true"/>}
+      {clip&&!failed?<video key={clip.url} ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="auto" onLoadedData={()=>setLoadingVideo(false)} onPlaying={()=>{setPlaying(true);setLoadingVideo(false)}} onWaiting={()=>setLoadingVideo(true)} onError={()=>{setFailed(true);setLoadingVideo(false)}} onClick={toggle} aria-label={clip.title}/>:
        <div className="sm-immersive-video-poster" role="img" aria-label="SingMotion music video showcase artwork"><span>{failed?"Showcase video currently unavailable": "Music video showcase"}</span></div>}
       <div className="sm-immersive-video-controls">
        {clip&&!failed&&<><button type="button" className="sm-immersive-play-toggle" onClick={toggle} aria-label={playing?"Pause video":"Play video"}>{playing?<Pause size={21}/>:<Play size={21}/>}</button>
@@ -135,7 +146,7 @@ export function ImmersiveHome(){
     <p>Real examples. Real emotion.</p>
     {clip&&!failed?<div className="sm-immersive-creation-grid">
      <a href="#content" className="sm-immersive-creation" aria-label="View approved SingMotion showcase video">
-      <video src={clip.url} playsInline muted preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"}/>
+      <video src={clip.url} playsInline muted preload="none" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"}/>
       <span>{clip.title}</span>
      </a>
     </div>:<p className="sm-immersive-no-example">Approved showcase videos will appear here.</p>}
