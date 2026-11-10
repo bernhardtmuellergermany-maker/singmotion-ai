@@ -54,6 +54,16 @@ export function validateOutputUrl(raw: string, hosts: readonly string[]): URL {
     );
   return url;
 }
+/** FFprobe uses "N/A"/"0:1" when SAR is absent, not non-square. Reject
+ * any EXPLICIT non-square pixel aspect ratio; decoded frames and output are
+ * independently checked after normalization. No broad SAR/rotation bypass. */
+export function hasNoNonSquarePixelAspect(sar:unknown):boolean {
+  if(sar===undefined||sar===null||sar==="N/A"||sar==="0:1")return true;
+  if(typeof sar!=="string")return false;
+  const match=/^([1-9][0-9]{0,4}):([1-9][0-9]{0,4})$/.exec(sar);
+  return !!match&&Number(match[1])===Number(match[2]);
+}
+
 /** Only bounded numeric dimensions, never paths, URLs or probe metadata, enter diagnostics. */
 export function outputDimensionDiagnostic(
   width: unknown,
@@ -285,7 +295,7 @@ export async function validateDownloadedOutput(
     contract.output.videoCodec !== "h264" ||
     contract.output.audioCodec !== "aac" ||
     source.streams.length !== 2 ||
-    metadata?.sample_aspect_ratio !== "1:1" ||
+    !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ||
     metadata.side_data_list?.some(
       (s) => s.rotation !== undefined && s.rotation !== 0,
     )
@@ -296,7 +306,7 @@ export async function validateDownloadedOutput(
       contract.output.videoCodec !== "h264" ? "video-contract" :
       contract.output.audioCodec !== "aac" ? "audio-contract" :
       source.streams.length !== 2 ? "stream-count" :
-      metadata?.sample_aspect_ratio !== "1:1" ? "sample-aspect-ratio" :
+      !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ? "sample-aspect-ratio" :
       "rotation";
     console.warn("OUTPUT_NORMALIZATION_REJECTED", "source-policy-" + policyReason);
     throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
