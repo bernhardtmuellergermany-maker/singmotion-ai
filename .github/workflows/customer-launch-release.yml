@@ -7,6 +7,7 @@ on:
       - fix/require-production-stripe-product-20261109
       - test/p0-paid-ambiguous-submission-20261110
       - feat/guest-paid-video-no-account-20261110
+      - feat/video-ready-email-guest-claim-20261110
       - fix/consumer-withdrawal-template-20261109
       - fix/verified-legal-operator-imprint-20261109
       - fix/production-customer-byteplus-policy-railway-20261109
