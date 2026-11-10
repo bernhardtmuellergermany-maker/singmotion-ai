@@ -204,6 +204,7 @@ export class LiveTestRunner {
               exportContract(
                 this.provider.contract,
                 attempt.media.outputFormat,
+                attempt.media.customOutput,
               ),
             );
           } else
@@ -213,6 +214,7 @@ export class LiveTestRunner {
               exportContract(
                 this.provider.contract,
                 attempt.media.outputFormat,
+                attempt.media.customOutput,
               ),
             );
           recovered = true;
@@ -326,6 +328,7 @@ export class LiveTestRunner {
               attempt.media.durationSeconds,
             timingContract,
             attempt.media.outputFormat,
+            attempt.media.customOutput,
           );
           if (attempt.media.tempo) {
             exportStage = "final-tempo-validation";
@@ -335,6 +338,7 @@ export class LiveTestRunner {
               exportContract(
                 this.provider.contract,
                 attempt.media.outputFormat,
+                attempt.media.customOutput,
               ),
             );
           }
