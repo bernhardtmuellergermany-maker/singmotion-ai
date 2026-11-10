@@ -10,7 +10,11 @@ import {showcase} from "@/lib/showcase";
  * The public API currently exposes ONE approved video; do not invent a feed. */
 export function ImmersiveHome(){
  const player=useRef<HTMLVideoElement>(null);
- const [clip,setClip]=useState<{title:string;url:string}|null>(null);
+ const swipeStart=useRef<{x:number;y:number}|null>(null);
+ const swipeLock=useRef(false);
+ const [clips,setClips]=useState<{title:string;url:string}[]>([]);
+ const [currentClip,setCurrentClip]=useState(0);
+ const clip=clips[currentClip]??null;
  const [playing,setPlaying]=useState(false);
  const [muted,setMuted]=useState(true);
  const [failed,setFailed]=useState(false);
@@ -19,9 +23,21 @@ export function ImmersiveHome(){
   let active=true;
   fetch("/api/showcase",{cache:"no-store"})
    .then(r=>r.ok?r.json():null)
-   .then(data=>{if(!active)return;const url=typeof data?.videoUrl==="string"&&(/^(https:\/\/|\/)/.test(data.videoUrl))?data.videoUrl:"";
-    setClip(url?{title:typeof data.title==="string"?data.title:showcase.title,url}:null);})
-   .catch(()=>{if(active)setClip(null)});
+   .then(data=>{if(!active)return;
+    // One currently approved public showcase slot. When the public API
+    // provides additional APPROVED clips, swipe can browse those as well.
+    const candidates=Array.isArray(data?.videos)?data.videos:[data];
+    const publicClips=candidates.flatMap((item:unknown)=>{
+      if(!item||typeof item!=="object")return [];
+      const entry=item as {videoUrl?:unknown;title?:unknown};
+      const url=entry.videoUrl;
+      if(typeof url!=="string"||!(url.startsWith("/")&&!url.startsWith("//")||url.startsWith("https://")))return [];
+      return [{title:typeof entry.title==="string"?entry.title:showcase.title,url}];
+    });
+    setClips(publicClips);
+    setCurrentClip(0);
+   })
+   .catch(()=>{if(active)setClips([])});
   return()=>{active=false};
  },[]);
  useEffect(()=>{
@@ -45,10 +61,37 @@ export function ImmersiveHome(){
   else{v.pause();setPlaying(false);}
  };
  const toggleSound=()=>{const v=player.current;if(!v)return;v.muted=!v.muted;setMuted(v.muted);};
+ const advance=(direction:1|-1)=>{
+   if(clips.length<2)return;
+   player.current?.pause();
+   setPlaying(false);
+   setFailed(false);
+   setCurrentClip(index=>Math.max(0,Math.min(clips.length-1,index+direction)));
+ };
+ const touchStart=(event:React.TouchEvent)=>{
+   const t=event.touches[0];if(t)swipeStart.current={x:t.clientX,y:t.clientY};
+ };
+ const touchEnd=(event:React.TouchEvent)=>{
+   const start=swipeStart.current;swipeStart.current=null;
+   const t=event.changedTouches[0];if(!start||!t)return;
+   const dy=t.clientY-start.y,dx=t.clientX-start.x;
+   if(Math.abs(dy)>65&&Math.abs(dy)>Math.abs(dx)*1.2)advance(dy<0?1:-1);
+ };
+ const wheel=(event:React.WheelEvent)=>{
+   if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches && Math.abs(event.deltaY)>30 && !swipeLock.current){
+     swipeLock.current=true;
+     advance(event.deltaY>0?1:-1);
+     window.setTimeout(()=>{swipeLock.current=false},480);
+   }
+ };
+ const keyDown=(event:React.KeyboardEvent)=>{
+   if(event.key==="ArrowDown"||event.key==="PageDown"){event.preventDefault();advance(1)}
+   if(event.key==="ArrowUp"||event.key==="PageUp"){event.preventDefault();advance(-1)}
+ };
  return <div className="sm-immersive-home">
   <div className="sm-immersive-first-screen">
    <SiteHeader className="sm-immersive-header" onAccountClick={()=>window.location.assign("/login")}/>
-   <main id="content" className="sm-immersive-hero">
+   <main id="content" className="sm-immersive-hero" onTouchStart={touchStart} onTouchEnd={touchEnd} onWheel={wheel} onKeyDown={keyDown} tabIndex={-1}>
     <div className="sm-immersive-atmosphere" aria-hidden="true"/>
     <div className="sm-immersive-desktop-intro">
      <h1>Turn your song into a <span>music video.</span></h1>
@@ -57,7 +100,7 @@ export function ImmersiveHome(){
     </div>
     <section className="sm-immersive-video-stage" aria-label="SingMotion AI music video showcase">
      <div className="sm-immersive-video-frame">
-      {clip&&!failed?<video ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="metadata" onError={()=>setFailed(true)} aria-label={clip.title}/>:
+      {clip&&!failed?<video key={clip.url} ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="metadata" onError={()=>setFailed(true)} aria-label={clip.title}/>:
        <div className="sm-immersive-video-poster" role="img" aria-label="SingMotion music video showcase artwork"><span>{failed?"Showcase video currently unavailable": "Music video showcase"}</span></div>}
       <div className="sm-immersive-video-controls">
        {clip&&!failed&&<><button type="button" onClick={toggle} aria-label={playing?"Pause video":"Play video"}>{playing?<Pause size={21}/>:<Play size={21}/>}</button>
@@ -67,10 +110,9 @@ export function ImmersiveHome(){
      </div>
     </section>
     <div className="sm-immersive-mobile-overlay">
-     <span className="sm-immersive-eyebrow">Showcase</span>
-     <h1>Turn your song into a music video</h1>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
+    {clips.length>1&&<div className="sm-immersive-feed-position" aria-live="polite">{currentClip+1} / {clips.length}</div>}
     <a href="#how-it-works" className="sm-immersive-scroll-cue" aria-label="Explore how it works"><ChevronDown size={23}/></a>
    </main>
   </div>
