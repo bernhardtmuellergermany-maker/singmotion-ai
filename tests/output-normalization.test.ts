@@ -255,6 +255,33 @@ test("observed BytePlus 960x960 source delivers to reviewed portrait and landsca
  }finally{await rm(root,{recursive:true,force:true})}
 });
 
+test("checkout orientation is exact: a reviewed 720p video with opposite orientation is re-encoded to the chosen rectangle",async()=>{
+ const root=await mkdtemp(path.join(tmpdir(),"sm-paid-orientation-"));
+ const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
+ const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
+ try{
+  for(const [sourceRect,width,height] of [["720x1280",1280,720],["1280x720",720,1280]] as const){
+   const source=path.join(root,"source-"+sourceRect+".mp4");
+   ff(["-f","lavfi","-i","color=green:s="+sourceRect+":r=25:d=1",
+    "-f","lavfi","-i","sine=frequency=440:duration=1","-t","1",
+    "-c:v","libx264","-threads","2","-preset","ultrafast",
+    "-pix_fmt","yuv420p","-c:a","aac",source]);
+   const original=await readFile(source),audio=hash(source);
+   const policy:OutputValidationContract={outputHosts:["approved.example.test"],
+    output:{width,height,fps:25,videoCodec:"h264",audioCodec:"aac",
+     durationToleranceSeconds:0.15,maxDurationSeconds:2}};
+   const dest=path.join(root,"delivered-"+sourceRect+".mp4");
+   await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
+    async()=>new Response(Uint8Array.from(original)));
+   const video=(await probe(dest)).streams.find(s=>s.codec_type==="video")!;
+   assert.equal(video.width,width);
+   assert.equal(video.height,height);
+   assert.equal(hash(dest),audio);
+   assert.deepEqual(await readFile(source),original);
+  }
+ }finally{await rm(root,{recursive:true,force:true})}
+});
+
 test("provider SAR metadata: absent and unknown-square forms can normalize; non-square pixel ratios remain forbidden",()=>{
   for(const sar of [undefined,null,"N/A","0:1","1:1","2:2","100:100"])
     assert.equal(hasNoNonSquarePixelAspect(sar),true,String(sar));
