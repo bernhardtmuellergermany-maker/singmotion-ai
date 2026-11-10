@@ -68,6 +68,9 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
         playsInline loop muted={muted} preload="metadata" className="sm-moving-video"
         onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
         onError={()=>{setBroken(true);setPlaying(false)}} onClick={toggle} aria-label={item.title}/>:
+       isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={cover}
+        muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
+        onLoadedData={e=>e.currentTarget.pause()}/>:
        <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+cover+"')"}}/>}
       {isCenter&&(!playing||!item.url||broken)&&<button className="sm-moving-play" type="button" disabled={!item.url||broken}
          aria-label={item.url&&!broken?"Play "+item.title:"Video coming soon"} onClick={toggle}><Play size={30} fill="currentColor"/></button>}
