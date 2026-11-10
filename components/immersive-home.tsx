@@ -93,6 +93,8 @@ export function ImmersiveHome(){
  const [clips,setClips]=useState<ShowcaseClip[]>([]);
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
+ const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
+ const portraitGrid=useRef<HTMLDivElement>(null);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(false);
  const unlockSoundAfterGesture=useRef(false);
@@ -285,9 +287,18 @@ export function ImmersiveHome(){
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion.</p>
-    <div className="sm-desktop-portrait-grid" aria-label="Four featured portrait videos">
+    <div ref={portraitGrid} className="sm-desktop-portrait-grid" aria-label="Four featured portrait videos">
       {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card">
-       {item.url?<video src={item.url} playsInline muted loop preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} onClick={e=>{const v=e.currentTarget;if(v.paused)void v.play().catch(()=>{});else v.pause();}} aria-label={item.title}/>:<div className="sm-desktop-portrait-fallback"><Play size={28}/><small>Coming soon</small></div>}
+       {item.url?<><video src={item.url} playsInline autoPlay muted={audiblePortrait!==i} loop preload="auto" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} aria-label={item.title}/>
+        <button type="button" className="sm-desktop-portrait-sound" aria-label={audiblePortrait===i?"Ton ausschalten: "+item.title:"Ton einschalten: "+item.title} aria-pressed={audiblePortrait===i}
+         onClick={()=>{
+           const nextIndex=audiblePortrait===i?null:i;
+           const videos=portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video");
+           videos?.forEach((v,j)=>{v.muted=nextIndex!==j;});
+           setAudiblePortrait(nextIndex);
+           if(nextIndex!==null){const v=videos?.[i];if(v?.paused)void v.play().catch(()=>{setAudiblePortrait(null);if(v)v.muted=true;});}
+         }}>{audiblePortrait===i?<Volume2 size={24}/>:<VolumeX size={24}/>}</button>
+       </>:<div className="sm-desktop-portrait-fallback"><Play size={28}/><small>Coming soon</small></div>}
        {item.url&&<small>{item.title}</small>}
       </div>)}
     </div>
