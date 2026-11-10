@@ -14,7 +14,8 @@ export function CustomerAccount() {
     [mode, setMode] = useState("login"),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false),
-    [notice,setNotice] = useState("");
+    [notice,setNotice] = useState(""),
+    [guestOrderId,setGuestOrderId] = useState("");
   const refresh = useCallback(() => {
     return api<NonNullable<typeof state>>("account")
       .then(setState)
@@ -30,6 +31,24 @@ export function CustomerAccount() {
       const result=await res.json();if(!res.ok)throw Error(result.error||"Unable to resend");
       setNotice(result.message||"Check your inbox.");
     }catch(e){setError((e as Error).message)}finally{setBusy(false)}
+  }
+  async function adoptGuestVideo(e:import("react").FormEvent<HTMLFormElement>){
+    e.preventDefault();if(busy)return;
+    setBusy(true);setError("");setNotice("");
+    try{
+      const raw=guestOrderId.trim();
+      const orderId=raw.startsWith("SM-")?raw.slice(3).toLowerCase():raw;
+      if(!/^[a-f0-9-]{36}$/.test(orderId))throw Error("Bitte die vollständige Auftragsnummer eintragen.");
+      const response=await fetch("/api/customer-guest-video-claim",{
+        method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({orderId}),
+      });
+      const result=await response.json();
+      if(!response.ok)throw Error(result.error||"Übernahme fehlgeschlagen");
+      setNotice("Dein Gastvideo wurde deinem Konto zugeordnet. Öffne es in „Meine Videos“.");
+      setGuestOrderId("");
+    }catch(e){setError(e instanceof Error?e.message:"Übernahme fehlgeschlagen")}
+    finally{setBusy(false)}
   }
   async function submit(action: string) {
     if (busy) return;
@@ -71,6 +90,17 @@ export function CustomerAccount() {
             Payments are not enabled. Your private operator workspace and
             historical videos are separate from customer credit.
           </p>
+          <section aria-label="Gastvideo ins Konto übernehmen">
+            <h2>Gastvideo übernehmen</h2>
+            <p>Du brauchst dieselbe bestätigte E-Mail-Adresse wie bei der Bestellung und Zugriff auf den privaten Bestelllink. Öffne den Link zuerst in diesem Browser. Falls er fehlt, nutze die E-Mail-Wiederherstellung auf der Bestellseite.</p>
+            <form onSubmit={e=>void adoptGuestVideo(e)}>
+              <label htmlFor="claim-guest-video-id">Auftragsnummer (SM-…)</label>
+              <input id="claim-guest-video-id" value={guestOrderId}
+                onChange={e=>setGuestOrderId(e.target.value)} required disabled={busy}
+                placeholder="SM-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"/>
+              <button type="submit" className="product-primary" disabled={busy || state.emailVerification==="pending"}>Gastvideo zu meinen Videos hinzufügen</button>
+            </form>
+          </section>
           <button
             className="product-secondary"
             onClick={() => void submit("logout")}
