@@ -80,3 +80,21 @@
 }
 @media(max-width:390px){.sm-immersive-mobile-overlay h1{font-size:32px}.sm-immersive-mobile-overlay{bottom:max(55px,env(safe-area-inset-bottom) + 33px)}.sm-immersive-video-controls{bottom:245px}}
 @media(prefers-reduced-motion:reduce){.sm-immersive-home *{animation:none!important;scroll-behavior:auto!important;transition:none!important}}
+
+/* Mobile is a Reels-style one-video viewport, not the desktop sales page. */
+@media(max-width:760px){
+ html:has(.sm-immersive-home),body:has(.sm-immersive-home){overscroll-behavior-y:none}
+ .sm-immersive-home{height:100svh;overflow:hidden;overscroll-behavior-y:contain}
+ .sm-immersive-first-screen{height:100svh;min-height:0;overflow:hidden}
+ .sm-immersive-hero{height:100svh;min-height:0;overflow:hidden;touch-action:pan-y;overscroll-behavior-y:contain}
+ .sm-immersive-below,.sm-immersive-scroll-cue{display:none!important}
+ .sm-immersive-mobile-overlay{bottom:max(22px,env(safe-area-inset-bottom) + 12px);padding-inline:18px;padding-block:6px;background:none;pointer-events:none}
+ .sm-immersive-mobile-overlay .sm-immersive-cta{min-height:50px;max-width:calc(100% - 62px);margin-inline:auto;pointer-events:auto}
+ .sm-immersive-video-controls{bottom:max(100px,env(safe-area-inset-bottom) + 91px);right:16px}
+ .sm-immersive-video-frame:before{background:linear-gradient(180deg,#0007,transparent 16%,transparent 70%,#07061488)}
+ .sm-immersive-feed-position{position:absolute;top:75px;right:20px;z-index:8;padding:6px 10px;color:#fff;background:#090715ad;border:1px solid #ffffff45;border-radius:999px;font-size:11px;pointer-events:none}
+}
+@media(max-width:390px){
+ .sm-immersive-mobile-overlay{bottom:max(18px,env(safe-area-inset-bottom) + 8px)}
+ .sm-immersive-video-controls{bottom:max(94px,env(safe-area-inset-bottom) + 85px)}
+}
