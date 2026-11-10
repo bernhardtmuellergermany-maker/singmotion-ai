@@ -13,6 +13,14 @@ import { Readable } from "node:stream";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const json=(value:unknown,status=200)=>Response.json(value,{status,headers:{"Cache-Control":"no-store"}});
+const shuffled=<T,>(items:T[]):T[]=>{
+  const result=[...items];
+  for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [result[i],result[j]]=[result[j],result[i]];
+  }
+  return result;
+};
 type Selected={attempt_id:string;owner:string;artist_name:string;project_name?:string};
 const slots=["main","second","third"] as const;
 type Slot=typeof slots[number];
@@ -56,6 +64,9 @@ async function store(){
     }catch(error){s.db.exec("ROLLBACK");throw error;}
   }
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_channel_config (channel TEXT PRIMARY KEY, explicitly_configured INTEGER NOT NULL DEFAULT 1)");
+  const configColumns=s.db.prepare("PRAGMA table_info(public_showcase_channel_config)").all() as {name:string}[];
+  if(!configColumns.some(col=>col.name==="random_order"))
+    s.db.exec("ALTER TABLE public_showcase_channel_config ADD COLUMN random_order INTEGER NOT NULL DEFAULT 0");
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_uploads(id TEXT PRIMARY KEY,title TEXT NOT NULL,filename TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,created_at INTEGER NOT NULL)");
   return s;
 }
@@ -117,7 +128,10 @@ async function handler(req:NextRequest){
         return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":mime,"Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
       }
       if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
-        const videos=validated().map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
+        const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
+        const randomOrder=channel==="mobile"&&config?.random_order===1;
+        const published=validated();
+        const videos=(randomOrder?shuffled(published):published).map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
         // Preserve the explicitly published legacy feed until its new mobile
         // playlist is curated in CMS. Never import other/private projects.
         const configured=!!s.db.prepare("SELECT 1 FROM public_showcase_channel_config WHERE channel=?").get(channel);
@@ -130,7 +144,7 @@ async function handler(req:NextRequest){
           }).map(row=>({id:row.attempt_id,title:row.artist_name,videoUrl:"/api/showcase?video=1&slot="+row.slot}));
           return json({channel,legacyFallback:true,title:publicOld[0]?.title||"SingMotion AI Showcase",videoUrl:publicOld[0]?.videoUrl||"",videos:publicOld});
         }
-        return json({channel,title:videos[0]?.title||"SingMotion AI Showcase",videoUrl:videos[0]?.videoUrl||"",videos});
+        return json({channel,randomOrder,title:videos[0]?.title||"SingMotion AI Showcase",videoUrl:videos[0]?.videoUrl||"",videos});
       }
       if(!await admin(req))return json({error:"Super-admin authorization required"},403);
       // Only authenticated Super Admin-created, COMPLETED output is eligible.
@@ -162,13 +176,15 @@ async function handler(req:NextRequest){
       if(req.method==="GET"){
         const published=validated();
         const selectedIds=published.map(v=>v.attempt_id);
-        return json({channel,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
+        const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
+        return json({channel,randomOrder:channel==="mobile"&&config?.random_order===1,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
       }
       if(req.method==="POST"){
-        const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown};
+        const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown;randomOrder?:unknown};
         // An explicit complete ordered set supports publishing, removal,
         // reordering, and clearing without any fixed three-item ceiling.
         if(body.action!=="set-list"||!Array.isArray(body.ids)||body.ids.length>500||!body.ids.every((id:unknown)=>typeof id==="string"&&id.length>0&&id.length<=160)||new Set(body.ids).size!==body.ids.length)return json({error:"Invalid ordered showcase selection"},400);
+        if(body.randomOrder!==undefined&&typeof body.randomOrder!=="boolean")return json({error:"Invalid random order setting"},400);
         const chosen=body.ids.map(id=>eligible.find(p=>p.id===id));
         if(chosen.some(v=>!v))return json({error:"Only completed Super Admin videos may be published"},403);
         s.db.exec("BEGIN IMMEDIATE");
@@ -176,7 +192,9 @@ async function handler(req:NextRequest){
           s.db.prepare("DELETE FROM public_showcase_entries WHERE channel=?").run(channel);
           const add=s.db.prepare("INSERT INTO public_showcase_entries(channel,attempt_id,owner,artist_name,sort_order) VALUES(?,?,?,?,?)");
           for(const [index,p] of chosen.entries()){if(p)add.run(channel,p.id,p.owner,p.name,index);}
-          s.db.prepare("INSERT OR REPLACE INTO public_showcase_channel_config(channel,explicitly_configured) VALUES(?,1)").run(channel);
+          const previous=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
+          const randomOrder=channel==="mobile"?(body.randomOrder===undefined?previous?.random_order===1:body.randomOrder):false;
+          s.db.prepare("INSERT OR REPLACE INTO public_showcase_channel_config(channel,explicitly_configured,random_order) VALUES(?,1,?)").run(channel,randomOrder?1:0);
           s.db.exec("COMMIT");
         }catch(error){s.db.exec("ROLLBACK");throw error;}
         return json({ok:true,channel,published:chosen.length});
