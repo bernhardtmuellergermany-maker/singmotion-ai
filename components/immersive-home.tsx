@@ -351,8 +351,12 @@ export function ImmersiveHome(){
  const finishTouch=()=>{
   touchStart.current=null;
   const valid=refreshGesture.current&&pullDistance.current>=refreshThreshold();
+  if(valid&&!feedBusy){
+   refreshGesture.current=false;
+   refreshCircle.current?.classList.remove("is-pulling");
+   setRefreshing(true);void refreshFeed();return;
+  }
   resetRefreshCircle();
-  if(valid&&!feedBusy){setRefreshing(true);void refreshFeed();return;}
   setRefreshing(false);
  };
  const wheel=(event:React.WheelEvent)=>{
