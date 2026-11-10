@@ -1,13 +1,66 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {ArrowRight,Music2,ImagePlus,Clapperboard,Play,Pause,Volume2,VolumeX,ChevronDown} from "lucide-react";
+import {ArrowRight,Music2,ImagePlus,Clapperboard,Play,Pause,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight} from "lucide-react";
 import {SiteHeader} from "./site-header";
 import {showcase} from "@/lib/showcase";
 
 /** Home-only visual presentation of the existing public, owner-approved showcase.
  * No private project discovery, new endpoints, checkout or login mechanisms.
  * The public API currently exposes ONE approved video; do not invent a feed. */
+type ShowcaseClip = {title:string;url:string};
+
+/** Desktop-only, independent player: switching a slide always swaps its actual source. */
+function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
+ const slides:ShowcaseClip[]=clips.length>=3?clips:[...clips,...Array.from({length:3-clips.length},(_,i)=>({title:"Music video coming soon "+(i+1),url:""}))];
+ const [selected,setSelected]=useState(0);
+ const [playing,setPlaying]=useState(false);
+ const [muted,setMuted]=useState(true);
+ const [broken,setBroken]=useState(false);
+ const video=useRef<HTMLVideoElement>(null);
+ const startX=useRef<number|null>(null);
+ const current=slides[selected%slides.length];
+ const navigate=(direction:number)=>{
+   video.current?.pause();
+   setPlaying(false);
+   setBroken(false);
+   setSelected(i=>(i+direction+slides.length)%slides.length);
+ };
+ const toggle=()=>{
+   const node=video.current;
+   if(!node||broken)return;
+   if(node.paused) void node.play().catch(()=>setPlaying(false));
+   else node.pause();
+ };
+ const neighbor=(delta:number)=>slides[(selected+delta+slides.length)%slides.length];
+ const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
+ return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
+   <div className="sm-desktop-carousel" onTouchStart={e=>{startX.current=e.touches[0]?.clientX??null}} onTouchEnd={e=>{const x=e.changedTouches[0]?.clientX;if(x!==undefined&&startX.current!==null&&Math.abs(x-startX.current)>55)navigate(x<startX.current?1:-1);startX.current=null}} onKeyDown={e=>{if(e.key==="ArrowLeft"){e.preventDefault();navigate(-1)}if(e.key==="ArrowRight"){e.preventDefault();navigate(1)}}} tabIndex={0} aria-label="Browse showcased videos with arrow keys or swipe">
+     <button className="sm-desktop-side sm-desktop-side-prev" type="button" aria-label="Previous video" onClick={()=>navigate(-1)}>
+       <span className="sm-desktop-side-picture" style={{backgroundImage:`linear-gradient(#09051555,#09051577),url("${cover}")`}}/>
+       <span className="sm-desktop-side-name">{neighbor(-1).title}</span>
+     </button>
+     <div className="sm-desktop-active-card">
+       {current.url&&!broken?<video key={current.url} ref={video} className="sm-desktop-main-video" src={current.url} poster={cover} preload="metadata" playsInline loop muted={muted} onClick={toggle} onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)} onError={()=>{setBroken(true);setPlaying(false)}} aria-label={current.title}/>:
+        <div className="sm-desktop-video-empty" style={{backgroundImage:`linear-gradient(#0b061744,#0b0617b0),url("${cover}")`}} role="img" aria-label="Video coming soon"/>}
+       {(!playing||!current.url||broken)&&<button className="sm-desktop-center-play" type="button" disabled={!current.url||broken} onClick={toggle} aria-label={current.url&&!broken?"Play "+current.title:"Video coming soon"}><Play size={29} fill="currentColor"/></button>}
+       <div className="sm-desktop-card-footer"><strong>SingMotion AI Showcase</strong><span>{current.url&&!broken?current.title:"Coming soon"}</span></div>
+       {current.url&&!broken&&<button type="button" className="sm-desktop-mute" onClick={()=>setMuted(v=>!v)} aria-label={muted?"Unmute video":"Mute video"}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button>}
+     </div>
+     <button className="sm-desktop-side sm-desktop-side-next" type="button" aria-label="Next video" onClick={()=>navigate(1)}>
+       <span className="sm-desktop-side-picture" style={{backgroundImage:`linear-gradient(#09051555,#09051577),url("${cover}")`}}/>
+       <span className="sm-desktop-side-name">{neighbor(1).title}</span>
+     </button>
+   </div>
+   <div className="sm-desktop-carousel-navigation">
+     <button type="button" aria-label="Previous video" onClick={()=>navigate(-1)}><ChevronLeft size={22}/></button>
+     <div className="sm-desktop-carousel-dots" role="group" aria-label="Choose video">{slides.map((item,i)=><button key={i} className={selected===i?"active":""} type="button" aria-label={"Show video "+(i+1)} aria-current={selected===i?"true":undefined} onClick={()=>navigate(i-selected)}/>)}</div>
+     <button type="button" aria-label="Next video" onClick={()=>navigate(1)}><ChevronRight size={22}/></button>
+     <span className="sm-desktop-slide-count" aria-live="polite">{selected+1} / {slides.length}</span>
+   </div>
+ </section>;
+}
+
 export function ImmersiveHome(){
  const player=useRef<HTMLVideoElement>(null);
  const swipeStart=useRef<{x:number;y:number}|null>(null);
@@ -127,18 +180,18 @@ export function ImmersiveHome(){
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
     {clips.length>1&&<div className="sm-immersive-feed-position" aria-live="polite">{currentClip+1} / {clips.length}</div>}
-    <a href="#how-it-works" className="sm-immersive-scroll-cue" aria-label="Explore how it works"><ChevronDown size={23}/></a>
+    <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Explore how it works"><ChevronDown size={23}/></a>
    </main>
   </div>
   <div className="sm-immersive-below">
+   <DesktopShowcaseCarousel clips={clips}/>
    <section id="how-it-works" className="sm-immersive-steps" aria-labelledby="sm-how-title">
     <h2 id="sm-how-title">How it <span>works</span></h2>
-    <p>Create your own music video in four simple steps.</p>
+    <p>In just a few steps to your own music video.</p>
     <ol>
-     <li><Music2 aria-hidden="true"/><strong>Upload audio</strong><span>Upload your song and select the clip.</span></li>
-     <li><Clapperboard aria-hidden="true"/><strong>Describe performance</strong><span>Describe the look and movement.</span></li>
-     <li><ImagePlus aria-hidden="true"/><strong>Add artist photo</strong><span>Choose your photo and video format.</span></li>
-     <li><Play aria-hidden="true"/><strong>Generate video</strong><span>Review, pay and generate.</span></li>
+     <li><Music2 aria-hidden="true"/><strong>1. Upload your audio</strong><span>Add your song or choose from your library.</span></li>
+     <li><ImagePlus aria-hidden="true"/><strong>2. Describe the performance</strong><span>Tell us how it should look or add a photo of yourself.</span></li>
+     <li><Play aria-hidden="true"/><strong>3. Generate the video</strong><span>Get your AI music video in seconds.</span></li>
     </ol>
    </section>
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
@@ -165,7 +218,7 @@ export function ImmersiveHome(){
     </div>
    </section>
    <section className="sm-immersive-final" aria-labelledby="sm-ready-title">
-    <h2 id="sm-ready-title">Ready to create your next <span>music video?</span></h2>
+    <h2 id="sm-ready-title">Ready to create your<br/>next <span>music video?</span></h2>
     <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
    </section>
    <footer className="sm-immersive-footer">
