@@ -5,6 +5,7 @@ on:
     branches:
       - phase2/customer-launch-safety-20261106
       - fix/require-production-stripe-product-20261109
+      - test/p0-paid-ambiguous-submission-20261110
       - fix/consumer-withdrawal-template-20261109
       - fix/verified-legal-operator-imprint-20261109
       - fix/production-customer-byteplus-policy-railway-20261109

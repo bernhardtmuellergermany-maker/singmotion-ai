@@ -93,3 +93,47 @@ test("P0 refund and dispute before provider submission stop fulfillment; delayed
   }
  }finally{store.close()}
 });
+
+
+test("P0 ambiguous BytePlus acceptance never repeats a paid provider request after duplicate Stripe events",async()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  const account=store.register("ambiguous-p0@example.test",accountPassword);
+  const verify=store.issueEmailVerification(account,Date.now())!;
+  assert.equal(store.verifyEmailToken(verify.token),true);
+  const order=store.preparedVideoOrder({
+   account,email:"ambiguous-p0@example.test",project:"p0-ambiguous-video",
+   cents:price,quoteEvidence:"verified-offline-customer-quote-2026",
+   key:"p0-ambiguous-once",media:media("customer-"+account),
+  });
+  const checkout="cs_test_p0_ambiguous";
+  store.bindStripeCheckout(order.id,checkout);
+  const adapter=stripeCheckoutAdapter(signingSecret,"test");
+  const paid=signedPayment(order.id,checkout,"evt_p0_ambiguous_paid");
+  await store.webhook(paid.raw,paid.signature,adapter);
+  let providerSubmissions=0;
+  const ops={
+   providerCost:{
+    inclusiveMaxMicroUsd:700000,
+    dailyCapMicroUsd:5000000,
+    lifetimeCapMicroUsd:25000000,
+    reviewEvidence:"offline-reviewed-cost-reservation-p0",
+   },
+   verify:async()=>{},
+   submit:async()=>{
+    providerSubmissions++;
+    // The remote request may have been accepted before its response was lost.
+    throw Error("synthetic lost provider response");
+   },
+  };
+  assert.equal(await submitReviewedPaidVideo(store,order.id,ops),"submission-uncertain");
+  // A second signed Stripe event and a direct retry must not dispatch again.
+  const replay=signedPayment(order.id,checkout,"evt_p0_ambiguous_async",
+   "checkout.session.async_payment_succeeded");
+  await store.webhook(replay.raw,replay.signature,adapter);
+  await store.webhook(paid.raw,paid.signature,adapter);
+  assert.equal(await submitReviewedPaidVideo(store,order.id,ops),"already-claimed");
+  assert.equal(providerSubmissions,1);
+  assert.ok(!store.ownedDeliveredVideoAsset(order.id,account));
+ }finally{store.close()}
+});
