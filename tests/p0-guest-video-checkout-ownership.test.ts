@@ -54,3 +54,18 @@ test("P0 account-paid checkout cannot be authorized by a separate guest capabili
   assert.throws(()=>resolveVideoCheckoutOwner(store,order.id,null,undefined),/owner required/);
  }finally{store.close()}
 });
+
+test("P0 guest cookie survives safe Stripe return and remains HttpOnly",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const route=readFileSync(new URL("../app/(site)/api/guest-order/route.ts",import.meta.url),"utf8");
+ const preparation=readFileSync(new URL("../app/(site)/api/customer-orders/route.ts",import.meta.url),"utf8");
+ const recovery=readFileSync(new URL("../app/(site)/api/customer-guest-video-recovery/route.ts",import.meta.url),"utf8");
+ for(const source of [route,preparation,recovery]){
+  assert.match(source,/sameSite:\s*["']lax["']/);
+  assert.match(source,/httpOnly:\s*true/);
+ }
+ assert.doesNotMatch(route,/sameSite:\s*["']strict["']/);
+ const checkout=readFileSync(new URL("../app/(site)/api/stripe-checkout/route.ts",import.meta.url),"utf8");
+ assert.match(checkout,/resolveVideoCheckoutOwner/);
+ assert.match(checkout,/owner\.kind==="guest"|owner\.kind==="account"/);
+});
