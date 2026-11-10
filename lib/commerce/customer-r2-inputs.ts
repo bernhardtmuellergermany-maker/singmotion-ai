@@ -83,15 +83,17 @@ export class CustomerR2PrivateInputDelivery implements PrivateInputDelivery{
   const inserted=this.store.db.prepare(`
    INSERT OR IGNORE INTO customer_provider_input_leases
     (order_id,account_id,audio_key,image_key,expires_at,state)
-   SELECT o.id,o.account_id,?,?,?,'uploading'
+   SELECT o.id,COALESCE(o.account_id,o.id),?,?,?,'uploading'
    FROM customer_orders o
    JOIN customer_fulfillment_queue q ON q.order_id=o.id AND q.state='processing'
    JOIN customer_provider_submissions p ON p.order_id=o.id
     AND p.provider='byteplus' AND p.state='submitted_or_unknown'
    JOIN customer_provider_cost_reservations c ON c.order_id=o.id
-   WHERE o.id=? AND o.status='paid' AND o.account_id IS NOT NULL
-     AND (? = 'customer-' || o.account_id)
-  `).run(audioKey,imageKey,expiresAt,this.orderId,media.owner);
+   LEFT JOIN customer_guest_media_owners g ON g.order_id=o.id
+   WHERE o.id=? AND o.status='paid'
+     AND ((o.account_id IS NOT NULL AND ? = 'customer-' || o.account_id)
+       OR (o.account_id IS NULL AND o.guest_hash IS NOT NULL AND ? = g.media_owner))
+  `).run(audioKey,imageKey,expiresAt,this.orderId,media.owner,media.owner);
   if(inserted.changes!==1)throw Error("Paid customer input lease already attempted or unauthorized");
   try{
    const put=async(key:string,bytes:Buffer,contentType:string)=>{
