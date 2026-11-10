@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {ArrowRight,Music2,ImagePlus,Clapperboard,Play,Pause,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight} from "lucide-react";
+import {ArrowRight,Music2,ImagePlus,Play,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight} from "lucide-react";
 import {SiteHeader} from "./site-header";
 import {showcase} from "@/lib/showcase";
 
@@ -62,123 +62,109 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
 }
 
 export function ImmersiveHome(){
- const player=useRef<HTMLVideoElement>(null);
- const swipeStart=useRef<{x:number;y:number}|null>(null);
- const swipeLock=useRef(false);
- const [clips,setClips]=useState<{title:string;url:string}[]>([]);
+ const [clips,setClips]=useState<ShowcaseClip[]>([]);
  const [currentClip,setCurrentClip]=useState(0);
- const clip=clips[currentClip]??null;
- const [playing,setPlaying]=useState(false);
  const [muted,setMuted]=useState(true);
- const [failed,setFailed]=useState(false);
- const [visible,setVisible]=useState(true);
- const [loadingVideo,setLoadingVideo]=useState(true);
- const pullStartedAt=useRef<number|null>(null);
+ const [failed,setFailed]=useState<Record<number,boolean>>({});
+ const [dragging,setDragging]=useState(false);
  const [portraitSlide,setPortraitSlide]=useState(0);
+ const feed=useRef<HTMLDivElement>(null);
+ const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
+ const [refreshing,setRefreshing]=useState(false);
+ const clip=clips[currentClip]??null;
+ const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  useEffect(()=>{
   let active=true;
   fetch("/api/showcase",{cache:"no-store"})
    .then(r=>r.ok?r.json():null)
-   .then(data=>{if(!active)return;
-    // One currently approved public showcase slot. When the public API
-    // provides additional APPROVED clips, swipe can browse those as well.
+   .then(data=>{
+    if(!active)return;
     const candidates=Array.isArray(data?.videos)?data.videos:[data];
-    const publicClips=candidates.flatMap((item:unknown)=>{
-      if(!item||typeof item!=="object")return [];
-      const entry=item as {videoUrl?:unknown;title?:unknown};
-      const url=entry.videoUrl;
-      if(typeof url!=="string"||!(url.startsWith("/")&&!url.startsWith("//")||url.startsWith("https://")))return [];
-      return [{title:typeof entry.title==="string"?entry.title:showcase.title,url}];
+    const publicClips:ShowcaseClip[]=candidates.flatMap((item:unknown)=>{
+     if(!item||typeof item!=="object")return [];
+     const entry=item as {videoUrl?:unknown;title?:unknown};
+     const url=entry.videoUrl;
+     if(typeof url!=="string"||!(url.startsWith("/")&&!url.startsWith("//")||url.startsWith("https://")))return [];
+     return [{title:typeof entry.title==="string"?entry.title:showcase.title,url}];
     });
     setClips(publicClips);
-    setCurrentClip(0);
-    setLoadingVideo(true);
    })
    .catch(()=>{if(active)setClips([])});
   return()=>{active=false};
  },[]);
  useEffect(()=>{
-  const v=player.current;if(!v||!clip||failed)return;
-  const observer=new IntersectionObserver(entries=>setVisible(entries[0]?.isIntersecting??false),{threshold:.25});
-  observer.observe(v);
-  return()=>observer.disconnect();
- },[clip,failed]);
- useEffect(()=>{
-  const v=player.current;if(!v||!clip)return;
-  if(!visible||document.hidden){v.pause();return;}
-  v.muted=muted;
-  void v.play().then(()=>setPlaying(true)).catch(()=>setPlaying(false));
-  const update=()=>{if(document.hidden){v.pause();setPlaying(false)}};
-  document.addEventListener("visibilitychange",update);
-  return()=>document.removeEventListener("visibilitychange",update);
- },[clip,visible,muted,failed]);
- const toggle=()=>{
-  const v=player.current;if(!v)return;
-  if(v.paused){void v.play().then(()=>setPlaying(true)).catch(()=>setPlaying(false));}
-  else{v.pause();setPlaying(false);}
+  const videos=feed.current?.querySelectorAll<HTMLVideoElement>("video");
+  if(!videos)return;
+  videos.forEach((video,i)=>{
+   if(i===currentClip&&!document.hidden&&!failed[i]){
+    video.muted=muted;
+    void video.play().catch(()=>{});
+   }else{video.pause();}
+  });
+  const visibility=()=>{
+   if(document.hidden)videos.forEach(v=>v.pause());
+   else{const v=videos[currentClip];if(v&&!failed[currentClip])void v.play().catch(()=>{});}
+  };
+  document.addEventListener("visibilitychange",visibility);
+  return()=>document.removeEventListener("visibilitychange",visibility);
+ },[clips,currentClip,muted,failed]);
+ const moveTo=(index:number)=>{
+  const container=feed.current;
+  if(!container||index<0||index>=clips.length)return;
+  container.scrollTo({top:index*container.clientHeight,behavior:"smooth"});
  };
- const toggleSound=()=>{const v=player.current;if(!v)return;v.muted=!v.muted;setMuted(v.muted);};
- const advance=(direction:1|-1)=>{
-   if(clips.length<2)return;
-   player.current?.pause();
-   setPlaying(false);
-   setFailed(false);
-   setLoadingVideo(true);
-   setCurrentClip(index=>(index+direction+clips.length)%clips.length);
+ const onScroll=()=>{
+  const container=feed.current;
+  if(!container||!container.clientHeight)return;
+  const next=Math.max(0,Math.min(clips.length-1,Math.round(container.scrollTop/container.clientHeight)));
+  setCurrentClip(prev=>prev===next?prev:next);
  };
- const touchStart=(event:React.TouchEvent)=>{
-   const t=event.touches[0];if(t){swipeStart.current={x:t.clientX,y:t.clientY};pullStartedAt.current=currentClip===0?Date.now():null;}
+ const startTouch=(e:React.TouchEvent)=>{
+  const t=e.touches[0];
+  if(t)touchStart.current={x:t.clientX,y:t.clientY,atTop:(feed.current?.scrollTop??0)<3};
  };
- const touchEnd=(event:React.TouchEvent)=>{
-   const start=swipeStart.current;swipeStart.current=null;
-   const t=event.changedTouches[0];if(!start||!t)return;
-   const dy=t.clientY-start.y,dx=t.clientX-start.x;
-   if(Math.abs(dy)>65&&Math.abs(dy)>Math.abs(dx)*1.2){
-    // Pull-to-refresh only from the first reel; allow a deliberate downward drag.
-    if(dy>115&&currentClip===0&&pullStartedAt.current!==null){window.location.reload();return;}
-    advance(dy<0?1:-1);
-   }
-   pullStartedAt.current=null;
+ const moveTouch=(e:React.TouchEvent)=>{
+  const t=e.touches[0],start=touchStart.current;
+  if(!t||!start)return;
+  if(Math.abs(t.clientY-start.y)>8)setDragging(true);
+  if(start.atTop&&t.clientY-start.y>40&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4)setRefreshing(true);
+ };
+ const finishTouch=(e:React.TouchEvent)=>{
+  const t=e.changedTouches[0],start=touchStart.current;
+  touchStart.current=null;
+  if(t&&start&&start.atTop&&currentClip===0&&t.clientY-start.y>125&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4){
+   window.location.reload();return;
+  }
+  setRefreshing(false);
+  window.setTimeout(()=>setDragging(false),300);
  };
  const wheel=(event:React.WheelEvent)=>{
-   if(typeof window!=="undefined"&&window.matchMedia("(max-width:760px)").matches && Math.abs(event.deltaY)>30 && !swipeLock.current){
-     swipeLock.current=true;
-     advance(event.deltaY>0?1:-1);
-     window.setTimeout(()=>{swipeLock.current=false},480);
-   }
- };
- const keyDown=(event:React.KeyboardEvent)=>{
-   if(event.key==="ArrowDown"||event.key==="PageDown"){event.preventDefault();advance(1)}
-   if(event.key==="ArrowUp"||event.key==="PageUp"){event.preventDefault();advance(-1)}
+  if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
  };
  return <div className="sm-immersive-home">
   <div className="sm-immersive-first-screen">
    <SiteHeader className="sm-immersive-header" onAccountClick={()=>window.location.assign("/login")}/>
-   <main id="content" className="sm-immersive-hero" onTouchStart={touchStart} onTouchEnd={touchEnd} onWheel={wheel} onKeyDown={keyDown} tabIndex={-1}>
+   <main id="content" className="sm-immersive-hero">
     <div className="sm-immersive-atmosphere" aria-hidden="true"/>
     <div className="sm-immersive-desktop-intro">
      <h1>Turn your song into a <span>music video.</span></h1>
      <p>With SingMotion AI — your song, your performance.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    <section className="sm-immersive-video-stage" aria-label="SingMotion AI music video showcase">
-     <div className="sm-immersive-video-frame" key={currentClip}>
-      <div className="sm-immersive-video-backup" style={{backgroundImage:`linear-gradient(0deg,rgba(8,5,18,.55),rgba(8,5,18,.1)),url("${showcase.posterUrl||"/artwork/singmotion-stage.webp"}")`}} aria-hidden="true"/>
-      {loadingVideo&&clip&&!failed&&<div className="sm-immersive-video-loading" aria-hidden="true"/>}
-      {clip&&!failed?<video key={clip.url} ref={player} className="sm-immersive-player" src={clip.url} poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} playsInline muted loop preload="auto" onLoadedData={()=>setLoadingVideo(false)} onPlaying={()=>{setPlaying(true);setLoadingVideo(false)}} onWaiting={()=>setLoadingVideo(true)} onError={()=>{setFailed(true);setLoadingVideo(false)}} onClick={toggle} aria-label={clip.title}/>:
-       <div className="sm-immersive-video-poster" role="img" aria-label="SingMotion music video showcase artwork"><span>{failed?"Showcase video currently unavailable": "Music video showcase"}</span></div>}
-      <div className="sm-immersive-video-controls">
-       {clip&&!failed&&<><button type="button" className="sm-immersive-play-toggle" onClick={toggle} aria-label={playing?"Pause video":"Play video"}>{playing?<Pause size={21}/>:<Play size={21}/>}</button>
-       <button type="button" onClick={toggleSound} aria-label={muted?"Turn on video sound":"Mute video"}>{muted?<VolumeX size={21}/>:<Volume2 size={21}/>}</button></>}
-      </div>
-      <span className="sm-immersive-video-caption">SingMotion AI Showcase</span>
-     </div>
-    </section>
-    <div className="sm-immersive-mobile-overlay">
-     <h1>Turn your song into a music video.</h1>
-     <p>Make your music come alive with SingMotion AI.</p>
-     <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
+    <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
+     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url||i} aria-label={item.title}>
+       <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("${cover}")`}} aria-hidden="true"/>
+       {item.url&&!failed[i]&&<video className="sm-mobile-reel-video" src={item.url} poster={cover} playsInline muted loop preload={Math.abs(currentClip-i)<=1?"auto":"metadata"} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
+       {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
+       {i===currentClip&&<div className="sm-mobile-reel-content">
+        <h1>Turn your song into a music video.</h1>
+        <p>Make your music come alive with SingMotion AI.</p>
+        <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
+       </div>}
+       {i===currentClip&&item.url&&!failed[i]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Turn on video sound":"Mute video"} onClick={()=>setMuted(v=>!v)}>{muted?<VolumeX size={22}/>:<Volume2 size={22}/>}</button>}
+     </section>)}
     </div>
+    {refreshing&&currentClip===0&&<div className="sm-mobile-refresh-hint" aria-live="polite">Release to refresh</div>}
     {clips.length>1&&<div className="sm-immersive-feed-position" aria-live="polite">{currentClip+1} / {clips.length}</div>}
     <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Explore how it works"><ChevronDown size={23}/></a>
    </main>
