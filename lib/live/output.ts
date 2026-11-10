@@ -147,6 +147,13 @@ export async function validateOutput(
         audio.codec_name !== (contract.output.audioCodec ?? "aac")))
   )
     throw new Error("OUTPUT_CODEC_MISMATCH");
+  // Bounded numeric evidence only: no URLs, filenames or customer metadata.
+  const sourceDimensionMismatch = contract.discover720p
+    ? !Number.isInteger(video?.width) || !Number.isInteger(video?.height) ||
+      Math.min(video.width!,video.height!)!==720 || Math.max(video.width!,video.height!)>4096
+    : !matchesReviewedDimensions(video?.width,video?.height,contract.output.width,contract.output.height);
+  if(sourceDimensionMismatch)console.warn("OUTPUT_DIMENSION_REJECTED",outputDimensionDiagnostic(
+    video?.width,video?.height,contract.output.width,contract.output.height,contract.discover720p===true));
   if (
     contract.discover720p
       ? !Number.isInteger(video.width) ||
@@ -277,10 +284,14 @@ export async function validateDownloadedOutput(
     [24, 24000 / 1001, 30, 30000 / 1001].some(
       fps => Math.abs(actualFps - fps) < 0.005,
     );
+  const reviewedOutputRectangle =
+    (contract.output.width === 720 && contract.output.height === 1280) ||
+    (contract.output.width === 1280 && contract.output.height === 720);
+  // BytePlus's observed portrait source 786x1178 may be padded to either
+  // explicitly reviewed 720p export orientation. This never accepts any
+  // other source dimensions, fps, codec or aspect ratio.
   const knownSourceRectangle =
-    !contract.discover720p &&
-    contract.output.width === 720 &&
-    contract.output.height === 1280 &&
+    !contract.discover720p && reviewedOutputRectangle &&
     video?.width === 786 && video.height === 1178;
   if (!knownSourceRectangle && !normalizeFps) {
     await validateOutput(file, duration, contract);
