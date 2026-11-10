@@ -553,3 +553,46 @@
  .sm-immersive-scroll-cue{bottom:20px}
 }
 @media(prefers-reduced-motion:reduce){.sm-scroll-mouse-dot{animation:none}}
+
+/* Mobile sound control: unobtrusive, still tappable. Swipe discovery is a
+   vertical peek/jump, never a scale or zoom. */
+@media(max-width:760px){
+ .sm-mobile-reel-mute{
+  width:32px!important;height:32px!important;
+  right:16px!important;
+  bottom:max(224px,env(safe-area-inset-bottom) + 220px)!important;
+  border:1px solid #ffffff50!important;
+  background:#08071166!important;color:#ffffffc7!important;
+  backdrop-filter:blur(5px);box-shadow:none!important;opacity:.76;
+  transition:opacity .2s ease,background .2s ease;
+ }
+ .sm-mobile-reel-mute:active,.sm-mobile-reel-mute:focus-visible{opacity:1;background:#130a27bb!important}
+ .sm-mobile-reel:first-child .sm-mobile-reel-video{animation:none!important;transform:none!important}
+ .sm-mobile-reel.is-discovery{
+  animation:sm-mobile-peek-swipe 1.3s cubic-bezier(.2,.65,.32,1) 1.25s 2;
+  will-change:transform;
+ }
+ .sm-mobile-reels.is-dragging .sm-mobile-reel.is-discovery{animation:none!important}
+ .sm-mobile-swipe-hint{
+  position:absolute;z-index:17;left:50%;bottom:max(20px,env(safe-area-inset-bottom) + 14px);
+  transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:1px;
+  color:#fff;text-shadow:0 2px 7px #05020c;
+  font-weight:650;pointer-events:none;opacity:.87;
+  animation:sm-mobile-hint-fade 4s ease-out both;
+ }
+ .sm-mobile-swipe-hint>span{font-size:32px;line-height:1;animation:sm-swipe-arrow-up 1.3s ease-in-out 2}
+ .sm-mobile-swipe-hint small{font-size:11px;white-space:nowrap;letter-spacing:.03em}
+}
+@keyframes sm-mobile-peek-swipe{
+  0%,100%{transform:translate3d(0,0,0)}
+  31%{transform:translate3d(0,-36px,0)}
+  58%{transform:translate3d(0,10px,0)}
+  78%{transform:translate3d(0,-10px,0)}
+}
+@keyframes sm-swipe-arrow-up{0%,100%{transform:translateY(0)}45%{transform:translateY(-17px)}}
+@keyframes sm-mobile-hint-fade{0%{opacity:0}15%,72%{opacity:.9}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){
+ .sm-mobile-reel.is-discovery,.sm-mobile-swipe-hint,.sm-mobile-swipe-hint>span{animation:none!important}
+ .sm-mobile-swipe-hint{opacity:.9}
+}
