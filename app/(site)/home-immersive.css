@@ -139,3 +139,64 @@
   background-position:center 36%;
  }
 }
+
+
+/* Full-height mobile reel: one continuous viewport with no next-section bleed.
+   The backing image stays visible until the video has enough data to paint. */
+.sm-immersive-video-backup{
+ position:absolute;inset:0;z-index:0;pointer-events:none;
+ background-color:#0b0917;background-position:center center;
+ background-size:cover;background-repeat:no-repeat;
+}
+.sm-immersive-video-loading{position:absolute;inset:0;z-index:1;pointer-events:none;background:transparent}
+.sm-immersive-player{position:relative;z-index:1}
+@media(max-width:760px){
+ html:has(.sm-immersive-home),body:has(.sm-immersive-home){
+  height:100%;min-height:100%;overflow:hidden!important;margin:0;
+  background:#080715;overscroll-behavior-y:none;
+ }
+ .sm-immersive-home{
+  position:fixed;inset:0;width:100%;height:100dvh;min-height:0;
+  overflow:hidden;overscroll-behavior:none;background:#080715;
+ }
+ .sm-immersive-first-screen,.sm-immersive-hero,.sm-immersive-video-stage,
+ .sm-immersive-video-frame{height:100%;min-height:0;max-height:100%;overflow:hidden}
+ .sm-immersive-first-screen{position:relative}
+ .sm-immersive-hero{position:relative;touch-action:pan-y;overscroll-behavior:none}
+ .sm-immersive-video-stage{position:absolute;inset:0}
+ .sm-immersive-video-frame{position:absolute;inset:0;width:100%;border:0;border-radius:0;animation:none}
+ .sm-immersive-video-backup{background-size:cover;background-position:center}
+ .sm-immersive-player{object-fit:contain;object-position:center;background:transparent}
+ .sm-immersive-mobile-overlay{
+  left:clamp(24px,5vw,38px);right:clamp(24px,5vw,38px);
+  width:auto;max-width:none;bottom:max(30px,env(safe-area-inset-bottom) + 18px);
+  padding:24px 0 0;gap:12px;box-sizing:border-box;
+  background:none;align-items:stretch;
+ }
+ .sm-immersive-mobile-overlay::before{
+  content:"";position:absolute;inset:-36px -30px -36px;z-index:-1;
+  background:linear-gradient(0deg,#070512d9 10%,#07051281 63%,transparent);
+  pointer-events:none;
+ }
+ .sm-immersive-mobile-overlay h1,.sm-immersive-mobile-overlay p,
+ .sm-immersive-mobile-overlay .sm-immersive-cta{
+  width:100%;max-width:100%;box-sizing:border-box;
+ }
+ .sm-immersive-mobile-overlay h1{
+  font-size:clamp(29px,7.7vw,43px);line-height:1.07;
+  margin:0;max-width:none;text-wrap:balance;
+ }
+ .sm-immersive-mobile-overlay p{
+  font-size:clamp(14px,3.7vw,17px);line-height:1.4;
+  margin:0 0 6px;max-width:none;
+ }
+ .sm-immersive-mobile-overlay .sm-immersive-cta{
+  width:100%;max-width:100%;min-width:0;min-height:54px;
+  margin:0;padding:12px 18px;pointer-events:auto;
+ }
+ .sm-immersive-video-controls{
+  right:clamp(24px,5vw,38px);
+  bottom:max(228px,env(safe-area-inset-bottom) + 228px);
+ }
+ .sm-immersive-below{display:none!important}
+}
