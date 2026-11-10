@@ -244,7 +244,7 @@ export function ImmersiveHome(){
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion.</p>
     <div className="sm-immersive-placeholder-gallery" aria-label="Desktop portrait video carousel">
-      <div className="sm-immersive-placeholder-track" role="group" aria-label="9 by 16 portrait video collection" style={{transform:"translateX(-"+portraitSlide*25+"%)"}}>
+      <div className="sm-immersive-placeholder-track" role="group" aria-label="9 by 16 portrait video collection" style={{transform:"translateX(-"+portraitSlide*6.25+"%)"}}>
         {(portraitClips.length?portraitClips:[{title:"Coming soon",url:""}]).map((item,n)=><div key={item.url||n} className={"sm-immersive-placeholder-card"+(portraitSlide===n?" is-selected":"")}>
           {item.url?<video src={item.url} playsInline muted loop preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} onClick={e=>{const v=e.currentTarget;if(v.paused)void v.play().catch(()=>{});else v.pause();}} aria-label={item.title}/>:<span className="sm-immersive-placeholder-play"><Play size={28} fill="currentColor"/></span>}
           <small>{item.title}</small>
