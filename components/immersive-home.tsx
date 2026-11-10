@@ -135,6 +135,7 @@ export function ImmersiveHome(){
  const [loaded,setLoaded]=useState<Record<number,boolean>>({});
  const [footerLinks,setFooterLinks]=useState<{label:string;url:string}[]>([]);
  const feed=useRef<HTMLDivElement>(null);
+ const firstScreen=useRef<HTMLDivElement>(null);
  const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
  const [refreshing,setRefreshing]=useState(false);
  const refreshCircle=useRef<HTMLDivElement>(null);
@@ -323,7 +324,9 @@ export function ImmersiveHome(){
  // mobile Safari/Chrome from moving the native snap-scroller during refresh.
  // Update CSS properties directly rather than re-rendering every video per frame.
  useEffect(()=>{
-  const element=feed.current;
+  // Header and video are siblings; listen on their shared screen so a pull
+  // that starts on the top navigation is detected just like a pull on video.
+  const element=firstScreen.current;
   if(!element||!isMobileViewport)return;
   const onMove=(event:TouchEvent)=>{
    const touch=event.touches[0],start=touchStart.current;
@@ -377,7 +380,7 @@ export function ImmersiveHome(){
   if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
  };
  return <div className="sm-immersive-home">
-  <div className="sm-immersive-first-screen">
+  <div ref={firstScreen} className="sm-immersive-first-screen" onTouchStart={startTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;resetRefreshCircle();setRefreshing(false)}}>
    <SiteHeader className="sm-immersive-header" onAccountClick={()=>window.location.assign("/login")}/>
    <main id="content" className="sm-immersive-hero">
     <div className="sm-immersive-atmosphere" aria-hidden="true"/>
@@ -386,7 +389,7 @@ export function ImmersiveHome(){
      <p>With SingMotion AI — your song, your performance.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;resetRefreshCircle();setRefreshing(false)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
+    <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
        <div className="sm-mobile-reel-loading" aria-hidden="true"/>
        {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
