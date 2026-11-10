@@ -126,6 +126,14 @@ if (process.env.PRODUCTION_R2_MP4_PREFLIGHT_ENABLED === "true") {
     .then(status => console.log("PRODUCTION_R2_MP4_PREFLIGHT " + status))
     .catch(() => console.warn("PRODUCTION_R2_MP4_PREFLIGHT blocked"));
 }
+
+if (process.env.BYTEPLUS_READONLY_ACCESS_PREFLIGHT_ENABLED === "true") {
+  console.log("BYTEPLUS_READONLY_ACCESS_PREFLIGHT started");
+  void import("./byteplus-readonly-access-probe.ts")
+    .then(({readonlyBytePlusAccessProbe}) => readonlyBytePlusAccessProbe())
+    .then(status => console.log("BYTEPLUS_READONLY_ACCESS_PREFLIGHT " + status))
+    .catch(() => console.warn("BYTEPLUS_READONLY_ACCESS_PREFLIGHT blocked"));
+}
 let stopping = false;
 function stop(code) {
   if (stopping) return;
