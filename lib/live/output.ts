@@ -284,11 +284,17 @@ export async function validateDownloadedOutput(
     [24, 24000 / 1001, 30, 30000 / 1001].some(
       fps => Math.abs(actualFps - fps) < 0.005,
     );
+  // The paid contract can bind a Custom rectangle computed from an owned
+  // source image. Restrict dimensions to 720p short side and 1280 long side.
   const reviewedOutputRectangle =
-    (contract.output.width === 720 && contract.output.height === 1280) ||
-    (contract.output.width === 1280 && contract.output.height === 720);
-  // Only the two observed BytePlus source rectangles may be resized to
-  // the explicitly reviewed 720p portrait/landscape export. The square
+    Number.isInteger(contract.output.width) &&
+    Number.isInteger(contract.output.height) &&
+    Math.min(contract.output.width,contract.output.height) === 720 &&
+    Math.max(contract.output.width,contract.output.height) <= 1280 &&
+    contract.output.width % 2 === 0 &&
+    contract.output.height % 2 === 0;
+  // Only observed BytePlus source rectangles may be resized to the
+  // server-bound 720p target rectangle. The square
   // 960x960 source was confirmed by the paid Staging recovery on 2026-11-10.
   // All codec, duration, fps, pixel aspect and full-decode checks still apply.
   const reviewedSourceRectangle =
@@ -335,8 +341,8 @@ export async function validateDownloadedOutput(
     throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   }
   // Decode and validate the entire untrusted source before local
-  // conversion. Only the observed 786x1178 or 960x960 sources and the
-  // reviewed 720p portrait/landscape rectangles can be accepted.
+  // conversion. Only observed provider source rectangles and bounded 720p
+  // targets are accepted; paid Custom size is validated before checkout.
   await validateOutput(file, duration, {
     ...contract,
     output: {
