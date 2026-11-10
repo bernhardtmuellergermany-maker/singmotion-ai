@@ -395,3 +395,17 @@
  html:has(.sm-immersive-home){scroll-behavior:auto}
  .sm-moving-card,.sm-immersive-scroll-cue{transition:none!important}
 }
+
+/* Shared reel controls live outside the scrollable video track. */
+@media(max-width:760px){
+ .sm-mobile-reel-content{
+  z-index:15;pointer-events:none;
+ }
+ .sm-mobile-reel-content .sm-immersive-cta{pointer-events:auto}
+ .sm-mobile-reel-mute{z-index:16}
+ .sm-mobile-reel:first-child{transition:transform .22s cubic-bezier(.2,.75,.2,1);will-change:transform}
+ .sm-mobile-refresh-hint{top:90px;z-index:18}
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-mobile-reel:first-child{transition:none}
+}
