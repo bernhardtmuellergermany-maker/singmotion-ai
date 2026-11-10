@@ -500,3 +500,27 @@
   text-wrap:balance;
  }
 }
+
+/* CMS-managed hero artwork and strict separation of desktop/mobile overlays. */
+@media(min-width:761px){
+ .sm-mobile-reel-content,.sm-mobile-reel-mute,.sm-mobile-reels{display:none!important}
+ .sm-immersive-atmosphere{
+  background-image:linear-gradient(180deg,rgba(8,5,21,.12),rgba(9,5,23,.25) 43%,rgba(9,5,23,.70) 87%,#080715),url("/api/showcase-media?kind=desktop-bg");
+  background-size:cover,cover;
+  background-position:center center,center center;
+  background-repeat:no-repeat;
+ }
+ .sm-immersive-hero{padding:clamp(165px,35svh,380px) 22px 50px}
+ .sm-immersive-desktop-intro{width:min(100%,1080px);max-width:1080px}
+ .sm-immersive-desktop-intro h1{
+  font-size:clamp(54px,6.35vw,93px);max-width:1040px;
+  line-height:1.02;letter-spacing:-.048em;
+ }
+ .sm-immersive-desktop-intro p{font-size:clamp(17px,1.65vw,22px);margin:16px auto 19px}
+ .sm-immersive-desktop-intro .sm-immersive-cta{min-width:300px;font-size:16px;min-height:54px}
+}
+@media(max-width:760px){
+ .sm-mobile-reel-content{display:flex!important}
+ .sm-mobile-reel-mute{display:grid!important}
+ .sm-mobile-reel-backup{transition:opacity .18s ease}
+}
