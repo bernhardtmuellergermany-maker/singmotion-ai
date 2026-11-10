@@ -474,3 +474,29 @@
 @media(prefers-reduced-motion:reduce){
  .sm-mobile-reel:first-child .sm-mobile-reel-video{animation:none!important}
 }
+
+/* Mockup focal point: the singer fills the center, not the far-right edge. */
+@media(min-width:761px){
+ .sm-immersive-atmosphere{
+  background-image:linear-gradient(180deg,rgba(8,5,21,.14),rgba(9,5,23,.25) 43%,rgba(9,5,23,.73) 87%,#080715),url("/artwork/singmotion-stage.webp");
+  background-size:cover,170% auto;
+  background-position:center center,88% 24%;
+  background-repeat:no-repeat;
+ }
+}
+/* Every portrait occupies exactly one carousel step; works with any number
+   of published videos instead of the previous fixed four placeholders. */
+@media(min-width:761px){
+ .sm-immersive-placeholder-gallery{overflow:hidden;max-width:960px}
+ .sm-immersive-placeholder-track{width:400%;display:flex;gap:0}
+ .sm-immersive-placeholder-card{flex:0 0 calc(25% / 4 - 18px);margin-right:18px;min-width:0}
+ .sm-immersive-placeholder-card video{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  cursor:pointer;border-radius:inherit;
+ }
+ .sm-immersive-placeholder-card small{
+  z-index:2;left:10px;right:10px;padding:7px;
+  border-radius:8px;background:#10081bbc;text-overflow:ellipsis;
+  white-space:nowrap;overflow:hidden;
+ }
+}
