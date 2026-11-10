@@ -106,13 +106,31 @@ async function handler(req:NextRequest){
       if(!await admin(req))return json({error:"Super-admin authorization required"},403);
       // Only authenticated Super Admin-created, COMPLETED output is eligible.
       const all=s.db.prepare("SELECT attempt_id,owner,artist_name,project_name,policy_json FROM live_studio_projects ORDER BY rowid DESC").all() as (Selected&{policy_json:string})[];
-      const eligible=all.filter(row=>superAdminPolicy(row.policy_json)).flatMap(row=>{
-        try{const a=s.get(row.attempt_id);return a.state==="completed"&&!!a.outputPath?[{id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}]:[];}catch{return [];}
+      // Inventory diagnostics distinguish missing Super Admin proof from
+      // unfinished and unavailable outputs, without exposing private media.
+      const classified=all.map(row=>{
+        const approved=superAdminPolicy(row.policy_json);
+        let state="missing";
+        let outputReady=false;
+        if(approved){
+          try{const a=s.get(row.attempt_id);state=a.state;outputReady=a.state==="completed"&&!!a.outputPath;}catch{state="missing";}
+        }
+        return {...row,approved,state,outputReady};
       });
+      const eligible=classified.filter(row=>row.approved&&row.outputReady).map(row=>({id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}));
+      const inventory={
+        totalStudioRecords:all.length,
+        verifiedSuperAdmin:classified.filter(row=>row.approved).length,
+        completedSuperAdmin:eligible.length,
+        incompleteSuperAdmin:classified.filter(row=>row.approved&&!row.outputReady&&row.state!=="missing").length,
+        missingOutputRecord:classified.filter(row=>row.approved&&row.state==="missing").length,
+        unverifiedLegacy:classified.filter(row=>!row.approved).length,
+        published:validated().length
+      };
       if(req.method==="GET"){
         const published=validated();
         const selectedIds=published.map(v=>v.attempt_id);
-        return json({channel,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory:{completedSuperAdmin:eligible.length,published:published.length}});
+        return json({channel,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
       }
       if(req.method==="POST"){
         const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown};
