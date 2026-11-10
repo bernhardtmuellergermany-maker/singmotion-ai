@@ -118,6 +118,17 @@ export function ImmersiveHome(){
  const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
  const [refreshing,setRefreshing]=useState(false);
  const [pullOffset,setPullOffset]=useState(0);
+ const [introElapsed,setIntroElapsed]=useState(false);
+ const [introDismissed,setIntroDismissed]=useState(false);
+ // The initial fallback is displayed for at least 2.5 s while the first
+ // approved video can buffer underneath. Never reveal an unready video.
+ useEffect(()=>{
+  const timer=window.setTimeout(()=>setIntroElapsed(true),2500);
+  return()=>window.clearTimeout(timer);
+ },[]);
+ useEffect(()=>{
+  if(introElapsed&&clips.length>0&&loaded[0]&&!failed[0])setIntroDismissed(true);
+ },[introElapsed,clips.length,loaded,failed]);
  useEffect(()=>{
   let active=true;
   fetch("/api/site-footer",{cache:"no-store"}).then(r=>r.ok?r.json():null)
@@ -283,7 +294,7 @@ export function ImmersiveHome(){
   if(Math.abs(t.clientY-start.y)>8)setDragging(true);
   if(start.atTop&&currentClip===0&&t.clientY>start.y&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4){
    const distance=t.clientY-start.y;
-   setPullOffset(Math.min(86,distance*.48));
+   setPullOffset(Math.min((feed.current?.clientHeight||window.innerHeight)*.5,distance*.78));
    setRefreshing(distance>125);
   }
  };
@@ -291,7 +302,7 @@ export function ImmersiveHome(){
   const t=e.changedTouches[0],start=touchStart.current;
   touchStart.current=null;
   if(t&&start&&start.atTop&&currentClip===0&&t.clientY-start.y>125&&Math.abs(t.clientY-start.y)>Math.abs(t.clientX-start.x)*1.4){
-   setPullOffset(36);void refreshFeed();return;
+   setPullOffset(Math.min((feed.current?.clientHeight||window.innerHeight)*.22,110));void refreshFeed();return;
   }
   setRefreshing(false);
   setPullOffset(0);
@@ -310,8 +321,10 @@ export function ImmersiveHome(){
      <p>With SingMotion AI — your song, your performance.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
+    <div className="sm-mobile-refresh-underlay" aria-hidden="true"/>
+    <div className={"sm-mobile-intro-fallback"+(introDismissed?" is-hidden":"")} aria-hidden="true"/>
     <div ref={feed} className={"sm-mobile-reels"+(dragging?" is-dragging":"")+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onTouchStart={startTouch} onTouchMove={moveTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;setDragging(false);setRefreshing(false);setPullOffset(0)}} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
-     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className={"sm-mobile-reel"+(i===0&&currentClip===0&&clips.length>1?" is-discovery":"")} key={item.url+"-"+i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`,transition:"none"}:undefined}>
+     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className={"sm-mobile-reel"+(i===0&&currentClip===0&&clips.length>1&&introDismissed?" is-discovery":"")} key={item.url+"-"+i} aria-label={item.title} style={i===0&&pullOffset>0?{transform:`translate3d(0,${pullOffset}px,0)`}:undefined}>
        <div className="sm-mobile-reel-backup" style={{backgroundImage:`linear-gradient(180deg,#07041333,#07041366),url("/api/showcase-media?kind=mobile-fallback")`,opacity:loaded[i]&&!failed[i]?0:1}} aria-hidden="true"/>
        {item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
@@ -322,7 +335,7 @@ export function ImmersiveHome(){
      <p>Make your music come alive with SingMotion AI.</p>
      <Link className="sm-immersive-cta" href="/studio">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{unlockSoundAfterGesture.current=false;const next=!muted;setMuted(next);const v=feed.current?.querySelectorAll<HTMLVideoElement>("video")[currentClip];if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
+    {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{unlockSoundAfterGesture.current=false;const next=!muted;setMuted(next);const v=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}
     <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Sanft zum Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
    </main>
