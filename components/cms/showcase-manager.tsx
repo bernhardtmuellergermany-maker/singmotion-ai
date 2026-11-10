@@ -4,7 +4,7 @@ import {useCallback,useEffect,useRef,useState} from "react";
 
 type Channel="mobile"|"desktop"|"desktop_portrait";
 type Project={id:string;name:string;selected:boolean};
-type Listing={projects:Project[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number;totalStudioRecords?:number;verifiedSuperAdmin?:number;incompleteSuperAdmin?:number;missingOutputRecord?:number;unverifiedLegacy?:number;uploadedVideos?:number}};
+type Listing={randomOrder?:boolean;projects:Project[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number;totalStudioRecords?:number;verifiedSuperAdmin?:number;incompleteSuperAdmin?:number;missingOutputRecord?:number;unverifiedLegacy?:number;uploadedVideos?:number}};
 const channels:{id:Channel;label:string;hint:string}[]=[
  {id:"mobile",label:"Mobile · Inspiration Feed (9:16)",hint:"Unlimited SingMotion-approved ideas for vertical swipe browsing"},
  {id:"desktop",label:"Desktop · Top carousel (16:9)",hint:"Featured landscape performances below the fullscreen hero"},
@@ -16,6 +16,8 @@ export function ShowcaseManager(){
  const [available,setAvailable]=useState<Project[]>([]);
  const [ordered,setOrdered]=useState<string[]>([]);
  const [saved,setSaved]=useState<string[]>([]);
+ const [randomOrder,setRandomOrder]=useState(false);
+ const [savedRandomOrder,setSavedRandomOrder]=useState(false);
  const [loading,setLoading]=useState(true);
  const [saving,setSaving]=useState(false);
  const [message,setMessage]=useState("");
@@ -60,6 +62,8 @@ export function ShowcaseManager(){
    setInventory(data.inventory||null);
    const ids=(data.published||[]).map(item=>item.id);
    setOrdered(ids);setSaved(ids);
+   setRandomOrder(channel==="mobile"&&data.randomOrder===true);
+   setSavedRandomOrder(channel==="mobile"&&data.randomOrder===true);
   }catch(e){setMessage((e as Error).message);}
   finally{setLoading(false)}
  },[channel]);
@@ -73,15 +77,15 @@ export function ShowcaseManager(){
  const save=async()=>{
   setSaving(true);setMessage("");
   try{
-   const res=await fetch("/api/showcase?channel="+channel,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"set-list",ids:ordered})});
+   const res=await fetch("/api/showcase?channel="+channel,{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"set-list",ids:ordered,randomOrder:channel==="mobile"&&randomOrder})});
    const data=await res.json() as {error?:string};
    if(!res.ok)throw Error(data.error||"Could not save");
-   setSaved([...ordered]);setMessage("Published successfully for this section.");
+   setSaved([...ordered]);setSavedRandomOrder(randomOrder);setMessage("Published successfully for this section.");
   }catch(e){setMessage((e as Error).message);}
   finally{setSaving(false);}
  };
  const name=(id:string)=>available.find(x=>x.id===id)?.name||id;
- const dirty=ordered.join("\n")!==saved.join("\n");
+ const dirty=ordered.join("\n")!==saved.join("\n")||(channel==="mobile"&&randomOrder!==savedRandomOrder);
  return <div style={{border:"1px solid #764e86",borderRadius:16,padding:20,margin:"18px 0",background:"#160d22",color:"#f8efff"}}>
   <h2 style={{fontSize:21,margin:"0 0 8px"}}>Showcase videos verwalten</h2>
   <p style={{fontSize:13,opacity:.85}}>Super Admin: Inhalte separat je Bereich veröffentlichen und ihre Reihenfolge bestimmen. Nicht ausgewählte Projekte bleiben privat.</p>
@@ -115,6 +119,10 @@ export function ShowcaseManager(){
   </section>
   {uploadMessage&&<p role="status" style={{margin:"10px 0",fontSize:13,color:"#efd4ff"}}>{uploadMessage}</p>}
   {loading?<p role="status">Loading video inventory…</p>:<>
+   {channel==="mobile"&&<label style={{display:"flex",alignItems:"flex-start",gap:12,padding:"13px 14px",border:"1px solid #704c81",borderRadius:10,background:"#21122d",cursor:"pointer"}}>
+    <input type="checkbox" checked={randomOrder} onChange={e=>setRandomOrder(e.target.checked)} style={{width:20,height:20,accentColor:"#b34aee",flex:"none"}}/>
+    <span><strong>Videos bei jedem Besuch zufällig mischen</strong><small style={{display:"block",marginTop:5,opacity:.8,lineHeight:1.5}}>Nur für den mobilen Feed. Beim nächsten Seitenaufruf startet ein zufällig ausgewähltes veröffentlichtes Video. Während des Scrollens bleibt die Reihenfolge stabil. Zum Aktivieren unten auf „Publish selection &amp; order“ klicken.</small></span>
+   </label>}
    <h3 style={{fontSize:16,margin:"22px 0 8px"}}>Published in this section ({ordered.length})</h3>
    {ordered.length===0&&<p style={{fontSize:13}}>No videos published here yet.</p>}
    <ol style={{paddingLeft:28}}>
