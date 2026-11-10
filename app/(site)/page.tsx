@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { CarouselExperience } from "@/components/carousel-experience";
+import { ImmersiveHome } from "@/components/immersive-home";
+import "./home-immersive.css";
 // The public carousel shell contains no server-personalized data;
 // allow Next.js to cache it while private projects load client-side.
 export const metadata: Metadata = {
@@ -9,4 +10,4 @@ export const metadata: Metadata = {
     ? { index: false, follow: false }
     : undefined,
 };
-export default function Home() { return <CarouselExperience />; }
+export default function Home() { return <ImmersiveHome />; }
