@@ -414,22 +414,32 @@ export function ImmersiveHome(){
  };
  const scrollToCreations=(event:React.MouseEvent<HTMLAnchorElement>)=>{
   event.preventDefault();
-  const target=document.getElementById("sm-creation-title");
-  if(!target)return;
-  const scrolling=document.scrollingElement||document.documentElement;
-  const from=scrolling.scrollTop;
-  const to=target.getBoundingClientRect().top+from-Math.min(85,window.innerHeight*0.1);
-  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){scrolling.scrollTop=to;return;}
-  const duration=1150;
-  const started=performance.now();
-  const frame=(now:number)=>{
-   const t=Math.min(1,(now-started)/duration);
-   const eased=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-   scrolling.scrollTop=from+(to-from)*eased;
-   if(t<1)window.requestAnimationFrame(frame);
-   else scrolling.scrollTop=to;
+  // Always target the *actual* Stunning Creations section, not the first
+  // 16:9 showcase carousel or a viewport-height offset.
+  const heading=document.getElementById("sm-creation-title");
+  const section=heading?.closest("section");
+  if(!heading||!section)return;
+  const root=document.scrollingElement||document.documentElement;
+  const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const destination=()=>Math.max(0,section.getBoundingClientRect().top+root.scrollTop-64);
+  if(reduced){window.scrollTo({top:destination(),behavior:"instant"});return;}
+  const from=root.scrollTop;
+  const startTime=performance.now();
+  const duration=1350;
+  const tick=(now:number)=>{
+   const progress=Math.min(1,(now-startTime)/duration);
+   const eased=progress<.5?4*progress**3:1-(-2*progress+2)**3/2;
+   // Recalculate while the browser loads images/video; layout shifts must not
+   // leave us stranded at the preceding section.
+   window.scrollTo({top:from+(destination()-from)*eased,behavior:"instant"});
+   if(progress<1)requestAnimationFrame(tick);
+   else{
+    // Explicit final correction prevents scroll anchoring from stopping near
+    // the 16:9 carousel after the animation finishes.
+    section.scrollIntoView({behavior:"instant",block:"start"});
+   }
   };
-  window.requestAnimationFrame(frame);
+  requestAnimationFrame(tick);
  };
  const wheel=(event:React.WheelEvent)=>{
   if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
