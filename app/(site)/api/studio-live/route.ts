@@ -56,8 +56,9 @@ async function handler(req: NextRequest) {
     }
     const payload = await getPayload({ config: payloadConfig });
     const { user } = await payload.auth({ headers: req.headers });
+    let verifiedOwner: string;
     try {
-      studioStaff(user, req.method, req.headers, process.env);
+      verifiedOwner = studioStaff(user, req.method, req.headers, process.env);
     } catch (e) {
       if (
         req.method === "GET" &&
@@ -80,10 +81,10 @@ async function handler(req: NextRequest) {
         401,
       );
     const owner = auth.owner;
-    if (owner.startsWith("customer-"))
+    if (owner !== verifiedOwner)
       throw new StudioLiveError(
-        "CUSTOMER_OPERATOR_SEPARATION",
-        "Sign out of the customer workspace before using private operator access.",
+        "OPERATOR_SESSION_MISMATCH",
+        "Your private workspace does not match the signed-in Studio operator. Reopen Studio to refresh the operator session.",
         403,
       );
     limit(`${owner}:studio-live`, req.method === "POST" ? 30 : 180, 60000);
