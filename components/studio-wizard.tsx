@@ -406,7 +406,7 @@ export function StudioWizard({
                 <details className="sm-new-file-menu"><summary aria-label="Audio options"><MoreVertical size={22}/></summary><div><button type="button" disabled={busy} onClick={()=>audioFileInput.current?.click()}>Replace audio</button><button type="button" disabled={busy} onClick={()=>update({song:null,start:0,end:10})}>Delete audio</button></div></details>
               </div>
               <div className="sm-new-wave-card">
-                <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name}/>
+                <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name}/>
               </div>
               <div className="sm-new-audio-actions">
                 <button type="button" disabled={busy} onClick={()=>audioFileInput.current?.click()}><RefreshCcw size={19}/> Replace audio</button>
