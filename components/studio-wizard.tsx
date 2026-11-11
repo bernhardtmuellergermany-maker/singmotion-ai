@@ -447,8 +447,17 @@ export function StudioWizard({
         const scale=Math.min(width/sourceW,height/sourceH)*cropScale;
         const translatedX=(0.5-cropX/100)*(sourceW*scale-width);
         const translatedY=(0.5-cropY/100)*(sourceH*scale-height);
+        // Keep the original subject intact; fill the remaining 16:9 area
+        // from a soft duplicate of the same source instead of black strips.
         ctx.fillStyle="#000000";ctx.fillRect(0,0,width,height);
-         ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
+        const backdropScale=Math.max(width/sourceW,height/sourceH)*1.08;
+        ctx.save();ctx.filter="blur(22px)";
+        ctx.translate(width/2,height/2);
+        ctx.scale(flipped?-1:1,1);ctx.rotate(rotation*Math.PI/180);
+        ctx.scale(backdropScale,backdropScale);
+        ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);
+        ctx.restore();
+        ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
         ctx.scale(flipped?-1:1,1);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);
         ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);ctx.restore();
         const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Could not save crop.")),"image/png"));
@@ -685,7 +694,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">The whole photo is fitted by default without zoom or crop. Borders may appear when the source ratio differs from the video. Zoom only if you want a tighter crop, then press Apply to save the exact framing.</p>
+          <p className="sm-photo-step-tip">The whole photo remains visible. For different aspect ratios, the sides use a softly blurred version of the same photo instead of black bars. Press Apply to save the framing before generating.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
