@@ -473,7 +473,10 @@ export function StudioWizard({
               value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/>
           </div>
         </section>}
-           onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
+        {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
+          <div className="sm-carousel-stage sm-review-stage"
+            onTouchStart={e=>{reviewTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
+            onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
           >
             <article className={"sm-carousel-card sm-review-panel sm-review-front "+(reviewCard==="preview"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="preview"?0:-1,"--depth":reviewCard==="preview"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project image and status">
               {draft.imageId?<img className="sm-review-cover" style={{objectFit:"cover",objectPosition:"center"}} src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt={`Selected artist centered for ${draft.outputFormat} output`}/>:<div className="sm-review-placeholder"><ImagePlus size={42}/><span>No artist image selected</span></div>}
