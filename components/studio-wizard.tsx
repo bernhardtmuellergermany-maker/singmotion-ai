@@ -495,7 +495,7 @@ export function StudioWizard({
             </div>
           ))}
         </div>
-        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{step===0 && draft.song ? content.audioReadyHeadline : ["Upload your audio",draft.imageId?"Your artist photo":"Upload your artist photo","Describe your performance","Generate your video"][step]}</h1><p>{step===0 && draft.song ? content.audioReadySubtitle : ["Upload the audio file you’ll use for the music video.","Upload a clear photo and choose the video format.","Set how your artist moves and performs.","Review your creation before generating."][step]}</p></div>
+        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{step===0 && draft.song ? content.audioReadyHeadline : ["Upload your audio",draft.imageId?"Your artist photo":"Upload your artist photo","How should your artist perform?","Generate your video"][step]}</h1><p>{step===0 && draft.song ? content.audioReadySubtitle : ["Upload the audio file you’ll use for the music video.","Upload a clear photo and choose the video format.","Describe the movement, emotion and camera style for your music video.","Review your creation before generating."][step]}</p></div>
         
         {step===0&&<div className="sm-new-audio-workspace">
           <input ref={audioFileInput} className="sr-only" type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={!ready||busy} onChange={e=>{void add(e.target.files?.[0],"audio");e.currentTarget.value="";}}/>
