@@ -11,6 +11,7 @@ import type { StudioDraftExport } from "../studio-draft.ts";
 import type { OutputValidationContract } from "./output.ts";
 import type { VerifiedContract } from "./contract.ts";
 import { sha256File } from "./media.ts";
+import { ensureLocalAsset } from "../cloud-hydration.ts";
 import { probe, validateAudio } from "../media.ts";
 import { validateOutput, outputTransferLimits } from "./output.ts";
 import { validateEncodedDuration, validateOmniAudio } from "./limits.ts";
@@ -50,8 +51,15 @@ export async function tempoAuthorization(
   const { asset } = await import("../db.ts");
   const source = asset(selection.songId, owner),
     image = asset(selection.imageId, owner);
-  const sourceSha256 = await sha256File(await privateFile(root, source.path));
-  const imageSha256 = await sha256File(await privateFile(root, image.path));
+  if (source.kind !== "audio" || image.kind !== "image")
+    throw new AppError("A song and one reference image are required.");
+  // Paid/staff media may be archived in owner-scoped R2 while its ephemeral
+  // Railway local cache was removed on deploy. Hydrate and integrity-check
+  // exactly the stored owner's assets before local tempo authorization.
+  const sourcePath = await ensureLocalAsset(source);
+  const imagePath = await ensureLocalAsset(image);
+  const sourceSha256 = await sha256File(await privateFile(root, sourcePath));
+  const imageSha256 = await sha256File(await privateFile(root, imagePath));
   await checkRecordingRejections(
     root,
     store,
