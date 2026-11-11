@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {UserRound} from "lucide-react";
 import {readCustomerAuthStatus} from "@/lib/client-auth-status";
+import {resetSession} from "@/lib/client";
 import "./header-account-menu.css";
 
 /** Shared account menu. Authentication is verified server-side, never inferred from cookies in JS. */
@@ -33,6 +34,21 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
    window.location.assign("/");
   }catch(e){setError(e instanceof Error?e.message:"Logout failed");setBusy(false)}
  }
+ async function logoutStaff(){
+  if(busy)return;
+  setBusy(true);setError("");
+  try{
+   // Payload handles the actual HTTP-only CMS auth cookie and invalidates
+   // the staff session; closing the private workspace separately prevents
+   // a stale cms-staff media session from surviving the sign-out.
+   const staff=await fetch("/api/cms/staff/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});
+   if(!staff.ok)throw Error("Staff sign-out failed. Try again.");
+   const media=await fetch("/api/session/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});
+   if(!media.ok)throw Error("Staff signed out, but private workspace sign-out failed. Please reload.");
+   resetSession();
+   window.location.assign("/operator-signin");
+  }catch(e){setError(e instanceof Error?e.message:"Staff sign-out failed");setBusy(false)}
+ }
  return <details ref={menu} className="sm-global-menu sm-account-menu">
   <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
@@ -42,7 +58,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Upgrade</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      {identity==="customer"?<button type="button" disabled={busy} onClick={()=>void logout()}>{busy?"Logging out…":"Logout"}</button>:
-      <Link href="/operator-signin" onClick={()=>{if(menu.current)menu.current.open=false}}>Staff sign-in / sign-out</Link>}
+      <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin / Staff logout"}</button>}
     </>}
   </nav>
   {error&&<p className="sm-account-menu-error" role="alert">{error}</p>}
