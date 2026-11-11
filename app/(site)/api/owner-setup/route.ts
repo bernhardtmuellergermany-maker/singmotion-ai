@@ -13,7 +13,9 @@ const headers={"Cache-Control":"private, no-store","X-Content-Type-Options":"nos
 const respond=(error:string,status:number)=>Response.json({error},{status,headers});
 const enabled=()=>process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d" &&
   process.env.CMS_ENABLED==="true" && process.env.CMS_OWNER_SETUP_ENABLED==="true" &&
-  process.env.STAGING_AUTH_ENABLED==="true" && process.env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="false" &&
+  // A 48+ character dedicated setup token, same-origin POST, and an empty
+  // staff collection are the authorization gates. Public-site availability
+  // must not require taking the production homepage offline.
   (process.env.CMS_OWNER_SETUP_TOKEN||"").length>=48;
 export async function GET(req:NextRequest) {
   const denied=stagingDenial(req.headers.get("authorization"));
