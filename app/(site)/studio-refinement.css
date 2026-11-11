@@ -2047,3 +2047,46 @@
  .singmotion-flow .sm-new-stepper-animated .sm-stepper-moving-glow,
  .singmotion-flow .sm-new-stepper-animated .sm-new-step-dot{transition:none;animation:none}
 }
+
+/* 2026-11-11: crop handles are interactive; tiny actions sit beside format dimensions. */
+.product-theme.singmotion-flow .sm-photo-settings-row{
+ display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+}
+.product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-formats{
+ flex:0 1 auto;min-width:0;
+}
+.product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-dimension-bar{
+ width:auto;max-width:100%;padding:5px 8px;margin:0;
+}
+.product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-editor-bottom{
+ display:flex;flex:0 0 auto;width:auto;min-height:0;gap:5px;margin:0;
+ padding:0;border:0;background:transparent;
+}
+.product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-editor-bottom button{
+ display:grid;place-items:center;width:auto;min-height:30px;padding:5px 9px;
+ font-size:11px;line-height:1.1;border-radius:8px;
+}
+.product-theme.singmotion-flow .sm-photo-crop-corner{
+ pointer-events:auto;z-index:5;cursor:nwse-resize;touch-action:none;
+ width:19px;height:19px;outline-offset:4px;
+}
+.product-theme.singmotion-flow .sm-photo-crop-corner.tr,
+.product-theme.singmotion-flow .sm-photo-crop-corner.bl{cursor:nesw-resize}
+.product-theme.singmotion-flow .sm-photo-crop-corner:focus-visible{
+ outline:2px solid #ffdcff;background:#a743f366;
+}
+.product-theme.singmotion-flow .sm-photo-step-tip{
+ font-size:10px;line-height:1.4;text-align:center;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-photo-settings-row{gap:5px}
+ .product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-dimension-bar{gap:3px;padding:4px}
+ .product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-dimension-bar input{width:54px;max-width:14vw;padding:5px 1px;font-size:11px}
+ .product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-dimension-bar label{gap:3px;font-size:10px}
+ .product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-dimension-bar label span{font-size:9px}
+ .product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-lock{min-width:20px;padding:0}
+ .product-theme.singmotion-flow .sm-photo-settings-row .sm-photo-editor-bottom button{min-height:29px;padding:4px 7px;font-size:10px}
+}
+@media(max-width:355px){
+ .product-theme.singmotion-flow .sm-photo-settings-row{flex-wrap:wrap}
+}
