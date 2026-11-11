@@ -8,7 +8,7 @@ import {showcase} from "@/lib/showcase";
 /** Home-only visual presentation of the existing public, owner-approved showcase.
  * No private project discovery, new endpoints, checkout or login mechanisms.
  * The public API serves only per-channel, explicitly approved videos. */
-type ShowcaseClip = {title:string;url:string};
+type ShowcaseClip = {title:string;url:string;posterUrl?:string|null};
 
 /** A five-card filmstrip translates as one carousel, then recycles offscreen cards.
  * Only owner-approved video URLs are playable; upcoming slots stay labeled.
@@ -59,6 +59,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
    onTouchEnd={e=>{const x=e.changedTouches[0]?.clientX;if(x!==undefined&&touchX.current!==null&&Math.abs(x-touchX.current)>50)move(x<touchX.current?1:-1);touchX.current=null}}>
    {slots.map(offset=>{
     const item=slides[wrap(selected+offset)];
+    const itemCover=item.posterUrl||cover;
     const isCenter=offset===0;
     const isSide=Math.abs(offset)===1;
     const slot=offset+motion;
@@ -66,16 +67,16 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
        style={{"--slot":(slot*74)+"%"} as React.CSSProperties}
        onTransitionEnd={isCenter?endMove:undefined}
        aria-hidden={Math.abs(slot)>1?true:undefined}>
-      {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={cover}
+      {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={itemCover}
         playsInline loop muted={muted} preload="metadata" className="sm-moving-video"
         onLoadedMetadata={e=>{if(muted)e.currentTarget.muted=true}}
         onPlay={()=>setPlaying(true)} onPause={()=>setPlaying(false)}
         onError={()=>{setBroken(true);setPlaying(false)}} onClick={toggle} aria-label={item.title}/>:
-       isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={cover}
-        muted playsInline loop preload="metadata" aria-hidden="true" tabIndex={-1}
+       isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
+        muted playsInline loop preload="none" aria-hidden="true" tabIndex={-1}
         onLoadedMetadata={e=>{e.currentTarget.muted=true}}
         onLoadedData={e=>e.currentTarget.pause()}/>:
-       <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+cover+"')"}}/>}
+       <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+itemCover+"')"}}/>}
       {isCenter&&(!playing||!item.url||broken)&&<button className="sm-moving-play" type="button" disabled={!item.url||broken}
          aria-label={item.url&&!broken?"Play "+item.title:"Video coming soon"} onClick={toggle}><Play size={30} fill="currentColor"/></button>}
       {isCenter&&item.url&&!broken&&<button className="sm-moving-mute" type="button" aria-label={muted?"Unmute video":"Mute video"}
@@ -122,11 +123,33 @@ export function ImmersiveHome(){
  const appendPending=useRef(false);
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
+ const [portraitReady,setPortraitReady]=useState<Record<number,boolean>>({});
+ const [visiblePortraits,setVisiblePortraits]=useState<Record<number,boolean>>({});
  const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
  const portraitGrid=useRef<HTMLDivElement>(null);
  useEffect(()=>{
   // No desktop video may inherit audible playback from a previous render.
   portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video").forEach(v=>{v.muted=true;v.defaultMuted=true;});
+ },[portraitClips]);
+ useEffect(()=>{
+  const root=portraitGrid.current;
+  if(!root)return;
+  const elements=[...root.querySelectorAll<HTMLElement>(".sm-desktop-portrait-card")];
+  if(!("IntersectionObserver" in window)){
+   setVisiblePortraits(Object.fromEntries(elements.map((_,i)=>[i,true])));
+   return;
+  }
+  const observer=new IntersectionObserver(entries=>{
+   for(const entry of entries){
+    if(entry.isIntersecting){
+     const i=Number((entry.target as HTMLElement).dataset.index);
+     setVisiblePortraits(previous=>previous[i]?previous:{...previous,[i]:true});
+     observer.unobserve(entry.target);
+    }
+   }
+  },{rootMargin:"250px 0px",threshold:0.01});
+  elements.forEach(element=>observer.observe(element));
+  return()=>observer.disconnect();
  },[portraitClips]);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(true);
@@ -159,10 +182,10 @@ export function ImmersiveHome(){
     const candidates=Array.isArray(data?.videos)?data.videos:[data];
     const publicClips:ShowcaseClip[]=candidates.flatMap((item:unknown)=>{
      if(!item||typeof item!=="object")return [];
-     const entry=item as {videoUrl?:unknown;title?:unknown};
+     const entry=item as {videoUrl?:unknown;title?:unknown;posterUrl?:unknown};
      const url=entry.videoUrl;
      if(typeof url!=="string"||!(url.startsWith("/")&&!url.startsWith("//")||url.startsWith("https://")))return [];
-     return [{title:typeof entry.title==="string"?entry.title:showcase.title,url}];
+     return [{title:typeof entry.title==="string"?entry.title:showcase.title,url,posterUrl:typeof entry.posterUrl==="string"?entry.posterUrl:null}];
     });
     // Avoid showing the same first public clip on consecutive visits when shuffle is on.
     if(data?.randomOrder===true&&publicClips.length>1){
@@ -189,9 +212,9 @@ export function ImmersiveHome(){
       const videos=Array.isArray(data?.videos)?data.videos:[];
       setPortraitClips(videos.flatMap((item:unknown)=>{
         if(!item||typeof item!=="object")return [];
-        const v=item as {title?:unknown;videoUrl?:unknown};
+        const v=item as {title?:unknown;videoUrl?:unknown;posterUrl?:unknown};
         return typeof v.videoUrl==="string"&&(v.videoUrl.startsWith("/")&&!v.videoUrl.startsWith("//")||v.videoUrl.startsWith("https://"))?
-          [{title:typeof v.title==="string"?v.title:showcase.title,url:v.videoUrl}]:[];
+          [{title:typeof v.title==="string"?v.title:showcase.title,url:v.videoUrl,posterUrl:typeof v.posterUrl==="string"?v.posterUrl:null}]:[];
       }));
     }).catch(()=>{if(active)setPortraitClips([])});
   fetch("/api/showcase?channel=desktop",{cache:"no-store"})
@@ -201,9 +224,9 @@ export function ImmersiveHome(){
      const items=Array.isArray(data?.videos)?data.videos:[];
      setDesktopClips(items.flatMap((item:unknown)=>{
        if(!item||typeof item!=="object")return [];
-       const x=item as {videoUrl?:unknown;title?:unknown};
+       const x=item as {videoUrl?:unknown;title?:unknown;posterUrl?:unknown};
        return typeof x.videoUrl==="string"&&(x.videoUrl.startsWith("/")&&!x.videoUrl.startsWith("//")||x.videoUrl.startsWith("https://"))?
-         [{title:typeof x.title==="string"?x.title:showcase.title,url:x.videoUrl}]:[];
+         [{title:typeof x.title==="string"?x.title:showcase.title,url:x.videoUrl,posterUrl:typeof x.posterUrl==="string"?x.posterUrl:null}]:[];
      }));
    })
    .catch(()=>{if(active)setDesktopClips([])});
@@ -267,9 +290,9 @@ export function ImmersiveHome(){
    const entries=Array.isArray(data?.videos)?data.videos:[data];
    const pool:ShowcaseClip[]=entries.flatMap((item:unknown)=>{
     if(!item||typeof item!=="object")return [];
-    const v=item as {videoUrl?:unknown;title?:unknown};
+    const v=item as {videoUrl?:unknown;title?:unknown;posterUrl?:unknown};
     if(typeof v.videoUrl!=="string"||!(v.videoUrl.startsWith("/")&&!v.videoUrl.startsWith("//")||v.videoUrl.startsWith("https://")))return [];
-    return [{url:v.videoUrl,title:typeof v.title==="string"?v.title:showcase.title}];
+    return [{url:v.videoUrl,title:typeof v.title==="string"?v.title:showcase.title,posterUrl:typeof v.posterUrl==="string"?v.posterUrl:null}];
    });
    if(pool.length){
     mobilePool.current=pool;
@@ -376,6 +399,23 @@ export function ImmersiveHome(){
   resetRefreshCircle();
   setRefreshing(false);
  };
+ const scrollToCreations=(event:React.MouseEvent<HTMLAnchorElement>)=>{
+  event.preventDefault();
+  const target=document.getElementById("sm-creation-title");
+  if(!target)return;
+  const from=window.scrollY;
+  const to=target.getBoundingClientRect().top+from-Math.min(85,window.innerHeight*0.1);
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){window.scrollTo(0,to);return;}
+  const duration=1150;
+  const started=performance.now();
+  const frame=(now:number)=>{
+   const t=Math.min(1,(now-started)/duration);
+   const eased=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+   window.scrollTo(0,from+(to-from)*eased);
+   if(t<1)window.requestAnimationFrame(frame);
+  };
+  window.requestAnimationFrame(frame);
+ };
  const wheel=(event:React.WheelEvent)=>{
   if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
  };
@@ -406,7 +446,7 @@ export function ImmersiveHome(){
     </div>
     {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{unlockSoundAfterGesture.current=false;const next=!muted;setMuted(next);const v=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}
-    <a href="#showcase" className="sm-immersive-scroll-cue" aria-label="Sanft zum Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
+    <a href="#sm-creation-title" onClick={scrollToCreations} className="sm-immersive-scroll-cue" aria-label="Sanft zu Stunning Creations scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
    </main>
   </div>
   <div className="sm-immersive-below">
@@ -426,8 +466,9 @@ export function ImmersiveHome(){
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion.</p>
     <div ref={portraitGrid} className="sm-desktop-portrait-grid" aria-label="Four featured portrait videos">
-      {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card">
-       {item.url?<><video src={item.url} playsInline autoPlay muted={audiblePortrait!==i} loop preload="metadata" poster={showcase.posterUrl||"/artwork/singmotion-stage.webp"} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
+      {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}>
+       {item.url?<><img className="sm-desktop-portrait-poster" src={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} alt="" loading="lazy"/>
+        <video className={"sm-desktop-portrait-video"+(portraitReady[i]?" is-ready":"")} src={visiblePortraits[i]?item.url:undefined} playsInline autoPlay muted={audiblePortrait!==i} loop preload="metadata" poster={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} onLoadedData={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onCanPlay={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
         <button type="button" className="sm-desktop-portrait-sound" aria-label={audiblePortrait===i?"Ton ausschalten: "+item.title:"Ton einschalten: "+item.title} aria-pressed={audiblePortrait===i}
          onClick={()=>{
            const nextIndex=audiblePortrait===i?null:i;
