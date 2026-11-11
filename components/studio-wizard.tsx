@@ -422,10 +422,11 @@ export function StudioWizard({
     <div className="product-theme singmotion-flow">
       <SiteHeader />
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
-        <div className="sm-new-stepper" aria-label="Video creation progress">
-          {["Audio Upload", "Photo Upload", "Performance Prompt", "Generate Video"].map((label,index)=>(
+        <div className="sm-new-stepper sm-new-stepper-animated" style={{"--sm-step-progress":String(step/3),"--sm-step-index":String(step)} as React.CSSProperties} aria-label="Video creation progress">
+          <div className="sm-stepper-rail" aria-hidden="true"><span className="sm-stepper-fill"/><span className="sm-stepper-moving-glow"/></div>
+          {["Audio", "Photo", "Performance", "Generate"].map((label,index)=>(
             <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
-              <span className="sm-new-step-dot">{index<step?<Check size={21}/>:index+1}</span>
+              <span className="sm-new-step-dot">{index<step?<Check size={20}/>:index+1}</span>
               <span className="sm-new-step-label">{label}</span>
             </div>
           ))}
