@@ -25,7 +25,9 @@ export default function Waveform({
     [error, setError] = useState(""),
     [position, setPosition] = useState(0),
     [dragging, setDragging] = useState(false),
-    [editingTime, setEditingTime] = useState<"start" | "end" | null>(null);
+    [editingTime, setEditingTime] = useState<"start" | "end" | null>(null),
+    [timeDraft, setTimeDraft] = useState(""),
+    [timeInputError, setTimeInputError] = useState("");
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
     segment = useRef(false),
@@ -157,7 +159,44 @@ export default function Waveform({
   }
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
   const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
-  const adjust=(which:"start"|"end",amount:number)=>which==="start"?onChange(Math.max(0,end-300,Math.min(end-5,start+amount)),end):onChange(start,Math.max(start+5,Math.min(duration,start+300,end+amount)));
+  const minimumClipSeconds = 5;
+  function openTimeEditor(which: "start" | "end") {
+    if (editingTime === which) { setEditingTime(null); setTimeInputError(""); return; }
+    setTimeDraft((which === "start" ? start : end).toFixed(3));
+    setTimeInputError("");
+    setEditingTime(which);
+  }
+  function parseTimeDraft() {
+    if (!timeDraft.trim()) return null;
+    const value = Number(timeDraft.trim().replace(",", "."));
+    return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null;
+  }
+  function saveTimeEditor(close = true) {
+    if (!editingTime) return true;
+    const value = parseTimeDraft();
+    const lower = editingTime === "start" ? Math.max(0, end - 300) : start + minimumClipSeconds;
+    const upper = editingTime === "start" ? end - minimumClipSeconds : Math.min(duration, start + 300);
+    if (value === null || value < lower - 0.0001 || value > upper + 0.0001) {
+      setTimeInputError(`Enter a value between ${lower.toFixed(3)} and ${Math.max(lower, upper).toFixed(3)} seconds.`);
+      return false;
+    }
+    if (editingTime === "start") onChange(value, end);
+    else onChange(start, value);
+    setTimeInputError("");
+    if (close) setEditingTime(null);
+    return true;
+  }
+  function adjust(which: "start" | "end", amount: number) {
+    const lower = which === "start" ? Math.max(0, end - 300) : start + minimumClipSeconds;
+    const upper = which === "start" ? end - minimumClipSeconds : Math.min(duration, start + 300);
+    const parsed = parseTimeDraft();
+    const basis = editingTime === which && parsed !== null ? parsed : which === "start" ? start : end;
+    const next = Math.round(Math.max(lower, Math.min(upper, basis + amount)) * 1000) / 1000;
+    setTimeDraft(next.toFixed(3));
+    setTimeInputError("");
+    if (which === "start") onChange(next, end);
+    else onChange(start, next);
+  }
   const bars = useMemo(() => {
     const count = Math.min(peaks.length || 220, 220);
     const values = Array.from({ length: count }, (_, i) => {
@@ -194,7 +233,7 @@ export default function Waveform({
             {(["start","end"] as const).map(which => (
               <div key={which} className={"studio-inline-time "+(editingTime===which?"is-editing":"")}>
                 <span>{which==="start"?"Start":"End"}</span>
-                <button type="button" className="studio-inline-time-trigger" aria-label={`Edit ${which} time`} aria-expanded={editingTime===which} onClick={()=>setEditingTime(editingTime===which?null:which)}>{formatHundredths(which==="start"?start:end)}</button>
+                <button type="button" className="studio-inline-time-trigger" aria-label={`Edit ${which} time`} aria-expanded={editingTime===which} onClick={()=>openTimeEditor(which)}>{formatHundredths(which==="start"?start:end)}</button>
                 
               </div>
             ))}
@@ -335,22 +374,22 @@ export default function Waveform({
             <span key={i}>{formatTime((duration * i) / 6)}</span>
           ))}
         </div>
-        {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
+        {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}
+          onBlur={e=>{if (!e.currentTarget.contains(e.relatedTarget)) saveTimeEditor();}}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
           <input aria-label={editingTime === "start" ? "Start seconds" : "End seconds"}
-            autoFocus type="number" step="0.001"
-            min={editingTime === "start" ? 0 : start+0.1}
-            max={editingTime === "start" ? end-0.1 : duration}
-            value={Number((editingTime === "start" ? start : end).toFixed(3))}
-            onChange={e=>{
-              const value=e.target.valueAsNumber;
-              if(!Number.isFinite(value))return;
-              if(editingTime==="start")onChange(Math.max(0,end-300,Math.min(value,end-5)),end);
-              else onChange(start,Math.max(start+5,Math.min(duration,start+300,value)));
+            autoFocus type="text" inputMode="decimal" pattern="[0-9]*[.,]?[0-9]*"
+            value={timeDraft} aria-invalid={!!timeInputError}
+            aria-describedby={timeInputError ? "studio-time-input-error" : undefined}
+            onChange={e=>{setTimeDraft(e.target.value);setTimeInputError("");}}
+            onKeyDown={e=>{
+              if (e.key === "Enter") {e.preventDefault();saveTimeEditor();}
+              if (e.key === "Escape") {e.preventDefault();setEditingTime(null);setTimeInputError("");}
             }}/>
           <button type="button" aria-label={`Decrease ${editingTime}`} onClick={()=>adjust(editingTime,-1)}><Minus size={16}/></button>
           <button type="button" aria-label={`Increase ${editingTime}`} onClick={()=>adjust(editingTime,1)}><Plus size={16}/></button>
-          <button type="button" className="studio-wave-time-done" onClick={()=>setEditingTime(null)}>Done</button>
+          <button type="button" className="studio-wave-time-done" onClick={()=>saveTimeEditor()}>Done</button>
+          {timeInputError && <span className="studio-wave-time-error" id="studio-time-input-error" role="alert">{timeInputError}</span>}
         </div>}
       </div>
       <audio
