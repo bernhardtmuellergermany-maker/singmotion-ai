@@ -1057,3 +1057,6 @@
  .sm-immersive-home .sm-immersive-steps>p{max-width:585px}
  .sm-immersive-home .sm-immersive-creations>p{max-width:615px}
 }
+
+/* Anchor the cinematic hero scroll to Stunning Creations, not the 16:9 reel. */
+@media(min-width:761px){.sm-immersive-home .sm-immersive-creations{scroll-margin-top:64px}}
