@@ -167,3 +167,14 @@
   display:block;
   flex:0 0 auto;
 }
+
+
+/* Final shared tokens: identical ring and hover state for the two header icons. */
+.sm-site-header .sm-header-actions > .sm-global-menu > summary{
+  border-color:#55506e!important;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary:hover,
+.sm-site-header .sm-header-actions > .sm-global-menu[open] > summary{
+  border-color:#a783e1!important;
+  background:#29203d!important;
+}
