@@ -77,6 +77,7 @@ export function StudioWizard({
   const deletingDraft = useRef(false);
   const performanceInput = useRef<HTMLTextAreaElement>(null);
   const audioFileInput = useRef<HTMLInputElement>(null);
+  const photoFileInput = useRef<HTMLInputElement>(null);
   const reviewTouch = useRef<{x:number;y:number}|null>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
@@ -362,7 +363,7 @@ export function StudioWizard({
             </div>
           ))}
         </div>
-        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{step===0 && draft.song ? content.audioReadyHeadline : ["Upload your audio","Upload your artist photo","Describe your performance","Generate your video"][step]}</h1><p>{step===0 && draft.song ? content.audioReadySubtitle : ["Upload the audio file you’ll use for the music video.","Choose an artist photo for your video.","Set how your artist moves and performs.","Review your creation before generating."][step]}</p></div>
+        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{step===0 && draft.song ? content.audioReadyHeadline : ["Upload your audio",draft.imageId?"Your artist photo":"Upload your artist photo","Describe your performance","Generate your video"][step]}</h1><p>{step===0 && draft.song ? content.audioReadySubtitle : ["Upload the audio file you’ll use for the music video.","Upload a clear photo and choose the video format.","Set how your artist moves and performs.","Review your creation before generating."][step]}</p></div>
         
         {step===0&&<div className="sm-new-audio-workspace">
           <input ref={audioFileInput} className="sr-only" type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={!ready||busy} onChange={e=>{void add(e.target.files?.[0],"audio");e.currentTarget.value="";}}/>
@@ -400,23 +401,81 @@ export function StudioWizard({
           )}
           <p className="sm-new-private"><ShieldCheck size={17}/> Your audio stays private in your workspace.</p>
         </div>}
-        {step===2&&<PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start} audioUrl={draft.song?`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined} sections={timeline} onChange={updateTimeline}/>}
         {step===1&&<section className="flow-composer sm-studio-original-composer" aria-label="Photo and video settings">
           <div className="sm-photo-controls">
-            <div className="flow-image-field" style={draft.imageId ? {aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"} : undefined}>{draft.imageId?<div className="flow-photo" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}><img alt={`Center-cropped ${draft.outputFormat} preview of the uploaded artist`} src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div>:
-              <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}</div>
-            {draft.imageId&&<p className="sm-photo-crop-note" role="status">Crop preview: {draft.outputFormat}. Areas outside this frame will be cropped from the video. The subject stays centered.</p>}
-            <div className="flow-settings-group" role="group" aria-label="Video settings">
-              <details className="flow-camera-menu"><summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options" role="group" aria-label="Camera movements">{cameraOptions.map(option=><button key={option} type="button" className={option===draft.camera?"is-active":""} onClick={e=>{const sentence=`Camera movement: ${option}. ${cameraPrompt[option]||cameraHelp[option]||""}`;const field=performanceInput.current;const at=field?.selectionStart??draft.customPrompt.length;const before=draft.customPrompt.slice(0,at),after=draft.customPrompt.slice(at);const combined=before+(before&&!before.endsWith("\n")?"\n":"")+sentence+(after&&!after.startsWith("\n")?"\n":"")+after;if(combined.length>1000){setError("Performance description cannot exceed 1,000 characters.");return;}update({camera:option,customPrompt:combined,performance:"Custom"});e.currentTarget.closest("details")!.open=false;}} title={cameraHelp[option as keyof typeof cameraHelp]||option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp]||""}</small></button>)}</div></details>
-              <details className="flow-camera-menu flow-format-menu"><summary aria-label="Video format">{draft.outputFormat==="9:16"?<Smartphone size={18}/>:<Monitor size={18}/>}<span>{draft.outputFormat}</span><ChevronDown className="flow-chevron" size={16}/></summary><div className="flow-camera-options flow-format-options" role="group" aria-label="Video aspect ratio">{(["9:16","16:9"] as const).map(format=><button type="button" key={format} className={draft.outputFormat===format?"is-active":""} onClick={e=>{update({outputFormat:format,formatMode:format});e.currentTarget.closest("details")!.open=false;}}>{format==="9:16"?<Smartphone size={17}/>:<Monitor size={17}/>}<span>{format}</span></button>)}</div></details>
+            <div className="flow-image-field" style={draft.imageId ? {aspectRatio:draft.outputFormat==="9:16"{step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
+          <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+            aria-label="Choose artist photo" disabled={!ready||busy}
+            onChange={e=>{void add(e.target.files?.[0],"image");e.currentTarget.value="";}}/>
+          {!draft.imageId ? (
+            <button type="button" className="sm-photo-upload-zone" disabled={!ready||busy}
+              onClick={()=>photoFileInput.current?.click()} onDragOver={e=>e.preventDefault()}
+              onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files?.[0],"image");}}>
+              <span className="sm-photo-upload-icon"><ImagePlus size={47} strokeWidth={1.65}/></span>
+              <strong>{busy?"Uploading your photo…":"Drop a photo here or tap to browse"}</strong>
+              <span>JPG, PNG · up to 30 MB · clear front-facing portrait recommended</span>
+            </button>
+          ) : (
+            <div className="sm-photo-preview-shell">
+              <div className="sm-photo-preview-frame" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}>
+                <img src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt={`Artist photo cropped for ${draft.outputFormat} video`}/>
+              </div>
+              <div className="sm-photo-preview-actions">
+                <span><Check size={17}/> Photo ready · {draft.outputFormat}</span>
+                <div>
+                  <button type="button" disabled={busy} onClick={()=>photoFileInput.current?.click()}><ImagePlus size={17}/> Replace</button>
+                  <button type="button" disabled={busy} onClick={()=>update({imageId:""})} aria-label="Delete artist photo"><Trash2 size={17}/> Delete</button>
+                </div>
+              </div>
             </div>
+          )}
+          <div className="sm-photo-formats" role="group" aria-label="Video format">
+            <p>Choose video format</p>
+            <div className="sm-photo-format-choices">
+              <button type="button" aria-pressed={draft.formatMode==="9:16"} className={draft.formatMode==="9:16"?"is-selected":""}
+                onClick={()=>update({formatMode:"9:16",outputFormat:"9:16"})}>
+                <Smartphone size={19}/><strong>9:16</strong><small>Portrait</small>
+              </button>
+              <button type="button" aria-pressed={draft.formatMode==="16:9"} className={draft.formatMode==="16:9"?"is-selected":""}
+                onClick={()=>update({formatMode:"16:9",outputFormat:"16:9"})}>
+                <Monitor size={19}/><strong>16:9</strong><small>Landscape</small>
+              </button>
+              <button type="button" aria-pressed={draft.formatMode==="auto"} className={draft.formatMode==="auto"?"is-selected":""}
+                onClick={()=>update({formatMode:"auto",outputFormat:detectedFormat})}>
+                <Camera size={19}/><strong>Custom</strong><small>Choose framing</small>
+              </button>
+            </div>
+            {draft.formatMode==="auto"&&<div className="sm-photo-custom-options" role="group" aria-label="Custom video framing">
+              <span>Custom framing · choose the final aspect ratio:</span>
+              <button type="button" aria-pressed={draft.outputFormat==="9:16"} className={draft.outputFormat==="9:16"?"is-selected":""} onClick={()=>update({outputFormat:"9:16"})}>9:16</button>
+              <button type="button" aria-pressed={draft.outputFormat==="16:9"} className={draft.outputFormat==="16:9"?"is-selected":""} onClick={()=>update({outputFormat:"16:9"})}>16:9</button>
+            </div>}
           </div>
-          <div className="flow-prompt-wrap"><label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label><textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={2} placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting..." value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/></div>
+          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> Use a well-lit image with the full face visible. Video export supports 9:16 and 16:9.</p>
         </section>}
-        {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
-          <div className="sm-carousel-stage sm-review-stage"
-            onTouchStart={e=>{reviewTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
-            onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
+        {step===2&&<section className="sm-performance-prompt-step" aria-label="Performance and camera settings">
+          <PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start}
+            audioUrl={draft.song?`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined}
+            sections={timeline} onChange={updateTimeline}/>
+          <div className="flow-settings-group" role="group" aria-label="Camera movement">
+            <details className="flow-camera-menu">
+              <summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown className="flow-chevron" size={16}/></summary>
+              <div className="flow-camera-options" role="group" aria-label="Camera movements">
+                {cameraOptions.map(option=><button type="button" key={option} className={option===draft.camera?"is-active":""}
+                  onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}}
+                  title={cameraHelp[option as keyof typeof cameraHelp]||option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp]||""}</small>
+                </button>)}
+              </div>
+            </details>
+          </div>
+          <div className="flow-prompt-wrap">
+            <label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label>
+            <textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={3}
+              placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting…"
+              value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/>
+          </div>
+        </section>}
+           onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
           >
             <article className={"sm-carousel-card sm-review-panel sm-review-front "+(reviewCard==="preview"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="preview"?0:-1,"--depth":reviewCard==="preview"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project image and status">
               {draft.imageId?<img className="sm-review-cover" style={{objectFit:"cover",objectPosition:"center"}} src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt={`Selected artist centered for ${draft.outputFormat} output`}/>:<div className="sm-review-placeholder"><ImagePlus size={42}/><span>No artist image selected</span></div>}
