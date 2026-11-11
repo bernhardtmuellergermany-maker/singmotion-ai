@@ -491,7 +491,7 @@ export function StudioWizard({
       validateSelection(draft.start, draft.end, draft.song.duration || 0);
       audioValid = true;
     }
-    prompt = composePrompt(draft.performance, draft.camera, draft.customPrompt, draft.outputFormat);
+    prompt = composePrompt(draft.performance, draft.camera, draft.customPrompt);
   } catch {}
   const selection: StudioDraftExport | null =
     draft.song && draft.imageId && owner
