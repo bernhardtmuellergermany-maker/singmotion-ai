@@ -1138,3 +1138,56 @@
 .singmotion-flow .sm-new-project-tools .flow-popover button{padding:11px;text-align:left;border:0;color:white;background:none;border-radius:7px;cursor:pointer}
 .singmotion-flow .sm-new-project-tools .flow-popover button:hover{background:#58377e}
 @media(max-width:700px){.singmotion-flow .sm-new-project-tools{margin-bottom:6px}.singmotion-flow .sm-new-project-tools .flow-project-name{max-width:145px}}
+
+
+/* Compact Studio proportions: retain touch targets and functional waveform controls. */
+.singmotion-flow .flow-main{max-width:1030px;padding-top:12px;padding-bottom:24px}
+.singmotion-flow .sm-new-project-tools{width:min(100%,860px);margin-bottom:0}
+.singmotion-flow .sm-new-stepper{width:min(100%,820px);margin:2px auto 16px}
+.singmotion-flow .sm-new-stepper::before{top:19px}
+.singmotion-flow .sm-new-step-dot{width:38px;height:38px;font-size:18px;border-width:1.5px}
+.singmotion-flow .sm-new-step-dot svg{width:18px;height:18px}
+.singmotion-flow .sm-new-step{gap:6px}
+.singmotion-flow .sm-new-step-label{font-size:12px}
+.singmotion-flow .sm-new-page-heading{margin-bottom:12px}
+.singmotion-flow .sm-new-page-heading>span{font-size:13px}
+.singmotion-flow .sm-new-page-heading h1{font-size:clamp(26px,3vw,35px);margin:6px 0}
+.singmotion-flow .sm-new-page-heading p{font-size:15px}
+.singmotion-flow .sm-new-audio-workspace{width:min(100%,860px);gap:11px}
+.singmotion-flow .sm-new-upload-zone{min-height:170px;padding:15px;margin:5px 0 8px;border-radius:19px;gap:6px}
+.singmotion-flow .sm-new-upload-zone>strong{font-size:18px}
+.singmotion-flow .sm-new-upload-icon>svg:first-child{width:55px;height:55px}
+.singmotion-flow .sm-new-upload-icon>svg:nth-child(2){width:25px;height:25px;margin-top:31px}
+.singmotion-flow .sm-new-file-card{padding:9px 13px;border-radius:15px;gap:12px}
+.singmotion-flow .sm-new-file-icon{width:46px;height:46px;border-radius:11px}
+.singmotion-flow .sm-new-file-icon svg{width:23px;height:23px}
+.singmotion-flow .sm-new-file-info strong{font-size:16px}
+.singmotion-flow .sm-new-file-info span{font-size:12px}
+.singmotion-flow .sm-new-file-menu summary{width:36px;height:36px}
+.singmotion-flow .sm-new-wave-card{padding:9px 15px 8px;border-radius:17px}
+.singmotion-flow .sm-new-wave-card .wave-strip{height:86px!important;margin-top:3px}
+.singmotion-flow .sm-new-wave-card .wave-time{padding-top:7px;font-size:11px}
+.singmotion-flow .sm-new-wave-card .wave-handle{width:24px!important;height:24px!important}
+.singmotion-flow .sm-new-wave-card .studio-unified-toolbar{gap:7px}
+.singmotion-flow .sm-new-audio-actions{gap:10px;margin:0}
+.singmotion-flow .sm-new-audio-actions button{padding:9px 18px;min-width:150px;font-size:13px}
+.singmotion-flow .sm-new-private{margin:3px 0 6px;font-size:12px}
+.singmotion-flow .sm-new-navigation{width:min(100%,860px)!important;margin:12px auto 15px!important;gap:13px}
+.singmotion-flow .sm-new-navigation button{min-height:49px;padding:10px 16px;font-size:16px;border-radius:14px}
+@media(max-width:700px){
+  .singmotion-flow .flow-main{padding:10px 14px calc(110px + env(safe-area-inset-bottom,0px))}
+  .singmotion-flow .sm-new-stepper{margin:2px auto 20px}
+  .singmotion-flow .sm-new-stepper::before{top:18px}
+  .singmotion-flow .sm-new-step-dot{width:36px;height:36px;font-size:17px}
+  .singmotion-flow .sm-new-step-label{font-size:10px}
+  .singmotion-flow .sm-new-page-heading{margin-bottom:15px}
+  .singmotion-flow .sm-new-page-heading h1{font-size:clamp(27px,7vw,33px)}
+  .singmotion-flow .sm-new-page-heading p{font-size:14px}
+  .singmotion-flow .sm-new-upload-zone{min-height:190px;padding:16px}
+  .singmotion-flow .sm-new-file-card{padding:9px}
+  .singmotion-flow .sm-new-wave-card{padding:9px 8px}
+  .singmotion-flow .sm-new-wave-card .wave-strip{height:94px!important}
+  .singmotion-flow .sm-new-audio-actions button{min-width:120px;padding:10px}
+  .singmotion-flow .sm-new-navigation{margin:0!important;gap:10px}
+  .singmotion-flow .sm-new-navigation button{min-height:52px;font-size:16px}
+}
