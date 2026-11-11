@@ -11,6 +11,7 @@ import {CmsPageCleanupInventory} from "./page-cleanup-inventory";
 import {PrivateLedger} from "./private-ledger";
 import {StudioActivation} from "./studio-activation";
 import {FirstTestPanel} from "./first-test-panel";
+import {ShowcaseManager} from "./showcase-manager";
 
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 const areas=[
@@ -116,6 +117,7 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
    </div>
   </section>}
 
+  {superAdmin&&<section className="sm-cms-section" aria-labelledby="sm-cms-showcase-title"><div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">SHOWCASE CURATION</span><h2 id="sm-cms-showcase-title">Publish inspiration videos</h2><p>Separate playlists for mobile, desktop 16:9 and desktop 9:16. Only completed Super Admin videos can be published.</p></div></div><ShowcaseManager/></section>}
   {superAdmin&&<section className="sm-cms-section" aria-labelledby="sm-cms-commerce-title">
    <div className="sm-cms-section-heading"><div><span className="sm-cms-eyebrow">03 / COMMERCE SNAPSHOT</span>
     <h2 id="sm-cms-commerce-title">Customer operations</h2>

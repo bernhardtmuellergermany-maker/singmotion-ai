@@ -1,0 +1,93 @@
+
+/* Dedicated authentication page; no carousel, project cards or parallax. */
+.sm-standalone-auth{
+ min-height:100dvh;background:#090b16;color:#f9f7ff;
+ display:flex;flex-direction:column;isolation:isolate;
+}
+.sm-standalone-auth *{box-sizing:border-box}
+.sm-standalone-auth-header{
+ width:100%;height:76px;flex:none;display:flex;align-items:center;
+ padding:0 clamp(24px,5vw,52px);
+}
+.sm-standalone-auth-header .sm-wordmark{font-size:23px;font-weight:800}
+.sm-standalone-auth-main{
+ flex:1;min-height:0;display:flex;justify-content:center;
+ align-items:center;padding:20px 24px 46px;
+}
+.sm-standalone-auth-form{
+ width:min(100%,470px);max-height:none;
+ padding:30px;border:1px solid rgba(144,110,196,.38);
+ border-radius:24px;background:linear-gradient(160deg,#18182d,#101322);
+ box-shadow:0 18px 55px #0004;
+}
+.sm-standalone-auth .sm-carousel-login{
+ width:100%;height:auto;max-height:none;overflow:visible;
+ padding:0;gap:16px;justify-content:center;align-items:stretch;
+ text-align:center;
+}
+.sm-standalone-auth .sm-carousel-song-icon{align-self:center}
+.sm-standalone-auth .sm-carousel-login h1{font-size:clamp(28px,4vw,36px)}
+.sm-standalone-auth .sm-carousel-login .sm-account-intro{
+ max-width:360px;font-size:14px;margin:0 auto 4px;
+}
+.sm-standalone-auth .sm-carousel-login .sm-account-form{
+ width:100%;max-width:none;gap:13px;
+}
+.sm-standalone-auth .sm-carousel-login .sm-account-label{font-size:14px;gap:7px}
+.sm-standalone-auth .sm-carousel-login .sm-account-label input{
+ min-height:52px;font-size:16px;padding:13px 14px;
+}
+.sm-standalone-auth .sm-carousel-login .sm-account-password-wrap input{padding-right:52px}
+.sm-standalone-auth .sm-carousel-login .sm-account-form>.sm-carousel-primary,
+.sm-standalone-auth .sm-carousel-login .sm-account-google{
+ min-height:52px;max-width:none;font-size:16px;
+}
+.sm-standalone-auth .sm-account-recovery-link{color:#e2c7ff;font-size:14px}
+@media(max-width:760px){
+ .sm-standalone-auth{min-height:100dvh;overflow-x:hidden}
+ .sm-standalone-auth-header{height:82px;padding:0 24px}
+ .sm-standalone-auth-header .sm-wordmark{font-size:22px}
+ .sm-standalone-auth-main{
+  padding:0 24px max(32px,env(safe-area-inset-bottom) + 24px);
+  align-items:center;
+ }
+ .sm-standalone-auth-form{
+  width:100%;max-width:460px;padding:0;border:0;border-radius:0;
+  background:transparent;box-shadow:none;
+ }
+ .sm-standalone-auth .sm-carousel-login{
+  gap:16px;overflow:visible;max-height:none;
+ }
+ .sm-standalone-auth .sm-carousel-song-icon{width:62px;height:62px}
+ .sm-standalone-auth .sm-carousel-login h1{font-size:34px}
+ .sm-standalone-auth .sm-carousel-login .sm-account-intro{font-size:15px}
+}
+@media(max-width:380px),(max-height:670px){
+ .sm-standalone-auth-header{height:68px}
+ .sm-standalone-auth-main{align-items:flex-start;padding-top:12px}
+ .sm-standalone-auth .sm-carousel-login{gap:12px}
+ .sm-standalone-auth .sm-carousel-song-icon{width:48px;height:48px}
+ .sm-standalone-auth .sm-carousel-login h1{font-size:29px}
+}
+
+/* Shared fixed-header geometry: login wordmark matches the homepage exactly. */
+.sm-standalone-auth-header{
+ height:88px!important;
+ padding:0 clamp(22px,3vw,52px)!important;
+ align-items:center!important;
+}
+.sm-standalone-auth-header .sm-wordmark{
+ font-size:var(--sm-header-wordmark-size,21px)!important;
+ min-height:28px;
+ line-height:1.2!important;
+ display:inline-flex!important;
+ align-items:center!important;
+ gap:.28em;
+}
+.sm-standalone-auth-header .sm-wordmark span{color:#bd2ee9!important}
+@media(max-width:760px){
+ .sm-standalone-auth-header{
+  height:72px!important;
+  padding:0 clamp(22px,3vw,52px)!important;
+ }
+}

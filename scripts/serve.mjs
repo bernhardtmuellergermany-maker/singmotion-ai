@@ -32,6 +32,24 @@ try {
   );
 }
 console.log(`Persistent storage ready (UID ${process.getuid?.()}).`);
+// Read-only, startup-only CMS readiness check. Never emit email addresses,
+// account identifiers, credentials, connection strings or password hashes.
+if (process.env.CMS_ENABLED === "true" && process.env.CMS_DATABASE_URL) {
+  let client;
+  try {
+    const {Client}=await import("pg");
+    client=new Client({connectionString:process.env.CMS_DATABASE_URL,connectionTimeoutMillis:3500,statement_timeout:3500});
+    await client.connect();
+    const result=await client.query("SELECT to_regclass('public.staff') IS NOT NULL AS has_staff, to_regclass('public.payload_migrations') IS NOT NULL AS has_migrations");
+    const {has_staff,has_migrations}=result.rows[0];
+    const count=has_staff?Number((await client.query("SELECT COUNT(*) AS total FROM public.staff")).rows[0].total):null;
+    console.log("CMS_READONLY_STATUS "+JSON.stringify({environment:process.env.RAILWAY_ENVIRONMENT_NAME||"unknown",hasStaffTable:has_staff,hasMigrationTable:has_migrations,staffCount:count}));
+  } catch(error) {
+    console.warn("CMS_READONLY_STATUS "+JSON.stringify({status:"unavailable",code:typeof error?.code==="string"?error.code.slice(0,32):"unknown"}));
+  } finally {
+    if(client)await client.end().catch(()=>{});
+  }
+}
 if (process.env.PRODUCTION_R2_READONLY_PREFLIGHT_ENABLED === "true") {
   // Optional HEAD-only diagnostic. Failure cannot start the paid customer
   // worker or open public checkout, and never blocks the existing demo server.

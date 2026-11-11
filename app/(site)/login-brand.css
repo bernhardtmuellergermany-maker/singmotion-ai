@@ -43,3 +43,28 @@
 
 /* Keep the expanded legal navigation usable on small mobile viewports. */
 .sm-global-menu-list{max-height:calc(100dvh - 105px);overflow-y:auto;overscroll-behavior:contain;min-width:min(260px,calc(100vw - 32px));z-index:300}
+
+/* One shared top-left wordmark scale across homepage, studio, account,
+   product pages and the standalone sign-in screen. Component-level overrides
+   must not create inconsistent brand sizing. */
+:root{--sm-header-wordmark-size:21px}
+.sm-wordmark,
+.sm-site-header .sm-wordmark,
+.sm-immersive-header .sm-wordmark,
+.sm-standalone-auth-header .sm-wordmark,
+.sm-login-header .sm-wordmark,
+.singmotion-flow .flow-header-left .sm-wordmark,
+.product-header .sm-wordmark,
+.home-gallery-header .sm-wordmark{
+ font-size:var(--sm-header-wordmark-size)!important;
+ font-weight:800!important;
+ letter-spacing:-.65px!important;
+ line-height:1.2!important;
+}
+@media(max-width:760px){
+ :root{--sm-header-wordmark-size:18px}
+}
+
+/* One brand color and baseline for every site header. */
+.sm-wordmark,.sm-site-header .sm-wordmark,.sm-immersive-home .sm-immersive-header .sm-wordmark{display:inline-flex!important;align-items:center!important;vertical-align:middle!important;min-height:28px;line-height:1.2!important}
+.sm-wordmark span,.sm-site-header .sm-wordmark span,.sm-immersive-home .sm-immersive-header .sm-wordmark span,.sm-immersive-footer-logo span{color:#bd2ee9!important}

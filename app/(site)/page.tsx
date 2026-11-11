@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import {redirect} from "next/navigation";
+import { ImmersiveHome } from "@/components/immersive-home";
 import { CarouselExperience } from "@/components/carousel-experience";
+import "./home-immersive.css";
 // The public carousel shell contains no server-personalized data;
 // allow Next.js to cache it while private projects load client-side.
 export const metadata: Metadata = {
@@ -9,4 +12,12 @@ export const metadata: Metadata = {
     ? { index: false, follow: false }
     : undefined,
 };
-export default function Home() { return <CarouselExperience />; }
+export default async function Home({searchParams}:{searchParams:Promise<{card?:string}>}) {
+  const params=await searchParams;
+  // Existing /login redirects, account links and private project carousel
+  // deep links remain supported. No changes to any authentication route.
+  if(params?.card==="login")redirect("/login");
+  if(typeof params?.card==="string"&&params.card.length>0)
+    return <CarouselExperience />;
+  return <ImmersiveHome />;
+}
