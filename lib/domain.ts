@@ -156,6 +156,7 @@ export function composePrompt(
   performance: string,
   camera: string,
   custom: string,
+  selectedFormat?: "9:16" | "16:9",
 ) {
   if (
     !performances.includes(performance as (typeof performances)[number]) ||
@@ -177,7 +178,15 @@ export function composePrompt(
   const hasExplicitCamera = /^Camera:\s*\S/im.test(authored);
   const cameraDirection = hasExplicitCamera ? "" : (cameraPrompt[camera] ?? `Camera direction: ${camera}. Keep the singer clearly visible.`);
   const customDirection = authored ? `Performance direction (priority): ${authored}. ` : "";
-  const result = `${customDirection}${performanceDirection} ${cameraDirection} Keep facial identity and lip synchronization consistent.`;
+  // OmniHuman's reviewed SubmitTask request has no documented aspect-ratio
+  // field. Convey the selected framing as a best-effort scene instruction;
+  // never send an invented API parameter or claim native output is guaranteed.
+  const framing = selectedFormat === "16:9"
+    ? "Maintain the full wide horizontal 16:9 composition of the reference photo. Do not reframe into a vertical portrait or zoom into the center."
+    : selectedFormat === "9:16"
+      ? "Maintain the vertical 9:16 composition of the reference photo."
+      : "";
+  const result = `${customDirection}${performanceDirection} ${cameraDirection} Keep facial identity and lip synchronization consistent.${framing ? " " + framing : ""}`;
   if (result.length > 1500)
     throw new AppError("Keep the complete composed prompt under 1,500 characters.");
   return result;
