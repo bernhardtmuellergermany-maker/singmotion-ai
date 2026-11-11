@@ -68,6 +68,7 @@ const advancedPerformanceToolsEnabled = false;
 const initial = {
   song: null as Asset | null,
   imageId: "",
+  sourceImageId: "",
   artistName: "My artist",
   start: 0,
   end: 10,
@@ -321,6 +322,7 @@ export function StudioWizard({
         owner,
         songId: draft.song?.id || "",
         imageId: draft.imageId,
+        ...(draft.sourceImageId ? {sourceImageId:draft.sourceImageId} : {}),
         start: draft.start,
         end: draft.end,
         performance: draft.performance,
@@ -417,6 +419,7 @@ export function StudioWizard({
         cropReset();setPhotoSize({width:asset.width||1,height:asset.height||1});setImageReady(false);setCropPending(true);
         update({
           imageId: asset.id,
+          sourceImageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
           ...(draft.formatMode === "auto" ? { outputFormat: detected } : {}),
         });
@@ -433,7 +436,8 @@ export function StudioWizard({
     if(!draft.imageId||!frameValid)return;
     setBusy(true);setError("");
     try {
-      const response=await fetch("/api/assets/"+encodeURIComponent(draft.imageId));
+      const sourceImageId=draft.sourceImageId || draft.imageId;
+      const response=await fetch("/api/assets/"+encodeURIComponent(sourceImageId));
       if(!response.ok)throw new Error("Could not load artist photo.");
       const bitmap=await createImageBitmap(await response.blob());
       try {
@@ -453,7 +457,7 @@ export function StudioWizard({
         ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);ctx.restore();
         const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Could not save crop.")),"image/png"));
         const asset=await upload(new File([blob],"artist-framed.png",{type:"image/png"}),"image");
-        update({imageId:asset.id,outputFormat:width>=height?"16:9":"9:16"});
+        update({imageId:asset.id,sourceImageId,outputFormat:width>=height?"16:9":"9:16"});
         cropReset();setPhotoSize({width,height});setImageReady(false);setCropPending(false);
       } finally {bitmap.close();}
     } catch(e){setError((e as Error).message);}
@@ -475,6 +479,7 @@ export function StudioWizard({
           owner,
           songId: draft.song.id,
           imageId: draft.imageId,
+          ...(draft.sourceImageId ? {sourceImageId:draft.sourceImageId} : {}),
           start: draft.start,
           end: draft.end,
           performance: draft.performance,
@@ -621,7 +626,7 @@ export function StudioWizard({
               <div className={`sm-photo-editor-stage ${!customMode&&draft.outputFormat==="16:9"?"is-landscape":""}`}> 
                 <span className="sm-photo-added"><Check size={13}/> Photo added</span>
                 <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
-                  onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
+                  onClick={()=>{update({imageId:"",sourceImageId:""});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
                 <div className="sm-photo-crop-viewport" style={{aspectRatio:String(frameWidth/frameHeight)}}
                   onPointerDown={e=>{if(busy||!imageReady)return;cropDrag.current={x:e.clientX,y:e.clientY,startX:cropX,startY:cropY};e.currentTarget.setPointerCapture(e.pointerId);}}
                   onPointerMove={e=>{const drag=cropDrag.current;if(!drag||!e.currentTarget.hasPointerCapture(e.pointerId))return;
@@ -631,7 +636,7 @@ export function StudioWizard({
                     if(cropExcessX>0.00001||cropExcessY>0.00001)setCropPending(true);}}
                   onPointerUp={e=>{cropDrag.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
                   onPointerCancel={()=>{cropDrag.current=null;}}>
-                  <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo framing preview" draggable={false}
+                  <img src={"/api/assets/"+encodeURIComponent(cropPending?(draft.sourceImageId||draft.imageId):draft.imageId)} alt="Artist photo framing preview" draggable={false}
                     onLoad={e=>{setPhotoSize({width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight});setImageReady(true);}}
                     style={{position:"absolute",left:"calc(50% + "+cropOffsetX+"%)",top:"calc(50% + "+cropOffsetY+"%)",
                       width:previewImageWidth+"%",height:previewImageHeight+"%",objectFit:"fill",
