@@ -86,6 +86,26 @@ export async function prepareStudioDraft(
     maxSeconds,
   );
 }
+export function assertAppliedStudioImageSelection(
+  selection: Pick<StudioDraftExport, "imageId" | "sourceImageId" | "editedImageId" | "appliedOutputFormat" | "outputFormat" | "formatMode">,
+  image: { width?: number; height?: number },
+): void {
+  // Older immutable drafts were never saved with editor provenance. Leave
+  // those historical orders unchanged; new editors always supply sourceImageId.
+  if (!selection.sourceImageId) return;
+  if (!selection.editedImageId || selection.editedImageId !== selection.imageId ||
+      !selection.appliedOutputFormat || selection.appliedOutputFormat !== selection.outputFormat ||
+      (selection.formatMode !== "auto" && selection.formatMode !== selection.outputFormat))
+    throw new Error("REFERENCE_APPLY_REQUIRED: Save the selected photo framing with Apply before generating. No BytePlus request was made.");
+  // A fixed landscape/portrait preset must be present in the exact uploaded
+  // bytes; never use a label alone to authorize an image of the wrong shape.
+  if (selection.formatMode === "16:9" || selection.formatMode === "9:16") {
+    const ratio = selection.formatMode === "16:9" ? 16/9 : 9/16;
+    const actual = (image.width || 0) / (image.height || 1);
+    if (!Number.isFinite(actual) || Math.abs(actual / ratio - 1) > 0.025)
+      throw new Error("REFERENCE_FORMAT_MISMATCH: The saved photo does not match the selected video format. Press Apply again before generating. No BytePlus request was made.");
+  }
+}
 async function prepareOwnedSelection(
   selected: {
     id: string;
@@ -95,6 +115,10 @@ async function prepareOwnedSelection(
     end: number;
     prompt: string;
     outputFormat?: "9:16" | "16:9";
+    formatMode?: "auto" | "9:16" | "16:9";
+    sourceImageId?: string;
+    editedImageId?: string;
+    appliedOutputFormat?: "9:16" | "16:9";
   },
   owner: string,
   maxSeconds: number,
@@ -120,16 +144,9 @@ async function prepareOwnedSelection(
     imagePath = await privateAsset(image.path, dataDir);
   const sourceSha256 = await sha256File(sourcePath);
   await validateReference(imagePath);
-  // Reject a mismatched submitted reference BEFORE any irreversible paid task.
-  // The crop editor must deliver pixels at the explicitly selected orientation.
-  // This protects 16:9 originals against accidentally reused 9:16 crop assets.
-  if (selected.formatMode === "16:9" || selected.formatMode === "9:16") {
-    const imageMeta = await sharp(imagePath).metadata();
-    const expectedRatio = selected.formatMode === "16:9" ? 16 / 9 : 9 / 16;
-    const actualRatio = (imageMeta.width || 0) / (imageMeta.height || 1);
-    if (!Number.isFinite(actualRatio) || Math.abs(actualRatio / expectedRatio - 1) > 0.025)
-      throw new Error("REFERENCE_FORMAT_MISMATCH: Reopen the photo editor, select the video format, and press Apply before approving BytePlus. No paid video request was made.");
-  }
+  // The server checks the same saved image used by review, before reserving
+  // any provider spending. Never auto-crop, substitute or recreate it.
+  assertAppliedStudioImageSelection(selected, await sharp(imagePath).metadata());
   const directory = path.join(dataDir, "media");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   // Content-addressed immutable copies bind approval to the exact reviewed inputs.
