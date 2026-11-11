@@ -392,7 +392,7 @@ export default function Waveform({
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
           <input aria-label={editingTime === "start" ? "Start time in minutes and seconds" : "End time in minutes and seconds"}
-            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="mm:ss.cc" placeholder="MM:SS.ss"
+            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="MM:SS.ss"
             onFocus={e=>e.currentTarget.select()}
             value={timeDraft} aria-invalid={!!timeInputError}
             aria-describedby={timeInputError ? "studio-time-input-error" : undefined}
