@@ -3,7 +3,7 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 
 type Channel="mobile"|"desktop"|"desktop_portrait";
-type Project={id:string;name:string;selected:boolean};
+type Project={id:string;name:string;selected:boolean;posterUrl?:string|null};
 type Listing={randomOrder?:boolean;projects:Project[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number;totalStudioRecords?:number;verifiedSuperAdmin?:number;incompleteSuperAdmin?:number;missingOutputRecord?:number;unverifiedLegacy?:number;uploadedVideos?:number}};
 const channels:{id:Channel;label:string;hint:string}[]=[
  {id:"mobile",label:"Mobile · Inspiration Feed (9:16)",hint:"Unlimited SingMotion-approved ideas for vertical swipe browsing"},
@@ -25,6 +25,22 @@ export function ShowcaseManager(){
  const [uploading,setUploading]=useState(false);
  const [videoName,setVideoName]=useState("");
  const [uploadMessage,setUploadMessage]=useState("");
+ const [posterSaving,setPosterSaving]=useState<string|null>(null);
+ const uploadPoster=async(id:string,file:File|null)=>{
+  if(!file)return;
+  setPosterSaving(id);setUploadMessage("");
+  try{
+   const form=new FormData();form.append("kind","poster");form.append("id",id);form.append("file",file);
+   const res=await fetch("/api/showcase-media",{method:"POST",credentials:"same-origin",body:form});
+   const data=await res.json() as {url?:string;error?:string};
+   if(!res.ok||!data.url)throw Error(data.error||"Vorschaubild konnte nicht gespeichert werden");
+   setAvailable(items=>items.map(item=>item.id===id?{...item,posterUrl:data.url}:item));
+   setBackgroundRevision(Date.now());
+   setUploadMessage("Vorschaubild gespeichert. Es erscheint direkt bei diesem veröffentlichten Video.");
+  }catch(e){setUploadMessage((e as Error).message)}
+  finally{setPosterSaving(null)}
+ };
+
  const videoInput=useRef<HTMLInputElement>(null);
  const desktopBgInput=useRef<HTMLInputElement>(null);
  const mobileBgInput=useRef<HTMLInputElement>(null);
@@ -128,11 +144,18 @@ export function ShowcaseManager(){
     <input type="checkbox" checked={randomOrder} onChange={e=>setRandomOrder(e.target.checked)} style={{width:20,height:20,accentColor:"#b34aee",flex:"none"}}/>
     <span><strong>Videos bei jedem Besuch zufällig mischen</strong><small style={{display:"block",marginTop:5,opacity:.8,lineHeight:1.5}}>Nur für den mobilen Feed. Beim nächsten Seitenaufruf startet ein zufällig ausgewähltes veröffentlichtes Video. Während des Scrollens bleibt die Reihenfolge stabil. Zum Aktivieren unten auf „Publish selection &amp; order“ klicken.</small></span>
    </label>}
+   {channel==="desktop_portrait"&&<p style={{fontSize:13,color:"#d7b3f5",marginTop:16}}>Stunning Creations: Für jedes Video kannst du unten ein eigenes Vorschaubild hochladen. Empfohlen: Hochkant 9:16, WebP/JPG/PNG bis 5 MiB. Das Vorschaubild bleibt sichtbar, bis das Video geladen ist.</p>}
    <h3 style={{fontSize:16,margin:"22px 0 8px"}}>Published in this section ({ordered.length})</h3>
    {ordered.length===0&&<p style={{fontSize:13}}>No videos published here yet.</p>}
    <ol style={{paddingLeft:28}}>
     {ordered.map((id,i)=><li key={id} style={{padding:"8px 0",borderBottom:"1px solid #ffffff22"}}>
-     <span>{name(id)}</span>
+     <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:6}}>
+       <span>{name(id)}</span>
+       {available.find(x=>x.id===id)?.posterUrl&&<img src={available.find(x=>x.id===id)!.posterUrl!+"&v="+backgroundRevision} alt={"Vorschaubild für "+name(id)} style={{height:72,width:42,objectFit:"contain",background:"#0d0b18",borderRadius:5}}/>}
+       <label style={{fontSize:12,display:"grid",gap:3,color:"#e8d5f8"}}>Vorschaubild {posterSaving===id?"wird gespeichert…":""}
+        <input type="file" aria-label={"Vorschaubild hochladen für "+name(id)} disabled={posterSaving!==null||uploading} accept="image/jpeg,image/png,image/webp" onChange={e=>{void uploadPoster(id,e.target.files?.[0]||null);e.currentTarget.value="";}}/>
+       </label>
+     </div>
      <span style={{display:"inline-flex",gap:5,marginLeft:15}}>
       <button type="button" disabled={i===0} onClick={()=>shift(i,-1)} aria-label={"Move "+name(id)+" up"}>↑</button>
       <button type="button" disabled={i===ordered.length-1} onClick={()=>shift(i,1)} aria-label={"Move "+name(id)+" down"}>↓</button>
@@ -141,14 +164,20 @@ export function ShowcaseManager(){
     </li>)}
    </ol>
    {inventory&&<div style={{border:"1px solid #704c81",borderRadius:10,padding:12,marginTop:16,background:"#21122d",fontSize:13}} role="status">
-    <strong>Video-Bestand dieser Staging-Umgebung</strong>
+    <strong>Video-Bestand dieser Umgebung</strong>
     <p style={{margin:"7px 0 2px"}}>Alle Studio-Einträge: {inventory.totalStudioRecords??"–"} · Als Super Admin bestätigt: {inventory.verifiedSuperAdmin??"–"} · Verfügbare fertige Videos: {inventory.completedSuperAdmin} · Eigene Uploads: {inventory.uploadedVideos??0}</p>
     <p style={{margin:"4px 0"}}>Noch nicht fertig / ohne Ausgabe: {inventory.incompleteSuperAdmin??"–"} · Fehlende alte Ausgabe-Einträge: {inventory.missingOutputRecord??"–"} · Ohne überprüfbaren Super-Admin-Nachweis: {inventory.unverifiedLegacy??"–"}</p>
     <p style={{margin:"6px 0 0",opacity:.8}}>Die Auswahl ist nicht auf drei Videos begrenzt. Fehlende alte Produktionen können in einer anderen Umgebung liegen oder noch nicht als sichere Veröffentlichungsquelle erfasst sein. Sie werden nicht automatisch öffentlich gemacht.</p>
    </div>}
    <h3 style={{fontSize:16,margin:"22px 0 8px"}}>Verfügbare Super-Admin-Videos und Uploads ({available.length})</h3>
-   <div style={{maxHeight:280,overflowY:"auto",display:"grid",gap:6}}>
-    {available.filter(x=>!ordered.includes(x.id)).map(x=><button key={x.id} type="button" onClick={()=>add(x.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"#2a1739",color:"#fff",border:"1px solid #68417d"}}>+ {x.name}</button>)}
+   <div style={{maxHeight:340,overflowY:"auto",display:"grid",gap:6}}>
+    {available.filter(x=>!ordered.includes(x.id)).map(x=><div key={x.id} style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",border:"1px solid #68417d",borderRadius:8,padding:8}}>
+      <button type="button" onClick={()=>add(x.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"#2a1739",color:"#fff",border:0,flex:"1 1 170px"}}>+ {x.name}</button>
+      {x.posterUrl&&<img src={x.posterUrl+"&v="+backgroundRevision} alt="" style={{width:36,height:60,objectFit:"contain",background:"#0d0b18",borderRadius:4}}/>}
+      <label style={{fontSize:12,color:"#dfc2f5"}}>Poster wählen
+       <input type="file" aria-label={"Vorschaubild hochladen für "+x.name} accept="image/jpeg,image/png,image/webp" disabled={posterSaving!==null||uploading} onChange={e=>{void uploadPoster(x.id,e.target.files?.[0]||null);e.currentTarget.value=""}}/>
+      </label>
+    </div>)}
     {available.length===0&&<p style={{fontSize:13}}>No completed Super Admin videos available in this environment.</p>}
    </div>
    <button type="button" disabled={saving||!dirty} onClick={()=>void save()} style={{marginTop:18,padding:"12px 20px",borderRadius:10,background:"#ad35d9",color:"#fff",border:0,fontWeight:700}}>{saving?"Saving…":"Publish selection & order"}</button>
