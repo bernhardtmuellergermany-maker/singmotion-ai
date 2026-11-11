@@ -160,68 +160,57 @@ export default function Waveform({
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
   const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
   const minimumClipSeconds = 5;
-  const roundHundredths = (value: number) => Math.round(value * 100) / 100;
+  // Accept both the waveform's displayed mm:ss.xx values and raw seconds.
+  function parseTime(value: string): number | null {
+    const raw = value.trim().replace(",", ".");
+    if (!raw) return null;
+    const parts = raw.split(":");
+    if (parts.length > 3 || parts.some(part => !/^\d+(?:\.\d+)?$/.test(part))) return null;
+    if (parts.length > 1 && parts.slice(1).some(part => Number(part) >= 60)) return null;
+    const seconds = parts.reduce((total, part) => total * 60 + Number(part), 0);
+    return Number.isFinite(seconds) ? Math.round(seconds * 1000) / 1000 : null;
+  }
   function openTimeEditor(which: "start" | "end") {
-    if (editingTime === which) {
-      setEditingTime(null);
-      setTimeInputError("");
-      return;
-    }
-    // The field displays the same mm:ss.cc format as the visible timeline.
+    if (editingTime === which) {setEditingTime(null);setTimeInputError("");return;}
     setTimeDraft(formatHundredths(which === "start" ? start : end));
     setTimeInputError("");
     setEditingTime(which);
   }
-  function parseTimeDraft() {
-    const raw = timeDraft.trim().replace(",", ".");
-    if (!raw) return null;
-    const time = raw.match(/^(\\d+):([0-5]\\d)(?:\\.(\\d{1,2}))?$/);
-    const seconds = time
-      ? Number(time[1]) * 60 + Number(time[2]) + Number("0." + (time[3] || "0"))
-      : /^\\d+(?:\\.\\d{1,2})?$/.test(raw) ? Number(raw) : NaN;
-    return Number.isFinite(seconds) ? roundHundredths(seconds) : null;
-  }
-  function selectedTimes(which: "start" | "end", requested: number) {
-    const selectionLength = end - start;
-    const normalizedDuration = Math.max(0, duration);
-    if (requested < 0 || requested > normalizedDuration + 0.000001) return null;
-    if (which === "start") {
-      // Preserve the current clip duration when moving its start past its end.
-      const nextEnd = requested > end - minimumClipSeconds
-        ? requested + selectionLength : end;
-      if (nextEnd > normalizedDuration + 0.000001 || nextEnd - requested > 300) return null;
-      return [requested, nextEnd] as const;
-    }
-    // Symmetric behavior when moving the end before the current start.
-    const nextStart = requested < start + minimumClipSeconds
-      ? requested - selectionLength : start;
-    if (nextStart < -0.000001 || requested - nextStart > 300) return null;
-    return [Math.max(0, nextStart), requested] as const;
-  }
   function saveTimeEditor() {
     if (!editingTime) return;
-    const value = parseTimeDraft();
-    const range = value === null ? null : selectedTimes(editingTime, value);
-    if (!range) {
-      setTimeInputError(`Enter a valid time (mm:ss.cc or seconds) within the ${formatHundredths(duration)} song. The selected clip must last 5–300 seconds.`);
+    const value = parseTime(timeDraft);
+    if (value === null || value < 0 || value > duration) {
+      setTimeInputError("Enter a valid time from 00:00 to " + formatHundredths(duration) + ".");
       return;
     }
-    onChange(range[0], range[1]);
-    setTimeDraft(formatHundredths(value!));
+    const clipLength = Math.max(minimumClipSeconds, Math.min(300, end - start));
+    if (editingTime === "start") {
+      if (value > duration - minimumClipSeconds + 0.0001) {
+        setTimeInputError("Start must be at least 5 seconds before the end of the audio.");
+        return;
+      }
+      // Moving Start moves End with it so the entered Start is never silently discarded.
+      onChange(value, Math.min(duration, Math.round((value + clipLength) * 1000) / 1000));
+    } else {
+      if (value < minimumClipSeconds - 0.0001) {
+        setTimeInputError("End must be at least 5 seconds into the audio.");
+        return;
+      }
+      // Keep Start when possible. Otherwise shift the window so End is exact.
+      const nextStart = value - start >= minimumClipSeconds && value - start <= 300
+        ? start
+        : Math.max(0, Math.round((value - clipLength) * 1000) / 1000);
+      onChange(nextStart, value);
+    }
     setTimeInputError("");
     setEditingTime(null);
   }
   function adjust(which: "start" | "end", amount: number) {
-    const basis = parseTimeDraft() ?? (which === "start" ? start : end);
-    const target = roundHundredths(Math.max(0, Math.min(duration, basis + amount)));
-    const range = selectedTimes(which, target);
-    if (!range) {
-      setTimeInputError("This time would move the selection outside the song.");
-      return;
-    }
-    setTimeDraft(formatHundredths(target));
+    const current = parseTime(timeDraft) ?? (which === "start" ? start : end);
+    const lower = which === "start" ? 0 : minimumClipSeconds;
+    const upper = which === "start" ? duration - minimumClipSeconds : duration;
+    setTimeDraft(formatHundredths(Math.max(lower, Math.min(upper, Math.round((current + amount) * 1000) / 1000))));
     setTimeInputError("");
-    onChange(range[0], range[1]);
   }
   const bars = useMemo(() => {
     const count = Math.min(peaks.length || 220, 220);
@@ -414,7 +403,7 @@ export default function Waveform({
             }}/>
           <button type="button" aria-label={`Decrease ${editingTime}`} onClick={()=>adjust(editingTime,-1)}><Minus size={16}/></button>
           <button type="button" aria-label={`Increase ${editingTime}`} onClick={()=>adjust(editingTime,1)}><Plus size={16}/></button>
-          <button type="button" className="studio-wave-time-done" onClick={()=>saveTimeEditor()}>Done</button>
+          <button type="button" className="studio-wave-time-done" onClick={()=>saveTimeEditor()}>Apply</button>
           {timeInputError && <span className="studio-wave-time-error" id="studio-time-input-error" role="alert">{timeInputError}</span>}
         </div>}
       </div>
