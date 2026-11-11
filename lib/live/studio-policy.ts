@@ -244,6 +244,31 @@ export function studioDiagnostic(error: unknown): StudioLiveError {
       "The reviewed video ceiling is not admissible under the active authorization. Studio has no separate USD per-job cap; review the EUR 50 budget and the video cost evidence.",
       409,
     ],
+    "Tempo duration validation failed.": [
+      "TEMPO_DURATION_INVALID",
+      "The 0.9-tempo MP3 duration did not match the original excerpt. No provider submission was attempted.",
+      400,
+    ],
+    "Decoded tempo ratio failed validation.": [
+      "TEMPO_RATIO_INVALID",
+      "The slowed MP3 did not pass the pitch-preserving tempo ratio check. No provider submission was attempted.",
+      400,
+    ],
+    "Immutable Studio snapshot could not be archived": [
+      "PRIVATE_SNAPSHOT_ARCHIVE_FAILED",
+      "Private upload archiving failed during Studio preparation. No BytePlus submission was attempted.",
+      400,
+    ],
+    "Immutable Studio snapshot changed after R2 archive": [
+      "PRIVATE_SNAPSHOT_INTEGRITY_FAILED",
+      "Private upload archive integrity changed. No BytePlus submission was attempted.",
+      400,
+    ],
+    "Reference changed while creating the immutable snapshot.": [
+      "REFERENCE_SNAPSHOT_CHANGED",
+      "The reference image changed during preparation. No BytePlus submission was attempted.",
+      400,
+    ],
     "Encoded MP3 exceeds the live-test duration limit; select a shorter excerpt.":
       [
         "ENCODED_DURATION_EXCEEDED",
