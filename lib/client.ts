@@ -20,13 +20,36 @@ export function ensureSession() {
     throw e;
   }));
 }
-export async function upload(file: File, kind: "audio" | "image") {
+export async function upload(file: File, kind: "audio" | "image", onProgress?: (percent: number) => void) {
   const form = new FormData();
   form.set("file", file);
   form.set("kind", kind);
-  return api<import("./domain").Asset>("assets", {
-    method: "POST",
-    body: form,
+  if (!onProgress) {
+    return api<import("./domain").Asset>("assets", { method: "POST", body: form });
+  }
+  return new Promise<import("./domain").Asset>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", "/api/assets");
+    xhr.timeout = 180000;
+    xhr.upload.onprogress = event => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      }
+    };
+    xhr.onload = () => {
+      let response: { error?: string } & Partial<import("./domain").Asset>;
+      try { response = JSON.parse(xhr.responseText); }
+      catch { reject(new Error("The server returned an invalid upload response. Please try again.")); return; }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        reject(new Error(response.error || "Upload failed. Please try again."));
+        return;
+      }
+      resolve(response as import("./domain").Asset);
+    };
+    xhr.onerror = () => reject(new Error("Network connection interrupted. Please try uploading again."));
+    xhr.ontimeout = () => reject(new Error("Upload timed out. Please try again."));
+    xhr.onabort = () => reject(new Error("Upload was interrupted. Please try again."));
+    xhr.send(form);
   });
 }
 
