@@ -480,20 +480,28 @@ export function StudioWizard({
               <span>JPG, PNG · up to 30 MB · clear front-facing portrait recommended</span>
             </button>
           ) : (
-            <div className="sm-photo-preview-shell">
-              <div className="sm-photo-preview-frame" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}>
-                <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo cropping preview"
-                  style={{objectPosition:cropX+"% "+cropY+"%",width:(cropZoom*100)+"%",height:(cropZoom*100)+"%",left:((1-cropZoom)*cropX)+"%",top:((1-cropZoom)*cropY)+"%"}}/>
-              </div>
-              <div className="sm-photo-preview-actions">
-                <span><Check size={17}/> {cropPending?"Adjust and apply framing":"Photo ready · "+draft.outputFormat}</span>
-                <div>
-                  <button type="button" disabled={busy} onClick={()=>photoFileInput.current?.click()}><ImagePlus size={16}/> Replace</button>
-                  <button className="sm-new-file-delete" type="button" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
-                    onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={20}/></button>
+            <>
+              <div className="sm-photo-editor-stage">
+                <span className="sm-photo-added"><Check size={13}/> Photo added</span>
+                <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
+                  onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
+                <div className="sm-photo-crop-viewport" style={{aspectRatio:String(frameWidth/frameHeight)}}>
+                  <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo framing preview" draggable={false}
+                    style={{transform:"rotate("+rotation+"deg) scaleX("+(flipped?-1:1)+") scale("+cropZoom+")",
+                      objectPosition:cropX+"% "+cropY+"%",filter:"brightness("+brightness+"%) contrast("+contrast+"%)"}}/>
+                  <div className="sm-photo-crop-grid" aria-hidden="true"/>
+                  <span className="sm-photo-crop-corner tl"/><span className="sm-photo-crop-corner tr"/>
+                  <span className="sm-photo-crop-corner bl"/><span className="sm-photo-crop-corner br"/>
                 </div>
               </div>
-            </div>
+              <div className="sm-photo-editor-tools" role="toolbar" aria-label="Photo editing tools">
+                <button type="button" className={editTool==="crop"?"is-active":""} onClick={()=>setEditTool("crop")}><Crop size={19}/><span>Crop</span></button>
+                <button type="button" onClick={()=>{setRotation(r=>(r+90)%360);setCropPending(true);}}><RotateCw size={19}/><span>Rotate</span></button>
+                <button type="button" onClick={()=>{setFlipped(v=>!v);setCropPending(true);}}><FlipHorizontal2 size={19}/><span>Flip</span></button>
+                <button type="button" className={editTool==="adjust"?"is-active":""} onClick={()=>setEditTool("adjust")}><SlidersHorizontal size={19}/><span>Adjust</span></button>
+                <button type="button" className="sm-photo-tool-delete" disabled={busy} onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={19}/><span>Delete</span></button>
+              </div>
+            </>
           )}
           <div className="sm-photo-formats" role="group" aria-label="Video format">
             <p>Choose video format</p>
