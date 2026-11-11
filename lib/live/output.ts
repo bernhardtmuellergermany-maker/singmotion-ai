@@ -382,6 +382,15 @@ export async function fitOutputFormat(
     (s) => s.codec_type === "video",
   );
   const target = exportContract(contract, format);
+  // Numerical-only diagnostic for identifying provider-generated portrait
+  // footage delivered from a reviewed 16:9 Studio reference. No file paths,
+  // image pixels, user identifiers or provider URLs are logged.
+  if (video?.width && video.height) console.info("STUDIO_PROVIDER_OUTPUT_ORIENTATION", {
+    sourceWidth: video.width,
+    sourceHeight: video.height,
+    requestedFormat: format,
+    requiresLocalFit: video.width !== target.output.width || video.height !== target.output.height,
+  });
   if (
     video?.width === target.output.width &&
     video.height === target.output.height
