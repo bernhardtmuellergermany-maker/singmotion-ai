@@ -1,6 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
-import {api,ensureSession} from "@/lib/client";
+import {api,ensureSession,resetSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import {GenerationStatusView,type GenerationProgress} from "./generation-status-view";
 
@@ -9,6 +9,8 @@ export function SuperAdminGeneration({id}:{id:string}){
  const [error,setError]=useState("");
  const [checking,setChecking]=useState(false);
  useEffect(()=>{
+   // Reconcile a stale customer/guest session with the CMS staff identity.
+   resetSession();
    let live=true;
    let timer:ReturnType<typeof setTimeout>;
    async function refresh(){
