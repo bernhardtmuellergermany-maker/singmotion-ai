@@ -12,7 +12,10 @@ test("private Super Admin bootstrap needs no policy file or guessed host", () =>
   assert.deepEqual(root.contract.outputHosts, []);
   assert.equal(root.contract.trustSignedProviderOutputHost, true);
   assert.equal(root.contract.discover720p, true);
-  assert.equal(planUpperBoundMicroUsd(5, root.contract), 499800);
+  assert.equal(planUpperBoundMicroUsd(5, root.contract), 583100);
+  assert.equal(planUpperBoundMicroUsd(5 / 0.9, root.contract), 583100);
+  assert.equal(root.contract.generatedDurationBound?.maxInputSeconds, 6);
+  assert.equal(root.contract.output.maxDurationSeconds, 7);
   assert.equal(validateStudioPolicy(root), root);
 });
 
@@ -61,7 +64,7 @@ test("runtime has no-file Super Admin fallback, never customer or malformed file
   delete process.env.STUDIO_LIVE_POLICY_JSON;
   try {
     const p = await loadRuntimeStudioPolicy(dir, env, true);
-    assert.equal(p.contract.revision, "super-admin-runtime-bootstrap-v1");
+    assert.equal(p.contract.revision, "super-admin-runtime-bootstrap-tempo-v2");
     await assert.rejects(loadRuntimeStudioPolicy(dir, env, false), (error: unknown) =>
       error instanceof StudioLiveError && error.code === "POLICY_MISSING",
     );
