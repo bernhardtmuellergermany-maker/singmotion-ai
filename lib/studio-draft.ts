@@ -3,6 +3,8 @@ export interface StudioDraftExport {
   version: 1;
   outputFormat?: "9:16" | "16:9";
   formatMode?: "auto" | "9:16" | "16:9";
+  /** Original uploaded photo kept separately from the saved crop output. */
+  sourceImageId?: string;
   owner: string;
   songId: string;
   imageId: string;
@@ -21,6 +23,7 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     "version",
     "outputFormat",
     "formatMode",
+    "sourceImageId",
     "owner",
     "songId",
     "imageId",
@@ -38,6 +41,9 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     (v.outputFormat !== undefined &&
       v.outputFormat !== "9:16" &&
       v.outputFormat !== "16:9") ||
+    (v.sourceImageId !== undefined &&
+      (typeof v.sourceImageId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,160}$/.test(v.sourceImageId))) ||
     ["owner", "songId", "imageId"].some(
       (key) =>
         typeof v[key] !== "string" ||
@@ -60,6 +66,7 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     ...(v.outputFormat
       ? { outputFormat: v.outputFormat as "9:16" | "16:9" }
       : {}),
+    ...(v.sourceImageId ? { sourceImageId: v.sourceImageId as string } : {}),
     owner: v.owner as string,
     songId: v.songId as string,
     imageId: v.imageId as string,
