@@ -21,6 +21,7 @@ import {
   Trash2,
   FileMusic,
   CloudUpload,
+  Clapperboard,
   Check,
   ShieldCheck,
 } from "lucide-react";
@@ -340,6 +341,13 @@ export function StudioWizard({
     <div className="product-theme singmotion-flow">
       <SiteHeader />
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
+        <section className="sm-studio-hero" aria-label="Studio">
+          <div className="sm-studio-hero-copy">
+            <span className="sm-studio-hero-icon" aria-hidden="true"><Clapperboard size={35}/></span>
+            <div><h2>{content.heroHeading}</h2><p>{content.heroSubtitle}</p></div>
+          </div>
+          {content.heroImageUrl && <img className="sm-studio-hero-art" src={content.heroImageUrl} alt={content.heroImageAlt || "Studio artwork"}/>}
+        </section>
         <div className="sm-new-stepper" aria-label="Video creation progress">
           {["Audio Upload", "Photo Upload", "Performance Prompt", "Generate Video"].map((label,index)=>(
             <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
@@ -348,7 +356,7 @@ export function StudioWizard({
             </div>
           ))}
         </div>
-        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{["Upload your audio","Upload your artist photo","Describe your performance","Generate your video"][step]}</h1><p>{["Upload the audio file you’ll use for the music video.","Choose an artist photo for your video.","Set how your artist moves and performs.","Review your creation before generating."][step]}</p></div>
+        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{step===0 && draft.song ? "Choose the part of your song" : ["Upload your audio","Upload your artist photo","Describe your performance","Generate your video"][step]}</h1><p>{step===0 && draft.song ? "Select the section you want to turn into a music video." : ["Upload the audio file you’ll use for the music video.","Choose an artist photo for your video.","Set how your artist moves and performs.","Review your creation before generating."][step]}</p></div>
         
         {step===0&&<div className="sm-new-audio-workspace">
           <input ref={audioFileInput} className="sr-only" type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={!ready||busy} onChange={e=>{void add(e.target.files?.[0],"audio");e.currentTarget.value="";}}/>
