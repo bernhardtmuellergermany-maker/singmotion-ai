@@ -401,9 +401,7 @@ export function StudioWizard({
           )}
           <p className="sm-new-private"><ShieldCheck size={17}/> Your audio stays private in your workspace.</p>
         </div>}
-        {step===1&&<section className="flow-composer sm-studio-original-composer" aria-label="Photo and video settings">
-          <div className="sm-photo-controls">
-            <div className="flow-image-field" style={draft.imageId ? {aspectRatio:draft.outputFormat==="9:16"{step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
+        {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
           <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"
             aria-label="Choose artist photo" disabled={!ready||busy}
             onChange={e=>{void add(e.target.files?.[0],"image");e.currentTarget.value="";}}/>
