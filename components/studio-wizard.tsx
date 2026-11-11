@@ -29,7 +29,6 @@ import {
   FileMusic,
   CloudUpload,
   Check,
-  ShieldCheck,
   Clock3,
   ReceiptText,
 } from "lucide-react";
@@ -551,7 +550,7 @@ export function StudioWizard({
               </div>
             </>
           )}
-          <p className="sm-new-private"><ShieldCheck size={17}/> Your audio stays private in your workspace.</p>
+          <p className="sm-new-private">Your audio stays private in your workspace.</p>
         </div>}
         {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
           <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"
@@ -574,7 +573,7 @@ export function StudioWizard({
             </button>
           ) : (
             <>
-              <div className="sm-photo-editor-stage">
+              <div className={`sm-photo-editor-stage ${frameWidth>=frameHeight?"is-landscape":""}`}> 
                 <span className="sm-photo-added"><Check size={13}/> Photo added</span>
                 <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
                   onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
@@ -641,7 +640,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> For best results, use a sharp, well-lit photo with the full face and mouth clearly visible. Avoid distant shots.</p>
+          <p className="sm-photo-step-tip">For best results, use a sharp, well-lit photo with the full face and mouth clearly visible. Avoid distant shots.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -705,7 +704,7 @@ export function StudioWizard({
               </div>
             </div>
           </details>}
-          <p className="sm-performance-tip"><ShieldCheck size={17}/> Describe natural movements, facial expressions and camera motion. Your uploaded photo defines the visual scene.</p>
+          <p className="sm-performance-tip">Describe natural movements, facial expressions and camera motion. Your uploaded photo defines the visual scene.</p>
         </section>}
         {step===3&&<section className="sm-review-checkout" aria-label="Review your video before payment">
           <div className="sm-review-list">
@@ -764,7 +763,7 @@ export function StudioWizard({
             <input type="checkbox" checked={reviewRights} onChange={e=>setReviewRights(e.target.checked)}/>
             <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
           </label>
-          <p className="sm-review-ai-notice"><ShieldCheck size={17}/> AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
+          <p className="sm-review-ai-notice">AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
           <p className="sm-review-payment-note">Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page.</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
