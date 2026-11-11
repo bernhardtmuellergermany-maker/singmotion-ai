@@ -783,7 +783,8 @@ export function StudioWizard({
               <summary><Sparkles size={20}/><strong>Performance</strong><span className="sm-review-item-value">{draft.customPrompt.trim()||"Natural singing performance"}</span><ChevronDown size={17}/></summary>
               <div className="sm-review-expanded">
                 <p><strong>Performance instructions</strong></p>
-                <p className="sm-review-prompt">{draft.customPrompt.trim()||"Natural singing performance."}</p>
+                <p className="sm-review-prompt">{prompt}</p>
+                <p>This is the complete composed text sent to BytePlus, including your exact performance words and any camera instruction. Facial expressions and physical actions are model-generated and are not guaranteed.</p>
                 <p>The uploaded photo defines the visual scene; the prompt guides the performance and camera.</p>
               </div>
             </details>
