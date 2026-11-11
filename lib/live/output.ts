@@ -387,17 +387,18 @@ export async function fitOutputFormat(
     video.height === target.output.height
   )
     return;
-  await fitValidatedRectangle(file, duration, target);
+  await fitValidatedRectangle(file, duration, target, false, true);
 }
 async function fitValidatedRectangle(
   file: string,
   duration: number,
   contract: OutputValidationContract,
   normalizeFps = false,
+  preserveWholeFrame = false,
 ) {
-  // Preserve the entire provider frame instead of zooming/cropping to fill
-  // the selected orientation. Any unused area is padded, never stretched.
-  // Preserve the provider's original audio packets unchanged.
+  // Paid customer source normalization retains the reviewed center crop.
+  // Only the explicit Studio 16:9/9:16 format conversion preserves all pixels
+  // with letterboxing, while retaining the provider audio packets unchanged.
   const source = await probe(file);
   const limits = outputTransferLimits(contract);
   if ((await stat(file)).size > limits.maxBytes)
@@ -444,7 +445,9 @@ async function fitValidatedRectangle(
         "-map",
         "0:a:0",
         "-vf",
-        `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
+        `${preserveWholeFrame
+          ? `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black`
+          : `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,setsar=1,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2`}${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
         "-c:v",
         "libx264",
         "-threads",
