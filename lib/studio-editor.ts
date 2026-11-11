@@ -6,6 +6,13 @@ export function photoFormat(
   return width && height && width > height * 1.1 ? "16:9" : "9:16";
 }
 
+/** Every new photo starts in its actual orientation. A preset selected later
+ * stays explicit until Continue commits the edited reference asset. */
+export function uploadedPhotoFraming(width: number | null, height: number | null) {
+  const format = photoFormat(width, height);
+  return { outputFormat: format, formatMode: format } as const;
+}
+
 export function moveSelection(
   start: number,
   end: number,
