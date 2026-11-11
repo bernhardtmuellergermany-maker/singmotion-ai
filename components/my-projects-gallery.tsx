@@ -141,7 +141,7 @@ export function MyProjectsGallery(){
        <Clapperboard aria-hidden="true" size={41} strokeWidth={1.7}/>
        <div><h1>My Projects</h1><p>Your videos, all in one place.</p></div>
      </div>
-     <Link className="sm-projects-new" href="/studio"><Plus size={21}/> New video</Link>
+     <Link className="sm-projects-new" href="/studio?new=1"><Plus size={21}/> New video</Link>
    </div>
    <div className="sm-projects-toolbar">
      <label className="sm-projects-search"><Search size={19}/><input type="search" value={search} onChange={e=>setSearch(e.target.value)}
@@ -196,7 +196,7 @@ export function MyProjectsGallery(){
     <div className="sm-projects-empty">
       <FolderOpen size={34}/><h2>{projects.length?"No matching projects":"Your first video starts here."}</h2>
       <p>{projects.length?"Try another search or status filter.":"Upload your music and artist photo to create your first project."}</p>
-      {!projects.length&&<Link href="/studio">Create a video</Link>}
+      {!projects.length&&<Link href="/studio?new=1">Create a video</Link>}
     </div>}
  </div>;
 }
