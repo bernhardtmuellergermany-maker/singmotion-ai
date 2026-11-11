@@ -125,6 +125,7 @@ try{
  await page.goto(origin+"/projects");
  await page.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
  assert.equal(await page.getByRole("link",{name:/New video/}).count(),1);
+ assert.equal(await page.getByRole("link",{name:/New video/}).getAttribute("href"),"/studio?new=1","New video must allocate a fresh draft instead of reusing the previous project");
  const libraryCard=page.getByRole("link",{name:/Open Music video .* Ready/});
  await libraryCard.waitFor({timeout:15000});
  assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
