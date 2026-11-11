@@ -1,7 +1,8 @@
 "use client";
 import { SavedDrafts } from "./saved-drafts";
 import Link from "next/link";
-import { LiveProjects, LiveProject } from "./studio-live";
+import { LiveProjects } from "./studio-live";
+import { SuperAdminGeneration } from "./super-admin-generation";
 import { CustomerPaidOutput } from "./customer-paid-output";
 import { CustomerPaidOrders } from "./customer-paid-orders";
 import { useEffect, useState } from "react";
@@ -103,7 +104,7 @@ export function Project({ id }: { id: string }) {
   return /^paid_[a-f0-9-]{36}$/.test(id) ? (
     <CustomerPaidOutput orderId={id.slice(5)} />
   ) : id.startsWith("live_") ? (
-    <LiveProject id={id.slice(5)} />
+    <SuperAdminGeneration id={id.slice(5)} />
   ) : (
     <DemoProject id={id} />
   );
