@@ -4,7 +4,11 @@ import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
 import type { Asset, Artist, Job, JobStatus } from "./domain.ts";
 import { AppError, canTransition } from "./domain.ts";
-export const dataDir = path.resolve(process.env.DATA_DIR || ".data");
+// Next.js builds evaluate routes in parallel workers; isolate their temporary SQLite files.
+// Runtime always continues to use the configured persistent DATA_DIR unchanged.
+export const dataDir = path.resolve(process.env.SINGMOTION_BUILD_DB_PER_PROCESS === "1"
+  ? `${process.env.DATA_DIR || ".data"}/build-${process.pid}`
+  : (process.env.DATA_DIR || ".data"));
 mkdirSync(path.join(dataDir, "media"), { recursive: true, mode: 0o700 });
 export const db = new DatabaseSync(path.join(dataDir, "demo.sqlite"));
 db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
