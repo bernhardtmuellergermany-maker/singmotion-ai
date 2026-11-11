@@ -136,8 +136,11 @@ try{
  // server-backed draft, and reopening the first card must restore its text.
  const guestContext=await browser.newContext();
  const guestPage=await guestContext.newPage();
+ // The heading renders before async /api/session sets the guest cookie.
+ const guestSessionReady=guestPage.waitForResponse(response=>response.url().endsWith("/api/session") && response.request().method()==="POST" && response.status()===200,{timeout:15000});
  await guestPage.goto(origin+"/studio?new=1");
  await guestPage.getByRole("heading",{name:/Upload your audio/}).waitFor({timeout:15000});
+ await guestSessionReady;
  const listGuestDrafts=async()=>{
    const r=await guestContext.request.get(origin+"/api/studio-drafts");
    assert.equal(r.status(),200);
