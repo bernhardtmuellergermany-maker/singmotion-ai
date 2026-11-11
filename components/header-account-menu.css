@@ -193,3 +193,16 @@
 .sm-site-header .sm-header-actions > .sm-global-menu > summary{
   margin:0!important;
 }
+
+/* Home is the spacing reference: 12px between global menu and account everywhere. */
+.sm-site-header .sm-header-actions,
+.sm-carousel-header.sm-site-header .sm-header-actions,
+.sm-immersive-home .sm-immersive-header .sm-header-actions{
+  column-gap:12px!important;
+  gap:12px!important;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu,
+.sm-site-header .sm-header-actions > .sm-account-menu{
+  margin:0!important;
+  flex-shrink:0!important;
+}
