@@ -491,8 +491,15 @@ export function StudioWizard({
               onClick={()=>photoFileInput.current?.click()} onDragOver={e=>e.preventDefault()}
               onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files?.[0],"image");}}>
               <span className="sm-photo-upload-icon"><ImagePlus size={40} strokeWidth={1.65}/></span>
-              <strong>{busy?"Uploading your photo…":"Drop a photo here or tap to browse"}</strong>
-              <span>JPG, PNG · up to 30 MB · clear front-facing portrait recommended</span>
+              <strong>{photoUploadPhase==="uploading"?"Uploading your photo…":photoUploadPhase==="processing"?"Processing your photo…":"Drop a photo here or tap to browse"}</strong>
+              {photoUploadPhase!=="idle"?<div className="sm-audio-upload-feedback" role="status" aria-live="polite">
+                <span className="sm-audio-upload-filename" title={photoUploadingName}>{photoUploadingName}</span>
+                <div className="sm-audio-upload-progress" role="progressbar" aria-label="Photo upload progress" aria-valuemin={0} aria-valuemax={100}
+                  aria-valuenow={photoUploadProgress===null?undefined:photoUploadProgress}>
+                  <span style={{width:photoUploadProgress===null?"100%":photoUploadProgress+"%"}} className={photoUploadProgress===null||photoUploadPhase==="processing"?"is-indeterminate":""}/>
+                </div>
+                <span>{photoUploadPhase==="processing"?"Upload complete. Checking photo…":photoUploadProgress===null?"Sending file…":photoUploadProgress+"% uploaded"}</span>
+              </div>:<span>JPG, PNG · up to 30 MB · clear front-facing portrait recommended</span>}
             </button>
           ) : (
             <>
@@ -519,30 +526,19 @@ export function StudioWizard({
                   <span className="sm-photo-crop-corner bl"/><span className="sm-photo-crop-corner br"/>
                 </div>
               </div>
-              <div className="sm-photo-editor-tools" role="toolbar" aria-label="Photo editing tools">
-                <button type="button" className={editTool==="crop"?"is-active":""} onClick={()=>setEditTool("crop")}><Crop size={19}/><span>Crop</span></button>
-                <button type="button" onClick={()=>{setRotation(r=>(r+90)%360);setCropPending(true);}}><RotateCw size={19}/><span>Rotate</span></button>
-                <button type="button" onClick={()=>{setFlipped(v=>!v);setCropPending(true);}}><FlipHorizontal2 size={19}/><span>Flip</span></button>
-                <button type="button" className={editTool==="adjust"?"is-active":""} onClick={()=>setEditTool("adjust")}><SlidersHorizontal size={19}/><span>Adjust</span></button>
-                <button type="button" className="sm-photo-tool-delete" disabled={busy} onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={19}/><span>Delete</span></button>
-              </div>
             </>
           )}
-          <div className="sm-photo-formats" role="group" aria-label="Photo format">
-            <div className="sm-photo-format-choices">
-              <button type="button" aria-pressed={!customMode&&draft.outputFormat==="16:9"} className={!customMode&&draft.outputFormat==="16:9"?"is-selected":""}
-                onClick={()=>{update({formatMode:"16:9",outputFormat:"16:9"});if(draft.imageId)setCropPending(true);}}>
-                <Monitor size={18}/><strong>16:9</strong>
-              </button>
-              <button type="button" aria-pressed={!customMode&&draft.outputFormat==="9:16"} className={!customMode&&draft.outputFormat==="9:16"?"is-selected":""}
-                onClick={()=>{update({formatMode:"9:16",outputFormat:"9:16"});if(draft.imageId)setCropPending(true);}}>
-                <Smartphone size={18}/><strong>9:16</strong>
-              </button>
-              <button type="button" aria-pressed={customMode} className={customMode?"is-selected":""}
-                onClick={()=>{setCustomWidth(draft.outputFormat==="9:16"?1080:1920);setCustomHeight(draft.outputFormat==="9:16"?1920:1080);update({formatMode:"auto"});if(draft.imageId)setCropPending(true);}}>
-                <Crop size={18}/><strong>Custom</strong>
-              </button>
-            </div>
+          <div className="sm-photo-editor-tools sm-photo-one-row" role="toolbar" aria-label="Photo format and editing tools">
+            <button type="button" aria-pressed={!customMode&&draft.outputFormat==="9:16"} className={!customMode&&draft.outputFormat==="9:16"?"is-selected":""}
+              onClick={()=>{update({formatMode:"9:16",outputFormat:"9:16"});if(draft.imageId)setCropPending(true);}}><Smartphone size={16}/><span>9:16</span></button>
+            <button type="button" aria-pressed={!customMode&&draft.outputFormat==="16:9"} className={!customMode&&draft.outputFormat==="16:9"?"is-selected":""}
+              onClick={()=>{update({formatMode:"16:9",outputFormat:"16:9"});if(draft.imageId)setCropPending(true);}}><Monitor size={16}/><span>16:9</span></button>
+            <button type="button" aria-pressed={customMode} className={customMode?"is-selected":""}
+              onClick={()=>{setCustomWidth(draft.outputFormat==="9:16"?1080:1920);setCustomHeight(draft.outputFormat==="9:16"?1920:1080);update({formatMode:"auto"});if(draft.imageId)setCropPending(true);}}><Crop size={16}/><span>Crop</span></button>
+            <button type="button" disabled={!draft.imageId||busy} onClick={()=>{setRotation(v=>(v+90)%360);setCropPending(true);}}><RotateCw size={16}/><span>Rotate</span></button>
+            <button type="button" disabled={!draft.imageId||busy} onClick={()=>{setFlipped(v=>!v);setCropPending(true);}}><FlipHorizontal2 size={16}/><span>Flip</span></button>
+          </div>
+          <div className="sm-photo-formats" role="group" aria-label="Photo format dimensions">
             <div className="sm-photo-dimension-bar" role="group" aria-label="Image dimensions">
               <label>W <input type="number" min="256" max="4096" step="1" aria-label="Image width in pixels" value={frameWidth}
                 readOnly={!customMode} onChange={e=>setCustomDimension("width",Number(e.target.value))}/><span>px</span></label>
@@ -555,18 +551,9 @@ export function StudioWizard({
             {!frameValid&&<span role="alert" className="sm-photo-size-error">Width and height must be 256–4096 px, up to 16 megapixels.</span>}
           </div>
           {draft.imageId&&<div className="sm-photo-editor-bottom">
-            {editTool==="crop"?
-              <div className="sm-photo-compact-control">
-                <label>Zoom <input type="range" aria-label="Photo zoom" min="1" max="2.5" step=".05" value={cropZoom} onChange={e=>{setCropZoom(+e.target.value);setCropPending(true);}}/></label>
-                <label>X <input type="range" aria-label="Horizontal framing" min="0" max="100" value={cropX} onChange={e=>{setCropX(+e.target.value);setCropPending(true);}}/></label>
-                <label>Y <input type="range" aria-label="Vertical framing" min="0" max="100" value={cropY} onChange={e=>{setCropY(+e.target.value);setCropPending(true);}}/></label>
-              </div>:
-              <div className="sm-photo-compact-control">
-                <label>Brightness <input type="range" aria-label="Brightness" min="50" max="150" value={brightness} onChange={e=>{setBrightness(+e.target.value);setCropPending(true);}}/></label>
-                <label>Contrast <input type="range" aria-label="Contrast" min="50" max="150" value={contrast} onChange={e=>{setContrast(+e.target.value);setCropPending(true);}}/></label>
-              </div>}
+            <span className="sm-photo-crop-status">{cropPending?"Drag image to select the crop, then apply":"Photo ready"}</span>
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();setCropPending(true);}}>Reset</button>
-            <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
+            <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
           <p className="sm-photo-step-tip"><ShieldCheck size={17}/> Use a well-lit image with the full face visible. Custom photo sizes do not change the 9:16 / 16:9 video export formats.</p>
         </section>}
@@ -622,7 +609,7 @@ export function StudioWizard({
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
-          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||cropPending||!frameValid))} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
           {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
