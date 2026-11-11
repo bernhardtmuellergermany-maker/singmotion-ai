@@ -1651,3 +1651,28 @@
    min-width:37px;min-height:40px;
  }
 }
+
+
+/* Align step counter, headline, and supporting text centrally on phones. */
+@media (max-width:700px) {
+  .product-theme.singmotion-flow .flow-main>.sm-new-page-heading,
+  .singmotion-flow .flow-main>.sm-new-page-heading {
+    box-sizing:border-box;
+    width:100%;
+    max-width:100%;
+    align-self:center!important;
+    text-align:center!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+  .product-theme.singmotion-flow .sm-new-page-heading>span,
+  .product-theme.singmotion-flow .sm-new-page-heading h1,
+  .product-theme.singmotion-flow .sm-new-page-heading p,
+  .singmotion-flow .sm-new-page-heading>span,
+  .singmotion-flow .sm-new-page-heading h1,
+  .singmotion-flow .sm-new-page-heading p {
+    text-align:center!important;
+    margin-left:auto;
+    margin-right:auto;
+  }
+}
