@@ -419,6 +419,7 @@ export function StudioWizard({
           {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
+        <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} onClose={()=>setConfirm(false)}/>}
     </div>
