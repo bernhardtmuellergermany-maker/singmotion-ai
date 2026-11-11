@@ -80,6 +80,7 @@ export async function prepareStudioDraft(
         draft.performance,
         draft.camera,
         draft.customPrompt,
+        draft.outputFormat,
       ),
     },
     owner,
