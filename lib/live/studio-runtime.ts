@@ -4,7 +4,7 @@ import { recoveryHealth } from "./studio-activation.ts";
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { StudioLiveError } from "./studio-policy.ts";
-import { BytePlusProtocol, DocumentedBytePlusProvider } from "./byteplus.ts";
+import { BytePlusProtocol, BytePlusError, DocumentedBytePlusProvider } from "./byteplus.ts";
 import { createSignedTransport } from "./signed-transport.ts";
 import { loadBytePlusCredentials } from "./signing.ts";
 import { R2PrivateInputDelivery, loadR2Config } from "./r2.ts";
@@ -12,6 +12,41 @@ import { StudioWorkflow } from "./studio.ts";
 import { loadStudioPolicy, studioConfig, StudioLiveError as PolicyError } from "./studio-policy.ts";
 import { superAdminRuntimeBootstrapPolicy } from "./super-admin-runtime-bootstrap.ts";
 import type { LiveTestStore } from "./store.ts";
+/** Retry only the read-only GetResult action for BytePlus's documented
+ * transient internal 50500/50501 responses. The exact saved provider task ID
+ * is retained, and no submit/cancel or billing mutation occurs here. */
+export async function readExistingStudioTask(
+  protocol: Pick<BytePlusProtocol, "status">,
+  id: string,
+  signal: AbortSignal,
+) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    signal.throwIfAborted();
+    try {
+      return await protocol.status(id, signal);
+    } catch (error) {
+      const retryable = error instanceof BytePlusError &&
+        error.retryableRead &&
+        error.diagnostic.code === "PROVIDER_REJECTED" &&
+        [50500, 50501].includes(error.diagnostic.providerCode ?? 0);
+      if (!retryable || attempt === 2) throw error;
+      // Abort-aware bounded delay; never retry a submission.
+      await new Promise<void>((resolve, reject) => {
+        const delay = setTimeout(() => {
+          signal.removeEventListener("abort", onAbort);
+          resolve();
+        }, 250 * (attempt + 1));
+        function onAbort() {
+          clearTimeout(delay);
+          reject(signal.reason ?? new Error("Read aborted"));
+        }
+        signal.addEventListener("abort", onAbort, { once: true });
+        if (signal.aborted) onAbort();
+      });
+    }
+  }
+  throw new Error("Provider status unavailable");
+}
 export async function studioReadiness(
   root: string,
   env: NodeJS.ProcessEnv = process.env,
@@ -104,7 +139,7 @@ export function studioRuntime(
         contract: policy.contract,
         submit: provider.submit.bind(provider),
         poll: async (id, signal) => {
-          const result = await protocol.status(id, signal);
+          const result = await readExistingStudioTask(protocol, id, signal);
           if (result.status === "done")
             return { state: "completed" as const, outputUrl: result.outputUrl };
           if (result.status === "in_queue" || result.status === "generating")
