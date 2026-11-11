@@ -91,12 +91,12 @@ try{
  const page=await context.newPage();
  await page.goto(origin+"/orders/"+id);
  console.log("BROWSER_CHECKPOINT: page loaded");
- const output=page.getByRole("region",{name:"Customer video output"});
+ const output=page.getByRole("region",{name:"Video generation status"});
  console.log("BROWSER_CHECKPOINT: waiting for paid completed card");
- await output.locator(".sm-private-video-state").filter({hasText:"Completed"}).waitFor({timeout:15000});
+ await output.getByRole("heading",{name:"Your video is ready"}).waitFor({timeout:15000});
  console.log("BROWSER_CHECKPOINT: paid completed card visible");
  assert.equal(await output.locator("video[controls]").count(),1);
- const download=output.getByRole("link",{name:/Download MP4/});
+ const download=output.getByRole("link",{name:/Download video/});
  assert.equal(await download.getAttribute("href"),`/api/customer-video?orderId=${id}&download=1`);
  const partial=await context.request.get(origin+`/api/customer-video?orderId=${id}`,{
   headers:{range:"bytes=0-31"},
@@ -118,7 +118,7 @@ try{
   "home carousel shows the authenticated finished video");
  await finishedCard.getByRole("link",{name:/Open project/}).click();
  await page.waitForURL(origin+"/projects/paid_"+id);
- await page.getByRole("region",{name:"Customer video output"}).locator("video[controls]").waitFor({timeout:15000});
+ await page.getByRole("region",{name:"Video generation status"}).locator("video[controls]").waitFor({timeout:15000});
  console.log("BROWSER_CHECKPOINT: completed project card opens private video, not order review");
  const stranger=await browser.newContext();
  assert.equal((await stranger.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),401);
@@ -128,7 +128,7 @@ try{
   disputeId:"dp_browser_offline",evidence:"verified offline browser dispute notification"});
  console.log("BROWSER_CHECKPOINT: download complete; validating dispute revocation");
  await page.reload();
- await output.locator(".sm-private-video-state").filter({hasText:"Payment requires review"}).waitFor({timeout:15000});
+ await output.getByRole("heading",{name:"Your video is under review"}).waitFor({timeout:15000});
  assert.equal(await output.locator("video").count(),0);
  assert.equal(await output.getByRole("link",{name:/Download video/}).count(),0);
  assert.equal((await context.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),404);
