@@ -501,15 +501,19 @@ export function StudioWizard({
                 <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
                   onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
                 <div className="sm-photo-crop-viewport" style={{aspectRatio:String(frameWidth/frameHeight)}}
-                  onPointerDown={e=>{if(busy)return;cropDrag.current={x:e.clientX,y:e.clientY,startX:cropX,startY:cropY};e.currentTarget.setPointerCapture(e.pointerId);}}
+                  onPointerDown={e=>{if(busy||!imageReady)return;cropDrag.current={x:e.clientX,y:e.clientY,startX:cropX,startY:cropY};e.currentTarget.setPointerCapture(e.pointerId);}}
                   onPointerMove={e=>{const drag=cropDrag.current;if(!drag||!e.currentTarget.hasPointerCapture(e.pointerId))return;
-                    const rect=e.currentTarget.getBoundingClientRect();setCropX(Math.max(0,Math.min(100,drag.startX-(e.clientX-drag.x)/Math.max(rect.width,1)*100)));
-                    setCropY(Math.max(0,Math.min(100,drag.startY-(e.clientY-drag.y)/Math.max(rect.height,1)*100)));setCropPending(true);}}
+                    const rect=e.currentTarget.getBoundingClientRect();
+                    if(cropExcessX>0.00001)setCropX(Math.max(0,Math.min(100,drag.startX-(e.clientX-drag.x)/Math.max(rect.width,1)/cropExcessX*100)));
+                    if(cropExcessY>0.00001)setCropY(Math.max(0,Math.min(100,drag.startY-(e.clientY-drag.y)/Math.max(rect.height,1)/cropExcessY*100)));
+                    if(cropExcessX>0.00001||cropExcessY>0.00001)setCropPending(true);}}
                   onPointerUp={e=>{cropDrag.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
                   onPointerCancel={()=>{cropDrag.current=null;}}>
                   <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo framing preview" draggable={false}
-                    style={{transform:"rotate("+rotation+"deg) scaleX("+(flipped?-1:1)+") scale("+cropZoom+")",
-                      objectPosition:cropX+"% "+cropY+"%",filter:"brightness("+brightness+"%) contrast("+contrast+"%)"}}/>
+                    onLoad={e=>{setPhotoSize({width:e.currentTarget.naturalWidth,height:e.currentTarget.naturalHeight});setImageReady(true);}}
+                    style={{position:"absolute",left:"calc(50% + "+cropOffsetX+"%)",top:"calc(50% + "+cropOffsetY+"%)",
+                      width:previewImageWidth+"%",height:previewImageHeight+"%",objectFit:"fill",
+                      transform:"translate(-50%,-50%) rotate("+rotation+"deg) scaleX("+(flipped?-1:1)+")"}}/>
                   <div className="sm-photo-crop-grid" aria-hidden="true"/>
                   <span className="sm-photo-crop-corner tl"/><span className="sm-photo-crop-corner tr"/>
                   <span className="sm-photo-crop-corner bl"/><span className="sm-photo-crop-corner br"/>
