@@ -2315,3 +2315,100 @@
   gap:8px;
  }
 }
+
+/* Review & Generate: read-only expandable order summary. */
+.product-theme.singmotion-flow .sm-review-checkout{
+ width:min(100%,860px);align-self:center;display:flex;flex-direction:column;gap:14px;
+ padding:0 0 10px;
+}
+.product-theme.singmotion-flow .sm-review-list{display:grid;gap:8px}
+.product-theme.singmotion-flow .sm-review-item{
+ overflow:hidden;min-width:0;border:1px solid #685087;border-radius:15px;
+ background:linear-gradient(120deg,#2b2342,#1b1a33 90%);color:#f5efff;
+}
+.product-theme.singmotion-flow .sm-review-item>summary{
+ display:grid;grid-template-columns:26px minmax(100px,155px) minmax(0,1fr) 18px;
+ align-items:center;column-gap:12px;padding:13px 15px;min-height:54px;
+ list-style:none;cursor:pointer;
+}
+.product-theme.singmotion-flow .sm-review-item>summary::-webkit-details-marker{display:none}
+.product-theme.singmotion-flow .sm-review-item>summary>svg:first-child{
+ color:#c267ff;width:21px;height:21px;
+}
+.product-theme.singmotion-flow .sm-review-item>summary>strong{
+ font-size:14px;font-weight:700;color:#fff;
+}
+.product-theme.singmotion-flow .sm-review-item>summary>svg:last-child{
+ color:#bdb0d9;transition:transform .2s;
+}
+.product-theme.singmotion-flow .sm-review-item[open]>summary>svg:last-child{transform:rotate(180deg)}
+.product-theme.singmotion-flow .sm-review-item>summary:focus-visible{outline:2px solid #d28aff;outline-offset:-3px}
+.product-theme.singmotion-flow .sm-review-item-value{
+ font-size:13px;color:#d8cde9;white-space:nowrap;
+ overflow:hidden;text-overflow:ellipsis;min-width:0;
+ padding-left:16px;border-left:1px solid #6e5b8e;
+}
+.product-theme.singmotion-flow .sm-review-photo-value{
+ display:flex;align-items:center;gap:10px;
+}
+.product-theme.singmotion-flow .sm-review-photo-value img{
+ width:38px;height:38px;border:1px solid #a567e2;border-radius:9px;
+ object-fit:cover;flex-shrink:0;
+}
+.product-theme.singmotion-flow .sm-review-expanded{
+ border-top:1px solid #51436a;padding:12px 18px 14px 53px;
+ color:#cfc5df;font-size:12px;line-height:1.5;
+ overflow-wrap:anywhere;
+}
+.product-theme.singmotion-flow .sm-review-expanded p{margin:3px 0 7px}
+.product-theme.singmotion-flow .sm-review-expanded strong{color:#f1e9ff}
+.product-theme.singmotion-flow .sm-review-prompt{white-space:pre-wrap}
+.product-theme.singmotion-flow .sm-review-photo-expanded img{
+ display:block;max-width:170px;max-height:160px;width:auto;height:auto;
+ object-fit:contain;border-radius:10px;margin-bottom:9px;
+}
+.product-theme.singmotion-flow .sm-review-cost-row{
+ border-color:#a757e1;background:linear-gradient(120deg,#332344,#251b3a);
+}
+.product-theme.singmotion-flow .sm-review-cost-row .sm-review-item-value{
+ color:#f2cfff;font-size:15px;font-weight:750;
+}
+.product-theme.singmotion-flow .sm-review-rights{
+ display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+ color:#e7dcef;font-size:12px;line-height:1.5;margin-top:5px;
+}
+.product-theme.singmotion-flow .sm-review-rights input{
+ flex:0 0 auto;width:18px;height:18px;margin-top:1px;accent-color:#9e28e9;
+}
+.product-theme.singmotion-flow .sm-review-ai-notice{
+ display:flex;align-items:flex-start;gap:8px;margin:0;
+ font-size:11px;line-height:1.5;color:#bfb0d5;
+}
+.product-theme.singmotion-flow .sm-review-ai-notice svg{
+ flex:0 0 17px;color:#ae85d6;margin-top:1px;
+}
+.product-theme.singmotion-flow .sm-review-payment-note{
+ margin:0;color:#bfb0d5;font-size:11px;line-height:1.45;text-align:center;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-review-checkout{gap:11px}
+ .product-theme.singmotion-flow .sm-review-list{gap:7px}
+ .product-theme.singmotion-flow .sm-review-item{border-radius:13px}
+ .product-theme.singmotion-flow .sm-review-item>summary{
+  grid-template-columns:21px minmax(72px,110px) minmax(0,1fr) 15px;
+  gap:8px;padding:11px 10px;min-height:49px;
+ }
+ .product-theme.singmotion-flow .sm-review-item>summary>svg:first-child{width:18px;height:18px}
+ .product-theme.singmotion-flow .sm-review-item>summary>strong{font-size:12px}
+ .product-theme.singmotion-flow .sm-review-item-value{font-size:11px;padding-left:9px}
+ .product-theme.singmotion-flow .sm-review-photo-value{gap:7px}
+ .product-theme.singmotion-flow .sm-review-photo-value img{width:31px;height:31px}
+ .product-theme.singmotion-flow .sm-review-expanded{padding:10px 12px;font-size:11px}
+ .product-theme.singmotion-flow .sm-review-cost-row .sm-review-item-value{font-size:13px}
+ .product-theme.singmotion-flow .sm-review-rights{font-size:11px}
+ .product-theme.singmotion-flow .sm-review-ai-notice,
+ .product-theme.singmotion-flow .sm-review-payment-note{font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ .product-theme.singmotion-flow .sm-review-item>summary>svg:last-child{transition:none}
+}
