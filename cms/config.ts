@@ -357,6 +357,18 @@ const globals: GlobalConfig[] = [
     access: { read: () => true, update: editor },
     fields: [
       { name: "intro", type: "text", maxLength: 300 },
+      {
+        name: "headerImage",
+        label: "Studio header image",
+        type: "upload",
+        relationTo: "cms-assets",
+        admin: { description: "Upload an image to Media Library and select it here for the Studio banner. Leave empty for a purple gradient." },
+      },
+      { name: "headerEyebrow", label: "Header kicker", type: "text", maxLength: 100 },
+      { name: "headerHeadline", label: "Header headline", type: "text", maxLength: 180 },
+      { name: "headerSubtitle", label: "Header description", type: "textarea", maxLength: 350 },
+      { name: "audioReadyHeadline", label: "Headline after audio upload", type: "text", maxLength: 180 },
+      { name: "audioReadySubtitle", label: "Description after audio upload", type: "textarea", maxLength: 350 },
       { name: "heroHeading", type: "text", maxLength: 100, admin: { description: "Large Studio header headline. Default: Studio." } },
       { name: "heroSubtitle", type: "text", maxLength: 220, admin: { description: "Subtitle below the Studio header headline." } },
       { name: "heroImage", type: "upload", relationTo: "cms-assets", admin: { description: "Optional image on the right of the Studio header. Upload it first in the media library (JPG, PNG or WebP). Leave empty for the default icon." } },
