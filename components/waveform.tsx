@@ -160,8 +160,14 @@ export default function Waveform({
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
   const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
   const minimumClipSeconds = 5;
+  const roundHundredths = (value: number) => Math.round(value * 100) / 100;
   function openTimeEditor(which: "start" | "end") {
-    if (editingTime === which) { setEditingTime(null); setTimeInputError(""); return; }
+    if (editingTime === which) {
+      setEditingTime(null);
+      setTimeInputError("");
+      return;
+    }
+    // The field displays the same mm:ss.cc format as the visible timeline.
     setTimeDraft(formatHundredths(which === "start" ? start : end));
     setTimeInputError("");
     setEditingTime(which);
@@ -169,51 +175,53 @@ export default function Waveform({
   function parseTimeDraft() {
     const raw = timeDraft.trim().replace(",", ".");
     if (!raw) return null;
-    // The controls display MM:SS.cc. Accept the same format for editing
-    // (and plain seconds for users who prefer numeric entry).
-    const parts = raw.split(":");
-    if (parts.length > 2 || parts.some(part => part.trim() === "")) return null;
-    let seconds: number;
-    if (parts.length === 2) {
-      if (!/^\\d+$/.test(parts[0]) || !/^\\d{1,2}(?:\\.\\d{1,3})?$/.test(parts[1])) return null;
-      const minute = Number(parts[0]);
-      const remainder = Number(parts[1]);
-      if (remainder >= 60) return null;
-      seconds = minute * 60 + remainder;
-    } else {
-      if (!/^\\d+(?:\\.\\d{1,3})?$/.test(raw)) return null;
-      seconds = Number(raw);
-    }
-    return Number.isFinite(seconds) ? Math.round(seconds * 1000) / 1000 : null;
+    const time = raw.match(/^(\\d+):([0-5]\\d)(?:\\.(\\d{1,2}))?$/);
+    const seconds = time
+      ? Number(time[1]) * 60 + Number(time[2]) + Number("0." + (time[3] || "0"))
+      : /^\\d+(?:\\.\\d{1,2})?$/.test(raw) ? Number(raw) : NaN;
+    return Number.isFinite(seconds) ? roundHundredths(seconds) : null;
   }
-  function saveTimeEditor(close = true) {
-    if (!editingTime) return true;
-    const value = parseTimeDraft();
-    const lower = editingTime === "start" ? Math.max(0, end - 300) : start + minimumClipSeconds;
-    const upper = editingTime === "start" ? end - minimumClipSeconds : Math.min(duration, start + 300);
-    if (value === null || value < lower - 0.0001 || value > upper + 0.0001) {
-      setTimeInputError(
-        `Enter a time between ${formatHundredths(lower)} and ${formatHundredths(Math.max(lower, upper))} (MM:SS.ss).`
-      );
-      return false;
+  function selectedTimes(which: "start" | "end", requested: number) {
+    const selectionLength = end - start;
+    const normalizedDuration = Math.max(0, duration);
+    if (requested < 0 || requested > normalizedDuration + 0.000001) return null;
+    if (which === "start") {
+      // Preserve the current clip duration when moving its start past its end.
+      const nextEnd = requested > end - minimumClipSeconds
+        ? requested + selectionLength : end;
+      if (nextEnd > normalizedDuration + 0.000001 || nextEnd - requested > 300) return null;
+      return [requested, nextEnd] as const;
     }
-    if (editingTime === "start") onChange(value, end);
-    else onChange(start, value);
-    setTimeDraft(formatHundredths(value));
+    // Symmetric behavior when moving the end before the current start.
+    const nextStart = requested < start + minimumClipSeconds
+      ? requested - selectionLength : start;
+    if (nextStart < -0.000001 || requested - nextStart > 300) return null;
+    return [Math.max(0, nextStart), requested] as const;
+  }
+  function saveTimeEditor() {
+    if (!editingTime) return;
+    const value = parseTimeDraft();
+    const range = value === null ? null : selectedTimes(editingTime, value);
+    if (!range) {
+      setTimeInputError(`Enter a valid time (mm:ss.cc or seconds) within the ${formatHundredths(duration)} song. The selected clip must last 5–300 seconds.`);
+      return;
+    }
+    onChange(range[0], range[1]);
+    setTimeDraft(formatHundredths(value!));
     setTimeInputError("");
-    if (close) setEditingTime(null);
-    return true;
+    setEditingTime(null);
   }
   function adjust(which: "start" | "end", amount: number) {
-    const lower = which === "start" ? Math.max(0, end - 300) : start + minimumClipSeconds;
-    const upper = which === "start" ? end - minimumClipSeconds : Math.min(duration, start + 300);
-    const parsed = parseTimeDraft();
-    const basis = editingTime === which && parsed !== null ? parsed : which === "start" ? start : end;
-    const next = Math.round(Math.max(lower, Math.min(upper, basis + amount)) * 1000) / 1000;
-    setTimeDraft(formatHundredths(next));
+    const basis = parseTimeDraft() ?? (which === "start" ? start : end);
+    const target = roundHundredths(Math.max(0, Math.min(duration, basis + amount)));
+    const range = selectedTimes(which, target);
+    if (!range) {
+      setTimeInputError("This time would move the selection outside the song.");
+      return;
+    }
+    setTimeDraft(formatHundredths(target));
     setTimeInputError("");
-    if (which === "start") onChange(next, end);
-    else onChange(start, next);
+    onChange(range[0], range[1]);
   }
   const bars = useMemo(() => {
     const count = Math.min(peaks.length || 220, 220);
@@ -395,7 +403,7 @@ export default function Waveform({
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
           <input aria-label={editingTime === "start" ? "Start time in minutes and seconds" : "End time in minutes and seconds"}
-            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="MM:SS.ss"
+            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="mm:ss.cc" placeholder="MM:SS.ss"
             onFocus={e=>e.currentTarget.select()}
             value={timeDraft} aria-invalid={!!timeInputError}
             aria-describedby={timeInputError ? "studio-time-input-error" : undefined}
