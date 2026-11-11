@@ -12,6 +12,7 @@ export function GenerationDialog({
   projectName,
   songName,
   requestKey,
+  initialRights = false,
   onClose,
 }: {
   selection: StudioDraftExport;
@@ -19,12 +20,13 @@ export function GenerationDialog({
   projectName: string;
   songName: string;
   requestKey: string;
+  initialRights?: boolean;
   onClose: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null),
     lock = useRef(false),
     router = useRouter();
-  const [rights, setRights] = useState(false),
+  const [rights, setRights] = useState(initialRights),
     [immediateStart,setImmediateStart] = useState(false),
     [withdrawalConsequences,setWithdrawalConsequences] = useState(false),
     [terms, setTerms] = useState(""),
