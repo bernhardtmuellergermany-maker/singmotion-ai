@@ -1028,3 +1028,7 @@
 .sm-immersive-home .sm-desktop-portrait-card video.sm-desktop-portrait-video{position:absolute;inset:0;opacity:0;transition:opacity .42s ease;z-index:1}
 .sm-immersive-home .sm-desktop-portrait-card video.sm-desktop-portrait-video.is-ready{opacity:1}
 @media(prefers-reduced-motion:reduce){.sm-immersive-home .sm-desktop-portrait-card video.sm-desktop-portrait-video{transition:none}}
+
+/* The 1.15 s scroll button animates via requestAnimationFrame; prevent
+   browser smooth-scrolling from easing each animation frame a second time. */
+@media(min-width:761px){html:has(.sm-immersive-home){scroll-behavior:auto!important}}
