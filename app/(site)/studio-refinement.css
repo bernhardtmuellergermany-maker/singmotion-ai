@@ -1231,3 +1231,23 @@
 @media(max-width:700px){
  .singmotion-flow .sm-new-file-delete{width:44px;height:44px;min-width:44px}
 }
+
+
+/* Real content after navigation makes the page scroll past fixed bottom actions. */
+.singmotion-flow .flow-main>.sm-studio-scroll-spacer{
+ display:block!important;
+ flex:0 0 190px!important;
+ width:100%;
+ min-height:190px!important;
+ height:190px!important;
+ pointer-events:none;
+}
+.singmotion-flow .flow-main{height:auto!important;max-height:none!important;overflow-y:visible!important}
+@media(max-width:700px){
+ .singmotion-flow .flow-main>.sm-studio-scroll-spacer{
+  flex-basis:calc(280px + env(safe-area-inset-bottom,0px))!important;
+  min-height:calc(280px + env(safe-area-inset-bottom,0px))!important;
+  height:calc(280px + env(safe-area-inset-bottom,0px))!important;
+ }
+ .singmotion-flow .flow-main{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))!important}
+}
