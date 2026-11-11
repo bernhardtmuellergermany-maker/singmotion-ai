@@ -109,6 +109,8 @@ export function StudioWizard({
     [reviewRights, setReviewRights] = useState(false),
     [reviewQuote,setReviewQuote] = useState<{plan:string;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number}|null>(null),
     [reviewQuoteLoading,setReviewQuoteLoading] = useState(false),
+    [reviewQuoteError,setReviewQuoteError] = useState(""),
+    [reviewQuoteRetry,setReviewQuoteRetry] = useState(0),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
     [cropX,setCropX] = useState(50),
@@ -475,18 +477,40 @@ export function StudioWizard({
     if(step!==3 || !selection)return;
     const controller=new AbortController();
     const seconds=(selection.end-selection.start).toFixed(3);
-    void Promise.resolve().then(()=>{if(!controller.signal.aborted){setReviewQuote(null);setReviewQuoteLoading(true);}});
+    void Promise.resolve().then(()=>{
+      if(!controller.signal.aborted){
+        setReviewQuote(null);setReviewQuoteError("");setReviewQuoteLoading(true);
+      }
+    });
     void fetch(`/api/customer-quote?seconds=${encodeURIComponent(seconds)}`,{
       credentials:"same-origin",cache:"no-store",signal:controller.signal,
-    }).then(async response=>response.ok?response.json():null)
-      .then(value=>{if(!controller.signal.aborted)setReviewQuote(value?.estimateOnly===true?value:null);})
-      .catch(()=>{})
-      .finally(()=>{if(!controller.signal.aborted)setReviewQuoteLoading(false);});
+    }).then(async response=>{
+      const value=await response.json().catch(()=>null) as
+        {estimateOnly?:boolean;estimatedExtraPriceCents?:number;currency?:string;error?:string}|null;
+      if(!response.ok)throw Error(
+        response.status===401?"Your private workspace session has expired. Reopen Studio to review your price.":
+        response.status===403?"Pricing is not enabled in this environment. No payment can be started.":
+        response.status===409?"This selection cannot be priced. Check the audio duration or your account limits.":
+        response.status===429?"Too many pricing requests. Please retry shortly.":
+        "Your current price could not be calculated. Please retry."
+      );
+      if(value?.estimateOnly!==true || value.currency!=="EUR" ||
+         !Number.isSafeInteger(value.estimatedExtraPriceCents) ||
+         (value.estimatedExtraPriceCents??-1)<0)
+        throw Error("The pricing server returned an invalid estimate. Please retry.");
+      return value;
+    }).then(value=>{
+      if(!controller.signal.aborted)setReviewQuote(value as NonNullable<typeof reviewQuote>);
+    }).catch(error=>{
+      if(!controller.signal.aborted)setReviewQuoteError(
+        error instanceof Error?error.message:"Price unavailable. Please retry."
+      );
+    }).finally(()=>{if(!controller.signal.aborted)setReviewQuoteLoading(false);});
     return ()=>controller.abort();
-  },[step,selection?.start,selection?.end,selection?.owner]);
+  },[step,selection?.start,selection?.end,selection?.owner,reviewQuoteRetry]);
   const reviewPrice=reviewQuote
     ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(reviewQuote.estimatedExtraPriceCents/100)
-    : reviewQuoteLoading ? "Calculating…" : "See checkout";
+    : reviewQuoteLoading ? "Calculating…" : "Unavailable";
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -730,12 +754,7 @@ export function StudioWizard({
               <div className="sm-review-expanded sm-review-photo-expanded">
                 {draft.imageId&&<img src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt="Uploaded artist photo preview"/>}
                 <p>Final cropped reference photo submitted for video generation.</p>
-              </div>
-            </details>
-            <details className="sm-review-item">
-              <summary><Smartphone size={20}/><strong>Format</strong><span className="sm-review-item-value">{draft.formatMode==="auto"?"Custom photo crop":draft.outputFormat==="9:16"?"9:16 portrait":"16:9 landscape"}</span><ChevronDown size={17}/></summary>
-              <div className="sm-review-expanded">
-                <p><strong>Reference photo:</strong> {draft.formatMode==="auto"?"Custom crop":draft.outputFormat}</p>
+                <p><strong>Format:</strong> {draft.formatMode==="auto"?"Custom photo crop":draft.outputFormat==="9:16"?"9:16 portrait":"16:9 landscape"}</p>
                 <p><strong>Video resolution:</strong> Up to 720p, depending on the supported provider output.</p>
               </div>
             </details>
@@ -755,7 +774,8 @@ export function StudioWizard({
                   <p><strong>Included with plan:</strong> {reviewQuote.includedSeconds} seconds</p>
                   <p><strong>Additional seconds:</strong> {reviewQuote.extraSeconds}</p>
                   <p>This is an estimate, not a final charge. Your binding price is confirmed before payment.</p>
-                </>:<p>{reviewQuoteLoading?"Loading your personal estimate…":"Personal pricing is unavailable right now. Please check the price before confirming payment."}</p>}
+                </>:<p>{reviewQuoteLoading?"Calculating your personal price…":reviewQuoteError||"Your personal price is unavailable. No payment can start until pricing is confirmed."}
+                  {!reviewQuoteLoading&&<button type="button" className="sm-review-price-retry" onClick={()=>setReviewQuoteRetry(v=>v+1)}>Retry price calculation</button>}</p>}
               </div>
             </details>
           </div>
@@ -769,7 +789,7 @@ export function StudioWizard({
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||cropPending||!frameValid))} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!reviewQuote||reviewQuoteLoading} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
