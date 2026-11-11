@@ -10,7 +10,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { trimAudio, validateAudio } from "../media.ts";
 import { IMAGE_LIMIT, composePrompt } from "../domain.ts";
-import { parseStudioDraft } from "../studio-draft.ts";
+import { parseStudioDraft, type StudioDraftExport } from "../studio-draft.ts";
 import {ensureLocalAsset,ensureLocalMediaPath} from "../cloud-hydration.ts";
 import {customerR2Enabled,mirrorPrivateSource,validCloudRecord,readMirroredPrivateSource} from "../cloud-media.ts";
 import type { PreparedMedia } from "./store.ts";
