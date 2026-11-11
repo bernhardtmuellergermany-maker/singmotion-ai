@@ -126,6 +126,19 @@ export function ImmersiveHome(){
  const [portraitReady,setPortraitReady]=useState<Record<number,boolean>>({});
  const [visiblePortraits,setVisiblePortraits]=useState<Record<number,boolean>>({});
  const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
+ const togglePortraitSound=(index:number)=>{
+  const next=audiblePortrait===index?null:index;
+  const players=portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video");
+  players?.forEach((player,i)=>{player.muted=next!==i;});
+  setAudiblePortrait(next);
+  if(next!==null){
+   const player=players?.[index];
+   if(player?.paused)void player.play().catch(()=>{
+    if(player)player.muted=true;
+    setAudiblePortrait(current=>current===index?null:current);
+   });
+  }
+ };
  const portraitGrid=useRef<HTMLDivElement>(null);
  useEffect(()=>{
   // No desktop video may inherit audible playback from a previous render.
@@ -403,16 +416,18 @@ export function ImmersiveHome(){
   event.preventDefault();
   const target=document.getElementById("sm-creation-title");
   if(!target)return;
-  const from=window.scrollY;
+  const scrolling=document.scrollingElement||document.documentElement;
+  const from=scrolling.scrollTop;
   const to=target.getBoundingClientRect().top+from-Math.min(85,window.innerHeight*0.1);
-  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){window.scrollTo(0,to);return;}
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){scrolling.scrollTop=to;return;}
   const duration=1150;
   const started=performance.now();
   const frame=(now:number)=>{
    const t=Math.min(1,(now-started)/duration);
    const eased=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
-   window.scrollTo(0,from+(to-from)*eased);
+   scrolling.scrollTop=from+(to-from)*eased;
    if(t<1)window.requestAnimationFrame(frame);
+   else scrolling.scrollTop=to;
   };
   window.requestAnimationFrame(frame);
  };
@@ -453,7 +468,7 @@ export function ImmersiveHome(){
    <DesktopShowcaseCarousel clips={desktopClips}/>
    <section id="how-it-works" className="sm-immersive-steps" aria-labelledby="sm-how-title">
     <h2 id="sm-how-title">How it <span>works</span></h2>
-    <p>In just a few steps to your own music video.</p>
+    <p>Create your own AI music video in four simple steps — from uploading your song and photo to bringing your performance to life.</p>
     <ol>
      <li><Music2 aria-hidden="true"/><strong>1. Upload your audio</strong><span>Add your song or choose from your library.</span></li>
      <li><ImagePlus aria-hidden="true"/><strong>2. Upload a photo</strong><span>Add a photo of yourself or your artist.</span></li>
@@ -464,19 +479,15 @@ export function ImmersiveHome(){
    <div className="sm-immersive-featured-backdrop">
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
-    <p>Real examples. Real emotion.</p>
+    <p>Real examples. Real emotion. Discover AI music videos that turn original songs into unforgettable performances.</p>
     <div ref={portraitGrid} className="sm-desktop-portrait-grid" aria-label="Four featured portrait videos">
-      {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}>
+      {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}
+       onClick={()=>item.url&&togglePortraitSound(i)}
+       aria-label={item.url?"Video "+item.title+": Klick zum Ton ein- oder ausschalten":item.title}>
        {item.url?<><img className="sm-desktop-portrait-poster" src={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} alt="" loading="lazy"/>
         <video className={"sm-desktop-portrait-video"+(portraitReady[i]?" is-ready":"")} src={visiblePortraits[i]?item.url:undefined} playsInline autoPlay muted={audiblePortrait!==i} loop preload="metadata" poster={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} onLoadedData={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onCanPlay={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
         <button type="button" className="sm-desktop-portrait-sound" aria-label={audiblePortrait===i?"Ton ausschalten: "+item.title:"Ton einschalten: "+item.title} aria-pressed={audiblePortrait===i}
-         onClick={()=>{
-           const nextIndex=audiblePortrait===i?null:i;
-           const videos=portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video");
-           videos?.forEach((v,j)=>{v.muted=nextIndex!==j;});
-           setAudiblePortrait(nextIndex);
-           if(nextIndex!==null){const v=videos?.[i];if(v?.paused)void v.play().catch(()=>{setAudiblePortrait(null);if(v)v.muted=true;});}
-         }}>{audiblePortrait===i?<Volume2 size={24}/>:<VolumeX size={24}/>}</button>
+          onClick={event=>{event.stopPropagation();togglePortraitSound(i)}}>{audiblePortrait===i?<Volume2 size={17}/>:<VolumeX size={17}/>}</button>
        </>:<div className="sm-desktop-portrait-fallback" aria-label="Video coming soon"><Play size={28}/></div>}
       </div>)}
     </div>
