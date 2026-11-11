@@ -19,7 +19,6 @@ import {
   Crop,
   RotateCw,
   FlipHorizontal2,
-  SlidersHorizontal,
   LockKeyhole,
   UnlockKeyhole,
   ChevronDown,
@@ -98,28 +97,38 @@ export function StudioWizard({
     [audioUploadProgress, setAudioUploadProgress] = useState<number | null>(null),
     [audioUploadPhase, setAudioUploadPhase] = useState<"idle" | "uploading" | "processing">("idle"),
     [audioUploadingName, setAudioUploadingName] = useState(""),
+    [photoUploadProgress,setPhotoUploadProgress] = useState<number|null>(null),
+    [photoUploadPhase,setPhotoUploadPhase] = useState<"idle"|"uploading"|"processing">("idle"),
+    [photoUploadingName,setPhotoUploadingName] = useState(""),
+    [photoSize,setPhotoSize] = useState({width:1,height:1}),
     [error, setError] = useState(""),
     [reviewCard, setReviewCard] = useState<"preview"|"details">("preview"),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
-    [cropZoom,setCropZoom] = useState(1),
     [cropX,setCropX] = useState(50),
     [cropY,setCropY] = useState(50),
     [cropPending,setCropPending] = useState(false),
     [rotation,setRotation] = useState(0),
     [flipped,setFlipped] = useState(false),
-    [editTool,setEditTool] = useState<"crop"|"adjust">("crop"),
     [customWidth,setCustomWidth] = useState(1080),
     [customHeight,setCustomHeight] = useState(1920),
     [lockRatio,setLockRatio] = useState(true),
-    [brightness,setBrightness] = useState(100),
-    [contrast,setContrast] = useState(100);
+    [imageReady,setImageReady] = useState(false);
   const cropDrag=useRef<{x:number;y:number;startX:number;startY:number}|null>(null);
-  const cropReset=()=>{setCropZoom(1);setCropX(50);setCropY(50);setRotation(0);setFlipped(false);setBrightness(100);setContrast(100);setEditTool("crop");};
+  const cropReset=()=>{setCropX(50);setCropY(50);setRotation(0);setFlipped(false);};
   const customMode=draft.formatMode==="auto";
   const frameWidth=customMode?customWidth:(draft.outputFormat==="9:16"?1080:1920);
   const frameHeight=customMode?customHeight:(draft.outputFormat==="9:16"?1920:1080);
   const frameValid=Number.isInteger(frameWidth)&&Number.isInteger(frameHeight)&&frameWidth>=256&&frameHeight>=256&&frameWidth<=4096&&frameHeight<=4096&&frameWidth*frameHeight<=16777216;
+  const rotatedImageWidth=rotation%180?photoSize.height:photoSize.width;
+  const rotatedImageHeight=rotation%180?photoSize.width:photoSize.height;
+  const coverScale=Math.max(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight));
+  const previewImageWidth=photoSize.width*coverScale*100;
+  const previewImageHeight=photoSize.height*coverScale*frameWidth/frameHeight*100;
+  const cropExcessX=rotatedImageWidth*coverScale-1;
+  const cropExcessY=rotatedImageHeight*coverScale*frameWidth/frameHeight-1;
+  const cropOffsetX=(0.5-cropX/100)*cropExcessX*100;
+  const cropOffsetY=(0.5-cropY/100)*cropExcessY*100;
   function setCustomDimension(axis:"width"|"height",raw:number) {
     const value=Math.round(raw);
     if(!Number.isFinite(value))return;
