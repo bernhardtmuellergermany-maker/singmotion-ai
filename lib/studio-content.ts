@@ -1,6 +1,10 @@
 export type StudioTemplate = { label: string; prompt: string };
 export type StudioContent = {
   intro: string;
+  heroHeading: string;
+  heroSubtitle: string;
+  heroImageUrl: string | null;
+  heroImageAlt: string;
   performanceTemplates: StudioTemplate[];
   cameraTemplates: StudioTemplate[];
 };
@@ -23,6 +27,10 @@ export function validTemplates(value: unknown): value is StudioTemplate[] {
 }
 export const defaultStudioContent: StudioContent = {
   intro: "Upload an audio file and choose your moment.",
+  heroHeading: "Studio",
+  heroSubtitle: "Create your AI music video",
+  heroImageUrl: null,
+  heroImageAlt: "Studio artwork",
   performanceTemplates: [
     {
       label: "Natural singing",
