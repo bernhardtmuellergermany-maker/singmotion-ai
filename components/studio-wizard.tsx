@@ -63,6 +63,8 @@ const sourceTimestamp = (seconds: number) => {
   return `${String(min).padStart(2,"0")}:${String(sec).padStart(2,"0")}.${milli}`;
 };
 const steps = productCopy.en.steps;
+// Reserved for a possible future Pro tier; leave existing timeline and camera editor intact.
+const advancedPerformanceToolsEnabled = false;
 const initial = {
   song: null as Asset | null,
   imageId: "",
@@ -657,7 +659,7 @@ export function StudioWizard({
                 </button>)}
             </div>
           </div>
-          <details className="sm-performance-advanced">
+          {advancedPerformanceToolsEnabled && <details className="sm-performance-advanced">
             <summary><ChevronDown size={16}/> Advanced: timeline and camera movements</summary>
             <div className="sm-performance-advanced-content">
               <PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start}
@@ -675,7 +677,7 @@ export function StudioWizard({
                 </details>
               </div>
             </div>
-          </details>
+          </details>}
         </section>}
         {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
           <div className="sm-carousel-stage sm-review-stage"
