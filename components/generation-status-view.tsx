@@ -3,7 +3,7 @@ import {useState} from "react";
 import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck} from "lucide-react";
 import "./generation-status-view.css";
 
-export type GenerationProgress = "verifying-payment"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
+export type GenerationProgress = "verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
   progress,paymentMode,amount,providerSeconds,photoUrl,format,videoUrl,downloadUrl,note,
 }:{
@@ -19,14 +19,14 @@ export function GenerationStatusView({
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
   const admin=paymentMode==="super-admin";
-  const paymentConfirmed=admin?progress!=="unavailable":!["verifying-payment","unavailable"].includes(progress);
+  const paymentConfirmed=admin?!["unavailable","prepared"].includes(progress):!["verifying-payment","unavailable"].includes(progress);
   const working=progress==="processing";
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
   const failed=progress==="failed";
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
-    {title:admin?"Super Admin authorized":"Payment confirmed",description:admin?"Private generation · no Stripe checkout":"Secure payment verified by Stripe",state:paymentConfirmed?"done" as const:"active" as const},
+    {title:admin?"Super Admin authorized":"Payment confirmed",description:admin?"Private generation · no Stripe checkout":"Secure payment verified by Stripe",state:paymentConfirmed?"done" as const:admin?"pending" as const:"active" as const},
     {title:"Video generation",description:"Singing, expressions and camera direction",state:ready?"done" as const:working?"active" as const:"pending" as const},
     {title:"Final render & verification",description:"Private output retrieval and technical validation",state:ready?"done" as const:"pending" as const},
     {title:"Ready to download",description:"Your private MP4 is ready",state:ready?"done" as const:"pending" as const},
@@ -34,11 +34,12 @@ export function GenerationStatusView({
   // Provider processing stages cannot be measured as percentages. Never
   // display an invented completion percentage or estimated completion time.
   const label=ready?"Your video is ready":failed?"Generation needs attention":review?"Your video is under review":
-    progress==="verifying-payment"?"Verifying your payment…":progress==="queued"?"Your video is queued":
+    progress==="verifying-payment"?"Verifying your payment…":progress==="prepared"?"Ready for operator approval":progress==="queued"?"Your video is queued":
     working?"Generating your video":"Checking your video status";
   const detail=ready?"Watch your finished video and download the private MP4.":
     failed||review?"Our team needs to review this generation. Do not pay again or resubmit the same recording.":
     progress==="verifying-payment"?"Waiting for the secure Stripe confirmation. No new order will be created.":
+     progress==="prepared"?"Your project is prepared but has not been sent to BytePlus. Return to the private operator review for explicit approval.":
     progress==="queued"?"Your request is waiting for processing. You can safely leave this page.":
     working?"Your music video is being created. This can take several minutes.":
     "Your existing project is being checked. Refreshing the page never starts another generation.";
@@ -65,7 +66,7 @@ export function GenerationStatusView({
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
-              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"BytePlus is processing your video":progress==="queued"?"Waiting for generation":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
+              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"BytePlus is processing your video":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
           <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
