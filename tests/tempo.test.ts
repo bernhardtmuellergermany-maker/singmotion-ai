@@ -237,6 +237,17 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
     tempoAuthorization(root, store, { ...selection, owner: "other" }, owner),
     /ownership/,
   );
+  // The original owner-only authorization must reject a swapped image/audio
+  // role even when both asset identifiers exist in the same workspace.
+  await assert.rejects(
+    tempoAuthorization(root, store, { ...selection, songId: "image" }, owner),
+    /song and one reference image/,
+  );
+  await assert.rejects(
+    tempoAuthorization(root, store, { ...selection, imageId: "song" }, owner),
+    /song and one reference image/,
+  );
+
   await assert.rejects(
     tempoAuthorization(root, store, { ...selection, owner: "other" }, "other"),
   );
