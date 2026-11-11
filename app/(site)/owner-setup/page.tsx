@@ -17,17 +17,14 @@ export default function Page(){
       const data=await response.json();
       if(!response.ok)throw new Error(data.error||"Setup is unavailable.");
       setDone(true);setPassword("");setSetupToken("");
-      setMessage("Super-Admin-Konto erfolgreich angelegt. Jetzt anmelden.");
+      setMessage("Super-Admin-Zugang ist bereit. Jetzt im CMS anmelden.");
     }catch(error){setMessage(error instanceof Error?error.message:"Einrichtung fehlgeschlagen.");}
     finally{setBusy(false);}
   }
   return <main style={{maxWidth:520,margin:"3rem auto",padding:"1.5rem"}}>
-    <h1>SingMotion AI – Super Admin einrichten</h1>
-    <p>Diese einmalige Einrichtung ist nur in der geschützten Production-Umgebung
-      möglich, solange noch kein Mitarbeiterkonto existiert. Das Staging-Passwort
-      schützt die Website; der zusätzliche Einrichtungs-Code steht ausschließlich
-      in den privaten Railway-Variablen.</p>
-    {done?<Link href="/operator-signin">Zur Super-Admin-Anmeldung</Link>:
+    <h1>SingMotion AI – CMS-Adminzugang einrichten oder wiederherstellen</h1>
+    <p>Diese geschützte Funktion kann einen ersten CMS-Administrator anlegen oder den Zugang zum einzigen bestehenden Super-Admin wiederherstellen. Nutze die E-Mail-Adresse des vorhandenen CMS-Administrators und den einmaligen Code <code>CMS_OWNER_SETUP_TOKEN</code> aus Railway → jeweilige Umgebung → singmotion-ai → Variables. Der Code ist für Staging und Production unterschiedlich. Deine Medien und CMS-Inhalte bleiben erhalten.</p>
+    {done?<Link href="/admin">Zum CMS-Login</Link>:
     <form onSubmit={create} style={{display:"grid",gap:"1rem"}}>
       <label>Admin-E-Mail<input type="email" autoComplete="email" required
         value={email} onChange={e=>setEmail(e.target.value)}/></label>
@@ -37,7 +34,7 @@ export default function Page(){
       <label>Einmaliger Einrichtungscode aus Railway<input
         type="password" autoComplete="off" required value={setupToken}
         onChange={e=>setSetupToken(e.target.value)}/></label>
-      <button type="submit" disabled={busy}>{busy?"Prüfe…":"Super Admin einmalig erstellen"}</button>
+      <button type="submit" disabled={busy}>{busy?"Prüfe…":"Adminzugang einrichten / wiederherstellen"}</button>
     </form>}
     {message&&<p role="status">{message}</p>}
   </main>;
