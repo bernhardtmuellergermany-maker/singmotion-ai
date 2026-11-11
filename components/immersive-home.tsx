@@ -468,7 +468,7 @@ export function ImmersiveHome(){
    <DesktopShowcaseCarousel clips={desktopClips}/>
    <section id="how-it-works" className="sm-immersive-steps" aria-labelledby="sm-how-title">
     <h2 id="sm-how-title">How it <span>works</span></h2>
-    <p>Create your own AI music video in four simple steps — from uploading your song and photo to bringing your performance to life.</p>
+    <p>In just a few steps to your own music video. Upload your song and photo, choose a performance style, and create with SingMotion AI.</p>
     <ol>
      <li><Music2 aria-hidden="true"/><strong>1. Upload your audio</strong><span>Add your song or choose from your library.</span></li>
      <li><ImagePlus aria-hidden="true"/><strong>2. Upload a photo</strong><span>Add a photo of yourself or your artist.</span></li>
