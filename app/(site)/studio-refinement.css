@@ -1695,3 +1695,16 @@
     margin-right:auto!important;
   }
 }
+
+/* Center Studio step kicker, title, and description across all mobile steps. */
+@media (max-width:700px) {
+  .product-theme.singmotion-flow .flow-main > .sm-new-page-heading {
+    align-self:center!important;width:100%!important;max-width:100%!important;
+    text-align:center!important;margin-left:auto!important;margin-right:auto!important;
+  }
+  .product-theme.singmotion-flow .sm-new-page-heading > span,
+  .product-theme.singmotion-flow .sm-new-page-heading > h1,
+  .product-theme.singmotion-flow .sm-new-page-heading > p {
+    display:block;width:100%;text-align:center!important;text-wrap:balance;
+  }
+}
