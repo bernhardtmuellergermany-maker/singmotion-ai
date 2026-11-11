@@ -156,3 +156,12 @@ test("new landscape upload selects 16:9 automatically; a portrait selects 9:16",
   assert.deepEqual(uploadedPhotoFraming(1280,720),{outputFormat:"16:9",formatMode:"16:9"});
   assert.deepEqual(uploadedPhotoFraming(720,1280),{outputFormat:"9:16",formatMode:"9:16"});
 });
+
+test("review and provider can share the exact 16:9 prompt without overriding artist instructions", () => {
+  const text = "looking angry and walk forward";
+  const result = composePrompt("Custom", "Static camera", text, "16:9");
+  assert.ok(result.startsWith("Performance direction (priority): " + text));
+  assert.ok(result.includes("full wide horizontal 16:9 composition"));
+  assert.ok(result.includes("Do not reframe into a vertical portrait"));
+  assert.ok(!composePrompt("Custom", "Static camera", text, "9:16").includes("wide horizontal"));
+});
