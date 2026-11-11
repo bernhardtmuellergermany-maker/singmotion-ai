@@ -1579,3 +1579,75 @@
    text-align:center!important;
  }
 }
+
+
+/* Inline time editor: stays inside the Waveform card and scrolls with its content. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor{
+  position:relative!important;inset:auto!important;transform:none!important;
+  box-sizing:border-box;display:flex;align-items:center;justify-content:center;
+  flex-wrap:wrap;gap:8px;width:100%;max-width:100%;min-width:0;
+  padding:12px;margin:14px 0 5px;
+  border:1px solid #9360cb;border-radius:13px;
+  color:#f9f3ff;background:linear-gradient(130deg,#342647,#211d37);
+  box-shadow:0 6px 18px #0004;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-editor-label{
+  color:#d5bbf3;font-size:13px;font-weight:650;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor input{
+  box-sizing:border-box;flex:0 1 120px;min-width:0;max-width:120px;
+  width:100%;height:40px;padding:5px 9px;
+  background:#16182d;color:#fff;border:1px solid #755d9a;
+  border-radius:8px;font:inherit;font-size:16px;font-variant-numeric:tabular-nums;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor input[aria-invalid="true"]{border-color:#fc8aac}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor button{
+  display:grid;place-items:center;box-sizing:border-box;flex:0 0 auto;
+  min-width:40px;min-height:40px;padding:6px 10px;
+  border:1px solid #68527d;background:#3b2c54;color:#fff;
+  border-radius:9px;cursor:pointer;font-size:13px;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor .studio-wave-time-done{
+  padding-inline:14px;background:#8131c6;border-color:#af5cf0;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-error{
+  flex-basis:100%;text-align:center;font-size:12px;line-height:1.5;color:#ffacc6;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor button:focus-visible,
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor input:focus-visible{
+  outline:2px solid #e1b6ff;outline-offset:2px;
+}
+
+/* Reduce the excessive cumulative bottom clearance while preserving room above navigation. */
+.singmotion-flow .flow-main>.sm-studio-scroll-spacer{
+  flex:0 0 95px!important;
+  min-height:95px!important;
+  height:95px!important;
+}
+@media(max-width:700px){
+ .singmotion-flow .flow-main,
+ .singmotion-flow .flow-main:has(.sm-studio-original-composer),
+ .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+   padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))!important;
+ }
+ .singmotion-flow .flow-main>.sm-studio-scroll-spacer{
+   flex:0 0 95px!important;
+   min-height:95px!important;
+   height:95px!important;
+ }
+ .singmotion-flow .flow-main:has(>.sm-new-audio-workspace)::after{
+   display:none!important;content:none!important;
+ }
+ .singmotion-flow .sm-new-audio-workspace{
+   padding-bottom:14px!important;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor{
+   margin-top:12px;padding:9px;gap:6px;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor input{
+   flex:1 1 94px;max-width:120px;min-width:88px;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-wave-time-editor button{
+   min-width:37px;min-height:40px;
+ }
+}
