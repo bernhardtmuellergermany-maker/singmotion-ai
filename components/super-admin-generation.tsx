@@ -43,7 +43,7 @@ export function SuperAdminGeneration({id}:{id:string}){
  // The polling endpoint persists fixed-format provider read diagnostics while
  // preserving the original paid task. Never display a generic "Generating"
  // animation when the most recent status check actually failed.
- const pollDiagnostic=project?.stage?.match(/^\\[([A-Z][A-Z0-9_]{2,79})\\]/)?.[1];
+ const pollDiagnostic=project?.stage?.match(/^\[([A-Z][A-Z0-9_]{2,79})\]/)?.[1];
  let progress:GenerationProgress="unavailable";
  if(project){
    progress=project.outputReady?"ready":project.state==="failed"?"failed":
