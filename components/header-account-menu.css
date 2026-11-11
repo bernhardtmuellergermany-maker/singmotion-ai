@@ -80,3 +80,50 @@
   outline:2px solid #bca0fb!important;
   outline-offset:3px!important;
 }
+
+
+/* Shared header icon geometry. Home, Studio and every SiteHeader route use
+   one identical circular outline for More and Account. */
+.sm-site-header .sm-header-actions > .sm-global-menu {
+  position:relative;
+  flex:0 0 44px;
+  width:44px;
+  height:44px;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary {
+  box-sizing:border-box;
+  display:grid;
+  place-items:center;
+  width:44px;
+  height:44px;
+  min-width:44px;
+  min-height:44px;
+  padding:0;
+  margin:0;
+  border:1px solid #55506e;
+  border-radius:50%;
+  background:transparent;
+  color:#f7f3ff;
+  cursor:pointer;
+  list-style:none;
+  appearance:none;
+  -webkit-appearance:none;
+  transition:border-color .16s ease,background-color .16s ease;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary::-webkit-details-marker {display:none}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary:hover,
+.sm-site-header .sm-header-actions > .sm-global-menu[open] > summary {
+  border-color:#a783e1;
+  background:#29203d;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary:focus-visible {
+  outline:2px solid #d8b2ff;
+  outline-offset:3px;
+}
+@media(max-width:650px){
+  .sm-site-header .sm-header-actions > .sm-global-menu{
+    flex-basis:44px;
+    width:44px;
+    height:44px;
+  }
+}
