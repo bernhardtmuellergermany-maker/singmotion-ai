@@ -320,6 +320,7 @@ export function StudioWizard({
     if (!file || busy || !ready) return;
     setBusy(true);
     setError("");
+    if (kind === "image") {setPhotoUploadingName(file.name);setPhotoUploadProgress(0);setPhotoUploadPhase("uploading");}
     if (kind === "audio") {
       setAudioUploadingName(file.name);
       setAudioUploadProgress(0);
@@ -332,7 +333,10 @@ export function StudioWizard({
             setAudioUploadProgress(percent);
             if (percent === 100) setAudioUploadPhase("processing");
           })
-        : await upload(file, kind);
+        : await uploadWithProgress(file,kind,percent=>{
+            setPhotoUploadProgress(percent);
+            if(percent===100)setPhotoUploadPhase("processing");
+          });
       if (kind === "audio")
         update({
           song: asset,
@@ -342,7 +346,7 @@ export function StudioWizard({
       else {
         const detected = photoFormat(asset.width, asset.height);
         setDetectedFormat(detected);
-        cropReset();setCropPending(true);
+        cropReset();setPhotoSize({width:asset.width||1,height:asset.height||1});setImageReady(false);setCropPending(true);
         update({
           imageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
@@ -354,6 +358,7 @@ export function StudioWizard({
     } finally {
       setBusy(false);
       if (kind === "audio") { setAudioUploadPhase("idle"); setAudioUploadProgress(null); setAudioUploadingName(""); }
+      else {setPhotoUploadPhase("idle");setPhotoUploadProgress(null);setPhotoUploadingName("");}
     }
   }
   async function applyPhotoFraming() {
@@ -371,17 +376,16 @@ export function StudioWizard({
         const rotated=rotation%180!==0;
         const sourceW=rotated?bitmap.height:bitmap.width;
         const sourceH=rotated?bitmap.width:bitmap.height;
-        const scale=Math.max(width/sourceW,height/sourceH)*cropZoom;
+        const scale=Math.max(width/sourceW,height/sourceH);
         const translatedX=(0.5-cropX/100)*(sourceW*scale-width);
         const translatedY=(0.5-cropY/100)*(sourceH*scale-height);
         ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
         ctx.scale(flipped?-1:1,1);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);
-        ctx.filter="brightness("+brightness+"%) contrast("+contrast+"%)";
         ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);ctx.restore();
         const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Could not save crop.")),"image/png"));
         const asset=await upload(new File([blob],"artist-framed.png",{type:"image/png"}),"image");
         update({imageId:asset.id,outputFormat:width>=height?"16:9":"9:16"});
-        cropReset();setCropPending(false);
+        cropReset();setPhotoSize({width,height});setImageReady(false);setCropPending(false);
       } finally {bitmap.close();}
     } catch(e){setError((e as Error).message);}
     finally{setBusy(false);}
