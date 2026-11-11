@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, RotateCcw, Minus, Plus, Trash2, Music2 } from "lucide-react";
+import { Play, Pause, Square, RotateCcw, Minus, Plus, Trash2, Music2 } from "lucide-react";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -145,6 +145,17 @@ export default function Waveform({
     setPosition(a.currentTime);
     startPlayback(a);
   }
+  function stop() {
+    const a = audio.current;
+    if (!a) return;
+    ++playRequest.current;
+    a.pause();
+    a.currentTime = start;
+    segment.current = false;
+    setPosition(start);
+    setPlaying(false);
+    setError("");
+  }
   function replay() {
     const a = audio.current;
     if (!a) return;
@@ -192,6 +203,7 @@ export default function Waveform({
           <div className="studio-wave-filename"><Music2 size={18} aria-hidden="true"/><div className="studio-wave-file-text"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div></div>
           <div className="studio-wave-actions studio-unified-actions">
             <button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
+            <button type="button" className="studio-wave-play" onClick={stop} aria-label="Stop playback" title="Stop audio"><Square size={16}/></button>
             <button type="button" className="studio-wave-play" onClick={replay} aria-label="Replay selected audio from start" title="Replay selected audio"><RotateCcw size={18}/></button>
             {(["start","end"] as const).map(which => (
               <div key={which} className={"studio-inline-time "+(editingTime===which?"is-editing":"")}>
