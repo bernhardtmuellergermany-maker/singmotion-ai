@@ -11,6 +11,9 @@ import {
   Smartphone,
   Monitor,
   Sparkles,
+  Heart,
+  Clapperboard,
+  Video,
   Plus,
   X,
   House,
@@ -620,27 +623,59 @@ export function StudioWizard({
           </div>
           <p className="sm-photo-step-tip"><ShieldCheck size={17}/> BytePlus video export: 720p (720 × 1280 portrait or 1280 × 720 landscape). Custom dimensions affect the reference photo only.</p>
         </section>}
-        {step===2&&<section className="sm-performance-prompt-step" aria-label="Performance and camera settings">
-          <PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start}
-            audioUrl={draft.song?`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined}
-            sections={timeline} onChange={updateTimeline}/>
-          <div className="flow-settings-group" role="group" aria-label="Camera movement">
-            <details className="flow-camera-menu">
-              <summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown className="flow-chevron" size={16}/></summary>
-              <div className="flow-camera-options" role="group" aria-label="Camera movements">
-                {cameraOptions.map(option=><button type="button" key={option} className={option===draft.camera?"is-active":""}
-                  onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}}
-                  title={cameraHelp[option as keyof typeof cameraHelp]||option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp]||""}</small>
+        {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
+          <div className="sm-performance-editor">
+            <label className="sr-only" htmlFor="flow-performance-prompt">Describe your artist's movement, emotion, and camera style</label>
+            <textarea ref={performanceInput} id="flow-performance-prompt" className="sm-performance-textarea" maxLength={500} rows={4}
+              placeholder="Singing passionately on stage, natural hand movements, strong eye contact with the camera, energetic and emotional."
+              value={draft.customPrompt}
+              onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/>
+            <div className="sm-performance-editor-footer">
+              <span><Sparkles size={17}/> AI Prompt</span>
+              <span className="sm-performance-counter" aria-live="polite">{draft.customPrompt.length} / 500</span>
+            </div>
+          </div>
+          <div className="sm-performance-ideas">
+            <h2>Quick ideas</h2>
+            <div className="sm-performance-chips" role="group" aria-label="Add performance ideas">
+              {([
+                {label:"On stage",prompt:"Performing live on stage under atmospheric concert lights.",icon:Clapperboard},
+                {label:"Emotional",prompt:"Expressive eyes, heartfelt emotion, and natural hand gestures.",icon:Heart},
+                {label:"Close-up",prompt:"Intimate close-up camera framing with steady eye contact.",icon:Video},
+                {label:"Slow push-in",prompt:"A gentle cinematic camera push-in towards the singer.",icon:Camera},
+                {label:"Energetic",prompt:"Confident, energetic singing with subtle rhythmic movements.",icon:Sparkles},
+              ] as const).map(idea=><button type="button" key={idea.label} onClick={()=>{
+                  const current=draft.customPrompt.trim();
+                  if(current.toLowerCase().includes(idea.prompt.toLowerCase()))return;
+                  const addition=current?(current.endsWith(".")?" ":"; "):"";
+                  const result=current+addition+idea.prompt;
+                  if(result.length>500){setError("Your prompt can contain up to 500 characters.");return;}
+                  update({customPrompt:result,performance:"Custom"});
+                  performanceInput.current?.focus();
+                }}>
+                  <idea.icon size={19}/><span>{idea.label}</span>
                 </button>)}
+            </div>
+          </div>
+          <details className="sm-performance-advanced">
+            <summary><ChevronDown size={16}/> Advanced: timeline and camera movements</summary>
+            <div className="sm-performance-advanced-content">
+              <PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start}
+                audioUrl={draft.song?`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined}
+                sections={timeline} onChange={updateTimeline}/>
+              <div className="flow-settings-group" role="group" aria-label="Camera movement">
+                <details className="flow-camera-menu">
+                  <summary aria-label="Add camera movement"><Camera size={16}/><span>Add camera</span><ChevronDown className="flow-chevron" size={16}/></summary>
+                  <div className="flow-camera-options" role="group" aria-label="Camera movements">
+                    {cameraOptions.map(option=><button type="button" key={option} className={option===draft.camera?"is-active":""}
+                      onClick={e=>{update({camera:option});e.currentTarget.closest("details")!.open=false;}}
+                      title={cameraHelp[option as keyof typeof cameraHelp]||option}>{option}<small>{cameraHelp[option as keyof typeof cameraHelp]||""}</small>
+                    </button>)}
+                  </div>
+                </details>
               </div>
-            </details>
-          </div>
-          <div className="flow-prompt-wrap">
-            <label className="flow-composer-label" htmlFor="flow-performance-prompt">Describe your performance (optional)</label>
-            <textarea ref={performanceInput} id="flow-performance-prompt" className="flow-prompt" maxLength={1000} rows={3}
-              placeholder="e.g. Singing with emotion, subtle movements, warm stage lighting…"
-              value={draft.customPrompt} onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/>
-          </div>
+            </div>
+          </details>
         </section>}
         {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
           <div className="sm-carousel-stage sm-review-stage"
