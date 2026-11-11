@@ -1,6 +1,13 @@
 export type StudioTemplate = { label: string; prompt: string };
 export type StudioContent = {
   intro: string;
+  headerImageUrl: string | null;
+  headerImageAlt: string;
+  headerEyebrow: string;
+  headerHeadline: string;
+  headerSubtitle: string;
+  audioReadyHeadline: string;
+  audioReadySubtitle: string;
   heroHeading: string;
   heroSubtitle: string;
   heroImageUrl: string | null;
@@ -27,6 +34,13 @@ export function validTemplates(value: unknown): value is StudioTemplate[] {
 }
 export const defaultStudioContent: StudioContent = {
   intro: "Upload an audio file and choose your moment.",
+  headerImageUrl: null,
+  headerImageAlt: "SingMotion AI studio",
+  headerEyebrow: "YOUR MUSIC. YOUR MOMENT.",
+  headerHeadline: "Create your music video",
+  headerSubtitle: "Turn your music and artist photo into a performance.",
+  audioReadyHeadline: "Edit your audio",
+  audioReadySubtitle: "Select the perfect moment for your music video.",
   heroHeading: "Studio",
   heroSubtitle: "Create your AI music video",
   heroImageUrl: null,
