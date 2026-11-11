@@ -16,18 +16,18 @@ export function superAdminRuntimeBootstrapPolicy(): StudioPolicy {
     outputEvidence:
       "Experimental private Super Admin discovery: output URL only from authenticated signed BytePlus task status; public-DNS-pinned TLS with redirects blocked. Inspect actual downloaded MP4 for 720p, supported codec, AAC and FPS. No guaranteed vendor output shape assumed.",
     contract: {
-      revision: "super-admin-runtime-bootstrap-v1",
+      revision: "super-admin-runtime-bootstrap-tempo-v2",
       model: "OmniHuman 2.0",
       documentationUrl: "https://docs.byteplus.com/",
-      maxDurationSeconds: 5,
+      maxDurationSeconds: 6,
       promptSupported: true,
       inputFetchWindowSeconds: 44100,
       generatedDurationBound: {
         minInputSeconds: 4,
-        maxInputSeconds: 5,
+        maxInputSeconds: 6,
         maxAdditionalSeconds: 1,
         evidence:
-          "Experimental operator admission for initial 4-5s inputs only. Assume up to 6s generated while actual billed length may differ; do not treat this as verified vendor bound.",
+          "Experimental operator admission for 4-6s encoded provider inputs, including a 5s selected excerpt stretched to about 5.56s by the pitch-preserving 0.9 tempo option. Assume up to 7s generated for planning only; actual billed length may differ.",
       },
       billing: {
         microUsdPerSecond: 70000,
@@ -46,11 +46,12 @@ export function superAdminRuntimeBootstrapPolicy(): StudioPolicy {
           hostEvidence:
             "Signed BytePlus task-status video_url plus DNS pinning, public address and TLS validation; no manually pre-approved hostname.",
         },
-        inclusiveMaxMicroUsd: 499800,
+        inclusiveMaxMicroUsd: 583100,
         planningUpliftBasisPoints: 1900,
-        maxGeneratedSeconds: 6,
+        maxGeneratedSeconds: 7,
+        durationEvidence: "A 5.000s customer-selected clip becomes about 5.556s provider input at atempo=0.9. This is a local measured encoding relationship, not BytePlus evidence or a guaranteed generated-duration bound; experimental Super Admin accepts unknown billing/duration on each task.",
         evidence:
-          "Experimental initial short-clip planning reservation USD 0.4998 (6s * USD 0.07 * 1.19); not an invoice guarantee.",
+          "Experimental initial short-clip planning reservation USD 0.5831 (7s * USD 0.07 * 1.19) for a potential tempo-extended provider input; not an invoice guarantee and requires explicit per-task operator consent.",
       },
       output: {
         width: 720,
@@ -59,7 +60,7 @@ export function superAdminRuntimeBootstrapPolicy(): StudioPolicy {
         videoCodec: "h264",
         audioCodec: "aac",
         durationToleranceSeconds: 1,
-        maxDurationSeconds: 6,
+        maxDurationSeconds: 7,
         transfer: {
           maxBytes: 100 * 1024 * 1024,
           timeoutMs: 120000,
