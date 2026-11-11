@@ -1016,3 +1016,15 @@
   filter:none!important;
  }
 }
+
+/* Phase 1 refinements: stable desktop/mobile behavior and closer final CTA. */
+@media(min-width:761px){
+ .sm-immersive-home .sm-mobile-refresh-indicator{display:none!important}
+ .sm-immersive-home .sm-immersive-featured-backdrop .sm-immersive-final{justify-content:center!important;gap:clamp(16px,2.4vw,36px)!important}
+ .sm-immersive-home .sm-immersive-final h2{max-width:510px}
+}
+.sm-immersive-home .sm-desktop-portrait-card{position:relative;background:#100d20;isolation:isolate}
+.sm-immersive-home .sm-desktop-portrait-poster{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#100d20;z-index:0}
+.sm-immersive-home .sm-desktop-portrait-card video.sm-desktop-portrait-video{position:absolute;inset:0;opacity:0;transition:opacity .42s ease;z-index:1}
+.sm-immersive-home .sm-desktop-portrait-card video.sm-desktop-portrait-video.is-ready{opacity:1}
+@media(prefers-reduced-motion:reduce){.sm-immersive-home .sm-desktop-portrait-card video.sm-desktop-portrait-video{transition:none}}
