@@ -31,6 +31,8 @@ export async function studioContent(): Promise<StudioContent> {
       heroSubtitle: hero.heroSubtitle?.trim() || defaultStudioContent.heroSubtitle,
       heroImageUrl: imageUrl,
       heroImageAlt: image?.alt || defaultStudioContent.heroImageAlt,
+      audioReadyHeadline: typeof (content as unknown as {audioReadyHeadline?:unknown}).audioReadyHeadline === "string" && (content as unknown as {audioReadyHeadline:string}).audioReadyHeadline.trim() ? (content as unknown as {audioReadyHeadline:string}).audioReadyHeadline.trim() : defaultStudioContent.audioReadyHeadline,
+      audioReadySubtitle: typeof (content as unknown as {audioReadySubtitle?:unknown}).audioReadySubtitle === "string" && (content as unknown as {audioReadySubtitle:string}).audioReadySubtitle.trim() ? (content as unknown as {audioReadySubtitle:string}).audioReadySubtitle.trim() : defaultStudioContent.audioReadySubtitle,
       performanceTemplates: validTemplates(content.performanceTemplates)
         ? content.performanceTemplates
         : defaultStudioContent.performanceTemplates,
