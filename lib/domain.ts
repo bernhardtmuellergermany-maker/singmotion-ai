@@ -169,7 +169,9 @@ export function composePrompt(
   const performanceDirection = performance === "Custom"
     ? "Natural singing performance."
     : `${performance} singing performance.`;
-  const cameraDirection = cameraPrompt[camera] ?? `Camera direction: ${camera}. Keep the singer clearly visible.`;
+  // A camera Quick Idea is visible in the customer prompt and overrides the saved default camera.
+  const hasExplicitCamera = /^Camera:\s*\S/im.test(custom);
+  const cameraDirection = hasExplicitCamera ? "" : (cameraPrompt[camera] ?? `Camera direction: ${camera}. Keep the singer clearly visible.`);
   const customDirection = custom.trim() ? ` Additional performance direction: ${custom.trim()}.` : "";
   const result = `${performanceDirection} ${cameraDirection} Keep facial identity, lip synchronization, and background consistent.${customDirection}`;
   if (result.length > 1500)
