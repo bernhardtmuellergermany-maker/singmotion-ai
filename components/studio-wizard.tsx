@@ -21,6 +21,10 @@ import {
   Play,
   Trash2,
   FileMusic,
+  CloudUpload,
+  RefreshCcw,
+  Check,
+  ShieldCheck,
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
@@ -74,6 +78,7 @@ export function StudioWizard({
   const firstDraftSave = useRef(true);
   const deletingDraft = useRef(false);
   const performanceInput = useRef<HTMLTextAreaElement>(null);
+  const audioFileInput = useRef<HTMLInputElement>(null);
   const reviewTouch = useRef<{x:number;y:number}|null>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
@@ -126,7 +131,7 @@ export function StudioWizard({
           });
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
-          setStep(Math.max(0, Math.min(3, saved.step)));
+          setStep(saved.step === 1 ? 2 : saved.step === 2 ? 1 : Math.max(0, Math.min(3, saved.step)));
           try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
           setDetectedFormat(
             photoFormat(
@@ -375,15 +380,44 @@ export function StudioWizard({
         </div>
       }/>
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
+        <div className="sm-new-stepper" aria-label="Video creation progress">
+          {["Audio Upload", "Photo Upload", "Performance Prompt", "Generate Video"].map((label,index)=>(
+            <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
+              <span className="sm-new-step-dot">{index<step?<Check size={21}/>:index+1}</span>
+              <span className="sm-new-step-label">{label}</span>
+            </div>
+          ))}
+        </div>
+        <div className="sm-new-page-heading"><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{["Upload your audio","Upload your artist photo","Describe your performance","Generate your video"][step]}</h1><p>{["Upload the audio file you’ll use for the music video.","Choose an artist photo for your video.","Set how your artist moves and performs.","Review your creation before generating."][step]}</p></div>
         
-        {step===0&&<div className="flow-workspace sm-studio-audio-step"><div className="flow-workspace-media">
-          {!draft.song?<label className="flow-drop" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
-            <FileMusic className="flow-upload-symbol" size={47}/><strong>{busy?"Uploading your song…":"Upload audio"}</strong><span>Click to add your song</span><small>MP3, WAV, M4A · up to 50 MB</small>
-            <input type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"audio")}/>
-          </label>:<section className="flow-audio"><Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name} onRemove={()=>update({song:null})} removeDisabled={busy}/></section>}
-        </div></div>}
-        {step===1&&<PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start} audioUrl={draft.song?`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined} sections={timeline} onChange={updateTimeline}/>}
-        {step===2&&<section className="flow-composer sm-studio-original-composer" aria-label="Photo and video settings">
+        {step===0&&<div className="sm-new-audio-workspace">
+          <input ref={audioFileInput} className="sr-only" type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={!ready||busy} onChange={e=>{void add(e.target.files?.[0],"audio");e.currentTarget.value="";}}/>
+          {!draft.song?(
+            <button type="button" className="sm-new-upload-zone" disabled={!ready||busy} onClick={()=>audioFileInput.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
+              <span className="sm-new-upload-icon"><CloudUpload size={70}/><Music2 size={30}/></span>
+              <strong>{busy?"Uploading your song…":"Drop your audio here or tap to browse"}</strong>
+              <span>MP3, WAV, M4A · up to 50 MB</span>
+            </button>
+          ):(
+            <>
+              <div className="sm-new-file-card">
+                <span className="sm-new-file-icon"><Music2 size={27}/></span>
+                <div className="sm-new-file-info"><strong>{draft.song.name}</strong><span>{time(draft.song.duration||0)} · Selected clip {time(draft.start)}–{time(draft.end)} ({time(Math.max(0,draft.end-draft.start))})</span></div>
+                <details className="sm-new-file-menu"><summary aria-label="Audio options"><MoreVertical size={22}/></summary><div><button type="button" disabled={busy} onClick={()=>audioFileInput.current?.click()}>Replace audio</button><button type="button" disabled={busy} onClick={()=>update({song:null,start:0,end:10})}>Delete audio</button></div></details>
+              </div>
+              <div className="sm-new-wave-card">
+                <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name}/>
+              </div>
+              <div className="sm-new-audio-actions">
+                <button type="button" disabled={busy} onClick={()=>audioFileInput.current?.click()}><RefreshCcw size={19}/> Replace audio</button>
+                <button type="button" disabled={busy} onClick={()=>update({song:null,start:0,end:10})}><Trash2 size={19}/> Delete audio</button>
+              </div>
+            </>
+          )}
+          <p className="sm-new-private"><ShieldCheck size={17}/> Your audio stays private in your workspace.</p>
+        </div>}
+        {step===2&&<PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start} audioUrl={draft.song?`/api/assets/${draft.song.id}${/\\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`:undefined} sections={timeline} onChange={updateTimeline}/>}
+        {step===1&&<section className="flow-composer sm-studio-original-composer" aria-label="Photo and video settings">
           <div className="sm-photo-controls">
             <div className="flow-image-field" style={draft.imageId ? {aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"} : undefined}>{draft.imageId?<div className="flow-photo" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}><img alt={`Center-cropped ${draft.outputFormat} preview of the uploaded artist`} src={`/api/assets/${encodeURIComponent(draft.imageId)}`}/><button aria-label="Remove photo" onClick={()=>update({imageId:""})}><X size={12}/></button></div>:
               <label className="flow-photo-add" title="Upload artist photo"><ImagePlus size={23}/><span>Add image</span><input type="file" accept=".jpg,.jpeg,.png" aria-label="Choose artist photo" disabled={!ready||busy} onChange={e=>void add(e.target.files?.[0],"image")}/></label>}</div>
@@ -423,11 +457,10 @@ export function StudioWizard({
             </article>
           </div>
         </section>}
-        <nav className="sm-studio-navigation" aria-label="Studio steps">
-          {step>0&&<button className="sm-studio-back" type="button" onClick={()=>setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>}
-          {step<2&&(step!==0||Boolean(draft.song&&audioValid))&&<button type="button" className="sm-studio-next" disabled={busy} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
-          {step===2&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setStep(3)}>Review Project <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Review Order <ArrowRight size={19}/></button>}
+        <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
+          <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
+          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&!draft.imageId)} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
       </main>
