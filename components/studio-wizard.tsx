@@ -370,16 +370,15 @@ export function StudioWizard({
   };
   return (
     <div className="product-theme singmotion-flow">
-      <SiteHeader leftContent={
-        <div className="sm-studio-header-project" aria-label="Current Studio project">
+      <SiteHeader />
+      <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
+        <div className="sm-new-project-tools"><div className="sm-studio-header-project" aria-label="Current Studio project">
           <span className="sm-studio-rename-slot">
             <button className="flow-project-name" type="button" title="Click to rename" aria-hidden={editingName} tabIndex={editingName ? -1 : 0} style={editingName ? {visibility:"hidden"} : undefined} onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>
             {editingName && <input className="flow-project-input" aria-label="Project name" autoFocus value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") e.currentTarget.blur(); if(e.key==="Escape") setEditingName(false);}}/>}
           </span>
           <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button type="button" onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
-        </div>
-      }/>
-      <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
+        </div></div>
         <div className="sm-new-stepper" aria-label="Video creation progress">
           {["Audio Upload", "Photo Upload", "Performance Prompt", "Generate Video"].map((label,index)=>(
             <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
