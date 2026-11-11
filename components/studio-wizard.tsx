@@ -448,7 +448,7 @@ export function StudioWizard({
             <div className="sm-photo-preview-shell">
               <div className="sm-photo-preview-frame" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}>
                 <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo cropping preview"
-                  style={{objectPosition:cropX+"% "+cropY+"%",transform:"scale("+cropZoom+")"}}/>
+                  style={{objectPosition:cropX+"% "+cropY+"%",width:(cropZoom*100)+"%",height:(cropZoom*100)+"%",left:((1-cropZoom)*cropX)+"%",top:((1-cropZoom)*cropY)+"%"}}/>
               </div>
               <div className="sm-photo-preview-actions">
                 <span><Check size={17}/> {cropPending?"Adjust and apply framing":"Photo ready · "+draft.outputFormat}</span>
