@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ensureSession } from "@/lib/client";
+import { api, ensureSession, resetSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
 const usd = (n: number) => `USD ${(n / 1000000).toFixed(2)}`;
@@ -172,6 +172,10 @@ export function GenerationDialog({
       });
       form.reset();
       if (!response.ok) throw Error("Super-Admin-Anmeldung fehlgeschlagen.");
+      resetSession();
+      const workspace=await ensureSession() as {owner?:string};
+      if (!workspace.owner?.startsWith("cms-staff-"))
+        throw Error("Private Super-Admin-Sitzung konnte nicht eingerichtet werden.");
       const access = await api<{pilot?: boolean; superAdmin?: boolean; blockers?: string[]}>("studio-live");
       setSuperAdmin(access.superAdmin === true);
       setPilot(access.pilot === true);
