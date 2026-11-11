@@ -27,7 +27,7 @@ import {
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
 import { PerformanceTimeline, timelinePrompt, type PerformanceSection } from "./performance-timeline";
-import { api, ensureSession, upload } from "@/lib/client";
+import { api, ensureSession, upload, uploadWithProgress } from "@/lib/client";
 import {
   composePrompt,
   validateSelection,
@@ -88,6 +88,9 @@ export function StudioWizard({
     [owner, setOwner] = useState(""),
     [ready, setReady] = useState(false),
     [busy, setBusy] = useState(false),
+    [audioUploadProgress, setAudioUploadProgress] = useState<number | null>(null),
+    [audioUploadPhase, setAudioUploadPhase] = useState<"idle" | "uploading" | "processing">("idle"),
+    [audioUploadingName, setAudioUploadingName] = useState(""),
     [error, setError] = useState(""),
     [reviewCard, setReviewCard] = useState<"preview"|"details">("preview"),
     [confirm, setConfirm] = useState(false),
@@ -271,9 +274,19 @@ export function StudioWizard({
     if (!file || busy || !ready) return;
     setBusy(true);
     setError("");
+    if (kind === "audio") {
+      setAudioUploadingName(file.name);
+      setAudioUploadProgress(0);
+      setAudioUploadPhase("uploading");
+    }
     try {
       validateFile(file.name, file.size, kind);
-      const asset = await upload(file, kind);
+      const asset = kind === "audio"
+        ? await uploadWithProgress(file, kind, percent => {
+            setAudioUploadProgress(percent);
+            if (percent === 100) setAudioUploadPhase("processing");
+          })
+        : await upload(file, kind);
       if (kind === "audio")
         update({
           song: asset,
@@ -293,6 +306,7 @@ export function StudioWizard({
       setError((e as Error).message);
     } finally {
       setBusy(false);
+      if (kind === "audio") { setAudioUploadPhase("idle"); setAudioUploadProgress(null); setAudioUploadingName(""); }
     }
   }
   let audioValid = false,
@@ -355,8 +369,22 @@ export function StudioWizard({
           {!draft.song?(
             <button type="button" className="sm-new-upload-zone" disabled={!ready||busy} onClick={()=>audioFileInput.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files[0],"audio");}}>
               <span className="sm-new-upload-icon"><CloudUpload size={70}/><Music2 size={30}/></span>
-              <strong>{busy?"Uploading your song…":"Drop your audio here or tap to browse"}</strong>
-              <span>MP3, WAV, M4A · up to 50 MB</span>
+              <strong>{audioUploadPhase === "uploading" ? "Uploading your audio…" : audioUploadPhase === "processing" ? "Processing your audio…" : "Drop your audio here or tap to browse"}</strong>
+              {audioUploadPhase !== "idle" ? (
+                <div className="sm-audio-upload-feedback" role="status" aria-live="polite">
+                  <span className="sm-audio-upload-filename" title={audioUploadingName}>{audioUploadingName}</span>
+                  <div className="sm-audio-upload-progress" role="progressbar" aria-label="Audio upload progress"
+                    aria-valuemin={0} aria-valuemax={100}
+                    aria-valuenow={audioUploadProgress === null ? undefined : audioUploadProgress}
+                    aria-valuetext={audioUploadPhase === "processing" ? "Upload complete; processing audio" : audioUploadProgress === null ? "Uploading audio" : audioUploadProgress + "% uploaded"}>
+                    <span style={{width: audioUploadProgress === null ? "100%" : audioUploadProgress + "%"}} className={audioUploadProgress === null || audioUploadPhase === "processing" ? "is-indeterminate" : ""}/>
+                  </div>
+                  <span>{audioUploadPhase === "processing"
+                    ? "Upload complete. Reading audio duration and waveform…"
+                    : audioUploadProgress === null ? "Sending file…"
+                    : audioUploadProgress + "% uploaded"}</span>
+                </div>
+              ) : <span>MP3, WAV, M4A · up to 50 MB</span>}
             </button>
           ):(
             <>
