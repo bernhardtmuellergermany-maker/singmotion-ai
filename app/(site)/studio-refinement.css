@@ -1676,3 +1676,22 @@
     margin-right:auto;
   }
 }
+
+
+/* Studio mobile copy: center step eyebrow, headline and supporting text. */
+@media(max-width:700px){
+  .product-theme.singmotion-flow .flow-main .sm-new-page-heading{
+    width:100%!important;
+    max-width:100%!important;
+    align-self:center!important;
+    text-align:center!important;
+    margin-inline:auto!important;
+  }
+  .product-theme.singmotion-flow .flow-main .sm-new-page-heading>span,
+  .product-theme.singmotion-flow .flow-main .sm-new-page-heading h1,
+  .product-theme.singmotion-flow .flow-main .sm-new-page-heading p{
+    text-align:center!important;
+    margin-left:auto!important;
+    margin-right:auto!important;
+  }
+}
