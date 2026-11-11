@@ -47,7 +47,7 @@ import {
   time,
   type Asset,
 } from "@/lib/domain";
-import { photoFormat } from "@/lib/studio-editor";
+import { photoFormat, uploadedPhotoFraming } from "@/lib/studio-editor";
 import { defaultStudioContent, type StudioContent } from "@/lib/studio-content";
 import { productCopy } from "@/lib/product-copy";
 import type { StudioDraftExport } from "@/lib/studio-draft";
@@ -429,8 +429,7 @@ export function StudioWizard({
           artistName: file.name.replace(/\.[^.]+$/, ""),
           // A newly uploaded 16:9 image must not inherit the default 9:16
           // canvas. Match its actual dimensions; users can override afterward.
-          outputFormat: detected,
-          formatMode: detected,
+          ...uploadedPhotoFraming(asset.width,asset.height),
         });
       }
     } catch (e) {
