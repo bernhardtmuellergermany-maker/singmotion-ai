@@ -687,7 +687,7 @@ export class StudioWorkflow {
     const rootPolicy = await tracedStudioPrepare("policy", async () => this.superAdmin
       ? superAdminStudioPolicy(await this.dependencies.policy())
       : validateStudioPolicy(await this.dependencies.policy()));
-    let media;
+    let media: Awaited<ReturnType<typeof prepareStudioDraft>>;
     let refreshed = false;
     if (old) {
       const row = this.row(old.id, owner),
