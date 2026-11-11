@@ -1,3 +1,4 @@
+import * as studioHero from "./20261111_100000_studio_hero";
 import * as studioSettings from "./20261027_220000_studio_settings";
 import * as migration_20261023_140953_initial_cms from "./20261023_140953_initial_cms";
 
@@ -11,5 +12,10 @@ export const migrations = [
     up: studioSettings.up,
     down: studioSettings.down,
     name: "20261027_220000_studio_settings",
+  },
+  {
+    up: studioHero.up,
+    down: studioHero.down,
+    name: "20261111_100000_studio_hero",
   },
 ];
