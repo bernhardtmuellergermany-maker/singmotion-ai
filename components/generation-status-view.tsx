@@ -17,15 +17,15 @@ export function GenerationStatusView({
   note?:string;
 }){
   const admin=paymentMode==="super-admin";
-  const paymentConfirmed=admin||!["verifying-payment","unavailable"].includes(progress);
+  const paymentConfirmed=admin?progress!=="unavailable":!["verifying-payment","unavailable"].includes(progress);
   const working=progress==="processing";
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
   const failed=progress==="failed";
   const stages=[
-    {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:"done" as const},
+    {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
     {title:admin?"Super Admin authorized":"Payment confirmed",description:admin?"Private generation · no Stripe checkout":"Secure payment verified by Stripe",state:paymentConfirmed?"done" as const:"active" as const},
-    {title:"Video generation",description:"Singing, expressions and camera direction",state:ready||review?"done" as const:working?"active" as const:"pending" as const},
+    {title:"Video generation",description:"Singing, expressions and camera direction",state:ready?"done" as const:working?"active" as const:"pending" as const},
     {title:"Final render & verification",description:"Private output retrieval and technical validation",state:ready?"done" as const:"pending" as const},
     {title:"Ready to download",description:"Your private MP4 is ready",state:ready?"done" as const:"pending" as const},
   ];
