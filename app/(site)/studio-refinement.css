@@ -1251,3 +1251,25 @@
  }
  .singmotion-flow .flow-main{padding-bottom:calc(100px + env(safe-area-inset-bottom,0px))!important}
 }
+
+
+/* Mobile Studio: real scrollable clearance beneath the audio editor.
+   Fixed Back/Continue must never obscure the waveform's final controls. */
+@media(max-width:700px){
+  .singmotion-flow{height:auto!important;min-height:100dvh!important;overflow-x:clip;overflow-y:visible!important}
+  .singmotion-flow .flow-main,
+  .singmotion-flow .flow-main:has(.sm-studio-original-composer),
+  .singmotion-flow .flow-main:has(>.sm-studio-review-carousel){
+    box-sizing:border-box!important;
+    height:auto!important;
+    max-height:none!important;
+    min-height:calc(100dvh - 72px)!important;
+    overflow:visible!important;
+    padding-bottom:calc(320px + env(safe-area-inset-bottom,0px))!important;
+  }
+  .singmotion-flow .flow-main:has(>.sm-new-audio-workspace)::after{
+    content:"";display:block;flex:0 0 260px;width:100%;pointer-events:none;
+  }
+  .singmotion-flow .sm-new-audio-workspace{padding-bottom:28px}
+  .singmotion-flow .sm-new-navigation{z-index:50;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important}
+}
