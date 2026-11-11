@@ -2,7 +2,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { api, ensureSession } from "@/lib/client";
+import { api, ensureSession, resetSession } from "@/lib/client";
 
 export function OperatorLogin() {
   const locked = useRef(false),
@@ -41,7 +41,11 @@ export function OperatorLogin() {
               throw new Error(
                 "Sign in failed. Check your operator account or try again later.",
               );
-            await ensureSession();
+            // Discard the previous guest/customer session cache after CMS login.
+            resetSession();
+            const workspace = await ensureSession() as {owner?:string};
+            if (!workspace.owner?.startsWith("cms-staff-"))
+              throw new Error("Operator workspace was not established. Please sign in again.");
             const access = await api<{ pilot?: boolean }>("studio-live");
             if (!access.pilot)
               throw new Error(
