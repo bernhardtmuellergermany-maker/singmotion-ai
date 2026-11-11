@@ -391,7 +391,7 @@ export function StudioWizard({
             <>
               <div className="sm-new-file-card">
                 <span className="sm-new-file-icon"><Music2 size={27}/></span>
-                <div className="sm-new-file-info"><strong>{draft.song.name}</strong><span>{time(draft.song.duration||0)} · Selected clip {time(draft.start)}–{time(draft.end)} ({time(Math.max(0,draft.end-draft.start))})</span></div>
+                <div className="sm-new-file-info"><strong>{draft.song.name}</strong><span>{sourceTimestamp(draft.song.duration||0)} · Selected clip {sourceTimestamp(draft.start)}–{sourceTimestamp(draft.end)} ({sourceTimestamp(Math.max(0,draft.end-draft.start))})</span></div>
                 <button className="sm-new-file-delete" type="button" aria-label="Delete audio" title="Delete audio" disabled={busy} onClick={()=>update({song:null,start:0,end:10})}><Trash2 size={20}/></button>
               </div>
               <div className="sm-new-wave-card">
