@@ -1708,3 +1708,102 @@
     display:block;width:100%;text-align:center!important;text-wrap:balance;
   }
 }
+
+
+/* Audio-aligned Photo Upload (step 2) for mobile and desktop. */
+.product-theme.singmotion-flow .sm-photo-step{
+  display:flex;flex-direction:column;align-items:stretch;gap:18px;
+  width:min(100%,860px);max-width:100%;align-self:center;margin-inline:auto;
+}
+.product-theme.singmotion-flow .sm-photo-upload-zone{
+  box-sizing:border-box;width:100%;min-height:230px;display:flex;
+  flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  margin:6px 0;padding:25px 18px;border:1.5px dashed #b96cff;
+  border-radius:20px;outline:1px solid #9638eb;outline-offset:6px;
+  background:linear-gradient(145deg,#2a2142,#19152d 58%,#241b39);
+  color:#f9f6ff;cursor:pointer;text-align:center;
+}
+.product-theme.singmotion-flow .sm-photo-upload-zone:disabled{opacity:.65;cursor:wait}
+.product-theme.singmotion-flow .sm-photo-upload-zone>strong{font-size:clamp(16px,2vw,21px);line-height:1.35}
+.product-theme.singmotion-flow .sm-photo-upload-zone>span:last-child{color:#c8b8e1;font-size:13px;line-height:1.5}
+.product-theme.singmotion-flow .sm-photo-upload-icon{color:#d179ff;filter:drop-shadow(0 0 8px #ac35f9aa)}
+.product-theme.singmotion-flow .sm-photo-preview-shell{
+  padding:18px;box-sizing:border-box;border:1.5px solid #b65ded;border-radius:20px;
+  background:linear-gradient(140deg,#29213f,#161429);
+  display:flex;flex-direction:column;align-items:center;gap:15px;
+}
+.product-theme.singmotion-flow .sm-photo-preview-frame{
+  position:relative;display:block;width:min(100%,340px);max-height:380px;
+  border-radius:16px;overflow:hidden;border:1px solid #8756c1;background:#0b0b1b;
+}
+.product-theme.singmotion-flow .sm-photo-preview-frame img{
+  display:block;width:100%;height:100%;object-fit:cover;object-position:center;
+}
+.product-theme.singmotion-flow .sm-photo-preview-actions{
+  width:100%;display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;color:#d8c3ed;font-size:13px;
+}
+.product-theme.singmotion-flow .sm-photo-preview-actions>span,
+.product-theme.singmotion-flow .sm-photo-preview-actions>div{
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+}
+.product-theme.singmotion-flow .sm-photo-preview-actions button{
+  display:inline-flex;align-items:center;justify-content:center;gap:7px;
+  padding:9px 13px;border:1px solid #70578e;border-radius:11px;
+  color:#f4ecff;background:#332748;cursor:pointer;
+}
+.product-theme.singmotion-flow .sm-photo-formats{
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+}
+.product-theme.singmotion-flow .sm-photo-formats>p{margin:0;color:#d7caed;font-weight:650}
+.product-theme.singmotion-flow .sm-photo-format-choices{
+  width:min(100%,650px);display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;
+}
+.product-theme.singmotion-flow .sm-photo-format-choices>button{
+  display:flex;align-items:center;justify-content:center;gap:7px;
+  flex-wrap:wrap;min-width:0;min-height:63px;padding:9px;
+  color:#f0e7ff;background:#2b2340;border:1px solid #675184;
+  border-radius:15px;cursor:pointer;
+}
+.product-theme.singmotion-flow .sm-photo-format-choices>button.is-selected{
+  border-color:#d982ff;background:linear-gradient(120deg,#ac45f8,#791ce9);
+  box-shadow:0 0 13px #9a39f76a;
+}
+.product-theme.singmotion-flow .sm-photo-format-choices small{
+  width:100%;font-size:11px;color:#d6c2ea;line-height:1.3;
+}
+.product-theme.singmotion-flow .sm-photo-custom-options{
+  width:min(100%,650px);display:flex;align-items:center;justify-content:center;
+  flex-wrap:wrap;gap:9px;padding:11px;
+  box-sizing:border-box;background:#262039;border:1px solid #64478b;border-radius:14px;
+  color:#d7c9e9;font-size:12px;text-align:center;
+}
+.product-theme.singmotion-flow .sm-photo-custom-options button{
+  min-width:52px;min-height:37px;border:1px solid #745493;border-radius:10px;
+  color:#f5eaff;background:#3b2b53;cursor:pointer;
+}
+.product-theme.singmotion-flow .sm-photo-custom-options button.is-selected{
+  border-color:#df8eff;background:#8b2cde;
+}
+.product-theme.singmotion-flow .sm-photo-step-tip{
+  display:flex;justify-content:center;align-items:center;gap:9px;
+  margin:0;text-align:center;color:#c9bcdf;font-size:12px;line-height:1.5;
+}
+.product-theme.singmotion-flow .sm-performance-prompt-step{
+  display:flex;flex-direction:column;gap:18px;width:min(100%,860px);
+  max-width:100%;align-self:center;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-photo-step{gap:17px}
+ .product-theme.singmotion-flow .sm-photo-upload-zone{min-height:200px;padding:19px 14px;outline-offset:4px}
+ .product-theme.singmotion-flow .sm-photo-upload-zone>span:last-child{font-size:11px}
+ .product-theme.singmotion-flow .sm-photo-preview-shell{padding:13px}
+ .product-theme.singmotion-flow .sm-photo-preview-frame{width:min(100%,255px);max-height:340px}
+ .product-theme.singmotion-flow .sm-photo-format-choices{gap:7px}
+ .product-theme.singmotion-flow .sm-photo-format-choices>button{
+   min-height:58px;gap:4px;padding:7px 4px;flex-direction:column;
+ }
+ .product-theme.singmotion-flow .sm-photo-format-choices>button svg{width:17px;height:17px}
+ .product-theme.singmotion-flow .sm-photo-format-choices>button small{font-size:10px}
+ .product-theme.singmotion-flow .sm-photo-step-tip{font-size:11px}
+}
