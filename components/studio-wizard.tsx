@@ -22,7 +22,6 @@ import {
   Trash2,
   FileMusic,
   CloudUpload,
-  RefreshCcw,
   Check,
   ShieldCheck,
 } from "lucide-react";
@@ -79,12 +78,14 @@ export function StudioWizard({
   const deletingDraft = useRef(false);
   const performanceInput = useRef<HTMLTextAreaElement>(null);
   const audioFileInput = useRef<HTMLInputElement>(null);
+  const projectMenuRef = useRef<HTMLDivElement>(null);
   const reviewTouch = useRef<{x:number;y:number}|null>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
     [projectKey, setProjectKey] = useState("");
   const [projectName, setProjectName] = useState(""),
     [editingName, setEditingName] = useState(false),
+    [projectMenuOpen, setProjectMenuOpen] = useState(false),
     [draft, setDraft] = useState(initial),
     [step, setStep] = useState(0),
     [timeline, setTimeline] = useState<PerformanceSection[]>([]),
@@ -339,6 +340,21 @@ export function StudioWizard({
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
   }, []);
+  useEffect(() => {
+    if (!projectMenuOpen) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (projectMenuRef.current && !projectMenuRef.current.contains(event.target as Node)) setProjectMenuOpen(false);
+    };
+    const closeEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProjectMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeEscape);
+    };
+  }, [projectMenuOpen]);
   const rename = (name: string) => {
     const trimmed = name.trim();
     if (trimmed) {
@@ -372,13 +388,25 @@ export function StudioWizard({
     <div className="product-theme singmotion-flow">
       <SiteHeader />
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
-        <div className="sm-new-project-tools"><div className="sm-studio-header-project" aria-label="Current Studio project">
-          <span className="sm-studio-rename-slot">
-            <button className="flow-project-name" type="button" title="Click to rename" aria-hidden={editingName} tabIndex={editingName ? -1 : 0} style={editingName ? {visibility:"hidden"} : undefined} onClick={()=>setEditingName(true)}>{projectName || "New project"}</button>
-            {editingName && <input className="flow-project-input" aria-label="Project name" autoFocus value={projectName} onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)} onKeyDown={e=>{if(e.key==="Enter") e.currentTarget.blur(); if(e.key==="Escape") setEditingName(false);}}/>}
-          </span>
-          <details className="flow-menu"><summary aria-label="Project options"><MoreVertical size={18}/></summary><div className="flow-popover"><button type="button" onClick={()=>setEditingName(true)}>Rename project</button><button type="button" disabled={busy} onClick={()=>void deleteCurrentDraft()}>Delete draft</button></div></details>
-        </div></div>
+        <div className="sm-new-project-tools" aria-label="Current Studio project">
+          <div className="sm-project-tools-group" ref={projectMenuRef}>
+            {editingName ? (
+              <input className="sm-project-name-input" aria-label="Project name" autoFocus value={projectName}
+                onChange={e=>setProjectName(e.target.value)} onBlur={()=>rename(projectName)}
+                onKeyDown={e=>{if(e.key==="Enter") e.currentTarget.blur();if(e.key==="Escape"){setEditingName(false);setProjectMenuOpen(false);}}}/>
+            ) : (
+              <button className="sm-project-name-button" type="button" title="Rename project"
+                onClick={()=>{setProjectMenuOpen(false);setEditingName(true);}}>{projectName||"New project"}</button>
+            )}
+            <button type="button" className="sm-project-menu-trigger" aria-label="Project options"
+              aria-expanded={projectMenuOpen} aria-controls="sm-project-actions"
+              onClick={()=>setProjectMenuOpen(open=>!open)}><MoreVertical size={18}/></button>
+            {projectMenuOpen&&<div className="sm-project-actions" id="sm-project-actions" role="group" aria-label="Project options">
+              <button type="button" onClick={()=>{setProjectMenuOpen(false);setEditingName(true);}}>Rename project</button>
+              <button type="button" disabled={busy} onClick={()=>{setProjectMenuOpen(false);void deleteCurrentDraft();}}>Delete draft</button>
+            </div>}
+          </div>
+        </div>
         <div className="sm-new-stepper" aria-label="Video creation progress">
           {["Audio Upload", "Photo Upload", "Performance Prompt", "Generate Video"].map((label,index)=>(
             <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
@@ -406,10 +434,6 @@ export function StudioWizard({
               </div>
               <div className="sm-new-wave-card">
                 <Waveform key={draft.song.id} url={`/api/assets/${draft.song.id}${/\.(wav|m4a)$/i.test(draft.song.name)?"?playback=1":""}`} duration={draft.song.duration||1} start={draft.start} end={draft.end} onChange={(start,end)=>update({start,end})} filename={draft.song.name}/>
-              </div>
-              <div className="sm-new-audio-actions">
-                <button type="button" disabled={busy} onClick={()=>audioFileInput.current?.click()}><RefreshCcw size={19}/> Replace audio</button>
-                <button type="button" disabled={busy} onClick={()=>update({song:null,start:0,end:10})}><Trash2 size={19}/> Delete audio</button>
               </div>
             </>
           )}
