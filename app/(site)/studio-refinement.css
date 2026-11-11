@@ -1807,3 +1807,46 @@
  .product-theme.singmotion-flow .sm-photo-format-choices>button small{font-size:10px}
  .product-theme.singmotion-flow .sm-photo-step-tip{font-size:11px}
 }
+
+/* Compact artist-photo step: one-screen layout on common phones and desktops. */
+.product-theme.singmotion-flow .sm-photo-step{gap:9px;width:min(100%,900px)}
+.product-theme.singmotion-flow .sm-photo-upload-zone{min-height:clamp(120px,24dvh,205px);margin:2px 0;padding:14px 12px;gap:5px}
+.product-theme.singmotion-flow .sm-photo-preview-shell{padding:10px 12px;gap:7px}
+.product-theme.singmotion-flow .sm-photo-preview-frame{height:min(34dvh,280px);width:auto;max-width:100%;max-height:none}
+.product-theme.singmotion-flow .sm-photo-preview-frame img{width:100%;height:100%;object-fit:cover;transform-origin:center}
+.product-theme.singmotion-flow .sm-photo-preview-actions{font-size:12px;gap:6px}
+.product-theme.singmotion-flow .sm-photo-preview-actions>div{gap:7px}
+.product-theme.singmotion-flow .sm-photo-preview-actions button{padding:7px 10px}
+.product-theme.singmotion-flow .sm-photo-preview-actions .sm-new-file-delete{width:38px;height:38px;min-width:38px;padding:0;border-radius:11px}
+.product-theme.singmotion-flow .sm-photo-formats{gap:6px}
+.product-theme.singmotion-flow .sm-photo-format-choices{grid-template-columns:repeat(2,minmax(0,1fr));max-width:510px;gap:9px}
+.product-theme.singmotion-flow .sm-photo-format-choices>button{min-height:48px;padding:7px;gap:5px;border-radius:12px}
+.product-theme.singmotion-flow .sm-photo-format-choices small{width:auto;font-size:11px}
+.product-theme.singmotion-flow .sm-photo-framing{width:min(100%,650px);align-self:center;display:grid;gap:8px;padding:10px 13px;background:#251d37;border:1px solid #6a4c88;border-radius:13px;color:#e9d8ff}
+.product-theme.singmotion-flow .sm-photo-framing>strong{font-size:12px}
+.product-theme.singmotion-flow .sm-photo-framing-sliders{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.product-theme.singmotion-flow .sm-photo-framing-sliders label{display:grid;gap:3px;min-width:0;color:#cdb9e2;font-size:11px}
+.product-theme.singmotion-flow .sm-photo-framing-sliders input{width:100%;height:19px;margin:0;accent-color:#b347fb;cursor:pointer}
+.product-theme.singmotion-flow .sm-photo-framing-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px}
+.product-theme.singmotion-flow .sm-photo-framing-actions button{min-height:32px;padding:5px 13px;border-radius:9px;border:1px solid #775894;background:#382849;color:#fff;cursor:pointer;font-size:11px}
+.product-theme.singmotion-flow .sm-photo-framing-actions .sm-photo-apply{background:#9132dc;border-color:#cd7dff;font-weight:700}
+.product-theme.singmotion-flow .sm-photo-framing-actions button:disabled{opacity:.45;cursor:default}
+.product-theme.singmotion-flow .sm-photo-step-tip{font-size:11px}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-photo-step{gap:9px}
+ .product-theme.singmotion-flow .sm-photo-preview-shell{padding:8px;gap:6px}
+ .product-theme.singmotion-flow .sm-photo-preview-frame{height:min(30dvh,235px);width:auto;max-width:100%;max-height:none}
+ .product-theme.singmotion-flow .sm-photo-format-choices{gap:8px}
+ .product-theme.singmotion-flow .sm-photo-format-choices>button{min-height:43px;flex-direction:row;gap:6px}
+ .product-theme.singmotion-flow .sm-photo-format-choices>button small{display:none}
+ .product-theme.singmotion-flow .sm-photo-framing{padding:9px;gap:6px}
+ .product-theme.singmotion-flow .sm-photo-framing-sliders{gap:7px}
+ .product-theme.singmotion-flow .sm-photo-framing-sliders label{font-size:10px}
+ .product-theme.singmotion-flow .sm-photo-preview-actions{font-size:11px}
+ .product-theme.singmotion-flow .sm-photo-step-tip{font-size:10px}
+}
+@media(max-height:720px){
+ .product-theme.singmotion-flow .sm-photo-preview-frame{height:min(23dvh,170px)}
+ .product-theme.singmotion-flow .sm-photo-upload-zone{min-height:115px}
+ .product-theme.singmotion-flow .sm-photo-step-tip{font-size:10px}
+}
