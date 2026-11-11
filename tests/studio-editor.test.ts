@@ -89,7 +89,7 @@ test("Apply-saved reference is the only authorized BytePlus image for 16:9", () 
     appliedOutputFormat: "16:9" as const,
     outputFormat: "16:9" as const,
     formatMode: "16:9" as const,
-    start: 0, end: 5, performance: "Natural", camera: "Static", customPrompt: "",
+    start: 0, end: 5, performance: "Natural", camera: "Static Close-Up", customPrompt: "",
   };
   const parsed = parseStudioDraft(JSON.parse(JSON.stringify(draft)));
   assert.equal(parsed.imageId, parsed.editedImageId);
