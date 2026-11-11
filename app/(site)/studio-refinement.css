@@ -2172,3 +2172,36 @@
  .product-theme.singmotion-flow .sm-performance-chips button{transition:none}
  .product-theme.singmotion-flow .sm-performance-chips button:hover{transform:none}
 }
+
+/* Performance step: quieter type scale, smaller composer and compact ideas. */
+.product-theme.singmotion-flow .sm-performance-heading{margin-bottom:12px}
+.product-theme.singmotion-flow .sm-performance-heading>span{font-size:12px}
+.product-theme.singmotion-flow .sm-performance-heading h1{
+ font-size:clamp(25px,2.5vw,32px);line-height:1.15;letter-spacing:-.025em;
+ margin:5px 0 6px;
+}
+.product-theme.singmotion-flow .sm-performance-heading p{
+ font-size:clamp(13px,1.2vw,15px);line-height:1.45;
+}
+.product-theme.singmotion-flow .sm-performance-redesign{gap:13px}
+.product-theme.singmotion-flow .sm-performance-editor{
+ min-height:138px;padding:13px 16px 10px;border-radius:18px;
+}
+.product-theme.singmotion-flow .sm-performance-textarea{
+ min-height:80px;font-size:clamp(15px,1.45vw,18px);line-height:1.45;
+}
+.product-theme.singmotion-flow .sm-performance-editor-footer{font-size:12px}
+.product-theme.singmotion-flow .sm-performance-ideas{gap:8px}
+.product-theme.singmotion-flow .sm-performance-ideas h2{font-size:15px}
+.product-theme.singmotion-flow .sm-performance-chips{gap:7px}
+.product-theme.singmotion-flow .sm-performance-chips button{
+ min-height:36px;padding:7px 12px;font-size:12px;gap:7px;
+}
+.product-theme.singmotion-flow .sm-performance-chips button svg{width:16px;height:16px}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-performance-heading h1{font-size:clamp(23px,6vw,29px)}
+ .product-theme.singmotion-flow .sm-performance-heading p{font-size:13px}
+ .product-theme.singmotion-flow .sm-performance-editor{min-height:130px;padding:11px 13px 9px}
+ .product-theme.singmotion-flow .sm-performance-textarea{min-height:77px;font-size:15px}
+ .product-theme.singmotion-flow .sm-performance-chips button{min-height:35px;font-size:11px;padding:6px 10px}
+}
