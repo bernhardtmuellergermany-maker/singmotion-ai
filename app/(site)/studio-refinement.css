@@ -1410,3 +1410,19 @@
    min-width:34px!important;min-height:36px!important;flex:0 0 auto!important;
  }
 }
+
+
+/* Both start and end use identical edge-safe fixed editor bounds. */
+@media(max-width:700px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-unified-actions>.studio-inline-time:nth-child(3) .studio-inline-time-popover,
+ .product-theme.singmotion-flow .studio-modern-wave .studio-unified-actions>.studio-inline-time:nth-child(4) .studio-inline-time-popover {
+   position:fixed!important;
+   left:12px!important;
+   right:12px!important;
+   top:auto!important;
+   bottom:calc(90px + env(safe-area-inset-bottom,0px))!important;
+   width:auto!important;
+   max-width:none!important;
+   transform:none!important;
+ }
+}
