@@ -1273,3 +1273,42 @@
   .singmotion-flow .sm-new-audio-workspace{padding-bottom:28px}
   .singmotion-flow .sm-new-navigation{z-index:50;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important}
 }
+
+
+/* Studio headline and CMS artwork. */
+.singmotion-flow .sm-studio-hero{
+  box-sizing:border-box;width:min(100%,860px);min-height:102px;
+  margin:0 auto 16px;display:flex;align-items:center;justify-content:space-between;gap:18px;
+  position:relative;isolation:isolate;
+}
+.singmotion-flow .sm-studio-hero-copy{display:flex;align-items:center;gap:17px;min-width:0;position:relative;z-index:1}
+.singmotion-flow .sm-studio-hero-icon{display:grid;place-items:center;flex:0 0 50px;color:#c457ff}
+.singmotion-flow .sm-studio-hero-copy h2{margin:0;color:#fff;font-size:clamp(28px,3.4vw,42px);font-weight:800;line-height:1.12;letter-spacing:-.025em}
+.singmotion-flow .sm-studio-hero-copy p{margin:5px 0 0;color:#bdb5df;font-size:clamp(14px,1.5vw,18px);line-height:1.4}
+.singmotion-flow .sm-studio-hero-art{width:170px;max-width:32%;height:108px;object-fit:contain;object-position:center;filter:drop-shadow(0 0 20px #a72aff70)}
+@media(max-width:700px){
+ .singmotion-flow .sm-studio-hero{min-height:76px;margin:4px auto 17px;gap:8px}
+ .singmotion-flow .sm-studio-hero-copy{gap:10px}
+ .singmotion-flow .sm-studio-hero-icon{flex-basis:32px}
+ .singmotion-flow .sm-studio-hero-icon svg{width:27px;height:27px}
+ .singmotion-flow .sm-studio-hero-copy h2{font-size:clamp(25px,6vw,31px)}
+ .singmotion-flow .sm-studio-hero-copy p{font-size:12px}
+ .singmotion-flow .sm-studio-hero-art{width:102px;height:78px;max-width:31%}
+ /* Balanced player layout: playback controls above a single row of time data. */
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions{
+   width:100%!important;max-width:100%!important;min-width:0!important;
+   display:grid!important;grid-template-columns:repeat(6,minmax(0,1fr))!important;
+   column-gap:7px!important;row-gap:12px!important;align-items:center!important;justify-items:center!important;
+ }
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions>.studio-wave-play:nth-child(1){grid-column:2/span 2;grid-row:1}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions>.studio-wave-play:nth-child(2){grid-column:4/span 2;grid-row:1}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions>.studio-inline-time:nth-child(3){grid-column:1/span 2;grid-row:2}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions>.studio-inline-time:nth-child(4){grid-column:3/span 2;grid-row:2}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions>.studio-inline-duration:nth-child(5){grid-column:5/span 2;grid-row:2}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions .studio-inline-duration{
+   box-sizing:border-box;min-width:0;width:100%;padding:7px 3px;text-align:center;border-radius:13px;
+ }
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions .studio-inline-duration strong{font-size:clamp(15px,4.2vw,21px);white-space:nowrap}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions .studio-inline-time{min-width:0;width:100%;text-align:center}
+ .singmotion-flow .sm-new-wave-card .studio-unified-actions .studio-inline-time-trigger{max-width:100%;font-size:clamp(13px,3.5vw,18px)}
+}
