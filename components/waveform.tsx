@@ -189,7 +189,6 @@ export default function Waveform({
         aria-label="Audio waveform and selection"
       >
         <div className="studio-wave-meta studio-unified-toolbar">
-          <div className="studio-wave-filename"><Music2 size={18} aria-hidden="true"/><div className="studio-wave-file-text"><strong title={filename}>{filename}</strong><small>{formatTime(duration)} total</small></div></div>
           <div className="studio-wave-actions studio-unified-actions">
             <button type="button" className="studio-wave-play" onClick={toggle} aria-label={playing?"Pause audio":"Play selected audio"}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
             <button type="button" className="studio-wave-play" onClick={replay} aria-label="Replay selected audio from start" title="Replay selected audio"><RotateCcw size={18}/></button>
