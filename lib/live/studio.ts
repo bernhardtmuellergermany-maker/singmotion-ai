@@ -41,9 +41,16 @@ async function tracedStudioPrepare<T>(
   try {
     return await action();
   } catch (error) {
+    const code=(error as NodeJS.ErrnoException | null)?.code;
+    // Fixed diagnostic categories, not raw exception text or file paths.
+    const ioError=code==="ENOENT"?"LOCAL_MEDIA_MISSING":
+      code==="EACCES"||code==="EPERM"?"STORAGE_PERMISSION_DENIED":
+      code==="ENOSPC"?"STORAGE_FULL":
+      code==="EIO"?"STORAGE_IO_ERROR":null;
     console.warn("STUDIO_PREPARE_STAGE_FAILURE", {
       stage,
-      category: error instanceof StudioLiveError ? error.code : "VALIDATION_OR_STORAGE",
+      category: error instanceof StudioLiveError ? error.code :
+        ioError ?? "VALIDATION_OR_STORAGE",
     });
     throw error;
   }
