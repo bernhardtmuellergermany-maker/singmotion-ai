@@ -640,18 +640,26 @@ export function StudioWizard({
             <h2>Quick ideas</h2>
             <div className="sm-performance-chips" role="group" aria-label="Add performance ideas">
               {([
-                {label:"Orbit left",prompt:"Camera slowly orbits to the left around the singer while keeping the face in view.",icon:RotateCw},
-                {label:"Push in",prompt:"Camera slowly pushes in towards the singer for a closer view.",icon:Camera},
-                {label:"Static",prompt:"Keep the camera static and steady with the singer clearly framed.",icon:Video},
-                {label:"Energetic",prompt:"Sing energetically with expressive, natural rhythmic movements.",icon:Sparkles},
-                {label:"Emotional",prompt:"Sing with heartfelt emotion, expressive eyes and gentle natural gestures.",icon:Heart},
-                {label:"Tilt",prompt:"Use a subtle camera tilt while keeping the singer clearly visible.",icon:Camera},
-              ] as const).map(idea=><button type="button" key={idea.label} onClick={()=>{
-                  const current=draft.customPrompt.trim();
-                  if(current.toLowerCase().includes(idea.prompt.toLowerCase()))return;
-                  const addition=current?(current.endsWith(".")?" ":"; "):"";
-                  const result=current+addition+idea.prompt;
+                {label:"Orbit left",type:"camera",prompt:"Camera: Slowly orbit left around the singer, keeping the face clearly visible.",icon:RotateCw},
+                {label:"Push in",type:"camera",prompt:"Camera: Slowly push in towards the singer for a closer view.",icon:Camera},
+                {label:"Static",type:"camera",prompt:"Camera: Remain stationary while the singer performs naturally.",icon:Video},
+                {label:"Follow singer",type:"camera",prompt:"Camera: Smoothly follow the singer's movements, keeping the face clearly framed.",icon:Camera},
+                {label:"Tilt",type:"camera",prompt:"Camera: Slowly tilt upward while keeping the singer's face visible.",icon:Camera},
+                {label:"Energetic",type:"performance",prompt:"Sing energetically with expressive, natural rhythmic movements.",icon:Sparkles},
+                {label:"Emotional",type:"performance",prompt:"Sing with heartfelt emotion, expressive eyes and gentle natural gestures.",icon:Heart},
+              ] as const).map(idea=><button type="button" key={idea.label}
+                aria-label={`Add ${idea.label} direction to prompt`}
+                onClick={()=>{
+                  const lines=draft.customPrompt.split("\n").map(line=>line.trim()).filter(Boolean);
+                  // Only one camera direction at a time; keep any user-written
+                  // performance instructions and other emotions untouched.
+                  const retained=idea.type==="camera"
+                    ? lines.filter(line=>!/^Camera:\s*/i.test(line))
+                    : lines;
+                  if(!retained.includes(idea.prompt))retained.push(idea.prompt);
+                  const result=retained.join("\n");
                   if(result.length>500){setError("Your prompt can contain up to 500 characters.");return;}
+                  setError("");
                   update({customPrompt:result,performance:"Custom"});
                   performanceInput.current?.focus();
                 }}>
