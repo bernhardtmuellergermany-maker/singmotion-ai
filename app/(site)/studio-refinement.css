@@ -1215,3 +1215,19 @@
  .singmotion-flow .sm-new-navigation{bottom:calc(12px + env(safe-area-inset-bottom,0px))!important}
  .singmotion-flow .sm-project-actions{width:min(210px,75vw)}
 }
+
+
+/* Audio controls: single destructive icon, no duplicate project or audio menus. */
+.singmotion-flow .sm-new-file-delete{
+  display:grid;place-items:center;flex:0 0 auto;
+  width:42px;height:42px;min-width:42px;
+  padding:0;border:1px solid #795596;border-radius:12px;
+  background:#302541;color:#e5a9fc;cursor:pointer;
+  transition:background .15s ease,border-color .15s ease;
+}
+.singmotion-flow .sm-new-file-delete:hover{background:#50305e;border-color:#d06eff;color:#fff}
+.singmotion-flow .sm-new-file-delete:focus-visible{outline:3px solid #e1a7ff;outline-offset:3px}
+.singmotion-flow .sm-new-file-delete:disabled{opacity:.5;cursor:wait}
+@media(max-width:700px){
+ .singmotion-flow .sm-new-file-delete{width:44px;height:44px;min-width:44px}
+}
