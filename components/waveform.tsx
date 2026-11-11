@@ -195,17 +195,7 @@ export default function Waveform({
               <div key={which} className={"studio-inline-time "+(editingTime===which?"is-editing":"")}>
                 <span>{which==="start"?"Start":"End"}</span>
                 <button type="button" className="studio-inline-time-trigger" aria-label={`Edit ${which} time`} aria-expanded={editingTime===which} onClick={()=>setEditingTime(editingTime===which?null:which)}>{formatHundredths(which==="start"?start:end)}</button>
-                {editingTime===which&&<div className="studio-inline-time-popover">
-                  <input aria-label={which==="start"?"Start seconds":"End seconds"} autoFocus type="number" step="0.001" min={which==="start"?0:start+0.1} max={which==="start"?end-0.1:duration} value={Number((which==="start"?start:end).toFixed(3))} onChange={e=>{
-                    const value=e.target.valueAsNumber;
-                    if(!Number.isFinite(value))return;
-                    if(which==="start")onChange(Math.max(0,end-300,Math.min(value,end-5)),end);
-                    else onChange(start,Math.max(start+5,Math.min(duration,start+300,value)));
-                  }}/>
-                  <button type="button" aria-label={`Decrease ${which}`} onClick={()=>adjust(which,-1)}><Minus size={14}/></button>
-                  <button type="button" aria-label={`Increase ${which}`} onClick={()=>adjust(which,1)}><Plus size={14}/></button>
-                  <button type="button" className="studio-inline-time-done" onClick={()=>setEditingTime(null)}>Done</button>
-                </div>}
+                
               </div>
             ))}
             <div className="studio-inline-duration"><span>Duration</span><strong>{formatHundredths(Math.max(0,end-start))}</strong></div>
@@ -345,6 +335,23 @@ export default function Waveform({
             <span key={i}>{formatTime((duration * i) / 6)}</span>
           ))}
         </div>
+        {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
+          <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
+          <input aria-label={editingTime === "start" ? "Start seconds" : "End seconds"}
+            autoFocus type="number" step="0.001"
+            min={editingTime === "start" ? 0 : start+0.1}
+            max={editingTime === "start" ? end-0.1 : duration}
+            value={Number((editingTime === "start" ? start : end).toFixed(3))}
+            onChange={e=>{
+              const value=e.target.valueAsNumber;
+              if(!Number.isFinite(value))return;
+              if(editingTime==="start")onChange(Math.max(0,end-300,Math.min(value,end-5)),end);
+              else onChange(start,Math.max(start+5,Math.min(duration,start+300,value)));
+            }}/>
+          <button type="button" aria-label={`Decrease ${editingTime}`} onClick={()=>adjust(editingTime,-1)}><Minus size={16}/></button>
+          <button type="button" aria-label={`Increase ${editingTime}`} onClick={()=>adjust(editingTime,1)}><Plus size={16}/></button>
+          <button type="button" className="studio-wave-time-done" onClick={()=>setEditingTime(null)}>Done</button>
+        </div>}
       </div>
       <audio
         ref={audio}
