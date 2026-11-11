@@ -206,3 +206,45 @@
   margin:0!important;
   flex-shrink:0!important;
 }
+
+
+/* Shared home-page header spacing and identical circular outlines on every route. */
+.sm-site-header .sm-header-actions{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:12px!important;
+  column-gap:12px!important;
+  flex-wrap:nowrap!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu,
+.sm-site-header .sm-header-actions>.sm-account-menu{
+  flex:0 0 44px!important;
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  margin:0!important;
+  padding:0!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>summary,
+.sm-site-header .sm-header-actions>.sm-account-menu>summary{
+  box-sizing:border-box!important;
+  display:grid!important;
+  place-items:center!important;
+  width:44px!important;
+  min-width:44px!important;
+  height:44px!important;
+  min-height:44px!important;
+  margin:0!important;
+  padding:0!important;
+  border:1px solid #55506e!important;
+  border-radius:50%!important;
+  background:transparent!important;
+  color:#f7f3ff!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu[open]>summary,
+.sm-site-header .sm-header-actions>.sm-account-menu[open]>summary{
+  border-color:#a783e1!important;
+  background:#29203d!important;
+}
+@media(max-width:650px){.sm-site-header .sm-header-actions{gap:12px!important}}
