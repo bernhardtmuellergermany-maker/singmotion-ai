@@ -13,6 +13,7 @@ test("the existing paid output loads an older owned order beyond the latest 50",
    id TEXT PRIMARY KEY,account_id TEXT,project_id TEXT,price_cents INTEGER,
    currency TEXT,status TEXT,created INTEGER);
    CREATE TABLE customer_guest_order_claims(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,claimed_at INTEGER NOT NULL);
+   CREATE TABLE customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL,created INTEGER NOT NULL);
    CREATE TABLE customer_fulfillment_queue(order_id TEXT PRIMARY KEY,state TEXT);
    CREATE TABLE customer_video_deliveries(order_id TEXT PRIMARY KEY,asset_id TEXT);
    CREATE TABLE free_promo_video_deliveries(order_id TEXT PRIMARY KEY,account_id TEXT,sha256 TEXT,bytes INTEGER,created INTEGER);`);
@@ -21,6 +22,7 @@ test("the existing paid output loads an older owned order beyond the latest 50",
   insert.run(id(100),"owner-b","project-a",125,"EUR","paid",100);
   db.prepare("INSERT INTO customer_fulfillment_queue VALUES(?,?)").run(id(0),"delivered");
   db.prepare("INSERT INTO customer_video_deliveries VALUES(?,?)").run(id(0),"customer-video-private");
+  db.prepare("INSERT INTO customer_prepared_media VALUES(?,?,?)").run(id(0),JSON.stringify({outputFormat:"9:16",durationSeconds:12.5}),1);
 
   const history=ownedCustomerOrderStatuses(db,"owner-a",customerOrderStatusFilter(null,null));
   assert.equal(history.length,50);
@@ -30,6 +32,8 @@ test("the existing paid output loads an older owned order beyond the latest 50",
   assert.equal(direct.length,1);
   assert.equal(direct[0].orderId,id(0));
   assert.equal(direct[0].videoReady,1);
+  assert.equal(direct[0].outputFormat,"9:16");
+  assert.equal(direct[0].durationSeconds,12.5);
   assert.deepEqual(privateCustomerVideoLinks(direct[0]),{
    videoUrl:`/api/customer-video?orderId=${id(0)}`,
    downloadUrl:`/api/customer-video?orderId=${id(0)}&download=1`
