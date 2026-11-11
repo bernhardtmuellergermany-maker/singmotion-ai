@@ -427,7 +427,10 @@ export function StudioWizard({
           editedImageId: "",
           appliedOutputFormat: undefined,
           artistName: file.name.replace(/\.[^.]+$/, ""),
-          ...(draft.formatMode === "auto" ? { outputFormat: detected } : {}),
+          // A newly uploaded 16:9 image must not inherit the default 9:16
+          // canvas. Match its actual dimensions; users can override afterward.
+          outputFormat: detected,
+          formatMode: detected,
         });
       }
     } catch (e) {
@@ -438,8 +441,8 @@ export function StudioWizard({
       else {setPhotoUploadPhase("idle");setPhotoUploadProgress(null);setPhotoUploadingName("");}
     }
   }
-  async function applyPhotoFraming() {
-    if(!draft.imageId||!frameValid)return;
+  async function applyPhotoFraming():Promise<boolean> {
+    if(!draft.imageId||!frameValid||!imageReady||busy)return false;
     setBusy(true);setError("");
     try {
       const sourceImageId=draft.sourceImageId || draft.imageId;
@@ -469,8 +472,18 @@ export function StudioWizard({
         update({imageId:asset.id,editedImageId:asset.id,sourceImageId,appliedOutputFormat,outputFormat:appliedOutputFormat});
         cropReset();setPhotoSize({width,height});setImageReady(false);setCropPending(false);
       } finally {bitmap.close();}
-    } catch(e){setError((e as Error).message);}
+      return true;
+    } catch(e){setError((e as Error).message);return false;}
     finally{setBusy(false);}
+  }
+  /** Continue is the only save action for the photo step. Do not advance if
+   * the exact selected image has not been uploaded successfully. */
+  async function continueFromPhoto(){
+    if(busy||!draft.imageId||!frameValid)return;
+    if(cropPending||!appliedImageReady){
+      if(!imageReady||!await applyPhotoFraming())return;
+    }
+    setStep(2);
   }
   let audioValid = false,
     prompt = "";
@@ -699,10 +712,9 @@ export function StudioWizard({
           </div>
           {draft.imageId&&<div className="sm-photo-editor-bottom">
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();if(customMode){setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);}setCropPending(true);}}>Reset</button>
-            <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">The whole photo is fitted by default without zoom or crop. Borders may appear when the source ratio differs from the video. Zoom only if you want a tighter crop, then press Apply to save the exact framing.</p>
+          <p className="sm-photo-step-tip">Choose the format and framing you want. Continue saves exactly this photo before moving on. When your source aspect ratio differs, unused areas may appear in the preview.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -827,7 +839,7 @@ export function StudioWizard({
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
-          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||cropPending||!appliedImageReady||!frameValid))} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
+          {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
           {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||(!operatorStudio&&(!reviewQuote||reviewQuoteLoading))} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
