@@ -2090,3 +2090,85 @@
 @media(max-width:355px){
  .product-theme.singmotion-flow .sm-photo-settings-row{flex-wrap:wrap}
 }
+
+/* Performance prompt redesign: cinematic composer and compact inspiration chips */
+.product-theme.singmotion-flow .sm-performance-redesign {
+  width:min(100%,860px);gap:17px;align-self:center;
+}
+.product-theme.singmotion-flow .sm-performance-editor {
+  display:flex;flex-direction:column;gap:4px;min-height:164px;
+  border:1.5px solid #bd5af5;border-radius:22px;
+  background:linear-gradient(130deg,#302747 0%,#231f3a 65%,#211b34 100%);
+  box-shadow:0 0 24px #8b32e617;overflow:hidden;
+  padding:15px 18px 12px;
+}
+.product-theme.singmotion-flow .sm-performance-textarea {
+  display:block;resize:vertical;min-height:100px;width:100%;
+  padding:0;border:0;outline:none;background:transparent;
+  color:#f7f0ff;font-size:clamp(17px,2.3vw,23px);
+  line-height:1.45;font-family:inherit;font-weight:450;
+  box-shadow:none;
+}
+.product-theme.singmotion-flow .sm-performance-textarea::placeholder{color:#b7abc9;opacity:1}
+.product-theme.singmotion-flow .sm-performance-textarea:focus-visible{outline:none}
+.product-theme.singmotion-flow .sm-performance-editor:focus-within{
+ border-color:#d892ff;box-shadow:0 0 0 2px #b84cff36,0 0 22px #9a35ed25;
+}
+.product-theme.singmotion-flow .sm-performance-editor-footer {
+ display:flex;align-items:center;justify-content:space-between;
+ gap:12px;color:#c66bfa;font-size:14px;font-weight:650;
+}
+.product-theme.singmotion-flow .sm-performance-editor-footer>span:first-child{
+ display:inline-flex;align-items:center;gap:8px;
+}
+.product-theme.singmotion-flow .sm-performance-counter{color:#d8c8ef;font-weight:500;font-variant-numeric:tabular-nums}
+.product-theme.singmotion-flow .sm-performance-ideas{display:flex;flex-direction:column;gap:11px}
+.product-theme.singmotion-flow .sm-performance-ideas h2{
+ margin:0;color:#d9d0ee;font-size:17px;font-weight:650;
+}
+.product-theme.singmotion-flow .sm-performance-chips{
+ display:flex;flex-wrap:wrap;gap:9px;
+}
+.product-theme.singmotion-flow .sm-performance-chips button {
+ display:inline-flex;align-items:center;justify-content:center;gap:9px;
+ padding:9px 15px;min-height:44px;border-radius:999px;
+ border:1px solid #665080;background:#2b243f;color:#f5eaff;
+ font-size:13px;font-weight:550;cursor:pointer;
+ transition:border-color .18s,background .18s,transform .18s;
+}
+.product-theme.singmotion-flow .sm-performance-chips button svg{color:#ba66f6;flex-shrink:0}
+.product-theme.singmotion-flow .sm-performance-chips button:hover{
+ border-color:#bc76f4;background:#3b2856;transform:translateY(-1px);
+}
+.product-theme.singmotion-flow .sm-performance-chips button:focus-visible{outline:2px solid #d18aff;outline-offset:2px}
+.product-theme.singmotion-flow .sm-performance-advanced{
+ border-top:1px solid #5b466f;padding-top:12px;margin-top:2px;
+}
+.product-theme.singmotion-flow .sm-performance-advanced>summary{
+ display:inline-flex;align-items:center;gap:7px;
+ list-style:none;cursor:pointer;color:#b8a8d0;font-size:12px;
+}
+.product-theme.singmotion-flow .sm-performance-advanced>summary::-webkit-details-marker{display:none}
+.product-theme.singmotion-flow .sm-performance-advanced[open]>summary svg{transform:rotate(180deg)}
+.product-theme.singmotion-flow .sm-performance-advanced-content{
+ padding-top:15px;display:flex;flex-direction:column;gap:14px;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-performance-redesign{gap:14px}
+ .product-theme.singmotion-flow .sm-performance-editor{min-height:154px;padding:13px 14px 11px;border-radius:18px}
+ .product-theme.singmotion-flow .sm-performance-textarea{min-height:94px;font-size:17px}
+ .product-theme.singmotion-flow .sm-performance-chips{gap:7px}
+ .product-theme.singmotion-flow .sm-performance-chips button{
+   min-height:38px;padding:8px 11px;font-size:12px;gap:6px;
+ }
+ .product-theme.singmotion-flow .sm-performance-chips button svg{width:16px;height:16px}
+ .product-theme.singmotion-flow .sm-performance-ideas h2{font-size:15px}
+}
+@media(max-height:700px){
+ .product-theme.singmotion-flow .sm-performance-editor{min-height:132px}
+ .product-theme.singmotion-flow .sm-performance-textarea{min-height:76px}
+}
+@media(prefers-reduced-motion:reduce){
+ .product-theme.singmotion-flow .sm-performance-chips button{transition:none}
+ .product-theme.singmotion-flow .sm-performance-chips button:hover{transform:none}
+}
