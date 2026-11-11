@@ -256,9 +256,9 @@ summary::-webkit-details-marker {
   font-size: 11px;
   letter-spacing: 0.3px;
   font-weight: 500;
-  color: var(--muted);
-  vertical-align: top;
-  line-height: 1.8;
+  color: #bd2ee9;
+  vertical-align: baseline;
+  line-height: inherit;
   margin-left: 3px;
 }
 .brand-mark {
