@@ -16,11 +16,14 @@ export function ownedCustomerOrderStatuses(
  // The owner predicate is mandatory for both the paginated list and direct lookup.
  return db.prepare(`SELECT o.id AS orderId,o.project_id AS projectId,
    o.price_cents AS priceCents,o.currency,o.status,o.created,
+   CASE WHEN json_valid(m.media_json) THEN json_extract(m.media_json,'$.outputFormat') ELSE NULL END AS outputFormat,
+   CASE WHEN json_valid(m.media_json) THEN json_extract(m.media_json,'$.durationSeconds') ELSE NULL END AS durationSeconds,
    q.state AS fulfillmentState,
    CASE WHEN (q.state='delivered' AND d.asset_id IS NOT NULL AND o.status='paid')
        OR (o.status='free_delivered' AND f.order_id IS NOT NULL) THEN 1 ELSE 0 END AS videoReady
    FROM customer_orders o
    LEFT JOIN customer_guest_order_claims gc ON gc.order_id=o.id
+   LEFT JOIN customer_prepared_media m ON m.order_id=o.id
    LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id
    LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
    LEFT JOIN free_promo_video_deliveries f ON f.order_id=o.id AND f.account_id=o.account_id
