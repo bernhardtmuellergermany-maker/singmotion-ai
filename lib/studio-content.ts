@@ -33,7 +33,7 @@ export const defaultStudioContent: StudioContent = {
   audioReadySubtitle: "Select the perfect moment for your music video.",
   heroHeading: "Studio",
   heroSubtitle: "Create your AI music video",
-  heroImageUrl: null,
+  heroImageUrl: "/artwork/singmotion-stage.webp",
   heroImageAlt: "Studio artwork",
   performanceTemplates: [
     {
