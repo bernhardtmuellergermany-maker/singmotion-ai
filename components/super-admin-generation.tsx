@@ -40,9 +40,15 @@ export function SuperAdminGeneration({id}:{id:string}){
    }catch(e){setError(e instanceof Error?e.message:"Status refresh unavailable.");}
    finally{setChecking(false);}
  }
+ // The polling endpoint persists fixed-format provider read diagnostics while
+ // preserving the original paid task. Never display a generic "Generating"
+ // animation when the most recent status check actually failed.
+ const pollDiagnostic=project?.stage?.match(/^\\[([A-Z][A-Z0-9_]{2,79})\\]/)?.[1];
  let progress:GenerationProgress="unavailable";
  if(project){
    progress=project.outputReady?"ready":project.state==="failed"?"failed":
+     pollDiagnostic?"review":
+     project.state==="uncertain"||project.state==="output_observed"?"review":
      project.state==="processing"?"processing":
      project.state==="submitted"?"queued":
      project.state==="prepared"?"prepared":"unavailable";
@@ -55,7 +61,7 @@ export function SuperAdminGeneration({id}:{id:string}){
      format={project?.selection.outputFormat}
      videoUrl={project?.outputReady?link:null}
      downloadUrl={project?.outputReady?link+"&download=1":null}
-     note={error||(project?.state==="failed"?project.stage:"")}/>
+     note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>
    {project&&!project.outputReady&&["submitted","processing"].includes(project.state)&&
      <div className="sm-gen-extra-controls"><button type="button" disabled={checking} onClick={()=>void checkStatus()}>{checking?"Checking…":"Check provider status"}</button></div>}
    {project?.state==="prepared"&&<p className="sm-gen-extra-message">This project is prepared, but its BytePlus submission has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
