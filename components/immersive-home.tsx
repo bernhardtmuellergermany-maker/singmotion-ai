@@ -412,34 +412,27 @@ export function ImmersiveHome(){
   resetRefreshCircle();
   setRefreshing(false);
  };
- const scrollToCreations=(event:React.MouseEvent<HTMLAnchorElement>)=>{
+ const scrollToShowcase=(event:React.MouseEvent<HTMLAnchorElement>)=>{
   event.preventDefault();
-  // Always target the *actual* Stunning Creations section, not the first
-  // 16:9 showcase carousel or a viewport-height offset.
-  const heading=document.getElementById("sm-creation-title");
-  const section=heading?.closest("section");
-  if(!heading||!section)return;
+  const section=document.getElementById("showcase");
+  if(!section)return;
   const root=document.scrollingElement||document.documentElement;
-  const reduced=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const destination=()=>Math.max(0,section.getBoundingClientRect().top+root.scrollTop-64);
-  if(reduced){window.scrollTo({top:destination(),behavior:"instant"});return;}
+  const destination=()=>Math.max(0,section.getBoundingClientRect().top+root.scrollTop);
+  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches){
+   window.scrollTo({top:destination(),behavior:"instant"});
+   return;
+  }
   const from=root.scrollTop;
-  const startTime=performance.now();
-  const duration=1350;
+  const started=performance.now();
+  const duration=1150;
   const tick=(now:number)=>{
-   const progress=Math.min(1,(now-startTime)/duration);
-   const eased=progress<.5?4*progress**3:1-(-2*progress+2)**3/2;
-   // Recalculate while the browser loads images/video; layout shifts must not
-   // leave us stranded at the preceding section.
+   const t=Math.min(1,(now-started)/duration);
+   const eased=t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
    window.scrollTo({top:from+(destination()-from)*eased,behavior:"instant"});
-   if(progress<1)requestAnimationFrame(tick);
-   else{
-    // Explicit final correction prevents scroll anchoring from stopping near
-    // the 16:9 carousel after the animation finishes.
-    section.scrollIntoView({behavior:"instant",block:"start"});
-   }
+   if(t<1)window.requestAnimationFrame(tick);
+   else window.scrollTo({top:destination(),behavior:"instant"});
   };
-  requestAnimationFrame(tick);
+  window.requestAnimationFrame(tick);
  };
  const wheel=(event:React.WheelEvent)=>{
   if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
@@ -471,7 +464,7 @@ export function ImmersiveHome(){
     </div>
     {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{unlockSoundAfterGesture.current=false;const next=!muted;setMuted(next);const v=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}
-    <a href="#sm-creation-title" onClick={scrollToCreations} className="sm-immersive-scroll-cue" aria-label="Sanft zu Stunning Creations scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
+    <a href="#showcase" onClick={scrollToShowcase} className="sm-immersive-scroll-cue" aria-label="Sanft zum 16:9-Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
    </main>
   </div>
   <div className="sm-immersive-below">
