@@ -12,7 +12,6 @@ import {
   Monitor,
   Sparkles,
   Heart,
-  Clapperboard,
   Video,
   Plus,
   X,
@@ -641,11 +640,12 @@ export function StudioWizard({
             <h2>Quick ideas</h2>
             <div className="sm-performance-chips" role="group" aria-label="Add performance ideas">
               {([
-                {label:"On stage",prompt:"Performing live on stage under atmospheric concert lights.",icon:Clapperboard},
-                {label:"Emotional",prompt:"Expressive eyes, heartfelt emotion, and natural hand gestures.",icon:Heart},
-                {label:"Close-up",prompt:"Intimate close-up camera framing with steady eye contact.",icon:Video},
-                {label:"Slow push-in",prompt:"A gentle cinematic camera push-in towards the singer.",icon:Camera},
-                {label:"Energetic",prompt:"Confident, energetic singing with subtle rhythmic movements.",icon:Sparkles},
+                {label:"Orbit left",prompt:"Camera slowly orbits to the left around the singer while keeping the face in view.",icon:RotateCw},
+                {label:"Push in",prompt:"Camera slowly pushes in towards the singer for a closer view.",icon:Camera},
+                {label:"Static",prompt:"Keep the camera static and steady with the singer clearly framed.",icon:Video},
+                {label:"Energetic",prompt:"Sing energetically with expressive, natural rhythmic movements.",icon:Sparkles},
+                {label:"Emotional",prompt:"Sing with heartfelt emotion, expressive eyes and gentle natural gestures.",icon:Heart},
+                {label:"Tilt",prompt:"Use a subtle camera tilt while keeping the singer clearly visible.",icon:Camera},
               ] as const).map(idea=><button type="button" key={idea.label} onClick={()=>{
                   const current=draft.customPrompt.trim();
                   if(current.toLowerCase().includes(idea.prompt.toLowerCase()))return;
@@ -678,7 +678,7 @@ export function StudioWizard({
               </div>
             </div>
           </details>}
-          <p className="sm-performance-tip"><ShieldCheck size={17}/> For best results, describe natural movements, clear emotions and simple camera directions.</p>
+          <p className="sm-performance-tip"><ShieldCheck size={17}/> Describe natural movements, facial expressions and camera motion. Your uploaded photo defines the visual scene.</p>
         </section>}
         {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
           <div className="sm-carousel-stage sm-review-stage"
