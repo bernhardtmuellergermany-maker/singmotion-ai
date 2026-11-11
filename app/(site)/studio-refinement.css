@@ -2412,3 +2412,18 @@
 @media(prefers-reduced-motion:reduce){
  .product-theme.singmotion-flow .sm-review-item>summary>svg:last-child{transition:none}
 }
+
+/* The outer photo preview matches landscape image geometry, not only the crop box. */
+.product-theme.singmotion-flow .sm-photo-editor-stage.is-landscape{
+ box-sizing:border-box;width:100%;height:auto;min-height:0;
+ aspect-ratio:16 / 9;padding:36px 32px 13px;
+}
+.product-theme.singmotion-flow .sm-photo-editor-stage.is-landscape .sm-photo-crop-viewport{
+ box-sizing:border-box;width:100%;height:auto;max-height:100%;max-width:100%;
+ aspect-ratio:inherit;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-photo-editor-stage.is-landscape{
+  height:auto;min-height:0;aspect-ratio:16 / 9;padding:29px 22px 9px;
+ }
+}
