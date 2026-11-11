@@ -110,19 +110,20 @@ export function StudioWizard({
     [cropPending,setCropPending] = useState(false),
     [rotation,setRotation] = useState(0),
     [flipped,setFlipped] = useState(false),
-    [customWidth,setCustomWidth] = useState(1080),
-    [customHeight,setCustomHeight] = useState(1920),
+    [customWidth,setCustomWidth] = useState(720),
+    [customHeight,setCustomHeight] = useState(1280),
+    [cropScale,setCropScale] = useState(1),
     [lockRatio,setLockRatio] = useState(true),
     [imageReady,setImageReady] = useState(false);
   const cropDrag=useRef<{x:number;y:number;startX:number;startY:number}|null>(null);
-  const cropReset=()=>{setCropX(50);setCropY(50);setRotation(0);setFlipped(false);};
+  const cropReset=()=>{setCropX(50);setCropY(50);setCropScale(1);setRotation(0);setFlipped(false);};
   const customMode=draft.formatMode==="auto";
-  const frameWidth=customMode?customWidth:(draft.outputFormat==="9:16"?1080:1920);
-  const frameHeight=customMode?customHeight:(draft.outputFormat==="9:16"?1920:1080);
+  const frameWidth=customMode?customWidth:(draft.outputFormat==="9:16"?720:1280);
+  const frameHeight=customMode?customHeight:(draft.outputFormat==="9:16"?1280:720);
   const frameValid=Number.isInteger(frameWidth)&&Number.isInteger(frameHeight)&&frameWidth>=256&&frameHeight>=256&&frameWidth<=4096&&frameHeight<=4096&&frameWidth*frameHeight<=16777216;
   const rotatedImageWidth=rotation%180?photoSize.height:photoSize.width;
   const rotatedImageHeight=rotation%180?photoSize.width:photoSize.height;
-  const coverScale=Math.max(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight));
+  const coverScale=Math.max(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight))*cropScale;
   const previewImageWidth=photoSize.width*coverScale*100;
   const previewImageHeight=photoSize.height*coverScale*frameWidth/frameHeight*100;
   const cropExcessX=rotatedImageWidth*coverScale-1;
@@ -376,7 +377,7 @@ export function StudioWizard({
         const rotated=rotation%180!==0;
         const sourceW=rotated?bitmap.height:bitmap.width;
         const sourceH=rotated?bitmap.width:bitmap.height;
-        const scale=Math.max(width/sourceW,height/sourceH);
+        const scale=Math.max(width/sourceW,height/sourceH)*cropScale;
         const translatedX=(0.5-cropX/100)*(sourceW*scale-width);
         const translatedY=(0.5-cropY/100)*(sourceH*scale-height);
         ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
@@ -534,7 +535,7 @@ export function StudioWizard({
             <button type="button" aria-pressed={!customMode&&draft.outputFormat==="16:9"} className={!customMode&&draft.outputFormat==="16:9"?"is-selected":""}
               onClick={()=>{update({formatMode:"16:9",outputFormat:"16:9"});if(draft.imageId)setCropPending(true);}}><Monitor size={16}/><span>16:9</span></button>
             <button type="button" aria-pressed={customMode} className={customMode?"is-selected":""}
-              onClick={()=>{setCustomWidth(draft.outputFormat==="9:16"?1080:1920);setCustomHeight(draft.outputFormat==="9:16"?1920:1080);update({formatMode:"auto"});if(draft.imageId)setCropPending(true);}}><Crop size={16}/><span>Crop</span></button>
+              onClick={()=>{setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);update({formatMode:"auto"});if(draft.imageId)setCropPending(true);}}><Crop size={16}/><span>Crop</span></button>
             <button type="button" disabled={!draft.imageId||busy} onClick={()=>{setRotation(v=>(v+90)%360);setCropPending(true);}}><RotateCw size={16}/><span>Rotate</span></button>
             <button type="button" disabled={!draft.imageId||busy} onClick={()=>{setFlipped(v=>!v);setCropPending(true);}}><FlipHorizontal2 size={16}/><span>Flip</span></button>
           </div>
@@ -555,7 +556,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();setCropPending(true);}}>Reset</button>
             <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
-          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> Use a well-lit image with the full face visible. Custom photo sizes do not change the 9:16 / 16:9 video export formats.</p>
+          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> BytePlus video export: 720p (720 × 1280 portrait or 1280 × 720 landscape). Custom dimensions affect the reference photo only.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step" aria-label="Performance and camera settings">
           <PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start}
