@@ -71,6 +71,7 @@ async function store(){
     s.db.prepare("UPDATE public_showcase_channel_config SET random_order=1 WHERE channel='mobile'").run();
   }
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_uploads(id TEXT PRIMARY KEY,title TEXT NOT NULL,filename TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,created_at INTEGER NOT NULL)");
+  s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_posters(id TEXT PRIMARY KEY,filename TEXT NOT NULL,created_at INTEGER NOT NULL)");
   return s;
 }
 async function admin(req:NextRequest){
@@ -98,7 +99,8 @@ async function handler(req:NextRequest){
         if(!entry.policy_json||!superAdminPolicy(entry.policy_json))return false;
         try{const a=s.get(entry.attempt_id);return a.state==="completed"&&!!a.outputPath;}catch{return false;}
       });
-      const selectedVideo=req.nextUrl.searchParams.get("id");
+      const posterUrl=(id:string)=>s.db.prepare("SELECT 1 FROM public_showcase_posters WHERE id=?").get(id)?"/api/showcase-media?kind=poster&id="+encodeURIComponent(id):null;
+       const selectedVideo=req.nextUrl.searchParams.get("id");
       if(req.method==="GET"&&req.nextUrl.searchParams.has("video")){
         if(!selectedVideo)return json({error:"Missing published video ID"},400);
         const selected=validated().find(e=>e.attempt_id===selectedVideo);
@@ -134,7 +136,7 @@ async function handler(req:NextRequest){
         const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
         const randomOrder=channel==="mobile"&&(config?.random_order??1)===1;
         const published=validated();
-        const videos=(randomOrder?shuffled(published):published).map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id)}));
+        const videos=(randomOrder?shuffled(published):published).map(entry=>({id:entry.attempt_id,title:entry.artist_name,videoUrl:"/api/showcase?channel="+channel+"&video=1&id="+encodeURIComponent(entry.attempt_id),posterUrl:posterUrl(entry.attempt_id)}));
         // Preserve the explicitly published legacy feed until its new mobile
         // playlist is curated in CMS. Never import other/private projects.
         const configured=!!s.db.prepare("SELECT 1 FROM public_showcase_channel_config WHERE channel=?").get(channel);
@@ -180,7 +182,7 @@ async function handler(req:NextRequest){
         const published=validated();
         const selectedIds=published.map(v=>v.attempt_id);
         const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
-        return json({channel,randomOrder:channel==="mobile"&&(config?.random_order??1)===1,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
+        return json({channel,randomOrder:channel==="mobile"&&(config?.random_order??1)===1,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id),posterUrl:posterUrl(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
       }
       if(req.method==="POST"){
         const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown;randomOrder?:unknown};
