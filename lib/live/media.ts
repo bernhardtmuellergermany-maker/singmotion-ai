@@ -120,6 +120,16 @@ async function prepareOwnedSelection(
     imagePath = await privateAsset(image.path, dataDir);
   const sourceSha256 = await sha256File(sourcePath);
   await validateReference(imagePath);
+  // Reject a mismatched submitted reference BEFORE any irreversible paid task.
+  // The crop editor must deliver pixels at the explicitly selected orientation.
+  // This protects 16:9 originals against accidentally reused 9:16 crop assets.
+  if (selected.formatMode === "16:9" || selected.formatMode === "9:16") {
+    const imageMeta = await sharp(imagePath).metadata();
+    const expectedRatio = selected.formatMode === "16:9" ? 16 / 9 : 9 / 16;
+    const actualRatio = (imageMeta.width || 0) / (imageMeta.height || 1);
+    if (!Number.isFinite(actualRatio) || Math.abs(actualRatio / expectedRatio - 1) > 0.025)
+      throw new Error("REFERENCE_FORMAT_MISMATCH: Reopen the photo editor, select the video format, and press Apply before approving BytePlus. No paid video request was made.");
+  }
   const directory = path.join(dataDir, "media");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   // Content-addressed immutable copies bind approval to the exact reviewed inputs.
