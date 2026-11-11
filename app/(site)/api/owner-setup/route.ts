@@ -72,6 +72,10 @@ export async function POST(req:NextRequest) {
     const txReq={transactionID:id,context:{provisioning:true}};
     const count=await payload.count({collection:"staff",overrideAccess:true,req:txReq});
     if(count.totalDocs===0) {
+      if(!claimRecoveryToken(expected)){
+        await payload.db.rollbackTransaction(id);id=undefined;
+        return respond("The setup code has already been used. Rotate it in Railway.",409);
+      }
       await payload.create({
         collection:"staff",overrideAccess:true,req:txReq,
         data:{email,password,role:"super-admin"}
