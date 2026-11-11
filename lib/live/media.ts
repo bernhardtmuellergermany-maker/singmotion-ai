@@ -146,7 +146,15 @@ async function prepareOwnedSelection(
   await validateReference(imagePath);
   // The server checks the same saved image used by review, before reserving
   // any provider spending. Never auto-crop, substitute or recreate it.
-  assertAppliedStudioImageSelection(selected, await sharp(imagePath).metadata());
+  const submittedImageMeta = await sharp(imagePath).metadata();
+  assertAppliedStudioImageSelection(selected, submittedImageMeta);
+  // Only dimensions and the selected orientation; no private pixels, paths,
+  // upload identifiers or media hashes are disclosed in diagnostics.
+  if (selected.sourceImageId) console.info("STUDIO_PROVIDER_REFERENCE_ORIENTATION", {
+    inputWidth: submittedImageMeta.width,
+    inputHeight: submittedImageMeta.height,
+    selectedFormat: selected.outputFormat ?? null,
+  });
   const directory = path.join(dataDir, "media");
   await mkdir(directory, { recursive: true, mode: 0o700 });
   // Content-addressed immutable copies bind approval to the exact reviewed inputs.
