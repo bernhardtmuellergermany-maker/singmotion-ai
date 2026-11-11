@@ -116,6 +116,32 @@ export function StudioWizard({
     [lockRatio,setLockRatio] = useState(true),
     [imageReady,setImageReady] = useState(false);
   const cropDrag=useRef<{x:number;y:number;startX:number;startY:number}|null>(null);
+  const handleDrag=useRef<{id:number;x:number;y:number;scale:number;corner:string;width:number;height:number}|null>(null);
+  function startCropHandle(e:React.PointerEvent<HTMLSpanElement>,corner:string){
+    if(busy||!imageReady)return;
+    const rect=e.currentTarget.parentElement?.getBoundingClientRect();
+    if(!rect)return;
+    e.preventDefault();e.stopPropagation();
+    handleDrag.current={id:e.pointerId,x:e.clientX,y:e.clientY,scale:cropScale,corner,width:rect.width,height:rect.height};
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+  function moveCropHandle(e:React.PointerEvent<HTMLSpanElement>){
+    const drag=handleDrag.current;
+    if(!drag||drag.id!==e.pointerId)return;
+    e.preventDefault();e.stopPropagation();
+    const horizontal=drag.corner.endsWith("r")?-1:1;
+    const vertical=drag.corner.startsWith("b")?-1:1;
+    const delta=((e.clientX-drag.x)*horizontal/Math.max(1,drag.width)+(e.clientY-drag.y)*vertical/Math.max(1,drag.height));
+    setCropScale(Math.max(1,Math.min(3,drag.scale*(1+delta))));
+    setCropPending(true);
+  }
+  function endCropHandle(e:React.PointerEvent<HTMLSpanElement>){
+    if(handleDrag.current?.id!==e.pointerId)return;
+    handleDrag.current=null;
+    e.stopPropagation();
+    if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
+  }
+
   const cropReset=()=>{setCropX(50);setCropY(50);setCropScale(1);setRotation(0);setFlipped(false);};
   const customMode=draft.formatMode==="auto";
   const frameWidth=customMode?customWidth:(draft.outputFormat==="9:16"?720:1280);
@@ -523,8 +549,22 @@ export function StudioWizard({
                       width:previewImageWidth+"%",height:previewImageHeight+"%",objectFit:"fill",
                       transform:"translate(-50%,-50%) rotate("+rotation+"deg) scaleX("+(flipped?-1:1)+")"}}/>
                   <div className="sm-photo-crop-grid" aria-hidden="true"/>
-                  <span className="sm-photo-crop-corner tl"/><span className="sm-photo-crop-corner tr"/>
-                  <span className="sm-photo-crop-corner bl"/><span className="sm-photo-crop-corner br"/>
+                  <span className="sm-photo-crop-corner tl" role="slider" tabIndex={0} aria-label="Crop TL handle"
+                    aria-valuemin={100} aria-valuemax={300} aria-valuenow={Math.round(cropScale*100)}
+                    onPointerDown={e=>startCropHandle(e,"tl")} onPointerMove={moveCropHandle} onPointerUp={endCropHandle} onPointerCancel={endCropHandle}
+                    onKeyDown={e=>{if(["ArrowUp","ArrowRight","ArrowDown","ArrowLeft"].includes(e.key)){e.preventDefault();setCropScale(v=>Math.max(1,Math.min(3,v+(e.key==="ArrowUp"||e.key==="ArrowRight"?0.05:-0.05))));setCropPending(true);}}}/>
+                  <span className="sm-photo-crop-corner tr" role="slider" tabIndex={0} aria-label="Crop TR handle"
+                    aria-valuemin={100} aria-valuemax={300} aria-valuenow={Math.round(cropScale*100)}
+                    onPointerDown={e=>startCropHandle(e,"tr")} onPointerMove={moveCropHandle} onPointerUp={endCropHandle} onPointerCancel={endCropHandle}
+                    onKeyDown={e=>{if(["ArrowUp","ArrowRight","ArrowDown","ArrowLeft"].includes(e.key)){e.preventDefault();setCropScale(v=>Math.max(1,Math.min(3,v+(e.key==="ArrowUp"||e.key==="ArrowRight"?0.05:-0.05))));setCropPending(true);}}}/>
+                  <span className="sm-photo-crop-corner bl" role="slider" tabIndex={0} aria-label="Crop BL handle"
+                    aria-valuemin={100} aria-valuemax={300} aria-valuenow={Math.round(cropScale*100)}
+                    onPointerDown={e=>startCropHandle(e,"bl")} onPointerMove={moveCropHandle} onPointerUp={endCropHandle} onPointerCancel={endCropHandle}
+                    onKeyDown={e=>{if(["ArrowUp","ArrowRight","ArrowDown","ArrowLeft"].includes(e.key)){e.preventDefault();setCropScale(v=>Math.max(1,Math.min(3,v+(e.key==="ArrowUp"||e.key==="ArrowRight"?0.05:-0.05))));setCropPending(true);}}}/>
+                  <span className="sm-photo-crop-corner br" role="slider" tabIndex={0} aria-label="Crop BR handle"
+                    aria-valuemin={100} aria-valuemax={300} aria-valuenow={Math.round(cropScale*100)}
+                    onPointerDown={e=>startCropHandle(e,"br")} onPointerMove={moveCropHandle} onPointerUp={endCropHandle} onPointerCancel={endCropHandle}
+                    onKeyDown={e=>{if(["ArrowUp","ArrowRight","ArrowDown","ArrowLeft"].includes(e.key)){e.preventDefault();setCropScale(v=>Math.max(1,Math.min(3,v+(e.key==="ArrowUp"||e.key==="ArrowRight"?0.05:-0.05))));setCropPending(true);}}}/>
                 </div>
               </div>
             </>
