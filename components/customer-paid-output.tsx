@@ -58,7 +58,7 @@ export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
    progress==="review"?"Your video is being reviewed. No additional payment or automatic provider retry will occur.":"");
  return <div className="sm-private-output sm-private-output-generation" aria-label="Private generation page">
    <GenerationStatusView progress={loaded?progress:"unavailable"} paymentMode="stripe"
-    amount={amountCents} videoUrl={ready?order?.videoUrl:null}
+    amount={amountCents} photoUrl={order?.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(orderId)}`:null} videoUrl={ready?order?.videoUrl:null}
     downloadUrl={ready?order?.downloadUrl:null} note={note}/>
  </div>;
 }
