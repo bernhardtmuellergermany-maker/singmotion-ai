@@ -21,7 +21,6 @@ import {
   Trash2,
   FileMusic,
   CloudUpload,
-  Clapperboard,
   Check,
   ShieldCheck,
 } from "lucide-react";
@@ -341,13 +340,6 @@ export function StudioWizard({
     <div className="product-theme singmotion-flow">
       <SiteHeader />
       <main id="content" className={`flow-main ${draft.song ? "flow-has-audio" : "flow-empty"}`}>
-        <section className="sm-studio-hero" aria-label="Studio">
-          <div className="sm-studio-hero-copy">
-            <span className="sm-studio-hero-icon" aria-hidden="true"><Clapperboard size={35}/></span>
-            <div><h2>{content.heroHeading}</h2><p>{content.heroSubtitle}</p></div>
-          </div>
-          {content.heroImageUrl && <img className="sm-studio-hero-art" src={content.heroImageUrl} alt={content.heroImageAlt || "Studio artwork"}/>}
-        </section>
         <div className="sm-new-stepper" aria-label="Video creation progress">
           {["Audio Upload", "Photo Upload", "Performance Prompt", "Generate Video"].map((label,index)=>(
             <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
