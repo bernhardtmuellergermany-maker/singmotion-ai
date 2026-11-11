@@ -30,6 +30,9 @@ import {
   CloudUpload,
   Check,
   ShieldCheck,
+  Clock3,
+  ChevronRight,
+  ReceiptText,
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
@@ -87,7 +90,6 @@ export function StudioWizard({
   const performanceInput = useRef<HTMLTextAreaElement>(null);
   const audioFileInput = useRef<HTMLInputElement>(null);
   const photoFileInput = useRef<HTMLInputElement>(null);
-  const reviewTouch = useRef<{x:number;y:number}|null>(null);
   const draftId = useRef<string>(""),
     [saved, setSaved] = useState(false),
     [projectKey, setProjectKey] = useState("");
@@ -106,7 +108,9 @@ export function StudioWizard({
     [photoUploadingName,setPhotoUploadingName] = useState(""),
     [photoSize,setPhotoSize] = useState({width:1,height:1}),
     [error, setError] = useState(""),
-    [reviewCard, setReviewCard] = useState<"preview"|"details">("preview"),
+    [reviewRights, setReviewRights] = useState(false),
+    [reviewQuote,setReviewQuote] = useState<{plan:string;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number}|null>(null),
+    [reviewQuoteLoading,setReviewQuoteLoading] = useState(false),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
     [cropX,setCropX] = useState(50),
@@ -469,6 +473,22 @@ export function StudioWizard({
       : null;
 
   const available = !!selection && audioValid && !!prompt && !busy && !cropPending && frameValid;
+  useEffect(() => {
+    if(step!==3 || !selection)return;
+    const controller=new AbortController();
+    const seconds=(selection.end-selection.start).toFixed(3);
+    void Promise.resolve().then(()=>{if(!controller.signal.aborted){setReviewQuote(null);setReviewQuoteLoading(true);}});
+    void fetch(`/api/customer-quote?seconds=${encodeURIComponent(seconds)}`,{
+      credentials:"same-origin",cache:"no-store",signal:controller.signal,
+    }).then(async response=>response.ok?response.json():null)
+      .then(value=>{if(!controller.signal.aborted)setReviewQuote(value?.estimateOnly===true?value:null);})
+      .catch(()=>{})
+      .finally(()=>{if(!controller.signal.aborted)setReviewQuoteLoading(false);});
+    return ()=>controller.abort();
+  },[step,selection?.start,selection?.end,selection?.owner]);
+  const reviewPrice=reviewQuote
+    ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(reviewQuote.estimatedExtraPriceCents/100)
+    : reviewQuoteLoading ? "Calculating…" : "See checkout";
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -688,43 +708,75 @@ export function StudioWizard({
           </details>}
           <p className="sm-performance-tip"><ShieldCheck size={17}/> Describe natural movements, facial expressions and camera motion. Your uploaded photo defines the visual scene.</p>
         </section>}
-        {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
-          <div className="sm-carousel-stage sm-review-stage"
-            onTouchStart={e=>{reviewTouch.current={x:e.touches[0].clientX,y:e.touches[0].clientY};}}
-            onTouchEnd={e=>{const from=reviewTouch.current;reviewTouch.current=null;if(!from)return;const dx=e.changedTouches[0].clientX-from.x,dy=e.changedTouches[0].clientY-from.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.4)setReviewCard(value=>value==="preview"?"details":"preview");}}
-          >
-            <article className={"sm-carousel-card sm-review-panel sm-review-front "+(reviewCard==="preview"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="preview"?0:-1,"--depth":reviewCard==="preview"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project image and status">
-              {draft.imageId?<img className="sm-review-cover" style={{objectFit:"cover",objectPosition:"center"}} src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt={`Selected artist centered for ${draft.outputFormat} output`}/>:<div className="sm-review-placeholder"><ImagePlus size={42}/><span>No artist image selected</span></div>}
-              <div className="sm-review-top"><span className="sm-review-status">Ready for review</span></div>
-              <div className="sm-review-bottom"><strong title={projectName}>{projectName||"Untitled Project"}</strong><span>{draft.outputFormat} · {sourceTimestamp(Math.max(0,draft.end-draft.start))} clip</span></div>
-              {reviewCard!=="preview"&&<button type="button" className="sm-carousel-side-hit sm-review-side-hit" aria-label="Show project card" onClick={()=>setReviewCard("preview")}/>}
-            </article>
-            <article className={"sm-carousel-card sm-review-panel sm-review-details "+(reviewCard==="details"?"is-active is-front":"is-neighbor is-inactive is-behind")} style={{"--distance":reviewCard==="details"?0:1,"--depth":reviewCard==="details"?0:1,"--drag":0} as React.CSSProperties} aria-label="Project details">
-              <div className="sm-review-details-inner">
-                <h2>Project details</h2>
-                <dl>
-                  <div><dt>Project</dt><dd>{projectName||"Untitled Project"}</dd></div>
-                  <div><dt>Status</dt><dd>Ready for review</dd></div>
-                  <div><dt>Song</dt><dd>{draft.song?.name||"Missing audio"}</dd></div>
-                  <div><dt>Source audio cut</dt><dd>Start {sourceTimestamp(draft.start)} · End {sourceTimestamp(draft.end)}</dd></div>
-                  <div><dt>Clip duration</dt><dd>{sourceTimestamp(Math.max(0,draft.end-draft.start))}</dd></div>
-                  <div><dt>Video format</dt><dd>{draft.outputFormat}</dd></div>
-                </dl>
-                <div className="sm-review-instructions"><strong>Final performance instructions</strong><p>{draft.customPrompt||"No additional instructions"}</p></div>
+        {step===3&&<section className="sm-review-checkout" aria-label="Review your video before payment">
+          <div className="sm-review-list">
+            <details className="sm-review-item">
+              <summary><Music2 size={20}/><strong>Audio</strong><span className="sm-review-item-value" title={draft.song?.name}>{draft.song?.name||"No audio selected"}</span><ChevronDown size={17}/></summary>
+              <div className="sm-review-expanded">
+                <p><strong>Source audio:</strong> {draft.song?.name||"Not selected"}</p>
+                <p><strong>Selected source:</strong> {sourceTimestamp(draft.start)} – {sourceTimestamp(draft.end)}</p>
+                <p><strong>Source file length:</strong> {draft.song?.duration?sourceTimestamp(draft.song.duration):"Not available"}</p>
+                <p>This is the section of your original audio used for the video.</p>
               </div>
-              {reviewCard!=="details"&&<button type="button" className="sm-carousel-side-hit sm-review-side-hit" aria-label="Show project details" onClick={()=>setReviewCard("details")}/>}
-            </article>
+            </details>
+            <details className="sm-review-item">
+              <summary><Sparkles size={20}/><strong>Performance</strong><span className="sm-review-item-value">{draft.customPrompt.trim()||"Natural singing performance"}</span><ChevronDown size={17}/></summary>
+              <div className="sm-review-expanded">
+                <p><strong>Performance instructions</strong></p>
+                <p className="sm-review-prompt">{draft.customPrompt.trim()||"Natural singing performance."}</p>
+                <p>The uploaded photo defines the visual scene; the prompt guides the performance and camera.</p>
+              </div>
+            </details>
+            <details className="sm-review-item">
+              <summary><ImagePlus size={20}/><strong>Photo</strong><span className="sm-review-item-value sm-review-photo-value">{draft.imageId&&<img src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt="Selected artist thumbnail"/>} Artist photo added</span><ChevronDown size={17}/></summary>
+              <div className="sm-review-expanded sm-review-photo-expanded">
+                {draft.imageId&&<img src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt="Uploaded artist photo preview"/>}
+                <p>Final cropped reference photo submitted for video generation.</p>
+              </div>
+            </details>
+            <details className="sm-review-item">
+              <summary><Smartphone size={20}/><strong>Format</strong><span className="sm-review-item-value">{draft.formatMode==="auto"?"Custom photo crop":draft.outputFormat==="9:16"?"9:16 portrait":"16:9 landscape"}</span><ChevronDown size={17}/></summary>
+              <div className="sm-review-expanded">
+                <p><strong>Reference photo:</strong> {draft.formatMode==="auto"?"Custom crop":draft.outputFormat}</p>
+                <p><strong>Video resolution:</strong> Up to 720p, depending on the supported provider output.</p>
+              </div>
+            </details>
+            <details className="sm-review-item">
+              <summary><Clock3 size={20}/><strong>Duration</strong><span className="sm-review-item-value">{sourceTimestamp(Math.max(0,draft.end-draft.start))} clip</span><ChevronDown size={17}/></summary>
+              <div className="sm-review-expanded">
+                <p>Audio source selection: {sourceTimestamp(draft.start)} – {sourceTimestamp(draft.end)}</p>
+                <p>Requested video duration: {sourceTimestamp(Math.max(0,draft.end-draft.start))}</p>
+              </div>
+            </details>
+            <details className="sm-review-item sm-review-cost-row">
+              <summary><ReceiptText size={20}/><strong>Costs</strong><span className="sm-review-item-value">{reviewPrice}</span><ChevronDown size={17}/></summary>
+              <div className="sm-review-expanded">
+                {reviewQuote?<>
+                  <p><strong>Estimated extra charge (VAT included):</strong> {reviewPrice}</p>
+                  <p><strong>Billable duration:</strong> {reviewQuote.estimatedBillableSeconds} seconds</p>
+                  <p><strong>Included with plan:</strong> {reviewQuote.includedSeconds} seconds</p>
+                  <p><strong>Additional seconds:</strong> {reviewQuote.extraSeconds}</p>
+                  <p>This is an estimate, not a final charge. Your binding price is confirmed before payment.</p>
+                </>:<p>{reviewQuoteLoading?"Loading your personal estimate…":"Personal pricing is unavailable right now. Please check the price before confirming payment."}</p>}
+              </div>
+            </details>
           </div>
+          <label className="sm-review-rights">
+            <input type="checkbox" checked={reviewRights} onChange={e=>setReviewRights(e.target.checked)}/>
+            <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
+          </label>
+          <p className="sm-review-ai-notice"><ShieldCheck size={17}/> AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
+          <p className="sm-review-payment-note">Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page.</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||cropPending||!frameValid))} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>
-      {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} onClose={()=>setConfirm(false)}/>}
+      {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} initialRights={reviewRights} onClose={()=>setConfirm(false)}/>}
     </div>
   );
 }
