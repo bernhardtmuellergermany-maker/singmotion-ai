@@ -125,8 +125,8 @@ export function StudioWizard({
     [imageReady,setImageReady] = useState(false);
   const cropDrag=useRef<{x:number;y:number;startX:number;startY:number}|null>(null);
   const handleDrag=useRef<{id:number;x:number;y:number;scale:number;corner:string;width:number;height:number;ratio:number}|null>(null);
-  // BytePlus receives the cropped reference image. Free crop changes its
-  // aspect ratio; the fixed 9:16 and 16:9 presets only change framing.
+  // BytePlus receives the saved reference image; fit the whole photo by default.
+  // An explicit zoom is required to crop the original composition.
   function dimensionForRatio(rawRatio:number){
     const ratio=Math.min(2.5,Math.max(0.4,rawRatio));
     const width=ratio>=1?Math.round(720*ratio):720;
@@ -178,11 +178,11 @@ export function StudioWizard({
   const frameValid=Number.isInteger(frameWidth)&&Number.isInteger(frameHeight)&&frameWidth>=256&&frameHeight>=256&&frameWidth<=4096&&frameHeight<=4096&&frameWidth*frameHeight<=16777216;
   const rotatedImageWidth=rotation%180?photoSize.height:photoSize.width;
   const rotatedImageHeight=rotation%180?photoSize.width:photoSize.height;
-  const coverScale=Math.max(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight))*cropScale;
+  const coverScale=Math.min(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight))*cropScale;
   const previewImageWidth=photoSize.width*coverScale*100;
   const previewImageHeight=photoSize.height*coverScale*frameWidth/frameHeight*100;
-  const cropExcessX=rotatedImageWidth*coverScale-1;
-  const cropExcessY=rotatedImageHeight*coverScale*frameWidth/frameHeight-1;
+  const cropExcessX=Math.max(0,rotatedImageWidth*coverScale-1);
+  const cropExcessY=Math.max(0,rotatedImageHeight*coverScale*frameWidth/frameHeight-1);
   const cropOffsetX=(0.5-cropX/100)*cropExcessX*100;
   const cropOffsetY=(0.5-cropY/100)*cropExcessY*100;
   function setCustomDimension(axis:"width"|"height",raw:number) {
@@ -444,10 +444,11 @@ export function StudioWizard({
         const rotated=rotation%180!==0;
         const sourceW=rotated?bitmap.height:bitmap.width;
         const sourceH=rotated?bitmap.width:bitmap.height;
-        const scale=Math.max(width/sourceW,height/sourceH)*cropScale;
+        const scale=Math.min(width/sourceW,height/sourceH)*cropScale;
         const translatedX=(0.5-cropX/100)*(sourceW*scale-width);
         const translatedY=(0.5-cropY/100)*(sourceH*scale-height);
-        ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
+        ctx.fillStyle="#000000";ctx.fillRect(0,0,width,height);
+         ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
         ctx.scale(flipped?-1:1,1);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);
         ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);ctx.restore();
         const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Could not save crop.")),"image/png"));
@@ -684,7 +685,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">For best results, use a sharp, well-lit photo with the full face and mouth clearly visible. Avoid distant shots.</p>
+          <p className="sm-photo-step-tip">The whole photo is fitted by default without zoom or crop. Borders may appear when the source ratio differs from the video. Zoom only if you want a tighter crop, then press Apply to save the exact framing.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
