@@ -132,6 +132,50 @@ try{
  await libraryCard.click();
  await page.waitForURL(origin+"/orders/"+id);
  await page.getByRole("region",{name:"Video generation status"}).getByRole("heading",{name:"Your video is ready"}).waitFor({timeout:15000});
+ // Regression: guest starting a second video must not overwrite the prior
+ // server-backed draft, and reopening the first card must restore its text.
+ const guestContext=await browser.newContext();
+ const guestPage=await guestContext.newPage();
+ await guestPage.goto(origin+"/studio?new=1");
+ await guestPage.getByRole("heading",{name:/Upload your audio/}).waitFor({timeout:15000});
+ const listGuestDrafts=async()=>{
+   const r=await guestContext.request.get(origin+"/api/studio-drafts");
+   assert.equal(r.status(),200);
+   return await r.json() as Array<{id:string;selection:Record<string,unknown>;artistName:string;projectName?:string}>;
+ };
+ let firstDrafts=await listGuestDrafts();
+ for(let i=0;firstDrafts.length<1&&i<30;i++){
+   await new Promise(resolve=>setTimeout(resolve,200));
+   firstDrafts=await listGuestDrafts();
+ }
+ assert.equal(firstDrafts.length,1,"first guest project created");
+ const old=firstDrafts[0];
+ const note="Keep the saved guest performance";
+ const saveOld=await guestContext.request.post(origin+"/api/studio-drafts",{
+   headers:{origin},
+   data:{id:old.id,selection:{...old.selection,customPrompt:note},
+     artistName:"My artist",projectName:"Old Guest Project",step:2}
+ });
+ assert.equal(saveOld.status(),200,"guest can save its existing project");
+ await guestPage.goto(origin+"/projects");
+ await guestPage.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ await guestPage.getByRole("link",{name:/New video/}).click();
+ await guestPage.waitForURL(origin+"/studio");
+ let afterNew=await listGuestDrafts();
+ for(let i=0;afterNew.length<2&&i<30;i++){
+   await new Promise(resolve=>setTimeout(resolve,200));
+   afterNew=await listGuestDrafts();
+ }
+ assert.equal(afterNew.length,2,"New video must have a separate guest draft ID");
+ const preserved=afterNew.find(d=>d.id===old.id);
+ assert.equal(preserved?.selection.customPrompt,note,"first guest project remains unchanged");
+ await guestPage.goto(origin+"/projects");
+ await guestPage.getByRole("link",{name:/Open Old Guest Project, Draft/}).click();
+ await guestPage.waitForURL(origin+`/studio?draft=${encodeURIComponent(old.id)}`);
+ await guestPage.getByRole("textbox",{name:/performance/i}).waitFor({timeout:15000}).catch(()=>{});
+ // The saved selection remains present after the explicit draft route has loaded.
+ assert.equal((await listGuestDrafts()).find(d=>d.id===old.id)?.selection.customPrompt,note);
+ await guestContext.close();
  const stranger=await browser.newContext();
  assert.equal((await stranger.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),401);
  assert.equal((await stranger.request.get(origin+`/api/customer-orders?view=mine&orderId=${id}`)).status(),401);
