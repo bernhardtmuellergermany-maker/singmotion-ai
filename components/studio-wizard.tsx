@@ -347,25 +347,30 @@ export function StudioWizard({
     }
   }
   async function applyPhotoFraming() {
-    if(!draft.imageId)return;
+    if(!draft.imageId||!frameValid)return;
     setBusy(true);setError("");
     try {
       const response=await fetch("/api/assets/"+encodeURIComponent(draft.imageId));
       if(!response.ok)throw new Error("Could not load artist photo.");
       const bitmap=await createImageBitmap(await response.blob());
       try {
-        const portrait=draft.outputFormat==="9:16";
-        const width=portrait?720:1280, height=portrait?1280:720;
-        const scale=Math.max(width/bitmap.width,height/bitmap.height)*cropZoom;
-        const visibleWidth=width/scale, visibleHeight=height/scale;
-        const canvas=document.createElement("canvas");
-        canvas.width=width;canvas.height=height;
+        const width=frameWidth,height=frameHeight;
+        const canvas=document.createElement("canvas");canvas.width=width;canvas.height=height;
         const ctx=canvas.getContext("2d");
         if(!ctx)throw new Error("Photo editor unavailable.");
-        ctx.drawImage(bitmap,(bitmap.width-visibleWidth)*cropX/100,(bitmap.height-visibleHeight)*cropY/100,visibleWidth,visibleHeight,0,0,width,height);
+        const rotated=rotation%180!==0;
+        const sourceW=rotated?bitmap.height:bitmap.width;
+        const sourceH=rotated?bitmap.width:bitmap.height;
+        const scale=Math.max(width/sourceW,height/sourceH)*cropZoom;
+        const translatedX=(0.5-cropX/100)*(sourceW*scale-width);
+        const translatedY=(0.5-cropY/100)*(sourceH*scale-height);
+        ctx.save();ctx.translate(width/2+translatedX,height/2+translatedY);
+        ctx.scale(flipped?-1:1,1);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);
+        ctx.filter="brightness("+brightness+"%) contrast("+contrast+"%)";
+        ctx.drawImage(bitmap,-bitmap.width/2,-bitmap.height/2);ctx.restore();
         const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Could not save crop.")),"image/png"));
         const asset=await upload(new File([blob],"artist-framed.png",{type:"image/png"}),"image");
-        update({imageId:asset.id,formatMode:draft.outputFormat});
+        update({imageId:asset.id,outputFormat:width>=height?"16:9":"9:16"});
         cropReset();setCropPending(false);
       } finally {bitmap.close();}
     } catch(e){setError((e as Error).message);}
