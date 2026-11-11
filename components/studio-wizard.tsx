@@ -181,7 +181,7 @@ export function StudioWizard({
   const frameValid=Number.isInteger(frameWidth)&&Number.isInteger(frameHeight)&&frameWidth>=256&&frameHeight>=256&&frameWidth<=4096&&frameHeight<=4096&&frameWidth*frameHeight<=16777216;
   const rotatedImageWidth=rotation%180?photoSize.height:photoSize.width;
   const rotatedImageHeight=rotation%180?photoSize.width:photoSize.height;
-  const coverScale=Math.min(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight))*cropScale;
+  const coverScale=Math.max(1/rotatedImageWidth,frameHeight/(frameWidth*rotatedImageHeight))*cropScale;
   const previewImageWidth=photoSize.width*coverScale*100;
   const previewImageHeight=photoSize.height*coverScale*frameWidth/frameHeight*100;
   const cropExcessX=Math.max(0,rotatedImageWidth*coverScale-1);
@@ -456,7 +456,7 @@ export function StudioWizard({
         const rotated=rotation%180!==0;
         const sourceW=rotated?bitmap.height:bitmap.width;
         const sourceH=rotated?bitmap.width:bitmap.height;
-        const scale=Math.min(width/sourceW,height/sourceH)*cropScale;
+        const scale=Math.max(width/sourceW,height/sourceH)*cropScale;
         const translatedX=(0.5-cropX/100)*(sourceW*scale-width);
         const translatedY=(0.5-cropY/100)*(sourceH*scale-height);
         ctx.fillStyle="#000000";ctx.fillRect(0,0,width,height);
@@ -713,7 +713,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();if(customMode){setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);}setCropPending(true);}}>Reset</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">Choose the format and framing you want. Continue saves exactly this photo before moving on. When your source aspect ratio differs, unused areas may appear in the preview.</p>
+          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 and adjust the framing. The preview fills the selected video shape; edges may be cropped if your photo has a different shape. Continue saves exactly this framing.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
