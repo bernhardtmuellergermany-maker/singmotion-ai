@@ -5,6 +5,9 @@ export interface StudioDraftExport {
   formatMode?: "auto" | "9:16" | "16:9";
   /** Original uploaded photo kept separately from the saved crop output. */
   sourceImageId?: string;
+  /** Immutable saved Apply result; must match imageId when present. */
+  editedImageId?: string;
+  appliedOutputFormat?: "9:16" | "16:9";
   owner: string;
   songId: string;
   imageId: string;
@@ -24,6 +27,8 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     "outputFormat",
     "formatMode",
     "sourceImageId",
+    "editedImageId",
+    "appliedOutputFormat",
     "owner",
     "songId",
     "imageId",
@@ -41,6 +46,11 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
     (v.outputFormat !== undefined &&
       v.outputFormat !== "9:16" &&
       v.outputFormat !== "16:9") ||
+    (v.editedImageId !== undefined &&
+      (typeof v.editedImageId !== "string" ||
+        !/^[A-Za-z0-9_-]{1,160}$/.test(v.editedImageId))) ||
+    (v.appliedOutputFormat !== undefined &&
+      v.appliedOutputFormat !== "9:16" && v.appliedOutputFormat !== "16:9") ||
     (v.sourceImageId !== undefined &&
       (typeof v.sourceImageId !== "string" ||
         !/^[A-Za-z0-9_-]{1,160}$/.test(v.sourceImageId))) ||
@@ -67,6 +77,8 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
       ? { outputFormat: v.outputFormat as "9:16" | "16:9" }
       : {}),
     ...(v.sourceImageId ? { sourceImageId: v.sourceImageId as string } : {}),
+    ...(v.editedImageId ? { editedImageId: v.editedImageId as string } : {}),
+    ...(v.appliedOutputFormat ? { appliedOutputFormat: v.appliedOutputFormat as "9:16" | "16:9" } : {}),
     owner: v.owner as string,
     songId: v.songId as string,
     imageId: v.imageId as string,
