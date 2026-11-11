@@ -3,10 +3,6 @@ export type StudioContent = {
   intro: string;
   audioReadyHeadline: string;
   audioReadySubtitle: string;
-  heroHeading: string;
-  heroSubtitle: string;
-  heroImageUrl: string | null;
-  heroImageAlt: string;
   performanceTemplates: StudioTemplate[];
   cameraTemplates: StudioTemplate[];
 };
@@ -31,10 +27,6 @@ export const defaultStudioContent: StudioContent = {
   intro: "Upload an audio file and choose your moment.",
   audioReadyHeadline: "Edit your audio",
   audioReadySubtitle: "Select the perfect moment for your music video.",
-  heroHeading: "Studio",
-  heroSubtitle: "Create your AI music video",
-  heroImageUrl: "/artwork/singmotion-stage.webp",
-  heroImageAlt: "Studio artwork",
   performanceTemplates: [
     {
       label: "Natural singing",
