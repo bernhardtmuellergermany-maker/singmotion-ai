@@ -357,6 +357,10 @@ const globals: GlobalConfig[] = [
     access: { read: () => true, update: editor },
     fields: [
       { name: "intro", type: "text", maxLength: 300 },
+      { name: "heroHeading", type: "text", maxLength: 100, admin: { description: "Large Studio header headline. Default: Studio." } },
+      { name: "heroSubtitle", type: "text", maxLength: 220, admin: { description: "Subtitle below the Studio header headline." } },
+      { name: "heroImage", type: "upload", relationTo: "cms-assets", admin: { description: "Optional image on the right of the Studio header. Upload it first in the media library (JPG, PNG or WebP). Leave empty for the default icon." } },
+
       ...["performanceTemplates", "cameraTemplates"].map((name) => ({
         name,
         type: "json" as const,
