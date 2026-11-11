@@ -111,7 +111,6 @@ export function StudioWizard({
     [reviewQuoteLoading,setReviewQuoteLoading] = useState(false),
     [reviewQuoteError,setReviewQuoteError] = useState(""),
     [reviewQuoteRetry,setReviewQuoteRetry] = useState(0),
-    [operatorAccess,setOperatorAccess] = useState<{checked:boolean;superAdmin:boolean;pilot:boolean}>({checked:false,superAdmin:false,pilot:false}),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
     [cropX,setCropX] = useState(50),
@@ -486,19 +485,13 @@ export function StudioWizard({
       : null;
 
   const available = !!selection && audioValid && !!prompt && !busy && !cropPending && frameValid;
-  const superAdminGeneration=owner.startsWith("cms-staff-") && operatorAccess.checked && operatorAccess.superAdmin && operatorAccess.pilot;
-  useEffect(()=>{
-    if(!ready || !owner.startsWith("cms-staff-"))return;
-    let active=true;
-    void api<{superAdmin?:boolean;pilot?:boolean}>("studio-live")
-      .then(access=>{if(active)setOperatorAccess({checked:true,superAdmin:access.superAdmin===true,pilot:access.pilot===true});})
-      .catch(()=>{if(active)setOperatorAccess({checked:true,superAdmin:false,pilot:false});});
-    return ()=>{active=false;};
-  },[ready,owner]);
+  // CMS staff accounts use the private operator authorization dialog, not
+  // customer checkout pricing. Studio-live itself still checks staff role,
+  // reviewed budgets and consent before any provider submission.
+  const operatorStudio=owner.startsWith("cms-staff-");
   useEffect(() => {
     if(step!==3 || !selection)return;
-    if(owner.startsWith("cms-staff-") && !operatorAccess.checked)return;
-    if(superAdminGeneration){
+    if(operatorStudio){
       setReviewQuote(null);setReviewQuoteError("");setReviewQuoteLoading(false);
       return;
     }
@@ -534,8 +527,8 @@ export function StudioWizard({
       );
     }).finally(()=>{if(!controller.signal.aborted)setReviewQuoteLoading(false);});
     return ()=>controller.abort();
-  },[step,selection?.start,selection?.end,selection?.owner,reviewQuoteRetry,operatorAccess.checked,superAdminGeneration]);
-  const reviewPrice=superAdminGeneration ? "Super Admin · no Stripe payment" : reviewQuote
+  },[step,selection?.start,selection?.end,selection?.owner,reviewQuoteRetry,operatorStudio]);
+  const reviewPrice=operatorStudio ? "Operator review · no Stripe payment" : reviewQuote
     ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(reviewQuote.estimatedExtraPriceCents/100)
     : reviewQuoteLoading ? "Calculating…" : "Unavailable";
   const cameraOptions: readonly string[] = cameras;
@@ -795,7 +788,7 @@ export function StudioWizard({
             <details className="sm-review-item sm-review-cost-row">
               <summary><ReceiptText size={20}/><strong>Costs</strong><span className="sm-review-item-value">{reviewPrice}</span><ChevronDown size={17}/></summary>
               <div className="sm-review-expanded">
-                {superAdminGeneration?<p><strong>Super Admin:</strong> Direct private BytePlus generation; no customer Stripe checkout. Provider costs still require operator approval and budget checks.</p>:reviewQuote?<>
+                {operatorStudio?<p><strong>Private operator workflow:</strong> No customer Stripe checkout. Super Admin permissions, provider costs and budget approval are checked before generation.</p>:reviewQuote?<>
                   <p><strong>Estimated extra charge (VAT included):</strong> {reviewPrice}</p>
                   <p><strong>Billable duration:</strong> {reviewQuote.estimatedBillableSeconds} seconds</p>
                   <p><strong>Included with plan:</strong> {reviewQuote.includedSeconds} seconds</p>
@@ -811,12 +804,12 @@ export function StudioWizard({
             <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
           </label>
           <p className="sm-review-ai-notice">AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
-          <p className="sm-review-payment-note">{superAdminGeneration?"Next: private Super Admin review and authorized BytePlus generation. No Stripe payment.":"Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page."}</p>
+          <p className="sm-review-payment-note">{operatorStudio?"Next: private operator authorization and BytePlus review. No Stripe payment.":"Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page."}</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||cropPending||!frameValid))} onClick={()=>setStep(x=>Math.min(3,x+1))}>Continue <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||(!superAdminGeneration&&(!reviewQuote||reviewQuoteLoading))} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||(!operatorStudio&&(!reviewQuote||reviewQuoteLoading))} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
