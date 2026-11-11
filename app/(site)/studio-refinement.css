@@ -2221,3 +2221,77 @@
  .product-theme.singmotion-flow .sm-performance-tip,
  .product-theme.singmotion-flow .sm-photo-step-tip{font-size:11px;gap:6px}
 }
+
+
+/* Unified typography for Studio steps 1–3 (audio, photo, performance).
+   Shared roles keep the rhythm consistent without changing control behavior. */
+.product-theme.singmotion-flow .flow-main{
+ --sm-type-step:12px;
+ --sm-type-title:32px;
+ --sm-type-description:14px;
+ --sm-type-control:13px;
+ --sm-type-field:16px;
+ --sm-type-caption:12px;
+}
+.product-theme.singmotion-flow .flow-main>.sm-new-page-heading{
+ margin-bottom:14px;
+}
+.product-theme.singmotion-flow .flow-main>.sm-new-page-heading>span,
+.product-theme.singmotion-flow .flow-main>.sm-performance-heading>span{
+ font-size:var(--sm-type-step);line-height:1.4;
+}
+.product-theme.singmotion-flow .flow-main>.sm-new-page-heading>h1,
+.product-theme.singmotion-flow .flow-main>.sm-performance-heading>h1{
+ font-size:var(--sm-type-title);line-height:1.16;
+ letter-spacing:-.025em;margin:6px 0;
+}
+.product-theme.singmotion-flow .flow-main>.sm-new-page-heading>p,
+.product-theme.singmotion-flow .flow-main>.sm-performance-heading>p{
+ font-size:var(--sm-type-description);line-height:1.45;
+}
+.product-theme.singmotion-flow .sm-new-upload-zone>strong,
+.product-theme.singmotion-flow .sm-photo-upload-zone>strong{
+ font-size:var(--sm-type-field);line-height:1.4;font-weight:650;
+}
+.product-theme.singmotion-flow .sm-new-upload-zone>span:last-child,
+.product-theme.singmotion-flow .sm-photo-upload-zone>span:last-child{
+ font-size:var(--sm-type-caption);line-height:1.45;
+}
+.product-theme.singmotion-flow .sm-performance-textarea{
+ font-size:var(--sm-type-field);line-height:1.45;
+}
+.product-theme.singmotion-flow .sm-performance-ideas h2{
+ font-size:14px;line-height:1.4;
+}
+.product-theme.singmotion-flow .sm-performance-chips button,
+.product-theme.singmotion-flow .sm-photo-one-row button,
+.product-theme.singmotion-flow .sm-new-audio-actions button{
+ font-size:var(--sm-type-control);line-height:1.3;
+}
+.product-theme.singmotion-flow .sm-performance-editor-footer,
+.product-theme.singmotion-flow .sm-new-private,
+.product-theme.singmotion-flow .sm-performance-tip,
+.product-theme.singmotion-flow .sm-photo-step-tip{
+ font-size:var(--sm-type-caption);line-height:1.45;
+}
+.product-theme.singmotion-flow .sm-new-navigation button{
+ font-size:15px;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .flow-main{
+  --sm-type-step:11px;
+  --sm-type-title:clamp(25px,6.5vw,29px);
+  --sm-type-description:13px;
+  --sm-type-control:12px;
+  --sm-type-field:15px;
+  --sm-type-caption:11px;
+ }
+ .product-theme.singmotion-flow .flow-main>.sm-new-page-heading{
+  margin-bottom:12px;
+ }
+ .product-theme.singmotion-flow .sm-new-navigation button{font-size:15px}
+ .product-theme.singmotion-flow .sm-photo-one-row button{font-size:11px}
+}
+@media(max-width:360px){
+ .product-theme.singmotion-flow .flow-main{--sm-type-title:24px}
+}
