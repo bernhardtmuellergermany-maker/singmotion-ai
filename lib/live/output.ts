@@ -396,9 +396,10 @@ async function fitValidatedRectangle(
   normalizeFps = false,
   preserveWholeFrame = false,
 ) {
-  // Paid customer source normalization retains the reviewed center crop.
-  // Only the explicit Studio 16:9/9:16 format conversion preserves all pixels
-  // with letterboxing, while retaining the provider audio packets unchanged.
+  // Paid customer normalization retains its separately reviewed center crop.
+  // An explicit Studio 16:9/9:16 conversion preserves the complete source
+  // in front of a blurred, image-derived full-frame backdrop. No black bars,
+  // no zoomed/cropped subject, no audio modification.
   const source = await probe(file);
   const limits = outputTransferLimits(contract);
   if ((await stat(file)).size > limits.maxBytes)
@@ -446,7 +447,7 @@ async function fitValidatedRectangle(
         "0:a:0",
         "-vf",
         `${preserveWholeFrame
-          ? `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black`
+          ? `split=2[bgsrc][fgsrc];[bgsrc]scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2,boxblur=25:1[bg];[fgsrc]scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1`
           : `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,setsar=1,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2`}${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
         "-c:v",
         "libx264",
