@@ -81,3 +81,36 @@ test("production export gate: conventional AAC is accepted but MP3 cannot pass a
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("selected 16:9 fills frame from a portrait provider video without black padding", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "singmotion-release-wide-"));
+  try {
+    const file = path.join(dir, "portrait-provider.mp4");
+    ffmpeg([
+      "-f", "lavfi", "-i", "color=c=red:s=720x1280:r=25:d=1",
+      "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
+      "-t", "1", "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast",
+      "-pix_fmt", "yuv420p", "-c:a", "aac", file,
+    ]);
+    const originalAudio = shaPackets(file);
+    await fitOutputFormat(file, 1, contract("aac", true), "16:9");
+    const streams = (await probe(file)).streams;
+    assert.equal(streams.find(s => s.codec_type === "video")?.width, 1280);
+    assert.equal(streams.find(s => s.codec_type === "video")?.height, 720);
+    assert.equal(shaPackets(file), originalAudio);
+    // A full-red provider frame must stay red even at both output edges.
+    // An old contain+pad transformation would leave those edges black.
+    const pixels = execFileSync("ffmpeg", [
+      "-nostdin", "-v", "error", "-i", file, "-frames:v", "1",
+      "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
+    ], { maxBuffer: 4 * 1024 * 1024 });
+    for (const x of [2, 1277]) {
+      const pos = (360 * 1280 + x) * 3;
+      assert.ok(pixels[pos] > 180, "16:9 output must fill the frame without black bars");
+      assert.ok(pixels[pos + 1] < 60);
+      assert.ok(pixels[pos + 2] < 60);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
