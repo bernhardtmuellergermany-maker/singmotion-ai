@@ -166,14 +166,18 @@ export function composePrompt(
     throw new AppError("Keep your custom prompt under 1,500 characters.");
   if (performance === "Custom" && !custom.trim())
     throw new AppError("Enter a custom performance prompt.");
+  // User-entered movement and expression directions must never be buried
+  // after a generic "Natural singing performance" instruction. Keep the
+  // exact authored words in the provider prompt and place them first.
   const performanceDirection = performance === "Custom"
-    ? "Natural singing performance."
+    ? "The person sings while following the performance direction above."
     : `${performance} singing performance.`;
-  // A camera Quick Idea is visible in the customer prompt and overrides the saved default camera.
-  const hasExplicitCamera = /^Camera:\s*\S/im.test(custom);
+  const authored = custom.trim();
+  // A visible Camera Quick Idea overrides the default camera preset.
+  const hasExplicitCamera = /^Camera:\s*\S/im.test(authored);
   const cameraDirection = hasExplicitCamera ? "" : (cameraPrompt[camera] ?? `Camera direction: ${camera}. Keep the singer clearly visible.`);
-  const customDirection = custom.trim() ? ` Additional performance direction: ${custom.trim()}.` : "";
-  const result = `${performanceDirection} ${cameraDirection} Keep facial identity, lip synchronization, and background consistent.${customDirection}`;
+  const customDirection = authored ? `Performance direction (priority): ${authored}. ` : "";
+  const result = `${customDirection}${performanceDirection} ${cameraDirection} Keep facial identity and lip synchronization consistent.`;
   if (result.length > 1500)
     throw new AppError("Keep the complete composed prompt under 1,500 characters.");
   return result;
