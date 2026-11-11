@@ -1,14 +1,15 @@
 "use client";
-import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,Music2,ShieldCheck} from "lucide-react";
+import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck} from "lucide-react";
 import "./generation-status-view.css";
 
 export type GenerationProgress = "verifying-payment"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,photoUrl,format,videoUrl,downloadUrl,note,
+  progress,paymentMode,amount,providerSeconds,photoUrl,format,videoUrl,downloadUrl,note,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
   amount?:number|null;
+  providerSeconds?:number|null;
   photoUrl?:string|null;
   format?:"9:16"|"16:9";
   videoUrl?:string|null;
@@ -39,6 +40,8 @@ export function GenerationStatusView({
     progress==="queued"?"Your request is waiting for processing. You can safely leave this page.":
     working?"Your music video is being created. This can take several minutes.":
     "Your existing project is being checked. Refreshing the page never starts another generation.";
+  const providerEstimate=typeof providerSeconds==="number" && Number.isFinite(providerSeconds) && providerSeconds>0
+    ?`USD ${(providerSeconds*0.07).toFixed(2)} est. · $0.07/sec` : "$0.07 / video second";
   const formattedAmount=Number.isSafeInteger(amount)&&amount!==null&&amount!==undefined&&amount>=0
     ?new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(amount/100):null;
   return <section className="sm-gen-page" aria-label="Video generation status">
@@ -50,7 +53,8 @@ export function GenerationStatusView({
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
       <span>{admin?"Super Admin · No checkout required":paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
-      {formattedAmount&&paymentConfirmed&&!admin&&<strong>{formattedAmount} paid</strong>}
+      {admin?<strong title="Provider cost estimate based on requested seconds, not a settled BytePlus invoice">{providerEstimate}</strong>:
+       formattedAmount&&paymentConfirmed&&<strong>{formattedAmount} paid</strong>}
     </div>
     <div className="sm-gen-grid">
       <div className="sm-gen-media-column">
@@ -84,6 +88,7 @@ export function GenerationStatusView({
         <p className="sm-gen-download-note">{ready?"Private MP4 available now.":"Available only after the video has been verified and securely stored."}</p>
       </div>
     </div>
+    {admin&&<p className="sm-gen-outcome-note">BytePlus base-rate estimate only: $0.07 per generated video second. Final provider billing can differ if output duration or fees differ. No Stripe checkout.</p>}
     {note&&<p className="sm-gen-outcome-note" role={failed||review?"alert":"status"}>{note}</p>}
     <p className="sm-gen-disclaimer">AI-generated results may vary, including facial expressions, camera movement and lip synchronization. Your statutory rights remain unaffected.</p>
   </section>;
