@@ -2205,3 +2205,19 @@
  .product-theme.singmotion-flow .sm-performance-textarea{min-height:77px;font-size:15px}
  .product-theme.singmotion-flow .sm-performance-chips button{min-height:35px;font-size:11px;padding:6px 10px}
 }
+
+/* Consistent concise quality hints in photo and performance steps. */
+.product-theme.singmotion-flow .sm-performance-tip,
+.product-theme.singmotion-flow .sm-photo-step-tip{
+ display:flex;align-items:center;justify-content:center;gap:8px;
+ width:100%;margin:3px 0 0;padding:0;color:#cbbfe4;
+ font-size:12px;line-height:1.45;text-align:center;
+}
+.product-theme.singmotion-flow .sm-performance-tip svg,
+.product-theme.singmotion-flow .sm-photo-step-tip svg{
+ flex:0 0 auto;width:16px;height:16px;color:#c0a7e6;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-performance-tip,
+ .product-theme.singmotion-flow .sm-photo-step-tip{font-size:11px;gap:6px}
+}
