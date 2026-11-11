@@ -49,6 +49,9 @@ export function GenerationDialog({
     [appliedPromo,setAppliedPromo] = useState(""),
     [promoError,setPromoError] = useState(""),
     [quotePending, setQuotePending] = useState(true);
+  // CMS operators must never fall through to the public guest checkout.
+  const operatorFlow=selection.owner.startsWith("cms-staff-");
+  const customerFlow=!operatorFlow && customerOrdersAvailable;
   useEffect(() => {
     dialog.current?.showModal();
     let current = true;
@@ -84,6 +87,7 @@ export function GenerationDialog({
   useEffect(() => {
     let active = true;
     const seconds = selection.end - selection.start;
+    if(operatorFlow){setQuotePending(false);setCustomerQuote(null);return ()=>{active=false};}
     void Promise.resolve().then(()=>{if(active){setQuotePending(true);setCustomerQuote(null);}});
     const query = new URLSearchParams({seconds:seconds.toFixed(3)});
     if(appliedPromo)query.set("promo",appliedPromo);
@@ -100,14 +104,14 @@ export function GenerationDialog({
       .catch(()=>{})
       .finally(()=>{if(active)setQuotePending(false)});
     return ()=>{active=false};
-  },[selection.start,selection.end,appliedPromo]);
+  },[selection.start,selection.end,appliedPromo,operatorFlow]);
   // Prepare and price server-side inside the same dialog once the operator
   // accepts the media rights. This is NOT a paid provider submission.
   useEffect(() => {
     if (
       !rights ||
       !terms ||
-      customerOrdersAvailable ||
+      customerFlow ||
       pilot !== true ||
       blockers.length ||
       plan ||
@@ -144,7 +148,7 @@ export function GenerationDialog({
   }, [
     rights,
     terms,
-    customerOrdersAvailable,
+    customerFlow,
     pilot,
     blockers.length,
     plan,
@@ -359,12 +363,12 @@ export function GenerationDialog({
       onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
       <h2 id="confirm-generation-title">Confirm generation</h2>
       <div className="sm-confirm-summary">
-        <div><span>{customerQuote ? "Estimated extra price (VAT included)" : "BytePlus-Basispreis (geschätzt, zzgl. möglicher Gebühren)"}</span><strong>{customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`}</strong></div>
+        <div><span>{customerFlow && customerQuote ? "Estimated extra price (VAT included)" : "BytePlus-Basispreis (geschätzt, zzgl. möglicher Gebühren)"}</span><strong>{customerFlow && customerQuote ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format((customerQuote.promotion?.finalCents ?? customerQuote.estimatedExtraPriceCents)/100) : pilot === true ? (plan ? usd(plan.estimatedBaseMicroUsd) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`) : `USD ${(selectedSeconds * 0.07).toFixed(2)}*`}</strong></div>
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
-      {customerQuote && <p className="sm-confirm-notice" role="status">Your {customerQuote.plan==="hobby"?"Hobby":"pay-as-you-go"} estimate: {customerQuote.estimatedBillableSeconds} chargeable seconds, {customerQuote.includedSeconds} included, {customerQuote.extraSeconds} payable. {customerQuote.plan==="hobby"?`${customerQuote.includedBalanceSeconds} included seconds currently available. `:""}This is not a final charge. Generated output duration may differ; the binding total must be confirmed before payment or generation.</p>}
-      {customerOrdersAvailable && selection.owner.startsWith("customer-") && <section aria-label="Promotion code" className="sm-confirm-notice">
+      {customerFlow && customerQuote && <p className="sm-confirm-notice" role="status">Your {customerQuote.plan==="hobby"?"Hobby":"pay-as-you-go"} estimate: {customerQuote.estimatedBillableSeconds} chargeable seconds, {customerQuote.includedSeconds} included, {customerQuote.extraSeconds} payable. {customerQuote.plan==="hobby"?`${customerQuote.includedBalanceSeconds} included seconds currently available. `:""}This is not a final charge. Generated output duration may differ; the binding total must be confirmed before payment or generation.</p>}
+      {customerFlow && selection.owner.startsWith("customer-") && <section aria-label="Promotion code" className="sm-confirm-notice">
         <label htmlFor="generation-promo-code">Promotion code (optional)</label>
         <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
           <input id="generation-promo-code" type="text" maxLength={40} autoComplete="off"
@@ -380,13 +384,13 @@ export function GenerationDialog({
         {promoError && <p role="alert">{promoError}</p>}
         {promoCode.trim().toUpperCase()!==appliedPromo && <p role="status">Apply your code before saving this order.</p>}
       </section>}
-      {!customerQuote && !quotePending && customerOrdersAvailable && <p role="status" className="sm-confirm-notice">Your personal price is currently unavailable. No payment can be made here.</p>}
+      {!customerQuote && !quotePending && customerFlow && <p role="status" className="sm-confirm-notice">Your personal price is currently unavailable. No payment can be made here.</p>}
       <label className="consent sm-confirm-consent">
         <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
       </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
-      {customerOrdersAvailable && !selection.owner.startsWith("customer-") && <div className="sm-confirm-notice">
+      {customerFlow && !selection.owner.startsWith("customer-") && <div className="sm-confirm-notice">
         <label htmlFor="guest-buyer-email">E-Mail für die Gastbestellung</label>
         <input id="guest-buyer-email" type="email" autoComplete="email" required
           maxLength={254} disabled={busy || !!savedOrderId} value={guestEmail}
@@ -397,7 +401,7 @@ export function GenerationDialog({
           {" "}Bitte kopieren oder als Lesezeichen speichern, bevor du fortfährst.
         </p>}
       </div>}
-      {customerOrdersAvailable && <div className="sm-confirm-notice" aria-label="Early digital performance acknowledgements">
+      {customerFlow && <div className="sm-confirm-notice" aria-label="Early digital performance acknowledgements">
         <label className="consent sm-confirm-consent">
           <input type="checkbox" checked={immediateStart} disabled={busy} onChange={e=>setImmediateStart(e.target.checked)}/>
           <span>Ich verlange ausdrücklich, dass SingMotion AI nach bestätigter Testzahlung vor Ablauf der Widerrufsfrist mit der individuellen Videogenerierung beginnt.</span>
@@ -407,7 +411,7 @@ export function GenerationDialog({
           <span>Ich habe zur Kenntnis genommen, dass mein Widerrufsrecht bei digitalen Inhalten unter den gesetzlichen Voraussetzungen durch den Beginn der Ausführung erlöschen kann. Gesetzliche Rechte bei Mängeln bleiben erhalten.</span>
         </label>
       </div>}
-      {pilot !== true && !customerOrdersAvailable && (
+      {pilot !== true && !customerFlow && (
         <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Optionale Super-Admin-Anmeldung">
           <p>Die normale Gast- und Kundenbestellung ist hier derzeit nicht freigegeben. Eine Super-Admin-Anmeldung ist nur für den separat genehmigten Betreiberzugang vorgesehen; sie ersetzt keine Checkout-Freigabe. Bild und Audio bleiben erhalten.</p>
           <label>E-Mail <input type="email" name="email" autoComplete="username" required disabled={loginBusy}/></label>
@@ -418,14 +422,14 @@ export function GenerationDialog({
         </form>
       )}
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
-      {pilot === false && !customerOrdersAvailable && <p role="alert" className="sm-confirm-notice">Gast- und Kunden-Videobestellungen sind in dieser Umgebung noch nicht aktiviert. Der angezeigte Preis ist nur eine Schätzung; es wird keine Zahlung ausgelöst.</p>}
-      {customerOrdersAvailable && <p role={customerCheckoutEnabled ? "status" : "alert"} className="sm-confirm-notice">{customerCheckoutEnabled ? "Nach der bestätigten Stripe-Zahlung wird das Video privat verarbeitet und bereitgestellt." : (checkoutUnavailableReason || "Sicherer Checkout und BytePlus-Videogenerierung sind hier noch nicht freigegeben. Es erfolgt keine Zahlung.")}</p>}
-      {!customerOrdersAvailable && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
+      {pilot === false && !customerFlow && <p role="alert" className="sm-confirm-notice">Gast- und Kunden-Videobestellungen sind in dieser Umgebung noch nicht aktiviert. Der angezeigte Preis ist nur eine Schätzung; es wird keine Zahlung ausgelöst.</p>}
+      {customerFlow && <p role={customerCheckoutEnabled ? "status" : "alert"} className="sm-confirm-notice">{customerCheckoutEnabled ? "Nach der bestätigten Stripe-Zahlung wird das Video privat verarbeitet und bereitgestellt." : (checkoutUnavailableReason || "Sicherer Checkout und BytePlus-Videogenerierung sind hier noch nicht freigegeben. Es erfolgt keine Zahlung.")}</p>}
+      {!customerFlow && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
-        {customerOrdersAvailable ?
+        {customerFlow ?
           <button type="button" className="product-primary" disabled={busy || !customerCheckoutEnabled || !rights || !immediateStart || !withdrawalConsequences || !terms || !customerQuote || quotePending || (selection.owner.startsWith("customer-") && promoCode.trim().toUpperCase()!==appliedPromo) || (!selection.owner.startsWith("customer-") && !guestAccessUrl && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guestEmail.trim()))} onClick={()=>void prepareCustomerOrder()}>{busy ? (checkoutStep==="preparing" ? "Preparing order…" : "Opening Stripe Checkout…") : guestAccessUrl?"Continue to Stripe Checkout":"Generate Video"}</button> :
           <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video"}</button>}
       </div>
