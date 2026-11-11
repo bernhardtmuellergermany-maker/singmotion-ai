@@ -1191,3 +1191,27 @@
   .singmotion-flow .sm-new-navigation{margin:0!important;gap:10px}
   .singmotion-flow .sm-new-navigation button{min-height:52px;font-size:16px}
 }
+
+
+/* Studio follow-up: accessible project menu, stable header, and safe bottom scroll clearance. */
+.singmotion-flow .sm-new-project-tools{position:relative;z-index:65;overflow:visible;isolation:isolate}
+.singmotion-flow .sm-project-tools-group{position:relative;display:flex;align-items:center;justify-content:flex-end;gap:8px;min-width:0;max-width:100%;z-index:1}
+.singmotion-flow .sm-project-name-button{display:block;max-width:min(48vw,260px);min-height:38px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:0;background:transparent;color:#c4bae1;font-size:13px;text-align:right;cursor:pointer;padding:6px}
+.singmotion-flow .sm-project-name-input{box-sizing:border-box;width:min(48vw,210px);min-height:38px;padding:6px 10px;border:1px solid #b967ff;border-radius:10px;background:#25203d;color:#fff;font-size:13px}
+.singmotion-flow .sm-project-menu-trigger{display:grid;place-items:center;min-width:40px;width:40px;height:40px;border:1px solid #66517e;border-radius:50%;background:#302544;color:#e5b7ff;cursor:pointer;flex-shrink:0}
+.singmotion-flow .sm-project-actions{position:absolute;display:flex;flex-direction:column;gap:3px;top:calc(100% + 8px);right:0;width:200px;box-sizing:border-box;border:1px solid #8e60c4;border-radius:13px;background:#231c38;box-shadow:0 18px 38px #000a;padding:7px;z-index:100;pointer-events:auto}
+.singmotion-flow .sm-project-actions button{display:block;box-sizing:border-box;width:100%;min-height:43px;cursor:pointer;border:0;border-radius:8px;background:transparent;color:#f6edff;font-size:14px;text-align:left;padding:11px 13px;pointer-events:auto}
+.singmotion-flow .sm-project-actions button:hover,.singmotion-flow .sm-project-actions button:focus-visible{background:#563674}
+.singmotion-flow .sm-project-name-button:focus-visible,.singmotion-flow .sm-project-menu-trigger:focus-visible{outline:2px solid #e0a4ff;outline-offset:2px}
+.singmotion-flow>.sm-site-header,.singmotion-flow .sm-site-header{position:relative;z-index:80}
+.singmotion-flow .flow-main{overflow:visible}
+.singmotion-flow .sm-new-file-menu{z-index:55}
+.singmotion-flow .sm-new-file-menu[open]{z-index:70}
+.singmotion-flow .sm-new-file-menu>div{z-index:71}
+@media(max-width:700px){
+ .singmotion-flow .flow-main,.singmotion-flow .flow-main:has(.sm-studio-original-composer),.singmotion-flow .flow-main:has(>.sm-studio-review-carousel){padding-bottom:calc(235px + env(safe-area-inset-bottom,0px))!important;min-height:100dvh;overflow:visible}
+ .singmotion-flow .sm-new-audio-workspace{padding-bottom:80px}
+ .singmotion-flow .sm-new-private{margin-bottom:16px}
+ .singmotion-flow .sm-new-navigation{bottom:calc(12px + env(safe-area-inset-bottom,0px))!important}
+ .singmotion-flow .sm-project-actions{width:min(210px,75vw)}
+}
