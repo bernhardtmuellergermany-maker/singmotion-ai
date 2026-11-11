@@ -1388,3 +1388,25 @@
    z-index:140!important;
  }
 }
+
+
+/* Guarantee the narrow-screen audio time editor stays fully inside the viewport. */
+@media(max-width:700px){
+ .product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover{
+   position:fixed!important;left:12px!important;right:12px!important;
+   top:auto!important;bottom:calc(88px + env(safe-area-inset-bottom,0px))!important;
+   transform:none!important;box-sizing:border-box!important;
+   width:auto!important;max-width:none!important;min-width:0!important;
+   display:flex!important;flex-wrap:wrap!important;align-items:center!important;
+   justify-content:center!important;gap:8px!important;
+   z-index:1100!important;padding:12px!important;
+   border:1px solid #9560cf!important;border-radius:14px!important;
+   background:#221a35!important;box-shadow:0 12px 42px #000a!important;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover input{
+   width:min(120px,37vw)!important;min-width:70px!important;flex:0 1 auto!important;
+ }
+ .product-theme.singmotion-flow .studio-modern-wave .studio-inline-time-popover button{
+   min-width:34px!important;min-height:36px!important;flex:0 0 auto!important;
+ }
+}
