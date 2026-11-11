@@ -2295,3 +2295,23 @@
 @media(max-width:360px){
  .product-theme.singmotion-flow .flow-main{--sm-type-title:24px}
 }
+
+/* Mobile wizard navigation: keep Back and Continue away from screen edges. */
+@media(max-width:700px){
+ .product-theme.singmotion-flow .flow-main > .sm-new-navigation{
+  width:calc(100% - 48px)!important;
+  max-width:512px!important;
+  box-sizing:border-box;
+  gap:10px;
+ }
+ .product-theme.singmotion-flow .flow-main > .sm-new-navigation button{
+  min-width:0;
+  padding-inline:10px;
+ }
+}
+@media(max-width:360px){
+ .product-theme.singmotion-flow .flow-main > .sm-new-navigation{
+  width:calc(100% - 36px)!important;
+  gap:8px;
+ }
+}
