@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { photoFormat, moveSelection } from "../lib/studio-editor.ts";
+import {composePrompt} from "../lib/domain.ts";
 import { assertAppliedStudioImageSelection } from "../lib/live/media.ts";
 import { reportedBaseChargeMicroUsd } from "../lib/live/contract.ts";
 import {
@@ -134,4 +135,18 @@ test("last successfully applied orientation is binding, regardless of original s
   assert.doesNotThrow(() => assertAppliedStudioImageSelection(applied,{width:1280,height:720}));
   assert.equal(applied.imageId,"saved-16-9");
   assert.equal(applied.sourceImageId,source);
+});
+
+test("English facial expression and movement instructions are first and unchanged in BytePlus prompt", () => {
+  const directions = "looking angry and walk forward";
+  const prompt = composePrompt("Custom", "Static camera", directions);
+  assert.ok(prompt.startsWith("Performance direction (priority): "+directions+"."));
+  assert.ok(prompt.includes("The person sings while following the performance direction above."));
+  assert.ok(prompt.includes("Keep the camera fixed"));
+  assert.ok(!prompt.startsWith("Natural singing performance."));
+  const cameraQuickIdea = composePrompt("Custom", "Static camera",
+    "looking angry and walk forward\nCamera: Slowly orbit left around the singer.");
+  assert.ok(cameraQuickIdea.includes(directions));
+  assert.ok(cameraQuickIdea.includes("Camera: Slowly orbit left around the singer."));
+  assert.ok(!cameraQuickIdea.includes("Keep the camera fixed"));
 });
