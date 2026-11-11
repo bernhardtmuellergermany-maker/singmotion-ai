@@ -396,7 +396,7 @@ export async function fitOutputFormat(
     video.height === target.output.height
   )
     return;
-  await fitValidatedRectangle(file, duration, target, false, true);
+  await fitValidatedRectangle(file, duration, target);
 }
 async function fitValidatedRectangle(
   file: string,
