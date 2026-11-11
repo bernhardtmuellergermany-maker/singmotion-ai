@@ -131,7 +131,7 @@ export function StudioWizard({
           });
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
-          setStep(saved.step === 1 ? 2 : saved.step === 2 ? 1 : Math.max(0, Math.min(3, saved.step)));
+          setStep(Math.max(0, Math.min(3, saved.step)));
           try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
           setDetectedFormat(
             photoFormat(
