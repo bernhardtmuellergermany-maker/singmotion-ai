@@ -178,3 +178,18 @@
   border-color:#a783e1!important;
   background:#29203d!important;
 }
+
+
+/* Shared homepage spacing for More and Account on every page and breakpoint. */
+.sm-site-header .sm-header-actions{
+  display:flex!important;
+  align-items:center!important;
+  column-gap:12px!important;
+  gap:12px!important;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu{
+  margin:0!important;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary{
+  margin:0!important;
+}
