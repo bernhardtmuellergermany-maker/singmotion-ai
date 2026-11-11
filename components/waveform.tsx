@@ -162,14 +162,29 @@ export default function Waveform({
   const minimumClipSeconds = 5;
   function openTimeEditor(which: "start" | "end") {
     if (editingTime === which) { setEditingTime(null); setTimeInputError(""); return; }
-    setTimeDraft((which === "start" ? start : end).toFixed(3));
+    setTimeDraft(formatHundredths(which === "start" ? start : end));
     setTimeInputError("");
     setEditingTime(which);
   }
   function parseTimeDraft() {
-    if (!timeDraft.trim()) return null;
-    const value = Number(timeDraft.trim().replace(",", "."));
-    return Number.isFinite(value) ? Math.round(value * 1000) / 1000 : null;
+    const raw = timeDraft.trim().replace(",", ".");
+    if (!raw) return null;
+    // The controls display MM:SS.cc. Accept the same format for editing
+    // (and plain seconds for users who prefer numeric entry).
+    const parts = raw.split(":");
+    if (parts.length > 2 || parts.some(part => part.trim() === "")) return null;
+    let seconds: number;
+    if (parts.length === 2) {
+      if (!/^\\d+$/.test(parts[0]) || !/^\\d{1,2}(?:\\.\\d{1,3})?$/.test(parts[1])) return null;
+      const minute = Number(parts[0]);
+      const remainder = Number(parts[1]);
+      if (remainder >= 60) return null;
+      seconds = minute * 60 + remainder;
+    } else {
+      if (!/^\\d+(?:\\.\\d{1,3})?$/.test(raw)) return null;
+      seconds = Number(raw);
+    }
+    return Number.isFinite(seconds) ? Math.round(seconds * 1000) / 1000 : null;
   }
   function saveTimeEditor(close = true) {
     if (!editingTime) return true;
@@ -177,11 +192,14 @@ export default function Waveform({
     const lower = editingTime === "start" ? Math.max(0, end - 300) : start + minimumClipSeconds;
     const upper = editingTime === "start" ? end - minimumClipSeconds : Math.min(duration, start + 300);
     if (value === null || value < lower - 0.0001 || value > upper + 0.0001) {
-      setTimeInputError(`Enter a value between ${lower.toFixed(3)} and ${Math.max(lower, upper).toFixed(3)} seconds.`);
+      setTimeInputError(
+        `Enter a time between ${formatHundredths(lower)} and ${formatHundredths(Math.max(lower, upper))} (MM:SS.ss).`
+      );
       return false;
     }
     if (editingTime === "start") onChange(value, end);
     else onChange(start, value);
+    setTimeDraft(formatHundredths(value));
     setTimeInputError("");
     if (close) setEditingTime(null);
     return true;
@@ -192,7 +210,7 @@ export default function Waveform({
     const parsed = parseTimeDraft();
     const basis = editingTime === which && parsed !== null ? parsed : which === "start" ? start : end;
     const next = Math.round(Math.max(lower, Math.min(upper, basis + amount)) * 1000) / 1000;
-    setTimeDraft(next.toFixed(3));
+    setTimeDraft(formatHundredths(next));
     setTimeInputError("");
     if (which === "start") onChange(next, end);
     else onChange(start, next);
@@ -376,8 +394,8 @@ export default function Waveform({
         </div>
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
-          <input aria-label={editingTime === "start" ? "Start seconds" : "End seconds"}
-            autoFocus type="text" inputMode="decimal" autoComplete="off"
+          <input aria-label={editingTime === "start" ? "Start time in minutes and seconds" : "End time in minutes and seconds"}
+            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="MM:SS.ss"
             onFocus={e=>e.currentTarget.select()}
             value={timeDraft} aria-invalid={!!timeInputError}
             aria-describedby={timeInputError ? "studio-time-input-error" : undefined}
