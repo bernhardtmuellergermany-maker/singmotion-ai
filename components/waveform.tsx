@@ -158,7 +158,7 @@ export default function Waveform({
     else setError("");
   }
   const formatTime=(n:number)=>String(Math.floor(n/60)).padStart(2,"0")+":"+String(Math.floor(n%60)).padStart(2,"0");
-  const formatHundredths=(seconds:number)=>{const centiseconds=Math.round(Math.max(0,seconds)*100);return String(Math.floor(centiseconds/6000)).padStart(2,"0")+":"+String(Math.floor((centiseconds%6000)/100)).padStart(2,"0")+"."+String(centiseconds%100).padStart(2,"0");};
+  const formatHundredths=(seconds:number)=>{const ms=Math.max(0,Math.round(seconds*1000));return String(Math.floor(ms/60000)).padStart(2,"0")+":"+String(Math.floor(ms%60000/1000)).padStart(2,"0")+"."+String(ms%1000).padStart(3,"0");};
   const minimumClipSeconds = 5;
   // Accept both the waveform's displayed mm:ss.xx values and raw seconds.
   function parseTime(value: string): number | null {
@@ -392,7 +392,7 @@ export default function Waveform({
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
           <input aria-label={editingTime === "start" ? "Start time in minutes and seconds" : "End time in minutes and seconds"}
-            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="MM:SS.ss"
+            autoFocus type="text" inputMode="decimal" autoComplete="off" placeholder="MM:SS.sss"
             onFocus={e=>e.currentTarget.select()}
             value={timeDraft} aria-invalid={!!timeInputError}
             aria-describedby={timeInputError ? "studio-time-input-error" : undefined}
