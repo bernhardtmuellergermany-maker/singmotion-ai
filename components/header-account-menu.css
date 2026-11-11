@@ -44,3 +44,39 @@
   max-height:calc(100dvh - 78px);
  }
 }
+
+
+/* One shared circular control treatment for Account and More on every SiteHeader route. */
+.sm-site-header .sm-header-actions > .sm-global-menu{
+  position:relative;
+  flex:0 0 auto;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary{
+  box-sizing:border-box!important;
+  display:grid!important;
+  place-items:center!important;
+  flex:none!important;
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  min-height:44px!important;
+  padding:0!important;
+  border:1px solid #55506e!important;
+  border-radius:50%!important;
+  background:transparent!important;
+  color:#f7f3ff!important;
+  cursor:pointer;
+  list-style:none;
+  -webkit-appearance:none;
+  appearance:none;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary::-webkit-details-marker{display:none}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary:hover,
+.sm-site-header .sm-header-actions > .sm-global-menu[open] > summary{
+  border-color:#a783e1!important;
+  background:#29203d!important;
+}
+.sm-site-header .sm-header-actions > .sm-global-menu > summary:focus-visible{
+  outline:2px solid #bca0fb!important;
+  outline-offset:3px!important;
+}
