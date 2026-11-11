@@ -32,6 +32,22 @@ import {
   checkTempoSubmission,
 } from "./tempo.ts";
 import { pollError } from "./poll-error.ts";
+/** Fixed stage diagnostics only. Never print source paths, private media,
+ * provider responses or raw exception messages. Keep original error handling. */
+async function tracedStudioPrepare<T>(
+  stage: "tempo-authorization"|"policy"|"owned-media"|"tempo-validation"|"tempo-encode"|"ledger"|"cost-review",
+  action: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await action();
+  } catch (error) {
+    console.warn("STUDIO_PREPARE_STAGE_FAILURE", {
+      stage,
+      category: error instanceof StudioLiveError ? error.code : "VALIDATION_OR_STORAGE",
+    });
+    throw error;
+  }
+}
 const policyReviewKey = (p: StudioPolicy) =>
   createHash("sha256")
     .update(
@@ -612,12 +628,12 @@ export class StudioWorkflow {
         "SELECTION_INVALID",
         "Select your own image/audio and an excerpt of 5–300 seconds.",
       );
-    const tempo = await tempoAuthorization(
+    const tempo = await tracedStudioPrepare("tempo-authorization", () => tempoAuthorization(
       this.root,
       this.store,
       selection,
       owner,
-    );
+    ));
     let source = `studio-${createHash("sha256").update(JSON.stringify(selection)).digest("hex")}${tempo ? "-tempo-" + tempo.digest : ""}`;
     if (repeatOf !== undefined) {
       if (typeof repeatOf !== "string")
@@ -668,9 +684,9 @@ export class StudioWorkflow {
       .get(source) as { id: string } | undefined;
     // Unlimited new projects for every plan. Provider authorization, concurrent
     // work caps, paid seconds, and upload bytes remain independent safeguards.
-    const rootPolicy = this.superAdmin
+    const rootPolicy = await tracedStudioPrepare("policy", async () => this.superAdmin
       ? superAdminStudioPolicy(await this.dependencies.policy())
-      : validateStudioPolicy(await this.dependencies.policy());
+      : validateStudioPolicy(await this.dependencies.policy()));
     let media;
     let refreshed = false;
     if (old) {
@@ -697,21 +713,21 @@ export class StudioWorkflow {
       refreshed = true;
       media = { ...a.media };
     } else {
-      media = await prepareStudioDraft(
+      media = await tracedStudioPrepare("owned-media", () => prepareStudioDraft(
         selection,
         owner,
         this.superAdmin ? 300 : Math.min(this.config.maxDurationSeconds, 300),
-      );
+      ));
     }
     // Check exact trimmed bytes against legacy rejected clips before any tempo change.
     if (tempo) {
-      const checked = await tempoAuthorization(
+      const checked = await tracedStudioPrepare("tempo-validation", () => tempoAuthorization(
         this.root,
         this.store,
         selection,
         owner,
         media.tempo?.originalSha256 ?? media.audioSha256,
-      );
+      ));
       if (checked?.digest !== tempo.digest)
         throw new StudioLiveError(
           "RECORDING_CHANGED",
@@ -719,13 +735,13 @@ export class StudioWorkflow {
         );
     }
     if (tempo && !media.tempo)
-      media = await slowExcerpt(
+      media = await tracedStudioPrepare("tempo-encode", () => slowExcerpt(
         media,
         this.root,
         selection.songId,
         tempo,
         this.superAdmin ? 6 : Math.min(this.config.maxDurationSeconds, 300),
-      );
+      ));
     // The measured encoded audio, not only the user-selected waveform span,
     // must fit the owner-approved range in both Railway environments.
     assertSharedBytePlusInputSeconds(media.durationSeconds);
@@ -748,7 +764,7 @@ export class StudioWorkflow {
     media.sourceJobId = source;
     if (selection.outputFormat) media.outputFormat = selection.outputFormat;
     media.promptLanguageConfirmed = true;
-    const a = this.store.prepare(media, null, null);
+    const a = await tracedStudioPrepare("ledger", async () => this.store.prepare(media, null, null));
     this.store.db
       .prepare(
         "INSERT OR IGNORE INTO live_studio_projects (attempt_id,owner,selection_json,policy_json,artist_name,project_name) VALUES (?,?,?,?,?,?)",
@@ -761,7 +777,7 @@ export class StudioWorkflow {
         typeof artistName === "string" ? artistName.slice(0, 80) : "My artist",
         typeof projectName === "string" && projectName.trim() ? projectName.trim().slice(0, 100) : typeof artistName === "string" ? artistName.slice(0, 80) : "Untitled Project",
       );
-    await this.operator(policy).price(a.id, owner);
+    await tracedStudioPrepare("cost-review", () => this.operator(policy).price(a.id, owner));
     const result = await this.withCurrentBudget(this.view(a.id, owner));
     return refreshed
       ? {
