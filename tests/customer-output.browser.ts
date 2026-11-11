@@ -172,8 +172,9 @@ try{
  await guestPage.goto(origin+"/projects");
  await guestPage.getByRole("link",{name:/Open Old Guest Project, Draft/}).click();
  await guestPage.waitForURL(origin+`/studio?draft=${encodeURIComponent(old.id)}`);
- await guestPage.getByRole("textbox",{name:/performance/i}).waitFor({timeout:15000}).catch(()=>{});
- // The saved selection remains present after the explicit draft route has loaded.
+ await guestPage.locator("#flow-performance-prompt").waitFor({timeout:15000});
+ assert.equal(await guestPage.locator("#flow-performance-prompt").inputValue(),note,
+   "reopening the old project restores its performance instructions");
  assert.equal((await listGuestDrafts()).find(d=>d.id===old.id)?.selection.customPrompt,note);
  await guestContext.close();
  const stranger=await browser.newContext();
