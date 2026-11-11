@@ -579,6 +579,7 @@ export function StudioWizard({
             <button type="button" disabled={!draft.imageId||busy} onClick={()=>{setRotation(v=>(v+90)%360);setCropPending(true);}}><RotateCw size={16}/><span>Rotate</span></button>
             <button type="button" disabled={!draft.imageId||busy} onClick={()=>{setFlipped(v=>!v);setCropPending(true);}}><FlipHorizontal2 size={16}/><span>Flip</span></button>
           </div>
+          <div className="sm-photo-settings-row">
           <div className="sm-photo-formats" role="group" aria-label="Photo format dimensions">
             <div className="sm-photo-dimension-bar" role="group" aria-label="Image dimensions">
               <label>W <input type="number" min="256" max="4096" step="1" aria-label="Image width in pixels" value={frameWidth}
@@ -592,10 +593,10 @@ export function StudioWizard({
             {!frameValid&&<span role="alert" className="sm-photo-size-error">Width and height must be 256–4096 px, up to 16 megapixels.</span>}
           </div>
           {draft.imageId&&<div className="sm-photo-editor-bottom">
-            <span className="sm-photo-crop-status">{cropPending?"Drag image to select the crop, then apply":"Photo ready"}</span>
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();setCropPending(true);}}>Reset</button>
             <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
+          </div>
           <p className="sm-photo-step-tip"><ShieldCheck size={17}/> BytePlus video export: 720p (720 × 1280 portrait or 1280 × 720 landscape). Custom dimensions affect the reference photo only.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step" aria-label="Performance and camera settings">
