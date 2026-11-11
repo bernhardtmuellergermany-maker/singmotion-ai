@@ -95,7 +95,12 @@ export function StudioWizard({
     [error, setError] = useState(""),
     [reviewCard, setReviewCard] = useState<"preview"|"details">("preview"),
     [confirm, setConfirm] = useState(false),
-    [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16");
+    [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
+    [cropZoom,setCropZoom] = useState(1),
+    [cropX,setCropX] = useState(50),
+    [cropY,setCropY] = useState(50),
+    [cropPending,setCropPending] = useState(false);
+  const cropReset=()=>{setCropZoom(1);setCropX(50);setCropY(50);};
   useEffect(() => {
     let current = true;
     void ensureSession()
@@ -297,6 +302,7 @@ export function StudioWizard({
       else {
         const detected = photoFormat(asset.width, asset.height);
         setDetectedFormat(detected);
+        cropReset();setCropPending(true);
         update({
           imageId: asset.id,
           artistName: file.name.replace(/\.[^.]+$/, ""),
@@ -309,6 +315,31 @@ export function StudioWizard({
       setBusy(false);
       if (kind === "audio") { setAudioUploadPhase("idle"); setAudioUploadProgress(null); setAudioUploadingName(""); }
     }
+  }
+  async function applyPhotoFraming() {
+    if(!draft.imageId)return;
+    setBusy(true);setError("");
+    try {
+      const response=await fetch("/api/assets/"+encodeURIComponent(draft.imageId));
+      if(!response.ok)throw new Error("Could not load artist photo.");
+      const bitmap=await createImageBitmap(await response.blob());
+      try {
+        const portrait=draft.outputFormat==="9:16";
+        const width=portrait?720:1280, height=portrait?1280:720;
+        const scale=Math.max(width/bitmap.width,height/bitmap.height)*cropZoom;
+        const visibleWidth=width/scale, visibleHeight=height/scale;
+        const canvas=document.createElement("canvas");
+        canvas.width=width;canvas.height=height;
+        const ctx=canvas.getContext("2d");
+        if(!ctx)throw new Error("Photo editor unavailable.");
+        ctx.drawImage(bitmap,(bitmap.width-visibleWidth)*cropX/100,(bitmap.height-visibleHeight)*cropY/100,visibleWidth,visibleHeight,0,0,width,height);
+        const blob=await new Promise<Blob>((resolve,reject)=>canvas.toBlob(value=>value?resolve(value):reject(new Error("Could not save crop.")),"image/png"));
+        const asset=await upload(new File([blob],"artist-framed.png",{type:"image/png"}),"image");
+        update({imageId:asset.id,formatMode:draft.outputFormat});
+        cropReset();setCropPending(false);
+      } finally {bitmap.close();}
+    } catch(e){setError((e as Error).message);}
+    finally{setBusy(false);}
   }
   let audioValid = false,
     prompt = "";
@@ -336,7 +367,7 @@ export function StudioWizard({
         }
       : null;
 
-  const available = !!selection && audioValid && !!prompt && !busy;
+  const available = !!selection && audioValid && !!prompt && !busy && !cropPending;
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -409,20 +440,22 @@ export function StudioWizard({
             <button type="button" className="sm-photo-upload-zone" disabled={!ready||busy}
               onClick={()=>photoFileInput.current?.click()} onDragOver={e=>e.preventDefault()}
               onDrop={e=>{e.preventDefault();void add(e.dataTransfer.files?.[0],"image");}}>
-              <span className="sm-photo-upload-icon"><ImagePlus size={47} strokeWidth={1.65}/></span>
+              <span className="sm-photo-upload-icon"><ImagePlus size={40} strokeWidth={1.65}/></span>
               <strong>{busy?"Uploading your photo…":"Drop a photo here or tap to browse"}</strong>
               <span>JPG, PNG · up to 30 MB · clear front-facing portrait recommended</span>
             </button>
           ) : (
             <div className="sm-photo-preview-shell">
               <div className="sm-photo-preview-frame" style={{aspectRatio:draft.outputFormat==="9:16"?"9 / 16":"16 / 9"}}>
-                <img src={`/api/assets/${encodeURIComponent(draft.imageId)}`} alt={`Artist photo cropped for ${draft.outputFormat} video`}/>
+                <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo cropping preview"
+                  style={{objectPosition:cropX+"% "+cropY+"%",transform:"scale("+cropZoom+")"}}/>
               </div>
               <div className="sm-photo-preview-actions">
-                <span><Check size={17}/> Photo ready · {draft.outputFormat}</span>
+                <span><Check size={17}/> {cropPending?"Adjust and apply framing":"Photo ready · "+draft.outputFormat}</span>
                 <div>
-                  <button type="button" disabled={busy} onClick={()=>photoFileInput.current?.click()}><ImagePlus size={17}/> Replace</button>
-                  <button type="button" disabled={busy} onClick={()=>update({imageId:""})} aria-label="Delete artist photo"><Trash2 size={17}/> Delete</button>
+                  <button type="button" disabled={busy} onClick={()=>photoFileInput.current?.click()}><ImagePlus size={16}/> Replace</button>
+                  <button className="sm-new-file-delete" type="button" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
+                    onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={20}/></button>
                 </div>
               </div>
             </div>
@@ -430,25 +463,30 @@ export function StudioWizard({
           <div className="sm-photo-formats" role="group" aria-label="Video format">
             <p>Choose video format</p>
             <div className="sm-photo-format-choices">
-              <button type="button" aria-pressed={draft.formatMode==="9:16"} className={draft.formatMode==="9:16"?"is-selected":""}
-                onClick={()=>update({formatMode:"9:16",outputFormat:"9:16"})}>
-                <Smartphone size={19}/><strong>9:16</strong><small>Portrait</small>
+              <button type="button" aria-pressed={draft.outputFormat==="9:16"} className={draft.outputFormat==="9:16"?"is-selected":""}
+                onClick={()=>{update({formatMode:"9:16",outputFormat:"9:16"});cropReset();if(draft.imageId)setCropPending(true);}}>
+                <Smartphone size={18}/><strong>9:16</strong><small>Portrait</small>
               </button>
-              <button type="button" aria-pressed={draft.formatMode==="16:9"} className={draft.formatMode==="16:9"?"is-selected":""}
-                onClick={()=>update({formatMode:"16:9",outputFormat:"16:9"})}>
-                <Monitor size={19}/><strong>16:9</strong><small>Landscape</small>
-              </button>
-              <button type="button" aria-pressed={draft.formatMode==="auto"} className={draft.formatMode==="auto"?"is-selected":""}
-                onClick={()=>update({formatMode:"auto",outputFormat:detectedFormat})}>
-                <Camera size={19}/><strong>Custom</strong><small>Choose framing</small>
+              <button type="button" aria-pressed={draft.outputFormat==="16:9"} className={draft.outputFormat==="16:9"?"is-selected":""}
+                onClick={()=>{update({formatMode:"16:9",outputFormat:"16:9"});cropReset();if(draft.imageId)setCropPending(true);}}>
+                <Monitor size={18}/><strong>16:9</strong><small>Landscape</small>
               </button>
             </div>
-            {draft.formatMode==="auto"&&<div className="sm-photo-custom-options" role="group" aria-label="Custom video framing">
-              <span>Custom framing · choose the final aspect ratio:</span>
-              <button type="button" aria-pressed={draft.outputFormat==="9:16"} className={draft.outputFormat==="9:16"?"is-selected":""} onClick={()=>update({outputFormat:"9:16"})}>9:16</button>
-              <button type="button" aria-pressed={draft.outputFormat==="16:9"} className={draft.outputFormat==="16:9"?"is-selected":""} onClick={()=>update({outputFormat:"16:9"})}>16:9</button>
-            </div>}
           </div>
+          {draft.imageId&&<div className="sm-photo-framing" role="group" aria-label="Photo framing">
+            <strong>Adjust framing</strong>
+            <div className="sm-photo-framing-sliders">
+              <label>Zoom <input type="range" aria-label="Photo zoom" min="1" max="2.5" step=".05" value={cropZoom} onChange={e=>{setCropZoom(+e.target.value);setCropPending(true);}}/></label>
+              <label>Horizontal <input type="range" aria-label="Horizontal framing" min="0" max="100" value={cropX} onChange={e=>{setCropX(+e.target.value);setCropPending(true);}}/></label>
+              <label>Vertical <input type="range" aria-label="Vertical framing" min="0" max="100" value={cropY} onChange={e=>{setCropY(+e.target.value);setCropPending(true);}}/></label>
+            </div>
+            <div className="sm-photo-framing-actions">
+              <button type="button" onClick={()=>{cropReset();setCropPending(true);}}>Reset</button>
+              <button type="button" className="sm-photo-apply" disabled={busy||!cropPending} onClick={()=>void applyPhotoFraming()}>
+                {busy?"Saving…":"Apply framing"}
+              </button>
+            </div>
+          </div>}
           <p className="sm-photo-step-tip"><ShieldCheck size={17}/> Use a well-lit image with the full face visible. Video export supports 9:16 and 16:9.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step" aria-label="Performance and camera settings">
