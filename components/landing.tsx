@@ -171,6 +171,29 @@ function Carousel({ items, portraitMode = false }: { items: ShowcaseVideo[]; por
 
 export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const scrollToCreations = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    const target = document.getElementById("creations");
+    if (!target) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      target.scrollIntoView();
+      return;
+    }
+    const start = window.scrollY;
+    const distance = target.getBoundingClientRect().top;
+    const duration = 1100;
+    let startTime: number | null = null;
+    const animate = (now: number) => {
+      if (startTime === null) startTime = now;
+      const progress = Math.min((now - startTime) / duration, 1);
+      const eased = progress < 0.5
+        ? 4 * progress * progress * progress
+        : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+      window.scrollTo(0, start + distance * eased);
+      if (progress < 1) window.requestAnimationFrame(animate);
+    };
+    window.requestAnimationFrame(animate);
+  };
   return (
     <div className="sm-landing" id="content">
       <header className="sm-header">
@@ -192,7 +215,7 @@ export default function Landing() {
             <Link href="/studio" className="sm-cta">Create your music video <ArrowRight size={19} /></Link>
           </div>
           <Carousel items={landscape} />
-          <a className="sm-scroll-down" href="#creations" aria-label="Explore stunning creations"><ChevronDown size={22} /></a>
+          <a className="sm-scroll-down" href="#creations" onClick={scrollToCreations} aria-label="Explore stunning creations"><ChevronDown size={22} /></a>
         </section>
 
         <section className="sm-creations" id="creations" aria-labelledby="sm-creations-title">
