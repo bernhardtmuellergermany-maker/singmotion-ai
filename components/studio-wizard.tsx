@@ -623,7 +623,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid||!imageReady} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> BytePlus video export: 720p (720 × 1280 portrait or 1280 × 720 landscape). Custom dimensions affect the reference photo only.</p>
+          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> For best results, use a sharp, well-lit photo with the full face and mouth clearly visible. Avoid distant shots.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -678,6 +678,7 @@ export function StudioWizard({
               </div>
             </div>
           </details>}
+          <p className="sm-performance-tip"><ShieldCheck size={17}/> For best results, describe natural movements, clear emotions and simple camera directions.</p>
         </section>}
         {step===3&&<section className="sm-studio-review-carousel" aria-label="Project preview carousel">
           <div className="sm-carousel-stage sm-review-stage"
