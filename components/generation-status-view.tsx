@@ -1,4 +1,5 @@
 "use client";
+import {useState} from "react";
 import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck} from "lucide-react";
 import "./generation-status-view.css";
 
@@ -16,6 +17,7 @@ export function GenerationStatusView({
   downloadUrl?:string|null;
   note?:string;
 }){
+  const [imagePortrait,setImagePortrait]=useState(false);
   const admin=paymentMode==="super-admin";
   const paymentConfirmed=admin?progress!=="unavailable":!["verifying-payment","unavailable"].includes(progress);
   const working=progress==="processing";
@@ -58,10 +60,10 @@ export function GenerationStatusView({
     </div>
     <div className="sm-gen-grid">
       <div className="sm-gen-media-column">
-        <div className={"sm-gen-preview "+(format==="9:16"?"is-portrait":"is-landscape")}>
+        <div className={"sm-gen-preview "+(format==="9:16"||(format===undefined&&imagePortrait)?"is-portrait":"is-landscape")}>
           {ready?<video src={videoUrl!} controls playsInline preload="metadata" aria-label="Your finished SingMotion video"/>:
             <div className="sm-gen-preview-placeholder">
-              {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo"/>}
+              {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
               <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"BytePlus is processing your video":progress==="queued"?"Waiting for generation":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
