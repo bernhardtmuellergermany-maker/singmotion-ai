@@ -503,34 +503,47 @@ export function StudioWizard({
               </div>
             </>
           )}
-          <div className="sm-photo-formats" role="group" aria-label="Video format">
-            <p>Choose video format</p>
+          <div className="sm-photo-formats" role="group" aria-label="Photo format">
             <div className="sm-photo-format-choices">
-              <button type="button" aria-pressed={draft.outputFormat==="9:16"} className={draft.outputFormat==="9:16"?"is-selected":""}
-                onClick={()=>{update({formatMode:"9:16",outputFormat:"9:16"});cropReset();if(draft.imageId)setCropPending(true);}}>
-                <Smartphone size={18}/><strong>9:16</strong><small>Portrait</small>
+              <button type="button" aria-pressed={!customMode&&draft.outputFormat==="16:9"} className={!customMode&&draft.outputFormat==="16:9"?"is-selected":""}
+                onClick={()=>{update({formatMode:"16:9",outputFormat:"16:9"});if(draft.imageId)setCropPending(true);}}>
+                <Monitor size={18}/><strong>16:9</strong>
               </button>
-              <button type="button" aria-pressed={draft.outputFormat==="16:9"} className={draft.outputFormat==="16:9"?"is-selected":""}
-                onClick={()=>{update({formatMode:"16:9",outputFormat:"16:9"});cropReset();if(draft.imageId)setCropPending(true);}}>
-                <Monitor size={18}/><strong>16:9</strong><small>Landscape</small>
+              <button type="button" aria-pressed={!customMode&&draft.outputFormat==="9:16"} className={!customMode&&draft.outputFormat==="9:16"?"is-selected":""}
+                onClick={()=>{update({formatMode:"9:16",outputFormat:"9:16"});if(draft.imageId)setCropPending(true);}}>
+                <Smartphone size={18}/><strong>9:16</strong>
+              </button>
+              <button type="button" aria-pressed={customMode} className={customMode?"is-selected":""}
+                onClick={()=>{setCustomWidth(draft.outputFormat==="9:16"?1080:1920);setCustomHeight(draft.outputFormat==="9:16"?1920:1080);update({formatMode:"auto"});if(draft.imageId)setCropPending(true);}}>
+                <Crop size={18}/><strong>Custom</strong>
               </button>
             </div>
+            <div className="sm-photo-dimension-bar" role="group" aria-label="Image dimensions">
+              <label>W <input type="number" min="256" max="4096" step="1" aria-label="Image width in pixels" value={frameWidth}
+                readOnly={!customMode} onChange={e=>setCustomDimension("width",Number(e.target.value))}/><span>px</span></label>
+              <button type="button" className="sm-photo-lock" disabled={!customMode} aria-label={lockRatio?"Unlock aspect ratio":"Lock aspect ratio"} onClick={()=>setLockRatio(v=>!v)}>
+                {lockRatio?<LockKeyhole size={16}/>:<UnlockKeyhole size={16}/>}
+              </button>
+              <label>H <input type="number" min="256" max="4096" step="1" aria-label="Image height in pixels" value={frameHeight}
+                readOnly={!customMode} onChange={e=>setCustomDimension("height",Number(e.target.value))}/><span>px</span></label>
+            </div>
+            {!frameValid&&<span role="alert" className="sm-photo-size-error">Width and height must be 256–4096 px, up to 16 megapixels.</span>}
           </div>
-          {draft.imageId&&<div className="sm-photo-framing" role="group" aria-label="Photo framing">
-            <strong>Adjust framing</strong>
-            <div className="sm-photo-framing-sliders">
-              <label>Zoom <input type="range" aria-label="Photo zoom" min="1" max="2.5" step=".05" value={cropZoom} onChange={e=>{setCropZoom(+e.target.value);setCropPending(true);}}/></label>
-              <label>Horizontal <input type="range" aria-label="Horizontal framing" min="0" max="100" value={cropX} onChange={e=>{setCropX(+e.target.value);setCropPending(true);}}/></label>
-              <label>Vertical <input type="range" aria-label="Vertical framing" min="0" max="100" value={cropY} onChange={e=>{setCropY(+e.target.value);setCropPending(true);}}/></label>
-            </div>
-            <div className="sm-photo-framing-actions">
-              <button type="button" onClick={()=>{cropReset();setCropPending(true);}}>Reset</button>
-              <button type="button" className="sm-photo-apply" disabled={busy||!cropPending} onClick={()=>void applyPhotoFraming()}>
-                {busy?"Saving…":"Apply framing"}
-              </button>
-            </div>
+          {draft.imageId&&<div className="sm-photo-editor-bottom">
+            {editTool==="crop"?
+              <div className="sm-photo-compact-control">
+                <label>Zoom <input type="range" aria-label="Photo zoom" min="1" max="2.5" step=".05" value={cropZoom} onChange={e=>{setCropZoom(+e.target.value);setCropPending(true);}}/></label>
+                <label>X <input type="range" aria-label="Horizontal framing" min="0" max="100" value={cropX} onChange={e=>{setCropX(+e.target.value);setCropPending(true);}}/></label>
+                <label>Y <input type="range" aria-label="Vertical framing" min="0" max="100" value={cropY} onChange={e=>{setCropY(+e.target.value);setCropPending(true);}}/></label>
+              </div>:
+              <div className="sm-photo-compact-control">
+                <label>Brightness <input type="range" aria-label="Brightness" min="50" max="150" value={brightness} onChange={e=>{setBrightness(+e.target.value);setCropPending(true);}}/></label>
+                <label>Contrast <input type="range" aria-label="Contrast" min="50" max="150" value={contrast} onChange={e=>{setContrast(+e.target.value);setCropPending(true);}}/></label>
+              </div>}
+            <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();setCropPending(true);}}>Reset</button>
+            <button type="button" className="sm-photo-save" disabled={busy||!cropPending||!frameValid} onClick={()=>void applyPhotoFraming()}>{busy?"Saving…":"Apply"}</button>
           </div>}
-          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> Use a well-lit image with the full face visible. Video export supports 9:16 and 16:9.</p>
+          <p className="sm-photo-step-tip"><ShieldCheck size={17}/> Use a well-lit image with the full face visible. Custom photo sizes do not change the 9:16 / 16:9 video export formats.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step" aria-label="Performance and camera settings">
           <PerformanceTimeline duration={draft.end-draft.start} audioStart={draft.start}
