@@ -71,7 +71,7 @@ const initial = {
   camera: "Static camera",
   customPrompt: "",
   outputFormat: "9:16" as "9:16" | "16:9",
-  formatMode: "auto" as "auto" | "9:16" | "16:9",
+  formatMode: "9:16" as "auto" | "9:16" | "16:9",
 };
 export function StudioWizard({
   content = defaultStudioContent,
@@ -114,6 +114,7 @@ export function StudioWizard({
     [lockRatio,setLockRatio] = useState(true),
     [brightness,setBrightness] = useState(100),
     [contrast,setContrast] = useState(100);
+  const cropDrag=useRef<{x:number;y:number;startX:number;startY:number}|null>(null);
   const cropReset=()=>{setCropZoom(1);setCropX(50);setCropY(50);setRotation(0);setFlipped(false);setBrightness(100);setContrast(100);setEditTool("crop");};
   const customMode=draft.formatMode==="auto";
   const frameWidth=customMode?customWidth:(draft.outputFormat==="9:16"?1080:1920);
@@ -485,7 +486,13 @@ export function StudioWizard({
                 <span className="sm-photo-added"><Check size={13}/> Photo added</span>
                 <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
                   onClick={()=>{update({imageId:""});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
-                <div className="sm-photo-crop-viewport" style={{aspectRatio:String(frameWidth/frameHeight)}}>
+                <div className="sm-photo-crop-viewport" style={{aspectRatio:String(frameWidth/frameHeight)}}
+                  onPointerDown={e=>{if(busy)return;cropDrag.current={x:e.clientX,y:e.clientY,startX:cropX,startY:cropY};e.currentTarget.setPointerCapture(e.pointerId);}}
+                  onPointerMove={e=>{const drag=cropDrag.current;if(!drag||!e.currentTarget.hasPointerCapture(e.pointerId))return;
+                    const rect=e.currentTarget.getBoundingClientRect();setCropX(Math.max(0,Math.min(100,drag.startX-(e.clientX-drag.x)/Math.max(rect.width,1)*100)));
+                    setCropY(Math.max(0,Math.min(100,drag.startY-(e.clientY-drag.y)/Math.max(rect.height,1)*100)));setCropPending(true);}}
+                  onPointerUp={e=>{cropDrag.current=null;if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
+                  onPointerCancel={()=>{cropDrag.current=null;}}>
                   <img src={"/api/assets/"+encodeURIComponent(draft.imageId)} alt="Artist photo framing preview" draggable={false}
                     style={{transform:"rotate("+rotation+"deg) scaleX("+(flipped?-1:1)+") scale("+cropZoom+")",
                       objectPosition:cropX+"% "+cropY+"%",filter:"brightness("+brightness+"%) contrast("+contrast+"%)"}}/>
