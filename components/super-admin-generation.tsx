@@ -43,7 +43,7 @@ export function SuperAdminGeneration({id}:{id:string}){
    progress=project.outputReady?"ready":project.state==="failed"?"failed":
      project.state==="processing"?"processing":
      project.state==="submitted"?"queued":
-     project.state==="prepared"?"queued":"unavailable";
+     project.state==="prepared"?"prepared":"unavailable";
  }
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;
  return <main id="content" className="sm-super-admin-generation">
