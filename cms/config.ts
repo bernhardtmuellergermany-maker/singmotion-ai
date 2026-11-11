@@ -359,9 +359,6 @@ const globals: GlobalConfig[] = [
       { name: "intro", type: "text", maxLength: 300 },
       { name: "audioReadyHeadline", label: "Headline after audio upload", type: "text", maxLength: 180 },
       { name: "audioReadySubtitle", label: "Description after audio upload", type: "textarea", maxLength: 350 },
-      { name: "heroHeading", type: "text", maxLength: 100, admin: { description: "Large Studio header headline. Default: Studio." } },
-      { name: "heroSubtitle", type: "text", maxLength: 220, admin: { description: "Subtitle below the Studio header headline." } },
-      { name: "heroImage", type: "upload", relationTo: "cms-assets", admin: { description: "Optional image on the right of the Studio header. Upload it first in the media library (JPG, PNG or WebP). Leave empty for the default icon." } },
 
       ...["performanceTemplates", "cameraTemplates"].map((name) => ({
         name,
