@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { photoFormat, moveSelection } from "../lib/studio-editor.ts";
+import { photoFormat, uploadedPhotoFraming, moveSelection } from "../lib/studio-editor.ts";
 import {composePrompt} from "../lib/domain.ts";
 import { assertAppliedStudioImageSelection } from "../lib/live/media.ts";
 import { reportedBaseChargeMicroUsd } from "../lib/live/contract.ts";
@@ -149,4 +149,10 @@ test("English facial expression and movement instructions are first and unchange
   assert.ok(cameraQuickIdea.includes(directions));
   assert.ok(cameraQuickIdea.includes("Camera: Slowly orbit left around the singer."));
   assert.ok(!cameraQuickIdea.includes("Keep the camera fixed"));
+});
+
+test("new landscape upload selects 16:9 automatically; a portrait selects 9:16", () => {
+  assert.deepEqual(uploadedPhotoFraming(1920,1080),{outputFormat:"16:9",formatMode:"16:9"});
+  assert.deepEqual(uploadedPhotoFraming(1280,720),{outputFormat:"16:9",formatMode:"16:9"});
+  assert.deepEqual(uploadedPhotoFraming(720,1280),{outputFormat:"9:16",formatMode:"9:16"});
 });
