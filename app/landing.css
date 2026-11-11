@@ -70,3 +70,5 @@
 .sm-footer{flex-direction:column;align-items:flex-start;padding:30px 22px}.sm-footer>div{gap:12px 20px}
 }
 @media(prefers-reduced-motion:reduce){.sm-landing *, .sm-landing *:before,.sm-landing *:after{scroll-behavior:auto!important;transition:none!important}}
+
+/* Staging and production: deploy the same landing design revision. */
