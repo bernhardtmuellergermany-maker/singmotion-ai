@@ -94,6 +94,7 @@ async function prepareOwnedSelection(
     start: number;
     end: number;
     prompt: string;
+    outputFormat?: "9:16" | "16:9";
   },
   owner: string,
   maxSeconds: number,
@@ -226,6 +227,7 @@ async function prepareOwnedSelection(
     imageSha256,
     durationSeconds,
     prompt: selected.prompt,
+    ...(selected.outputFormat ? { outputFormat: selected.outputFormat } : {}),
     promptLanguageConfirmed: false,
   };
 }
