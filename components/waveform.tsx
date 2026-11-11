@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, RotateCcw, Minus, Plus, Trash2, Music2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Minus, Plus, Trash2 } from "lucide-react";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -8,7 +8,6 @@ export default function Waveform({
   start,
   end,
   onChange,
-  filename,
   onRemove,
   removeDisabled = false,
 }: {
