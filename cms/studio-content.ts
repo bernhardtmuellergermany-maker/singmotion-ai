@@ -24,7 +24,7 @@ export async function studioContent(): Promise<StudioContent> {
     const image = typeof hero.heroImage === "object" ? hero.heroImage : null;
     const imageUrl = image?.filename
       ? `/api/cms/cms-assets/file/${encodeURIComponent(image.filename)}`
-      : null;
+      : defaultStudioContent.heroImageUrl;
     return {
       intro: content.intro || defaultStudioContent.intro,
       heroHeading: hero.heroHeading?.trim() || defaultStudioContent.heroHeading,
