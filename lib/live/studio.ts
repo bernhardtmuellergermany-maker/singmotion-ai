@@ -724,7 +724,7 @@ export class StudioWorkflow {
         this.root,
         selection.songId,
         tempo,
-        Math.min(this.config.maxDurationSeconds, 300),
+        this.superAdmin ? 6 : Math.min(this.config.maxDurationSeconds, 300),
       );
     // The measured encoded audio, not only the user-selected waveform span,
     // must fit the owner-approved range in both Railway environments.
