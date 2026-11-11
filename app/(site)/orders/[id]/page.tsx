@@ -58,7 +58,7 @@ export default async function Page({
     <div className="product-theme">
       <ProductHeader />
       <main id="content" className="account-content wizard-card sm-private-order-page">
-        <header className="sm-order-heading">
+        <header className="sm-order-heading" style={order && (order.status==="paid" || fulfillmentState!==null || videoReady)?{display:"none"}:undefined}>
           <span className="sm-order-eyebrow">SINGMOTION AI / PRIVATE ORDER</span>
           <h1>Your music video</h1>
           <p>Your video and order status in one private place.</p>
@@ -85,7 +85,7 @@ export default async function Page({
               <CustomerVideoCheckout orderId={id}
                 staging={process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"}/>}
             {authenticatedOwner && order.status==="awaiting_payment" && !fulfillmentState && <CancelUnstartedOrder orderId={id}/>}
-            {(authenticatedOwner||guestOwner) && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} guest={guestOwner} />}
+            {(authenticatedOwner||guestOwner) && (order.status==="paid" || fulfillmentState!==null || videoReady) && <CustomerPaidOutput orderId={id} guest={guestOwner} amountCents={Number(order.price_cents)} />}
             {guestOwner && <p className="sm-order-assurance">No customer account required. Keep your private order link safe; it is needed to reopen this video on a new device.</p>}
             {order.status==="awaiting_payment" && <p>Payment has not been confirmed. No video generation has started. Complete secure Checkout to begin processing.</p>}
             <p className="sm-order-assurance">Probleme mit dem Video oder der Lieferung? <Link href="/contact">Reklamation und Support</Link>. Gesetzliche Ansprüche bleiben bestehen. <Link href="/withdrawal">Vertrag widerrufen</Link> ist davon getrennt.</p>
