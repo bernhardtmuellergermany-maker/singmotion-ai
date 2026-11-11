@@ -357,7 +357,11 @@ export function exportContract<T extends OutputValidationContract>(
   contract: T,
   format?: "9:16" | "16:9",
 ): T {
-  if (!format) return contract;
+  // Only remap the reviewed 720p portrait/landscape output pair. Keep smaller
+  // explicitly reviewed offline contracts intact instead of manufacturing 720p.
+  if (!format || !([720,1280].includes(contract.output.width) &&
+      [720,1280].includes(contract.output.height) &&
+      contract.output.width*contract.output.height===720*1280)) return contract;
   return {
     ...contract,
     output: {
