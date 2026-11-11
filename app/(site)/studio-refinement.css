@@ -1124,3 +1124,17 @@
 .singmotion-flow .sm-new-navigation{position:fixed!important;left:50%!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;transform:translateX(-50%)!important;width:calc(100% - 24px)!important;max-width:560px!important;margin:0!important;padding:8px 0!important;z-index:40}
 .singmotion-flow .sm-new-navigation button{font-size:17px;min-height:56px;padding:12px}
 }
+
+/* Keep project rename/delete available without adding extra header buttons. */
+.singmotion-flow .sm-new-project-tools{width:min(100%,1000px);align-self:center;display:flex;justify-content:flex-end;margin:0 auto 3px}
+.singmotion-flow .sm-new-project-tools .sm-studio-header-project{display:flex;align-items:center;gap:9px;max-width:280px;min-width:0}
+.singmotion-flow .sm-new-project-tools .sm-studio-rename-slot{min-width:0;position:relative;display:flex;align-items:center}
+.singmotion-flow .sm-new-project-tools .flow-project-name,.singmotion-flow .sm-new-project-tools .flow-project-input{max-width:200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:none;border:0;color:#bdb2db;font-size:12px;padding:5px;cursor:pointer}
+.singmotion-flow .sm-new-project-tools .flow-project-input{width:170px;background:#292040;color:white;border:1px solid #a657ed;border-radius:6px}
+.singmotion-flow .sm-new-project-tools .flow-menu{position:relative}
+.singmotion-flow .sm-new-project-tools .flow-menu>summary{cursor:pointer;display:grid;place-items:center;width:29px;height:29px;border-radius:50%;color:#d8b2ff;background:#29223f;list-style:none}
+.singmotion-flow .sm-new-project-tools .flow-menu>summary::-webkit-details-marker{display:none}
+.singmotion-flow .sm-new-project-tools .flow-popover{position:absolute;right:0;top:100%;z-index:42;min-width:170px;display:flex;flex-direction:column;border:1px solid #8752b6;border-radius:12px;background:#241e39;padding:7px;box-shadow:0 16px 30px #0008}
+.singmotion-flow .sm-new-project-tools .flow-popover button{padding:11px;text-align:left;border:0;color:white;background:none;border-radius:7px;cursor:pointer}
+.singmotion-flow .sm-new-project-tools .flow-popover button:hover{background:#58377e}
+@media(max-width:700px){.singmotion-flow .sm-new-project-tools{margin-bottom:6px}.singmotion-flow .sm-new-project-tools .flow-project-name{max-width:145px}}
