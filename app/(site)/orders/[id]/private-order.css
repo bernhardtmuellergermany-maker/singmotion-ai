@@ -80,3 +80,35 @@
   }
   .sm-private-order-page .sm-order-summary-item>strong{text-align:right}
 }
+
+/* Processing uses the full-width cinematic layout, while checkout keeps the
+   compact private-order panel. */
+.product-theme .sm-private-order-page.sm-order-processing-layout{
+ box-sizing:border-box;width:calc(100% - 48px);max-width:1160px;
+ background:transparent;border:0;box-shadow:none;
+ padding:20px 0 35px;margin:18px auto 42px;
+}
+.sm-order-processing-layout .sm-order-summary{display:none}
+.sm-order-processing-layout .sm-private-output-generation{width:100%;margin:0;display:block}
+.sm-super-admin-generation{
+ box-sizing:border-box;width:calc(100% - 48px);max-width:1160px;
+ margin:26px auto 40px;padding:0;
+}
+.sm-gen-extra-controls{display:flex;justify-content:center;margin:18px auto}
+.sm-gen-extra-controls button{
+ min-height:42px;padding:9px 19px;border:1px solid #8d52c0;
+ color:#f4e7ff;background:#322044;border-radius:11px;cursor:pointer;
+}
+.sm-gen-extra-controls button:disabled{opacity:.6;cursor:wait}
+.sm-gen-extra-message{color:#c1b1d4;text-align:center;font-size:12px;line-height:1.5}
+@media(max-width:720px){
+ .product-theme .sm-private-order-page.sm-order-processing-layout{
+  width:calc(100% - 44px);max-width:none;
+  padding:10px 0 22px;margin:18px auto 28px;
+ }
+ .sm-super-admin-generation{width:calc(100% - 44px);margin:18px auto 30px}
+}
+@media(max-width:360px){
+ .product-theme .sm-private-order-page.sm-order-processing-layout,
+ .sm-super-admin-generation{width:calc(100% - 40px)}
+}
