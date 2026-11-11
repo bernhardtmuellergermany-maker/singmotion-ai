@@ -120,6 +120,17 @@ try{
  await page.waitForURL(origin+"/projects/paid_"+id);
  await page.getByRole("region",{name:"Video generation status"}).locator("video[controls]").waitFor({timeout:15000});
  console.log("BROWSER_CHECKPOINT: completed project card opens private video, not order review");
+ // The My Projects library must list exactly the owner's paid order and
+ // navigate to its existing private status, never initiate a new checkout.
+ await page.goto(origin+"/projects");
+ await page.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ assert.equal(await page.getByRole("link",{name:/New video/}).count(),1);
+ const libraryCard=page.getByRole("link",{name:/Open Music video .* Ready/});
+ await libraryCard.waitFor({timeout:15000});
+ assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
+ await libraryCard.click();
+ await page.waitForURL(origin+"/orders/"+id);
+ await page.getByRole("region",{name:"Video generation status"}).getByRole("heading",{name:"Your video is ready"}).waitFor({timeout:15000});
  const stranger=await browser.newContext();
  assert.equal((await stranger.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),401);
  assert.equal((await stranger.request.get(origin+`/api/customer-orders?view=mine&orderId=${id}`)).status(),401);
