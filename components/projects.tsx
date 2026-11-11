@@ -36,7 +36,7 @@ export function Projects() {
           <h1>My videos</h1>
           <p>Every song has a story. Keep yours close.</p>
         </div>
-        <Link href="/studio" className="button primary">
+        <Link href="/studio?new=1" className="button primary">
           Create a video <ArrowRight size={15} />
         </Link>
       </div>
@@ -92,7 +92,7 @@ export function Projects() {
             Choose your song and photo in the studio, then save and review your
             performance before generating.
           </p>
-          <Link href="/studio" className="button primary">
+          <Link href="/studio?new=1" className="button primary">
             Open the studio <ArrowRight size={16} />
           </Link>
         </div>
@@ -229,7 +229,7 @@ function DemoProject({ id }: { id: string }) {
                   {job.error ||
                     "Your demo credit reservation has been restored."}
                 </p>
-                <Link href="/studio" className="button primary">
+                <Link href="/studio?new=1" className="button primary">
                   Return to studio <ArrowRight size={16} />
                 </Link>
               </div>
@@ -296,7 +296,7 @@ function DemoProject({ id }: { id: string }) {
               Custom prompts replace preset guidance. Live output quality and
               movement are not guaranteed.
             </p>
-            <Link href="/studio" className="button outline">
+            <Link href="/studio?new=1" className="button outline">
               Create another video <ArrowRight size={15} />
             </Link>
           </div>
