@@ -16,6 +16,12 @@ import {
   House,
   UserRound,
   Camera,
+  Crop,
+  RotateCw,
+  FlipHorizontal2,
+  SlidersHorizontal,
+  LockKeyhole,
+  UnlockKeyhole,
   ChevronDown,
   Play,
   Trash2,
@@ -99,8 +105,32 @@ export function StudioWizard({
     [cropZoom,setCropZoom] = useState(1),
     [cropX,setCropX] = useState(50),
     [cropY,setCropY] = useState(50),
-    [cropPending,setCropPending] = useState(false);
-  const cropReset=()=>{setCropZoom(1);setCropX(50);setCropY(50);};
+    [cropPending,setCropPending] = useState(false),
+    [rotation,setRotation] = useState(0),
+    [flipped,setFlipped] = useState(false),
+    [editTool,setEditTool] = useState<"crop"|"adjust">("crop"),
+    [customWidth,setCustomWidth] = useState(1080),
+    [customHeight,setCustomHeight] = useState(1920),
+    [lockRatio,setLockRatio] = useState(true),
+    [brightness,setBrightness] = useState(100),
+    [contrast,setContrast] = useState(100);
+  const cropReset=()=>{setCropZoom(1);setCropX(50);setCropY(50);setRotation(0);setFlipped(false);setBrightness(100);setContrast(100);setEditTool("crop");};
+  const customMode=draft.formatMode==="auto";
+  const frameWidth=customMode?customWidth:(draft.outputFormat==="9:16"?1080:1920);
+  const frameHeight=customMode?customHeight:(draft.outputFormat==="9:16"?1920:1080);
+  const frameValid=Number.isInteger(frameWidth)&&Number.isInteger(frameHeight)&&frameWidth>=256&&frameHeight>=256&&frameWidth<=4096&&frameHeight<=4096&&frameWidth*frameHeight<=16777216;
+  function setCustomDimension(axis:"width"|"height",raw:number) {
+    const value=Math.round(raw);
+    if(!Number.isFinite(value))return;
+    if(axis==="width"){
+      setCustomWidth(value);
+      if(lockRatio)setCustomHeight(Math.round(value*customHeight/Math.max(1,customWidth)));
+    } else {
+      setCustomHeight(value);
+      if(lockRatio)setCustomWidth(Math.round(value*customWidth/Math.max(1,customHeight)));
+    }
+    if(draft.imageId)setCropPending(true);
+  }
   useEffect(() => {
     let current = true;
     void ensureSession()
@@ -367,7 +397,7 @@ export function StudioWizard({
         }
       : null;
 
-  const available = !!selection && audioValid && !!prompt && !busy && !cropPending;
+  const available = !!selection && audioValid && !!prompt && !busy && !cropPending && frameValid;
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
