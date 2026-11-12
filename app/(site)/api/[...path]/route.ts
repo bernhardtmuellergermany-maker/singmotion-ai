@@ -3,7 +3,7 @@ import { PlanLedger } from "@/lib/commerce/plans";
 import { uploadStorageLimit, reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
 import {mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import {ensureLocalAsset} from "@/lib/cloud-hydration";
-import { parseSavedStudioDraft } from "@/lib/studio-draft";
+import { parseSavedStudioDraft, hasFirstStudioUpload } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
@@ -266,7 +266,9 @@ async function handler(
                 "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC",
               )
               .all(owner)
-              .map(view),
+              .map(view)
+              // Preserve legacy empty rows for audit, but never show them as projects.
+              .filter(draft => hasFirstStudioUpload(draft.selection)),
           );
         const row = db
           .prepare("SELECT * FROM studio_drafts WHERE id=? AND owner=?")
@@ -285,6 +287,10 @@ async function handler(
           selected = parseSavedStudioDraft(input.selection);
         if (selected.owner !== owner)
           throw new AppError("Draft unavailable.", 403);
+        // Server-side rule protects direct API clients and older Studio builds.
+        // No draft creation or edit without at least one owned uploaded asset.
+        if (!hasFirstStudioUpload(selected))
+          throw new AppError("Upload audio or a photo before saving a draft.", 400);
         if (
           (selected.songId && asset(selected.songId, owner).kind !== "audio") ||
           (selected.imageId && asset(selected.imageId, owner).kind !== "image")
