@@ -46,6 +46,8 @@ export async function POST(req:NextRequest){
    // after a timeout returns the same Stripe object via Idempotency-Key.
    const form=new URLSearchParams({
     mode:"payment",
+    // Explicit sandbox card method avoids an empty/default method configuration.
+    "payment_method_types[0]":"card",
     "line_items[0][price_data][currency]":"eur",
     "line_items[0][price_data][unit_amount]":String(purchase.cents),
     "line_items[0][price_data][product_data][name]":"SingMotion AI Test-Credits",
