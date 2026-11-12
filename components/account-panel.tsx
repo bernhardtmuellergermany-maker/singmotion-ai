@@ -84,12 +84,12 @@ export function AccountPanel({active}:{active:boolean}){
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
   {!account&&<p className="sm-account-intro">{mode==="register"?"Save your videos and drafts in your own private workspace.":"Sign in to access your videos and projects from this account."}</p>}
-  {!account&&<Link className="sm-account-pricing-link" href="/plans">Plans & Pricing</Link>}
+  {!account&&<Link className="sm-account-pricing-link" href="/plans">Pricing</Link>}
   {account?<div className="sm-account-signed-in">
     <p className="sm-account-email">{account}</p>
     <AccountCreditSummary active={active} staff={staff} superAdmin={superAdmin}/>
     <div className="sm-account-quick-actions">
-      <Link href="/credits" className="sm-account-action sm-account-action-buy">Buy Credits</Link>
+      <Link href="/credits#buy-credits" className="sm-account-action sm-account-action-buy">Buy Credits</Link>
       <Link href="/studio?new=1" className="sm-account-action sm-account-action-create">Create video</Link>
       <Link href="/account/settings" className="sm-account-settings-link">Account settings</Link>
       <button type="button" className="sm-account-signout" disabled={busy} onClick={()=>void act("logout")}>Sign out</button>
