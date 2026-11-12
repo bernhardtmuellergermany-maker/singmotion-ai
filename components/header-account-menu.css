@@ -326,7 +326,9 @@
   align-items:center!important;
   justify-content:space-between!important;
   gap:12px!important;
-  background:#090b16!important;
+  /* Match the transparent homepage header; never draw a black bar. */
+  background:transparent!important;
+  background-color:transparent!important;
   border:0!important;
   box-shadow:none!important;
   backdrop-filter:none!important;
