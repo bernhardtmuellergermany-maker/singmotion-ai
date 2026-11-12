@@ -12,7 +12,8 @@ test("empty Studio visits and text-only edits do not qualify as saved projects",
   outputFormat:"9:16",formatMode:"auto"
  });
  assert.equal(hasFirstStudioUpload(empty),false);
- assert.equal(hasFirstStudioUpload({...empty,customPrompt:"Move gently",performance:"Custom"}),false);
+ const textOnly={...empty,customPrompt:"Move gently",performance:"Custom"};
+ assert.equal(hasFirstStudioUpload(textOnly),false);
  assert.equal(hasFirstStudioUpload({...empty,songId:"uploaded-audio"}),true);
  assert.equal(hasFirstStudioUpload({...empty,imageId:"uploaded-photo"}),true);
  assert.equal(hasFirstStudioUpload({...empty,songId:"uploaded-audio",imageId:"uploaded-photo"}),true);
