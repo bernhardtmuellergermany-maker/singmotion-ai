@@ -1,16 +1,17 @@
 "use client";
 import {useState} from "react";
-import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck,RotateCcw} from "lucide-react";
+import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck,RotateCcw,Wallet} from "lucide-react";
 import "./generation-status-view.css";
 
-export type GenerationProgress = "verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
+export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,creditCharge,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,
+  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
   amount?:number|null;
   creditCharge?:{credits:number;status:"estimated"|"reserved"|"review"|"settled"|"released"|"legacy"};
+  availableCredits?:number|null;
   photoUrl?:string|null;
   format?:"9:16"|"16:9";
   videoUrl?:string|null;
@@ -36,10 +37,11 @@ export function GenerationStatusView({
   // Provider processing stages cannot be measured as percentages. Never
   // display an invented completion percentage or estimated completion time.
   const label=ready?"Your video is ready":failed?"Generation needs attention":review?"Your video is under review":
-    progress==="verifying-payment"?"Verifying your payment…":progress==="prepared"?"Ready for operator approval":progress==="queued"?"Your video is queued":
+    progress==="credits-needed"?"Not enough Credits":progress==="verifying-payment"?"Verifying your payment…":progress==="prepared"?"Ready for operator approval":progress==="queued"?"Your video is queued":
     working?"Generating your video":"Checking your video status";
   const detail=ready?"Watch your finished video and download the private MP4.":
     failed||review?"Our team needs to review this generation. Do not pay again or resubmit the same recording.":
+    progress==="credits-needed"?"Your project is saved, but generation has not started because there are not enough available Credits. No Credits were charged.":
     progress==="verifying-payment"?"Waiting for the secure Stripe confirmation. No new order will be created.":
      progress==="prepared"?"Your project is prepared but has not been submitted for generation. Return to the private operator review for approval.":
     progress==="queued"?"Your request is waiting for processing. You can safely leave this page.":
@@ -56,7 +58,7 @@ export function GenerationStatusView({
     </header>
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
-      <span>{admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Video rejected · Credits released":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
+      <span>{progress==="credits-needed"?"Insufficient Credits · nothing reserved or charged":admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Video rejected · Credits released":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
       {admin?<strong title="Customer-facing credit charge, excluding internal BytePlus costs">{creditCharge?new Intl.NumberFormat("en-GB").format(creditCharge.credits)+" Credits"+(creditCharge.status==="settled"?" charged":creditCharge.status==="reserved"?" reserved":creditCharge.status==="review"?" held for review":creditCharge.status==="released"?" released":" estimated"):"Credit charge unavailable"}</strong>:
        formattedAmount&&paymentConfirmed&&<strong>{formattedAmount} paid</strong>}
     </div>
@@ -67,8 +69,8 @@ export function GenerationStatusView({
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
-              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"AI is processing your video":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
-              {!ready&&!review&&!failed&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
+              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"AI is processing your video":progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
+              {!ready&&!review&&!failed&&progress!=="prepared"&&progress!=="credits-needed"&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
           <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
         </div>
@@ -76,6 +78,7 @@ export function GenerationStatusView({
       </div>
       <div className="sm-gen-status-column">
         {note&&<p className="sm-gen-status-message" role={failed||review?"alert":"status"}>{note}</p>}
+        {progress==="credits-needed"&&<div className="sm-gen-credit-help" role="alert"><strong>Credits required to generate this video</strong><p>{creditCharge?`${new Intl.NumberFormat("en-GB").format(creditCharge.credits)} Credits needed. `:""}{typeof availableCredits==="number"?`${new Intl.NumberFormat("en-GB").format(availableCredits)} Credits available. `:""}Your project and uploaded files are saved. Return to Studio after adding sufficient Credits.</p><a className="sm-gen-reuse" href="/credits"><Wallet size={17}/> View Credits</a></div>}
         <h2>Generation progress</h2>
         <ol className="sm-gen-timeline">
           {stages.map((stage,index)=><li className={"sm-gen-milestone is-"+stage.state} key={stage.title}>
