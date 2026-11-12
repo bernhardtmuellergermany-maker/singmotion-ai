@@ -757,7 +757,7 @@ export function StudioWizard({
           <div className="sm-performance-editor">
             <label className="sr-only" htmlFor="flow-performance-prompt">Describe your artist's movement, emotion, and camera style</label>
             <textarea ref={performanceInput} id="flow-performance-prompt" className="sm-performance-textarea" maxLength={500} rows={4}
-              placeholder="Singing passionately on stage, natural hand movements, strong eye contact with the camera, energetic and emotional."
+              placeholder="Enter your performance prompt..."
               value={draft.customPrompt}
               onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/>
             <div className="sm-performance-editor-footer">
