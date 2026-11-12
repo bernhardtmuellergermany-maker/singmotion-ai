@@ -22,7 +22,7 @@ export async function GET(req:NextRequest){
     const {user}=await payload.auth({headers:req.headers});
     if(user&&hasRole(user,["super-admin"])){
      const credits=new CreditWallet(store.db).total("super-admin:"+String(user.id));
-     return NextResponse.json({staffPreview:true,plan:{...PLAN_RULES.free,period:"",secondsUsed:0,secondsRemaining:0},profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Number.isFinite(Date.parse(String(user.createdAt||"")))?Date.parse(String(user.createdAt)):Date.now()},orders:[],sessions:0,credits,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+     return NextResponse.json({staffPreview:true,plan:{...PLAN_RULES.free,uploadStorageBytes:undefined,period:"",secondsUsed:0,secondsRemaining:0},profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Number.isFinite(Date.parse(String(user.createdAt||"")))?Date.parse(String(user.createdAt)):Date.now()},orders:[],sessions:0,credits,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
     }
    }
    return NextResponse.json({error:"Customer login required"},{status:401});
@@ -32,7 +32,8 @@ export async function GET(req:NextRequest){
   const orders=store.db.prepare("SELECT id,project_id,price_cents,currency,status,created FROM customer_orders o WHERE account_id=? AND NOT EXISTS(SELECT 1 FROM customer_hidden_paid_orders h WHERE h.account_id=o.account_id AND h.order_id=o.id) ORDER BY created DESC LIMIT 50").all(id);
   const sessions=store.db.prepare("SELECT COUNT(*) AS count FROM customer_sessions WHERE account_id=? AND expires>?").get(id,Date.now()) as {count:number};
   const credits=store.db.prepare("SELECT COALESCE(SUM(delta),0) AS balance FROM customer_credits WHERE account_id=?").get(id) as {balance:number};
-  const plan=new PlanLedger(store.db).snapshot(id);
+  const {uploadStorageBytes:_legacyQuota,...plan}=new PlanLedger(store.db).snapshot(id);
+  void _legacyQuota;
   return NextResponse.json({plan,profile,emailVerification:store.verificationState(id),orders,sessions:sessions.count,credits:Number(credits.balance)+new CreditWallet(store.db).total("customer:"+id),invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
  }finally{store.close();}
 }
