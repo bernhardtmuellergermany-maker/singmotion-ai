@@ -150,6 +150,20 @@ export class CommerceStore {
       .run(hash(token), row.id, Date.now() + 86400000);
     return token;
   }
+  /** Re-authenticate a sensitive customer-only action without minting a new session.
+   * OAuth-only accounts cannot use a nonexistent password. */
+  verifyCustomerPassword(accountId:string,password:string):boolean {
+    if(typeof password!=="string"||password.length<1||password.length>256)return false;
+    const row=this.db.prepare("SELECT password_hash FROM customer_accounts WHERE id=?")
+      .get(accountId) as {password_hash:string}|undefined;
+    const stored=row?.password_hash||"";
+    if(stored.startsWith("google-only:"))return false;
+    const fallback="0".repeat(32)+":"+"0".repeat(128);
+    const [salt,digest]=(stored.includes(":")?stored:fallback).split(":");
+    if(!/^[a-f0-9]{32}$/.test(salt)||!/^[a-f0-9]{128}$/.test(digest))return false;
+    const valid=timingSafeEqual(scryptSync(password,salt,64),Buffer.from(digest,"hex"));
+    return !!row&&valid;
+  }
   changePassword(accountId: string, currentPassword: string, newPassword: string) {
     if (newPassword.length < 20 || newPassword.length > 256 || currentPassword.length > 256)
       throw Error("Invalid password");
