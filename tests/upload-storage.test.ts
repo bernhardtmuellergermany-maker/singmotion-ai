@@ -81,9 +81,9 @@ test("cloud source manifests are digest and owner-bound, committed atomically",(
  assert.equal(uploadedBytes(db,owner),20);
  db.close();
 });
-test("invalid cloud manifest rolls back source asset and leaves quota reservation",()=>{
+test("invalid cloud manifest rolls back source asset and keeps the pending reservation",()=>{
  const db=make(),owner="customer-11111111-1111-4111-8111-111111111111",id=randomUUID();
- reserveUploadStorage(db,owner,id,20,100);
+ reserveUploadStorage(db,owner,id,20);
  const digest=createHash("sha256").update("upload").digest("hex");
  assert.throws(()=>commitUploadedAsset(db,asset(id,owner,20),{key:privateSourceKey(owner,id,digest),sha256:digest,bytes:19}),/manifest mismatch/);
  assert.equal(uploadedBytes(db,owner),0);
