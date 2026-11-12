@@ -25,7 +25,7 @@ export function SuperAdminGeneration({id}:{id:string}){
            try{
              const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
              const body=await response.json() as {availableCredits?:number};
-             if(live)setAvailableCredits(response.ok&&Number.isSafeInteger(body.availableCredits)&&body.availableCredits!>=0?body.availableCredits!:null);
+             if(live)setAvailableCredits(response.ok&&typeof body.availableCredits==="number"&&Number.isSafeInteger(body.availableCredits)&&body.availableCredits>=0?body.availableCredits:null);
            }catch{if(live)setAvailableCredits(null)}
          }else if(live)setAvailableCredits(null);
        }catch(e){
