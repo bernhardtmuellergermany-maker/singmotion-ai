@@ -10,7 +10,7 @@ export default function Page(){
   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(240px,1fr))",gap:18,margin:"30px 0"}}>
    <section style={{border:"1px solid #5e4775",borderRadius:18,padding:24,background:"linear-gradient(145deg,#211632,#151629)"}}>
     <h2 style={{fontSize:19,margin:"0 0 9px"}}>Credit wallet</h2>
-    <p style={{color:"#c5b8d7",lineHeight:1.65}}>Your balance, one-time credit purchases, optional top-up preferences and transaction history.</p>
+    <p style={{color:"#c5b8d7",lineHeight:1.65}}>Your balance, one-time credit purchases, your transaction history. No automatic payments.</p>
     <Link href="/credits" style={{color:"#e4c2ff",fontWeight:700}}>Open credit wallet</Link>
    </section>
    <section style={{border:"1px solid #5e4775",borderRadius:18,padding:24,background:"linear-gradient(145deg,#211632,#151629)"}}>
