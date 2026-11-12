@@ -59,6 +59,8 @@ export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
  return <div className="sm-private-output sm-private-output-generation" aria-label="Private generation page">
    <GenerationStatusView progress={loaded?progress:"unavailable"} paymentMode="stripe"
     amount={amountCents} photoUrl={order?.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(orderId)}`:null} videoUrl={ready?order?.videoUrl:null}
-    downloadUrl={ready?order?.downloadUrl:null} note={note}/>
+    downloadUrl={ready?order?.downloadUrl:null} note={note}
+    reuseHref={ready?(order?.projectId?`/studio?copy=draft_${encodeURIComponent(order.projectId)}`:"/studio?new=1"):null}
+    reuseBlank={ready&&!order?.projectId}/>
  </div>;
 }
