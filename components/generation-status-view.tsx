@@ -39,7 +39,7 @@ export function GenerationStatusView({
   const detail=ready?"Watch your finished video and download the private MP4.":
     failed||review?"Our team needs to review this generation. Do not pay again or resubmit the same recording.":
     progress==="verifying-payment"?"Waiting for the secure Stripe confirmation. No new order will be created.":
-     progress==="prepared"?"Your project is prepared but has not been sent to BytePlus. Return to the private operator review for explicit approval.":
+     progress==="prepared"?"Your project is prepared but has not been submitted for generation. Return to the private operator review for approval.":
     progress==="queued"?"Your request is waiting for processing. You can safely leave this page.":
     working?"Your music video is being created. This can take several minutes.":
     "Your existing project is being checked. Refreshing the page never starts another generation.";
@@ -56,7 +56,7 @@ export function GenerationStatusView({
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
       <span>{admin?"Super Admin · No checkout required":paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
-      {admin?<strong title="Provider cost estimate based on requested seconds, not a settled BytePlus invoice">{providerEstimate}</strong>:
+      {admin?<strong title="Estimated generation cost based on selected duration; not a final invoice">{providerEstimate}</strong>:
        formattedAmount&&paymentConfirmed&&<strong>{formattedAmount} paid</strong>}
     </div>
     <div className="sm-gen-grid">
@@ -66,7 +66,7 @@ export function GenerationStatusView({
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
-              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"BytePlus is processing your video":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
+              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"AI is processing your video":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
           <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
@@ -74,6 +74,7 @@ export function GenerationStatusView({
         <p className="sm-gen-preview-caption">{ready?"Private video · verified delivery":review||failed?"Existing project · manual attention needed":"Private preview · video not yet available"}</p>
       </div>
       <div className="sm-gen-status-column">
+        {note&&<p className="sm-gen-status-message" role={failed||review?"alert":"status"}>{note}</p>}
         <h2>Generation progress</h2>
         <ol className="sm-gen-timeline">
           {stages.map((stage,index)=><li className={"sm-gen-milestone is-"+stage.state} key={stage.title}>
@@ -91,8 +92,7 @@ export function GenerationStatusView({
         <p className="sm-gen-download-note">{ready?"Private MP4 available now.":"Available only after the video has been verified and securely stored."}</p>
       </div>
     </div>
-    {admin&&<p className="sm-gen-outcome-note">BytePlus base-rate estimate only: $0.07 per generated video second. Final provider billing can differ if output duration or fees differ. No Stripe checkout.</p>}
-    {note&&<p className="sm-gen-outcome-note" role={failed||review?"alert":"status"}>{note}</p>}
+    
     <p className="sm-gen-disclaimer">AI-generated results may vary, including facial expressions, camera movement and lip synchronization. Your statutory rights remain unaffected.</p>
   </section>;
 }
