@@ -71,7 +71,7 @@ export function GenerationStatusView({
               <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"AI is processing your video":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
-          <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
+          <a className="sm-gen-watermark" href="/" aria-label="SingMotion AI home" title="Go to homepage">SingMotion <b>AI</b></a>
         </div>
         <p className="sm-gen-preview-caption">{ready?"Private video · verified delivery":review||failed?"Existing project · manual attention needed":"Private preview · video not yet available"}</p>
       </div>
