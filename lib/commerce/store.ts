@@ -39,6 +39,7 @@ export class CommerceStore {
  CREATE TABLE IF NOT EXISTS customer_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_email_verifications(account_id TEXT PRIMARY KEY,verified_at INTEGER,token_hash TEXT UNIQUE,token_expires INTEGER,sent_at INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS customer_orders(id TEXT PRIMARY KEY,account_id TEXT,guest_hash TEXT,guest_expiry INTEGER,email TEXT NOT NULL,project_id TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,quote_evidence TEXT NOT NULL,request_key TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_hidden_paid_orders(account_id TEXT NOT NULL,order_id TEXT NOT NULL,hidden_at INTEGER NOT NULL,PRIMARY KEY(account_id,order_id));
  CREATE TABLE IF NOT EXISTS customer_stripe_disputes(order_id TEXT PRIMARY KEY,dispute_id TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_stripe_refunds(order_id TEXT PRIMARY KEY,refund_id TEXT UNIQUE NOT NULL,amount_cents INTEGER NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_credits(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,delta INTEGER NOT NULL,kind TEXT NOT NULL,evidence TEXT NOT NULL,created INTEGER NOT NULL);
