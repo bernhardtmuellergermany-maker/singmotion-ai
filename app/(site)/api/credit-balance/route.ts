@@ -21,7 +21,20 @@ export async function GET(req: NextRequest) {
   const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
   try {
     const accountId = store.session(req.cookies.get("sm_customer")?.value || "");
-    if (!accountId) return json({ error: "Customer login required." }, 401);
+    if (!accountId) {
+      // An authorized super-admin may preview the wallet UI without any customer's
+      // personal ledger data or a real credit balance.
+      if (process.env.CMS_ENABLED === "true") {
+        const { getPayload } = await import("payload");
+        const { default: config } = await import("@payload-config");
+        const { hasRole } = await import("@/cms/policy");
+        const payload = await getPayload({ config });
+        const { user } = await payload.auth({ headers: req.headers });
+        if (user && hasRole(user, ["super-admin"]))
+          return json({ staffPreview: true, purchaseEnabled: false });
+      }
+      return json({ error: "Customer login required." }, 401);
+    }
 
     // Legacy ledger uses euro cents as its internal units: one historical unit
     // is displayed as one credit. New purchases are NOT enabled by this route.
