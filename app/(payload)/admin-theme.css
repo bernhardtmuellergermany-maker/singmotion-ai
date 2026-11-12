@@ -220,3 +220,32 @@ html:has(.payload-admin) { color-scheme: dark; }
 @media(prefers-reduced-motion:reduce){
  .payload-admin .sm-cms-sidebar-dashboard{transition:none}
 }
+
+
+/* SingMotion visual language — focused controls, calmer surfaces, purple accents. */
+.payload-admin{
+ --sm-cms-accent:#b58aff;
+ --sm-cms-accent-soft:rgba(181,138,255,.13);
+ --sm-cms-stroke:rgba(189,169,239,.17);
+ background:radial-gradient(ellipse 85% 55% at 52% -18%,rgba(90,37,139,.20),transparent 66%),#0a0b18;
+}
+.payload-admin .nav{background:linear-gradient(180deg,#110c21,#0b0d19 78%);
+ box-shadow:inset -1px 0 0 var(--sm-cms-stroke)}
+.payload-admin .dashboard__wrap,.payload-admin .template-default__wrap{
+ width:min(100%,1500px);margin-inline:auto;
+}
+.payload-admin .collection-list,.payload-admin .render-fields,.payload-admin .tabs-field,
+.payload-admin .collapsible,.payload-admin .card,.payload-admin .auth-form{
+ border:1px solid var(--sm-cms-stroke);background-color:rgba(24,20,42,.73);
+ box-shadow:0 12px 36px rgba(5,4,14,.12);
+}
+.payload-admin .table{background:rgba(17,17,31,.66)}
+.payload-admin .table tbody tr:hover{background:var(--sm-cms-accent-soft)}
+.payload-admin .btn--style-primary:focus-visible,.payload-admin .nav a:focus-visible,
+.payload-admin .nav button:focus-visible{outline:2px solid #d3b4ff;outline-offset:3px}
+.payload-admin .field-type label{font-weight:650;letter-spacing:-.01em}
+.payload-admin .nav a.active,.payload-admin .nav a[aria-current="page"]{
+ border-left:2px solid #b78bff;background:linear-gradient(100deg,rgba(145,82,225,.23),rgba(71,45,109,.08));
+}
+@media(prefers-reduced-motion:reduce){.payload-admin .card,.payload-admin .nav a,
+.payload-admin .nav button{transition:none!important;transform:none!important}}
