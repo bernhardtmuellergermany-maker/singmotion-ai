@@ -1,0 +1,151 @@
+/* SingMotion single global navigation contract.
+   This file is imported last by the site layout, after page and legacy styles.
+   Home is the source of truth for geometry, controls and brand purple.
+   Do not add route-specific header rules in component stylesheets. */
+:root{
+  --sm-nav-height:70px;
+  --sm-nav-inset:clamp(17px,3vw,55px);
+  --sm-nav-purple:#e043f8;
+  --sm-nav-gap:12px;
+  --sm-nav-control:44px;
+}
+.sm-site-header.home-gallery-header.sm-carousel-header,
+.sm-carousel-page>.sm-site-header,
+.sm-plans-page>.sm-site-header,
+.home-gallery>.sm-site-header,
+.sm-immersive-home .sm-immersive-header,
+.sm-projects-layout .sm-site-header,
+.singmotion-flow .sm-site-header,
+.sm-standalone-auth .sm-site-header{
+  position:relative!important;
+  inset:auto!important;
+  top:0!important;
+  left:auto!important;
+  right:auto!important;
+  z-index:1000!important;
+  isolation:isolate!important;
+  box-sizing:border-box!important;
+  display:flex!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  width:100%!important;
+  height:var(--sm-nav-height)!important;
+  min-height:var(--sm-nav-height)!important;
+  max-height:var(--sm-nav-height)!important;
+  padding:0 var(--sm-nav-inset)!important;
+  margin:0!important;
+  gap:var(--sm-nav-gap)!important;
+  background:transparent!important;
+  background-color:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  backdrop-filter:none!important;
+  -webkit-backdrop-filter:none!important;
+  pointer-events:auto!important;
+}
+.sm-site-header-space{
+  display:none!important;
+  height:0!important;
+  min-height:0!important;
+  flex-basis:0!important;
+}
+.sm-site-header .sm-site-header-left{
+  position:relative!important;
+  z-index:2!important;
+  display:flex!important;
+  flex:0 1 auto!important;
+  align-items:center!important;
+  gap:0!important;
+  min-width:0!important;
+  margin:0!important;
+  pointer-events:auto!important;
+}
+.sm-site-header .sm-site-header-left>.sm-wordmark{
+  position:relative!important;
+  z-index:3!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  flex:0 0 auto!important;
+  gap:.28em!important;
+  white-space:nowrap!important;
+  margin:0!important;
+  padding:0!important;
+  min-height:28px!important;
+  font-family:inherit!important;
+  font-size:21px!important;
+  font-weight:800!important;
+  letter-spacing:-.65px!important;
+  line-height:1.2!important;
+  color:#fff!important;
+  background:transparent!important;
+  text-decoration:none!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+.sm-site-header .sm-wordmark>span,
+.sm-immersive-home .sm-immersive-header .sm-wordmark>span,
+.sm-wordmark>span{
+  color:var(--sm-nav-purple)!important;
+}
+.sm-site-header .sm-header-actions{
+  position:relative!important;
+  z-index:3!important;
+  display:flex!important;
+  flex:0 0 auto!important;
+  flex-flow:row nowrap!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  gap:var(--sm-nav-gap)!important;
+  margin:0 0 0 auto!important;
+  min-width:0!important;
+  pointer-events:auto!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu,
+.sm-site-header .sm-header-actions>.sm-account-menu{
+  flex:0 0 var(--sm-nav-control)!important;
+  display:block!important;
+  width:var(--sm-nav-control)!important;
+  height:var(--sm-nav-control)!important;
+  min-width:var(--sm-nav-control)!important;
+  min-height:var(--sm-nav-control)!important;
+  margin:0!important;
+  padding:0!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>summary,
+.sm-site-header .sm-header-actions>.sm-account-menu>summary{
+  display:grid!important;
+  place-items:center!important;
+  box-sizing:border-box!important;
+  width:var(--sm-nav-control)!important;
+  height:var(--sm-nav-control)!important;
+  min-width:var(--sm-nav-control)!important;
+  min-height:var(--sm-nav-control)!important;
+  margin:0!important;
+  padding:0!important;
+  border:1px solid #55506e!important;
+  border-radius:50%!important;
+  color:#f7f3ff!important;
+  background:transparent!important;
+  cursor:pointer!important;
+  pointer-events:auto!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>summary:hover,
+.sm-site-header .sm-header-actions>.sm-account-menu>summary:hover,
+.sm-site-header .sm-header-actions>.sm-global-menu[open]>summary,
+.sm-site-header .sm-header-actions>.sm-account-menu[open]>summary{
+  border-color:#a783e1!important;
+  background:#29203d!important;
+}
+/* Homepage remains an overlay, as in its original design. Its background
+   and brand appearance use the same canonical values as every other route. */
+.sm-immersive-home .sm-immersive-header{
+  position:absolute!important;
+  inset:0 0 auto!important;
+}
+@media(max-width:760px){
+  :root{--sm-nav-height:64px;--sm-nav-inset:14px}
+  .sm-site-header .sm-site-header-left>.sm-wordmark{font-size:20px!important}
+}
