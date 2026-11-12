@@ -22,6 +22,9 @@ export function stripeCreditTopupsTestEnabled(env:Record<string,string|undefined
 
 export type WalletIdentity={subject:string;email:string;customerId:string|null};
 export type Topup={id:string;subject:string;email:string;credits:number;cents:number;status:string;sessionId:string|null;checkoutUrl:string|null;requestKey:string;created:number};
+export type VideoReservationState="reserved"|"review"|"settled"|"released";
+type VideoReservationRow={project_id:string;subject:string;credits:number;state:VideoReservationState;created:number;updated:number};
+export type VideoReservation={projectId:string;subject:string;credits:number;state:VideoReservationState;created:number;updated:number};
 
 /**
  * Ledger isolated from historical one-video Checkout and Hobby entitlements.
@@ -47,6 +50,13 @@ export class CreditWallet {
     kind TEXT NOT NULL,reference TEXT UNIQUE NOT NULL,created INTEGER NOT NULL
    );
    CREATE INDEX IF NOT EXISTS credit_wallet_subject_idx ON credit_wallet_ledger(subject,created DESC);
+   CREATE TABLE IF NOT EXISTS credit_video_reservations(
+    project_id TEXT PRIMARY KEY,subject TEXT NOT NULL,
+    credits INTEGER NOT NULL CHECK(credits>0),
+    state TEXT NOT NULL CHECK(state IN ('reserved','review','settled','released')),
+    created INTEGER NOT NULL,updated INTEGER NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS credit_video_subject_idx ON credit_video_reservations(subject,state,created DESC);
   `);
  }
  private tx<T>(fn:()=>T):T{
@@ -137,6 +147,63 @@ export class CreditWallet {
     .run(record.id);
    return true;
   });
+ }
+
+ /** A wallet hold is recorded BEFORE any provider submission and is unique per
+  * immutable project ID. It reduces spendable funds without charging early. */
+ videoReservation(projectId:string):VideoReservation|null {
+  const r=this.db.prepare("SELECT project_id,subject,credits,state,created,updated FROM credit_video_reservations WHERE project_id=?")
+   .get(projectId) as VideoReservationRow|undefined;
+  return r?{projectId:r.project_id,subject:r.subject,credits:r.credits,state:r.state,created:r.created,updated:r.updated}:null;
+ }
+ reserved(subject:string):number {
+  const r=this.db.prepare("SELECT COALESCE(SUM(credits),0) AS total FROM credit_video_reservations WHERE subject=? AND state IN ('reserved','review')")
+   .get(subject) as {total:number};
+  return Number(r.total);
+ }
+ available(subject:string):number {return this.total(subject)-this.reserved(subject);}
+ reserveVideo(projectId:string,subject:string,credits:number):VideoReservation {
+  if(!/^[a-f0-9-]{36}$/i.test(projectId)||
+     !/^(?:customer|super-admin):[A-Za-z0-9_-]{1,100}$/.test(subject)||
+     !Number.isSafeInteger(credits)||credits<=0||credits>7500)
+   throw Error("Invalid video credit reservation");
+  return this.tx(()=>{
+   const prior=this.videoReservation(projectId);
+   if(prior){
+    if(prior.subject!==subject||prior.credits!==credits)throw Error("Video reservation owner/price conflict");
+    if(prior.state==="settled"||prior.state==="released")throw Error("Video reservation is final");
+    return prior;
+   }
+   if(this.available(subject)<credits)throw Error("Insufficient video credits");
+   const now=Date.now();
+   this.db.prepare("INSERT INTO credit_video_reservations VALUES(?,?,?,'reserved',?,?)")
+    .run(projectId,subject,credits,now,now);
+   return this.videoReservation(projectId)!;
+  });
+ }
+ /** Completed + validated MP4: bill once. Verified zero-charge prefilter:
+  * release once. Uncertain/other failures: hold until reconciliation.
+  * Historical jobs without a hold are NEVER retroactively charged. */
+ reconcileVideo(projectId:string,outcome:"completed"|"nonbillable"|"review"):VideoReservation|null {
+  return this.tx(()=>{
+   const hold=this.videoReservation(projectId);
+   if(!hold||hold.state==="settled"||hold.state==="released")return hold;
+   const state=outcome==="completed"?"settled":outcome==="nonbillable"?"released":"review";
+   if(state==="settled"||state==="released"){
+    const key=(state==="settled"?"video-charge:":"video-release:")+projectId;
+    this.db.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
+     .run(key,hold.subject,state==="settled"?-hold.credits:0,
+       state==="settled"?"video":"video-release",key,Date.now());
+   }
+   this.db.prepare("UPDATE credit_video_reservations SET state=?,updated=? WHERE project_id=?")
+    .run(state,Date.now(),projectId);
+   return this.videoReservation(projectId);
+  });
+ }
+ videoReservations(subject:string):VideoReservation[]{
+  return (this.db.prepare("SELECT project_id,subject,credits,state,created,updated FROM credit_video_reservations WHERE subject=? ORDER BY created DESC LIMIT 100")
+   .all(subject) as VideoReservationRow[]).map(r=>({projectId:r.project_id,subject:r.subject,
+    credits:r.credits,state:r.state,created:r.created,updated:r.updated}));
  }
  total(subject:string):number {
   const v=this.db.prepare("SELECT COALESCE(SUM(delta),0) AS total FROM credit_wallet_ledger WHERE subject=?")
