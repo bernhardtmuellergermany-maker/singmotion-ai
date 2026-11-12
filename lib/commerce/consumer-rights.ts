@@ -39,12 +39,12 @@ export async function sendRightsEmail(input:{to:string;subject:string;text:strin
  }catch{return false;}
 }
 export function withdrawalReceiptText(v:WithdrawalDeclaration & {id:string;receivedAt:string}){
- return ["SingMotion AI – Eingangsbestätigung Widerruf","",
- "Wir bestätigen den Eingang deiner Widerrufserklärung, nicht deren rechtliche Wirksamkeit.",
- "Eingegangen (UTC): "+v.receivedAt,"Vorgangsnummer: "+v.id,
- "Name: "+v.name,"Vertrag / Bestellung: "+v.orderReference,
- "Bestätigungsadresse: "+v.email,"","Erklärung: Hiermit widerrufe ich den bezeichneten Vertrag.",
- "","Gesetzliche Ansprüche und die Prüfung der Rechtslage bleiben unberührt.",
+ return ["SingMotion AI – Withdrawal receipt","",
+ "We confirm receipt of your withdrawal declaration, not whether it is legally effective.",
+ "Received (UTC): "+v.receivedAt,"Reference: "+v.id,
+ "Name: "+v.name,"Contract / order: "+v.orderReference,
+ "Confirmation address: "+v.email,"","Declaration: I withdraw from the identified contract.",
+ "","Statutory rights and a review of the applicable legal position remain unaffected.",
  "SingMotion AI · support@singmotion.ai"].join("\n");
 }
 
@@ -70,12 +70,12 @@ export async function retryPendingWithdrawalReceipts(file:string,env:Record<stri
    attempted++;
    const body=withdrawalReceiptText(receipt);
    if(!row.receipt_sent_at){
-    const ok=await sendRightsEmail({to:row.email,subject:"SingMotion AI – Eingang deiner Widerrufserklärung",text:body},env,sender);
+    const ok=await sendRightsEmail({to:row.email,subject:"SingMotion AI – Withdrawal declaration received",text:body},env,sender);
     if(ok){db.prepare("UPDATE consumer_withdrawals SET receipt_sent_at=? WHERE id=? AND receipt_sent_at IS NULL").run(new Date().toISOString(),row.id);sent++;}
    }
    if(!row.operator_notified_at){
     const to=env.CONTACT_EMAIL_TO||"support@singmotion.ai";
-    const ok=await sendRightsEmail({to,subject:"[SingMotion AI] Neue Widerrufserklärung "+row.id,text:body},env,sender);
+    const ok=await sendRightsEmail({to,subject:"[SingMotion AI] New withdrawal declaration "+row.id,text:body},env,sender);
     if(ok)db.prepare("UPDATE consumer_withdrawals SET operator_notified_at=? WHERE id=? AND operator_notified_at IS NULL").run(new Date().toISOString(),row.id);
    }
   }
