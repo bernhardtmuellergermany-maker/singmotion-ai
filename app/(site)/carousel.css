@@ -2245,3 +2245,19 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
     scrollbar-width: none;
   }
 }
+
+
+/* Full-height private result pages scroll from the top rather than vertically
+   centering a tall video/status column and clipping the page title. */
+.sm-output-page{overflow-x:hidden;overflow-y:visible}
+.sm-output-page > .sm-carousel-main{
+  justify-content:flex-start;
+  min-height:calc(100svh - 88px);
+  padding-top:22px;
+}
+@media(max-width:650px){
+  .sm-output-page > .sm-carousel-main{
+    min-height:calc(100svh - 64px);
+    padding-top:18px;
+  }
+}

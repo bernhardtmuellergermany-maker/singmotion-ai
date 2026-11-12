@@ -248,3 +248,55 @@
   background:#29203d!important;
 }
 @media(max-width:650px){.sm-site-header .sm-header-actions{gap:12px!important}}
+
+
+/* One fixed, single-row navigation on every route, matching the homepage.
+   Prevent tall output pages from reflowing the logo and actions onto
+   separate rows or clipping the first heading beneath the navigation. */
+.sm-site-header.home-gallery-header.sm-carousel-header{
+  box-sizing:border-box!important;
+  display:flex!important;
+  flex-direction:row!important;
+  flex-wrap:nowrap!important;
+  align-items:center!important;
+  justify-content:space-between!important;
+  column-gap:12px!important;
+  min-width:0!important;
+}
+.sm-site-header .sm-site-header-left{
+  display:flex!important;
+  flex:0 1 auto!important;
+  min-width:0!important;
+  align-items:center!important;
+  margin:0!important;
+}
+.sm-site-header .sm-wordmark{display:inline-block!important;white-space:nowrap!important}
+.sm-site-header .sm-header-actions{
+  display:flex!important;
+  flex:0 0 auto!important;
+  align-items:center!important;
+  justify-content:flex-end!important;
+  flex-wrap:nowrap!important;
+  margin-left:auto!important;
+  min-width:0!important;
+}
+@media(max-width:650px){
+  .sm-site-header.home-gallery-header.sm-carousel-header{
+    height:64px!important;
+    min-height:64px!important;
+    padding-inline:14px!important;
+  }
+  .sm-site-header .sm-site-header-left .sm-wordmark{
+    font-size:20px!important;
+    line-height:1.1!important;
+  }
+  .sm-site-header .sm-header-actions>.sm-global-menu,
+  .sm-site-header .sm-header-actions>.sm-account-menu{
+    flex-basis:44px!important;
+  }
+  .sm-site-header-space{
+    height:64px!important;
+    min-height:64px!important;
+    flex-basis:64px!important;
+  }
+}

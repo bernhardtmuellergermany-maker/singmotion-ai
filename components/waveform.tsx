@@ -27,7 +27,9 @@ export default function Waveform({
     [dragging, setDragging] = useState(false),
     [editingTime, setEditingTime] = useState<"start" | "end" | null>(null),
     [timeDraft, setTimeDraft] = useState(""),
-    [timeInputError, setTimeInputError] = useState("");
+    [timeInputError, setTimeInputError] = useState(""),
+    [zoomLevel, setZoomLevel] = useState(0),
+    [zoomAnchor, setZoomAnchor] = useState<number | null>(null);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
     segment = useRef(false),
@@ -87,6 +89,12 @@ export default function Waveform({
     frame = requestAnimationFrame(checkEnd);
     return () => cancelAnimationFrame(frame);
   }, [playing, end]);
+  // Only the displayed time window changes; the selected audio stays identical.
+  const viewSpan = Math.min(duration, Math.max(end - start, duration / Math.pow(1.45, zoomLevel)));
+  const viewStart = Math.max(0, Math.min(duration - viewSpan, (zoomAnchor ?? (start + end) / 2) - viewSpan / 2));
+  const viewPercent = (seconds: number) => ((seconds - viewStart) / viewSpan) * 100;
+  const zoomIn = () => { setZoomAnchor((start + end) / 2); setZoomLevel(level => Math.min(12, level + 1)); };
+  const zoomOut = () => { setZoomAnchor((start + end) / 2); setZoomLevel(level => Math.max(0, level - 1)); };
   function drag(
     e: React.PointerEvent<HTMLButtonElement>,
     handle: "start" | "end",
@@ -108,7 +116,7 @@ export default function Waveform({
       Math.round(
         Math.max(
           0,
-          Math.min(duration, ((e.clientX - rect.left) / rect.width) * duration),
+          Math.min(duration, viewStart + ((e.clientX - rect.left) / rect.width) * viewSpan),
         ) * 100,
       ) / 100;
     if (handle === "start")
@@ -216,8 +224,8 @@ export default function Waveform({
     const count = Math.min(peaks.length || 220, 220);
     const values = Array.from({ length: count }, (_, i) => {
       if (!peaks.length) return 0.08;
-      const from = Math.floor((i * peaks.length) / count),
-        to = Math.max(from + 1, Math.floor(((i + 1) * peaks.length) / count));
+      const from = Math.max(0, Math.min(peaks.length - 1, Math.floor(((viewStart + (i / count) * viewSpan) / duration) * peaks.length))),
+        to = Math.max(from + 1, Math.min(peaks.length, Math.ceil(((viewStart + ((i + 1) / count) * viewSpan) / duration) * peaks.length)));
       return Math.max(...peaks.slice(from, to));
     });
     return values.map((p, i) => (
@@ -226,14 +234,14 @@ export default function Waveform({
         style={{
           height: `${Math.max(5, p * 92)}%`,
           background:
-            (i / values.length) * duration >= start &&
-            (i / values.length) * duration <= end
+            viewStart + (i / values.length) * viewSpan >= start &&
+            viewStart + (i / values.length) * viewSpan <= end
               ? "#9c54ff"
               : "#58627b",
         }}
       />
     ));
-  }, [peaks, duration, start, end]);
+  }, [peaks, duration, start, end, viewStart, viewSpan]);
   return (
     <div className="wave-editor studio-modern-wave">
       <div
@@ -292,7 +300,7 @@ export default function Waveform({
                 ...moveSelection(
                   origin.start,
                   origin.end,
-                  ((e.clientX - origin.x) / rect.width) * duration,
+                  ((e.clientX - origin.x) / rect.width) * viewSpan,
                   duration,
                 ),
               );
@@ -327,15 +335,15 @@ export default function Waveform({
               touchAction: "none",
               background: "rgba(151,86,246,.13)",
               border: "0",
-              left: `${(start / duration) * 100}%`,
-              width: `${((end - start) / duration) * 100}%`,
+              left: `${viewPercent(start)}%`,
+              width: `${((end - start) / viewSpan) * 100}%`,
             }}
             >
               <span className="wave-selection-hit" aria-hidden="true" />
             </div>
           <div
             className="playhead"
-            style={{ left: `${(position / duration) * 100}%` }}
+            style={{ left: `${viewPercent(position)}%` }}
           />
           {(["start", "end"] as const).map((handle) => (
             <button
@@ -350,7 +358,7 @@ export default function Waveform({
               key={handle}
               className={`wave-handle wave-handle-${handle}`}
               style={{
-                left: `${((handle === "start" ? start : end) / duration) * 100}%`,
+                left: `${viewPercent(handle === "start" ? start : end)}%`,
               }}
               onPointerDown={(e) => { e.stopPropagation(); drag(e, handle); }}
               onPointerMove={(e) => { e.stopPropagation(); move(e, handle); }}
@@ -386,8 +394,13 @@ export default function Waveform({
           aria-hidden="true"
         >
           {Array.from({ length: 7 }, (_, i) => (
-            <span key={i}>{formatTime((duration * i) / 6)}</span>
+            <span key={i}>{formatTime(viewStart + (viewSpan * i) / 6)}</span>
           ))}
+        </div>
+        <div className="studio-wave-zoom-controls" role="group" aria-label="Waveform zoom controls">
+          <span className="studio-wave-zoom-label">Zoom</span>
+          <button type="button" aria-label="Zoom out waveform" title="Zoom out" onClick={zoomOut} disabled={zoomLevel === 0}><Minus size={15}/></button>
+          <button type="button" aria-label="Zoom in waveform around selection" title="Zoom in around selection" onClick={zoomIn} disabled={viewSpan <= end - start + 0.001 || zoomLevel >= 12}><Plus size={15}/></button>
         </div>
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
