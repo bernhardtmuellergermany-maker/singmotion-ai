@@ -249,3 +249,28 @@ html:has(.payload-admin) { color-scheme: dark; }
 }
 @media(prefers-reduced-motion:reduce){.payload-admin .card,.payload-admin .nav a,
 .payload-admin .nav button{transition:none!important;transform:none!important}}
+
+
+/* CMS Showcase curator: one coherent surface instead of nested mismatched panels. */
+.sm-showcase-cms-manager{
+ max-width:1200px;margin:22px auto;padding:clamp(18px,3vw,32px);
+ color:#f8f4ff;border:1px solid rgba(192,159,241,.26);border-radius:24px;
+ background:radial-gradient(ellipse at 90% -20%,rgba(129,77,196,.20),transparent 58%),#151024;
+ box-shadow:0 24px 68px rgba(4,4,17,.24);
+}
+.sm-showcase-cms-manager h2{font-size:clamp(24px,3vw,31px)!important;letter-spacing:-.04em}
+.sm-showcase-cms-manager h3{letter-spacing:-.025em}
+.sm-showcase-cms-manager button{
+ border-radius:10px!important;min-height:36px;transition:background .18s,border-color .18s,color .18s;
+}
+.sm-showcase-cms-manager button:focus-visible,
+.sm-showcase-cms-manager input:focus-visible{outline:2px solid #d4b1ff;outline-offset:3px}
+.sm-showcase-cms-manager button:disabled{opacity:.5;cursor:not-allowed}
+.sm-showcase-cms-manager input[type=file]{max-width:100%;font-size:12px;color:#d9cbe7}
+.sm-showcase-cms-manager input[type=file]::file-selector-button{
+ border:1px solid #81629c;border-radius:8px;padding:8px 11px;margin-right:10px;
+ background:#362344;color:#f7efff;cursor:pointer;
+}
+.sm-showcase-cms-manager input[type=file]::file-selector-button:hover{background:#503268}
+.sm-showcase-cms-manager img{border:1px solid rgba(194,169,229,.16)}
+@media(max-width:650px){.sm-showcase-cms-manager{padding:17px 14px;border-radius:17px;margin:12px 0}}
