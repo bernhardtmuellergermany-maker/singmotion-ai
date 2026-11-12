@@ -76,6 +76,7 @@ export async function POST(req:NextRequest){
     // the merchant-reviewed tax code before permitting a real charge.
     form.set("billing_address_collection","required");
     form.set("automatic_tax[enabled]","true");
+    form.set("line_items[0][price_data][tax_behavior]","inclusive");
     form.set("line_items[0][price_data][product_data][tax_code]",process.env.STRIPE_CREDIT_TAX_CODE!);
    }
    const response=await fetch("https://api.stripe.com/v1/checkout/sessions",{
