@@ -36,8 +36,8 @@ const data: Record<string, [string, string][]> = {
     ["Private media access", "No customer media exposed by this console"],
   ],
   Payments: [
-    ["Stripe Checkout", "Disabled"],
-    ["Purchase / refund history", "No live financial data"],
+    ["Stripe Checkout", "Sandbox credit top-ups: staging only; live payments disabled"],
+    ["Purchase / refund history", "See your own real credit wallet under Credits"],
     ["Refund actions", "Disabled"],
   ],
   Credits: [
@@ -46,18 +46,18 @@ const data: Record<string, [string, string][]> = {
       "Purchase, reservation, capture, restoration, adjustment, reversal",
     ],
     ["Admin adjustment", "Disabled; reason and audit required"],
-    ["Subscriptions", "Future optional feature"],
+    ["New subscriptions", "Not offered; existing Hobby contracts remain manageable"],
   ],
   Pricing: [
-    ["Configuration", "Server-side customer pricing engine"],
-    ["Price changes", "Disabled in this console"],
+    ["Customer credit tariff", "25 Credits per started original audio second (5.2 s → 150 Credits)"],
+    ["Credit top-ups", "1 Credit = €0.01, minimum 500, maximum 100,000; TEST checkout on staging only"],
     [
       "VAT & billing minimums",
-      "Require production review and provider verification",
+      "Every started source second rounds up. Playback slow-down does not increase customer Credits.",
     ],
   ],
   "Provider usage & costs": [
-    ["BytePlus OmniHuman 2.0", "Disabled — contract unverified"],
+    ["BytePlus OmniHuman 2.0", "Technical provider only; customer prices are Credits"],
     [
       "Observed model cost",
       "USD 0.07/second before tax; not the customer price",
