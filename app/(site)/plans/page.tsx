@@ -19,7 +19,7 @@ export default function PlansPage() {
     <h1>Credits & Pricing<span className="sm-plans-accent">.</span></h1>
     <p>One simple model: top up your account with the credits you choose, then use them to create AI performance videos. No new Hobby subscription or monthly fee.</p>
    </section>
-   <div className="sm-plans-preview-notice" role="status"><strong>Credit payments are coming soon.</strong> These rates and amounts explain the proposed model. No purchase or video payment can be completed from this page.</div>
+   <div className="sm-plans-preview-notice" role="status"><strong>Credit payments are being prepared.</strong> These rates and amounts explain the proposed model. On staging, account holders can try Stripe Test Checkout from the Credits page. Live credit purchases and credit-paid videos are not enabled.</div>
    <section className="sm-plans-grid" aria-label="Prepaid credit information">
     <article className="sm-plan-card sm-plan-featured">
      <div className="sm-plan-top"><span className="sm-plan-icon"><Music2 size={24}/></span><span className="sm-plan-status sm-plan-soon">Prepaid · planned</span></div>
