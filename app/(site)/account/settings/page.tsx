@@ -12,7 +12,7 @@ export default function AccountSettings(){
  const [removePassword,setRemovePassword]=useState("");
  const [removeBusy,setRemoveBusy]=useState(false);
  const [removeNotice,setRemoveNotice]=useState("");
- const [storageUsage,setStorageUsage]=useState<{usedBytes:number;limitBytes:number}|null>(null);
+ const [storageUsage,setStorageUsage]=useState<{usedBytes:number;unlimited?:boolean;limitBytes:number|null;provider?:string}|null>(null);
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
  useEffect(()=>{fetch("/api/customer-invoices",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load invoices.");setInvoices(Array.isArray(d.invoices)?d.invoices:[]);setInvoiceMessage(d.message||"");}).catch(e=>setInvoiceMessage(e instanceof Error?e.message:"Invoices unavailable")).finally(()=>setInvoicesLoading(false));},[]);
  useEffect(()=>{fetch("/api/customer-plan",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setStorageUsage(d?.storage||null)).catch(()=>{});},[]);
@@ -98,7 +98,7 @@ export default function AccountSettings(){
         <p className="sm-settings-muted">Automatic recharge is currently off. No payment method is charged without explicit authorization. Any available Stripe invoices appear below.</p>
         <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
       </div>
-      {storageUsage&&<p className="sm-settings-muted">Uploaded sources: {(storageUsage.usedBytes/1048576).toFixed(1)} / {(storageUsage.limitBytes/1048576).toFixed(0)} MB. Existing purchased video downloads remain separate.</p>}
+      {storageUsage&&<p className="sm-settings-muted">Your uploaded audio and photos: {(storageUsage.usedBytes/1048576).toFixed(1)} MB stored. No cumulative account upload quota. Individual file-size and security limits still apply. Finished videos are stored separately.</p>}
       <div className="sm-settings-credit-balance"><CreditCard size={19}/><span>Available credits</span><strong>{data.credits.toLocaleString("en-GB")}</strong></div>
       <p className="sm-settings-muted">Historical order records, if any, appear below. Only completed Stripe payments create invoice documents.</p>
       {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span>{o.status==="paid"&&<button type="button" className="sm-settings-remove-order" onClick={()=>{setRemoveOrderId(o.id);setRemovePassword("");setRemoveNotice("");}}>Remove</button>}</div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
