@@ -4,6 +4,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {PlanLedger} from "@/lib/commerce/plans";
 import {dataDir, db} from "@/lib/db";
 import {uploadedBytes} from "@/lib/upload-storage";
+import {customerR2Enabled} from "@/lib/cloud-media";
 import {stagingDenial} from "@/lib/staging";
 import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled} from "@/lib/commerce/customer-live-config";
 export const runtime="nodejs";export const dynamic="force-dynamic";
@@ -16,9 +17,10 @@ export async function GET(req:NextRequest){
  try{
   const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
   if(!accountId)return NextResponse.json({error:"Customer sign-in required"},{status:401,headers:{"Cache-Control":"private, no-store"}});
-  const plan=new PlanLedger(store.db).snapshot(accountId);
+  const {uploadStorageBytes:_legacyQuota,...plan}=new PlanLedger(store.db).snapshot(accountId);
+  void _legacyQuota;
   // Orders represent purchases, not a quota of currently editable projects.
   const usedBytes=uploadedBytes(db,`customer-${accountId}`);
-  return NextResponse.json({plan,projects:{unlimited:true},storage:{usedBytes,unlimited:true,limitBytes:null,remainingBytes:null,provider:"cloudflare-r2"},video:{includedSeconds:plan.monthlySeconds,remainingSeconds:plan.secondsRemaining,minimumSeconds:5,canGenerateFromSubscription:plan.code==="hobby"&&plan.secondsRemaining>=5&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"}},{headers:{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
+  return NextResponse.json({plan,projects:{unlimited:true},storage:{usedBytes,unlimited:true,limitBytes:null,remainingBytes:null,provider:customerR2Enabled()?"cloudflare-r2":"private-server"},video:{includedSeconds:plan.monthlySeconds,remainingSeconds:plan.secondsRemaining,minimumSeconds:5,canGenerateFromSubscription:plan.code==="hobby"&&plan.secondsRemaining>=5&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"}},{headers:{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
  }finally{store.close()}
 }
