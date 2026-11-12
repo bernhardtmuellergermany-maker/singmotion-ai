@@ -176,7 +176,12 @@ export function MyProjectsGallery(){
  const projects=useMemo(()=>{
    const combined:ProjectItem[]=[];
    const draftNames=new Map(drafts.map(d=>[d.id,d]));
-   const linked=new Set(orders.map(o=>o.projectId));
+   // Merge the draft and the actual generated job using the original request
+   // identifier. Never deduplicate unrelated projects by image, song or title.
+   const linked=new Set([
+     ...orders.map(o=>o.projectId),
+     ...live.map(p=>p.sourceDraftId).filter((id):id is string=>typeof id==="string"&&id.length>0)
+   ]);
    for(const d of drafts){
      if(linked.has(d.id))continue;
      if(!/^[a-zA-Z0-9-]{1,80}$/.test(d.id))continue;
@@ -206,9 +211,10 @@ export function MyProjectsGallery(){
    }
    for(const p of live){
      if(!/^[a-f0-9-]{36}$/.test(p.id))continue;
+     const sourceDraft=p.sourceDraftId?draftNames.get(p.sourceDraftId):undefined;
      combined.push({
        id:"live_"+p.id,kind:"admin",
-       name:p.projectName?.trim()||p.artistName||"Music video",
+       name:p.projectName?.trim()||sourceDraft?.projectName?.trim()||p.artistName||"Music video",
        status:adminStatus(p),date:Number(p.createdAt)||0,
        duration:p.durationSeconds||0,format:validFormat(p.selection?.outputFormat),
        image:p.imageId?`/api/assets/${encodeURIComponent(p.imageId)}`:null,
