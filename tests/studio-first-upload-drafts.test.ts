@@ -35,3 +35,18 @@ test("server forbids blank POST drafts and hides previously saved blanks without
  assert.match(api,/selected\.songId && asset\(selected\.songId, owner\)\.kind/);
  assert.match(api,/selected\.imageId && asset\(selected\.imageId, owner\)\.kind/);
 });
+
+test("Studio generation preserves one project card for its draft and rendered job",()=>{
+ const wizard=read("components/studio-wizard.tsx");
+ const generation=read("components/generation-dialog.tsx");
+ const workflow=read("lib/live/studio.ts");
+ const gallery=read("components/my-projects-gallery.tsx");
+ assert.match(wizard,/requestKey=\{projectKey\}/);
+ assert.match(generation,/requestKey,/);
+ assert.match(workflow,/source \+= `-request-\$\{requestKey\}`/);
+ assert.match(workflow,/sourceDraftId:linkedDraft/);
+ assert.match(workflow,/source_job_id FROM live_attempts WHERE id=\?/);
+ assert.match(gallery,/live\.map\(p=>p\.sourceDraftId\)/);
+ assert.match(gallery,/if\(linked\.has\(d\.id\)\)continue/);
+ assert.doesNotMatch(gallery,/d\.selection\.imageId===p\.imageId/);
+});
