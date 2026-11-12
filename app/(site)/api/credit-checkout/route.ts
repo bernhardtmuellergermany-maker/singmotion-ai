@@ -46,6 +46,12 @@ export async function POST(req:NextRequest){
    // after a timeout returns the same Stripe object via Idempotency-Key.
    const form=new URLSearchParams({
     mode:"payment",
+    // Sandbox ONLY: this account defaults to Stripe Managed Payments. Without
+    // a legally reviewed product tax_code, its merchant-of-record flow returns
+    // HTTP 400. Disable that optional flow explicitly for staging TEST
+    // purchases; production is hard-blocked by stripeCreditTopupsTestEnabled.
+    // Do not reuse this setting for future live credit sales without tax review.
+    "managed_payments[enabled]":"false",
     // Stripe API 2026-09-30+ rejects payment_method_types with HTTP 400.
     // Use Dashboard-configured dynamic payment methods (cards enabled in sandbox).
     "line_items[0][price_data][currency]":"eur",
