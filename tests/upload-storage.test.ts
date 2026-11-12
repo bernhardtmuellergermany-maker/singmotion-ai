@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
+import {readFileSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import {uploadedBytes,reserveUploadStorage,releaseUploadStorage,commitUploadedAsset} from "../lib/upload-storage.ts";
 import type {Asset} from "../lib/domain.ts";
@@ -113,4 +114,19 @@ test("generated immutable Studio snapshots do not reduce customers' upload stora
  assert.equal(uploadedBytes(db,owner),50);
  reserveUploadStorage(db,owner,randomUUID(),50);
  db.close();
+});
+
+test("a single upload above the supported per-file bound is refused without a quota",()=>{
+ const db=make();
+ assert.throws(()=>reserveUploadStorage(db,"customer-test",randomUUID(),50*1024*1024+1),/file size/);
+ assert.throws(()=>reserveUploadStorage(db,"customer-test",randomUUID(),0),/reservation/);
+ db.close();
+});
+test("production and staging uploads require a private R2 backend, not an unbacked local fallback",()=>{
+ const api=readFileSync(new URL("../app/(site)/api/[...path]/route.ts",import.meta.url),"utf8");
+ assert.match(api,/!customerR2Enabled\(\)/);
+ assert.match(api,/Private Cloudflare storage is not ready/);
+ assert.match(api,/commitUploadedAsset\(db,a,mirrored\)/);
+ assert.match(api,/readMirroredPrivateSource\(owner,assetId,mirrored/);
+ assert.doesNotMatch(api,/uploadStorageLimit\(plan\)/);
 });
