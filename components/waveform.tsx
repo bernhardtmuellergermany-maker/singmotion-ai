@@ -28,8 +28,7 @@ export default function Waveform({
     [editingTime, setEditingTime] = useState<"start" | "end" | null>(null),
     [timeDraft, setTimeDraft] = useState(""),
     [timeInputError, setTimeInputError] = useState(""),
-    [zoomLevel, setZoomLevel] = useState(0),
-    [zoomAnchor, setZoomAnchor] = useState<number | null>(null);
+    [zoomLevel, setZoomLevel] = useState(0);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
     segment = useRef(false),
@@ -90,11 +89,11 @@ export default function Waveform({
     return () => cancelAnimationFrame(frame);
   }, [playing, end]);
   // Only the displayed time window changes; the selected audio stays identical.
-  const viewSpan = Math.min(duration, Math.max(end - start, duration / Math.pow(1.45, zoomLevel)));
-  const viewStart = Math.max(0, Math.min(duration - viewSpan, (zoomAnchor ?? (start + end) / 2) - viewSpan / 2));
+  const viewSpan = Math.min(duration, Math.max(Math.min(duration, end - start + 8), duration / Math.pow(1.45, zoomLevel)));
+  const viewStart = Math.max(0, Math.min(duration - viewSpan, (start + end) / 2 - viewSpan / 2));
   const viewPercent = (seconds: number) => ((seconds - viewStart) / viewSpan) * 100;
-  const zoomIn = () => { setZoomAnchor((start + end) / 2); setZoomLevel(level => Math.min(12, level + 1)); };
-  const zoomOut = () => { setZoomAnchor((start + end) / 2); setZoomLevel(level => Math.max(0, level - 1)); };
+  const zoomIn = () => setZoomLevel(level => Math.min(12, level + 1));
+  const zoomOut = () => setZoomLevel(level => Math.max(0, level - 1));
   function drag(
     e: React.PointerEvent<HTMLButtonElement>,
     handle: "start" | "end",
@@ -343,7 +342,7 @@ export default function Waveform({
             </div>
           <div
             className="playhead"
-            style={{ left: `${viewPercent(position)}%` }}
+            style={{ left: `${viewPercent(position)}%`, display: position >= viewStart && position <= viewStart + viewSpan ? undefined : "none" }}
           />
           {(["start", "end"] as const).map((handle) => (
             <button
@@ -400,7 +399,7 @@ export default function Waveform({
         <div className="studio-wave-zoom-controls" role="group" aria-label="Waveform zoom controls">
           <span className="studio-wave-zoom-label">Zoom</span>
           <button type="button" aria-label="Zoom out waveform" title="Zoom out" onClick={zoomOut} disabled={zoomLevel === 0}><Minus size={15}/></button>
-          <button type="button" aria-label="Zoom in waveform around selection" title="Zoom in around selection" onClick={zoomIn} disabled={viewSpan <= end - start + 0.001 || zoomLevel >= 12}><Plus size={15}/></button>
+          <button type="button" aria-label="Zoom in waveform around selection" title="Zoom in around selection" onClick={zoomIn} disabled={viewSpan <= Math.min(duration, end - start + 8) + 0.001 || zoomLevel >= 12}><Plus size={15}/></button>
         </div>
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>
