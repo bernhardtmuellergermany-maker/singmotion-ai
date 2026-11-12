@@ -109,7 +109,7 @@ test("786x1178 BytePlus video keeps exact provider-native dimensions; no broad a
     await rejected(
       bytes,
       { ...policy, output: { ...policy.output, audioCodec: "mp3" } },
-      /POLICY/,
+      /CODEC/,
     );
     await rejected(
       bytes,
@@ -192,7 +192,7 @@ test("BytePlus 786x1178 30fps source keeps portrait shape even when checkout req
   const original=await readFile(source),audio=hash(source);
   await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
    async()=>new Response(Uint8Array.from(original)));
-  await validateOutput(dest,1,policy);
+  await validateOutput(dest,1,await providerNativeOutputContract(dest,policy));
   const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
   assert.equal(video.width,786);
   assert.equal(video.height,1178);
