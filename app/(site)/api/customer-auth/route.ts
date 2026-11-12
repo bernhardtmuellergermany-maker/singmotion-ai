@@ -24,7 +24,7 @@ export async function GET(req:NextRequest){
     const payload=await getPayload({config});
     const {user}=await payload.auth({headers:req.headers});
     if(user && hasRole(user,["super-admin","editor"]))
-     return json({authenticated:true,email:typeof user.email==="string"?user.email:"Staff account",kind:"staff"});
+     return json({authenticated:true,email:typeof user.email==="string"?user.email:"Staff account",kind:"staff",staffRole:hasRole(user,["super-admin"])?"super-admin":"editor"});
    }
    return json({authenticated:false});
   }
