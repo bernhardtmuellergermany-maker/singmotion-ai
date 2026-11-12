@@ -5,7 +5,7 @@ import {randomUUID} from "node:crypto";
 import {CreditWallet,stripeCreditTopupsTestEnabled} from "../lib/commerce/credit-wallet.ts";
 
 const safeEnv={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
- STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"true",STRIPE_CHECKOUT_ENABLED:"true",
+ STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"true",
  STRIPE_SECRET_KEY:"sk_test_mock",STRIPE_WEBHOOK_SECRET:"whsec_mock"};
 test("only staging with a Test secret may sell test credits",()=>{
  assert.equal(stripeCreditTopupsTestEnabled(safeEnv),true);

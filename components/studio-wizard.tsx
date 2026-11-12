@@ -51,6 +51,7 @@ import { photoFormat, uploadedPhotoFraming } from "@/lib/studio-editor";
 import { defaultStudioContent, type StudioContent } from "@/lib/studio-content";
 import { productCopy } from "@/lib/product-copy";
 import {hasFirstStudioUpload, type StudioDraftExport} from "@/lib/studio-draft";
+import {quoteVideoCredits,VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
 const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
@@ -110,10 +111,6 @@ export function StudioWizard({
     [photoSize,setPhotoSize] = useState({width:1,height:1}),
     [error, setError] = useState(""),
     [reviewRights, setReviewRights] = useState(false),
-    [reviewQuote,setReviewQuote] = useState<{plan:string;includedSeconds:number;extraSeconds:number;estimatedExtraPriceCents:number;estimatedBillableSeconds:number}|null>(null),
-    [reviewQuoteLoading,setReviewQuoteLoading] = useState(false),
-    [reviewQuoteError,setReviewQuoteError] = useState(""),
-    [reviewQuoteRetry,setReviewQuoteRetry] = useState(0),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
     [cropX,setCropX] = useState(50),
@@ -555,52 +552,14 @@ export function StudioWizard({
 
   const appliedImageReady = !draft.sourceImageId || (!!draft.editedImageId && draft.imageId===draft.editedImageId && draft.appliedOutputFormat===draft.outputFormat);
   const available = !!selection && audioValid && !busy && !cropPending && appliedImageReady && frameValid;
-  // CMS staff accounts use the private operator authorization dialog, not
-  // customer checkout pricing. Studio-live itself still checks staff role,
-  // reviewed budgets and consent before any provider submission.
+  // Same transparent customer-facing tariff for everyone, including Super Admin.
+  // The source clip's start/end timestamps remain unchanged if a later provider
+  // uses slowed playback, extra output frames or another internal cost uplift.
   const operatorStudio=owner.startsWith("cms-staff-");
-  useEffect(() => {
-    if(step!==3 || !selection)return;
-    if(operatorStudio){
-      setReviewQuote(null);setReviewQuoteError("");setReviewQuoteLoading(false);
-      return;
-    }
-    const controller=new AbortController();
-    const seconds=(selection.end-selection.start).toFixed(3);
-    void Promise.resolve().then(()=>{
-      if(!controller.signal.aborted){
-        setReviewQuote(null);setReviewQuoteError("");setReviewQuoteLoading(true);
-      }
-    });
-    void fetch(`/api/customer-quote?seconds=${encodeURIComponent(seconds)}`,{
-      credentials:"same-origin",cache:"no-store",signal:controller.signal,
-    }).then(async response=>{
-      const value=await response.json().catch(()=>null) as
-        {estimateOnly?:boolean;estimatedExtraPriceCents?:number;currency?:string;error?:string}|null;
-      if(!response.ok)throw Error(
-        response.status===401?"Your private workspace session has expired. Reopen Studio to review your price.":
-        response.status===403?"Pricing is not enabled in this environment. No payment can be started.":
-        response.status===409?"This selection cannot be priced. Check the audio duration or your account limits.":
-        response.status===429?"Too many pricing requests. Please retry shortly.":
-        "Your current price could not be calculated. Please retry."
-      );
-      if(value?.estimateOnly!==true || value.currency!=="EUR" ||
-         !Number.isSafeInteger(value.estimatedExtraPriceCents) ||
-         (value.estimatedExtraPriceCents??-1)<0)
-        throw Error("The pricing server returned an invalid estimate. Please retry.");
-      return value;
-    }).then(value=>{
-      if(!controller.signal.aborted)setReviewQuote(value as NonNullable<typeof reviewQuote>);
-    }).catch(error=>{
-      if(!controller.signal.aborted)setReviewQuoteError(
-        error instanceof Error?error.message:"Price unavailable. Please retry."
-      );
-    }).finally(()=>{if(!controller.signal.aborted)setReviewQuoteLoading(false);});
-    return ()=>controller.abort();
-  },[step,selection?.start,selection?.end,selection?.owner,reviewQuoteRetry,operatorStudio]);
-  const reviewPrice=operatorStudio ? "Operator review · no Stripe payment" : reviewQuote
-    ? new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(reviewQuote.estimatedExtraPriceCents/100)
-    : reviewQuoteLoading ? "Calculating…" : "Unavailable";
+  const creditQuote=selection?quoteVideoCredits(selection.start,selection.end):null;
+  const reviewPrice=creditQuote
+    ?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits"
+    :"Unavailable";
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -878,14 +837,14 @@ export function StudioWizard({
             <details className="sm-review-item sm-review-cost-row">
               <summary><ReceiptText size={20}/><strong>Costs</strong><span className="sm-review-item-value">{reviewPrice}</span><ChevronDown size={17}/></summary>
               <div className="sm-review-expanded">
-                {operatorStudio?<p><strong>Private operator workflow:</strong> No customer Stripe checkout. Super Admin permissions, provider costs and budget approval are checked before generation.</p>:reviewQuote?<>
-                  <p><strong>Estimated extra charge (VAT included):</strong> {reviewPrice}</p>
-                  <p><strong>Billable duration:</strong> {reviewQuote.estimatedBillableSeconds} seconds</p>
-                  <p><strong>Included with plan:</strong> {reviewQuote.includedSeconds} seconds</p>
-                  <p><strong>Additional seconds:</strong> {reviewQuote.extraSeconds}</p>
-                  <p>This is an estimate, not a final charge. Your binding price is confirmed before payment.</p>
-                </>:<p>{reviewQuoteLoading?"Calculating your personal price…":reviewQuoteError||"Your personal price is unavailable. No payment can start until pricing is confirmed."}
-                  {!reviewQuoteLoading&&<button type="button" className="sm-review-price-retry" onClick={()=>setReviewQuoteRetry(v=>v+1)}>Retry price calculation</button>}</p>}
+                {creditQuote?<div aria-label="Video Credit calculation" className="sm-review-credit-breakdown">
+                  <p><strong>Original selected audio:</strong> {creditQuote.sourceSeconds.toFixed(3)} seconds</p>
+                  <p><strong>Started seconds billed:</strong> {creditQuote.startedSeconds} (rounded up)</p>
+                  <p><strong>Rate:</strong> {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second</p>
+                  <p><strong>Estimated cost:</strong> {reviewPrice}</p>
+                  <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
+                  <p className="sm-review-credit-disclaimer">Credit-based video payment is not yet enabled. This estimate does not reserve or deduct credits. {operatorStudio?"Private Super Admin provider testing remains a separate authorized workflow.":"A verified customer account and sufficient Credits will be required at release."}</p>
+                </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>
             </details>
           </div>
@@ -894,12 +853,12 @@ export function StudioWizard({
             <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
           </label>
           <p className="sm-review-ai-notice">AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
-          <p className="sm-review-payment-note">{operatorStudio?"Next: private operator authorization and generation review. No Stripe payment.":"Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page."}</p>
+          <p className="sm-review-payment-note">{operatorStudio?"Next: private operator authorization and generation review. No Credits are charged during operator tests.":"Credit-paid video generation is not enabled yet. No Credits will be charged by this preview; you can buy sandbox Credits on staging."}</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||(!operatorStudio&&(!reviewQuote||reviewQuoteLoading))} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />

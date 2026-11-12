@@ -14,9 +14,10 @@ export function stripeCreditWebhookTestEnabled(env:Record<string,string|undefine
 }
 /** New credit purchases are sandbox-only, independently of video checkout. */
 export function stripeCreditTopupsTestEnabled(env:Record<string,string|undefined>):boolean {
+ // Legacy per-video Stripe Checkout is independent from the separately
+ // authorised and account-bound prepaid sandbox purchase flow.
  return stripeCreditWebhookTestEnabled(env) &&
-  env.STRIPE_CREDIT_TOPUPS_TEST_ENABLED==="true" &&
-  env.STRIPE_CHECKOUT_ENABLED==="true";
+  env.STRIPE_CREDIT_TOPUPS_TEST_ENABLED==="true";
 }
 
 export type WalletIdentity={subject:string;email:string;customerId:string|null};

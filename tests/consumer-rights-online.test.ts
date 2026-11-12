@@ -18,7 +18,7 @@ test("electronic withdrawal stores exact declaration and UTC receipt in durable 
   const mail=withdrawalReceiptText(record);
   for(const value of [record.id,record.receivedAt,record.name,record.orderReference,record.email])
    assert.ok(mail.includes(value));
-  assert.match(mail,/nicht deren rechtliche Wirksamkeit/);
+  assert.match(mail,/not whether it is legally effective/);
  }finally{db.close();}
 });
 test("withdrawal rejects missing contract reference, invalid email and control characters",()=>{
@@ -42,8 +42,8 @@ test("public statutory form has a second explicit confirm step and no authentica
  const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
  const ui=read("components/online-withdrawal.tsx");
  const route=read("app/(site)/api/withdrawal/route.ts");
- assert.match(ui,/Widerruf bestätigen/);
- assert.match(ui,/Vertrag widerrufen/);
+ assert.match(ui,/Confirm withdrawal/);
+ assert.match(ui,/Withdraw from a contract/);
  assert.match(route,/recordWithdrawal\(db,input\)/);
  assert.match(route,/confirmationSent:customerSent/);
  assert.doesNotMatch(route,/sm_customer|\.session\(/);

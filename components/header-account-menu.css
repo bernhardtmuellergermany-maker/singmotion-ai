@@ -70,3 +70,7 @@
 .sm-account-preview-buttons button[aria-pressed="true"]{border-color:#ba89f4;background:#493361}
 .sm-account-preview-buttons button:focus-visible{outline:2px solid #d29bff;outline-offset:2px}
 .sm-account-credit-status strong small{font-size:11px;font-weight:600;letter-spacing:0}
+
+.sm-account-topup-link{color:#f2c1ff!important;text-decoration:underline!important;text-underline-offset:3px;display:inline-flex;min-height:26px;align-items:center;font-weight:800}
+.sm-account-topup-link:hover{color:#fff!important}
+.sm-account-topup-link:focus-visible{outline:2px solid #ddbaff;outline-offset:3px}

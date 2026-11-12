@@ -1,0 +1,25 @@
+.sm-camera-guide{min-height:100vh;background:#0a0b15;color:#f2eefc}
+.sm-camera-main{padding-top:clamp(105px,11vh,155px)!important;padding-bottom:95px!important;max-width:1160px!important}
+.sm-camera-breadcrumb{display:flex;flex-wrap:wrap;gap:16px;align-items:center;margin:0 0 29px;color:#d4bcf1;font-size:13px}
+.sm-camera-breadcrumb a{display:inline-flex;align-items:center;gap:7px;text-decoration:none}
+.sm-camera-breadcrumb a:hover,.sm-camera-guide a:hover{text-decoration:underline;color:#f3d9ff}
+.sm-camera-intro{max-width:890px;margin:0 0 23px!important}.sm-camera-intro h1{font-size:clamp(38px,5vw,62px)!important}
+.sm-camera-intro p{max-width:850px}.sm-camera-intro small{display:block;margin-top:10px;color:#bdacce}
+.sm-camera-callout{display:flex;gap:15px;padding:20px 22px;background:linear-gradient(115deg,#342044,#1a172c);border:1px solid #74538d;border-radius:18px;margin:25px 0 28px}
+.sm-camera-callout>svg{flex-shrink:0;color:#d69af5}.sm-camera-callout strong{font-size:17px;color:#f8eaff}
+.sm-camera-callout p{margin:7px 0 0;color:#d2bfdb;line-height:1.7}
+.sm-camera-guide .sm-legal-panel a{color:#dab4ff;text-decoration:underline;text-underline-offset:3px}
+.sm-camera-section{margin:40px 0}.sm-camera-section-title{margin:0 0 17px}.sm-camera-section-title h2{font-size:clamp(23px,3vw,31px);color:#f7eaff;margin:5px 0}.sm-camera-section-title p{color:#c1b4cf}
+.sm-camera-techniques{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.sm-camera-technique{min-width:0;display:flex;flex-direction:column;gap:14px;padding:22px;border:1px solid #49365e;border-radius:16px;background:linear-gradient(130deg,#1d1a2d,#151425)}
+.sm-camera-technique-top{display:flex;gap:12px;align-items:center}.sm-camera-number{display:grid;place-items:center;width:37px;height:37px;border-radius:11px;background:#492663;color:#eabaff;font-size:13px;font-weight:800;flex-shrink:0}
+.sm-camera-technique h3{font-size:19px;font-weight:750;color:#fff}.sm-camera-technique small{font-size:12px;color:#b8a5c7}
+.sm-camera-technique p{font-size:14px;color:#d3c4dc;line-height:1.75}
+.sm-camera-technique blockquote{margin:0;padding:14px 16px;border-left:3px solid #ac69e6;border-radius:7px;background:#281d38;color:#f3dbff;font-size:13px;line-height:1.65}
+.sm-camera-technique .sm-camera-risk{display:flex;align-items:flex-start;gap:9px;font-size:12px;color:#d9b9b4;margin-top:auto}.sm-camera-risk svg{flex-shrink:0;margin-top:2px}
+.sm-camera-checklist{display:grid;gap:15px;margin:17px 0 25px}.sm-camera-checklist>div{display:flex;gap:13px}.sm-camera-checklist svg{color:#85e1b5;flex-shrink:0;margin-top:3px}.sm-camera-checklist h3{font-size:16px;color:#f0e5fa;margin:0 0 4px}.sm-camera-checklist p{margin:0;color:#c5b8d2}
+.sm-camera-questions{margin-top:16px}.sm-camera-questions details{border-bottom:1px solid #5c456d;padding:13px 2px}.sm-camera-questions summary{cursor:pointer;font-weight:650;color:#f5e6ff}.sm-camera-questions details p{margin:12px 0 4px;color:#ccbdd7}
+.sm-camera-bottom{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:32px 0}
+.sm-camera-bottom a:first-child{display:inline-flex;align-items:center;gap:11px;padding:13px 18px;border-radius:12px;background:#914ff0;color:#fff;font-weight:750;text-decoration:none}
+.sm-camera-bottom a:last-child{color:#cfabeb}
+@media(max-width:700px){.sm-camera-main{padding-top:97px!important}.sm-camera-techniques{grid-template-columns:1fr}.sm-camera-technique{padding:19px}.sm-camera-callout{padding:17px}.sm-camera-breadcrumb{gap:12px}}
