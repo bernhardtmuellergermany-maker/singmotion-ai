@@ -153,7 +153,7 @@ export class BytePlusProtocol {
       {
         image_urls: [input.imageUrl],
         audio_url: input.audioUrl,
-        ...(input.prompt ? { prompt: input.prompt } : {}),
+        ...(input.prompt?.trim() ? { prompt: input.prompt } : {}),
         // Ask BytePlus not to add the optional visible AI-generated mark.
         // This only affects new tasks, never alters a provider-produced file.
         enable_watermark: false,
