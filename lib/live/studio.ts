@@ -107,6 +107,8 @@ export interface StudioProject {
   imageId: string;
   artistName: string;
   projectName: string;
+  /** Original Studio draft ID when this render was prepared from a saved project. */
+  sourceDraftId?: string | null;
   selection: StudioDraftExport;
   estimatedBaseMicroUsd: number;
   estimatedGeneratedSeconds: number;
@@ -245,6 +247,14 @@ export class StudioWorkflow {
       a.media.durationSeconds +
         (savedContract.generatedDurationBound?.maxAdditionalSeconds || 0),
     );
+    const sourceRecord=this.store.db.prepare("SELECT source_job_id FROM live_attempts WHERE id=?")
+      .get(id) as {source_job_id:string|null}|undefined;
+    // The workflow embeds the opaque Studio draft request key in the
+    // idempotency source. Only an exact UUID link is returned: do not merge
+    // projects just because they share the same uploaded photo or song.
+    const linkedDraft=sourceRecord?.source_job_id?.match(
+      /-request-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:$|-review-)/i
+    )?.[1]||null;
     const budget = null;
     const budgetBlocker = null;
     return {
@@ -272,6 +282,7 @@ export class StudioWorkflow {
       imageId: JSON.parse(row.selection_json).imageId,
       artistName: row.artist_name,
       projectName: row.project_name || row.artist_name,
+      sourceDraftId:linkedDraft,
       selection: JSON.parse(row.selection_json),
       estimatedGeneratedSeconds,
       estimatedBaseMicroUsd: reportedBaseChargeMicroUsd(
