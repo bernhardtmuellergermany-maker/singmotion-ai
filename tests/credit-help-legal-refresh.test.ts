@@ -66,7 +66,9 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  const css=read("app/(site)/help/camera-movements/camera-movements.css");
  assert.match(help,/sm-camera-guide/);
  assert.match(css,/background:#0a0b15/);
- assert.match(help,/Back to Studio/);
+ assert.doesNotMatch(help,/Back to Studio/);
+ assert.match(help,/Help & best practices/);
+ assert.match(help,/FAQ/);
  assert.match(help,/Quick ideas/);
  assert.match(help,/5–10 seconds/);
  assert.match(help,/500 characters/);
@@ -98,4 +100,35 @@ test("Legal pages and electronic withdrawal are English, link to real policies a
  for(const [path,content] of [["policy",legal],["form",form],["model",model]] as const){
   assert.doesNotMatch(content,/Verantwortlicher und Datenschutzkontakt|Widerruf bestätigen|Vertrag widerrufen|Du kannst|Bitte bestätige|gehen\.\<\/p\>|Muster-Widerrufsformular/ ,path);
  }
+});
+
+test("Super Admin account settings show real security route and a safe account deletion request",()=>{
+ const page=read("app/(site)/account/settings/page.tsx");
+ const api=read("app/(site)/api/customer-settings/route.ts");
+ const cms=read("cms/config.ts");
+ assert.match(page,/data\.staffPreview&&<section id="security"/);
+ assert.match(page,/href="\/admin\/account"/);
+ assert.match(page,/Change password in Admin/);
+ assert.match(page,/Request account deletion/);
+ assert.match(page,/staff account|Super Admin \/ staff/);
+ assert.match(page,/window\.confirm/);
+ assert.match(page,/mailto:support@singmotion\.ai/);
+ assert.match(page,/you must send it yourself/);
+ assert.match(cms,/delete: never/);
+ assert.match(cms,/password\.length < 20/);
+ assert.match(api,/user\.createdAt/);
+});
+test("Staging Stripe checkout captures sanitized 400 reason and support reference without exposing credentials",()=>{
+ const route=read("app/(site)/api/credit-checkout/route.ts");
+ const picker=read("components/credit-amount-picker.tsx");
+ assert.match(route,/payment_method_types\[0\]/);
+ assert.match(route,/request-id/);
+ assert.match(route,/Stripe Test Checkout could not be created/);
+ assert.match(route,/\[secret\]/);
+ assert.match(route,/\[email\]/);
+ assert.match(route,/supportReference/);
+ assert.match(picker,/Stripe support reference/);
+ const wallets=read("lib/commerce/credit-wallet.ts");
+ assert.match(wallets,/RAILWAY_ENVIRONMENT_ID===STAGING_ID/);
+ assert.doesNotMatch(wallets,/sk_live_.*Stripe/);
 });
