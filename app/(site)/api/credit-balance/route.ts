@@ -1,10 +1,12 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
-import {CreditWallet,stripeCreditTopupsTestEnabled} from "@/lib/commerce/credit-wallet";
+import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled} from "@/lib/commerce/credit-wallet";
 import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
+import {customerLaunchReadiness} from "@/lib/commerce/readiness";
+import {auditSingMotionLaunch} from "@/lib/launch-audit";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -58,13 +60,17 @@ export async function GET(req:NextRequest){
   const entries=[...wallet.entries(identity.subject),...oldEntries]
    .sort((a,b)=>b.created-a.created).slice(0,150);
   const rawBalance=purchased+legacy-reserved;
+  const testCheckout=stripeCreditTopupsTestEnabled(process.env);
+  const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
+    customerLaunchReadiness().readyForPaidOrders&&
+    auditSingMotionLaunch(process.env,"production").ready;
   return json({
    availableCredits:Math.max(0,rawBalance),
    reservedCredits:Math.max(0,reserved),
    outstandingCredits:Math.max(0,-rawBalance),
    currency:"EUR",
-   purchaseEnabled:stripeCreditTopupsTestEnabled(process.env),
-   testMode:stripeCreditTopupsTestEnabled(process.env),
+   purchaseEnabled:testCheckout||liveCheckout,
+   testMode:testCheckout,
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
