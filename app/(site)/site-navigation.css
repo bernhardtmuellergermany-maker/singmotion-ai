@@ -82,6 +82,7 @@
   line-height:1.2!important;
   color:#fff!important;
   background:transparent!important;
+  text-shadow:0 2px 15px #02000a!important;
   text-decoration:none!important;
   cursor:pointer!important;
   pointer-events:auto!important;
@@ -133,6 +134,12 @@
   background:transparent!important;
   cursor:pointer!important;
   pointer-events:auto!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>summary{
+  /* Identical to the original homepage menu: soft violet ring and tinted fill. */
+  border-color:#bc77ee76!important;
+  background:#0b071ba6!important;
+  color:#fff!important;
 }
 .sm-site-header .sm-header-actions>.sm-global-menu>summary:hover,
 .sm-site-header .sm-header-actions>.sm-account-menu>summary:hover,

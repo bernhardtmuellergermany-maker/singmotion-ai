@@ -67,4 +67,4 @@
 
 /* One brand color and baseline for every site header. */
 .sm-wordmark,.sm-site-header .sm-wordmark,.sm-immersive-home .sm-immersive-header .sm-wordmark{display:inline-flex!important;align-items:center!important;vertical-align:middle!important;min-height:28px;line-height:1.2!important}
-.sm-wordmark span,.sm-site-header .sm-wordmark span,.sm-immersive-home .sm-immersive-header .sm-wordmark span,.sm-immersive-footer-logo span{color:#bd2ee9!important}
+.sm-immersive-footer-logo span{color:#bd2ee9!important}
