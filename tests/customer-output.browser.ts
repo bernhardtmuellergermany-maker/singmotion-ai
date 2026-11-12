@@ -149,11 +149,11 @@ try{
  await libraryCard.click();
  await page.waitForURL(origin+"/orders/"+id);
  await page.getByRole("region",{name:"Video generation status"}).getByRole("heading",{name:"Your video is ready"}).waitFor({timeout:15000});
- // Regression: guest starting a second video must not overwrite the prior
- // server-backed draft, and reopening the first card must restore its text.
+ // Regression: opening the Studio never creates an empty draft. The first
+ // successful audio upload creates it, and a second new=1 visit must not
+ // overwrite the old project or persist another empty project.
  const guestContext=await browser.newContext();
  const guestPage=await guestContext.newPage();
- // The heading renders before async /api/session sets the guest cookie.
  const guestSessionReady=guestPage.waitForResponse(response=>response.url().endsWith("/api/session") && response.request().method()==="POST" && response.status()===200,{timeout:15000});
  await guestPage.goto(origin+"/studio?new=1");
  await guestPage.getByRole("heading",{name:/Upload your audio/}).waitFor({timeout:15000});
@@ -163,30 +163,59 @@ try{
    assert.equal(r.status(),200);
    return await r.json() as Array<{id:string;selection:Record<string,unknown>;artistName:string;projectName?:string}>;
  };
+ assert.equal((await listGuestDrafts()).length,0,
+  "a new empty Studio session must not create a server draft");
+ // Exercise the actual Studio upload widget through Chromium rather than
+ // inserting a synthetic draft directly into the database.
+ const guestAudioFile=path.join(root,"browser-first-upload.wav");
+ await promisify(execFile)("ffmpeg",[
+  "-nostdin","-v","error","-f","lavfi","-i",
+  "sine=frequency=440:sample_rate=22050:duration=8",
+  "-ac","1","-ar","22050","-c:a","pcm_s16le",guestAudioFile,
+ ],{timeout:30000});
+ const uploadGuestAudio=async()=>{
+  await guestPage.getByLabel("Choose audio file").setInputFiles(guestAudioFile);
+  await guestPage.getByText("browser-first-upload.wav").first().waitFor({timeout:15000});
+ };
+ await uploadGuestAudio();
  let firstDrafts=await listGuestDrafts();
- for(let i=0;firstDrafts.length<1&&i<30;i++){
-   await new Promise(resolve=>setTimeout(resolve,200));
+ for(let i=0;firstDrafts.length<1&&i<60;i++){
+   await new Promise(resolve=>setTimeout(resolve,250));
    firstDrafts=await listGuestDrafts();
  }
- assert.equal(firstDrafts.length,1,"first guest project created");
+ assert.equal(firstDrafts.length,1,"first successful audio upload creates the guest draft");
  const old=firstDrafts[0];
+ assert.ok(old.selection.songId,"first saved draft references uploaded audio");
  const note="Keep the saved guest performance";
  const saveOld=await guestContext.request.post(origin+"/api/studio-drafts",{
    headers:{origin},
    data:{id:old.id,selection:{...old.selection,customPrompt:note},
      artistName:"My artist",projectName:"Old Guest Project",step:2}
  });
- assert.equal(saveOld.status(),200,"guest can save its existing project");
+ assert.equal(saveOld.status(),200,"guest can save its existing uploaded project");
+ // The API must also reject a direct empty POST, even from a valid guest.
+ const rejectEmpty=await guestContext.request.post(origin+"/api/studio-drafts",{
+   headers:{origin},
+   data:{id:randomUUID(),selection:{...old.selection,songId:"",imageId:"",customPrompt:"text only"},
+     artistName:"No upload",projectName:"Must not persist",step:0}
+ });
+ assert.equal(rejectEmpty.status(),400,"direct empty draft must be rejected");
  await guestPage.goto(origin+"/projects");
  await guestPage.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
  await guestPage.getByRole("link",{name:/New video/}).click();
  await guestPage.waitForURL(origin+"/studio");
+ await guestPage.getByRole("heading",{name:/Upload your audio/}).waitFor({timeout:15000});
+ assert.equal((await listGuestDrafts()).length,1,
+  "second new Studio visit must not create another empty guest draft");
+ await uploadGuestAudio();
  let afterNew=await listGuestDrafts();
- for(let i=0;afterNew.length<2&&i<30;i++){
-   await new Promise(resolve=>setTimeout(resolve,200));
+ for(let i=0;afterNew.length<2&&i<60;i++){
+   await new Promise(resolve=>setTimeout(resolve,250));
    afterNew=await listGuestDrafts();
  }
- assert.equal(afterNew.length,2,"New video must have a separate guest draft ID");
+ assert.equal(afterNew.length,2,"second successful upload creates an independent draft");
+ assert.ok(afterNew.some(d=>d.id!==old.id&&Boolean(d.selection.songId)),
+  "new uploaded draft has a distinct ID and saved audio");
  const preserved=afterNew.find(d=>d.id===old.id);
  assert.equal(preserved?.selection.customPrompt,note,"first guest project remains unchanged");
  await guestPage.goto(origin+"/projects");
