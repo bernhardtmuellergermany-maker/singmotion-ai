@@ -104,7 +104,7 @@ export class CreditWallet {
   return row?this.map(row):null;
  }
  bind(id:string,sessionId:string,url:string):Topup {
-  if(!/^cs_test_[A-Za-z0-9_]+$/.test(sessionId)||
+  if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(sessionId)||
      !/^https:\/\/checkout\.stripe\.com\//.test(url))throw Error("Invalid Stripe sandbox Checkout");
   return this.tx(()=>{
    const prior=this.findById(id);
@@ -120,7 +120,8 @@ export class CreditWallet {
   return this.tx(()=>{
    const record=this.findById(input.id);
    if(!record||record.sessionId!==input.sessionId||record.cents!==input.amount||
-      input.currency!=="eur"||input.paymentStatus!=="paid"||input.livemode!==false)
+      input.currency!=="eur"||input.paymentStatus!=="paid"||
+      input.livemode!==(record.sessionId.startsWith("cs_live_")))
     throw Error("Top-up payment verification mismatch");
    if(record.status==="reversed")return false;
    if(record.status==="paid")return false;
@@ -135,7 +136,8 @@ export class CreditWallet {
  reverse(input:{sessionId:string;amount:number;currency:string;livemode:boolean;kind:"refund"|"dispute"}):boolean {
   return this.tx(()=>{
    const record=this.findBySession(input.sessionId);
-   if(!record||record.cents!==input.amount||input.currency!=="eur"||input.livemode!==false)
+   if(!record||record.cents!==input.amount||input.currency!=="eur"||
+      input.livemode!==record.sessionId?.startsWith("cs_live_"))
     throw Error("Top-up reversal verification mismatch");
    if(record.status==="reversed")return false;
    if(record.status==="paid"){
