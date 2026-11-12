@@ -305,6 +305,16 @@ export async function validateDownloadedOutput(
   const video = source.streams.find((s) => s.codec_type === "video");
   const rate = video?.avg_frame_rate?.split("/").map(Number);
   const actualFps = rate?.length === 2 && rate[1] > 0 ? rate[0] / rate[1] : NaN;
+  // Native delivery must retain the same square-pixel and no-rotation
+  // safety checks formerly applied by the normalization path.
+  const metadata = video as typeof video & {
+    sample_aspect_ratio?: string;
+    side_data_list?: { rotation?: number }[];
+  };
+  if (
+    !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ||
+    metadata?.side_data_list?.some((s) => s.rotation !== undefined && s.rotation !== 0)
+  ) throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   const native = await providerNativeOutputContract(file, contract);
   const normalizeFps = native.output.fps === 25 &&
     [24, 24000 / 1001, 30, 30000 / 1001].some(
@@ -314,10 +324,6 @@ export async function validateDownloadedOutput(
     await validateOutput(file, duration, native);
     return;
   }
-  const metadata = video as typeof video & {
-    sample_aspect_ratio?: string;
-    side_data_list?: { rotation?: number }[];
-  };
   if (
     native.discover720p ||
     native.output.videoCodec !== "h264" ||
