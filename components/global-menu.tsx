@@ -23,12 +23,9 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
     <nav className="sm-global-menu-list" aria-label="More options">
       {([
         { href: "/projects", label: "My Projects" },
-        { href: "/plans", label: "Plans & Pricing" },
-        { href: "/help", label: "Help & FAQ" },
-        { href: "/contact", label: "Contact & Support" },
-        { href: "/legal", label: "Legal & Privacy" },
-        { href: "/terms", label: "Terms & Consumer Rights" },
-        { href: "/ai-transparency", label: "AI & Media Rights" }
+        { href: "/help", label: "Help" },
+        { href: "/legal", label: "Legals" },
+        { href: "/contact", label: "Contact" }
       ] as const).map(item => (
         <Link key={item.href} href={item.href} target={openInNewTab ? "_blank" : undefined} rel={openInNewTab ? "noopener noreferrer" : undefined} onClick={() => { if (menu.current) menu.current.open = false; }}>{item.label}</Link>
       ))}

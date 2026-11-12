@@ -197,3 +197,19 @@
   z-index:2147483001!important;
 }
 .sm-output-page>.sm-carousel-main{position:relative;z-index:0}
+
+/* Group policy destinations on /legal instead of crowding the global menu. */
+.sm-legal-topic-grid{
+ display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));
+ gap:14px;margin:28px 0 36px;
+}
+.sm-legal-topic{
+ min-width:0;padding:23px 21px;border:1px solid #4a4164;
+ border-radius:14px;background:rgba(28,24,48,.82);
+}
+.sm-legal-topic h2{
+ margin:0 0 16px;color:#fff;font-size:17px;line-height:1.3;
+}
+.sm-legal-topic ul{list-style:none;padding:0;margin:0;display:grid;gap:11px}
+.sm-legal-topic a{color:#dac3ff;text-underline-offset:4px;line-height:1.4}
+.sm-legal-topic a:hover,.sm-legal-topic a:focus-visible{color:#fff}

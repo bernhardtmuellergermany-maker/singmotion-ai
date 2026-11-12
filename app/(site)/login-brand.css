@@ -68,3 +68,14 @@
 /* One brand color and baseline for every site header. */
 .sm-wordmark,.sm-site-header .sm-wordmark,.sm-immersive-home .sm-immersive-header .sm-wordmark{display:inline-flex!important;align-items:center!important;vertical-align:middle!important;min-height:28px;line-height:1.2!important}
 .sm-immersive-footer-logo span{color:#bd2ee9!important}
+
+/* Plans belong with account entry, not in the global four-item menu. */
+.sm-account-pricing-link{
+ display:inline-flex;align-self:center;justify-content:center;
+ margin:0 auto 4px;padding:7px 12px;
+ color:#e6cbff;text-decoration:underline;text-underline-offset:4px;
+ font-size:13px;font-weight:600;border-radius:8px;
+}
+.sm-account-pricing-link:hover,.sm-account-pricing-link:focus-visible{
+ color:#fff;background:rgba(146,85,242,.17);
+}
