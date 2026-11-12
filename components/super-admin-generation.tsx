@@ -7,6 +7,7 @@ import {GenerationStatusView,type GenerationProgress} from "./generation-status-
 export function SuperAdminGeneration({id}:{id:string}){
  const [project,setProject]=useState<StudioProject|null>(null);
  const [error,setError]=useState("");
+ const [availableCredits,setAvailableCredits]=useState<number|null>(null);
  useEffect(()=>{
    // Reconcile a stale customer/guest session with the CMS staff identity.
    resetSession();
@@ -18,6 +19,15 @@ export function SuperAdminGeneration({id}:{id:string}){
          await ensureSession();
          const result=await api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`);
          if(live){setProject(result);setError("");}
+         // Balance is read only from the authenticated wallet API. If it is
+         // unavailable, retain the truthful prepared state rather than guessing.
+         if(result.state==="prepared"&&result.creditCharge?.status==="estimated"){
+           try{
+             const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
+             const body=await response.json() as {availableCredits?:number};
+             if(live)setAvailableCredits(response.ok&&Number.isSafeInteger(body.availableCredits)&&body.availableCredits!>=0?body.availableCredits!:null);
+           }catch{if(live)setAvailableCredits(null)}
+         }else if(live)setAvailableCredits(null);
        }catch(e){
          if(live)setError(e instanceof Error?e.message:"Unable to refresh project.");
        }
@@ -40,10 +50,14 @@ export function SuperAdminGeneration({id}:{id:string}){
      project.state==="submitted"?"queued":
      project.state==="prepared"?"prepared":"unavailable";
  }
+ const shortage=!!project&&project.state==="prepared"&&project.creditCharge?.status==="estimated"&&
+   typeof availableCredits==="number"&&availableCredits<project.creditCharge.credits;
+ if(shortage)progress="credits-needed";
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;
  return <main id="content" className="sm-super-admin-generation">
    <GenerationStatusView progress={progress} paymentMode="super-admin"
      creditCharge={project?.creditCharge}
+     availableCredits={availableCredits}
      photoUrl={project?.imageId?`/api/assets/${encodeURIComponent(project.imageId)}`:null}
      format={project?.selection.outputFormat}
      videoUrl={project?.outputReady?link:null}
@@ -51,6 +65,6 @@ export function SuperAdminGeneration({id}:{id:string}){
      reuseHref={project?.outputReady?`/studio?copy=live_${encodeURIComponent(id)}`:null}
      note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>
 
-   {project?.state==="prepared"&&<p className="sm-gen-extra-message">This project is prepared, but its generation request has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
+   {project?.state==="prepared"&&!shortage&&<p className="sm-gen-extra-message">This project is prepared, but its generation request has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
  </main>;
 }
