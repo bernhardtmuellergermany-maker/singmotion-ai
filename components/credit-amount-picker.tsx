@@ -5,7 +5,7 @@ import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,parseCreditTopup,proposedTopupCents} f
 import "./credit-amount-picker.css";
 const presets=[2000,4000,10000] as const;
 const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
-const euro=(n:number)=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(n/100);
+const euro=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
 
 /** UI quote only; server decides the actual Stripe amount, and only in TEST. */
 export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boolean}){
