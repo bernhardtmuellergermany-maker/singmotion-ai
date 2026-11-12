@@ -82,6 +82,32 @@ const pages: Record<string, {title: string; intro: string; sections: Section[]}>
     ]
   }
 };
+/** Keep the global menu short while retaining direct access to every policy. */
+const legalTopics = [
+  {
+    title: "Legal & privacy",
+    links: [
+      { href: "#imprint", label: "Imprint" },
+      { href: "/privacy", label: "Privacy policy" },
+      { href: "/cookies", label: "Cookies & tracking" },
+    ],
+  },
+  {
+    title: "Terms & consumer rights",
+    links: [
+      { href: "/terms", label: "Terms of use" },
+      { href: "/withdrawal", label: "Withdrawal & cancellation" },
+    ],
+  },
+  {
+    title: "AI & media rights",
+    links: [
+      { href: "/rights", label: "Music, image & voice rights" },
+      { href: "/ai-transparency", label: "AI transparency" },
+    ],
+  },
+] as const;
+
 export const legalSlugs = Object.keys(pages);
 export function LegalPolicyPage({slug}:{slug:string}){
   const page=pages[slug];
@@ -89,9 +115,20 @@ export function LegalPolicyPage({slug}:{slug:string}){
   return <div className="sm-legal">
     <SiteHeader/>
     <main id="content" className="sm-legal-main">
-      <div className="sm-legal-intro"><span className="sm-legal-kicker">SINGMOTION AI · LEGAL & TRUST</span><h1>{page.title}</h1><p>{page.intro}</p><small>Last updated {revision} · Operator details supplied; remaining vendor and legal approvals pending.</small></div>
-      <nav className="sm-legal-nav" aria-label="Legal pages">{[["legal","Imprint"],["privacy","Privacy"],["cookies","Cookies"],["terms","Terms"],["withdrawal","Withdrawal"],["rights","Media rights"],["ai-transparency","AI transparency"]].map(([s,label])=><Link key={s} href={`/${s}`}>{label}</Link>)}</nav>
-      {page.sections.map((section,i)=><section key={section.title} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
+      <div className="sm-legal-intro"><span className="sm-legal-kicker">SINGMOTION AI · LEGAL & TRUST</span><h1>{slug === "legal" ? "Legals" : page.title}</h1><p>{slug === "legal" ? "Find company details, privacy information, consumer rights and AI & media policies in one place." : page.intro}</p><small>Last updated {revision} · Operator details supplied; remaining vendor and legal approvals pending.</small></div>
+      {slug === "legal" ? (
+        <nav className="sm-legal-topic-grid" aria-label="Legal topics">
+          {legalTopics.map((topic) => (
+            <section className="sm-legal-topic" key={topic.title}>
+              <h2>{topic.title}</h2>
+              <ul>{topic.links.map((link) => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}</ul>
+            </section>
+          ))}
+        </nav>
+      ) : (
+        <nav className="sm-legal-nav" aria-label="Legal navigation"><Link href="/legal">All legal topics</Link></nav>
+      )}
+      {page.sections.map((section,i)=><section key={section.title} id={slug === "legal" && i === 0 ? "imprint" : undefined} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
       {slug==="withdrawal" ? <><OnlineWithdrawal/><WithdrawalTemplate/></> : null}
       <p className="sm-legal-copyright">© SingMotion AI · A published notice does not replace verified contracts, technical controls, or professional legal review.</p>
     </main>
