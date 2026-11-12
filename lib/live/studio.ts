@@ -857,6 +857,7 @@ export class StudioWorkflow {
     digest: unknown,
     ceiling: unknown,
     confirmation: unknown,
+    verifiedCreditSubject?: string,
   ) {
     const row = this.row(id, owner),
       a = this.store.get(id);
