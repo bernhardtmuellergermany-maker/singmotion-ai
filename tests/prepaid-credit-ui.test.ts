@@ -23,3 +23,18 @@ test("public pricing info and staging-only Stripe credit Checkout",()=>{
  assert.match(picker,/purchaseEnabled/);assert.match(picker,/api\/credit-checkout/);
  assert.match(picker,/Stripe Test Mode/);assert.doesNotMatch(picker,/api\/stripe-checkout/);
 });
+
+test("prepared operator project with insufficient wallet credits shows actionable shortage, never progress",()=>{
+ const view=read("components/generation-status-view.tsx");
+ const status=read("components/super-admin-generation.tsx");
+ const workflow=read("lib/live/studio.ts");
+ assert.match(workflow,/INSUFFICIENT_CREDITS/);
+ assert.match(status,/fetch\("\/api\/credit-balance"/);
+ assert.match(status,/availableCredits<project\.creditCharge\.credits/);
+ assert.match(status,/if\(shortage\)progress="credits-needed"/);
+ assert.match(view,/Not enough Credits/);
+ assert.match(view,/No Credits were charged/);
+ assert.match(view,/href="\/credits"/);
+ assert.match(view,/progress!=="credits-needed"/);
+ assert.match(status,/project\?\.state==="prepared"&&!shortage/);
+});
