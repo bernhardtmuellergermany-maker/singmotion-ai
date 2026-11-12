@@ -1,7 +1,6 @@
 import { CommerceStore } from "@/lib/commerce/store";
-import { PlanLedger } from "@/lib/commerce/plans";
-import { uploadStorageLimit, reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
-import {mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
+import { reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
+import {customerR2Enabled,mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import {ensureLocalAsset} from "@/lib/cloud-hydration";
 import { parseSavedStudioDraft, hasFirstStudioUpload } from "@/lib/studio-draft";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
@@ -337,27 +336,21 @@ async function handler(
       if (!(file instanceof File) || (kind !== "audio" && kind !== "image"))
         throw new AppError("Choose a file to upload.");
       validateFile(file.name, file.size, kind);
-      let plan: "guest"|"free"|"hobby"="guest";
-      // The authenticated customer cookie, not a browser plan claim, determines
-      // the upload budget. Former Hobby accounts immediately use the Free budget
-      // after paid access expires; over-quota files are never auto-deleted.
-      if(owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
-        const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
-        try{
-          const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
-          plan=accountId && owner===`customer-${accountId}`
-            ? new PlanLedger(customer.db).activePlan(accountId) : "free";
-        }finally{customer.close()}
-      }
-      // Plan allowance is not physical disk capacity. Railway's staging volume
-      // is smaller than one Hobby allowance until the storage backend expands.
-      // Keep a recovery reserve so one upload cannot fill the persistent disk.
+      // All accounts use the same unlimited cumulative source-upload policy.
+      // R2 is required on deployed staging/production: do not create an
+      // unbacked local-only source if private cloud storage is unavailable.
+      if((process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"||
+          process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d")&&
+         !customerR2Enabled())
+        throw new AppError("Private Cloudflare storage is not ready. Please try again later.",503);
+      // Cloud originals still require a small, transient validation scratch
+      // space on Railway. Preserve its emergency capacity reserve.
       const disk=await statfs(dataDir);
       const available=disk.bavail*disk.bsize;
       if(available-file.size<128*1024*1024)
         throw new AppError("Upload storage temporarily unavailable: server capacity is low. Existing videos and files are safe.",507);
       const assetId = randomUUID();
-      reserveUploadStorage(db,owner,assetId,file.size,uploadStorageLimit(plan));
+      reserveUploadStorage(db,owner,assetId,file.size);
       const dest = path.join(dataDir, "media", assetId);
       const preview = path.join(dataDir, "media", `${assetId}.preview.mp3`);
       let duration: number | null = null,
