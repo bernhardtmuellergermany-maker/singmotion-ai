@@ -17,7 +17,7 @@ export default function PlansPage() {
    <section className="sm-plans-intro">
     <span className="sm-plans-kicker"><Sparkles size={15}/> YOUR MUSIC. YOUR PERFORMANCE.</span>
     <h1>Pricing<span className="sm-plans-accent">.</span></h1>
-    <p>One simple model: top up your account with the credits you choose, then use them to create AI performance videos. No new Hobby subscription or monthly fee.</p>
+    <p>One simple model: top up your account with the credits you choose, then use them to create AI performance videos. No new subscription or monthly fee.</p>
    </section>
    <div className="sm-plans-preview-notice" role="status"><strong>Credit payments are being prepared.</strong> These rates and amounts explain the proposed model. On staging, account holders can try Stripe Test Checkout from the Credits page. Live credit purchases and credit-paid videos are not enabled.</div>
    <section className="sm-plans-grid" aria-label="Prepaid credit information">
@@ -45,13 +45,13 @@ export default function PlansPage() {
       <li><Check size={18}/> 2,000 / 4,000 / 10,000 Credit shortcuts</li>
       <li><Check size={18}/> Custom whole-credit amount from 500 to 100,000</li>
       <li><Check size={18}/> Credit balance and usage history in the account menu</li>
-      <li><Check size={18}/> Previous Hobby subscriptions are not sold anew; existing contracts retain their rights and management options</li>
+      <li><Check size={18}/> Pay only for the credit amount you choose; automatic payments are not active</li>
      </ul>
      <Link className="sm-plan-action sm-plan-action-outline" href="/login">Sign in or create an account</Link>
     </article>
    </section>
    <section className="sm-plans-credit-custom" aria-label="Choose proposed credit amount"><CreditAmountPicker/></section>
-   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Credits are account-bound internal video credits, not cash or transferable funds. Euro refunds, withdrawal rights and statutory consumer protections remain separate. Rates, taxes and limits require approval before launch. Existing contractual Hobby subscriptions are not automatically changed.</div>
+   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Credits are account-bound internal video credits, not cash or transferable funds. Euro refunds, withdrawal rights and statutory consumer protections remain separate. Rates, taxes and limits require approval before launch. Existing contractual subscriptions remain protected and manageable in Account settings.</div>
   </main>
  </div>;
 }
