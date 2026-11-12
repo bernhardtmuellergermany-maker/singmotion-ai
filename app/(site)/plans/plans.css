@@ -38,3 +38,16 @@
 @media(max-width:650px){.sm-plans-credit-packages{padding:19px}.sm-plans-package-grid{grid-template-columns:1fr}.sm-plans-package{min-height:72px}}
 
 .sm-plans-credit-custom{max-width:900px;margin:30px auto 0}
+
+
+/* Single pricing offer: one clear decision before the credit selector. */
+.sm-plans-grid-single{grid-template-columns:minmax(0,1fr);max-width:760px}
+.sm-plan-single{padding:clamp(25px,4vw,42px);border-radius:24px}
+.sm-plan-single h2{font-size:clamp(27px,3.7vw,36px);line-height:1.2;margin-top:24px}
+.sm-plan-single .sm-plan-caption{min-height:0;max-width:630px;line-height:1.7}
+.sm-plan-single .sm-plan-price{font-size:clamp(35px,5vw,48px);margin-top:26px}
+.sm-plan-single .sm-plan-price-note{max-width:625px;min-height:0;color:#cfc1e3}
+.sm-plan-single ul{margin-top:4px;gap:14px}
+.sm-plan-single .sm-plan-action{max-width:350px;width:100%;margin-top:4px}
+.sm-plans-grid-single+.sm-plans-credit-custom{max-width:760px;margin-top:24px}
+@media(max-width:680px){.sm-plan-single .sm-plan-action{max-width:none}}
