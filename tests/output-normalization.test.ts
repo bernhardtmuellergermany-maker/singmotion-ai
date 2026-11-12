@@ -262,6 +262,7 @@ test("checkout selection never flips provider-native 720p orientation",async()=>
    assert.equal(video.width,Number(sourceRect.split("x")[0]));
    assert.equal(video.height,Number(sourceRect.split("x")[1]));
    assert.equal(hash(dest),audio);
+   assert.deepEqual(await readFile(dest),original, "orientation mismatch must not rewrite provider MP4");
    assert.deepEqual(await readFile(source),original);
   }
  }finally{await rm(root,{recursive:true,force:true})}
