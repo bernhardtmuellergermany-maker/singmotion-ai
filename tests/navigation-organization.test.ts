@@ -35,3 +35,15 @@ test("legal topics retain privacy, consumer and AI policies", () => {
   }
   assert.match(legal, /href: "#imprint"/);
 });
+
+test("homepage navigation dropdown stays outside isolated video viewport and above moving clips",()=>{
+ const page=read("components/immersive-home.tsx");
+ const styles=read("app/(site)/site-navigation.css");
+ const header=page.indexOf('<SiteHeader className="sm-immersive-header"/>');
+ const viewport=page.indexOf('<div ref={firstScreen}');
+ assert.ok(header>=0&&viewport>=0&&header<viewport,"Header must precede clipped hero viewport");
+ assert.match(styles,/\.sm-immersive-home>\.sm-immersive-header\s*\{/);
+ assert.match(styles,/\.sm-site-header \.sm-header-actions>\.sm-global-menu>\.sm-global-menu-list\s*\{/);
+ assert.match(styles,/background:#181427!important/);
+ assert.match(styles,/position:fixed!important/);
+});
