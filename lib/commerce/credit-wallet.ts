@@ -4,13 +4,19 @@ import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,proposedTopupCents} from "./credit-top
 
 const STAGING_ID="dfaeabed-03df-43ed-aa71-50f343a75041";
 
-/** New credit purchases are sandbox-only, independently of video checkout. */
-export function stripeCreditTopupsTestEnabled(env:Record<string,string|undefined>):boolean {
+/** Test webhook settlement remains enabled after the checkout kill switch
+ * so previously paid customers never lose a pending verified top-up.
+ */
+export function stripeCreditWebhookTestEnabled(env:Record<string,string|undefined>):boolean {
  return env.RAILWAY_ENVIRONMENT_ID===STAGING_ID &&
-  env.STRIPE_CREDIT_TOPUPS_TEST_ENABLED==="true" &&
-  env.STRIPE_CHECKOUT_ENABLED==="true" &&
   /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
+}
+/** New credit purchases are sandbox-only, independently of video checkout. */
+export function stripeCreditTopupsTestEnabled(env:Record<string,string|undefined>):boolean {
+ return stripeCreditWebhookTestEnabled(env) &&
+  env.STRIPE_CREDIT_TOPUPS_TEST_ENABLED==="true" &&
+  env.STRIPE_CHECKOUT_ENABLED==="true";
 }
 
 export type WalletIdentity={subject:string;email:string;customerId:string|null};
