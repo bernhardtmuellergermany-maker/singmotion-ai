@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {ArrowLeft,ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,ShieldCheck,TriangleAlert} from "lucide-react";
+import {ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,ShieldCheck,TriangleAlert} from "lucide-react";
 import {SiteHeader} from "@/components/site-header";
 import {cameras,cameraHelp} from "@/lib/domain";
 import "./camera-movements.css";
@@ -38,7 +38,7 @@ export default function CameraMovementsHelp(){
   <SiteHeader/>
   <main id="content" className="sm-legal-main sm-camera-main">
    <nav className="sm-camera-breadcrumb" aria-label="Guide navigation">
-    <Link href="/studio"><ArrowLeft size={16}/> Back to Studio</Link>
+    
     <Link href="/help">Help & best practices</Link>
     <Link href="/faq">FAQ</Link>
    </nav>

@@ -22,7 +22,7 @@ export async function GET(req:NextRequest){
     const {user}=await payload.auth({headers:req.headers});
     if(user&&hasRole(user,["super-admin"])){
      const credits=new CreditWallet(store.db).total("super-admin:"+String(user.id));
-     return NextResponse.json({staffPreview:true,plan:{...PLAN_RULES.free,period:"",secondsUsed:0,secondsRemaining:0},profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Date.now()},orders:[],sessions:0,credits,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+     return NextResponse.json({staffPreview:true,plan:{...PLAN_RULES.free,period:"",secondsUsed:0,secondsRemaining:0},profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Number.isFinite(Date.parse(String(user.createdAt||"")))?Date.parse(String(user.createdAt)):Date.now()},orders:[],sessions:0,credits,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
     }
    }
    return NextResponse.json({error:"Customer login required"},{status:401});
