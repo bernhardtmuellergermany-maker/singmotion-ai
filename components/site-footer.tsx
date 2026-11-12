@@ -2,7 +2,6 @@ import Link from "next/link";
 import { Brand } from "./brand";
 import { safeLink } from "../cms/policy";
 export const defaultFooterLinks = [
-  { label: "My Projects", url: "/projects" },
   { label: "Help", url: "/help" },
   { label: "Legals", url: "/legal" },
   { label: "Contact", url: "/contact" },
@@ -20,7 +19,7 @@ export function SiteFooter({
         <Brand />
         <nav aria-label="Footer navigation">
           {links
-            .filter((item) => safeLink(item.url))
+            .filter((item) => safeLink(item.url) && ["/help","/legal","/contact"].includes(item.url))
             .map((item) => (
               <Link key={item.url} href={item.url}>
                 {item.label}
