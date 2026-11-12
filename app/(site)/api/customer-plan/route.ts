@@ -19,6 +19,6 @@ export async function GET(req:NextRequest){
   const plan=new PlanLedger(store.db).snapshot(accountId);
   // Orders represent purchases, not a quota of currently editable projects.
   const usedBytes=uploadedBytes(db,`customer-${accountId}`);
-  return NextResponse.json({plan,projects:{unlimited:true},storage:{usedBytes,limitBytes:plan.uploadStorageBytes,remainingBytes:Math.max(0,plan.uploadStorageBytes-usedBytes)},video:{includedSeconds:plan.monthlySeconds,remainingSeconds:plan.secondsRemaining,minimumSeconds:5,canGenerateFromSubscription:plan.code==="hobby"&&plan.secondsRemaining>=5&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"}},{headers:{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
+  return NextResponse.json({plan,projects:{unlimited:true},storage:{usedBytes,unlimited:true,limitBytes:null,remainingBytes:null,provider:"cloudflare-r2"},video:{includedSeconds:plan.monthlySeconds,remainingSeconds:plan.secondsRemaining,minimumSeconds:5,canGenerateFromSubscription:plan.code==="hobby"&&plan.secondsRemaining>=5&&process.env.CUSTOMER_GENERATION_ENABLED==="true"&&process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&process.env.CUSTOMER_DELIVERY_ENABLED==="true"}},{headers:{"Cache-Control":"private, no-store","X-Content-Type-Options":"nosniff"}});
  }finally{store.close()}
 }
