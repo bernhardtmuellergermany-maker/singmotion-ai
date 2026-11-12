@@ -2,8 +2,7 @@ import {test} from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
 import {randomUUID} from "node:crypto";
-import {PLAN_RULES} from "../lib/commerce/plans.ts";
-import {uploadStorageLimit,uploadedBytes,reserveUploadStorage,releaseUploadStorage,commitUploadedAsset} from "../lib/upload-storage.ts";
+import {uploadedBytes,reserveUploadStorage,releaseUploadStorage,commitUploadedAsset} from "../lib/upload-storage.ts";
 import type {Asset} from "../lib/domain.ts";
 import {privateSourceKey,validCloudRecord,customerR2Enabled} from "../lib/cloud-media.ts";
 import {createHash} from "node:crypto";
@@ -13,30 +12,30 @@ function make(){
  return db;
 }
 const asset=(id:string,owner:string,bytes:number):Asset=>({id,owner,bytes,kind:"audio",name:"demo.mp3",path:"/private/"+id,mime:"audio/mpeg",duration:5,width:null,height:null,created:Date.now()});
-test("Free and Hobby use upload bytes, not project counts",()=>{
- assert.equal(uploadStorageLimit("free"),250*1024**2);
- assert.equal(uploadStorageLimit("hobby"),2*1024**3);
- assert.equal(PLAN_RULES.free.monthlySeconds,0);
- assert.equal(uploadStorageLimit("guest"),250*1024*1024);
-});
-test("parallel pending upload reservations cannot exceed quota",()=>{
- const db=make(),owner="customer-example",a=randomUUID(),b=randomUUID();
- reserveUploadStorage(db,owner,a,80,100);
- assert.throws(()=>reserveUploadStorage(db,owner,b,30,100),/Upload storage full/);
- assert.equal(uploadedBytes(db,owner),0);
- commitUploadedAsset(db,asset(a,owner,80));
+test("all accounts can reserve uploads irrespective of their accumulated source bytes",()=>{
+ const db=make(),owner="customer-example";
+ const old=randomUUID(),fresh=randomUUID();
+ reserveUploadStorage(db,owner,old,40);
+ commitUploadedAsset(db,asset(old,owner,40));
+ reserveUploadStorage(db,owner,fresh,40);
+ commitUploadedAsset(db,asset(fresh,owner,40));
  assert.equal(uploadedBytes(db,owner),80);
- assert.throws(()=>reserveUploadStorage(db,owner,b,21,100),/Upload storage full/);
- reserveUploadStorage(db,owner,b,20,100);
+ db.close();
+});
+test("pending reservations keep independent IDs without imposing a cumulative plan quota",()=>{
+ const db=make(),owner="guest-example",a=randomUUID(),b=randomUUID();
+ reserveUploadStorage(db,owner,a,40);
+ reserveUploadStorage(db,owner,b,40);
+ commitUploadedAsset(db,asset(a,owner,40));
  releaseUploadStorage(db,owner,b);
- reserveUploadStorage(db,owner,b,20,100);
- commitUploadedAsset(db,asset(b,owner,20));
- assert.equal(uploadedBytes(db,owner),100);
+ reserveUploadStorage(db,owner,b,40);
+ commitUploadedAsset(db,asset(b,owner,40));
+ assert.equal(uploadedBytes(db,owner),80);
  db.close();
 });
 test("reservation is owner bound and failed commit cannot cross owners",()=>{
  const db=make(),id=randomUUID();
- reserveUploadStorage(db,"customer-a",id,20,100);
+ reserveUploadStorage(db,"customer-a",id,20);
  assert.throws(()=>commitUploadedAsset(db,asset(id,"customer-b",20)),/reservation missing/);
  assert.equal(uploadedBytes(db,"customer-b"),0);
  commitUploadedAsset(db,asset(id,"customer-a",20));
@@ -46,29 +45,28 @@ test("reservation is owner bound and failed commit cannot cross owners",()=>{
 });
 test("expiry releases stuck reservations but never deletes purchased or uploaded assets",()=>{
  const db=make(),old=randomUUID(),next=randomUUID();
- reserveUploadStorage(db,"customer-a",old,90,100,10);
- reserveUploadStorage(db,"customer-a",next,90,100,3600011);
+ reserveUploadStorage(db,"customer-a",old,40,10);
+ reserveUploadStorage(db,"customer-a",next,40,3600011);
  assert.equal(uploadedBytes(db,"customer-a"),0);
  assert.throws(()=>commitUploadedAsset(db,asset(old,"customer-a",90)),/reservation missing/);
  db.close();
 });
 
-test("Hobby downgrade to Free preserves existing assets and blocks only new over-quota uploads",()=>{
- const db=make(),owner="customer-downgrade",id=randomUUID();
- reserveUploadStorage(db,owner,id,2*1024**3,uploadStorageLimit("hobby"));
- commitUploadedAsset(db,asset(id,owner,2*1024**3));
- assert.equal(uploadedBytes(db,owner),2*1024**3);
- assert.throws(()=>reserveUploadStorage(db,owner,randomUUID(),1,uploadStorageLimit("free")) ,/Upload storage full/);
- assert.equal(uploadedBytes(db,owner),2*1024**3);
+test("historical uploaded sources remain accessible after removal of old plan quotas",()=>{
+ const db=make(),owner="customer-downgrade",id=randomUUID(),next=randomUUID();
+ reserveUploadStorage(db,owner,id,40);
+ commitUploadedAsset(db,asset(id,owner,40));
+ reserveUploadStorage(db,owner,next,40);
+ commitUploadedAsset(db,asset(next,owner,40));
+ assert.equal(uploadedBytes(db,owner),80);
  assert.ok(db.prepare("SELECT id FROM assets WHERE id=?").get(id));
  db.close();
 });
-
 test("paid video delivery bytes are excluded from source upload quotas",()=>{
  const db=make(),owner="customer-video-owner";
  db.prepare("INSERT INTO assets(id,owner,data) VALUES(?,?,?)").run("video-1",owner,JSON.stringify({...asset("video-1",owner,200),"kind":"video"}));
  assert.equal(uploadedBytes(db,owner),0);
- reserveUploadStorage(db,owner,randomUUID(),60,100);
+ reserveUploadStorage(db,owner,randomUUID(),40);
  db.close();
 });
 test("cloud source manifests are digest and owner-bound, committed atomically",()=>{
@@ -77,7 +75,7 @@ test("cloud source manifests are digest and owner-bound, committed atomically",(
  const record={key:privateSourceKey(owner,id,digest),sha256:digest,bytes:20};
  assert.ok(validCloudRecord(owner,id,record));
  assert.equal(validCloudRecord("customer-22222222-2222-4222-8222-222222222222",id,record),false);
- reserveUploadStorage(db,owner,id,20,100);
+ reserveUploadStorage(db,owner,id,20);
  commitUploadedAsset(db,asset(id,owner,20),record);
  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM cloud_source_media WHERE asset_id=? AND owner=?").get(id,owner) as {n:number}).n,1);
  assert.equal(uploadedBytes(db,owner),20);
@@ -108,11 +106,11 @@ test("R2 source replication is opt-in and never starts in production",()=>{
 
 test("generated immutable Studio snapshots do not reduce customers' upload storage",()=>{
  const db=make(),owner="customer-snapshots",id=randomUUID();
- reserveUploadStorage(db,owner,id,50,100);
+ reserveUploadStorage(db,owner,id,50);
  commitUploadedAsset(db,asset(id,owner,50));
  const derived={...asset("job-abc-audio-"+("f".repeat(64)),owner,99),path:"/private/job-abc-"+("f".repeat(64))+".mp3"};
  db.prepare("INSERT INTO assets(id,owner,data) VALUES(?,?,?)").run(derived.id,owner,JSON.stringify(derived));
  assert.equal(uploadedBytes(db,owner),50);
- reserveUploadStorage(db,owner,randomUUID(),50,100);
+ reserveUploadStorage(db,owner,randomUUID(),50);
  db.close();
 });
