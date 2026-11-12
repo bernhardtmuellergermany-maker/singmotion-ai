@@ -26,6 +26,7 @@ const PRODUCTION_ID="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined>):boolean {
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_ID &&
   env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true" &&
+  env.STRIPE_LIVE_CHECKOUT_ENABLED==="true" &&
   env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true" &&
   env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true" &&
   env.STRIPE_CREDIT_TAX_REVIEW_APPROVED==="true" &&
