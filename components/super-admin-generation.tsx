@@ -48,6 +48,7 @@ export function SuperAdminGeneration({id}:{id:string}){
      format={project?.selection.outputFormat}
      videoUrl={project?.outputReady?link:null}
      downloadUrl={project?.outputReady?link+"&download=1":null}
+     reuseHref={project?.outputReady?`/studio?copy=live_${encodeURIComponent(id)}`:null}
      note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>
 
    {project?.state==="prepared"&&<p className="sm-gen-extra-message">This project is prepared, but its generation request has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
