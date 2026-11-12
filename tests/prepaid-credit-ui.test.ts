@@ -1,50 +1,25 @@
-import test from "node:test";
-import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { creditTone } from "../lib/commerce/credit-display.ts";
-const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-test("credit colors cover boundaries and missing balances", () => {
-  assert.equal(creditTone(null), "unknown");
-  assert.equal(creditTone(Number.NaN), "unknown");
-  assert.equal(creditTone(0), "critical");
-  assert.equal(creditTone(249), "critical");
-  assert.equal(creditTone(250), "low");
-  assert.equal(creditTone(999), "low");
-  assert.equal(creditTone(1000), "healthy");
-  assert.equal(creditTone(10000), "healthy");
+import test from "node:test";import assert from "node:assert/strict";import {readFileSync} from "node:fs";
+import {creditTone} from "../lib/commerce/credit-display.ts";
+const read=(p:string)=>readFileSync(new URL(`../${p}`,import.meta.url),"utf8");
+test("real account colors",()=>{assert.equal(creditTone(null),"unknown");assert.equal(creditTone(0),"critical");assert.equal(creditTone(249),"critical");assert.equal(creditTone(250),"low");assert.equal(creditTone(999),"low");assert.equal(creditTone(1000),"healthy");});
+test("authenticated, account-scoped, read-only balance",()=>{
+ const api=read("app/(site)/api/credit-balance/route.ts"),auth=read("lib/commerce/credit-wallet-auth.ts");
+ assert.match(api,/resolveCreditWalletIdentity\(req,store\)/);assert.match(api,/WHERE account_id=\?/);
+ assert.match(api,/private, no-store/);assert.doesNotMatch(api,/staffPreview|testCredits|export async function POST/);
+ assert.match(auth,/hasRole\(user,\["super-admin"\]\)/);
+ assert.match(auth,/subject:"super-admin:"\+userId/);
 });
-
-test("balance API is read only and requires account-scoped session", () => {
-  const api = read("app/(site)/api/credit-balance/route.ts");
-  assert.match(api, /customerAccountSettingsAccessible\(process\.env\)/);
-  assert.match(api, /store\.session\(req\.cookies\.get\("sm_customer"\)/);
-  assert.match(api, /WHERE account_id=\?/);
-  assert.match(api, /store\.balance\(accountId\)/);
-  assert.match(api, /private, no-store/);
-  assert.doesNotMatch(api, /export async function POST/);
+test("super-admin and customer share the same wallet menu; usage lives under credits",()=>{
+ const menu=read("components/header-account-menu.tsx"),dashboard=read("components/credits-dashboard.tsx");
+ assert.match(menu,/identity==="customer"\|\|identity==="super-admin"/);
+ assert.match(menu,/fetch\("\/api\/credit-balance"/);assert.match(menu,/href="\/credits"/);
+ assert.doesNotMatch(menu,/href="\/usage"|TEST ONLY|previewCredits|Credit test view/);
+ assert.match(dashboard,/id="usage"/);assert.match(dashboard,/legacyOrders/);assert.match(dashboard,/Gegenwert/);
+ assert.doesNotMatch(dashboard,/admin-preview|testCredits|Simuliertes/);
 });
-
-test("account menu separates customers and staff and shows real credit balance", () => {
-  const menu = read("components/header-account-menu.tsx");
-  assert.match(menu, /identity==="customer"\?</);
-  assert.match(menu, /fetch\("\/api\/credit-balance"/);
-  assert.match(menu, /href="\/credits"/);
-  assert.match(menu, /href="\/usage"/);
-  assert.match(menu, /creditTone\(/);
-  assert.match(menu, /Balance unavailable/);
-});
-
-test("pricing and credit packages are informational while checkout is disabled", () => {
-  const plans = read("app/(site)/plans/page.tsx");
-  const credits = read("components/credits-dashboard.tsx");
-  assert.match(plans, /Credit payments are coming soon/);
-  assert.match(plans, /25 Credits/);
-  assert.match(plans, /Prepaid/);
-  assert.match(plans, /href="\/credits"/);
-  const picker = read("components/credit-amount-picker.tsx");
-  assert.match(picker, /Credit checkout coming soon/);
-  assert.match(picker, /enter exactly how many credits you want/);
-  assert.doesNotMatch(picker, /\/api\/stripe-checkout|fetch\(.*checkout/);
-  assert.doesNotMatch(credits, /\/api\/stripe-checkout|fetch\(.*checkout/);
+test("public pricing info and staging-only Stripe credit Checkout",()=>{
+ const plans=read("app/(site)/plans/page.tsx"),picker=read("components/credit-amount-picker.tsx");
+ assert.match(plans,/CreditAmountPicker/);assert.match(plans,/25 Credits/);
+ assert.match(picker,/purchaseEnabled/);assert.match(picker,/api\/credit-checkout/);
+ assert.match(picker,/Stripe Testmodus/);assert.doesNotMatch(picker,/api\/stripe-checkout/);
 });
