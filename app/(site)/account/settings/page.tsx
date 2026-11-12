@@ -8,6 +8,10 @@ type Invoice={id:string;number:string;created:number;amount:number;currency:stri
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
 export default function AccountSettings(){
  const [invoices,setInvoices]=useState<Invoice[]>([]),[invoiceMessage,setInvoiceMessage]=useState(""),[invoicesLoading,setInvoicesLoading]=useState(true);
+ const [removeOrderId,setRemoveOrderId]=useState<string|null>(null);
+ const [removePassword,setRemovePassword]=useState("");
+ const [removeBusy,setRemoveBusy]=useState(false);
+ const [removeNotice,setRemoveNotice]=useState("");
  const [storageUsage,setStorageUsage]=useState<{usedBytes:number;limitBytes:number}|null>(null);
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
  useEffect(()=>{fetch("/api/customer-invoices",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load invoices.");setInvoices(Array.isArray(d.invoices)?d.invoices:[]);setInvoiceMessage(d.message||"");}).catch(e=>setInvoiceMessage(e instanceof Error?e.message:"Invoices unavailable")).finally(()=>setInvoicesLoading(false));},[]);
@@ -25,6 +29,23 @@ export default function AccountSettings(){
   setBusy(true);
   try{const response=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:kind,password:oldPassword,newPassword})});const json=await response.json();if(!response.ok)throw Error(json.error||"Request failed");if(kind==="logout-all"){location.href="/?card=login";return;}setOldPassword("");setNewPassword("");setConfirm("");setNotice("Password updated. Other customer sessions have been signed out.");}
   catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
+ }
+ async function removePaidOrder(){
+  if(!removeOrderId||!removePassword||removeBusy)return;
+  setRemoveBusy(true);setRemoveNotice("");
+  try{
+   const response=await fetch("/api/customer-hide-paid-order",{
+    method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({orderId:removeOrderId,password:removePassword})
+   });
+   const result=await response.json() as {hidden?:boolean;error?:string};
+   if(!response.ok||result.hidden!==true)throw Error(result.error||"Could not remove this order.");
+   setData(previous=>previous?{...previous,orders:previous.orders.filter(order=>order.id!==removeOrderId)}:previous);
+   window.dispatchEvent(new Event("customer-orders-changed"));
+   setRemoveOrderId(null);setRemovePassword("");
+   setRemoveNotice("Order removed from your list. Invoices and payment records remain available.");
+  }catch(error){setRemoveNotice(error instanceof Error?error.message:"Could not remove the order.");}
+  finally{setRemoveBusy(false);}
  }
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
  <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR WORKSPACE</span><h1>Account settings</h1><p>Manage your profile, security, payments and privacy in one place.</p></header>
@@ -80,7 +101,13 @@ export default function AccountSettings(){
       {storageUsage&&<p className="sm-settings-muted">Uploaded sources: {(storageUsage.usedBytes/1048576).toFixed(1)} / {(storageUsage.limitBytes/1048576).toFixed(0)} MB. Existing purchased video downloads remain separate.</p>}
       <div className="sm-settings-credit-balance"><CreditCard size={19}/><span>Available credits</span><strong>{data.credits.toLocaleString("en-GB")}</strong></div>
       <p className="sm-settings-muted">Historical order records, if any, appear below. Only completed Stripe payments create invoice documents.</p>
-      {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span></div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
+      {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span>{o.status==="paid"&&<button type="button" className="sm-settings-remove-order" onClick={()=>{setRemoveOrderId(o.id);setRemovePassword("");setRemoveNotice("");}}>Remove</button>}</div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
+      {removeOrderId&&<form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void removePaidOrder();}}>
+       <div><strong>Remove this paid order from your list?</strong><p className="sm-settings-muted">Confirm with your account password. This hides the order from your account history; it does not cancel a charge, issue a refund, delete your video or erase an invoice.</p></div>
+       <label>Account password<input type="password" autoComplete="current-password" value={removePassword} maxLength={256} required onChange={e=>setRemovePassword(e.target.value)}/></label>
+       <div className="sm-settings-order-actions"><button type="button" className="sm-settings-secondary" disabled={removeBusy} onClick={()=>{setRemoveOrderId(null);setRemovePassword("");setRemoveNotice("");}}>Cancel</button><button type="submit" className="sm-settings-danger" disabled={removeBusy||!removePassword}>{removeBusy?"Checking password…":"Confirm removal"}</button></div>
+      </form>}
+      {removeNotice&&<p role="status" className="sm-settings-order-notice">{removeNotice}</p>}
     </section>
     <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2>
       <p className="sm-settings-muted">Download available Stripe invoices for completed purchases. Only documents actually issued by Stripe appear here; an order confirmation is not automatically a tax invoice.</p>
