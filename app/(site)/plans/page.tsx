@@ -51,7 +51,7 @@ export default function PlansPage() {
     </article>
    </section>
    <section className="sm-plans-credit-custom" aria-label="Choose proposed credit amount"><CreditAmountPicker/></section>
-   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Credits are account-bound internal video credits, not cash or transferable funds. Euro refunds, withdrawal rights and statutory consumer protections remain separate. Rates, taxes and limits require approval before launch. Existing contractual subscriptions remain protected and manageable in Account settings.</div>
+   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Credits are account-bound internal video credits, not cash or transferable funds. Euro refunds, withdrawal rights and statutory consumer protections remain separate. Rates, taxes and limits require approval before launch. The account wallet records actual purchases and video credit usage.</div>
   </main>
  </div>;
 }
