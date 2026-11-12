@@ -120,6 +120,23 @@ try{
  await page.waitForURL(origin+"/projects/paid_"+id);
  await page.getByRole("region",{name:"Video generation status"}).locator("video[controls]").waitFor({timeout:15000});
  console.log("BROWSER_CHECKPOINT: completed project card opens private video, not order review");
+ // Regression for the shared private Output/Completed shell used by paid and
+ // Super Admin live projects: the logo must be hit-testable on a mobile viewport
+ // and navigating it must always reach the actual homepage.
+ await page.setViewportSize({width:390,height:844});
+ const homeLogo=page.getByRole("link",{name:"SingMotion AI home"});
+ await homeLogo.waitFor({state:"visible",timeout:15000});
+ const hitTest=await homeLogo.evaluate(element=>{
+  const box=element.getBoundingClientRect();
+  const top=document.elementFromPoint(box.left+box.width/2,box.top+box.height/2);
+  return {target:top?.tagName??null,inside:Boolean(top&&(element===top||element.contains(top)))};
+ });
+ assert.ok(hitTest.inside,"Mobile Output logo must not be covered by any invisible layer: "+JSON.stringify(hitTest));
+ await homeLogo.click({timeout:5000});
+ await page.waitForURL(origin+"/",{timeout:10000});
+ await page.getByRole("link",{name:"SingMotion AI home"}).waitFor({state:"visible",timeout:15000});
+ console.log("BROWSER_CHECKPOINT: mobile private Output wordmark opens the homepage");
+
  // The My Projects library must list exactly the owner's paid order and
  // navigate to its existing private status, never initiate a new checkout.
  await page.goto(origin+"/projects");
