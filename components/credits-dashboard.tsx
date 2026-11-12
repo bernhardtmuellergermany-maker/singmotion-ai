@@ -109,7 +109,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     </div>
     <div className="sm-credits-summary-links"><a href="#buy-credits">Buy Credits</a><a href="#usage">Usage & Orders</a></div>
    </section>
-   {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled&&balance.testMode}/></section>}
+   {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode}/></section>}
    {mode==="buy"&&<AutoTopupPreferences/>}
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
