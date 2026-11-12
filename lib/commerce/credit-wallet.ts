@@ -29,7 +29,9 @@ export type Topup={id:string;subject:string;email:string;credits:number;cents:nu
  * separately scoped staff identity, without exposing another customer's data.
  */
 export class CreditWallet {
- constructor(private readonly db:DatabaseSync){
+ private readonly db:DatabaseSync;
+ constructor(db:DatabaseSync){
+  this.db=db;
   db.exec(`
    CREATE TABLE IF NOT EXISTS credit_topup_purchases(
     id TEXT PRIMARY KEY,subject TEXT NOT NULL,email TEXT NOT NULL,
