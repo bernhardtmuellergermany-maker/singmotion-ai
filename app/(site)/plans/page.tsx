@@ -47,12 +47,33 @@ export default function PlansPage() {
     <div className="sm-plans-section-heading">
      <span className="sm-plans-section-eyebrow">SIMPLE FROM START TO FINISH</span>
      <h2 id="sm-pricing-how-title">How do SingMotion AI credits work?</h2>
-     <p>A straightforward way to plan your AI music video — from choosing your source audio to receiving the finished performance.</p>
+     <p>From your first idea to the finished AI music performance video: three easy steps, transparent credits and room to create something unmistakably yours.</p>
     </div>
     <div className="sm-plans-steps">
-     <div><span className="sm-plans-step-icon"><Wallet size={20}/></span><h3>01 · Choose credits</h3><p>Select a preset or enter a custom amount. Your wallet shows your recorded balance and transactions.</p></div>
-     <div><span className="sm-plans-step-icon"><Music2 size={20}/></span><h3>02 · Create your performance</h3><p>Use your music and visual inputs to set up an AI performance video. Check the credit cost before submitting.</p></div>
-     <div><span className="sm-plans-step-icon"><Film size={20}/></span><h3>03 · Get your video</h3><p>Once generation is complete and the output has been validated, your video can be accessed in your projects.</p></div>
+     <article className="sm-plans-step">
+      <span className="sm-plans-step-icon"><Wallet size={20}/></span>
+      <span className="sm-plans-step-number">STEP 01</span>
+      <h3>Choose your credits. Keep control of your budget.</h3>
+      <p>Start with the amount that fits your next music video. Choose a ready-made credit package or enter a custom amount — without committing to a monthly subscription.</p>
+      <p>Your SingMotion AI wallet keeps your credit balance and transaction history in one place, so you can plan your next creative project with a clear view of your budget.</p>
+      <div className="sm-plans-step-highlight"><Check size={16}/> Pick the amount that works for you</div>
+     </article>
+     <article className="sm-plans-step">
+      <span className="sm-plans-step-icon"><Music2 size={20}/></span>
+      <span className="sm-plans-step-number">STEP 02</span>
+      <h3>Turn your song into an AI music performance.</h3>
+      <p>Bring together your audio, your visual source and your creative direction in the SingMotion AI Studio. Set up a performance that reflects the mood and energy of your music.</p>
+      <p>Before generation, see the credit cost calculated from your original audio length. That means you know the planned price before you submit your AI music video.</p>
+      <div className="sm-plans-step-highlight"><Check size={16}/> See your credit cost before creating</div>
+     </article>
+     <article className="sm-plans-step">
+      <span className="sm-plans-step-icon"><Film size={20}/></span>
+      <span className="sm-plans-step-number">STEP 03</span>
+      <h3>Enjoy your finished performance video.</h3>
+      <p>When your AI-generated performance is complete and the result passes validation, you can open the finished video from your projects and enjoy seeing your music take shape on screen.</p>
+      <p>Credits are reserved while the video is being processed and used only after validated delivery. If a confirmed nonbillable generation failure occurs, the reserved credits are released.</p>
+      <div className="sm-plans-step-highlight"><Check size={16}/> Your work stays organized in My Projects</div>
+     </article>
     </div>
    </section>
    <section className="sm-plans-credit-custom" aria-label="Choose proposed credit amount"><CreditAmountPicker/></section>
