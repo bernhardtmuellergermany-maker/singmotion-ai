@@ -35,7 +35,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
     .then(async response=>{
      if(!response.ok)throw Error("Credit balance unavailable");
      const result=await response.json() as {availableCredits?:number};
-     if(!Number.isSafeInteger(result.availableCredits)||result.availableCredits!<0)
+     if(typeof result.availableCredits!=="number"||!Number.isSafeInteger(result.availableCredits)||result.availableCredits<0)
       throw Error("Invalid credit balance");
      if(active){setAvailableCredits(result.availableCredits!);setCreditState("ready");}
     }).catch(()=>{if(active){setAvailableCredits(null);setCreditState("unavailable");}});
@@ -85,7 +85,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
      <div className={`sm-account-credit-status sm-account-credit-${creditTone(creditState==="ready"?availableCredits:null)}`} role="status" aria-live="polite">
       <span>Available credits</span>
       <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("en-US").format(availableCredits):"—"}</strong>
-      <small>{creditState==="ready"?"Your account balance":creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
+      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":"Top up needed"):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
      </div>
      <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Buy Credits</Link>
      <Link href="/usage" onClick={()=>{if(menu.current)menu.current.open=false}}>Usage</Link>
