@@ -2440,3 +2440,38 @@
 .product-theme.singmotion-flow .sm-review-price-retry:focus-visible{
  outline:2px solid #d18aff;outline-offset:2px;
 }
+
+/* Optional, accessible guidance for writing BytePlus movement prompts. */
+.product-theme.singmotion-flow .sm-prompt-writing-guide{
+  padding:14px 17px;border:1px solid #6c5188;border-radius:16px;
+  background:linear-gradient(120deg,#302642,#261f39);color:#e8daf4;
+  font-size:13px;line-height:1.65;
+}
+.product-theme.singmotion-flow .sm-prompt-guide-intro{margin:0 0 8px}
+.product-theme.singmotion-flow .sm-prompt-guide-intro strong{color:#f5e9ff}
+.product-theme.singmotion-flow .sm-prompt-guide-details>summary{
+  display:flex;align-items:center;gap:8px;cursor:pointer;
+  list-style:none;color:#dcb7fb;font-weight:650;min-height:36px;
+}
+.product-theme.singmotion-flow .sm-prompt-guide-details>summary::-webkit-details-marker{display:none}
+.product-theme.singmotion-flow .sm-prompt-guide-details>summary svg:last-child{
+  margin-left:auto;transition:transform .2s;
+}
+.product-theme.singmotion-flow .sm-prompt-guide-details[open]>summary svg:last-child{transform:rotate(180deg)}
+.product-theme.singmotion-flow .sm-prompt-guide-details>summary:focus-visible{outline:2px solid #d18aff;outline-offset:4px;border-radius:6px}
+.product-theme.singmotion-flow .sm-prompt-guide-body{
+  display:flex;flex-direction:column;gap:9px;
+  padding-top:11px;border-top:1px solid #5e4a72;
+}
+.product-theme.singmotion-flow .sm-prompt-guide-body ol{
+  margin:0;padding-left:21px;display:grid;gap:5px;
+}
+.product-theme.singmotion-flow .sm-prompt-guide-body p{margin:0}
+.product-theme.singmotion-flow .sm-prompt-guide-example{
+  padding:12px 14px;border-left:3px solid #bb7be8;
+  border-radius:0 9px 9px 0;background:#211a32;
+  color:#fff;overflow-wrap:anywhere;
+}
+@media(max-width:700px){
+  .product-theme.singmotion-flow .sm-prompt-writing-guide{padding:12px 13px;font-size:12px}
+}
