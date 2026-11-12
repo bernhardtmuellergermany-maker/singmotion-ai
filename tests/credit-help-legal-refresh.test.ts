@@ -27,6 +27,9 @@ test("25 Credits per started original audio second, never slowed output or provi
  assert.match(dialog,/creditQuote=quoteVideoCredits\(selection\.start,selection\.end\)/);
  assert.match(dialog,/Estimated video cost/);
  assert.doesNotMatch(dialog,/BytePlus-Basispreis|USD \$\{|0\.07\)\.toFixed/);
+ const admin=read("components/admin.tsx");
+ assert.match(admin,/25 Credits per started original/);
+ assert.doesNotMatch(admin,/USD 0\.07\/second|Observed model cost/);
 });
 
 test("global account menu uses Pricing, Credits and one-click Buy Credits anchor",()=>{
