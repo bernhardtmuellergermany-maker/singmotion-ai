@@ -134,9 +134,9 @@ async function prepareOwnedSelection(
     image = asset(selected.imageId, owner);
   if (source.kind !== "audio" || image.kind !== "image")
     throw new Error("A song and one reference image are required.");
-  if (!selected.prompt.trim() || selected.prompt.length > 1500)
+  if (selected.prompt.length > 1500)
     throw new Error(
-      "A composed performance prompt is required (at most 1,500 characters).",
+      "The user prompt must be at most 1,500 characters.",
     );
   await ensureLocalAsset(source);
   await ensureLocalAsset(image);
@@ -268,12 +268,12 @@ async function prepareOwnedSelection(
 }
 export async function revalidateMedia(media: PreparedMedia) {
   if (
-    !media.prompt.trim() ||
+    typeof media.prompt !== "string" ||
     media.prompt.length > 1500 ||
     !media.promptLanguageConfirmed
   )
     throw new Error(
-      "Confirm the composed prompt is English before authorizing a live test.",
+      "Confirm any user-entered prompt is English before authorizing a live test.",
     );
   await ensureLocalMediaPath(media.owner,media.audioPath);
   await ensureLocalMediaPath(media.owner,media.imagePath);

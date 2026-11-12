@@ -164,26 +164,10 @@ export function composePrompt(
     throw new AppError("Choose a supported performance and camera preset.");
   if (custom.length > 1500)
     throw new AppError("Keep your custom prompt under 1,500 characters.");
-  if (performance === "Custom" && !custom.trim())
-    throw new AppError("Enter a custom performance prompt.");
-  // User-entered movement and expression directions must never be buried
-  // after a generic "Natural singing performance" instruction. Keep the
-  // exact authored words in the provider prompt and place them first.
-  const performanceDirection = performance === "Custom"
-    ? "The person sings while following the performance direction above."
-    : `${performance} singing performance.`;
-  const authored = custom.trim();
-  // A visible Camera Quick Idea overrides the default camera preset.
-  const hasExplicitCamera = /^Camera:\s*\S/im.test(authored);
-  const cameraDirection = hasExplicitCamera ? "" : (cameraPrompt[camera] ?? `Camera direction: ${camera}. Keep the singer clearly visible.`);
-  const customDirection = authored ? `Performance direction (priority): ${authored}. ` : "";
-  // The saved, framed reference image defines the requested composition.
-  // Do not waste the motion prompt on a second, potentially conflicting format
-  // instruction: BytePlus gets the exact image that Continue uploaded.
-  const result = `${customDirection}${performanceDirection} ${cameraDirection} Keep facial identity and lip synchronization consistent.`;
-  if (result.length > 1500)
-    throw new AppError("Keep the complete composed prompt under 1,500 characters.");
-  return result;
+  // Only the user's literal input may become a BytePlus prompt.
+  // Presets and camera selections never inject provider instructions.
+  // An empty input deliberately produces no prompt field at submission.
+  return custom;
 }
 export function canTransition(from: JobStatus, to: JobStatus) {
   return (

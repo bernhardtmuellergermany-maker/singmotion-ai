@@ -70,7 +70,7 @@ export class CustomerR2PrivateInputDelivery implements PrivateInputDelivery{
   const image=await readImmutable(media.imagePath,this.dataDir,media.imageSha256,30_000_000);
   const format=(await sharp(image,{limitInputPixels:4096*4096,failOn:"error"}).metadata()).format;
   if(format!=="jpeg"&&format!=="png")throw Error("Unsupported reference image");
-  if(!media.prompt||media.prompt.length>1500)throw Error("Reviewed prompt required");
+  if(typeof media.prompt!=="string"||media.prompt.length>1500)throw Error("Invalid user prompt");
   const now=Date.now();
   const signingDate=new Date(Math.floor(now/1000)*1000);
   const expiresAt=signingDate.getTime()+inputDeliveryPolicy.leaseSeconds*1000;

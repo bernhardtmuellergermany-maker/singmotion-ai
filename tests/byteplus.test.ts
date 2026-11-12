@@ -45,6 +45,8 @@ test("documented requests use the exact 2.0 endpoint, version and body with a si
   assert.equal(requests[0].headers["Content-Type"], "application/json");
   await protocol.submit({ imageUrl: "i", audioUrl: "a" }, signal());
   assert.equal("prompt" in JSON.parse(requests[1].body), false);
+  await protocol.submit({ imageUrl: "i", audioUrl: "a", prompt: "   " }, signal());
+  assert.equal("prompt" in JSON.parse(requests[2].body), false);
   assert.equal(JSON.parse(requests[1].body).enable_watermark, false);
   assert.deepEqual(
     JSON.parse(

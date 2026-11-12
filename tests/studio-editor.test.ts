@@ -137,18 +137,13 @@ test("last successfully applied orientation is binding, regardless of original s
   assert.equal(applied.sourceImageId,source);
 });
 
-test("English facial expression and movement instructions are first and unchanged in BytePlus prompt", () => {
+test("BytePlus prompt contains only the user's exact text, without defaults", () => {
   const directions = "looking angry and walk forward";
-  const prompt = composePrompt("Custom", "Static camera", directions);
-  assert.ok(prompt.startsWith("Performance direction (priority): "+directions+"."));
-  assert.ok(prompt.includes("The person sings while following the performance direction above."));
-  assert.ok(prompt.includes("Keep the camera fixed"));
-  assert.ok(!prompt.startsWith("Natural singing performance."));
-  const cameraQuickIdea = composePrompt("Custom", "Static camera",
-    "looking angry and walk forward\nCamera: Slowly orbit left around the singer.");
-  assert.ok(cameraQuickIdea.includes(directions));
-  assert.ok(cameraQuickIdea.includes("Camera: Slowly orbit left around the singer."));
-  assert.ok(!cameraQuickIdea.includes("Keep the camera fixed"));
+  assert.equal(composePrompt("Custom", "Static camera", directions), directions);
+  assert.equal(composePrompt("Natural", "Orbit left", ""), "");
+  assert.equal(composePrompt("Emotional", "Tilt down", "  "), "  ");
+  const cameraQuickIdea = "looking angry and walk forward\\nCamera: Slowly orbit left around the singer.";
+  assert.equal(composePrompt("Custom", "Static camera", cameraQuickIdea), cameraQuickIdea);
 });
 
 test("new landscape upload selects 16:9 automatically; a portrait selects 9:16", () => {
@@ -160,7 +155,7 @@ test("new landscape upload selects 16:9 automatically; a portrait selects 9:16",
 test("saved photo determines format while prompt retains artist motion verbatim", () => {
   const text = "looking angry and walk forward";
   const result = composePrompt("Custom", "Static camera", text);
-  assert.ok(result.startsWith("Performance direction (priority): " + text));
+  assert.equal(result, text);
   assert.ok(!result.includes("16:9 composition"));
   assert.ok(!result.includes("9:16 composition"));
 });
