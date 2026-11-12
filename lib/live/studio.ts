@@ -953,17 +953,32 @@ export class StudioWorkflow {
       } finally { customerStore.close(); }
     }
     const workflow = this.operator({ ...policy, eurBudget: current.eurBudget });
-    const token = await workflow.approve(
-      id,
-      owner,
-      this.config.operatorSecret,
-      confirmationPhrase(a),
-    );
+    let token:string;
+    try {
+      token = await workflow.approve(
+        id,
+        owner,
+        this.config.operatorSecret,
+        confirmationPhrase(a),
+      );
+    }catch(error){
+      // An approval failure in PREPARED has not started any provider request.
+      // The non-billable hold is safe to release only after re-reading the
+      // durable provider state; never release if another request progressed.
+      if(this.requirePrepaidCredits&&this.store.get(id).state==="prepared"){
+        const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
+        try{new CreditWallet(commerce.db).reconcileVideo(id,"nonbillable");}
+        finally{commerce.close();}
+      }
+      throw error;
+    }
     this.store.db
       .prepare(
         "UPDATE live_studio_projects SET started_at=? WHERE attempt_id=?",
       )
       .run(Date.now(), id);
+    // From this point onward the result may be unknown despite an exception:
+    // keep its hold until a verified provider outcome and never auto-resubmit.
     await workflow.submit(id, owner, token, this.config.operatorSecret);
     return this.withCurrentBudget(this.view(id, owner));
   }
