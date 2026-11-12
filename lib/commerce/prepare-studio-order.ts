@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { prepareStudioDraft } from "../live/media.ts";
-import { slowExcerpt } from "../live/tempo.ts";
+import { slowExcerpt, canApplySlowTempo } from "../live/tempo.ts";
 import { dataDir } from "../db.ts";
 import { reviewedVideoInputDigest } from "./reviewed-video.ts";
 import { CommerceStore } from "./store.ts";
@@ -36,11 +36,11 @@ export async function prepareCustomerStudioOrder(
     throw Error("Customer media owner mismatch");
   // Pay-per-video preparation only. Included Hobby seconds require the
   // separately reserved subscription fulfillment pipeline, never Checkout.
-  // Never take a Stripe payment for audio outside the currently activated
+  // A long clip that cannot fit after 0.9x slowdown keeps its original tempo.\n  // Never take a Stripe payment for audio outside the currently activated
   // provider/customer pricing interval. Encoded MP3 duration is authoritative.
   const maxSeconds=await reviewedCustomerOrderMaxSeconds(dataDir,env);
   let media = await prepareStudioDraft(input.draft, input.mediaOwner, maxSeconds);
-  if (env.AUDIO_TEMPO_ENABLED === "true") {
+  if (env.AUDIO_TEMPO_ENABLED === "true" && canApplySlowTempo(media.durationSeconds,maxSeconds)) {
     if (!media.recording?.songId || !/^[a-f0-9]{64}$/.test(media.recording.sourceSha256))
       throw Error("Verified original recording is required for customer tempo processing");
     // Earlier provider failures are independent, durable orders; they must
