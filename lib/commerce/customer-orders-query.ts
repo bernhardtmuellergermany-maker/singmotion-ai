@@ -14,6 +14,13 @@ export function ownedCustomerOrderStatuses(
  db:DatabaseSync,accountId:string,filter:{orderId:string|null;projectId:string|null;limit:number}
 ):Record<string,unknown>[] {
  // The owner predicate is mandatory for both the paginated list and direct lookup.
+ // Hide archived paid purchases only from the overview. A direct order link
+ // remains accessible for receipts, consumer rights and private delivery.
+ const hiddenList=filter.orderId===null&&!!db.prepare(
+  "SELECT 1 FROM sqlite_master WHERE type='table' AND name='customer_hidden_paid_orders'"
+ ).get();
+ const hiddenClause=hiddenList?
+  "AND NOT EXISTS (SELECT 1 FROM customer_hidden_paid_orders h WHERE h.order_id=o.id AND h.account_id=?)":"";
  return db.prepare(`SELECT o.id AS orderId,o.project_id AS projectId,
    o.price_cents AS priceCents,o.currency,o.status,o.created,
    CASE WHEN json_valid(m.media_json) THEN json_extract(m.media_json,'$.outputFormat') ELSE NULL END AS outputFormat,
@@ -27,8 +34,8 @@ export function ownedCustomerOrderStatuses(
    LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id
    LEFT JOIN customer_video_deliveries d ON d.order_id=o.id
    LEFT JOIN free_promo_video_deliveries f ON f.order_id=o.id AND f.account_id=o.account_id
-   WHERE (o.account_id=? OR gc.account_id=?) AND (? IS NULL OR o.project_id=?) AND (? IS NULL OR o.id=?)
+   WHERE (o.account_id=? OR gc.account_id=?) AND (? IS NULL OR o.project_id=?) AND (? IS NULL OR o.id=?) ${hiddenClause}
    ORDER BY o.created DESC,o.id DESC LIMIT ?`).all(
-    accountId,accountId,filter.projectId,filter.projectId,filter.orderId,filter.orderId,filter.limit
+    accountId,accountId,filter.projectId,filter.projectId,filter.orderId,filter.orderId,...(hiddenList?[accountId]:[]),filter.limit
    ) as Record<string,unknown>[];
 }
