@@ -16,6 +16,12 @@ Stand: 12 November 2026
 - Project cards under `/projects` show a shortened Support ID and a Copy icon. Clicking it copies the entire identifier, with a visual "Copied!" confirmation; this is the reference to give support for an order.
 - Test purchases are permitted **only on Staging**. Production deliberately rejects Stripe credit test checkout, even for super admins.
 
+## Stripe Managed Payments - sandbox distinction (12 Nov 2026)
+- Exact failing test request `req_QtrdydLYTg9KGk` was rejected with HTTP 400: the account has **Managed Payments default-on** and Stripe requires an **eligible product tax code** for an inline product.
+- For the **staging-only Stripe Test Checkout**, the server explicitly sends `managed_payments[enabled]=false`. This allows testing Hosted Checkout and the account-bound wallet without misclassifying the internal pre-paid Credits as a specific legally reviewed product/tax category.
+- This setting is **not** a reviewed live Merchant-of-Record/tax strategy. Production Credit Checkout is still hard-disabled by the staging Railway Environment ID and `sk_test_` requirement. Before live checkout, decide whether SingMotion or Stripe is the merchant of record, validate digital/prepaid-credit eligibility and product tax codes with qualified tax/legal review, and verify VAT display, receipts, refunds, provider responsibilities and user-facing Terms.
+- Never set a random `txcd_` code to silence an API error. If the next sandbox attempt fails, capture the new Stripe support request reference; no payment should be marked credited until a paid signed Stripe webhook is verified.
+
 ## Testumgebung
 Bereits vorhandener Stripe-Test-Webhook (Sandbox) im SingMotion-Konto:
 `https://singmotion-ai-staging.up.railway.app/api/stripe-webhook`
