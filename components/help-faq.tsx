@@ -1,4 +1,3 @@
-import { PageContentSearch } from "./page-content-search";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { SiteHeader } from "./site-header";
