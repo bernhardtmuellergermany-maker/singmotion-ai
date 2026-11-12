@@ -87,7 +87,7 @@ test("selected 16:9 preserves the full portrait provider subject without black p
   try {
     const file = path.join(dir, "portrait-provider.mp4");
     ffmpeg([
-      "-f", "lavfi", "-i", "color=c=red:s=720x1280:r=25:d=1", "-vf", "drawbox=x=0:y=0:w=iw:h=180:color=blue:t=fill,drawbox=x=0:y=1100:w=iw:h=180:color=green:t=fill",
+      "-f", "lavfi", "-i", "color=c=red:s=720x1280:r=25:d=1,drawbox=x=0:y=0:w=iw:h=180:color=blue:t=fill,drawbox=x=0:y=1100:w=iw:h=180:color=green:t=fill",
       "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
       "-t", "1", "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast",
       "-pix_fmt", "yuv420p", "-c:a", "aac", file,
