@@ -32,7 +32,7 @@ test("all newly added credit and account credit views are in English",()=>{
  assert.match(read("components/credits-dashboard.tsx"),/Usage & Orders/);
  assert.match(read("components/credit-amount-picker.tsx"),/Test purchase with Stripe/);
  assert.match(read("components/account-credit-summary.tsx"),/Current credits/);
- assert.match(read("components/header-account-menu.tsx"),/Buy Credits & Usage/);
+ assert.match(read("components/header-account-menu.tsx"),/>Credits<\/Link>/);
 });
 
 test("customers and super-admins can access their OWN real test wallet via the same UI",()=>{
