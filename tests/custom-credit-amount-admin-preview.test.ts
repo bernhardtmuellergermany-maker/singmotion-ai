@@ -22,6 +22,6 @@ test("Super-admin has a real isolated wallet, never a fake credit slider",()=>{
 });
 test("Credits replace the legacy Hobby subscription in account settings",()=>{
  const s=read("app/(site)/account/settings/page.tsx");
- assert.match(s,/Existing Hobby subscription \(legacy\)/);
+ assert.match(s,/Prepaid Credits/); assert.doesNotMatch(s,/Existing Hobby subscription/);
  assert.match(s,/href="\/credits"/);assert.doesNotMatch(s,/Upgrade to Hobby|async function subscribe\(/);
 });
