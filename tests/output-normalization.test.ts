@@ -8,11 +8,12 @@ import { probe } from "../lib/media.ts";
 import {
   downloadValidatedOutput,
   validateOutput,
+  providerNativeOutputContract,
   hasNoNonSquarePixelAspect,
   type OutputValidationContract,
 } from "../lib/live/output.ts";
 
-test("786x1178 source center-crops to full-frame 720x1280 without distortion or black padding; no broad acceptance", async () => {
+test("786x1178 BytePlus video keeps exact provider-native dimensions; no broad acceptance", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "sm-normalize-"));
   const policy: OutputValidationContract = {
     outputHosts: ["approved.example.test"],
@@ -65,28 +66,12 @@ test("786x1178 source center-crops to full-frame 720x1280 without distortion or 
       policy,
       async () => new Response(bytes),
     );
-    await validateOutput(file, 1, policy);
+    await validateOutput(file, 1, await providerNativeOutputContract(file, policy));
     const p = await probe(file),
       video = p.streams.find((s) => s.codec_type === "video")!;
-    assert.equal(video.width, 720);
-    assert.equal(video.height, 1280);
-    const pixels = ff([
-      "-i",
-      file,
-      "-frames:v",
-      "1",
-      "-f",
-      "rawvideo",
-      "-pix_fmt",
-      "rgb24",
-      "-",
-    ]);
-    const pixel = (x: number, y: number) => [
-      ...pixels.subarray((y * 720 + x) * 3, (y * 720 + x) * 3 + 3),
-    ];
-    for (const [x, y] of [[360, 50], [360, 1230], [12, 12], [705, 1265]]) {
-      assert.ok(pixel(x, y)[0] > 180, `expected full-frame content at ${x},${y}, not black bars`);
-    }
+    assert.equal(video.width, 786);
+    assert.equal(video.height, 1178);
+    assert.deepEqual(await readFile(file), bytes);
     assert.deepEqual(await readFile(raw), bytes);
     let counter = 0;
     const rejected = async (
@@ -181,10 +166,10 @@ test("paid BytePlus 30 FPS source is converted to validated 25 FPS without chang
    await assert.rejects(validateOutput(raw,1,policy),/FRAMERATE|DIMENSIONS/);
    await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
     async()=>new Response(Uint8Array.from(bytes)));
-   await validateOutput(dest,1,policy);
+   await validateOutput(dest,1,await providerNativeOutputContract(dest,policy));
    const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
-   assert.equal(video.width,720);
-   assert.equal(video.height,1280);
+   assert.equal(video.width,Number(rect.split("x")[0]));
+   assert.equal(video.height,Number(rect.split("x")[1]));
    assert.equal(video.avg_frame_rate,"25/1");
    assert.equal(hash(dest),expectedHash);
    assert.deepEqual(await readFile(raw),bytes);
@@ -192,7 +177,7 @@ test("paid BytePlus 30 FPS source is converted to validated 25 FPS without chang
  }finally{await rm(root,{recursive:true,force:true})}
 });
 
-test("BytePlus 786x1178 30fps source can be normalized to reviewed landscape 1280x720 without altering AAC packet contents",async()=>{
+test("BytePlus 786x1178 30fps source keeps portrait shape even when checkout requested landscape",async()=>{
  const root=await mkdtemp(path.join(tmpdir(),"sm-provider-landscape-"));
  const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
  const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
@@ -209,15 +194,15 @@ test("BytePlus 786x1178 30fps source can be normalized to reviewed landscape 128
    async()=>new Response(Uint8Array.from(original)));
   await validateOutput(dest,1,policy);
   const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
-  assert.equal(video.width,1280);
-  assert.equal(video.height,720);
+  assert.equal(video.width,786);
+  assert.equal(video.height,1178);
   assert.equal(video.avg_frame_rate,"25/1");
   assert.equal(hash(dest),audio);
   assert.deepEqual(await readFile(source),original);
  }finally{await rm(root,{recursive:true,force:true})}
 });
 
-test("observed BytePlus 960x960 source delivers to reviewed portrait and landscape 720p without changing soundtrack",async()=>{
+test("observed BytePlus 960x960 source stays square regardless of requested portrait or landscape",async()=>{
  const root=await mkdtemp(path.join(tmpdir(),"sm-provider-square-"));
  const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
  const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
@@ -238,10 +223,10 @@ test("observed BytePlus 960x960 source delivers to reviewed portrait and landsca
    await assert.rejects(validateOutput(source,1,contract),/DIMENSIONS/);
    await downloadValidatedOutput("https://approved.example.test/video",dest,1,contract,
     async()=>new Response(Uint8Array.from(bytes)));
-   await validateOutput(dest,1,contract);
+   await validateOutput(dest,1,await providerNativeOutputContract(dest,contract));
    const video=(await probe(dest)).streams.find(x=>x.codec_type==="video")!;
-   assert.equal(video.width,width);
-   assert.equal(video.height,height);
+   assert.equal(video.width,960);
+   assert.equal(video.height,960);
    assert.equal(video.avg_frame_rate,"25/1");
    assert.equal(hash(dest),sourceHash);
   }
@@ -255,7 +240,7 @@ test("observed BytePlus 960x960 source delivers to reviewed portrait and landsca
  }finally{await rm(root,{recursive:true,force:true})}
 });
 
-test("checkout orientation is exact: a reviewed 720p video with opposite orientation is re-encoded to the chosen rectangle",async()=>{
+test("checkout selection never flips provider-native 720p orientation",async()=>{
  const root=await mkdtemp(path.join(tmpdir(),"sm-paid-orientation-"));
  const ff=(args:string[])=>execFileSync("ffmpeg",["-nostdin","-v","error",...args],{timeout:30000,maxBuffer:4*1024*1024});
  const hash=(file:string)=>ff(["-i",file,"-map","0:a:0","-c:a","copy","-f","hash","-hash","sha256","-"]).toString().trim();
@@ -274,9 +259,10 @@ test("checkout orientation is exact: a reviewed 720p video with opposite orienta
    await downloadValidatedOutput("https://approved.example.test/video",dest,1,policy,
     async()=>new Response(Uint8Array.from(original)));
    const video=(await probe(dest)).streams.find(s=>s.codec_type==="video")!;
-   assert.equal(video.width,width);
-   assert.equal(video.height,height);
+   assert.equal(video.width,Number(sourceRect.split("x")[0]));
+   assert.equal(video.height,Number(sourceRect.split("x")[1]));
    assert.equal(hash(dest),audio);
+   assert.deepEqual(await readFile(dest),original, "orientation mismatch must not rewrite provider MP4");
    assert.deepEqual(await readFile(source),original);
   }
  }finally{await rm(root,{recursive:true,force:true})}

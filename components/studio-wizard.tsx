@@ -713,7 +713,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();if(customMode){setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);}setCropPending(true);}}>Reset</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 and adjust the framing. The preview fills the selected video shape; edges may be cropped if your photo has a different shape. Continue saves exactly this framing.</p>
+          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 to frame the reference photo sent to BytePlus. The generated video keeps the dimensions returned by BytePlus; SingMotion does not crop or convert its aspect ratio afterward.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -796,7 +796,7 @@ export function StudioWizard({
                 <p><strong>Performance instructions</strong></p>
                 <p className="sm-review-prompt">{prompt || "No prompt will be sent to BytePlus."}</p>
                 <p>Only the text you enter above is sent as a prompt to BytePlus. If you leave it blank, the prompt field is omitted. Model-generated movement is not guaranteed.</p>
-                <p>The uploaded photo defines the visual scene; the prompt guides the performance and camera.</p>
+                <p>The uploaded photo guides the scene; BytePlus determines the generated video's native aspect ratio. SingMotion does not convert it to the reference image's orientation.</p>
               </div>
             </details>
             <details className="sm-review-item">

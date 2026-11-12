@@ -13,8 +13,7 @@ import { revalidateMedia } from "./media.ts";
 import {
   downloadValidatedOutput,
   validateOutput,
-  exportContract,
-  fitOutputFormat,
+  providerNativeOutputContract,
 } from "./output.ts";
 import { type Attempt, type PreparedMedia, LiveTestStore } from "./store.ts";
 
@@ -201,19 +200,13 @@ export class LiveTestRunner {
             await validateRestored(
               output,
               attempt.media,
-              exportContract(
-                this.provider.contract,
-                attempt.media.outputFormat,
-              ),
+              await providerNativeOutputContract(output, this.provider.contract),
             );
           } else
             await validateOutput(
               output,
               attempt.media.durationSeconds,
-              exportContract(
-                this.provider.contract,
-                attempt.media.outputFormat,
-              ),
+              await providerNativeOutputContract(output, this.provider.contract),
             );
           recovered = true;
         }
@@ -230,7 +223,7 @@ export class LiveTestRunner {
         try {
           const info = await lstat(retainedSource);
           if (!info.isFile() || info.isSymbolicLink()) throw new Error("Unsafe source");
-          await validateOutput(retainedSource, attempt.media.durationSeconds, this.provider.contract);
+          await validateOutput(retainedSource, attempt.media.durationSeconds, await providerNativeOutputContract(retainedSource, this.provider.contract));
           await copyFile(retainedSource, partial);
           await chmod(partial, 0o600);
           reusedSource = true;
@@ -283,7 +276,7 @@ export class LiveTestRunner {
         await validateOutput(
           partial,
           attempt.media.durationSeconds,
-          this.provider.contract,
+          await providerNativeOutputContract(partial, this.provider.contract),
         );
         if (attempt.media.tempo) {
           // Keep one immutable provider response for local recovery/debugging.
@@ -298,46 +291,22 @@ export class LiveTestRunner {
               partial,
               restored,
               attempt.media,
-              this.provider.contract,
+              await providerNativeOutputContract(partial, this.provider.contract),
             );
             renameSync(restored, partial);
           } finally {
             await unlink(restored).catch(() => {});
           }
         }
-        if (attempt.media.outputFormat) {
-          exportStage = "output-format-fit";
-          const timingContract = attempt.media.tempo
-            ? {
-                ...this.provider.contract,
-                output: {
-                  ...this.provider.contract.output,
-                  videoCodec: "h264",
-                  audioCodec: "mp3",
-                  durationToleranceSeconds: 0.2,
-                  maxDurationSeconds:
-                    attempt.media.tempo.originalDuration + 0.2,
-                },
-              }
-            : this.provider.contract;
-          await fitOutputFormat(
+        // BytePlus controls the delivered orientation; do not perform
+        // 9:16 <-> 16:9 conversion, padding, cropping or stretching.
+        if (attempt.media.tempo) {
+          exportStage = "final-tempo-validation";
+          await validateRestored(
             partial,
-            attempt.media.tempo?.originalDuration ??
-              attempt.media.durationSeconds,
-            timingContract,
-            attempt.media.outputFormat,
+            attempt.media,
+            await providerNativeOutputContract(partial, this.provider.contract),
           );
-          if (attempt.media.tempo) {
-            exportStage = "final-tempo-validation";
-            await validateRestored(
-              partial,
-              attempt.media,
-              exportContract(
-                this.provider.contract,
-                attempt.media.outputFormat,
-              ),
-            );
-          }
         }
       } catch (error) {
         // Raw FFmpeg stderr, provider URLs and media paths are never logged.

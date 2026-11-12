@@ -265,9 +265,37 @@ export function outputTransferLimits(contract: OutputValidationContract) {
     throw new Error("Invalid reviewed output transfer limits.");
   return limits;
 }
-/** Operator-observed source rectangle, not a new provider format guarantee.
- * Only this source -> reviewed portrait export is admitted for local conversion.
- * Raw source is never published and no general resolution bypass is available. */
+/** Bound provider-native dimensions to reviewed source sizes, never a new arbitrary size.
+ * The customer's output-format choice applies to the uploaded image, not to
+ * resizing BytePlus's returned video. Avoids accidental 9:16 <-> 16:9 conversion.
+ */
+export async function providerNativeOutputContract<T extends OutputValidationContract>(
+  file: string,
+  contract: T,
+): Promise<T> {
+  const source = await probe(file);
+  const video = source.streams.find((stream) => stream.codec_type === "video");
+  const width = video?.width, height = video?.height;
+  const reviewed720p =
+    (contract.output.width === 720 && contract.output.height === 1280) ||
+    (contract.output.width === 1280 && contract.output.height === 720);
+  const knownNative =
+    (width === 720 && height === 1280) ||
+    (width === 1280 && height === 720) ||
+    (width === 786 && height === 1178) ||
+    (width === 960 && height === 960);
+  if (!reviewed720p || !knownNative || contract.discover720p) {
+    // Ordinary contract validation still applies to all non-standard cases.
+    return contract;
+  }
+  return {
+    ...contract,
+    output: { ...contract.output, width: width!, height: height! },
+  };
+}
+
+/** Validate a private BytePlus MP4 and preserve its native pixel dimensions.
+ * Only an independently allowed FPS conversion may re-encode video. */
 export async function validateDownloadedOutput(
   file: string,
   duration: number,
@@ -277,36 +305,13 @@ export async function validateDownloadedOutput(
   const video = source.streams.find((s) => s.codec_type === "video");
   const rate = video?.avg_frame_rate?.split("/").map(Number);
   const actualFps = rate?.length === 2 && rate[1] > 0 ? rate[0] / rate[1] : NaN;
-  // The reviewed deliverable remains exactly 25 FPS. A short, explicitly
-  // enumerated source rate may be normalized locally without changing the
-  // BytePlus task, the original soundtrack or the reviewed final policy.
-  const normalizeFps = contract.output.fps === 25 &&
+  const native = await providerNativeOutputContract(file, contract);
+  const normalizeFps = native.output.fps === 25 &&
     [24, 24000 / 1001, 30, 30000 / 1001].some(
-      fps => Math.abs(actualFps - fps) < 0.005,
+      (fps) => Math.abs(actualFps - fps) < 0.005,
     );
-  const reviewedOutputRectangle =
-    (contract.output.width === 720 && contract.output.height === 1280) ||
-    (contract.output.width === 1280 && contract.output.height === 720);
-  // Only the two observed BytePlus source rectangles may be resized to
-  // the explicitly reviewed 720p portrait/landscape export. The square
-  // 960x960 source was confirmed by the paid Staging recovery on 2026-11-10.
-  // All codec, duration, fps, pixel aspect and full-decode checks still apply.
-  const reviewedSourceRectangle =
-    !contract.discover720p && reviewedOutputRectangle &&
-    ((video?.width === 786 && video.height === 1178) ||
-     (video?.width === 960 && video.height === 960));
-  // Width and height are not interchangeable for a customer order. The
-  // shared provider validator accepts reviewed 720p rotations, but delivery
-  // MUST match the exact orientation chosen at checkout.
-  const needsOrientationFit = reviewedOutputRectangle &&
-    video?.width === contract.output.height &&
-    video?.height === contract.output.width;
-  if (!reviewedSourceRectangle && !normalizeFps && !needsOrientationFit) {
-    await validateOutput(file, duration, contract);
-    if (reviewedOutputRectangle && (
-      video?.width !== contract.output.width ||
-      video?.height !== contract.output.height
-    )) throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
+  if (!normalizeFps) {
+    await validateOutput(file, duration, native);
     return;
   }
   const metadata = video as typeof video & {
@@ -314,89 +319,40 @@ export async function validateDownloadedOutput(
     side_data_list?: { rotation?: number }[];
   };
   if (
-    contract.discover720p ||
-    contract.output.videoCodec !== "h264" ||
-    contract.output.audioCodec !== "aac" ||
+    native.discover720p ||
+    native.output.videoCodec !== "h264" ||
+    native.output.audioCodec !== "aac" ||
     source.streams.length !== 2 ||
     !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ||
-    metadata.side_data_list?.some(
-      (s) => s.rotation !== undefined && s.rotation !== 0,
-    )
-  ) {
-    // Fixed, non-customer diagnostic only: no paths, media names, provider
-    // URLs, frame pixels, audio samples or FFmpeg stderr.
-    const policyReason = contract.discover720p ? "discover-mode" :
-      contract.output.videoCodec !== "h264" ? "video-contract" :
-      contract.output.audioCodec !== "aac" ? "audio-contract" :
-      source.streams.length !== 2 ? "stream-count" :
-      !hasNoNonSquarePixelAspect(metadata?.sample_aspect_ratio) ? "sample-aspect-ratio" :
-      "rotation";
-    console.warn("OUTPUT_NORMALIZATION_REJECTED", "source-policy-" + policyReason);
-    throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
-  }
-  // Decode and validate the entire untrusted source before local
-  // conversion. Only the observed 786x1178 or 960x960 sources and the
-  // reviewed 720p portrait/landscape rectangles can be accepted.
+    metadata.side_data_list?.some((s) => s.rotation !== undefined && s.rotation !== 0)
+  ) throw new Error("OUTPUT_NORMALIZATION_POLICY_REJECTED");
   await validateOutput(file, duration, {
-    ...contract,
-    output: {
-      ...contract.output,
-      ...(reviewedSourceRectangle ? { width: video!.width!, height: video!.height! } : {}),
-      ...(normalizeFps ? { fps: actualFps } : {}),
-    },
+    ...native,
+    output: { ...native.output, fps: actualFps },
   });
-  await fitValidatedRectangle(file, duration, contract, normalizeFps);
-  const exported = (await probe(file)).streams.find(s => s.codec_type === "video");
-  if (reviewedOutputRectangle && (
-    exported?.width !== contract.output.width ||
-    exported?.height !== contract.output.height
-  )) throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
+  // The normalization filter targets identical source width and height.
+  await fitValidatedRectangle(file, duration, native, true);
+  const finalVideo = (await probe(file)).streams.find((s) => s.codec_type === "video");
+  if (finalVideo?.width !== video?.width || finalVideo?.height !== video?.height)
+    throw new Error("OUTPUT_DIMENSIONS_MISMATCH");
 }
-/** Local export only; does not send an aspect-ratio parameter to BytePlus. */
+
+/** Kept for existing callers; the user format never changes BytePlus output. */
 export function exportContract<T extends OutputValidationContract>(
   contract: T,
-  format?: "9:16" | "16:9",
+  _format?: "9:16" | "16:9",
 ): T {
-  // Only remap the reviewed 720p portrait/landscape output pair. Keep smaller
-  // explicitly reviewed offline contracts intact instead of manufacturing 720p.
-  if (!format || !([720,1280].includes(contract.output.width) &&
-      [720,1280].includes(contract.output.height) &&
-      contract.output.width*contract.output.height===720*1280)) return contract;
-  return {
-    ...contract,
-    output: {
-      ...contract.output,
-      width: format === "9:16" ? 720 : 1280,
-      height: format === "9:16" ? 1280 : 720,
-    },
-  };
+  return contract;
 }
+
+/** Legacy export entry point now validates without converting aspect ratio. */
 export async function fitOutputFormat(
   file: string,
   duration: number,
   contract: OutputValidationContract,
-  format: "9:16" | "16:9",
+  _format: "9:16" | "16:9",
 ) {
-  await validateOutput(file, duration, contract);
-  const video = (await probe(file)).streams.find(
-    (s) => s.codec_type === "video",
-  );
-  const target = exportContract(contract, format);
-  // Numerical-only diagnostic for identifying provider-generated portrait
-  // footage delivered from a reviewed 16:9 Studio reference. No file paths,
-  // image pixels, user identifiers or provider URLs are logged.
-  if (video?.width && video.height) console.info("STUDIO_PROVIDER_OUTPUT_ORIENTATION", {
-    sourceWidth: video.width,
-    sourceHeight: video.height,
-    requestedFormat: format,
-    requiresLocalFit: video.width !== target.output.width || video.height !== target.output.height,
-  });
-  if (
-    video?.width === target.output.width &&
-    video.height === target.output.height
-  )
-    return;
-  await fitValidatedRectangle(file, duration, target, false, true);
+  await validateOutput(file, duration, await providerNativeOutputContract(file, contract));
 }
 async function fitValidatedRectangle(
   file: string,
