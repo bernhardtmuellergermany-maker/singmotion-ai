@@ -30,7 +30,7 @@ export function reserveUploadStorage(db:DatabaseSync,owner:string,id:string,byte
   db.prepare("DELETE FROM pending_upload_storage WHERE created<?").run(now-3600000);
   const pending=db.prepare("SELECT COALESCE(SUM(bytes),0) AS total FROM pending_upload_storage WHERE owner=?").get(owner) as {total:number};
   if(uploadedBytes(db,owner)+pending.total+bytes>limitBytes)
-   throw new AppError("Upload limit reached for your audio and photos. Your account currently includes 250 MB of source uploads; Cloudflare storage does not remove this account limit. Existing videos remain available. Contact support to review storage or unused uploads.",413);
+   throw new AppError(`Upload limit reached for your audio and photos (${Math.round(limitBytes/(1024*1024))} MB). Cloudflare storage does not remove this account limit. Existing videos remain available. Contact support to review storage or unused uploads.`,413);
   db.prepare("INSERT INTO pending_upload_storage(id,owner,bytes,created) VALUES(?,?,?,?)").run(id,owner,bytes,now);
   db.exec("COMMIT");
  }catch(e){db.exec("ROLLBACK");throw e;}
