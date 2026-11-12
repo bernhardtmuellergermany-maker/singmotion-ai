@@ -135,3 +135,90 @@
   .sm-projects-card-footer .sm-projects-options-menu>a,
   .sm-projects-card-footer .sm-projects-options-menu>button{font-size:12px;min-height:38px}
 }
+
+/* Compact action placement: the menu button sits beside the two metadata
+   lines, never below them. Expanded menus float, without changing card height. */
+.sm-projects-card{position:relative}
+.sm-projects-card:has(.sm-projects-options[open]),
+.sm-projects-card:has(.sm-projects-rename-form){z-index:30}
+.sm-projects-card-main{flex:unset}
+.sm-projects-card-footer{
+  position:absolute!important;
+  right:12px!important;
+  bottom:14px!important;
+  z-index:5;
+  display:block!important;
+  width:auto!important;
+  height:32px!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  pointer-events:none;
+}
+.sm-projects-card:has(.sm-projects-support) .sm-projects-card-footer{
+  bottom:49px!important;
+}
+.sm-projects-card-footer .sm-projects-options{
+  position:relative!important;
+  width:32px!important;
+  height:32px!important;
+  margin:0!important;
+  padding:0!important;
+  pointer-events:auto;
+}
+.sm-projects-card-footer .sm-projects-options[open]{
+  width:32px!important;
+}
+.sm-projects-card-footer .sm-projects-options>summary{
+  position:relative!important;
+  top:auto!important;
+  right:auto!important;
+  width:32px!important;
+  height:32px!important;
+  margin:0!important;
+  border-radius:50%!important;
+  background:#291a37!important;
+}
+.sm-projects-card-footer .sm-projects-options-menu{
+  position:absolute!important;
+  top:auto!important;
+  right:0!important;
+  bottom:calc(100% + 7px)!important;
+  width:178px!important;
+  min-width:178px!important;
+  margin:0!important;
+  box-sizing:border-box;
+  padding:6px!important;
+  border-radius:12px!important;
+  z-index:80;
+  box-shadow:0 13px 36px #000c!important;
+  pointer-events:auto;
+}
+.sm-projects-card-footer .sm-projects-options-menu a,
+.sm-projects-card-footer .sm-projects-options-menu button{
+  min-height:36px!important;
+}
+.sm-projects-card-footer .sm-projects-rename-form{
+  position:absolute;
+  right:0;
+  bottom:calc(100% + 7px);
+  box-sizing:border-box;
+  width:min(210px,calc(100vw - 36px));
+  padding:9px;
+  border:1px solid #8d62b4;
+  border-radius:12px;
+  background:#281b39;
+  box-shadow:0 12px 30px #000c;
+  pointer-events:auto;
+}
+.sm-projects-card-content{padding-bottom:14px}
+.sm-projects-meta{margin-right:38px}
+@media(max-width:720px){
+ .sm-projects-card-footer{right:10px!important;bottom:14px!important}
+ .sm-projects-card:has(.sm-projects-support) .sm-projects-card-footer{bottom:43px!important}
+ .sm-projects-card-content{padding-bottom:12px}
+ .sm-projects-meta{margin-right:37px!important}
+ .sm-projects-card-footer .sm-projects-options-menu{
+   width:158px!important;min-width:158px!important;
+ }
+}
