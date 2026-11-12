@@ -77,3 +77,9 @@
   margin:8px 2px 0;text-align:center;color:#a99cb9;
   font-size:11px;line-height:1.5;
 }
+
+/* The insufficient-credits state is a still, actionable explanation, not a render animation. */
+.sm-gen-credit-help{margin:0 0 22px;padding:16px;border:1px solid rgba(197,133,240,.55);border-radius:13px;background:rgba(55,30,73,.65)}
+.sm-gen-credit-help strong{font-size:15px;color:#fff}
+.sm-gen-credit-help p{margin:8px 0 12px;color:#d8c8e6;font-size:13px;line-height:1.7}
+.sm-gen-credit-help .sm-gen-reuse{margin-top:10px;max-width:260px}
