@@ -46,7 +46,6 @@ export async function POST(req:NextRequest){
    // after a timeout returns the same Stripe object via Idempotency-Key.
    const form=new URLSearchParams({
     mode:"payment",
-    "payment_method_types[0]":"card",
     "line_items[0][price_data][currency]":"eur",
     "line_items[0][price_data][unit_amount]":String(purchase.cents),
     "line_items[0][price_data][product_data][name]":"SingMotion AI Test-Credits",
@@ -54,7 +53,6 @@ export async function POST(req:NextRequest){
     customer_email:identity.email,
     "metadata[creditTopupId]":purchase.id,
     "metadata[flow]":"singmotion_credit_topup",
-    "payment_intent_data[metadata][creditTopupId]":purchase.id,
     success_url:`${origin}/credits?checkout=success`,
     cancel_url:`${origin}/credits?checkout=cancelled`,
    });
@@ -66,7 +64,16 @@ export async function POST(req:NextRequest){
     body:form,signal:AbortSignal.timeout(8000),cache:"no-store",
    });
    if(!response.ok){
-    console.error("Stripe Test Credit Checkout unavailable",{httpStatus:response.status});
+    // Never log the raw Stripe response, customer data or any API credential.
+    // Error type/code/parameter are enough to diagnose a rejected TEST request.
+    const failure=await response.json().catch(()=>null) as
+      {error?:{type?:unknown;code?:unknown;param?:unknown}}|null;
+    const detail=failure?.error;
+    const safe=(value:unknown)=>typeof value==="string"&&/^[a-zA-Z0-9_.-]{1,90}$/.test(value)?value:null;
+    console.error("STRIPE_CREDIT_TEST_CHECKOUT_REJECTED",{
+     status:response.status,type:safe(detail?.type),code:safe(detail?.code),
+     param:safe(detail?.param),
+    });
     return json({error:"Stripe Test Checkout could not be created. No payment was taken."},502);
    }
    const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string};
