@@ -9,6 +9,7 @@ export type CustomerAuthStatus={
  authenticated?:boolean;
  email?:string|null;
  kind?:string;
+ staffRole?:"super-admin"|"editor";
 };
 let pending:Promise<CustomerAuthStatus|null>|null=null;
 export function readCustomerAuthStatus():Promise<CustomerAuthStatus|null>{
