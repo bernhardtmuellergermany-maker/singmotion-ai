@@ -20,7 +20,7 @@ test("Super-admin has a real isolated wallet, never a fake credit slider",()=>{
  assert.doesNotMatch(dashboard,/admin-preview|Test-Credits|Testansicht/);
  assert.match(dashboard,/Usage & Orders/);
 });
-test("Existing Hobby contracts remain manageable",()=>{
+test("Credits replace the legacy Hobby subscription in account settings",()=>{
  const s=read("app/(site)/account/settings/page.tsx");
  assert.match(s,/Existing Hobby subscription \(legacy\)/);
  assert.match(s,/href="\/credits"/);assert.doesNotMatch(s,/Upgrade to Hobby|async function subscribe\(/);
