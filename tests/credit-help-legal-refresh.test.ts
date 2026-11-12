@@ -127,6 +127,10 @@ test("Staging Stripe checkout captures sanitized 400 reason and support referenc
  assert.ok(checkoutForm,"Stripe form body must remain present");
  assert.ok(!checkoutForm.includes('"payment_method_types[0]"'),"Stripe 2026 API rejects legacy payment_method_types");
  assert.ok(checkoutForm.includes('"line_items[0][price_data][currency]"'),"EUR price data remains included");
+ assert.ok(checkoutForm.includes('"managed_payments[enabled]":"false"'),
+  "Staging test top-ups must not opt in to Managed Payments without a reviewed tax code");
+ assert.ok(!checkoutForm.includes('"line_items[0][price_data][product_data][tax_code]"'),
+  "Do not invent tax codes for unclassified prepaid credits");
  assert.match(checkoutForm,/mode:"payment"/);
  assert.match(checkoutForm,/success_url/);
  assert.match(checkoutForm,/cancel_url/);
