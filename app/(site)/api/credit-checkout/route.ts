@@ -46,6 +46,7 @@ export async function POST(req:NextRequest){
    // after a timeout returns the same Stripe object via Idempotency-Key.
    const form=new URLSearchParams({
     mode:"payment",
+    "invoice_creation[enabled]":"true",
     // Sandbox ONLY: this account defaults to Stripe Managed Payments. Without
     // a legally reviewed product tax_code, its merchant-of-record flow returns
     // HTTP 400. Disable that optional flow explicitly for staging TEST
