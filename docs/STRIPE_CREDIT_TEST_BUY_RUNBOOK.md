@@ -8,6 +8,14 @@ Stand: 12 November 2026
 - Unter `/credits#usage` erscheinen echte Wallet-Posten und getrennt die historischen, in EUR bezahlten Kundenaufträge mit ausdrücklich als Gegenwert bezeichneten Credits.
 - Die neue Wallet-Buchführung ist **nicht** automatisch mit BytePlus-Videogenerierung verbunden; dafür sind weiterhin die serverseitigen Hold/Settle/Release-Workstreams aus Issue #143 erforderlich.
 
+## Verify both account types (same English UI)
+- **Customer session:** in a fresh browser profile, open `/login`, sign in or register, verify the customer email when required, then visit `/credits`. Choose 500 credits and use Stripe Test Mode. Confirm +500 appears only in that customer's wallet and usage list.
+- **Super Admin session:** in a separate browser profile, log in with the real CMS super-admin account (or the existing staff sign-in), then open `/credits`. Choose the same 500-credit test purchase. Confirm +500 appears only in the authenticated super-admin's own wallet—not in any customer's wallet.
+- Keep the two profiles/sessions distinct. If a browser holds both a customer and staff cookie, the server intentionally prioritizes the explicit customer session; sign out from one identity before expecting to see the other identity's wallet.
+- Both modes use identical **English** Credit and Usage pages; no fake credits or role-toggle controls.
+- Project cards under `/projects` show a shortened Support ID and a Copy icon. Clicking it copies the entire identifier, with a visual "Copied!" confirmation; this is the reference to give support for an order.
+- Test purchases are permitted **only on Staging**. Production deliberately rejects Stripe credit test checkout, even for super admins.
+
 ## Testumgebung
 Bereits vorhandener Stripe-Test-Webhook (Sandbox) im SingMotion-Konto:
 `https://singmotion-ai-staging.up.railway.app/api/stripe-webhook`
