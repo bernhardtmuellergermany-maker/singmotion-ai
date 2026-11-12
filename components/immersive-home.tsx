@@ -209,7 +209,7 @@ export function ImmersiveHome(){
  const unlockSoundAfterGesture=useRef(false);
  const [failed,setFailed]=useState<Record<number,boolean>>({});
  const [loaded,setLoaded]=useState<Record<number,boolean>>({});
- const [footerLinks,setFooterLinks]=useState<{label:string;url:string}[]>([]);
+ const footerLinks=[{label:"Help",url:"/help"},{label:"Legals",url:"/legal"},{label:"Contact",url:"/contact"}] as const;
  const feed=useRef<HTMLDivElement>(null);
  const firstScreen=useRef<HTMLDivElement>(null);
  const touchStart=useRef<{x:number;y:number;atTop:boolean}|null>(null);
@@ -217,13 +217,6 @@ export function ImmersiveHome(){
  const refreshCircle=useRef<HTMLDivElement>(null);
  const pullDistance=useRef(0);
  const refreshGesture=useRef(false);
- useEffect(()=>{
-  let active=true;
-  fetch("/api/site-footer",{cache:"no-store"}).then(r=>r.ok?r.json():null)
-   .then(data=>{if(active&&Array.isArray(data?.links))setFooterLinks(data.links);})
-   .catch(()=>{});
-  return()=>{active=false};
- },[]);
   const clip=clips[currentClip]??null;
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  useEffect(()=>{
