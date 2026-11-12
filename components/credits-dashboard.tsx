@@ -3,20 +3,17 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { creditTone } from "@/lib/commerce/credit-display";
+import { CreditAmountPicker } from "@/components/credit-amount-picker";
 
 type Entry = { id: string; credits: number; type: "video" | "returned" | "adjustment"; created: number };
 type Balance = { availableCredits: number; reservedCredits: number; totalCredits: number; purchaseEnabled: false; entries: Entry[] };
-type View = "loading" | "signed-out" | "unavailable" | "ready";
-const packs = [
-  { euro: 20, credits: 2000 },
-  { euro: 40, credits: 4000 },
-  { euro: 100, credits: 10000 },
-] as const;
+type View = "loading" | "signed-out" | "unavailable" | "ready" | "admin-preview";
 const number = (value: number) => new Intl.NumberFormat("en-US").format(value);
 
 export function CreditsDashboard({ mode }: { mode: "buy" | "usage" }) {
   const [view, setView] = useState<View>("loading");
   const [balance, setBalance] = useState<Balance | null>(null);
+  const [testCredits, setTestCredits] = useState(1500);
 
   useEffect(() => {
     let active = true;
@@ -25,7 +22,11 @@ export function CreditsDashboard({ mode }: { mode: "buy" | "usage" }) {
         .then(async (response) => {
           if (response.status === 401) { if (active) setView("signed-out"); return; }
           if (!response.ok) throw new Error("Balance unavailable");
-          const result = await response.json() as Balance;
+          const result = await response.json() as Balance & { staffPreview?: boolean };
+          if (result.staffPreview === true) {
+            if (active) { setBalance(null); setView("admin-preview"); }
+            return;
+          }
           if (!Number.isSafeInteger(result.availableCredits) || result.availableCredits < 0 ||
               !Number.isSafeInteger(result.reservedCredits) || result.reservedCredits < 0 ||
               !Array.isArray(result.entries)) throw new Error("Invalid balance");
@@ -52,6 +53,23 @@ export function CreditsDashboard({ mode }: { mode: "buy" | "usage" }) {
       <p>We cannot confirm your credit balance right now. No credits have been purchased or charged by this page.</p>
       <Link href="/account/settings">Account settings</Link>
     </section>}
+    {view === "admin-preview" && <section className="sm-credits-summary sm-credits-admin-preview" aria-label="Super Admin credit preview">
+      <div className="sm-credits-admin-body">
+        <span className="sm-credits-eyebrow">Super Admin · Testansicht</span>
+        <strong className={`sm-credits-balance sm-credits-${creditTone(testCredits)}`}>{number(testCredits)} <span className="sm-credits-preview-unit">Test-Credits</span></strong>
+        <p className="sm-credits-muted">Nur eine visuelle Vorschau. Kein Kundenkonto, keine echten Credits, keine Zahlung und keine Buchung.</p>
+        <div className="sm-credits-admin-controls" role="group" aria-label="Test credit balance and warning colors">
+          {[0, 500, 1500].map(amount => <button key={amount} type="button"
+            aria-pressed={testCredits===amount} onClick={()=>setTestCredits(amount)}>
+            {number(amount)} Credits
+          </button>)}
+        </div>
+        {mode==="usage" && <div className="sm-credits-admin-usage">
+          <h2>Usage preview</h2><p className="sm-credits-muted">Nach Aufladung +2.000, Videogenerierung −250, bestätigter Providerfehler: 250 Credits entsperrt. Beispieldaten, keine echten Transaktionen.</p>
+        </div>}
+      </div>
+      <div className="sm-credits-summary-links"><Link href="/credits">Credit options</Link><Link href="/usage">Usage preview</Link></div>
+    </section>}
     {view === "ready" && balance && <>
       <section className="sm-credits-summary" aria-label="Credit overview">
         <div><span className="sm-credits-eyebrow">Available credits</span>
@@ -74,16 +92,6 @@ export function CreditsDashboard({ mode }: { mode: "buy" | "usage" }) {
          </li>)}</ul>}
       </section>}
     </>}
-    {mode === "buy" && <section className="sm-credits-packs" aria-label="Proposed top-up packages">
-      <div className="sm-credits-section-head"><h2>Choose a credit package</h2><span className="sm-credits-coming">Coming soon</span></div>
-      <p className="sm-credits-muted">Proposed prepaid packages. Purchases are not enabled yet, and these packages cannot be ordered on this page.</p>
-      <div className="sm-credits-pack-grid">{packs.map((pack) => <article key={pack.euro} className="sm-credits-pack">
-        <strong>€{pack.euro}</strong><span>{number(pack.credits)} Credits</span>
-        <small>Including VAT · proposed</small>
-      </article>)}</div>
-      <p className="sm-credits-muted">1 credit equals €0.01 of internal video credit. A custom amount and optional auto top-up are planned only after payment, refund and spending-limit checks are complete.</p>
-      <span className="sm-credits-disabled-purchase" aria-disabled="true">Stripe credit purchases not yet available</span>
-      <p className="sm-credits-muted">Credits are not cash and cannot be transferred. Consumer rights and refunds remain governed by applicable law.</p>
-    </section>}
+    {mode === "buy" && <CreditAmountPicker/>}
   </div>;
 }
