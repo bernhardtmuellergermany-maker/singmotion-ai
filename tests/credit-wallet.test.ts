@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
 import {randomUUID} from "node:crypto";
-import {CreditWallet,stripeCreditTopupsTestEnabled} from "../lib/commerce/credit-wallet.ts";
+import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 
 const safeEnv={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
  STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"true",
@@ -106,5 +106,47 @@ test("nonbillable provider prefilter rejection releases Credits, uncertain failu
   assert.equal(w.reserved(identity.subject),0);
   assert.equal(w.available(identity.subject),500);
   assert.equal(w.entries(identity.subject).filter(x=>x.type==="video-release").length,1);
+ }finally{db.close();}
+});
+
+test("live credit purchases require independent reviewed billing, tax and launch switches",()=>{
+ const approved={
+  RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
+  STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",STRIPE_LIVE_CHECKOUT_ENABLED:"true",
+  PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",
+  STRIPE_CREDIT_TAX_REVIEW_APPROVED:"true",STRIPE_CREDIT_TAX_CODE:"txcd_10000000",
+  STRIPE_SECRET_KEY:"sk_live_mock",STRIPE_WEBHOOK_SECRET:"whsec_mock"
+ };
+ assert.equal(stripeCreditTopupsLiveEnabled(approved),true);
+ for(const change of [
+  {RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"},
+  {STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"false"},
+  {STRIPE_LIVE_CHECKOUT_ENABLED:"false"},
+  {PUBLIC_CUSTOMER_LAUNCH_APPROVED:"false"},
+  {STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"false"},
+  {STRIPE_CREDIT_TAX_REVIEW_APPROVED:"false"},
+  {STRIPE_CREDIT_TAX_CODE:""},
+  {STRIPE_SECRET_KEY:"sk_test_mock"},
+  {STRIPE_WEBHOOK_SECRET:""},
+ ])assert.equal(stripeCreditTopupsLiveEnabled({...approved,...change}),false);
+});
+test("live Stripe credit payment is account bound, settles once and reverses once",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db);
+  const identity={subject:"customer:live-customer",email:"live@example.test",customerId:"live-customer"};
+  const purchase=wallet.pending(identity,1500,randomUUID());
+  wallet.bind(purchase.id,"cs_live_valid123","https://checkout.stripe.com/c/pay/live");
+  const paid={id:purchase.id,sessionId:"cs_live_valid123",amount:purchase.cents,
+   currency:"eur",paymentStatus:"paid",livemode:true};
+  assert.throws(()=>wallet.settle({...paid,livemode:false}),/mismatch/);
+  assert.equal(wallet.settle(paid),true);
+  assert.equal(wallet.settle(paid),false);
+  assert.equal(wallet.total(identity.subject),1500);
+  assert.throws(()=>wallet.reverse({sessionId:paid.sessionId,amount:paid.amount,
+   currency:"eur",livemode:false,kind:"refund"}),/mismatch/);
+  assert.equal(wallet.reverse({sessionId:paid.sessionId,amount:paid.amount,
+   currency:"eur",livemode:true,kind:"refund"}),true);
+  assert.equal(wallet.total(identity.subject),0);
  }finally{db.close();}
 });
