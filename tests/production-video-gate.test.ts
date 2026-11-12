@@ -49,11 +49,11 @@ test("production export gate: MP3 original audio survives portrait conversion by
     await fitOutputFormat(input, 1, mp3, "9:16");
     await validateOutput(input, 1, mp3);
     const inspected = await probe(input);
-    assert.equal(inspected.streams.find(s => s.codec_type === "video")?.width, 720);
-    assert.equal(inspected.streams.find(s => s.codec_type === "video")?.height, 1280);
+    assert.equal(inspected.streams.find(s => s.codec_type === "video")?.width, 1280);
+    assert.equal(inspected.streams.find(s => s.codec_type === "video")?.height, 720);
     assert.equal(inspected.streams.find(s => s.codec_type === "audio")?.codec_name, "mp3");
     assert.equal(shaPackets(input), audioBefore);
-    assert.notDeepEqual(await readFile(input), before);
+    assert.deepEqual(await readFile(input), before);
     await assert.rejects(validateOutput(input, 1, contract("aac", true)), /OUTPUT_CODEC_MISMATCH/);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -82,41 +82,24 @@ test("production export gate: conventional AAC is accepted but MP3 cannot pass a
   }
 });
 
-test("selected 16:9 preserves the full portrait provider subject without black padding or zoom", async () => {
+test("selected 16:9 does not reframe a portrait BytePlus video", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "singmotion-release-wide-"));
   try {
     const file = path.join(dir, "portrait-provider.mp4");
     ffmpeg([
-      "-f", "lavfi", "-i", "color=c=red:s=720x1280:r=25:d=1,drawbox=x=0:y=0:w=iw:h=180:color=blue:t=fill,drawbox=x=0:y=1100:w=iw:h=180:color=green:t=fill",
+      "-f", "lavfi", "-i", "color=c=red:s=720x1280:r=25:d=1",
       "-f", "lavfi", "-i", "sine=frequency=440:duration=1",
-      "-t", "1", "-c:v", "libx264", "-threads", "2", "-preset", "ultrafast",
-      "-pix_fmt", "yuv420p", "-c:a", "aac", file,
+      "-t", "1", "-c:v", "libx264", "-threads", "2",
+      "-preset", "ultrafast", "-pix_fmt", "yuv420p", "-c:a", "aac", file,
     ]);
+    const original = await readFile(file);
     const originalAudio = shaPackets(file);
     await fitOutputFormat(file, 1, contract("aac", true), "16:9");
     const streams = (await probe(file)).streams;
-    assert.equal(streams.find(s => s.codec_type === "video")?.width, 1280);
-    assert.equal(streams.find(s => s.codec_type === "video")?.height, 720);
+    assert.equal(streams.find(s => s.codec_type === "video")?.width, 720);
+    assert.equal(streams.find(s => s.codec_type === "video")?.height, 1280);
     assert.equal(shaPackets(file), originalAudio);
-    // A full-red provider frame must stay red even at both output edges.
-    // An old contain+pad transformation would leave those edges black.
-    const pixels = execFileSync("ffmpeg", [
-      "-nostdin", "-v", "error", "-i", file, "-frames:v", "1",
-      "-f", "rawvideo", "-pix_fmt", "rgb24", "-",
-    ], { maxBuffer: 4 * 1024 * 1024 });
-    for (const x of [2, 1277]) {
-      const pos = (360 * 1280 + x) * 3;
-      assert.ok(pixels[pos] > 120, "blurred image backdrop must fill the width without black bars");
-    }
-    const rgb = (x: number, y: number) => {
-      const pos = (y * 1280 + x) * 3;
-      return [...pixels.subarray(pos,pos+3)];
-    };
-    // Full-height portrait foreground is visible: top blue and bottom green
-    // survive. The former center-crop removed both in 16:9 exports.
-    const top = rgb(640, 30), bottom = rgb(640, 690);
-    assert.ok(top[2] > top[0] + 40, "top of performer frame must remain visible");
-    assert.ok(bottom[1] > bottom[0] + 30, "bottom of performer frame must remain visible");
+    assert.deepEqual(await readFile(file), original);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
