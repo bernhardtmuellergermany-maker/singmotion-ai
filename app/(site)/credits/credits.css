@@ -48,3 +48,6 @@
 .sm-credits-history-equivalent{display:block;font-size:11px;color:#b3a0ce;font-weight:500}
 .sm-credits-history li>strong{flex-shrink:0}
 @media(max-width:500px){.sm-credits-history li{align-items:flex-start}.sm-credits-history li>strong{font-size:12px;max-width:45%}}
+
+/* A fixed header must not hide Buy Credits and Usage anchor headings. */
+#buy-credits,#usage{scroll-margin-top:calc(var(--sm-nav-height,70px) + 25px)}
