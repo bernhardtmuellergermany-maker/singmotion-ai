@@ -8,6 +8,7 @@ import "./prompt-visibility.css";
 import "./studio-refinement.css";
 import "./login-brand.css";
 import "./carousel.css";
+import "./site-navigation.css";
 export const metadata: Metadata = {
   title: {
     default: "SingMotion AI — Your music. Your performance.",
