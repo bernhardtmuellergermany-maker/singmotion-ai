@@ -79,20 +79,20 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
    {identity==="loading"?<span className="sm-account-menu-info">Checking login…</span>:
     identity==="guest"?<>
      <Link href="/login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>
-     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Pricing</Link>
     </>:
     (identity==="customer"||identity==="super-admin")?<>
      <div className={`sm-account-credit-status sm-account-credit-${creditTone(creditState==="ready"?availableCredits:null)}`} role="status" aria-live="polite">
       <span>Available credits</span>
       <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("en-GB").format(availableCredits):"—"}</strong>
-      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":"Top up credits"):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
+      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":<Link href="/credits#buy-credits" className="sm-account-topup-link" onClick={()=>{if(menu.current)menu.current.open=false}}>Top up credits</Link>):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
      </div>
-     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Buy Credits & Usage</Link>
-     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
+     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credits</Link>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      <button type="button" disabled={busy} onClick={()=>void (identity==="super-admin"?logoutStaff():logout())}>{busy?"Signing out…":"Logout"}</button>
     </>:<>
-     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Staff logout"}</button>
     </>}
