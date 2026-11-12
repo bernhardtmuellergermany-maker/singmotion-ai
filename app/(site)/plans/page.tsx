@@ -1,7 +1,6 @@
 import type {Metadata} from "next";
 import Link from "next/link";
 import {Check, Music2, Sparkles, ShieldCheck} from "lucide-react";
-import {OutputProjectSearch} from "@/components/output-project-search";
 import {SiteHeader} from "@/components/site-header";
 import "./plans.css";
 export const metadata:Metadata={
@@ -10,7 +9,7 @@ export const metadata:Metadata={
 };
 export default function PlansPage(){
  return <div className="sm-carousel-page sm-plans-page">
-  <SiteHeader search={<OutputProjectSearch/>} />
+  <SiteHeader />
   <main className="sm-plans">
   <div className="sm-plans-glow" aria-hidden="true"/>
   <section className="sm-plans-intro">
