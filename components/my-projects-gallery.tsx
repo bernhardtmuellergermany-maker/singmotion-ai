@@ -249,11 +249,12 @@ export function MyProjectsGallery(){
               {item.status==="completed"?<Check size={13}/>:item.status==="draft"?<SquarePen size={12}/>:item.status==="review"?<Eye size={12}/>:<Clock3 size={12}/>}
               {statusText(item.status)}
             </span>
-            <div className="sm-projects-meta"><span><Video size={13}/>{item.format} · {item.duration>0?`${Math.round(item.duration)} sec`:"—"}</span>
-              <span><CalendarDays size={13}/>{safeDate(item.date)}</span></div>
           </div>
         </Link>
-        <div className="sm-projects-card-footer">
+        <div className="sm-projects-card-details">
+          <div className="sm-projects-meta"><span><Video size={13}/>{item.format} · {item.duration>0?`${Math.round(item.duration)} sec`:"—"}</span>
+            <span><CalendarDays size={13}/>{safeDate(item.date)}</span></div>
+          <div className="sm-projects-card-footer">
           {renaming===item.id?<form className="sm-projects-rename-form" onSubmit={event=>{event.preventDefault();void renameProject(item)}}>
             <input aria-label="New project name" autoFocus maxLength={80} value={renameText} disabled={busyId===item.id} onChange={event=>setRenameText(event.target.value)} onKeyDown={event=>{if(event.key==="Escape")setRenaming(null)}}/>
             <button type="submit" disabled={busyId===item.id||!renameText.trim()}>Save</button>
@@ -268,6 +269,7 @@ export function MyProjectsGallery(){
               {item.kind==="customer"&&<small>Paid orders cannot be deleted here.</small>}
             </div>
           </details>}
+          </div>
         </div>
         {item.supportId&&<div className="sm-projects-support" title={`Support ID: ${item.supportId}`}>
           <span>Support ID</span><code>{item.supportId.slice(0,8)}…</code>
