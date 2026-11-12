@@ -5,6 +5,9 @@ import {
 } from "@/lib/live/studio-budget-review";
 import { FxReferenceError } from "@/lib/live/fx-reference";
 import { createHash } from "node:crypto";
+import path from "node:path";
+import {CommerceStore} from "@/lib/commerce/store";
+import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
 import { NextRequest } from "next/server";
 import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
@@ -306,6 +309,20 @@ async function handler(req: NextRequest) {
         "Choose a saved Studio project.",
       );
     if (body.action === "submit") {
+      // The same wallet shown on /credits MUST be the wallet used for billing.
+      // An overlapping customer session takes precedence over CMS staff identity
+      // in the account menu; refuse to charge a different, hidden wallet.
+      if(!isSuperAdmin)
+        throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","A verified Super Admin wallet is required for private paid generation.",403);
+      const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+      let creditSubject:string|null=null;
+      try{
+        const identity=await resolveCreditWalletIdentity(req,commerce);
+        creditSubject=identity?.subject??null;
+      }finally{commerce.close();}
+      if(creditSubject!=="super-admin:"+String(user!.id))
+        throw new StudioLiveError("CREDIT_ACCOUNT_MISMATCH",
+         "Sign out of any customer account before using your Super Admin Credits. The account on /credits must match this Studio session.",403);
       requireRights(body.consent, body.termsVersion);
       const project = service.view(body.id, owner);
       recordRights(
@@ -337,6 +354,7 @@ async function handler(req: NextRequest) {
           body.digest,
           body.ceilingMicroUsd,
           body.confirmation,
+          creditSubject,
         ),
       );
     }

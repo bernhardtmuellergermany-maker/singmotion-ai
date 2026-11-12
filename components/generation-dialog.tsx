@@ -374,8 +374,8 @@ export function GenerationDialog({
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
-      {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. This is an informational preview; no credits are reserved or deducted.</p>}
-      <p className="sm-confirm-notice">New credit-based customer generation and payment holds are not yet enabled. <Link href="/credits#buy-credits">Buy Credits</Link> in the staging test wallet; no customer video payment is initiated here.</p>
+      {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"Customer credit-paid generation is not yet enabled, so this preview does not deduct Credits.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
+      <p className="sm-confirm-notice">{customerFlow?"Customer video generation with Credits is not yet enabled.":<>Your own wallet must contain enough available Credits. <Link href="/credits#buy-credits">Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
       <label className="consent sm-confirm-consent">
         <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
         <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
@@ -401,7 +401,7 @@ export function GenerationDialog({
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerFlow ?
           <Link href="/credits#buy-credits" className="product-secondary" onClick={onClose}>Open Credits</Link> :
-          <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : "Generate video (operator test)"}</button>}
+          <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : `Generate video · ${creditPrice}`}</button>}
       </div>
     </dialog>
   );

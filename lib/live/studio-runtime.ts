@@ -150,7 +150,7 @@ export function studioRuntime(
         },
       };
     },
-  }, superAdmin);
+  }, superAdmin, true); // Real deployments always require prepaid credits for private provider jobs.
   return {
     service,
     close: () => {

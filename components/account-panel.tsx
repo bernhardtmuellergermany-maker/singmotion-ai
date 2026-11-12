@@ -83,8 +83,9 @@ export function AccountPanel({active}:{active:boolean}){
  return <div className="sm-carousel-login" data-mode={mode}>
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
-  {!account&&<p className="sm-account-intro">{mode==="register"?"Save your videos and drafts in your own private workspace.":"Sign in to access your videos and projects from this account."}</p>}
-  {!account&&<Link className="sm-account-pricing-link" href="/plans">Pricing</Link>}
+  {!account&&<p className="sm-account-intro">{mode==="register"
+   ?"Build your private AI music-video workspace. Save drafts, create performances and keep every generation in one place."
+   :"Sign in to bring your music to life with AI-generated videos. Your studio, projects and Credits are ready."}</p>}
   {account?<div className="sm-account-signed-in">
     <p className="sm-account-email">{account}</p>
     <AccountCreditSummary active={active} staff={staff} superAdmin={superAdmin}/>

@@ -43,7 +43,7 @@ export function SuperAdminGeneration({id}:{id:string}){
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;
  return <main id="content" className="sm-super-admin-generation">
    <GenerationStatusView progress={progress} paymentMode="super-admin"
-     providerSeconds={project?.durationSeconds??null}
+     creditCharge={project?.creditCharge}
      photoUrl={project?.imageId?`/api/assets/${encodeURIComponent(project.imageId)}`:null}
      format={project?.selection.outputFormat}
      videoUrl={project?.outputReady?link:null}

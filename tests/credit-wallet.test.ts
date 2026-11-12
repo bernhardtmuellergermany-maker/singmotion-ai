@@ -53,3 +53,58 @@ test("out-of-range and fractional credit purchases cannot enter the ledger",()=>
   for(const n of [0,499,100001,1.5,NaN])assert.throws(()=>w.pending(identity,n,randomUUID()),/Invalid credit amount/);
  }finally{db.close();}
 });
+test("video credits are held before provider submission, billed once only after verified output",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const w=new CreditWallet(db);
+  const admin={subject:"super-admin:42",email:"admin@example.test",customerId:null};
+  const customer={subject:"customer:alice",email:"alice@example.test",customerId:"alice"};
+  const topup=w.pending(admin,500,randomUUID());
+  w.bind(topup.id,"cs_test_video500","https://checkout.stripe.com/c/pay/video");
+  w.settle({id:topup.id,sessionId:"cs_test_video500",amount:500,currency:"eur",paymentStatus:"paid",livemode:false});
+  const job=randomUUID(),another=randomUUID(),unpaid=randomUUID();
+  assert.equal(w.total(admin.subject),500);
+  assert.equal(w.available(admin.subject),500);
+  assert.throws(()=>w.reserveVideo(job,customer.subject,125),/Insufficient video credits/);
+  assert.equal(w.reserveVideo(job,admin.subject,125).state,"reserved");
+  assert.equal(w.reserveVideo(job,admin.subject,125).state,"reserved");
+  assert.throws(()=>w.reserveVideo(job,admin.subject,150),/conflict/);
+  assert.throws(()=>w.reserveVideo(job,customer.subject,125),/conflict/);
+  assert.equal(w.reserved(admin.subject),125);
+  assert.equal(w.total(admin.subject),500,"reserving must not record a completed spend");
+  assert.equal(w.available(admin.subject),375);
+  assert.throws(()=>w.reserveVideo(another,admin.subject,376),/Insufficient video credits/);
+  assert.equal(w.reconcileVideo(job,"review")?.state,"review");
+  assert.equal(w.reserved(admin.subject),125,"uncertain provider response retains hold");
+  assert.equal(w.reconcileVideo(job,"completed")?.state,"settled");
+  assert.equal(w.reconcileVideo(job,"completed")?.state,"settled","duplicate webhook or page refresh must not recharge");
+  assert.equal(w.reserved(admin.subject),0);
+  assert.equal(w.total(admin.subject),375);
+  assert.equal(w.available(admin.subject),375);
+  assert.equal(w.entries(admin.subject).filter(x=>x.type==="video").length,1);
+  assert.equal(w.entries(admin.subject).find(x=>x.type==="video")?.credits,-125);
+  assert.equal(w.reconcileVideo(unpaid,"completed"),null,"historical uncharged tasks remain uncharged");
+  assert.equal(w.total(admin.subject),375);
+  assert.throws(()=>w.reserveVideo(job,admin.subject,125),/final/);
+  assert.equal(w.available(customer.subject),0,"staff and customer wallets remain isolated");
+ }finally{db.close();}
+});
+test("nonbillable provider prefilter rejection releases Credits, uncertain failure does not",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const w=new CreditWallet(db),identity={subject:"customer:c1",email:"customer@example.test",customerId:"c1"};
+  const purchase=w.pending(identity,500,randomUUID());
+  w.bind(purchase.id,"cs_test_refundA","https://checkout.stripe.com/c/pay/release");
+  w.settle({id:purchase.id,sessionId:"cs_test_refundA",amount:500,currency:"eur",paymentStatus:"paid",livemode:false});
+  const job=randomUUID();w.reserveVideo(job,identity.subject,150);
+  assert.equal(w.available(identity.subject),350);
+  assert.equal(w.reconcileVideo(job,"review")?.state,"review");
+  assert.equal(w.available(identity.subject),350);
+  assert.equal(w.reconcileVideo(job,"nonbillable")?.state,"released");
+  assert.equal(w.reconcileVideo(job,"nonbillable")?.state,"released");
+  assert.equal(w.total(identity.subject),500);
+  assert.equal(w.reserved(identity.subject),0);
+  assert.equal(w.available(identity.subject),500);
+  assert.equal(w.entries(identity.subject).filter(x=>x.type==="video-release").length,1);
+ }finally{db.close();}
+});

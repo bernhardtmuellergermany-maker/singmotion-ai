@@ -8,7 +8,8 @@ import {CreditAmountPicker} from "@/components/credit-amount-picker";
 type Ledger={id:string;credits:number;type:string;reference:string;created:number};
 type Order={id:string;projectId:string;credits:number;euros:number;created:number;status:string};
 type Purchase={id:string;credits:number;cents:number;status:string;created:number};
-type Balance={availableCredits:number;reservedCredits:number;outstandingCredits:number;
+type VideoReservation={projectId:string;credits:number;state:"reserved"|"review";created:number};
+type Balance={videoReservations?:VideoReservation[];availableCredits:number;reservedCredits:number;outstandingCredits:number;
  purchaseEnabled:boolean;testMode:boolean;entries:Ledger[];legacyOrders:Order[];purchases:Purchase[]};
 type View="loading"|"signed-out"|"unavailable"|"ready";
 const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
@@ -61,11 +62,20 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
     <p className="sm-credits-muted">View your recorded credit transactions and previously paid video orders. Past euro payments are shown as a credit equivalent only; they have not been deducted from your balance again.</p>
+    {(balance.videoReservations?.length??0)>0&&<div className="sm-credits-history-section">
+      <h3>Video credit holds</h3>
+      <p className="sm-credits-muted">Credits on hold are not yet spent. Uncertain provider outcomes remain reserved until verified and reconciled.</p>
+      <ul>{balance.videoReservations?.map(hold=><li key={hold.projectId}>
+        <span><strong>{hold.state==="review"?"Provider billing review":"Video generation in progress"}</strong>
+        <small>{date(hold.created)} · {hold.projectId.slice(0,24)}</small></span>
+        <strong>{num(hold.credits)} Credits reserved</strong>
+      </li>)}</ul>
+     </div>}
     <div className="sm-credits-history-section">
      <h3>Credit transactions</h3>
      {balance.entries.length===0?<p className="sm-credits-empty">No credit transactions recorded yet.</p>:
       <ul>{balance.entries.map(entry=><li key={entry.id}>
-       <span><strong>{entry.type==="purchase"?"Credits purchased":entry.type==="video"?"Video paid with credits":entry.type==="refund"?"Refund":entry.type==="dispute"?"Payment dispute":"Credit adjustment"}</strong>
+       <span><strong>{entry.type==="purchase"?"Credits purchased":entry.type==="video"?"Video paid with credits":entry.type==="video-release"?"Video credit hold released":entry.type==="refund"?"Refund":entry.type==="dispute"?"Payment dispute":"Credit adjustment"}</strong>
        <small>{date(entry.created)} · {entry.reference.slice(0,24)}</small></span>
        <strong className={entry.credits>0?"sm-credits-positive":""}>{entry.credits>0?"+":""}{num(entry.credits)} Credits</strong>
       </li>)}</ul>}

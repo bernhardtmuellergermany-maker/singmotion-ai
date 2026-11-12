@@ -5,12 +5,12 @@ import "./generation-status-view.css";
 
 export type GenerationProgress = "verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,providerSeconds,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,
+  progress,paymentMode,amount,creditCharge,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
   amount?:number|null;
-  providerSeconds?:number|null;
+  creditCharge?:{credits:number;status:"estimated"|"reserved"|"review"|"settled"|"released"|"legacy"};
   photoUrl?:string|null;
   format?:"9:16"|"16:9";
   videoUrl?:string|null;
@@ -21,14 +21,14 @@ export function GenerationStatusView({
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
   const admin=paymentMode==="super-admin";
-  const paymentConfirmed=admin?!["unavailable","prepared"].includes(progress):!["verifying-payment","unavailable"].includes(progress);
+  const paymentConfirmed=admin?!!creditCharge&&["reserved","review","settled","released"].includes(creditCharge.status):!["verifying-payment","unavailable"].includes(progress);
   const working=progress==="processing";
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
   const failed=progress==="failed";
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
-    {title:admin?"Super Admin authorized":"Payment confirmed",description:admin?"Private generation · no Stripe checkout":"Secure payment verified by Stripe",state:paymentConfirmed?"done" as const:admin?"pending" as const:"active" as const},
+    {title:admin?"Video credit authorization":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Credit reservation checked before provider submission":"Secure payment verified by Stripe",state:paymentConfirmed||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
     {title:"Video generation",description:"Singing, expressions and camera direction",state:ready?"done" as const:working?"active" as const:"pending" as const},
     {title:"Final render & verification",description:"Private output retrieval and technical validation",state:ready?"done" as const:"pending" as const},
     {title:"Ready to download",description:"Your private MP4 is ready",state:ready?"done" as const:"pending" as const},
@@ -45,8 +45,7 @@ export function GenerationStatusView({
     progress==="queued"?"Your request is waiting for processing. You can safely leave this page.":
     working?"Your music video is being created. This can take several minutes.":
     "Your existing project is being checked. Refreshing the page never starts another generation.";
-  const providerEstimate=typeof providerSeconds==="number" && Number.isFinite(providerSeconds) && providerSeconds>0
-    ?`USD ${(providerSeconds*0.07).toFixed(2)} est. · $0.07/sec` : "$0.07 / video second";
+
   const formattedAmount=Number.isSafeInteger(amount)&&amount!==null&&amount!==undefined&&amount>=0
     ?new Intl.NumberFormat("en-IE",{style:"currency",currency:"EUR"}).format(amount/100):null;
   return <section className="sm-gen-page" aria-label="Video generation status">
@@ -57,8 +56,8 @@ export function GenerationStatusView({
     </header>
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
-      <span>{admin?"Super Admin · No checkout required":paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
-      {admin?<strong title="Estimated generation cost based on selected duration; not a final invoice">{providerEstimate}</strong>:
+      <span>{admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Video rejected · Credits released":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
+      {admin?<strong title="Customer-facing credit charge, excluding internal BytePlus costs">{creditCharge?new Intl.NumberFormat("en-GB").format(creditCharge.credits)+" Credits"+(creditCharge.status==="settled"?" charged":creditCharge.status==="reserved"?" reserved":creditCharge.status==="review"?" held for review":creditCharge.status==="released"?" released":" estimated"):"Credit charge unavailable"}</strong>:
        formattedAmount&&paymentConfirmed&&<strong>{formattedAmount} paid</strong>}
     </div>
     <div className="sm-gen-grid">

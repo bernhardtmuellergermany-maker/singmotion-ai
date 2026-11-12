@@ -8,6 +8,8 @@ import { reservedUsd, secondReview } from "./second-test.ts";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "../commerce/store.ts";
+import {CreditWallet,type VideoReservation} from "../commerce/credit-wallet.ts";
+import {quoteVideoCredits} from "../commerce/video-credit-quote.ts";
 import {PlanLedger} from "../commerce/plans.ts";
 import { mkdir, realpath, stat, unlink } from "node:fs/promises";
 import { LiveTestStore, confirmationPhrase, type Attempt } from "./store.ts";
@@ -115,6 +117,7 @@ export interface StudioProject {
   outputReady: boolean;
   budget: ReturnType<typeof euroBudget> | null;
   budgetBlocker: string | null;
+  creditCharge?: {credits:number;status:"estimated"|"reserved"|"review"|"settled"|"released"|"legacy"};
 }
 interface StudioDependencies {
   ready?: () => Promise<void>;
@@ -128,14 +131,17 @@ export class StudioWorkflow {
   readonly config: LiveTestConfig;
   readonly dependencies: StudioDependencies;
   readonly superAdmin: boolean;
+  readonly requirePrepaidCredits: boolean;
   constructor(
     store: LiveTestStore,
     root: string,
     config: LiveTestConfig,
     dependencies: StudioDependencies,
     superAdmin = false,
+    requirePrepaidCredits = false,
   ) {
     this.superAdmin = superAdmin;
+    this.requirePrepaidCredits = requirePrepaidCredits;
     this.store = store;
     this.root = root;
     this.config = config;
@@ -190,10 +196,29 @@ export class StudioWorkflow {
   async currentBudget() {
     return this.budget(validateStudioPolicy(await this.dependencies.policy()));
   }
+  /** Reconcile only an owned, already-bound hold. Unknown provider outcomes
+   * retain credits; never deduct from historical uncharged operator projects. */
+  private reconcileVideoCredit(id:string,state:string,failureCode?:string|null):VideoReservation|null {
+    const store=new CommerceStore(path.join(this.root,"commerce.sqlite"));
+    try {
+      const wallet=new CreditWallet(store.db);
+      if(state==="completed")return wallet.reconcileVideo(id,"completed");
+      if(state==="failed"&&failureCode==="CONTENT_PREFILTER_REJECTED")
+       return wallet.reconcileVideo(id,"nonbillable");
+      if(state==="failed"||state==="uncertain")
+       return wallet.reconcileVideo(id,"review");
+      return wallet.videoReservation(id);
+    }finally{store.close();}
+  }
   async withCurrentBudget(project: StudioProject): Promise<StudioProject> {
-    // Historical EUR reviews remain in the ledger for reporting; they no
-    // longer determine whether an authorized private Studio task can start.
-    return { ...project, budget: null, budgetBlocker: null };
+    if(!this.requirePrepaidCredits)return {...project,budget:null,budgetBlocker:null};
+    const attempt=this.store.get(project.id);
+    const hold=this.reconcileVideoCredit(project.id,attempt.state,attempt.failureCode);
+    const quote=quoteVideoCredits(project.selection.start,project.selection.end);
+    const status=hold?hold.state:attempt.state==="prepared"?"estimated":"legacy";
+    return { ...project, budget:null, budgetBlocker:null,
+      ...(quote?{creditCharge:{credits:hold?.credits??quote.credits,status}}:{})
+    };
   }
 
   view(id: string, owner: string): StudioProject {
@@ -283,6 +308,7 @@ export class StudioWorkflow {
     owner: string,
     actor: string,
     confirmation: unknown,
+    verifiedCreditSubject?: string,
   ) {
     const row = this.row(id, owner),
       a = this.store.get(id);
@@ -522,6 +548,13 @@ export class StudioWorkflow {
     if (!["prepared","completed","failed"].includes(attempt.state))
       throw new StudioLiveError("ACTIVE_TASK","Active or uncertain provider jobs cannot be deleted.",409);
     const file = attempt.outputPath;
+    // An unsubmitted prepared project has no provider task. Deleting it may
+    // safely release its hold, while completed/failed accounting is retained.
+    if(this.requirePrepaidCredits&&attempt.state==="prepared"){
+      const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
+      try{new CreditWallet(commerce.db).reconcileVideo(id,"nonbillable");}
+      finally{commerce.close();}
+    }
     // Keep billing/authorization ledger and immutable provider task evidence
     // for reconciliation. Remove the owned project from every gallery/list.
     this.store.db.prepare("DELETE FROM live_studio_projects WHERE attempt_id=? AND owner=?").run(id,owner);
@@ -879,6 +912,28 @@ export class StudioWorkflow {
       JSON.parse(row.selection_json),
     );
     await this.dependencies.ready?.();
+    // A trusted CMS Super Admin's wallet is required even for private
+    // operator tests. A role/owner string from the browser is never an auth key.
+    // Reserve BEFORE the first externally billable approval/submission.
+    if(this.requirePrepaidCredits){
+      if(!this.superAdmin || verifiedCreditSubject!=="super-admin:"+owner.slice("cms-staff-".length)||
+         !owner.startsWith("cms-staff-"))
+        throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","Verified account required before generating a paid video.",403);
+      const selection=JSON.parse(row.selection_json) as StudioDraftExport;
+      const quote=quoteVideoCredits(selection.start,selection.end);
+      if(!quote)throw new StudioLiveError("CREDIT_QUOTE_INVALID","Select a valid 5–300-second audio excerpt.",400);
+      const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
+      try {
+        const wallet=new CreditWallet(commerce.db);
+        try {wallet.reserveVideo(id,verifiedCreditSubject,quote.credits);}
+        catch(error){
+          if(error instanceof Error&&error.message==="Insufficient video credits")
+           throw new StudioLiveError("INSUFFICIENT_CREDITS",
+             "Not enough available Credits. Top up your wallet before generating this video.",402);
+          throw error;
+        }
+      }finally{commerce.close();}
+    }
     // STAGING customer entitlements are checked at the last gate before any provider approval.
     // Keep operational staff workflows independent of consumer billing.
     if (!this.superAdmin && owner.startsWith("customer-") &&
@@ -898,17 +953,32 @@ export class StudioWorkflow {
       } finally { customerStore.close(); }
     }
     const workflow = this.operator({ ...policy, eurBudget: current.eurBudget });
-    const token = await workflow.approve(
-      id,
-      owner,
-      this.config.operatorSecret,
-      confirmationPhrase(a),
-    );
+    let token:string;
+    try {
+      token = await workflow.approve(
+        id,
+        owner,
+        this.config.operatorSecret,
+        confirmationPhrase(a),
+      );
+    }catch(error){
+      // An approval failure in PREPARED has not started any provider request.
+      // The non-billable hold is safe to release only after re-reading the
+      // durable provider state; never release if another request progressed.
+      if(this.requirePrepaidCredits&&this.store.get(id).state==="prepared"){
+        const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
+        try{new CreditWallet(commerce.db).reconcileVideo(id,"nonbillable");}
+        finally{commerce.close();}
+      }
+      throw error;
+    }
     this.store.db
       .prepare(
         "UPDATE live_studio_projects SET started_at=? WHERE attempt_id=?",
       )
       .run(Date.now(), id);
+    // From this point onward the result may be unknown despite an exception:
+    // keep its hold until a verified provider outcome and never auto-resubmit.
     await workflow.submit(id, owner, token, this.config.operatorSecret);
     return this.withCurrentBudget(this.view(id, owner));
   }
@@ -998,6 +1068,7 @@ export class StudioWorkflow {
     }
     const latest = this.store.get(id);
     this.reconcileHobbyUsage(id, owner, latest.state, latest.failureCode);
+    if(this.requirePrepaidCredits)this.reconcileVideoCredit(id, latest.state, latest.failureCode);
     return this.withCurrentBudget(this.view(id, owner));
   }
   async output(id: string, owner: string) {
