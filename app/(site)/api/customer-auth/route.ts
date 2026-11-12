@@ -12,7 +12,20 @@ const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03d
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(!accountsEnvironment())return json({error:"Accounts unavailable"},403);
+ if(!accountsEnvironment()){
+  // The account dropdown still exposes the isolated credit UI preview for
+  // authenticated CMS super-admins, even when customer payments are gated.
+  if(process.env.CMS_ENABLED==="true"){
+   const {getPayload}=await import("payload");
+   const {default:config}=await import("@payload-config");
+   const {hasRole}=await import("@/cms/policy");
+   const payload=await getPayload({config});
+   const {user}=await payload.auth({headers:req.headers});
+   if(user&&hasRole(user,["super-admin"]))
+    return json({authenticated:true,email:typeof user.email==="string"?user.email:"Staff account",kind:"staff",staffRole:"super-admin"});
+  }
+  return json({error:"Accounts unavailable"},403);
+ }
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
