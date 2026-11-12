@@ -126,3 +126,12 @@
     margin-left:0;
   }
 }
+
+/* Super Admin password management stays in the protected Payload account page. */
+.sm-settings-admin-action{display:inline-flex;align-items:center;justify-content:center;
+ margin:18px 0 0 52px;min-height:42px;padding:10px 17px;border-radius:11px;
+ border:1px solid #9e67d0;background:#563173;color:#fff!important;
+ font-size:14px;font-weight:700;text-decoration:none!important;transition:background .16s ease}
+.sm-settings-admin-action:hover{background:#74439b}
+.sm-settings-admin-action:focus-visible{outline:2px solid #e0b5ff;outline-offset:3px}
+@media(max-width:620px){.sm-settings-admin-action{margin-left:0;width:100%}}
