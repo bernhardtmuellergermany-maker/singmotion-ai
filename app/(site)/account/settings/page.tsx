@@ -30,7 +30,7 @@ export default function AccountSettings(){
  <div className="sm-settings-layout">
   <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
   <div className="sm-settings-content">
-   {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super-admin preview</strong><p className="sm-settings-muted">Read-only layout preview. No customer orders, balance or sessions are shown. Sign in with a test customer account to test password changes and payment history.</p></section>}
+   {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super-Admin-Konto</strong><p className="sm-settings-muted">Dein eigenes Guthaben und deine Credit-Käufe findest du wie bei jedem Kunden unter Credits. Konto-Sicherheit und Benutzerverwaltung erfolgen weiterhin über den Admin-Bereich.</p></section>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
    {data&&<>
     <section id="profile" className="sm-settings-section"><h2>Account information</h2><label>Email address<input readOnly value={data.profile.email}/></label>
@@ -71,12 +71,12 @@ export default function AccountSettings(){
           {!data.staffPreview&&portalAvailable&&<button type="button" disabled={busy} onClick={()=>void manageBilling()}>Manage existing subscription & invoices</button>}
         </>:<>
           <p>One-time top-ups will replace per-video payments. No new monthly subscription.</p>
-          <p className="sm-settings-muted">Credit purchases are not available yet. You can preview amounts and see your recorded credit balance.</p>
+          <p className="sm-settings-muted">Stripe-Testkäufe sind auf Staging möglich, sobald die Testumgebung freigeschaltet ist. Live-Zahlungen sind weiterhin gesperrt.</p>
         </>}
-        <p><Link href="/credits">{data.staffPreview?"Preview Credit purchasing":"Credits & top-up options"}</Link> · <Link href="/usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
+        <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
       </div>
       {storageUsage&&<p className="sm-settings-muted">Uploaded sources: {(storageUsage.usedBytes/1048576).toFixed(1)} / {(storageUsage.limitBytes/1048576).toFixed(0)} MB. Existing purchased video downloads remain separate.</p>}
-      <p>Recorded credit ledger balance: <strong>{data.staffPreview?"Not available in staff preview":data.credits}</strong></p>
+      <p>Recorded credit ledger balance: <strong>{data.credits}</strong></p>
       <p className="sm-settings-muted">Existing paid orders and entitlements are preserved during the credit migration. The amounts below reflect recorded account orders, not necessarily settled charges.</p>
       {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span></div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
     </section>

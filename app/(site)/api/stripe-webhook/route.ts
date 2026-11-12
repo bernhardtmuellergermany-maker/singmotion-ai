@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
+import { CreditWallet, stripeCreditWebhookTestEnabled } from "@/lib/commerce/credit-wallet";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
@@ -25,6 +26,31 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
  if(!response.ok)throw Error("Stripe verification request failed");
  return await response.json() as StripeLookup;
 }
+/** Verify the signed credit event against Stripe's own paid Checkout record. */
+async function reconcileTestCreditPurchase(store:CommerceStore,event:StripeTestEvent){
+ if(!stripeCreditWebhookTestEnabled(process.env))throw Error("Credit webhook settlement unavailable");
+ const obj=event.data?.object;
+ const metadata=obj?.metadata as Record<string,unknown>|undefined;
+ const id=typeof metadata?.creditTopupId==="string"?metadata.creditTopupId:"";
+ if(metadata?.flow!=="singmotion_credit_topup"||!/^[0-9a-f-]{36}$/i.test(id)||
+    typeof obj?.id!=="string"||!/^cs_test_[A-Za-z0-9_]+$/.test(obj.id))
+  throw Error("Invalid credit top-up metadata");
+ const key=customerStripeCredential(process.env,"test");
+ if(!key)throw Error("Stripe test key unavailable");
+ const session=await stripeGet("checkout/sessions/"+encodeURIComponent(obj.id),key,"test");
+ const verifiedMetadata=session.metadata as Record<string,unknown>|undefined;
+ if(session.id!==obj.id||session.mode!=="payment"||session.livemode!==false||
+    verifiedMetadata?.flow!=="singmotion_credit_topup"||verifiedMetadata.creditTopupId!==id)
+  throw Error("Credit Checkout session integrity mismatch");
+ if(session.payment_status!=="paid"){
+  // An asynchronous payment may still be unpaid. It does not grant credits.
+  return;
+ }
+ const wallet=new CreditWallet(store.db);
+ wallet.settle({id,sessionId:obj.id,amount:Number(session.amount_total),
+  currency:String(session.currency||""),paymentStatus:String(session.payment_status),livemode:false});
+}
+
 async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:StripePaymentMode){
  const key=customerStripeCredential(process.env,mode)||"";
  const object=event.data?.object;
@@ -58,6 +84,17 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
    charge.currency!=="eur")
    throw Error("Checkout payment and charge mismatch");
  const bound=store.db.prepare("SELECT order_id FROM stripe_checkout_sessions WHERE session_id=?").get(session.id) as {order_id:string}|undefined;
+ if(!bound && mode==="test" &&
+    process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"){
+  const wallet=new CreditWallet(store.db);
+  if(wallet.findBySession(session.id)){
+   if(refund && (verified.amount!==charge.amount||verified.currency!=="eur"))
+    throw Error("Full credit top-up refund required");
+   wallet.reverse({sessionId:session.id,amount:Number(session.amount_total),
+    currency:String(session.currency||""),livemode:false,kind:refund?"refund":"dispute"});
+   return;
+  }
+ }
  if(!bound)throw Error("Checkout is not bound to an order");
  const evidence="verified-stripe-"+event.id+"-"+verified.id;
  if(refund){
@@ -99,6 +136,14 @@ export async function POST(req: NextRequest) {
     const raw = await readBoundedStripeWebhookBody(req);
     store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
     const event=verifyStripePaymentEvent(raw,signature,secret,mode);
+    // The independently gated STAGING wallet may settle authenticated TEST
+    // purchases even while video fulfillment and public checkout stay blocked.
+    if(mode==="test" &&
+       ["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type||"") &&
+       (event.data?.object?.metadata as Record<string,unknown>|undefined)?.flow==="singmotion_credit_topup"){
+      await reconcileTestCreditPurchase(store,event);
+      return NextResponse.json({received:true},{headers:{"Cache-Control":"no-store"}});
+    }
     if(!stripeWebhookEventAdmitted(event.type,settlementEnabled))
       return NextResponse.json({error:"Stripe payment settlement is paused."},{status:503});
     if(event.type==="checkout.session.completed"||

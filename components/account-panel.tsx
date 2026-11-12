@@ -89,7 +89,7 @@ export function AccountPanel({active}:{active:boolean}){
     <p className="sm-account-email">{account}</p>
     <AccountCreditSummary active={active} staff={staff} superAdmin={superAdmin}/>
     <div className="sm-account-quick-actions">
-      <Link href="/credits" className="sm-account-action sm-account-action-buy">{superAdmin?"Credits kaufen · Testansicht":"Credits kaufen"}</Link>
+      <Link href="/credits" className="sm-account-action sm-account-action-buy">Credits kaufen</Link>
       <Link href="/studio?new=1" className="sm-account-action sm-account-action-create">Video erstellen</Link>
       <Link href="/account/settings" className="sm-account-settings-link">Account settings</Link>
       <button type="button" className="sm-account-signout" disabled={busy} onClick={()=>void act("logout")}>Sign out</button>

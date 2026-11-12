@@ -1,55 +1,66 @@
 "use client";
 
-import { useId, useState } from "react";
-import {
-  MAX_CREDIT_TOPUP, MIN_CREDIT_TOPUP, parseCreditTopup, proposedTopupCents
-} from "@/lib/commerce/credit-topup-quote";
+import {useId,useState} from "react";
+import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,parseCreditTopup,proposedTopupCents} from "@/lib/commerce/credit-topup-quote";
 import "./credit-amount-picker.css";
+const presets=[2000,4000,10000] as const;
+const num=(n:number)=>new Intl.NumberFormat("de-DE").format(n);
+const euro=(n:number)=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(n/100);
 
-const PRESETS = [2000, 4000, 10000] as const;
-const integer = (value: number) => new Intl.NumberFormat("en-US").format(value);
-const euros = (cents: number) => new Intl.NumberFormat("de-DE", {
-  style: "currency", currency: "EUR"
-}).format(cents / 100);
-
-/** A selectable, custom credit quote. Never calls Stripe until the wallet launch gate exists. */
-export function CreditAmountPicker() {
-  const [raw, setRaw] = useState("2000");
-  const inputId = useId();
-  const credits = parseCreditTopup(raw);
-  const cents = credits === null ? null : proposedTopupCents(credits);
-
-  return <section className="sm-credit-amount-picker" aria-label="Choose credit amount">
-    <div className="sm-credit-amount-heading">
-      <div><h2>Choose your credits</h2><p>Pick a popular amount or enter exactly how many credits you want.</p></div>
-      <span className="sm-credit-amount-tag">Preview only</span>
-    </div>
-    <div className="sm-credit-presets" aria-label="Credit amounts">
-      {PRESETS.map(amount => <button type="button" key={amount}
-        aria-pressed={raw === String(amount)} className={raw === String(amount) ? "sm-credit-preset selected" : "sm-credit-preset"}
-        onClick={() => setRaw(String(amount))}>
-        <strong>{integer(amount)}</strong><span>Credits</span><small>{euros(amount)}</small>
-      </button>)}
-    </div>
-    <div className="sm-credit-amount-field">
-      <label htmlFor={inputId}>Or enter your own credit amount</label>
-      <div className="sm-credit-amount-control">
-        <input id={inputId} type="number" min={MIN_CREDIT_TOPUP} max={MAX_CREDIT_TOPUP} step="1"
-          inputMode="numeric" value={raw} onChange={e=>setRaw(e.target.value)}
-          aria-invalid={credits===null} aria-describedby={inputId+"-hint"} />
-        <span>Credits</span>
-      </div>
-      <p id={inputId+"-hint"} className={credits===null?"sm-credit-amount-error":"sm-credit-amount-helper"}>
-        {credits===null
-          ? "Enter a whole number from 500 to 100,000 credits."
-          : "Custom amounts are calculated directly from the entered credit count."}
-      </p>
-    </div>
-    <div className="sm-credit-amount-total" aria-live="polite">
-      <div><span>Selected amount</span><strong>{credits===null?"—":integer(credits)+" Credits"}</strong></div>
-      <div><span>Proposed total · incl. VAT</span><strong>{cents===null?"—":euros(cents)}</strong></div>
-    </div>
-    <div className="sm-credit-amount-disabled" aria-disabled="true">Credit checkout coming soon</div>
-    <p className="sm-credit-amount-footer">No money is collected and no credits are added by this preview. Minimum 500 credits (5 €), maximum 100,000 credits (1,000 €). Final limits and terms require approval.</p>
-  </section>;
+/** UI quote only; server decides the actual Stripe amount, and only in TEST. */
+export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boolean}){
+ const [raw,setRaw]=useState("2000");
+ const [busy,setBusy]=useState(false);
+ const [error,setError]=useState("");
+ const inputId=useId();
+ const credits=parseCreditTopup(raw),cents=credits===null?null:proposedTopupCents(credits);
+ const begin=async()=>{
+  if(!purchaseEnabled||credits===null||busy)return;
+  setBusy(true);setError("");
+  try{
+   const response=await fetch("/api/credit-checkout",{
+    method:"POST",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({credits:String(credits),requestKey:crypto.randomUUID()}),
+   });
+   const data=await response.json() as {url?:string;error?:string;testMode?:boolean};
+   if(!response.ok||!data.testMode||typeof data.url!=="string"||
+      !/^https:\/\/checkout\.stripe\.com\//.test(data.url))
+    throw Error(data.error||"Stripe-Testkauf konnte nicht gestartet werden.");
+   window.location.assign(data.url);
+  }catch(e){setError(e instanceof Error?e.message:"Stripe-Testkauf fehlgeschlagen.");setBusy(false);}
+ };
+ return <div className="sm-credit-amount-picker" aria-label="Credits kaufen">
+  <div className="sm-credit-amount-heading"><div><h2>Credits kaufen</h2>
+   <p>Wähle ein Paket oder gib deine gewünschte Credit-Anzahl selbst ein.</p></div>
+   {purchaseEnabled&&<span className="sm-credit-amount-tag">Stripe Testmodus</span>}
+  </div>
+  <div className="sm-credit-presets" aria-label="Credit-Pakete">
+   {presets.map(amount=><button key={amount} type="button" aria-pressed={raw===String(amount)}
+    className={raw===String(amount)?"sm-credit-preset selected":"sm-credit-preset"}
+    onClick={()=>setRaw(String(amount))}>
+    <strong>{num(amount)}</strong><span>Credits</span><small>{euro(amount)}</small>
+   </button>)}
+  </div>
+  <div className="sm-credit-amount-field">
+   <label htmlFor={inputId}>Eigene Credit-Anzahl eingeben</label>
+   <div className="sm-credit-amount-control"><input id={inputId} inputMode="numeric" type="number" step="1"
+    min={MIN_CREDIT_TOPUP} max={MAX_CREDIT_TOPUP} value={raw}
+    onChange={e=>{setRaw(e.target.value);setError("");}}
+    aria-invalid={credits===null} aria-describedby={inputId+"-hint"}/><span>Credits</span></div>
+   <p id={inputId+"-hint"} className={credits===null?"sm-credit-amount-error":"sm-credit-amount-helper"}>
+    {credits===null?"Bitte 500 bis 100.000 ganze Credits eingeben.":"1 Credit = 0,01 €."}</p>
+  </div>
+  <div className="sm-credit-amount-total" aria-live="polite">
+   <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
+   <div><span>Preis (inkl. MwSt.)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
+  </div>
+  {purchaseEnabled?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null} onClick={()=>void begin()}>
+   {busy?"Stripe wird geöffnet …":"Testkauf mit Stripe"}
+  </button>:<div className="sm-credit-amount-disabled" aria-disabled="true">Credit-Kauf noch nicht freigeschaltet</div>}
+  {error&&<p role="alert" className="sm-credit-amount-error">{error}</p>}
+  <p className="sm-credit-amount-footer">{purchaseEnabled
+   ?"Nur Stripe-Testmodus. Testkartendaten statt echtem Geld; keine Live-Belastung. Credit-Gutschrift nur nach bestätigter Testzahlung."
+   :"Die Beträge sind vorerst eine unverbindliche Preisübersicht. Live-Zahlungen sind gesperrt."}</p>
+ </div>;
 }

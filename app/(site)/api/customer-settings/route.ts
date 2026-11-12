@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
+import {CreditWallet} from "@/lib/commerce/credit-wallet";
 import {PlanLedger,PLAN_RULES} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
@@ -20,7 +21,8 @@ export async function GET(req:NextRequest){
     const payload=await getPayload({config});
     const {user}=await payload.auth({headers:req.headers});
     if(user&&hasRole(user,["super-admin"])){
-     return NextResponse.json({staffPreview:true,plan:{...PLAN_RULES.free,period:"",secondsUsed:0,secondsRemaining:0},profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Date.now()},orders:[],sessions:0,credits:0,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+     const credits=new CreditWallet(store.db).total("super-admin:"+String(user.id));
+     return NextResponse.json({staffPreview:true,plan:{...PLAN_RULES.free,period:"",secondsUsed:0,secondsRemaining:0},profile:{email:typeof user.email==="string"?user.email:"Staff account",created:Date.now()},orders:[],sessions:0,credits,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
     }
    }
    return NextResponse.json({error:"Customer login required"},{status:401});
@@ -31,6 +33,6 @@ export async function GET(req:NextRequest){
   const sessions=store.db.prepare("SELECT COUNT(*) AS count FROM customer_sessions WHERE account_id=? AND expires>?").get(id,Date.now()) as {count:number};
   const credits=store.db.prepare("SELECT COALESCE(SUM(delta),0) AS balance FROM customer_credits WHERE account_id=?").get(id) as {balance:number};
   const plan=new PlanLedger(store.db).snapshot(id);
-  return NextResponse.json({plan,profile,emailVerification:store.verificationState(id),orders,sessions:sessions.count,credits:credits.balance,invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+  return NextResponse.json({plan,profile,emailVerification:store.verificationState(id),orders,sessions:sessions.count,credits:Number(credits.balance)+new CreditWallet(store.db).total("customer:"+id),invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
  }finally{store.close();}
 }

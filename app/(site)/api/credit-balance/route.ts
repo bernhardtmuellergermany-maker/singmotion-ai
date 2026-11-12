@@ -1,81 +1,70 @@
-import { NextRequest, NextResponse } from "next/server";
+import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
-import { CommerceStore } from "@/lib/commerce/store";
-import { dataDir } from "@/lib/db";
-import { stagingDenial } from "@/lib/staging";
-import { customerAccountSettingsAccessible } from "@/lib/commerce/customer-live-config";
+import {CommerceStore} from "@/lib/commerce/store";
+import {CreditWallet,stripeCreditTopupsTestEnabled} from "@/lib/commerce/credit-wallet";
+import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
+import {dataDir} from "@/lib/db";
+import {stagingDenial} from "@/lib/staging";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const runtime="nodejs";
+export const dynamic="force-dynamic";
+const headers={"Cache-Control":"private, no-store","Vary":"Cookie","X-Content-Type-Options":"nosniff"};
+const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers});
 
-const headers = { "Cache-Control": "private, no-store", "Vary": "Cookie", "X-Content-Type-Options": "nosniff" };
-const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers });
-
-/** Read-only, account-scoped historical ledger. No top-up or payment capability. */
-export async function GET(req: NextRequest) {
-  const denied = stagingDenial(req.headers.get("authorization"));
-  if (denied) return denied;
-  if (!customerAccountSettingsAccessible(process.env)) {
-    // CMS super-admins can inspect a visual preview even when the customer
-    // wallet is not enabled. This read-only response contains no ledger data.
-    if (process.env.CMS_ENABLED === "true") {
-      const { getPayload } = await import("payload");
-      const { default: config } = await import("@payload-config");
-      const { hasRole } = await import("@/cms/policy");
-      const payload = await getPayload({ config });
-      const { user } = await payload.auth({ headers: req.headers });
-      if (user && hasRole(user, ["super-admin"]))
-        return json({ staffPreview: true, purchaseEnabled: false });
-    }
-    return json({ error: "Credit overview currently unavailable." }, 403);
+/** All accounts, including a CMS super-admin, see only their real own ledger.
+ * Historical video EUR payments are displayed separately as equivalents,
+ * never counted as newly purchased or consumed wallet credits.
+ */
+export async function GET(req:NextRequest){
+ const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
+ const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+ try{
+  const identity=await resolveCreditWalletIdentity(req,store);
+  if(!identity)return json({error:"Account login required."},401);
+  const wallet=new CreditWallet(store.db);
+  const purchased=wallet.total(identity.subject);
+  let legacy=0,reserved=0;
+  let oldEntries:Array<{id:string;credits:number;type:string;created:number;reference:string}>=[];
+  let oldOrders:Array<{id:string;projectId:string;credits:number;euros:number;created:number;status:string}>=[];
+  if(identity.customerId){
+   const accountId=identity.customerId;
+   const total=store.db.prepare(
+    "SELECT COALESCE(SUM(delta),0) AS total FROM customer_credits WHERE account_id=?"
+   ).get(accountId) as {total:number};
+   const holds=store.db.prepare(
+    "SELECT COALESCE(SUM(cents),0) AS total FROM customer_holds WHERE account_id=? AND state='reserved'"
+   ).get(accountId) as {total:number};
+   legacy=Number(total.total);reserved=Number(holds.total);
+   oldEntries=(store.db.prepare(
+    "SELECT id,delta,kind,created FROM customer_credits WHERE account_id=? ORDER BY created DESC,id DESC LIMIT 100"
+   ).all(accountId) as Array<{id:string;delta:number;kind:string;created:number}>)
+    .map(row=>({id:row.id,credits:row.delta,type:row.kind==="order"?"video":row.kind,
+     created:row.created,reference:row.id}));
+   // Only actual completed customer purchases; not estimates or unpaid orders.
+   oldOrders=(store.db.prepare(`
+    SELECT id,project_id,price_cents,created,status FROM customer_orders
+    WHERE account_id=? AND price_cents>0 AND status IN ('paid','delivered')
+    ORDER BY created DESC LIMIT 100
+   `).all(accountId) as Array<{id:string;project_id:string;price_cents:number;created:number;status:string}>)
+    .map(row=>({id:row.id,projectId:row.project_id,credits:row.price_cents,euros:row.price_cents,
+     created:row.created,status:row.status}));
   }
-
-  const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
-  try {
-    const accountId = store.session(req.cookies.get("sm_customer")?.value || "");
-    if (!accountId) {
-      // An authorized super-admin may preview the wallet UI without any customer's
-      // personal ledger data or a real credit balance.
-      if (process.env.CMS_ENABLED === "true") {
-        const { getPayload } = await import("payload");
-        const { default: config } = await import("@payload-config");
-        const { hasRole } = await import("@/cms/policy");
-        const payload = await getPayload({ config });
-        const { user } = await payload.auth({ headers: req.headers });
-        if (user && hasRole(user, ["super-admin"]))
-          return json({ staffPreview: true, purchaseEnabled: false });
-      }
-      return json({ error: "Customer login required." }, 401);
-    }
-
-    // Legacy ledger uses euro cents as its internal units: one historical unit
-    // is displayed as one credit. New purchases are NOT enabled by this route.
-    const reserved = store.db.prepare(
-      "SELECT COALESCE(SUM(cents),0) AS total FROM customer_holds WHERE account_id=? AND state='reserved'"
-    ).get(accountId) as { total: number };
-    const total = store.db.prepare(
-      "SELECT COALESCE(SUM(delta),0) AS total FROM customer_credits WHERE account_id=?"
-    ).get(accountId) as { total: number };
-    const rows = store.db.prepare(
-      "SELECT id,delta,kind,created FROM customer_credits WHERE account_id=? ORDER BY created DESC,id DESC LIMIT 50"
-    ).all(accountId) as Array<{ id: string; delta: number; kind: string; created: number }>;
-
-    const availableCredits = Math.max(0, Math.trunc(store.balance(accountId)));
-    const reservedCredits = Math.max(0, Math.trunc(Number(reserved.total)));
-    return json({
-      availableCredits,
-      reservedCredits,
-      totalCredits: Math.max(0, Math.trunc(Number(total.total))),
-      currency: "EUR",
-      purchaseEnabled: false,
-      entries: rows.map((row) => ({
-        id: row.id,
-        credits: row.delta,
-        type: row.kind === "order" ? "video" : row.kind === "verified-refund" ? "returned" : "adjustment",
-        created: row.created,
-      })),
-    });
-  } finally {
-    store.close();
-  }
+  const entries=[...wallet.entries(identity.subject),...oldEntries]
+   .sort((a,b)=>b.created-a.created).slice(0,150);
+  const rawBalance=purchased+legacy-reserved;
+  return json({
+   availableCredits:Math.max(0,rawBalance),
+   reservedCredits:Math.max(0,reserved),
+   outstandingCredits:Math.max(0,-rawBalance),
+   currency:"EUR",
+   purchaseEnabled:stripeCreditTopupsTestEnabled(process.env),
+   testMode:stripeCreditTopupsTestEnabled(process.env),
+   entries,
+   legacyOrders:oldOrders,
+   purchases:wallet.purchases(identity.subject),
+  });
+ }catch(e){
+  console.error("Account credit overview failed",{category:e instanceof Error?e.name:"unknown"});
+  return json({error:"Credit balance temporarily unavailable."},503);
+ }finally{store.close()}
 }

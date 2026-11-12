@@ -11,7 +11,6 @@ import "./header-account-menu.css";
 export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const menu=useRef<HTMLDetailsElement>(null);
  const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff"|"super-admin">("loading");
- const [previewCredits,setPreviewCredits]=useState(1500);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [availableCredits,setAvailableCredits]=useState<number|null>(null);
@@ -29,7 +28,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   return()=>{active=false;document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);window.removeEventListener("focus",focus)};
  },[]);
  useEffect(()=>{
-  if(identity!=="customer")return;
+  if(identity!=="customer"&&identity!=="super-admin")return;
   let active=true;
   const refresh=()=>{
    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
@@ -82,31 +81,16 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
      <Link href="/login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
     </>:
-    identity==="customer"?<>
+    (identity==="customer"||identity==="super-admin")?<>
      <div className={`sm-account-credit-status sm-account-credit-${creditTone(creditState==="ready"?availableCredits:null)}`} role="status" aria-live="polite">
-      <span>Available credits</span>
-      <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("en-US").format(availableCredits):"—"}</strong>
-      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":"Top up needed"):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
+      <span>Verfügbare Credits</span>
+      <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("de-DE").format(availableCredits):"—"}</strong>
+      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Guthaben ausreichend":availableCredits>=250?"Guthaben niedrig":"Credits aufladen"):creditState==="loading"?"Guthaben wird geladen …":"Guthaben nicht verfügbar"}</small>
      </div>
-     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Buy Credits</Link>
-     <Link href="/usage" onClick={()=>{if(menu.current)menu.current.open=false}}>Usage</Link>
+     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credits kaufen & Nutzung</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
-     <button type="button" disabled={busy} onClick={()=>void logout()}>{busy?"Logging out…":"Logout"}</button>
-    </>:identity==="super-admin"?<>
-     <div className={`sm-account-credit-status sm-account-credit-${creditTone(previewCredits)}`} role="status">
-      <span>SUPER ADMIN · TEST ONLY</span>
-      <strong>{new Intl.NumberFormat("en-US").format(previewCredits)} <small>Test-Credits</small></strong>
-      <small>Visual preview — not a real wallet</small>
-      <div className="sm-account-preview-buttons" role="group" aria-label="Test credit balance colors">
-       {[0,500,1500].map(amount=><button type="button" key={amount} aria-pressed={amount===previewCredits} onClick={()=>setPreviewCredits(amount)}>{amount}</button>)}
-      </div>
-     </div>
-     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credit test view</Link>
-     <Link href="/usage" onClick={()=>{if(menu.current)menu.current.open=false}}>Usage test view</Link>
-     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
-     <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
-     <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin logout"}</button>
+     <button type="button" disabled={busy} onClick={()=>void (identity==="super-admin"?logoutStaff():logout())}>{busy?"Signing out…":"Logout"}</button>
     </>:<>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
