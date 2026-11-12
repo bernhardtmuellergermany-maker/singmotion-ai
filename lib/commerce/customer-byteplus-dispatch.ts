@@ -28,7 +28,7 @@ export type CustomerBytePlusDispatch={
 export function reviewedCustomerBytePlusCost(media:PreparedMedia,review:CustomerBytePlusDispatch){
  const contract=review.contract;
  if(contract.pilotAdmission || contract.model!=="OmniHuman 2.0"||
-    !contract.promptSupported ||
+    (!!media.prompt.trim() && !contract.promptSupported) ||
     contract.inputFetchWindowSeconds!==inputDeliveryPolicy.minimumRemainingSeconds ||
     !Array.isArray(contract.outputHosts)||contract.outputHosts.length<1||
     !contract.output.transfer || !contract.output.transfer.evidence?.trim() ||
