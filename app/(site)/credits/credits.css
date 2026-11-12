@@ -39,3 +39,19 @@
  .sm-credits-pack-grid{grid-template-columns:1fr;gap:9px}
  .sm-credits-pack{min-height:104px}
 }
+
+/* Super-admin preview is an isolated client-only simulation of wallet states. */
+.sm-credits-admin-preview{border-color:#9e68cd}
+.sm-credits-admin-body{display:grid;gap:11px}
+.sm-credits-admin-body>.sm-credits-balance{display:block}
+.sm-credits-admin-body>.sm-credits-muted{margin:0;max-width:610px}
+.sm-credits-preview-unit{font-size:15px;letter-spacing:0;vertical-align:middle}
+.sm-credits-admin-controls{display:flex;gap:8px;flex-wrap:wrap}
+.sm-credits-admin-controls button{
+ padding:9px 12px;border:1px solid #765c92;border-radius:9px;
+ background:#211b34;color:#e8d8f8;font:inherit;font-size:13px;cursor:pointer;
+}
+.sm-credits-admin-controls button[aria-pressed="true"]{background:#543872;border-color:#c994ef}
+.sm-credits-admin-controls button:focus-visible{outline:2px solid #d18eff;outline-offset:2px}
+.sm-credits-admin-usage{border-top:1px solid #3f3357;margin-top:13px;padding-top:14px}
+.sm-credits-admin-usage h2{margin:0 0 8px;font-size:19px}
