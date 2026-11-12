@@ -15,7 +15,7 @@ export default function Page(){
    </section>
    <section style={{border:"1px solid #5e4775",borderRadius:18,padding:24,background:"linear-gradient(145deg,#211632,#151629)"}}>
     <h2 style={{fontSize:19,margin:"0 0 9px"}}>Invoices & billing settings</h2>
-    <p style={{color:"#c5b8d7",lineHeight:1.65}}>Access issued Stripe documents and manage your account. Existing legacy subscription contracts remain manageable there.</p>
+    <p style={{color:"#c5b8d7",lineHeight:1.65}}>Access issued Stripe documents and manage your account. Issued Stripe invoices and receipts are available when payments are completed.</p>
     <Link href="/account/settings#billing" style={{color:"#e4c2ff",fontWeight:700}}>Account payments</Link>
    </section>
   </div>
