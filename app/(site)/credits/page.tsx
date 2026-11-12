@@ -5,7 +5,7 @@ import "./credits.css";
 
 export const metadata: Metadata = {
   title: "Credits — SingMotion AI",
-  description: "View your real account balance, buy Stripe test credits on staging and review usage.",
+  description: "Track your credit wallet, one-time payments, transaction history and top-up preferences.",
 };
 
 export default function CreditsPage() {
@@ -14,7 +14,7 @@ export default function CreditsPage() {
     <main id="content" className="sm-credits-main">
       <header className="sm-credits-intro"><span className="sm-plans-kicker">SINGMOTION AI · ACCOUNT</span>
         <h1>Your credits<span>.</span></h1>
-        <p>See your available credits, top up your wallet, and review your past orders. Live credit payments and credit-based video generation are not yet enabled.</p>
+        <p>Track your balance, purchase credits when available, set safe top-up preferences and review every transaction. No new monthly subscription.</p>
       </header>
       <CreditsDashboard mode="buy"/>
     </main>
