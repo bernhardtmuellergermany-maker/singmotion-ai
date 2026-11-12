@@ -8,6 +8,9 @@
   --sm-nav-purple:#e043f8;
   --sm-nav-gap:12px;
   --sm-nav-control:44px;
+  /* Match the homepage body typography, not the Arial font inherited on product pages. */
+  --sm-nav-font:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --sm-nav-logo-size:21px;
 }
 .sm-site-header.home-gallery-header.sm-carousel-header,
 .sm-carousel-page>.sm-site-header,
@@ -25,6 +28,10 @@
   z-index:1000!important;
   isolation:isolate!important;
   box-sizing:border-box!important;
+  font-family:var(--sm-nav-font)!important;
+  font-size:14px!important;
+  font-weight:400!important;
+  font-synthesis:none!important;
   display:flex!important;
   flex-flow:row nowrap!important;
   align-items:center!important;
@@ -75,8 +82,8 @@
   margin:0!important;
   padding:0!important;
   min-height:28px!important;
-  font-family:inherit!important;
-  font-size:21px!important;
+  font-family:var(--sm-nav-font)!important;
+  font-size:var(--sm-nav-logo-size)!important;
   font-weight:800!important;
   letter-spacing:-.65px!important;
   line-height:1.2!important;
@@ -87,6 +94,11 @@
   cursor:pointer!important;
   pointer-events:auto!important;
   touch-action:manipulation!important;
+}
+.sm-site-header .sm-site-header-left>.sm-wordmark>span{
+  font:inherit!important;
+  letter-spacing:inherit!important;
+  line-height:inherit!important;
 }
 .sm-site-header .sm-wordmark>span,
 .sm-immersive-home .sm-immersive-header .sm-wordmark>span,
@@ -163,7 +175,7 @@
 }
 @media(max-width:760px){
   :root{--sm-nav-height:64px;--sm-nav-inset:14px}
-  .sm-site-header .sm-site-header-left>.sm-wordmark{font-size:20px!important}
+  :root{--sm-nav-logo-size:20px}
 }
 
 /* The output page must not allow its media player or status panel to win
