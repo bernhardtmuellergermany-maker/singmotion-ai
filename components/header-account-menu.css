@@ -47,3 +47,17 @@
 
 
 /* Shared logo and navigation control appearance is defined only in app/(site)/site-navigation.css. */
+
+/* Real account balance — never infer a paid wallet from the demo workspace. */
+.sm-account-credit-status{
+ display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+ margin:4px 3px 9px;padding:14px 15px;border:1px solid #5b4c78;
+ border-radius:12px;background:linear-gradient(135deg,#242038,#191827);
+}
+.sm-account-credit-status>span{color:#c2b6d7;font-size:11px;letter-spacing:.09em;text-transform:uppercase;font-weight:750}
+.sm-account-credit-status>strong{font-size:25px;font-weight:800;letter-spacing:-.035em;line-height:1.25}
+.sm-account-credit-status>small{color:#b7a9c5;font-size:11px}
+.sm-account-credit-healthy>strong{color:#5ee09a}
+.sm-account-credit-low>strong{color:#ffcf6a}
+.sm-account-credit-critical>strong{color:#ff8491}
+.sm-account-credit-unknown>strong{color:#b6b0c4}

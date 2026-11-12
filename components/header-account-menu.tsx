@@ -2,6 +2,7 @@
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {UserRound} from "lucide-react";
+import {creditTone} from "@/lib/commerce/credit-display";
 import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import {resetSession} from "@/lib/client";
 import "./header-account-menu.css";
@@ -12,6 +13,8 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff">("loading");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
+ const [availableCredits,setAvailableCredits]=useState<number|null>(null);
+ const [creditState,setCreditState]=useState<"loading"|"ready"|"unavailable">("loading");
  useEffect(()=>{
   let active=true;
   const refresh=()=>{void readCustomerAuthStatus()
@@ -24,6 +27,27 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);window.addEventListener("focus",focus);
   return()=>{active=false;document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);window.removeEventListener("focus",focus)};
  },[]);
+ useEffect(()=>{
+  if(identity!=="customer")return;
+  let active=true;
+  const refresh=()=>{
+   void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
+    .then(async response=>{
+     if(!response.ok)throw Error("Credit balance unavailable");
+     const result=await response.json() as {availableCredits?:number};
+     if(typeof result.availableCredits!=="number"||!Number.isSafeInteger(result.availableCredits)||result.availableCredits<0)
+      throw Error("Invalid credit balance");
+     if(active){setAvailableCredits(result.availableCredits!);setCreditState("ready");}
+    }).catch(()=>{if(active){setAvailableCredits(null);setCreditState("unavailable");}});
+  };
+  const onToggle=()=>{if(menu.current?.open)refresh();};
+  refresh();
+  window.addEventListener("focus",refresh);
+  window.addEventListener("credits-changed",refresh);
+  menu.current?.addEventListener("toggle",onToggle);
+  const current=menu.current;
+  return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);current?.removeEventListener("toggle",onToggle)};
+ },[identity]);
  async function logout(){
   if(busy)return;
   setBusy(true);setError("");
@@ -57,11 +81,21 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
      <Link href="/login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
     </>:
-    <>
+    identity==="customer"?<>
+     <div className={`sm-account-credit-status sm-account-credit-${creditTone(creditState==="ready"?availableCredits:null)}`} role="status" aria-live="polite">
+      <span>Available credits</span>
+      <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("en-US").format(availableCredits):"—"}</strong>
+      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":"Top up needed"):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
+     </div>
+     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Buy Credits</Link>
+     <Link href="/usage" onClick={()=>{if(menu.current)menu.current.open=false}}>Usage</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
-     {identity==="customer"?<button type="button" disabled={busy} onClick={()=>void logout()}>{busy?"Logging out…":"Logout"}</button>:
-      <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin / Staff logout"}</button>}
+     <button type="button" disabled={busy} onClick={()=>void logout()}>{busy?"Logging out…":"Logout"}</button>
+    </>:<>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
+     <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
+     <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin / Staff logout"}</button>
     </>}
   </nav>
   {error&&<p className="sm-account-menu-error" role="alert">{error}</p>}
