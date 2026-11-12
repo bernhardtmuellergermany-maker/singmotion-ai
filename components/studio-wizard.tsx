@@ -514,7 +514,7 @@ export function StudioWizard({
       : null;
 
   const appliedImageReady = !draft.sourceImageId || (!!draft.editedImageId && draft.imageId===draft.editedImageId && draft.appliedOutputFormat===draft.outputFormat);
-  const available = !!selection && audioValid && !!prompt && !busy && !cropPending && appliedImageReady && frameValid;
+  const available = !!selection && audioValid && !busy && !cropPending && appliedImageReady && frameValid;
   // CMS staff accounts use the private operator authorization dialog, not
   // customer checkout pricing. Studio-live itself still checks staff role,
   // reviewed budgets and consent before any provider submission.
@@ -791,11 +791,11 @@ export function StudioWizard({
               </div>
             </details>
             <details className="sm-review-item">
-              <summary><Sparkles size={20}/><strong>Performance</strong><span className="sm-review-item-value">{draft.customPrompt.trim()||"Natural singing performance"}</span><ChevronDown size={17}/></summary>
+              <summary><Sparkles size={20}/><strong>Performance</strong><span className="sm-review-item-value">{draft.customPrompt.trim()||"No prompt — only image and audio will be sent"}</span><ChevronDown size={17}/></summary>
               <div className="sm-review-expanded">
                 <p><strong>Performance instructions</strong></p>
-                <p className="sm-review-prompt">{prompt}</p>
-                <p>This is the complete composed text sent to BytePlus, including your exact performance words and any camera instruction. Facial expressions and physical actions are model-generated and are not guaranteed.</p>
+                <p className="sm-review-prompt">{prompt || "No prompt will be sent to BytePlus."}</p>
+                <p>Only the text you enter above is sent as a prompt to BytePlus. If you leave it blank, the prompt field is omitted. Model-generated movement is not guaranteed.</p>
                 <p>The uploaded photo defines the visual scene; the prompt guides the performance and camera.</p>
               </div>
             </details>
