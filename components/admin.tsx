@@ -52,15 +52,15 @@ const data: Record<string, [string, string][]> = {
     ["Customer credit tariff", "25 Credits per started original audio second (5.2 s → 150 Credits)"],
     ["Credit top-ups", "1 Credit = €0.01, minimum 500, maximum 100,000; TEST checkout on staging only"],
     [
-      "VAT & billing minimums",
+      "Credit rounding",
       "Every started source second rounds up. Playback slow-down does not increase customer Credits.",
     ],
   ],
   "Provider usage & costs": [
     ["BytePlus OmniHuman 2.0", "Technical provider only; customer prices are Credits"],
     [
-      "Observed model cost",
-      "USD 0.07/second before tax; not the customer price",
+      "Customer video Credit cost",
+      "25 Credits per started original source-audio second; provider fees are internal only",
     ],
     ["fal.ai fallback", "Disabled; never automatic"],
   ],
