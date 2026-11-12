@@ -15,6 +15,7 @@ const ready=()=>configuredStripePaymentMode(process.env)!==null&&
  process.env.CUSTOMER_FULFILLMENT_ENABLED==="true"&&
  process.env.CUSTOMER_DELIVERY_ENABLED==="true"&&
  process.env.HOBBY_SUBSCRIPTIONS_ENABLED==="true"&&
+ process.env.HOBBY_NEW_PURCHASES_ENABLED==="true"&&
  /^price_[A-Za-z0-9_]+$/.test(process.env.STRIPE_HOBBY_PRICE_ID||"")&&
  /^whsec_[A-Za-z0-9_]+$/.test(process.env.STRIPE_HOBBY_WEBHOOK_SECRET||"");
 export async function GET(){return NextResponse.json({enabled:ready()},{headers:{"Cache-Control":"no-store"}})}
