@@ -95,6 +95,11 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
         onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
         onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}}/>:
        <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+itemCover+"')"}}/>}
+      {isCenter&&item.url&&!broken&&<button className="sm-moving-mute" type="button"
+        aria-label={centerAudible?"Ton ausschalten":"Ton einschalten"} aria-pressed={centerAudible}
+        onClick={e=>{e.stopPropagation();toggleCenterSound();}}>
+        {centerAudible?<Volume2 size={18}/>:<VolumeX size={18}/>}
+       </button>}
       {isSide&&<button className="sm-moving-side-tap" type="button" aria-label={offset<0?"Previous video":"Next video"} onClick={()=>move(offset<0?-1:1)}/>}
 
     </div>;
