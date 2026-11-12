@@ -88,8 +88,8 @@ export function GenerationStatusView({
           </li>)}
         </ol>
         <div className="sm-gen-wait">
-          <Clock3 size={19}/><p><strong>{ready?"Your video is complete":review||failed?"Your generation needs attention":"This may take several minutes."}</strong>
-          <span>{ready?"Download your video below.":review||failed?"Your project is saved. Contact support if you need help.":"You can leave this page. Your order remains saved and you can return to check progress."}</span></p>
+          <Clock3 size={19}/><p><strong>{ready?"Your video is complete":progress==="credits-needed"?"Generation has not started":progress==="prepared"?"Awaiting generation confirmation":review||failed?"Your generation needs attention":"This may take several minutes."}</strong>
+          <span>{ready?"Download your video below.":progress==="credits-needed"?"The project is saved. No video generation or credit charge has started.":progress==="prepared"?"This prepared project has not been submitted. Return to Studio to review it.":review||failed?"Your project is saved. Contact support if you need help.":"You can leave this page. Your order remains saved and you can return to check progress."}</span></p>
         </div>
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
           <button className="sm-gen-download" type="button" disabled><LockKeyhole size={17}/> Download video</button>}
