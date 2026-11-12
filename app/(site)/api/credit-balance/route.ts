@@ -23,7 +23,13 @@ export async function GET(req:NextRequest){
   if(!identity)return json({error:"Account login required."},401);
   const wallet=new CreditWallet(store.db);
   const purchased=wallet.total(identity.subject);
-  let legacy=0,reserved=0;
+  // Pending/uncertain video submissions block spendable credits but do not
+  // consume the ledger until the deliverable MP4 is validated.
+  const videoReserved=wallet.reserved(identity.subject);
+  const videoReservations=wallet.videoReservations(identity.subject)
+    .filter(row=>row.state==="reserved"||row.state==="review")
+    .map(row=>({projectId:row.projectId,credits:row.credits,state:row.state,created:row.created}));
+  let legacy=0,reserved=videoReserved;
   let oldEntries:Array<{id:string;credits:number;type:string;created:number;reference:string}>=[];
   let oldOrders:Array<{id:string;projectId:string;credits:number;euros:number;created:number;status:string}>=[];
   if(identity.customerId){
@@ -62,6 +68,7 @@ export async function GET(req:NextRequest){
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
+   videoReservations,
   });
  }catch(e){
   console.error("Account credit overview failed",{category:e instanceof Error?e.name:"unknown"});
