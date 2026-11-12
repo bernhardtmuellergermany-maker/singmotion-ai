@@ -512,12 +512,12 @@ export function ImmersiveHome(){
    <DesktopShowcaseCarousel clips={desktopClips}/>
    <section id="how-it-works" className="sm-immersive-steps" aria-labelledby="sm-how-title">
     <h2 id="sm-how-title">How it <span>works</span></h2>
-    <p>In just a few steps to your own music video. Upload your song and photo, choose a performance style, and create with SingMotion AI.</p>
+    <p>Turn your own song and a photo into an AI music performance video. No filming crew or complicated editing timeline — just your audio, your creative vision and four simple steps.</p>
     <ol>
-     <li><Music2 aria-hidden="true"/><strong>1. Upload your audio</strong><span>Add your song or choose from your library.</span></li>
-     <li><ImagePlus aria-hidden="true"/><strong>2. Upload a photo</strong><span>Add a photo of yourself or your artist.</span></li>
-     <li><Sparkles aria-hidden="true"/><strong>3. Describe the performance</strong><span>Write your style, mood, scene and performance prompt.</span></li>
-     <li><Play aria-hidden="true"/><strong>4. Generate the video</strong><span>Create your AI music video.</span></li>
+     <li><Music2 aria-hidden="true"/><strong>1. Upload your audio</strong><span>Start with the music that matters to you. Upload your own song or select an existing track from your library — the original audio becomes the foundation of your AI music video.</span><small>YOUR SONG SETS THE STAGE</small></li>
+     <li><ImagePlus aria-hidden="true"/><strong>2. Upload a photo</strong><span>Bring your performer into the spotlight. Choose a clear photo of yourself or your artist to give the AI a visual starting point for your on-screen performance.</span><small>YOUR ARTIST, YOUR LOOK</small></li>
+     <li><Sparkles aria-hidden="true"/><strong>3. Describe the performance</strong><span>Direct the scene in your own words. Picture the mood, lighting, camera feel and stage atmosphere you want — from intimate and emotional to bold, cinematic concert energy.</span><small>YOUR VISION LEADS</small></li>
+     <li><Play aria-hidden="true"/><strong>4. Generate the video</strong><span>Review your creative setup and credit cost, then let SingMotion AI bring the elements together. Once your generated performance is ready, find it in My Projects.</span><small>YOUR MUSIC, NOW ON SCREEN</small></li>
     </ol>
    </section>
    <div className="sm-immersive-featured-backdrop">
