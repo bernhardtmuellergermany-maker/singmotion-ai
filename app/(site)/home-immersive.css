@@ -1094,3 +1094,14 @@
  .sm-immersive-home .sm-immersive-steps ol{grid-template-columns:1fr;max-width:360px}
  .sm-immersive-home .sm-immersive-steps li{min-height:0;padding:23px 22px}
 }
+
+
+/* Showcase videos have a single deliberate sound button; browser-provided
+   media controls must not appear over performers on mouse hover. */
+.sm-immersive-home video::-webkit-media-controls,
+.sm-immersive-home video::-webkit-media-controls-enclosure,
+.sm-immersive-home video::-webkit-media-controls-panel,
+.sm-immersive-home video::-webkit-media-controls-overlay-play-button{
+ display:none!important;
+ -webkit-appearance:none!important;
+}
