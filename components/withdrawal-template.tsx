@@ -27,6 +27,6 @@ export function WithdrawalTemplate(){
   <p>Date: ______________________________</p>
   <p>Signature (only if this form is submitted on paper): ______________________________</p>
   <p><a href={`mailto:${email}?subject=${subject}&body=${body}`}>Prepare withdrawal email</a> – opens your email application. You must send the email yourself; this link does not submit a withdrawal to our servers.</p>
-  <p><small>Source: <a href="https://www.gesetze-im-internet.de/bgbeg/art_253anlage_2.html">Anlage 2 EGBGB</a>. This model does not replace contract-specific legal information or the separate online withdrawal declaration function shown above.</small></p>
+  <p><small>Source: <a href="https://www.gesetze-im-internet.de/bgbeg/art_253anlage_2.html">Annex 2 to the EGBGB</a>. This model does not replace contract-specific legal information or the separate online withdrawal declaration function shown above.</small></p>
  </section>;
 }
