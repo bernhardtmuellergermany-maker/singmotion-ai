@@ -182,3 +182,27 @@ test("Studio video status uses customer Credits and per-job verified reservation
  assert.match(api,/videoReservations/);
  assert.match(api,/videoReserved/);
 });
+
+test("Legal homepage topics explain what customers will find before opening each policy",()=>{
+ const content=read("components/legal-policies.tsx");
+ const css=read("app/(site)/site-navigation.css");
+ assert.match(content,/What to check before uploading a song, a portrait/);
+ assert.match(content,/how credits and purchases work/);
+ assert.match(content,/How account details, uploaded music and photos/);
+ assert.match(content,/sm-legal-topic-intro/);
+ assert.match(css,/\.sm-legal-topic li p/);
+});
+test("Paid order removal requires fresh account password and never deletes billing records",()=>{
+ const route=read("app/(site)/api/customer-hide-paid-order/route.ts");
+ const settings=read("app/(site)/account/settings/page.tsx");
+ const store=read("lib/commerce/store.ts");
+ assert.match(route,/store\.session\(/);
+ assert.match(route,/store\.verifyCustomerPassword\(/);
+ assert.match(route,/applicationOrigin/);
+ assert.match(route,/customer_hidden_paid_orders/);
+ assert.doesNotMatch(route,/DELETE FROM customer_orders|DROP TABLE customer_orders/);
+ assert.match(settings,/Account password/);
+ assert.match(settings,/Confirm removal/);
+ assert.match(settings,/Invoices and payment records/);
+ assert.match(store,/timingSafeEqual\(scryptSync\(password,salt,64\)/);
+});
