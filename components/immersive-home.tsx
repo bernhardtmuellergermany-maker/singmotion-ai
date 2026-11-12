@@ -19,10 +19,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const [motion,setMotion]=useState(0);
  const [settling,setSettling]=useState(false);
  const [target,setTarget]=useState<number|null>(null);
- const [playing,setPlaying]=useState(false);
- const [muted,setMuted]=useState(true);
  const [broken,setBroken]=useState(false);
- const [autoplayBlocked,setAutoplayBlocked]=useState(false);
  const video=useRef<HTMLVideoElement>(null);
  // Autoplay must start muted: browsers block unsolicited playback with sound.
  // Start on selection and resume on tab return; never require a poster click.
@@ -30,13 +27,13 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
   const element=video.current;
   if(!element||!slides[selected]?.url||broken)return;
   element.defaultMuted=true;
-  element.muted=muted;
+  element.muted=true;
   const start=()=>{
    if(document.hidden)return;
-   void element.play().then(()=>{setAutoplayBlocked(false);}).catch(()=>{
+   void element.play().catch(()=>{
     // Retry muted for browsers restoring an audible preference.
     element.muted=true;
-    void element.play().then(()=>{setMuted(true);setAutoplayBlocked(false);}).catch(()=>setAutoplayBlocked(true));
+    void element.play().catch(()=>{});
    });
   };
   start();
@@ -52,8 +49,6 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const move=(direction:number,destination?:number)=>{
   if(motion!==0||settling)return;
   video.current?.pause();
-  setPlaying(false);
-  setAutoplayBlocked(false);
   setMotion(direction>0?-1:1);
   setTarget(destination===undefined?wrap(selected+(direction>0?1:-1)):wrap(destination));
  };
@@ -64,14 +59,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
   setMotion(0);
   setTarget(null);
   setBroken(false);
-  setAutoplayBlocked(false);
   window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>setSettling(false)));
- };
- const toggle=()=>{
-  const element=video.current;
-  if(!element||broken)return;
-  if(element.paused)void element.play().then(()=>setAutoplayBlocked(false)).catch(()=>setAutoplayBlocked(true));
-  else element.pause();
  };
  const slots=[-1,0,1];
  return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
@@ -90,19 +78,14 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
        onTransitionEnd={isCenter?endMove:undefined}
        aria-hidden={Math.abs(slot)>1?true:undefined}>
       {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={itemCover}
-        playsInline autoPlay loop muted={muted} preload="auto" className="sm-moving-video"
-        onLoadedMetadata={e=>{if(muted)e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>setAutoplayBlocked(true));}}
-        onPlay={()=>{setPlaying(true);setAutoplayBlocked(false);}} onPause={()=>setPlaying(false)}
-        onError={()=>{setBroken(true);setPlaying(false)}} onClick={toggle} aria-label={item.title}/>:
+        playsInline autoPlay loop muted preload="auto" className="sm-moving-video"
+        onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
+        onError={()=>setBroken(true)} aria-label={item.title}/>:
        isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
         muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
         onLoadedMetadata={e=>{e.currentTarget.muted=true}}
         onLoadedData={e=>e.currentTarget.pause()}/>:
        <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+itemCover+"')"}}/>}
-      {isCenter&&(autoplayBlocked||!item.url||broken)&&<button className="sm-moving-play" type="button" disabled={!item.url||broken}
-         aria-label={item.url&&!broken?"Play "+item.title:"Video coming soon"} onClick={toggle}><Play size={30} fill="currentColor"/></button>}
-      {isCenter&&item.url&&!broken&&<button className="sm-moving-mute" type="button" aria-label={muted?"Unmute video":"Mute video"}
-         onClick={()=>setMuted(m=>!m)}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button>}
       {isSide&&<button className="sm-moving-side-tap" type="button" aria-label={offset<0?"Previous video":"Next video"} onClick={()=>move(offset<0?-1:1)}/>}
 
     </div>;
