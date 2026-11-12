@@ -17,6 +17,7 @@ import tls from "node:tls";
 import sharp from "sharp";
 import {
   slowExcerpt,
+  canApplySlowTempo,
   tempoAuthorization,
   restoreTempoOutput,
   validateRestored,
@@ -614,4 +615,17 @@ test("tempo export diagnostics expose only bounded stages, never private stderr"
     tempoExportFailureCode(Object.assign(new Error("timeout"), { killed: true })),
     "TEMPO_FFMPEG_TIMEOUT_OR_TERMINATED",
   );
+});
+
+
+test("safe optional slowdown allows normal clips but preserves 300-second originals", () => {
+  assert.equal(canApplySlowTempo(5,300),true);
+  assert.equal(canApplySlowTempo(6,300),true);
+  assert.equal(canApplySlowTempo(30,300),true);
+  assert.equal(canApplySlowTempo(269,300),true);
+  assert.equal(canApplySlowTempo(270,300),false);
+  assert.equal(canApplySlowTempo(300,300),false);
+  assert.equal(canApplySlowTempo(10,10),false);
+  assert.equal(canApplySlowTempo(5,6),false);
+  assert.equal(canApplySlowTempo(Number.NaN,300),false);
 });
