@@ -137,6 +137,22 @@ export function LegalPolicyPage({slug}:{slug:string}){
         <nav className="sm-legal-nav" aria-label="Legal navigation"><Link href="/legal">All legal topics</Link></nav>
       )}
       {page.sections.map((section,i)=><section key={section.title} id={slug === "legal" && i === 0 ? "imprint" : undefined} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
+      {slug==="privacy"&&<aside className="sm-legal-panel" aria-label="Official privacy references">
+        <h2>Official privacy resources</h2>
+        <p><a href="https://eur-lex.europa.eu/eli/reg/2016/679/oj/eng" target="_blank" rel="noopener noreferrer">General Data Protection Regulation (GDPR)</a> · <a href="https://www.gesetze-im-internet.de/ttdsg/__25.html" target="_blank" rel="noopener noreferrer">German device-access rules (Section 25 TDDDG)</a></p>
+        <p>Processor contracts, transfer assessments and the actual retention schedule require operator verification; this page is not a blanket GDPR compliance certification.</p>
+      </aside>}
+      {slug==="ai-transparency"&&<aside className="sm-legal-panel" aria-label="Official AI transparency references">
+        <h2>Official AI transparency resources</h2>
+        <p><a href="https://ai-act-service-desk.ec.europa.eu/en/ai-act/article-50" target="_blank" rel="noopener noreferrer">EU AI Act Article 50</a> · <a href="https://digital-strategy.ec.europa.eu/en/faqs/transparency-obligations-under-article-50-ai-act" target="_blank" rel="noopener noreferrer">European Commission transparency FAQ</a> · <a href="https://github.com/byteplus-sa/ark-mcp/blob/main/docs/tools.md" target="_blank" rel="noopener noreferrer">BytePlus OmniHuman 2.0 integration reference</a></p>
+      </aside>}
+      {slug==="withdrawal"&&<aside className="sm-legal-panel" aria-label="Statutory withdrawal reference">
+        <h2>Legal basis for electronic withdrawal</h2>
+        <p>See <a href="https://www.gesetze-im-internet.de/bgb/__356a.html" target="_blank" rel="noopener noreferrer">Section 356a of the German Civil Code (BGB)</a>. The contract-specific applicability and withdrawal period must be assessed individually.</p>
+      </aside>}
+      {slug==="legal"&&<aside className="sm-legal-panel" aria-label="Official legal information source">
+        <h2>Legal reference</h2><p><a href="https://www.gesetze-im-internet.de/ddg/__5.html" target="_blank" rel="noopener noreferrer">Section 5 of the German Digital Services Act (DDG)</a>. Additional registry/tax details remain subject to operator review.</p>
+      </aside>}
       {slug==="withdrawal" ? <><OnlineWithdrawal/><WithdrawalTemplate/></> : null}
       <p className="sm-legal-copyright">© SingMotion AI · A published notice does not replace verified contracts, technical controls, or professional legal review.</p>
     </main>
