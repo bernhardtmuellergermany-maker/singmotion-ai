@@ -24,7 +24,7 @@ export function OnlineWithdrawal(){
     <label>Consumer's name <input required minLength={2} maxLength={150} autoComplete="name" value={name} onChange={e=>{setName(e.target.value);setStep(1);}}/></label>
     <label>Contract / order number <input required minLength={2} maxLength={150} value={orderReference} onChange={e=>{setOrderReference(e.target.value);setStep(1);}}/></label>
     <label>Email address for confirmation <input required type="email" maxLength={254} autoComplete="email" value={email} onChange={e=>{setEmail(e.target.value);setStep(1);}}/></label>
-    {step===2&&<p role="status">Please confirm: I withdraw from the contract <strong>{orderReference}</strong>. Please send the receipt to <strong>{email}</strong> gehen.</p>}
+    {step===2&&<p role="status">Please confirm: I withdraw from the contract <strong>{orderReference}</strong>. Please send the receipt to <strong>{email}</strong>.</p>}
     {result?.error&&<p role="alert">{result.error}</p>}
     <div style={{display:"flex",gap:"0.8rem",flexWrap:"wrap"}}>
      {step===2&&<button type="button" onClick={()=>setStep(1)} disabled={busy}>Back</button>}
