@@ -60,3 +60,20 @@
 
 /* Status diagnostics stay within the progress panel, not in its footer. */
 .sm-gen-status-message{margin:0 0 15px;padding:11px 13px;border:1px solid #785292;border-radius:11px;background:#36234b;color:#ead9f6;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+
+/* Quiet secondary action after a verified download. It never starts a
+   generation; it opens a separate editable Studio draft. */
+.sm-gen-reuse{
+  display:flex;align-items:center;justify-content:center;gap:9px;
+  width:100%;box-sizing:border-box;min-height:43px;margin-top:11px;
+  padding:10px 13px;border:1px solid #6a5779;border-radius:12px;
+  color:#d5c9e3;background:#251d31;
+  font-size:13px;font-weight:600;text-decoration:none;
+  transition:border-color .18s,background .18s;
+}
+.sm-gen-reuse:hover{border-color:#a078bc;background:#30253e;color:#f3e8ff}
+.sm-gen-reuse:focus-visible{outline:2px solid #b886eb;outline-offset:3px}
+.sm-gen-reuse-note{
+  margin:8px 2px 0;text-align:center;color:#a99cb9;
+  font-size:11px;line-height:1.5;
+}
