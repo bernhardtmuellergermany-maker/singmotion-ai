@@ -20,6 +20,19 @@ export function stripeCreditTopupsTestEnabled(env:Record<string,string|undefined
   env.STRIPE_CREDIT_TOPUPS_TEST_ENABLED==="true";
 }
 
+const PRODUCTION_ID="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+/** Checkout and signing require independent live billing and tax approvals.
+ * Never infer user consent or enable recurring charges from this flag. */
+export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined>):boolean {
+ return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_ID &&
+  env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true" &&
+  env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true" &&
+  env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true" &&
+  env.STRIPE_CREDIT_TAX_REVIEW_APPROVED==="true" &&
+  /^txcd_[A-Za-z0-9]+$/.test(env.STRIPE_CREDIT_TAX_CODE||"") &&
+  /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
+  /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
+}
 export type WalletIdentity={subject:string;email:string;customerId:string|null};
 export type Topup={id:string;subject:string;email:string;credits:number;cents:number;status:string;sessionId:string|null;checkoutUrl:string|null;requestKey:string;created:number};
 export type VideoReservationState="reserved"|"review"|"settled"|"released";
