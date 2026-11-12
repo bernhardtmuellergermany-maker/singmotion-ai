@@ -396,7 +396,7 @@ export async function fitOutputFormat(
     video.height === target.output.height
   )
     return;
-  await fitValidatedRectangle(file, duration, target);
+  await fitValidatedRectangle(file, duration, target, false, true);
 }
 async function fitValidatedRectangle(
   file: string,
@@ -405,9 +405,10 @@ async function fitValidatedRectangle(
   normalizeFps = false,
   preserveWholeFrame = false,
 ) {
-  // Paid customer source normalization retains the reviewed center crop.
-  // Only the explicit Studio 16:9/9:16 format conversion preserves all pixels
-  // with letterboxing, while retaining the provider audio packets unchanged.
+  // Paid customer source normalization retains its reviewed center crop.
+  // Explicit Studio format conversion keeps the whole BytePlus subject in the
+  // foreground; a blurred copy fills the sides without black bars or zoom.
+  // Audio packets are copied unchanged.
   const source = await probe(file);
   const limits = outputTransferLimits(contract);
   if ((await stat(file)).size > limits.maxBytes)
@@ -449,14 +450,18 @@ async function fitValidatedRectangle(
         "-noautorotate",
         "-i",
         file,
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a:0",
-        "-vf",
-        `${preserveWholeFrame
-          ? `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,pad=${contract.output.width}:${contract.output.height}:(ow-iw)/2:(oh-ih)/2:color=black`
-          : `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,setsar=1,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2`}${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
+        ...(preserveWholeFrame
+          ? [
+              "-filter_complex",
+              `[0:v:0]split=2[bgsource][fgsource];[bgsource]scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2,boxblur=24:1[bg];[fgsource]scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=decrease:force_divisible_by=2[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1[vout]`,
+              "-map", "[vout]",
+            ]
+          : [
+              "-map", "0:v:0",
+              "-vf",
+              `scale=${contract.output.width}:${contract.output.height}:force_original_aspect_ratio=increase:force_divisible_by=2,setsar=1,crop=${contract.output.width}:${contract.output.height}:(iw-ow)/2:(ih-oh)/2${normalizeFps ? `,fps=${contract.output.fps}` : ""}`,
+            ]),
+        "-map", "0:a:0",
         "-c:v",
         "libx264",
         "-threads",
