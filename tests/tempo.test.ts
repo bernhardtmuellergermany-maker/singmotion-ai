@@ -25,6 +25,7 @@ import {
 } from "../lib/live/tempo.ts";
 import {
   downloadValidatedOutput,
+  providerNativeOutputContract,
   type OutputValidationContract,
 } from "../lib/live/output.ts";
 import { sha256File } from "../lib/live/media.ts";
@@ -500,9 +501,11 @@ test("flag-only activation preserves ownership, moderation, pitch and original p
   const exportedVideo = (await probe(done.outputPath!)).streams.find(
     (s) => s.codec_type === "video",
   )!;
-  assert.equal(exportedVideo.width, 1280);
-  assert.equal(exportedVideo.height, 720);
-  await validateRestored(done.outputPath!, slow, full);
+  // Tempo restoration retimes the original soundtrack but preserves BytePlus
+  // native pixel dimensions; no 9:16 / 16:9 resizing is permitted.
+  assert.equal(exportedVideo.width, 786);
+  assert.equal(exportedVideo.height, 1178);
+  await validateRestored(done.outputPath!, slow, await providerNativeOutputContract(done.outputPath!, full));
   store.db
     .prepare("UPDATE live_attempts SET data=? WHERE id=?")
     .run(JSON.stringify(pending), job.id);
