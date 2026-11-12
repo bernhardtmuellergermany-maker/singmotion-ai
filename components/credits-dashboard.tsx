@@ -55,9 +55,9 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
      <span className="sm-credits-reserved">{num(balance.reservedCredits)} credits reserved</span>
      {balance.outstandingCredits>0&&<span className="sm-credits-muted">Outstanding reversal: {num(balance.outstandingCredits)} Credits</span>}
     </div>
-    <div className="sm-credits-summary-links"><a href="#credits-kaufen">Buy Credits</a><a href="#usage">Usage & Orders</a></div>
+    <div className="sm-credits-summary-links"><a href="#buy-credits">Buy Credits</a><a href="#usage">Usage & Orders</a></div>
    </section>
-   {mode==="buy"&&<section id="credits-kaufen"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled&&balance.testMode}/></section>}
+   {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled&&balance.testMode}/></section>}
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
     <p className="sm-credits-muted">View your recorded credit transactions and previously paid video orders. Past euro payments are shown as a credit equivalent only; they have not been deducted from your balance again.</p>
