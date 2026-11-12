@@ -125,8 +125,8 @@ test("Staging Stripe checkout captures sanitized 400 reason and support referenc
  // Assert on the actual encoded body, not mentions in a migration comment.
  const checkoutForm=route.split("const form=new URLSearchParams({")[1]?.split("});")[0];
  assert.ok(checkoutForm,"Stripe form body must remain present");
- assert.doesNotMatch(checkoutForm,/"payment_method_types\\[0\\]"/);
- assert.match(checkoutForm,/"line_items\\[0\\]\\[price_data\\]\\[currency\\]"/);
+ assert.ok(!checkoutForm.includes('"payment_method_types[0]"'),"Stripe 2026 API rejects legacy payment_method_types");
+ assert.ok(checkoutForm.includes('"line_items[0][price_data][currency]"'),"EUR price data remains included");
  assert.match(checkoutForm,/mode:"payment"/);
  assert.match(checkoutForm,/success_url/);
  assert.match(checkoutForm,/cancel_url/);
