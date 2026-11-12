@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
-import { CreditWallet, stripeCreditTopupsTestEnabled } from "@/lib/commerce/credit-wallet";
+import { CreditWallet, stripeCreditWebhookTestEnabled } from "@/lib/commerce/credit-wallet";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
@@ -28,7 +28,7 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
 }
 /** Verify the signed credit event against Stripe's own paid Checkout record. */
 async function reconcileTestCreditPurchase(store:CommerceStore,event:StripeTestEvent){
- if(!stripeCreditTopupsTestEnabled(process.env))throw Error("Credit top-up settlement disabled");
+ if(!stripeCreditWebhookTestEnabled(process.env))throw Error("Credit webhook settlement unavailable");
  const obj=event.data?.object;
  const metadata=obj?.metadata as Record<string,unknown>|undefined;
  const id=typeof metadata?.creditTopupId==="string"?metadata.creditTopupId:"";
