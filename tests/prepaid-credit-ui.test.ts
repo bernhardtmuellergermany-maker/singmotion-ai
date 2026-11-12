@@ -14,12 +14,12 @@ test("super-admin and customer share the same wallet menu; usage lives under cre
  assert.match(menu,/identity==="customer"\|\|identity==="super-admin"/);
  assert.match(menu,/fetch\("\/api\/credit-balance"/);assert.match(menu,/href="\/credits"/);
  assert.doesNotMatch(menu,/href="\/usage"|TEST ONLY|previewCredits|Credit test view/);
- assert.match(dashboard,/id="usage"/);assert.match(dashboard,/legacyOrders/);assert.match(dashboard,/Gegenwert/);
+ assert.match(dashboard,/id="usage"/);assert.match(dashboard,/legacyOrders/);assert.match(dashboard,/Equivalent only/);
  assert.doesNotMatch(dashboard,/admin-preview|testCredits|Simuliertes/);
 });
 test("public pricing info and staging-only Stripe credit Checkout",()=>{
  const plans=read("app/(site)/plans/page.tsx"),picker=read("components/credit-amount-picker.tsx");
  assert.match(plans,/CreditAmountPicker/);assert.match(plans,/25 Credits/);
  assert.match(picker,/purchaseEnabled/);assert.match(picker,/api\/credit-checkout/);
- assert.match(picker,/Stripe Testmodus/);assert.doesNotMatch(picker,/api\/stripe-checkout/);
+ assert.match(picker,/Stripe Test Mode/);assert.doesNotMatch(picker,/api\/stripe-checkout/);
 });

@@ -3,7 +3,7 @@ import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import {ArrowDownToLine,ArrowUpDown,CalendarDays,Check,ChevronDown,
  Clapperboard,Clock3,Eye,Film,FolderOpen,Image as ImageIcon,
- MoreHorizontal,Plus,Search,SquarePen,Video,Trash2} from "lucide-react";
+ MoreHorizontal,Plus,Search,SquarePen,Video,Trash2,Copy} from "lucide-react";
 import {api,ensureSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import "./my-projects-gallery.css";
@@ -59,6 +59,29 @@ export function MyProjectsGallery(){
  const [renaming,setRenaming]=useState<string|null>(null);
  const [renameText,setRenameText]=useState("");
  const [busyId,setBusyId]=useState<string|null>(null);
+ const [copiedSupportId,setCopiedSupportId]=useState<string|null>(null);
+ const [supportCopyError,setSupportCopyError]=useState<string|null>(null);
+ async function copySupportId(id:string){
+  setSupportCopyError(null);
+  const fallback=()=>{
+   const input=document.createElement("textarea");
+   input.value=id;input.setAttribute("readonly","");
+   input.style.position="fixed";input.style.left="-10000px";
+   document.body.appendChild(input);input.select();
+   try{if(!document.execCommand("copy"))throw Error("Copy unavailable");}
+   finally{input.remove();}
+  };
+  try {
+   if(navigator.clipboard?.writeText){
+    try{await navigator.clipboard.writeText(id);}
+    catch{fallback();}
+   }else fallback();
+   setCopiedSupportId(id);
+  }catch{
+   setCopiedSupportId(null);
+   setSupportCopyError(id);
+  }
+ }
  useEffect(()=>{
   try{
    const saved=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}");
@@ -273,7 +296,14 @@ export function MyProjectsGallery(){
         </div>
         {item.supportId&&<div className="sm-projects-support" title={`Support ID: ${item.supportId}`}>
           <span>Support ID</span><code>{item.supportId.slice(0,8)}…</code>
-          
+          <button type="button" className="sm-projects-copy-support"
+           onClick={()=>void copySupportId(item.supportId!)}
+           aria-label={`Copy full support ID for ${item.name}`}
+           title="Copy full support ID">
+           {copiedSupportId===item.supportId?<Check size={13} aria-hidden="true"/>:<Copy size={13} aria-hidden="true"/>}
+          </button>
+          {copiedSupportId===item.supportId&&<span className="sm-projects-copy-feedback" role="status">Copied!</span>}
+          {supportCopyError===item.supportId&&<span className="sm-projects-copy-error" role="alert">Copy failed</span>}
         </div>}
       </article>)}
     </div>:

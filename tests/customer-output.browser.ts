@@ -146,6 +146,13 @@ try{
  const libraryCard=page.getByRole("link",{name:/Open Music video .* Ready/});
  await libraryCard.waitFor({timeout:15000});
  assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
+ // One click must copy the full support reference, not the eight-character
+ // preview displayed on the project card.
+ await page.context().grantPermissions(["clipboard-read","clipboard-write"],{origin});
+ await page.getByRole("button",{name:/Copy full support ID for/}).click();
+ assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),id,
+  "Support ID copy action places the complete order reference on the clipboard");
+ await page.getByText("Copied!").waitFor({timeout:3000});
  await libraryCard.click();
  await page.waitForURL(origin+"/orders/"+id);
  await page.getByRole("region",{name:"Video generation status"}).getByRole("heading",{name:"Your video is ready"}).waitFor({timeout:15000});

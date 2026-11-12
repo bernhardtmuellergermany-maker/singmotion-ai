@@ -18,7 +18,7 @@ test("Super-admin has a real isolated wallet, never a fake credit slider",()=>{
  assert.match(auth,/CMS_ENABLED/);assert.match(auth,/super-admin/);
  assert.doesNotMatch(menu,/TEST ONLY|testCredits/);
  assert.doesNotMatch(dashboard,/admin-preview|Test-Credits|Testansicht/);
- assert.match(dashboard,/Nutzung & Aufträge/);
+ assert.match(dashboard,/Usage & Orders/);
 });
 test("Existing Hobby contracts remain manageable",()=>{
  const s=read("app/(site)/account/settings/page.tsx");

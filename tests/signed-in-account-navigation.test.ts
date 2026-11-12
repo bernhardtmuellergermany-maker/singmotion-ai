@@ -14,5 +14,5 @@ test("super-admin and customer use only verified balance, with failure state",()
  assert.match(c,/fetch\("\/api\/credit-balance"/);
  assert.match(c,/creditTone\(available\)/);
  assert.doesNotMatch(c,/testCredits|TESTVORSCHAU|Simuliertes Guthaben/);
- assert.match(c,/Guthaben aktuell nicht verfügbar/);
+ assert.match(c,/Balance currently unavailable/);
 });

@@ -89,13 +89,13 @@ export function AccountPanel({active}:{active:boolean}){
     <p className="sm-account-email">{account}</p>
     <AccountCreditSummary active={active} staff={staff} superAdmin={superAdmin}/>
     <div className="sm-account-quick-actions">
-      <Link href="/credits" className="sm-account-action sm-account-action-buy">Credits kaufen</Link>
-      <Link href="/studio?new=1" className="sm-account-action sm-account-action-create">Video erstellen</Link>
+      <Link href="/credits" className="sm-account-action sm-account-action-buy">Buy Credits</Link>
+      <Link href="/studio?new=1" className="sm-account-action sm-account-action-create">Create video</Link>
       <Link href="/account/settings" className="sm-account-settings-link">Account settings</Link>
       <button type="button" className="sm-account-signout" disabled={busy} onClick={()=>void act("logout")}>Sign out</button>
     </div>
     {!staff&&<details className="sm-account-advanced">
-      <summary>Weitere Kontofunktionen</summary>
+      <summary>More account options</summary>
       <div className="sm-account-advanced-actions">
         <button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>
         {guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}

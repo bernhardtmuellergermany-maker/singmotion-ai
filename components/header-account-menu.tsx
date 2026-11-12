@@ -83,11 +83,11 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
     </>:
     (identity==="customer"||identity==="super-admin")?<>
      <div className={`sm-account-credit-status sm-account-credit-${creditTone(creditState==="ready"?availableCredits:null)}`} role="status" aria-live="polite">
-      <span>Verfügbare Credits</span>
-      <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("de-DE").format(availableCredits):"—"}</strong>
-      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Guthaben ausreichend":availableCredits>=250?"Guthaben niedrig":"Credits aufladen"):creditState==="loading"?"Guthaben wird geladen …":"Guthaben nicht verfügbar"}</small>
+      <span>Available credits</span>
+      <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("en-GB").format(availableCredits):"—"}</strong>
+      <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":"Top up credits"):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
      </div>
-     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credits kaufen & Nutzung</Link>
+     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Buy Credits & Usage</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      <button type="button" disabled={busy} onClick={()=>void (identity==="super-admin"?logoutStaff():logout())}>{busy?"Signing out…":"Logout"}</button>

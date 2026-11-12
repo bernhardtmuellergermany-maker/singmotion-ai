@@ -30,7 +30,7 @@ export default function AccountSettings(){
  <div className="sm-settings-layout">
   <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
   <div className="sm-settings-content">
-   {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super-Admin-Konto</strong><p className="sm-settings-muted">Dein eigenes Guthaben und deine Credit-Käufe findest du wie bei jedem Kunden unter Credits. Konto-Sicherheit und Benutzerverwaltung erfolgen weiterhin über den Admin-Bereich.</p></section>}
+   {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super Admin account</strong><p className="sm-settings-muted">You can view your own real credits and purchases under Credits, just like a customer. Account security and staff management remain in the admin area.</p></section>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
    {data&&<>
     <section id="profile" className="sm-settings-section"><h2>Account information</h2><label>Email address<input readOnly value={data.profile.email}/></label>
@@ -71,7 +71,7 @@ export default function AccountSettings(){
           {!data.staffPreview&&portalAvailable&&<button type="button" disabled={busy} onClick={()=>void manageBilling()}>Manage existing subscription & invoices</button>}
         </>:<>
           <p>One-time top-ups will replace per-video payments. No new monthly subscription.</p>
-          <p className="sm-settings-muted">Stripe-Testkäufe sind auf Staging möglich, sobald die Testumgebung freigeschaltet ist. Live-Zahlungen sind weiterhin gesperrt.</p>
+          <p className="sm-settings-muted">Stripe test purchases are available on staging when Test Mode is enabled. Live payments remain disabled.</p>
         </>}
         <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
       </div>

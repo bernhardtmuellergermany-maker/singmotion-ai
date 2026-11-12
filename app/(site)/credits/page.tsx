@@ -14,7 +14,7 @@ export default function CreditsPage() {
     <main id="content" className="sm-credits-main">
       <header className="sm-credits-intro"><span className="sm-plans-kicker">SINGMOTION AI · ACCOUNT</span>
         <h1>Your credits<span>.</span></h1>
-        <p>Dein Credit-Guthaben, Guthaben aufladen und die Übersicht deiner bereits bezahlten Aufträge. Live-Zahlungen und Credit-Abrechnung für Videos sind noch nicht aktiviert.</p>
+        <p>See your available credits, top up your wallet, and review your past orders. Live credit payments and credit-based video generation are not yet enabled.</p>
       </header>
       <CreditsDashboard mode="buy"/>
     </main>

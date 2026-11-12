@@ -4,7 +4,7 @@ import {creditTone} from "@/lib/commerce/credit-display";
 import "./account-credit-summary.css";
 type Balance={availableCredits:number;reservedCredits:number};
 type State="loading"|"ready"|"unavailable";
-const display=(n:number)=>new Intl.NumberFormat("de-DE").format(n);
+const display=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 /** Customers and CMS super-admins get the exact same authenticated wallet UI. */
 export function AccountCreditSummary({active}:{active:boolean;staff?:boolean;superAdmin?:boolean}){
  const [balance,setBalance]=useState<Balance|null>(null);
@@ -29,13 +29,13 @@ export function AccountCreditSummary({active}:{active:boolean;staff?:boolean;sup
   return()=>{mounted=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh)};
  },[active]);
  const available=state==="ready"?balance?.availableCredits??null:null;
- return <section className="sm-account-credit-summary" aria-label="Aktuelle Credits" role="status">
-  <span className="sm-account-credit-caption">Aktuelle Credits</span>
+ return <section className="sm-account-credit-summary" aria-label="Current credits" role="status">
+  <span className="sm-account-credit-caption">Current credits</span>
   <strong className={`sm-account-credit-number sm-account-credit-${creditTone(available)}`}>
    {available===null?"—":display(available)}<small>Credits</small>
   </strong>
   <p className="sm-account-credit-note">{state==="ready"&&balance
-   ?display(balance.reservedCredits)+" Credits reserviert"
-   :state==="loading"?"Guthaben wird geladen …":"Guthaben aktuell nicht verfügbar."}</p>
+   ?display(balance.reservedCredits)+" credits reserved"
+   :state==="loading"?"Checking your balance…":"Balance currently unavailable."}</p>
  </section>;
 }
