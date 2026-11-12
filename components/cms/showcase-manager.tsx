@@ -116,7 +116,7 @@ export function ShowcaseManager(){
  };
  const name=(id:string)=>available.find(x=>x.id===id)?.name||id;
  const dirty=ordered.join("\n")!==saved.join("\n")||(channel==="mobile"&&randomOrder!==savedRandomOrder);
- return <div style={{border:"1px solid #764e86",borderRadius:16,padding:20,margin:"18px 0",background:"#160d22",color:"#f8efff"}}>
+ return <div className="sm-showcase-cms-manager">
   <h2 style={{fontSize:21,margin:"0 0 8px"}}>Showcase videos verwalten</h2>
   <p style={{fontSize:13,opacity:.85}}>Super Admin: Inhalte separat je Bereich veröffentlichen und ihre Reihenfolge bestimmen. Nicht ausgewählte Projekte bleiben privat.</p>
   <div style={{display:"flex",gap:8,flexWrap:"wrap",margin:"18px 0"}} role="group" aria-label="Choose display section">
