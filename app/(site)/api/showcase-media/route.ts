@@ -54,6 +54,26 @@ export async function GET(req:NextRequest){
   return new Response(new Uint8Array(bytes),{headers:{"Content-Type":"image/webp","Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff"}});
  }catch(e){console.error("Showcase artwork unavailable",e);return Response.redirect(new URL("/artwork/singmotion-stage.webp",req.url),307);}
 }
+/** Remove only an uploaded preview image, never its linked video or publication. */
+export async function DELETE(req:NextRequest){
+ const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
+ if(!await superAdmin(req))return respond({error:"Super Admin required"},403);
+ if(req.headers.get("origin")!==new URL(req.url).origin)return respond({error:"Invalid request origin"},403);
+ const kind=req.nextUrl.searchParams.get("kind");
+ const id=req.nextUrl.searchParams.get("id")||"";
+ if(kind!=="poster"||!/^[a-zA-Z0-9_-]{1,160}$/.test(id))return respond({error:"Invalid poster request"},400);
+ try{
+  const store=await tables();
+  const row=store.db.prepare("SELECT filename FROM public_showcase_posters WHERE id=?").get(id) as {filename:string}|undefined;
+  if(!row)return respond({error:"Preview image not found"},404);
+  store.db.prepare("DELETE FROM public_showcase_posters WHERE id=?").run(id);
+  // Files are server-generated UUID WebP names. The video record is untouched.
+  if(/^[0-9a-f-]{36}\\.webp$/i.test(row.filename)){
+   try{await unlink(path.join(root,row.filename));}catch{/* Database deletion already succeeded. */}
+  }
+  return respond({ok:true,id});
+ }catch{return respond({error:"Could not remove preview image"},500);}
+}
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  if(!await superAdmin(req))return respond({error:"Super Admin required"},403);
