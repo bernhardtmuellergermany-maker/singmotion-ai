@@ -23,7 +23,6 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
     <nav className="sm-global-menu-list" aria-label="More options">
       {([
         { href: "/projects", label: "My Projects" },
-        { href: "/studio?new=1", label: "New video" },
         { href: "/plans", label: "Plans & Pricing" },
         { href: "/help", label: "Help & FAQ" },
         { href: "/contact", label: "Contact & Support" },

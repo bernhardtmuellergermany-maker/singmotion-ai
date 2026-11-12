@@ -7,7 +7,6 @@ import {GenerationStatusView,type GenerationProgress} from "./generation-status-
 export function SuperAdminGeneration({id}:{id:string}){
  const [project,setProject]=useState<StudioProject|null>(null);
  const [error,setError]=useState("");
- const [checking,setChecking]=useState(false);
  useEffect(()=>{
    // Reconcile a stale customer/guest session with the CMS staff identity.
    resetSession();
@@ -28,18 +27,6 @@ export function SuperAdminGeneration({id}:{id:string}){
    void refresh();
    return()=>{live=false;clearTimeout(timer)};
  },[id]);
- async function checkStatus(){
-   if(checking||!project||!["submitted","processing"].includes(project.state))return;
-   setChecking(true);setError("");
-   try{
-     const updated=await api<StudioProject>("studio-live",{
-       method:"POST",
-       body:JSON.stringify({action:"poll",id})
-     });
-     setProject(updated);
-   }catch(e){setError(e instanceof Error?e.message:"Status refresh unavailable.");}
-   finally{setChecking(false);}
- }
  // The polling endpoint persists fixed-format provider read diagnostics while
  // preserving the original paid task. Never display a generic "Generating"
  // animation when the most recent status check actually failed.
@@ -62,8 +49,7 @@ export function SuperAdminGeneration({id}:{id:string}){
      videoUrl={project?.outputReady?link:null}
      downloadUrl={project?.outputReady?link+"&download=1":null}
      note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>
-   {project&&!project.outputReady&&["submitted","processing"].includes(project.state)&&
-     <div className="sm-gen-extra-controls"><button type="button" disabled={checking} onClick={()=>void checkStatus()}>{checking?"Checking…":"Check provider status"}</button></div>}
-   {project?.state==="prepared"&&<p className="sm-gen-extra-message">This project is prepared, but its BytePlus submission has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
+
+   {project?.state==="prepared"&&<p className="sm-gen-extra-message">This project is prepared, but its generation request has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
  </main>;
 }

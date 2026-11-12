@@ -29,6 +29,7 @@ import { BytePlusError } from "./byteplus.ts";
 import {
   tempoAuthorization,
   slowExcerpt,
+  canApplySlowTempo,
   checkTempoSubmission,
 } from "./tempo.ts";
 import { pollError } from "./poll-error.ts";
@@ -741,13 +742,17 @@ export class StudioWorkflow {
           "Recording changed during preparation. Review the current upload again; no paid request was made.",
         );
     }
-    if (tempo && !media.tempo)
+    // Preserve the full selected clip. A 0.9x slowdown would push long
+    // recordings over the documented 300s provider-audio maximum, so
+    // retain the original-tempo MP3 rather than truncating or rejecting it.
+    const tempoInputCap = this.superAdmin ? 300 : Math.min(this.config.maxDurationSeconds, 300);
+    if (tempo && !media.tempo && canApplySlowTempo(media.durationSeconds, tempoInputCap))
       media = await tracedStudioPrepare("tempo-encode", () => slowExcerpt(
         media,
         this.root,
         selection.songId,
         tempo,
-        this.superAdmin ? 6 : Math.min(this.config.maxDurationSeconds, 300),
+        tempoInputCap,
       ));
     // The measured encoded audio, not only the user-selected waveform span,
     // must fit the owner-approved range in both Railway environments.

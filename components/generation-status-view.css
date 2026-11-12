@@ -57,3 +57,6 @@
 @keyframes sm-gen-pulse{50%{opacity:.4;transform:scale(.9)}}
 @media(max-width:720px){.sm-gen-page{width:100%}.sm-gen-heading{margin-bottom:15px}.sm-gen-heading h1{font-size:clamp(25px,6vw,30px)}.sm-gen-heading p{font-size:13px}.sm-gen-payment{margin-bottom:15px;padding:11px 13px}.sm-gen-payment>strong{font-size:14px}.sm-gen-grid{grid-template-columns:1fr;gap:15px}.sm-gen-status-column{padding:16px 13px}.sm-gen-preview.is-portrait{max-width:300px}.sm-gen-milestone{grid-template-columns:25px minmax(0,1fr) auto;gap:7px;min-height:66px}.sm-gen-milestone-content strong{font-size:12px}.sm-gen-milestone small{font-size:9px;padding:4px 6px}}
 @media(prefers-reduced-motion:reduce){.sm-gen-glow,.sm-gen-indeterminate>span,.sm-gen-milestone.is-active .sm-gen-milestone-icon svg{animation:none}}
+
+/* Status diagnostics stay within the progress panel, not in its footer. */
+.sm-gen-status-message{margin:0 0 15px;padding:11px 13px;border:1px solid #785292;border-radius:11px;background:#36234b;color:#ead9f6;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
