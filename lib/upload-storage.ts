@@ -1,16 +1,12 @@
-/** Limits uploaded source assets, not the number of video projects or purchases.
- * Paid output files are excluded and must be retained under the delivery policy.
+/** Account source uploads use private R2; no cumulative Free/Hobby/guest quota.
+ * Still track pending files so uploads can be committed atomically, and report
+ * real usage to the customer. Per-file size and request-rate limits remain.
  */
 import {DatabaseSync} from "node:sqlite";
 import type {Asset} from "./domain.ts";
 import {AppError} from "./domain.ts";
-import {PLAN_RULES, type PlanCode} from "./commerce/plans.ts";
 import {validCloudRecord, type CloudMediaRecord} from "./cloud-media.ts";
 
-export const GUEST_UPLOAD_STORAGE_BYTES=250*1024*1024;
-export function uploadStorageLimit(plan:PlanCode|"guest"):number{
- return plan==="guest"?GUEST_UPLOAD_STORAGE_BYTES:PLAN_RULES[plan].uploadStorageBytes;
-}
 function ensureReservations(db:DatabaseSync){
  db.exec("CREATE TABLE IF NOT EXISTS pending_upload_storage (id TEXT PRIMARY KEY, owner TEXT NOT NULL, bytes INTEGER NOT NULL CHECK(bytes>0), created INTEGER NOT NULL)");
 }
@@ -18,19 +14,19 @@ export function uploadedBytes(db:DatabaseSync,owner:string):number{
  const row=db.prepare("SELECT COALESCE(SUM(CAST(json_extract(data, '$.bytes') AS INTEGER)),0) AS total FROM assets WHERE owner=? AND json_extract(data, '$.kind') IN ('audio','image') AND json_extract(data, '$.path') LIKE '%/' || id").get(owner) as {total:number};
  return row.total;
 }
-/** Take a brief SQLite write lock to avoid parallel uploads passing the same budget. */
-export function reserveUploadStorage(db:DatabaseSync,owner:string,id:string,bytes:number,limitBytes:number,now=Date.now()):void{
+/** Atomically mark an individual validated upload as pending.
+ * Only per-file and request-rate limits apply; historical account totals do
+ * not block new uploads. The private R2 upload must pass SHA-256 readback
+ * before commitUploadedAsset can publish the source asset.
+ */
+export function reserveUploadStorage(db:DatabaseSync,owner:string,id:string,bytes:number,now=Date.now()):void{
  if(!/^[a-f0-9-]{36}$/.test(id)||!Number.isSafeInteger(bytes)||bytes<=0||
-    !Number.isSafeInteger(limitBytes)||limitBytes<=0)throw new AppError("Invalid upload reservation.",400);
+    bytes>50*1024*1024||typeof owner!=="string"||owner.length<1)
+  throw new AppError("Invalid upload reservation or file size.",400);
  ensureReservations(db);
  db.exec("BEGIN IMMEDIATE");
  try{
-  // Incomplete uploads older than one hour cannot permanently occupy quota;
-  // UUIDs and write-file wx mode prevent stale attempts from being reused.
   db.prepare("DELETE FROM pending_upload_storage WHERE created<?").run(now-3600000);
-  const pending=db.prepare("SELECT COALESCE(SUM(bytes),0) AS total FROM pending_upload_storage WHERE owner=?").get(owner) as {total:number};
-  if(uploadedBytes(db,owner)+pending.total+bytes>limitBytes)
-   throw new AppError(`Upload limit reached for your audio and photos (${Math.round(limitBytes/(1024*1024))} MB). Cloudflare storage does not remove this account limit. Existing videos remain available. Contact support to review storage or unused uploads.`,413);
   db.prepare("INSERT INTO pending_upload_storage(id,owner,bytes,created) VALUES(?,?,?,?)").run(id,owner,bytes,now);
   db.exec("COMMIT");
  }catch(e){db.exec("ROLLBACK");throw e;}
