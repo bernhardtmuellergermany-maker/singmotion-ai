@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, Music2, Sparkles, ShieldCheck, Wallet } from "lucide-react";
+import { Check, Music2, Sparkles, ShieldCheck } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { CreditAmountPicker } from "@/components/credit-amount-picker";
 import "./plans.css";
@@ -20,34 +20,20 @@ export default function PlansPage() {
     <p>One simple model: top up your account with the credits you choose, then use them to create AI performance videos. No new subscription or monthly fee.</p>
    </section>
    <div className="sm-plans-preview-notice" role="status"><strong>Credit payments are being prepared.</strong> These rates and amounts explain the proposed model. On staging, account holders can try Stripe Test Checkout from the Credits page. Live credit purchases and credit-paid videos are not enabled.</div>
-   <section className="sm-plans-grid" aria-label="Prepaid credit information">
-    <article className="sm-plan-card sm-plan-featured">
-     <div className="sm-plan-top"><span className="sm-plan-icon"><Music2 size={24}/></span><span className="sm-plan-status sm-plan-soon">Prepaid · planned</span></div>
-     <h2>Pay with Credits</h2>
-     <p className="sm-plan-caption">Choose the credit quantity that suits your videos. No new recurring subscription.</p>
+   <section className="sm-plans-grid sm-plans-grid-single" aria-label="Pay-as-you-go credit pricing">
+    <article className="sm-plan-card sm-plan-featured sm-plan-single">
+     <div className="sm-plan-top"><span className="sm-plan-icon"><Music2 size={24}/></span><span className="sm-plan-status sm-plan-soon">Pay as you go</span></div>
+     <h2>One simple price. Your music, your way.</h2>
+     <p className="sm-plan-caption">Buy credits only when you need them. No monthly subscription or automatic charges.</p>
      <div className="sm-plan-price">25 Credits <span>/ started source-audio second · proposed</span></div>
-     <p className="sm-plan-price-note">1 Credit = €0.01. Every started second is charged: 5.0 seconds = 125 Credits, 5.2 seconds = 150 Credits, and 10 seconds = 250 Credits. Playback slow-down does not change the selected-source duration or customer credit price.</p>
+     <p className="sm-plan-price-note">1 Credit = €0.01 · 10 seconds of source audio = 250 Credits (€2.50). Costs depend on the original source duration, not the playback speed.</p>
      <div className="sm-plan-rule"/>
      <ul>
-      <li><Check size={18}/> Customer account and sufficient credits required before generation</li>
-      <li><Check size={18}/> The credit cost is shown before processing</li>
-      <li><Check size={18}/> Credits are reserved for BytePlus, then consumed after validated delivery</li>
-      <li><Check size={18}/> Confirmed provider failures release the reservation; uncertain jobs stay reserved pending review</li>
+      <li><Check size={18}/> See the exact credit cost before generation</li>
+      <li><Check size={18}/> Choose a credit package or enter your own amount</li>
+      <li><Check size={18}/> Credits are charged only after verified delivery; confirmed nonbillable failures release reserved credits</li>
      </ul>
      <Link className="sm-plan-action sm-plan-action-outline" href="/credits#buy-credits">Open credit wallet</Link>
-    </article>
-    <article className="sm-plan-card">
-     <div className="sm-plan-top"><span className="sm-plan-icon"><Wallet size={24}/></span><span className="sm-plan-status">No subscription</span></div>
-     <h2>Only what you need</h2>
-     <p className="sm-plan-caption">Enter a custom credit quantity or choose a popular amount to estimate your one-time top-up.</p>
-     <div className="sm-plan-rule"/>
-     <ul>
-      <li><Check size={18}/> 2,000 / 4,000 / 10,000 Credit shortcuts</li>
-      <li><Check size={18}/> Custom whole-credit amount from 500 to 100,000</li>
-      <li><Check size={18}/> Credit balance and usage history in the account menu</li>
-      <li><Check size={18}/> Pay only for the credit amount you choose; automatic payments are not active</li>
-     </ul>
-     <Link className="sm-plan-action sm-plan-action-outline" href="/login">Sign in or create an account</Link>
     </article>
    </section>
    <section className="sm-plans-credit-custom" aria-label="Choose proposed credit amount"><CreditAmountPicker/></section>
