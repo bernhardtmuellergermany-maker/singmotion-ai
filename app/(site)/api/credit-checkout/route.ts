@@ -65,7 +65,7 @@ export async function POST(req:NextRequest){
    });
    if(!response.ok){
     // Never log the raw Stripe response, customer data or any API credential.
-    // Error type/code/parameter are enough to diagnose a rejected TEST request.
+    // Parse only selected diagnostic fields from the rejected TEST response.
     const failure=await response.json().catch(()=>null) as
       {error?:{type?:unknown;code?:unknown;param?:unknown}}|null;
     const detail=failure?.error as {type?:unknown;code?:unknown;param?:unknown;message?:unknown}|undefined;
@@ -75,11 +75,11 @@ export async function POST(req:NextRequest){
     // runtime logs so operations can diagnose the actual rejection. Never
     // expose raw error bodies, emails, session IDs, secrets or card data.
     const message=typeof detail?.message==="string"?detail.message.slice(0,400)
-      .replace(/\\b[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}\\b/g,"[email]")
-      .replace(/https?:\\/\\/[^\\s]+/gi,"[url]")
+      .replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g,"[email]")
+      .replace(/https?:\/\/[^\s]+/gi,"[url]")
       .replace(/(?:sk|pk|rk)_(?:test|live)_[A-Za-z0-9_]+|whsec_[A-Za-z0-9_]+/g,"[secret]")
-      .replace(/\\b(?:acct|cus|cs|pi|pm|ch|req|evt|seti)_[A-Za-z0-9_]+\\b/g,"[identifier]")
-      .replace(/\\b[0-9]{8,}\\b/g,"[number]"):null;
+      .replace(/\b(?:acct|cus|cs|pi|pm|ch|req|evt|seti)_[A-Za-z0-9_]+\b/g,"[identifier]")
+      .replace(/\b[0-9]{8,}\b/g,"[number]"):null;
     const requestId=safe(response.headers.get("request-id")||response.headers.get("stripe-request-id"));
     console.error("STRIPE_CREDIT_TEST_CHECKOUT_REJECTED",{
      status:response.status,type:safe(detail?.type),code:safe(detail?.code),
