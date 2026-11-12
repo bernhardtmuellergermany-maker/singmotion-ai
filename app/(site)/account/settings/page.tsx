@@ -26,7 +26,7 @@ export default function AccountSettings(){
   catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
  }
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
- <header className="sm-settings-header"><h1>Account settings</h1><p>Manage your SingMotion AI customer account.</p></header>
+ <header className="sm-settings-header"><h1>Account settings</h1><p>Manage your SingMotion AI account.</p></header>
  <div className="sm-settings-layout">
   <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
   <div className="sm-settings-content">
@@ -41,6 +41,13 @@ export default function AccountSettings(){
       :<span className="sm-settings-muted">Email verification status unavailable</span>}
     </div>}
     <p className="sm-settings-muted">Member since {new Date(data.profile.created).toLocaleDateString("en-GB")}. Email changes will require verification and are not enabled yet.</p></section>
+    {data.staffPreview&&<section id="security" className="sm-settings-section sm-security-section">
+      <div className="sm-security-heading"><h2>Security</h2><p className="sm-settings-muted">Super Admin accounts use Payload CMS authentication. Do not enter your administrator password into the customer password form.</p></div>
+      <div className="sm-security-panel">
+        <div className="sm-security-panel-intro"><div className="sm-security-icon"><ShieldCheck size={20}/></div><div><h3>Password</h3><p className="sm-settings-muted">Change your own Super Admin password using the protected CMS account screen. The current minimum is 20 characters. Other staff sessions are revoked when your password changes.</p></div></div>
+        <Link className="sm-settings-admin-action" href="/admin/account">Change password in Admin</Link>
+      </div>
+    </section>}
     {!data.staffPreview&&<section id="security" className="sm-settings-section sm-security-section">
       <div className="sm-security-heading"><div><h2>Security</h2><p className="sm-settings-muted">Manage your password and devices that have access to your account.</p></div></div>
       <div className="sm-security-panel">
@@ -83,13 +90,14 @@ export default function AccountSettings(){
     <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2><p className="sm-settings-muted">Invoice download is not available yet. No invoices are generated from this page. Billing addresses, tax information, and downloadable receipts are planned for the verified payment flow.</p></section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2>
       <p className="sm-settings-muted">You can request deletion of your account and personal data. Existing orders and legally required payment records may need to be retained.</p>
-      {!data.staffPreview&&<button className="sm-settings-danger" type="button" onClick={()=>{
-       if(!window.confirm("Request deletion of your SingMotion AI account? This opens an email to support. Your account will NOT be deleted automatically."))return;
+      <button className="sm-settings-danger" type="button" onClick={()=>{
+       const kind=data.staffPreview?"Super Admin / staff":"customer";
+       if(!window.confirm("Request deletion of your "+kind+" account? This opens your email application; nothing will be deleted automatically."))return;
        const subject=encodeURIComponent("Account deletion request – SingMotion AI");
-       const body=encodeURIComponent("Please review and process deletion of my SingMotion AI customer account: "+data.profile.email+"\\n\\nI understand that any legally required billing records may need to be retained.");
+       const body=encodeURIComponent("Please review deletion of my SingMotion AI "+kind+" account associated with: "+data.profile.email+"\\n\\nI understand that my identity must be verified and legally required billing and security records may need to be retained.");
        window.location.href="mailto:support@singmotion.ai?subject="+subject+"&body="+body;
-      }}>Delete account</button>}
-      <p className="sm-settings-muted">Deletion is reviewed by support. Clicking the button opens an email request; it does not delete anything immediately.</p>
+      }}>Request account deletion</button>
+      <p className="sm-settings-muted">Deletion is reviewed by support after identity verification. The button opens a draft email; you must send it yourself. Super Admin deletion requires an administrator handover and cannot be performed automatically. Legally required financial and security records may need to be retained.</p>
      </section>
    </>}
   </div></div></div></Shell>;
