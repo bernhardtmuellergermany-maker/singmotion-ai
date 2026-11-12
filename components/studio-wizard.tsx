@@ -843,7 +843,7 @@ export function StudioWizard({
                   <p><strong>Rate:</strong> {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second</p>
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
                   <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
-                  <p className="sm-review-credit-disclaimer">Credit-based video payment is not yet enabled. This estimate does not reserve or deduct credits. {operatorStudio?"Private Super Admin provider testing remains a separate authorized workflow.":"A verified customer account and sufficient Credits will be required at release."}</p>
+                  <p className="sm-review-credit-disclaimer">{operatorStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
                 </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>
             </details>
@@ -853,7 +853,7 @@ export function StudioWizard({
             <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
           </label>
           <p className="sm-review-ai-notice">AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
-          <p className="sm-review-payment-note">{operatorStudio?"Next: private operator authorization and generation review. No Credits are charged during operator tests.":"Credit-paid video generation is not enabled yet. No Credits will be charged by this preview; you can buy sandbox Credits on staging."}</p>
+          <p className="sm-review-payment-note">{operatorStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Credit-paid customer video generation is not enabled yet. No Credits will be charged by this preview."}</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
