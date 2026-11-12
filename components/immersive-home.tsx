@@ -104,7 +104,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
       {isCenter&&item.url&&!broken&&<button className="sm-moving-mute" type="button" aria-label={muted?"Unmute video":"Mute video"}
          onClick={()=>setMuted(m=>!m)}>{muted?<VolumeX size={20}/>:<Volume2 size={20}/>}</button>}
       {isSide&&<button className="sm-moving-side-tap" type="button" aria-label={offset<0?"Previous video":"Next video"} onClick={()=>move(offset<0?-1:1)}/>}
-      <div className="sm-moving-caption"><strong>{isCenter?"SingMotion AI Showcase":item.title}</strong><span>{item.url?item.title:"Coming soon"}</span></div>
+
     </div>;
    })}
   </div>
