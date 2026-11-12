@@ -128,8 +128,8 @@ export async function deliverReviewedPaidVideo(
   // Recovery of a validated final output must never submit another paid job.
   if(media.tempo){
    await deliveryStage("source",()=>verifyPrivatePaidMediaSnapshot(media));
-   await deliveryStage("tempo-restoration",()=>validateRestored(file,media,await providerNativeOutputContract(file,outputContract)));
-  }else await deliveryStage("provider-validation",()=>validateOutput(file,media.durationSeconds,await providerNativeOutputContract(file,outputContract)));
+   await deliveryStage("tempo-restoration",async()=>validateRestored(file,media,await providerNativeOutputContract(file,outputContract)));
+  }else await deliveryStage("provider-validation",async()=>validateOutput(file,media.durationSeconds,await providerNativeOutputContract(file,outputContract)));
  }else{
   if(hasDelivery)throw Error("Previously recorded delivery is missing its private file");
   if(media.tempo){
@@ -144,14 +144,14 @@ export async function deliverReviewedPaidVideo(
        info.size<1||info.size>limits.maxBytes||
        await realpath(providerFile)!==providerFile)
       throw Error("Existing customer provider capture requires operator review");
-    await deliveryStage("provider-validation",()=>validateOutput(providerFile,media.durationSeconds,await providerNativeOutputContract(providerFile,outputContract)));
+    await deliveryStage("provider-validation",async()=>validateOutput(providerFile,media.durationSeconds,await providerNativeOutputContract(providerFile,outputContract)));
    }catch(error){
     if((error as NodeJS.ErrnoException).code!=="ENOENT")throw error;
     await deliveryStage("provider-download",()=>downloadValidatedOutput(providerUrl,providerFile,media.durationSeconds,outputContract,transport));
    }
    // All frames are retimed, original MP3 packets copied unchanged, and both
    // streams fully validated BEFORE the deliverable file becomes visible.
-   await deliveryStage("tempo-restoration",()=>restoreTempoOutput(providerFile,restored,media,await providerNativeOutputContract(providerFile,outputContract)));
+   await deliveryStage("tempo-restoration",async()=>restoreTempoOutput(providerFile,restored,media,await providerNativeOutputContract(providerFile,outputContract)));
    await rename(restored,file);
    await unlink(providerFile).catch(()=>{});
   }else await deliveryStage("provider-download",()=>downloadValidatedOutput(providerUrl,file,media.durationSeconds,outputContract,transport));
