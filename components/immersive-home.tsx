@@ -472,8 +472,8 @@ export function ImmersiveHome(){
   if(window.matchMedia("(max-width:760px)").matches){event.stopPropagation();}
  };
  return <div className="sm-immersive-home">
+  <SiteHeader className="sm-immersive-header"/>
   <div ref={firstScreen} className="sm-immersive-first-screen" onTouchStart={startTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;resetRefreshCircle();setRefreshing(false)}}>
-   <SiteHeader className="sm-immersive-header"/>
    <main id="content" className="sm-immersive-hero">
     <div className="sm-immersive-atmosphere" aria-hidden="true"/>
     <div className="sm-immersive-desktop-intro">
