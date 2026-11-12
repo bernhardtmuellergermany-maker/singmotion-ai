@@ -9,16 +9,14 @@ type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy
 export default function AccountSettings(){
  const [invoices,setInvoices]=useState<Invoice[]>([]),[invoiceMessage,setInvoiceMessage]=useState(""),[invoicesLoading,setInvoicesLoading]=useState(true);
  const [storageUsage,setStorageUsage]=useState<{usedBytes:number;limitBytes:number}|null>(null);
- const [portalAvailable,setCheckoutAvailable]=useState(false),[data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
+ const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
  useEffect(()=>{fetch("/api/customer-invoices",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load invoices.");setInvoices(Array.isArray(d.invoices)?d.invoices:[]);setInvoiceMessage(d.message||"");}).catch(e=>setInvoiceMessage(e instanceof Error?e.message:"Invoices unavailable")).finally(()=>setInvoicesLoading(false));},[]);
  useEffect(()=>{fetch("/api/customer-plan",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setStorageUsage(d?.storage||null)).catch(()=>{});},[]);
- useEffect(()=>{fetch("/api/hobby-portal",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setCheckoutAvailable(d?.enabled===true)).catch(()=>{});},[]);
  async function resendVerification(){setNotice("");setBusy(true);try{
   const response=await fetch("/api/customer-email-verification",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"resend"})});
   const body=await response.json();if(!response.ok)throw Error(body.error||"Could not send verification email");
   setNotice(body.message||"Check your inbox for a new confirmation link.");
  }catch(e){setNotice(e instanceof Error?e.message:"Could not resend verification email");}finally{setBusy(false)}}
- async function manageBilling(){setNotice("");setBusy(true);try{const r=await fetch("/api/hobby-portal",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});const d=await r.json();if(!r.ok||typeof d.url!=="string")throw Error(d.error||"Billing unavailable");window.location.assign(d.url)}catch(e){setNotice((e as Error).message)}finally{setBusy(false)}}
  useEffect(()=>{fetch("/api/customer-settings",{cache:"no-store"}).then(async r=>{if(r.status===401)throw Error("Please sign in with your customer account first.");if(!r.ok)throw Error("Could not load account settings.");return r.json()}).then(setData).catch(e=>setError(e.message));},[]);
  async function action(kind:"change-password"|"logout-all"){
   setNotice("");
@@ -74,20 +72,14 @@ export default function AccountSettings(){
     <section id="billing" className="sm-settings-section">
       <h2>Credits & payments</h2>
       <div className="sm-plan-summary">
-        <strong>{data.plan?.code==="hobby"?"Existing Hobby subscription (legacy)":"Prepaid Credits"}</strong>
-        {data.plan?.code==="hobby"?<>
-          <p>{data.plan.secondsRemaining} included seconds remaining for your existing billing period{data.plan?.renewsAt?" · Period ends "+new Date(data.plan.renewsAt).toLocaleDateString("en-GB"):""}.</p>
-          <p className="sm-settings-muted">Your existing contractual benefits remain in place; new Hobby subscriptions are no longer offered. Manage or cancel your existing subscription through its original billing channel.</p>
-          {!data.staffPreview&&portalAvailable&&<button type="button" disabled={busy} onClick={()=>void manageBilling()}>Manage existing subscription & invoices</button>}
-        </>:<>
-          <p>One-time top-ups will replace per-video payments. No new monthly subscription.</p>
-          <p className="sm-settings-muted">Stripe test purchases are available on staging when Test Mode is enabled. Live payments remain disabled.</p>
-        </>}
+        <strong>Prepaid Credits</strong>
+        <p>Buy credits once when Checkout is available, monitor your wallet and save optional top-up preferences. There is no monthly plan.</p>
+        <p className="sm-settings-muted">Automatic recharge is currently off. No payment method is charged without explicit authorization. Any available Stripe invoices appear below.</p>
         <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
       </div>
       {storageUsage&&<p className="sm-settings-muted">Uploaded sources: {(storageUsage.usedBytes/1048576).toFixed(1)} / {(storageUsage.limitBytes/1048576).toFixed(0)} MB. Existing purchased video downloads remain separate.</p>}
       <div className="sm-settings-credit-balance"><CreditCard size={19}/><span>Available credits</span><strong>{data.credits.toLocaleString("en-GB")}</strong></div>
-      <p className="sm-settings-muted">Existing paid orders and entitlements are preserved during the credit migration. The amounts below reflect recorded account orders, not necessarily settled charges.</p>
+      <p className="sm-settings-muted">Historical order records, if any, appear below. Only completed Stripe payments create invoice documents.</p>
       {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span></div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
     </section>
     <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2>
@@ -97,7 +89,7 @@ export default function AccountSettings(){
          <div><strong>{invoice.number}</strong><p className="sm-settings-muted">{new Date(invoice.created).toLocaleDateString("en-GB")} · {(invoice.amount/100).toLocaleString("en-GB",{style:"currency",currency:invoice.currency.toUpperCase()})}</p></div>
          <a href={invoice.pdf||invoice.hosted||"#"} rel="noopener noreferrer" target="_blank" className="sm-settings-invoice-link"><Download size={16}/> {invoice.pdf?"Download PDF":"View invoice"}</a>
        </div>)}</div>:<div className="sm-settings-empty"><FileText size={22}/><div><strong>No invoices available</strong><p className="sm-settings-muted">{invoiceMessage||"Invoices will appear here when Stripe has issued them for your paid orders."}</p></div></div>}
-      <p className="sm-settings-muted">Need a receipt or invoice correction? <a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Contact billing support</a>. Existing Hobby subscription documents may also be available through the billing portal above when enabled.</p>
+      <p className="sm-settings-muted">Need a receipt or invoice correction? <a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Contact billing support</a>. </p>
     </section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2>
       <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Your personal information</strong><p className="sm-settings-muted">Account details and payments are restricted to authenticated access. Payment card details are handled by Stripe, not stored on this page.</p><Link href="/privacy">Read privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Projects & uploads</strong><p className="sm-settings-muted">Review your saved projects and uploads. Project files and payment records follow different retention requirements.</p><Link href="/projects">Open my projects <ExternalLink size={13}/></Link></div></div>
