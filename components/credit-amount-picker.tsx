@@ -23,10 +23,12 @@ export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boo
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({credits:String(credits),requestKey:crypto.randomUUID()}),
    });
-   const data=await response.json() as {url?:string;error?:string;testMode?:boolean};
+   const data=await response.json() as {url?:string;error?:string;testMode?:boolean;supportReference?:string};
    if(!response.ok||!data.testMode||typeof data.url!=="string"||
       !/^https:\/\/checkout\.stripe\.com\//.test(data.url))
-    throw Error(data.error||"Stripe test checkout could not be started.");
+    throw Error((data.error||"Stripe test checkout could not be started.")+
+     (typeof data.supportReference==="string"&&/^req_[A-Za-z0-9]+$/.test(data.supportReference)
+       ?" Stripe support reference: "+data.supportReference:""));
    window.location.assign(data.url);
   }catch(e){setError(e instanceof Error?e.message:"Stripe test checkout failed.");setBusy(false);}
  };
