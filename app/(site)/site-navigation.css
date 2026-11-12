@@ -213,3 +213,18 @@
 .sm-legal-topic ul{list-style:none;padding:0;margin:0;display:grid;gap:11px}
 .sm-legal-topic a{color:#dac3ff;text-underline-offset:4px;line-height:1.4}
 .sm-legal-topic a:hover,.sm-legal-topic a:focus-visible{color:#fff}
+
+
+/* Legal overview: useful customer explanations under each policy destination. */
+.sm-legal-topic-grid{gap:19px;align-items:stretch;margin:32px 0 42px}
+.sm-legal-topic{padding:clamp(23px,2.6vw,31px);border-color:rgba(175,122,225,.32);
+ background:linear-gradient(150deg,rgba(39,25,58,.88),rgba(20,19,36,.92));border-radius:19px}
+.sm-legal-topic h2{font-size:clamp(19px,2vw,23px);letter-spacing:-.025em;margin-bottom:11px}
+.sm-legal-topic-intro{font-size:13px;line-height:1.75;color:#c5b8d7;margin:0 0 24px}
+.sm-legal-topic ul{gap:0;border-top:1px solid rgba(198,155,236,.16)}
+.sm-legal-topic li{padding:17px 0 15px;border-bottom:1px solid rgba(198,155,236,.14)}
+.sm-legal-topic li:last-child{border-bottom:0;padding-bottom:0}
+.sm-legal-topic a{font-size:14px;font-weight:750;color:#e2c4ff}
+.sm-legal-topic li p{margin:6px 0 0;color:#b8afc9;font-size:12px;line-height:1.7}
+.sm-legal-topic a:focus-visible{outline:2px solid #e2bbff;outline-offset:3px;border-radius:2px}
+@media(max-width:690px){.sm-legal-topic-grid{grid-template-columns:1fr}.sm-legal-topic{padding:22px}}
