@@ -713,7 +713,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();if(customMode){setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);}setCropPending(true);}}>Reset</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 to frame the reference photo sent to the video generation model. The generated video keeps the dimensions returned by BytePlus; SingMotion does not crop or convert its aspect ratio afterward.</p>
+          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 to frame the reference photo sent to the video generation model. The generated video keeps the dimensions returned by the AI model; SingMotion does not crop or convert its aspect ratio afterward.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -743,7 +743,7 @@ export function StudioWizard({
                 <p className="sm-prompt-guide-example">The singer walks quickly forward toward the camera while singing. The singer takes clearly visible steps. The camera moves backward to follow the singer.</p>
                 <p><strong>Reference photo tip:</strong> For full-body actions such as walking or dancing, use a photo that shows the whole person, including the legs. A close-up may limit visible movement.</p>
                 <p><strong>Keep it focused:</strong> Prefer a few compatible instructions over conflicting actions. For example, do not ask the camera to stay fixed and follow the singer at the same time.</p>
-                <p><strong>Important:</strong> These are writing tips, not automatic instructions. SingMotion sends only the text you enter in the prompt box above. BytePlus may still interpret or omit movements; a result is not guaranteed.</p>
+                <p><strong>Important:</strong> These are writing tips, not automatic instructions. SingMotion sends only the text you enter in the prompt box above. The AI model may still interpret or omit movements; a result is not guaranteed.</p>
               </div>
             </details>
           </div>
@@ -816,7 +816,7 @@ export function StudioWizard({
                 <p><strong>Performance instructions</strong></p>
                 <p className="sm-review-prompt">{prompt || "No prompt will be sent to the video generation model."}</p>
                 <p>Only the text you enter above is sent as a prompt to the video generation model. If you leave it blank, the prompt field is omitted. Model-generated movement is not guaranteed.</p>
-                <p>The uploaded photo guides the scene; BytePlus determines the generated video's native aspect ratio. SingMotion does not convert it to the reference image's orientation.</p>
+                <p>The uploaded photo guides the scene; The video generation model determines the generated video's native aspect ratio. SingMotion does not convert it to the reference image's orientation.</p>
               </div>
             </details>
             <details className="sm-review-item">
@@ -854,7 +854,7 @@ export function StudioWizard({
             <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
           </label>
           <p className="sm-review-ai-notice">AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
-          <p className="sm-review-payment-note">{operatorStudio?"Next: private operator authorization and BytePlus review. No Stripe payment.":"Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page."}</p>
+          <p className="sm-review-payment-note">{operatorStudio?"Next: private operator authorization and generation review. No Stripe payment.":"Next: secure checkout via Stripe. After verified payment, your video is generated and its progress can be followed on your private order page."}</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
