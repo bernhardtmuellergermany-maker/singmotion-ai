@@ -93,7 +93,8 @@ export function MyProjectsGallery(){
  }
  async function deleteProject(item:ProjectItem){
   if(busyId||item.kind==="customer")return;
-  const active=item.kind==="admin" && item.status==="processing";
+  const adminState=item.kind==="admin"?live.find(p=>p.id===item.id.slice(5))?.state:null;
+  const active=item.kind==="admin" && !["prepared","completed","failed"].includes(adminState||"");
   const warning=item.kind==="draft"
    ?"Permanently delete draft '"+item.name+"'? This cannot be undone."
    :active
