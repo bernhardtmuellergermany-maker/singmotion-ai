@@ -46,7 +46,7 @@ async function handle(req:NextRequest,write:boolean){
    store.db.prepare(`INSERT INTO credit_auto_topup_preferences(subject,threshold,amount,monthly_cap,updated)
     VALUES(?,?,?,?,?) ON CONFLICT(subject) DO UPDATE SET threshold=excluded.threshold,
     amount=excluded.amount,monthly_cap=excluded.monthly_cap,updated=excluded.updated`)
-    .run(identity.subject,body.threshold,body.amount,body.monthlyCap,Date.now());
+    .run(identity.subject,Number(body.threshold),Number(body.amount),Number(body.monthlyCap),Date.now());
   }
   const saved=store.db.prepare("SELECT threshold,amount,monthly_cap FROM credit_auto_topup_preferences WHERE subject=?")
    .get(identity.subject) as {threshold:number;amount:number;monthly_cap:number}|undefined;
