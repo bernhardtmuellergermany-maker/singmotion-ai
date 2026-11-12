@@ -42,6 +42,9 @@ test("pricing and credit packages are informational while checkout is disabled",
   assert.match(plans, /25 Credits/);
   assert.match(plans, /Prepaid/);
   assert.match(plans, /href="\/credits"/);
-  assert.match(credits, /Stripe credit purchases not yet available/);
+  const picker = read("components/credit-amount-picker.tsx");
+  assert.match(picker, /Credit checkout coming soon/);
+  assert.match(picker, /enter exactly how many credits you want/);
+  assert.doesNotMatch(picker, /\/api\/stripe-checkout|fetch\(.*checkout/);
   assert.doesNotMatch(credits, /\/api\/stripe-checkout|fetch\(.*checkout/);
 });
