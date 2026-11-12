@@ -1056,3 +1056,41 @@
 
 /* Anchor the cinematic hero scroll to Stunning Creations, not the 16:9 reel. */
 @media(min-width:761px){.sm-immersive-home .sm-immersive-creations{scroll-margin-top:64px}}
+
+
+/* Customer-friendly, SEO-readable homepage guide: informative four-step cards. */
+.sm-immersive-home .sm-immersive-steps>p{max-width:735px!important;font-size:15px;line-height:1.8}
+@media(min-width:761px){
+ .sm-immersive-home .sm-immersive-steps ol{max-width:1220px;gap:clamp(13px,1.65vw,24px)}
+ .sm-immersive-home .sm-immersive-steps li{
+  min-height:360px;padding:27px clamp(15px,1.7vw,25px) 23px;gap:14px;
+  border-color:rgba(188,117,233,.29);
+  background:linear-gradient(150deg,rgba(39,17,56,.78),rgba(17,12,33,.94));
+ }
+ .sm-immersive-home .sm-immersive-steps li svg{width:62px;height:62px;padding:16px}
+ .sm-immersive-home .sm-immersive-steps li strong{font-size:clamp(16px,1.25vw,19px);line-height:1.38}
+ .sm-immersive-home .sm-immersive-steps li span{
+  max-width:255px;font-size:clamp(12px,1vw,14px);line-height:1.78;
+ }
+}
+.sm-immersive-home .sm-immersive-steps li small{
+ display:block;margin-top:auto;padding-top:16px;width:100%;
+ border-top:1px solid rgba(188,131,234,.18);
+ font-size:10px;line-height:1.4;font-weight:760;letter-spacing:.09em;color:#d4aafa;
+}
+@media(min-width:761px) and (max-width:980px){
+ .sm-immersive-home .sm-immersive-steps li{min-height:415px}
+}
+@media(max-width:760px){
+ .sm-immersive-home .sm-immersive-steps ol{gap:15px}
+ .sm-immersive-home .sm-immersive-steps li{
+  min-height:340px;padding:22px 17px 19px;border:1px solid rgba(188,117,233,.31);
+  border-radius:17px;background:linear-gradient(155deg,rgba(40,18,57,.7),rgba(16,11,31,.94));
+ }
+ .sm-immersive-home .sm-immersive-steps li strong{font-size:15px;line-height:1.35}
+ .sm-immersive-home .sm-immersive-steps li span{max-width:290px;font-size:12px;line-height:1.68}
+}
+@media(max-width:450px){
+ .sm-immersive-home .sm-immersive-steps ol{grid-template-columns:1fr;max-width:360px}
+ .sm-immersive-home .sm-immersive-steps li{min-height:0;padding:23px 22px}
+}
