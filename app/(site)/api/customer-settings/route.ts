@@ -29,7 +29,7 @@ export async function GET(req:NextRequest){
   }
   const profile=store.db.prepare("SELECT email,created FROM customer_accounts WHERE id=?").get(id) as {email:string;created:number}|undefined;
   if(!profile)return NextResponse.json({error:"Account unavailable"},{status:404});
-  const orders=store.db.prepare("SELECT id,project_id,price_cents,currency,status,created FROM customer_orders WHERE account_id=? ORDER BY created DESC LIMIT 50").all(id);
+  const orders=store.db.prepare("SELECT id,project_id,price_cents,currency,status,created FROM customer_orders o WHERE account_id=? AND NOT EXISTS(SELECT 1 FROM customer_hidden_paid_orders h WHERE h.account_id=o.account_id AND h.order_id=o.id) ORDER BY created DESC LIMIT 50").all(id);
   const sessions=store.db.prepare("SELECT COUNT(*) AS count FROM customer_sessions WHERE account_id=? AND expires>?").get(id,Date.now()) as {count:number};
   const credits=store.db.prepare("SELECT COALESCE(SUM(delta),0) AS balance FROM customer_credits WHERE account_id=?").get(id) as {balance:number};
   const plan=new PlanLedger(store.db).snapshot(id);
