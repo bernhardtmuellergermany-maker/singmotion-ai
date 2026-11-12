@@ -131,14 +131,17 @@ export class StudioWorkflow {
   readonly config: LiveTestConfig;
   readonly dependencies: StudioDependencies;
   readonly superAdmin: boolean;
+  readonly requirePrepaidCredits: boolean;
   constructor(
     store: LiveTestStore,
     root: string,
     config: LiveTestConfig,
     dependencies: StudioDependencies,
     superAdmin = false,
+    requirePrepaidCredits = false,
   ) {
     this.superAdmin = superAdmin;
+    this.requirePrepaidCredits = requirePrepaidCredits;
     this.store = store;
     this.root = root;
     this.config = config;
@@ -208,6 +211,7 @@ export class StudioWorkflow {
     }finally{store.close();}
   }
   async withCurrentBudget(project: StudioProject): Promise<StudioProject> {
+    if(!this.requirePrepaidCredits)return {...project,budget:null,budgetBlocker:null};
     const attempt=this.store.get(project.id);
     const hold=this.reconcileVideoCredit(project.id,attempt.state,attempt.failureCode);
     const quote=quoteVideoCredits(project.selection.start,project.selection.end);
@@ -546,7 +550,7 @@ export class StudioWorkflow {
     const file = attempt.outputPath;
     // An unsubmitted prepared project has no provider task. Deleting it may
     // safely release its hold, while completed/failed accounting is retained.
-    if(attempt.state==="prepared"){
+    if(this.requirePrepaidCredits&&attempt.state==="prepared"){
       const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
       try{new CreditWallet(commerce.db).reconcileVideo(id,"nonbillable");}
       finally{commerce.close();}
@@ -911,8 +915,8 @@ export class StudioWorkflow {
     // A trusted CMS Super Admin's wallet is required even for private
     // operator tests. A role/owner string from the browser is never an auth key.
     // Reserve BEFORE the first externally billable approval/submission.
-    if(this.superAdmin){
-      if(verifiedCreditSubject!=="super-admin:"+owner.slice("cms-staff-".length)||
+    if(this.requirePrepaidCredits){
+      if(!this.superAdmin || verifiedCreditSubject!=="super-admin:"+owner.slice("cms-staff-".length)||
          !owner.startsWith("cms-staff-"))
         throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","Verified account required before generating a paid video.",403);
       const selection=JSON.parse(row.selection_json) as StudioDraftExport;
@@ -929,11 +933,6 @@ export class StudioWorkflow {
           throw error;
         }
       }finally{commerce.close();}
-    }else{
-      // Editors and old per-video checkout sessions must not bypass the new
-      // prepaid customer billing policy with a free staff operator submission.
-      throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED",
-       "A verified Super Admin credit wallet is required for private provider tests. Customer generation awaits its separate credit release.",403);
     }
     // STAGING customer entitlements are checked at the last gate before any provider approval.
     // Keep operational staff workflows independent of consumer billing.
@@ -1054,7 +1053,7 @@ export class StudioWorkflow {
     }
     const latest = this.store.get(id);
     this.reconcileHobbyUsage(id, owner, latest.state, latest.failureCode);
-    this.reconcileVideoCredit(id, latest.state, latest.failureCode);
+    if(this.requirePrepaidCredits)this.reconcileVideoCredit(id, latest.state, latest.failureCode);
     return this.withCurrentBudget(this.view(id, owner));
   }
   async output(id: string, owner: string) {
