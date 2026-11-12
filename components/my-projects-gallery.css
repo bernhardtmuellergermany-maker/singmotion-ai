@@ -218,3 +218,15 @@
  .sm-projects-card-details .sm-projects-meta{font-size:9px}
  .sm-projects-card-footer .sm-projects-options-menu{width:158px;min-width:158px}
 }
+
+/* One-tap clipboard action for the full (not truncated) support reference. */
+.sm-projects-copy-support{
+ display:inline-grid;place-items:center;flex:0 0 auto;
+ width:25px;height:25px;margin-left:3px;padding:0;
+ border:1px solid #785794;border-radius:7px;background:#352143;
+ color:#e7caff;cursor:pointer;transition:background .15s ease,border-color .15s ease;
+}
+.sm-projects-copy-support:hover{background:#55336c;border-color:#b97bd5}
+.sm-projects-copy-support:focus-visible{outline:2px solid #e8b2ff;outline-offset:2px}
+.sm-projects-copy-feedback{font-size:10px;color:#7ff1b5;font-weight:650}
+.sm-projects-copy-error{font-size:10px;color:#ff9da8}
