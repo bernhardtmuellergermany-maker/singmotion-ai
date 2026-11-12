@@ -68,13 +68,25 @@ export async function POST(req:NextRequest){
     // Error type/code/parameter are enough to diagnose a rejected TEST request.
     const failure=await response.json().catch(()=>null) as
       {error?:{type?:unknown;code?:unknown;param?:unknown}}|null;
-    const detail=failure?.error;
+    const detail=failure?.error as {type?:unknown;code?:unknown;param?:unknown;message?:unknown}|undefined;
     const safe=(value:unknown)=>typeof value==="string"&&/^[a-zA-Z0-9_.-]{1,90}$/.test(value)?value:null;
+    // Stripe's generic invalid_request_error may contain no code or param.
+    // Preserve a redacted message and Stripe request ID in PRIVATE staging
+    // runtime logs so operations can diagnose the actual rejection. Never
+    // expose raw error bodies, emails, session IDs, secrets or card data.
+    const message=typeof detail?.message==="string"?detail.message.slice(0,400)
+      .replace(/\\b[\\w.+-]+@[\\w.-]+\\.[A-Za-z]{2,}\\b/g,"[email]")
+      .replace(/https?:\\/\\/[^\\s]+/gi,"[url]")
+      .replace(/(?:sk|pk|rk)_(?:test|live)_[A-Za-z0-9_]+|whsec_[A-Za-z0-9_]+/g,"[secret]")
+      .replace(/\\b(?:acct|cus|cs|pi|pm|ch|req|evt|seti)_[A-Za-z0-9_]+\\b/g,"[identifier]")
+      .replace(/\\b[0-9]{8,}\\b/g,"[number]"):null;
+    const requestId=safe(response.headers.get("request-id")||response.headers.get("stripe-request-id"));
     console.error("STRIPE_CREDIT_TEST_CHECKOUT_REJECTED",{
      status:response.status,type:safe(detail?.type),code:safe(detail?.code),
-     param:safe(detail?.param),
+     param:safe(detail?.param),message,requestId,
     });
-    return json({error:"Stripe Test Checkout could not be created. No payment was taken."},502);
+    return json({error:"Stripe Test Checkout could not be created. No payment was taken.",
+      ...(requestId?{supportReference:requestId}:{})},502);
    }
    const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string};
    if(session.livemode!==false||session.mode!=="payment"||session.amount_total!==purchase.cents||
