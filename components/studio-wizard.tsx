@@ -50,7 +50,7 @@ import {
 import { photoFormat, uploadedPhotoFraming } from "@/lib/studio-editor";
 import { defaultStudioContent, type StudioContent } from "@/lib/studio-content";
 import { productCopy } from "@/lib/product-copy";
-import type { StudioDraftExport } from "@/lib/studio-draft";
+import {hasFirstStudioUpload, type StudioDraftExport} from "@/lib/studio-draft";
 const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
@@ -349,11 +349,13 @@ export function StudioWizard({
     if (ready) localStorage.setItem("singmotion-studio", JSON.stringify(draft));
   }, [draft, ready]);
   useEffect(() => {
-    if (!ready || !owner || !projectKey || deletingDraft.current) return;
+    // A project begins at its first successful upload, not when Studio opens.
+    // Do not persist empty projects from a new=1 visit or text-only edits.
+    if (!ready || !owner || !projectKey || deletingDraft.current ||
+        !hasFirstStudioUpload({songId:draft.song?.id||"",imageId:draft.imageId})) return;
     let current = true;
     const id = projectKey;
-    // Register a new empty draft immediately when Studio opens.
-    // Later edits retain the debounce to avoid excessive server writes.
+    // First successful upload is saved immediately. Later edits are debounced.
     const delay = firstDraftSave.current ? 0 : 700;
     const timer = setTimeout(() => {
       firstDraftSave.current = false;

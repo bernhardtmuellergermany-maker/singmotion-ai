@@ -90,6 +90,14 @@ export function parseStudioDraft(value: unknown): StudioDraftExport {
   };
 }
 
+/** Persist and list a draft only after a successful owned media upload.
+ * Text edits or merely opening the Studio never create a project.
+ * Either audio or image is enough; both are required later for generation.
+ */
+export function hasFirstStudioUpload(selection: Pick<StudioDraftExport,"songId"|"imageId">): boolean {
+  return Boolean(selection.songId || selection.imageId);
+}
+
 /** Saved editing state can be incomplete; paid preparation still uses the strict parser. */
 export function parseSavedStudioDraft(value: unknown): StudioDraftExport {
   if (!value || typeof value !== "object" || Array.isArray(value))
