@@ -65,7 +65,7 @@ export function CreditsDashboard({ mode }: { mode: "buy" | "usage" }) {
       </section>
       {mode === "usage" && <section className="sm-credits-history">
         <h2>Credit history</h2>
-        <p className="sm-credits-muted">This overview shows recorded account credit entries. Reservations are included in the total above, not charged a second time.</p>
+        <p className="sm-credits-muted">This overview shows recorded account credit entries. Reserved credits are shown separately from available credits and are not charged a second time.</p>
         {balance.entries.length === 0 ? <p className="sm-credits-empty">No credit transactions recorded yet.</p> :
          <ul>{balance.entries.map((entry) => <li key={entry.id}>
           <span><strong>{entry.type === "video" ? "Video generation" : entry.type === "returned" ? "Credits returned" : "Account credit adjustment"}</strong>
