@@ -2,12 +2,10 @@ import Link from "next/link";
 import { ProductHeader } from "./product-header";
 import { SiteHeader } from "./site-header";
 import { UserRound } from "lucide-react";
-import { OutputProjectSearch } from "./output-project-search";
-import { ProjectHeaderName } from "./project-header-name";
 export function Shell({ children, hideWorkspaceNav = false, projectId }: { children: React.ReactNode; hideWorkspaceNav?: boolean; projectId?: string }) {
   if (hideWorkspaceNav) return (
     <div className="sm-carousel-page sm-output-page">
-      <SiteHeader navigation={projectId ? <ProjectHeaderName id={projectId}/> : undefined} search={<OutputProjectSearch/>}/>
+      <SiteHeader showGlobalMenu={false}/>
       <main className="sm-carousel-main">{children}</main>
     </div>
   );
