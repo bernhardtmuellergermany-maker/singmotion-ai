@@ -713,7 +713,7 @@ export function StudioWizard({
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();if(customMode){setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);}setCropPending(true);}}>Reset</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 to frame the reference photo sent to BytePlus. The generated video keeps the dimensions returned by BytePlus; SingMotion does not crop or convert its aspect ratio afterward.</p>
+          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 to frame the reference photo sent to the video generation model. The generated video keeps the dimensions returned by BytePlus; SingMotion does not crop or convert its aspect ratio afterward.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -730,7 +730,7 @@ export function StudioWizard({
           <div className="sm-prompt-writing-guide" aria-label="Guide to writing better movement prompts">
             <p className="sm-prompt-guide-intro"><strong>Make your singer move: write clear, specific instructions.</strong> Use complete English sentences instead of short keywords. Describe what the singer does, where they move, what is visible, and how the camera behaves.</p>
             <details className="sm-prompt-guide-details">
-              <summary><Sparkles size={17} aria-hidden="true"/> How to write an effective BytePlus prompt <ChevronDown size={16} aria-hidden="true"/></summary>
+              <summary><Sparkles size={17} aria-hidden="true"/> How to write an effective AI video prompt <ChevronDown size={16} aria-hidden="true"/></summary>
               <div className="sm-prompt-guide-body">
                 <ol>
                   <li><strong>Who?</strong> Name the subject, for example: &ldquo;The singer&rdquo;.</li>
@@ -814,8 +814,8 @@ export function StudioWizard({
               <summary><Sparkles size={20}/><strong>Performance</strong><span className="sm-review-item-value">{draft.customPrompt.trim()||"No prompt — only image and audio will be sent"}</span><ChevronDown size={17}/></summary>
               <div className="sm-review-expanded">
                 <p><strong>Performance instructions</strong></p>
-                <p className="sm-review-prompt">{prompt || "No prompt will be sent to BytePlus."}</p>
-                <p>Only the text you enter above is sent as a prompt to BytePlus. If you leave it blank, the prompt field is omitted. Model-generated movement is not guaranteed.</p>
+                <p className="sm-review-prompt">{prompt || "No prompt will be sent to the video generation model."}</p>
+                <p>Only the text you enter above is sent as a prompt to the video generation model. If you leave it blank, the prompt field is omitted. Model-generated movement is not guaranteed.</p>
                 <p>The uploaded photo guides the scene; BytePlus determines the generated video's native aspect ratio. SingMotion does not convert it to the reference image's orientation.</p>
               </div>
             </details>
