@@ -727,6 +727,26 @@ export function StudioWizard({
               <span className="sm-performance-counter" aria-live="polite">{draft.customPrompt.length} / 500</span>
             </div>
           </div>
+          <div className="sm-prompt-writing-guide" aria-label="Guide to writing better movement prompts">
+            <p className="sm-prompt-guide-intro"><strong>Make your singer move: write clear, specific instructions.</strong> Use complete English sentences instead of short keywords. Describe what the singer does, where they move, what is visible, and how the camera behaves.</p>
+            <details className="sm-prompt-guide-details">
+              <summary><Sparkles size={17} aria-hidden="true"/> How to write an effective BytePlus prompt <ChevronDown size={16} aria-hidden="true"/></summary>
+              <div className="sm-prompt-guide-body">
+                <ol>
+                  <li><strong>Who?</strong> Name the subject, for example: &ldquo;The singer&rdquo;.</li>
+                  <li><strong>What action?</strong> Describe one specific movement: walk, turn, dance, raise a hand or step forward.</li>
+                  <li><strong>Where and how?</strong> State direction, speed and how the motion should look, such as &ldquo;quickly toward the camera, taking clearly visible steps&rdquo;.</li>
+                  <li><strong>While singing?</strong> Say explicitly if the movement happens while the person sings.</li>
+                  <li><strong>Camera?</strong> If needed, describe how the camera follows the movement instead of assuming it will move automatically.</li>
+                </ol>
+                <p><strong>Example — walking toward the camera:</strong></p>
+                <p className="sm-prompt-guide-example">The singer walks quickly forward toward the camera while singing. The singer takes clearly visible steps. The camera moves backward to follow the singer.</p>
+                <p><strong>Reference photo tip:</strong> For full-body actions such as walking or dancing, use a photo that shows the whole person, including the legs. A close-up may limit visible movement.</p>
+                <p><strong>Keep it focused:</strong> Prefer a few compatible instructions over conflicting actions. For example, do not ask the camera to stay fixed and follow the singer at the same time.</p>
+                <p><strong>Important:</strong> These are writing tips, not automatic instructions. SingMotion sends only the text you enter in the prompt box above. BytePlus may still interpret or omit movements; a result is not guaranteed.</p>
+              </div>
+            </details>
+          </div>
           <div className="sm-performance-ideas">
             <h2>Quick ideas</h2>
             <div className="sm-performance-chips" role="group" aria-label="Add performance ideas">
