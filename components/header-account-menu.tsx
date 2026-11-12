@@ -53,9 +53,12 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
    {identity==="loading"?<span className="sm-account-menu-info">Checking login…</span>:
-    identity==="guest"?<Link href="/login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>:
+    identity==="guest"?<>
+     <Link href="/login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
+    </>:
     <>
-     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Upgrade</Link>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      {identity==="customer"?<button type="button" disabled={busy} onClick={()=>void logout()}>{busy?"Logging out…":"Logout"}</button>:
       <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin / Staff logout"}</button>}
