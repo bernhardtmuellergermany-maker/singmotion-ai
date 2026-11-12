@@ -61,3 +61,12 @@
 .sm-account-credit-low>strong{color:#ffcf6a}
 .sm-account-credit-critical>strong{color:#ff8491}
 .sm-account-credit-unknown>strong{color:#b6b0c4}
+
+.sm-account-preview-buttons{display:flex;gap:6px;margin-top:8px}
+.sm-account-preview-buttons button{
+ min-width:42px;padding:7px 8px;border:1px solid #725f90;border-radius:8px;
+ background:#21192f;color:#f1e6ff;font-size:12px;cursor:pointer;
+}
+.sm-account-preview-buttons button[aria-pressed="true"]{border-color:#ba89f4;background:#493361}
+.sm-account-preview-buttons button:focus-visible{outline:2px solid #d29bff;outline-offset:2px}
+.sm-account-credit-status strong small{font-size:11px;font-weight:600;letter-spacing:0}
