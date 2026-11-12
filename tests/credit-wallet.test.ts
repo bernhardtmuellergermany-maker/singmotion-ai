@@ -28,7 +28,7 @@ test("real wallet binds one account and settles confirmed payment exactly once",
   assert.equal(w.pending(alice,2357,key).id,p.id);
   assert.throws(()=>w.pending(admin,2357,key),/idempotency conflict/);
   assert.throws(()=>w.pending(alice,999,key),/idempotency conflict/);
-  assert.throws(()=>w.bind(p.id,"cs_live_bad","https://checkout.stripe.com/test"),/Invalid Stripe/);
+  assert.throws(()=>w.bind(p.id,"cs_bad","https://checkout.stripe.com/test"),/Invalid Stripe/);
   w.bind(p.id,"cs_test_safe123","https://checkout.stripe.com/c/pay/safe");
   const paid={id:p.id,sessionId:"cs_test_safe123",amount:2357,currency:"eur",paymentStatus:"paid",livemode:false};
   assert.throws(()=>w.settle({...paid,paymentStatus:"unpaid"}),/mismatch/);
