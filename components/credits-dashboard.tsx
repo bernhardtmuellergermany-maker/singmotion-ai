@@ -13,7 +13,7 @@ type Balance={availableCredits:number;reservedCredits:number;outstandingCredits:
 type View="loading"|"signed-out"|"unavailable"|"ready";
 const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const date=(n:number)=>new Date(n).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
-const eur=(n:number)=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(n/100);
+const eur=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
 
 export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
  const [view,setView]=useState<View>("loading");
