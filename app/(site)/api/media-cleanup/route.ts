@@ -2,9 +2,6 @@ import { NextRequest } from "next/server";
 import { unlink } from "node:fs/promises";
 import path from "node:path";
 import { db, dataDir, session, limit } from "@/lib/db";
-import { CommerceStore } from "@/lib/commerce/store";
-import { PlanLedger } from "@/lib/commerce/plans";
-import {uploadStorageLimit} from "@/lib/upload-storage";
 import {deleteMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import { stagingDenial } from "@/lib/staging";
 import { openStudioStore } from "@/lib/live/studio";
@@ -47,16 +44,9 @@ export async function POST(req:NextRequest){
   // Paid output files are immutable customer deliveries, never unused uploads.
   const unused=safe.filter(a=>a.unused && (a.kind==="audio" || a.kind==="image"));
   const cloudTable=!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get();
-  let storagePlan:"guest"|"free"|"hobby"="guest";
-  if(auth.owner.startsWith("customer-") && process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"){
-   const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
-   try{
-    const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
-    storagePlan=accountId && auth.owner===`customer-${accountId}`
-      ? new PlanLedger(customer.db).activePlan(accountId) : "free";
-   }finally{customer.close()}
-  }
-  const report={totalBytes:safe.reduce((s,a)=>s+a.bytes,0),limitBytes:uploadStorageLimit(storagePlan),
+  // Media cleanup is a user-requested deletion operation, not a storage
+  // quota check. The prepaid credit model has no cumulative upload cap.
+  const report={totalBytes:safe.reduce((sum,item)=>sum+item.bytes,0),unlimited:true,limitBytes:null,
    unusedBytes:unused.reduce((s,a)=>s+a.bytes,0),unusedCount:unused.length,
    protectedCount:safe.length-unused.length,
    unused:unused.map(({id,bytes,name,kind})=>({id,bytes,name,kind}))};
