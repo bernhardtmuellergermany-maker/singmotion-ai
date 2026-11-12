@@ -41,6 +41,20 @@ export function ShowcaseManager(){
   finally{setPosterSaving(null)}
  };
 
+ const deletePoster=async(id:string)=>{
+  if(posterSaving!==null||!window.confirm("Vorschaubild entfernen? Das Video und seine Veröffentlichung bleiben erhalten."))return;
+  setPosterSaving(id);setUploadMessage("");
+  try{
+   const res=await fetch("/api/showcase-media?kind=poster&id="+encodeURIComponent(id),{method:"DELETE",credentials:"same-origin"});
+   const data=await res.json() as {ok?:boolean;error?:string};
+   if(!res.ok||data.ok!==true)throw Error(data.error||"Vorschaubild konnte nicht entfernt werden");
+   setAvailable(items=>items.map(item=>item.id===id?{...item,posterUrl:null}:item));
+   setBackgroundRevision(Date.now());
+   setUploadMessage("Vorschaubild entfernt. Das Video bleibt unverändert veröffentlicht.");
+  }catch(e){setUploadMessage((e as Error).message)}
+  finally{setPosterSaving(null)}
+ };
+
  const videoInput=useRef<HTMLInputElement>(null);
  const desktopBgInput=useRef<HTMLInputElement>(null);
  const mobileBgInput=useRef<HTMLInputElement>(null);
@@ -152,6 +166,7 @@ export function ShowcaseManager(){
      <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:6}}>
        <span>{name(id)}</span>
        {available.find(x=>x.id===id)?.posterUrl&&<img src={available.find(x=>x.id===id)!.posterUrl!+"&v="+backgroundRevision} alt={"Vorschaubild für "+name(id)} style={{height:72,width:42,objectFit:"contain",background:"#0d0b18",borderRadius:5}}/>}
+       {available.find(x=>x.id===id)?.posterUrl&&<button type="button" disabled={posterSaving!==null||uploading} onClick={()=>void deletePoster(id)} aria-label={"Vorschaubild löschen für "+name(id)}>Vorschaubild löschen</button>}
        <label style={{fontSize:12,display:"grid",gap:3,color:"#e8d5f8"}}>Vorschaubild {posterSaving===id?"wird gespeichert…":""}
         <input type="file" aria-label={"Vorschaubild hochladen für "+name(id)} disabled={posterSaving!==null||uploading} accept="image/jpeg,image/png,image/webp" onChange={e=>{void uploadPoster(id,e.target.files?.[0]||null);e.currentTarget.value="";}}/>
        </label>
@@ -174,6 +189,7 @@ export function ShowcaseManager(){
     {available.filter(x=>!ordered.includes(x.id)).map(x=><div key={x.id} style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",border:"1px solid #68417d",borderRadius:8,padding:8}}>
       <button type="button" onClick={()=>add(x.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"#2a1739",color:"#fff",border:0,flex:"1 1 170px"}}>+ {x.name}</button>
       {x.posterUrl&&<img src={x.posterUrl+"&v="+backgroundRevision} alt="" style={{width:36,height:60,objectFit:"contain",background:"#0d0b18",borderRadius:4}}/>}
+      {x.posterUrl&&<button type="button" disabled={posterSaving!==null||uploading} onClick={()=>void deletePoster(x.id)} aria-label={"Vorschaubild löschen für "+x.name}>Vorschaubild löschen</button>}
       <label style={{fontSize:12,color:"#dfc2f5"}}>Poster wählen
        <input type="file" aria-label={"Vorschaubild hochladen für "+x.name} accept="image/jpeg,image/png,image/webp" disabled={posterSaving!==null||uploading} onChange={e=>{void uploadPoster(x.id,e.target.files?.[0]||null);e.currentTarget.value=""}}/>
       </label>
