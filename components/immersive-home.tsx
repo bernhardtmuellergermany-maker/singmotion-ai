@@ -20,27 +20,24 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const [settling,setSettling]=useState(false);
  const [target,setTarget]=useState<number|null>(null);
  const [broken,setBroken]=useState(false);
- const video=useRef<HTMLVideoElement>(null);
- // Autoplay must start muted: browsers block unsolicited playback with sound.
- // Start on selection and resume on tab return; never require a poster click.
+ const carousel=useRef<HTMLDivElement>(null);
+ // All three visible clips autoplay muted, including the adjacent previews.
  useEffect(()=>{
-  const element=video.current;
-  if(!element||!slides[selected]?.url||broken)return;
-  element.defaultMuted=true;
-  element.muted=true;
-  const start=()=>{
+  const root=carousel.current;
+  if(!root)return;
+  const play=()=>{
    if(document.hidden)return;
-   void element.play().catch(()=>{
-    // Retry muted for browsers restoring an audible preference.
+   root.querySelectorAll<HTMLVideoElement>(".sm-moving-card video").forEach(element=>{
+    element.defaultMuted=true;
     element.muted=true;
-    void element.play().catch(()=>{});
+    if(element.paused)void element.play().catch(()=>{});
    });
   };
-  start();
-  const onVisibility=()=>{if(document.hidden)element.pause();else start();};
-  document.addEventListener("visibilitychange",onVisibility);
-  return()=>document.removeEventListener("visibilitychange",onVisibility);
- },[selected,slides[selected]?.url,broken]);
+  play();
+  const visibility=()=>{if(!document.hidden)play();};
+  document.addEventListener("visibilitychange",visibility);
+  return()=>document.removeEventListener("visibilitychange",visibility);
+ },[selected,clips]);
 
  const touchX=useRef<number|null>(null);
  const count=slides.length;
@@ -48,7 +45,6 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  const move=(direction:number,destination?:number)=>{
   if(motion!==0||settling)return;
-  video.current?.pause();
   setMotion(direction>0?-1:1);
   setTarget(destination===undefined?wrap(selected+(direction>0?1:-1)):wrap(destination));
  };
@@ -63,7 +59,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  };
  const slots=[-1,0,1];
  return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
-  <div className="sm-moving-carousel" tabIndex={0} aria-label="Use left and right arrows to move through music videos"
+  <div ref={carousel} className="sm-moving-carousel" tabIndex={0} aria-label="Use left and right arrows to move through music videos"
    onKeyDown={e=>{if(e.key==="ArrowLeft"){e.preventDefault();move(-1)}else if(e.key==="ArrowRight"){e.preventDefault();move(1)}}}
    onTouchStart={e=>{touchX.current=e.touches[0]?.clientX??null}}
    onTouchEnd={e=>{const x=e.changedTouches[0]?.clientX;if(x!==undefined&&touchX.current!==null&&Math.abs(x-touchX.current)>50)move(x<touchX.current?1:-1);touchX.current=null}}>
@@ -77,14 +73,14 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
        style={{"--slot":(slot*74)+"%"} as React.CSSProperties}
        onTransitionEnd={isCenter?endMove:undefined}
        aria-hidden={Math.abs(slot)>1?true:undefined}>
-      {isCenter&&item.url&&!broken?<video ref={video} key={item.url} src={item.url} poster={itemCover}
+      {isCenter&&item.url&&!broken?<video key={item.url} src={item.url} poster={itemCover}
         playsInline autoPlay loop muted preload="auto" className="sm-moving-video"
         onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
         onError={()=>setBroken(true)} aria-label={item.title}/>:
        isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
-        muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
-        onLoadedMetadata={e=>{e.currentTarget.muted=true}}
-        onLoadedData={e=>e.currentTarget.pause()}/>:
+        autoPlay muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
+        onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
+        onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}}/>:
        <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+itemCover+"')"}}/>}
       {isSide&&<button className="sm-moving-side-tap" type="button" aria-label={offset<0?"Previous video":"Next video"} onClick={()=>move(offset<0?-1:1)}/>}
 
