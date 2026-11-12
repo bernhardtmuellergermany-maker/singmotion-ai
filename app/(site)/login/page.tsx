@@ -5,7 +5,7 @@ import "./standalone-login.css";
 
 export const metadata:Metadata={
  title:"Sign in",
- description:"Sign in or create a SingMotion AI account to access your videos and projects."
+ description:"Sign in to generate AI music videos or create an account for your private SingMotion AI studio, drafts and Credits."
 };
 
 export default function LoginPage(){
