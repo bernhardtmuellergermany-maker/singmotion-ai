@@ -45,3 +45,10 @@
  .sm-credit-amount-total{grid-template-columns:1fr}
  .sm-credit-amount-heading{flex-direction:column}
 }
+
+.sm-credit-buy-enabled{width:100%;font:inherit;opacity:1;cursor:pointer;
+ background:linear-gradient(120deg,#9255f2,#ab65eb);
+ border:1px solid #ad73ff;box-shadow:0 3px 19px #8b4bd72b}
+.sm-credit-buy-enabled:hover:not(:disabled){filter:brightness(1.12)}
+.sm-credit-buy-enabled:focus-visible{outline:2px solid white;outline-offset:3px}
+.sm-credit-buy-enabled:disabled{opacity:.48;cursor:not-allowed}
