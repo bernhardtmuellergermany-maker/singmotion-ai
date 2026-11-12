@@ -2,12 +2,15 @@
 import {useEffect,useState} from "react";
 import Link from "next/link";
 import {Shell} from "@/components/shell";
-import {UserRound,ShieldCheck,CreditCard,FileText,Trash2} from "lucide-react";
+import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole} from "lucide-react";
 import "./account-settings.css";
+type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null};
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
 export default function AccountSettings(){
+ const [invoices,setInvoices]=useState<Invoice[]>([]),[invoiceMessage,setInvoiceMessage]=useState(""),[invoicesLoading,setInvoicesLoading]=useState(true);
  const [storageUsage,setStorageUsage]=useState<{usedBytes:number;limitBytes:number}|null>(null);
  const [portalAvailable,setCheckoutAvailable]=useState(false),[data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
+ useEffect(()=>{fetch("/api/customer-invoices",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load invoices.");setInvoices(Array.isArray(d.invoices)?d.invoices:[]);setInvoiceMessage(d.message||"");}).catch(e=>setInvoiceMessage(e instanceof Error?e.message:"Invoices unavailable")).finally(()=>setInvoicesLoading(false));},[]);
  useEffect(()=>{fetch("/api/customer-plan",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setStorageUsage(d?.storage||null)).catch(()=>{});},[]);
  useEffect(()=>{fetch("/api/hobby-portal",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setCheckoutAvailable(d?.enabled===true)).catch(()=>{});},[]);
  async function resendVerification(){setNotice("");setBusy(true);try{
@@ -26,7 +29,7 @@ export default function AccountSettings(){
   catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
  }
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
- <header className="sm-settings-header"><h1>Account settings</h1><p>Manage your SingMotion AI account.</p></header>
+ <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR WORKSPACE</span><h1>Account settings</h1><p>Manage your profile, security, payments and privacy in one place.</p></header>
  <div className="sm-settings-layout">
   <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
   <div className="sm-settings-content">
@@ -83,12 +86,21 @@ export default function AccountSettings(){
         <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
       </div>
       {storageUsage&&<p className="sm-settings-muted">Uploaded sources: {(storageUsage.usedBytes/1048576).toFixed(1)} / {(storageUsage.limitBytes/1048576).toFixed(0)} MB. Existing purchased video downloads remain separate.</p>}
-      <p>Recorded credit ledger balance: <strong>{data.credits}</strong></p>
+      <div className="sm-settings-credit-balance"><CreditCard size={19}/><span>Available credits</span><strong>{data.credits.toLocaleString("en-GB")}</strong></div>
       <p className="sm-settings-muted">Existing paid orders and entitlements are preserved during the credit migration. The amounts below reflect recorded account orders, not necessarily settled charges.</p>
       {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span></div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
     </section>
-    <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2><p className="sm-settings-muted">Invoice download is not available yet. No invoices are generated from this page. Billing addresses, tax information, and downloadable receipts are planned for the verified payment flow.</p></section>
+    <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2>
+      <p className="sm-settings-muted">Download available Stripe invoices for completed purchases. Only documents actually issued by Stripe appear here; an order confirmation is not automatically a tax invoice.</p>
+      {invoicesLoading?<p className="sm-settings-muted" role="status">Checking available invoices…</p>:invoices.length?
+       <div className="sm-settings-invoice-list">{invoices.map(invoice=><div className="sm-settings-invoice" key={invoice.id}>
+         <div><strong>{invoice.number}</strong><p className="sm-settings-muted">{new Date(invoice.created).toLocaleDateString("en-GB")} · {(invoice.amount/100).toLocaleString("en-GB",{style:"currency",currency:invoice.currency.toUpperCase()})}</p></div>
+         <a href={invoice.pdf||invoice.hosted||"#"} rel="noopener noreferrer" target="_blank" className="sm-settings-invoice-link"><Download size={16}/> {invoice.pdf?"Download PDF":"View invoice"}</a>
+       </div>)}</div>:<div className="sm-settings-empty"><FileText size={22}/><div><strong>No invoices available</strong><p className="sm-settings-muted">{invoiceMessage||"Invoices will appear here when Stripe has issued them for your paid orders."}</p></div></div>}
+      <p className="sm-settings-muted">Need a receipt or invoice correction? <a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Contact billing support</a>. Existing Hobby subscription documents may also be available through the billing portal above when enabled.</p>
+    </section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2>
+      <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Your personal information</strong><p className="sm-settings-muted">Account details and payments are restricted to authenticated access. Payment card details are handled by Stripe, not stored on this page.</p><Link href="/privacy">Read privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Projects & uploads</strong><p className="sm-settings-muted">Review your saved projects and uploads. Project files and payment records follow different retention requirements.</p><Link href="/projects">Open my projects <ExternalLink size={13}/></Link></div></div>
       <p className="sm-settings-muted">You can request deletion of your account and personal data. Existing orders and legally required payment records may need to be retained.</p>
       <button className="sm-settings-danger" type="button" onClick={()=>{
        const kind=data.staffPreview?"Super Admin / staff":"customer";
@@ -98,6 +110,7 @@ export default function AccountSettings(){
        window.location.href="mailto:support@singmotion.ai?subject="+subject+"&body="+body;
       }}>Request account deletion</button>
       <p className="sm-settings-muted">Deletion is reviewed by support after identity verification. The button opens a draft email; you must send it yourself. Super Admin deletion requires an administrator handover and cannot be performed automatically. Legally required financial and security records may need to be retained.</p>
+      <p className="sm-settings-support"><LifeBuoy size={17}/> Questions about account access, payments or privacy? <a href="mailto:support@singmotion.ai">Contact support</a>.</p>
      </section>
    </>}
   </div></div></div></Shell>;
