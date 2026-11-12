@@ -150,6 +150,18 @@ async function decodedSeconds(file: string) {
     throw new AppError("Decoded audio duration is outside processing bounds.");
   return seconds;
 }
+/** The provider accepts at most 300 seconds of encoded audio. A fixed
+ * 0.9x slowdown cannot be applied to a 300s selection (it would become
+ * roughly 333s). Use original-tempo audio for clips that cannot safely fit;
+ * never truncate the customer's selected audio or submit oversized media.
+ * Leave a conservative MP3 encoder/timestamp margin.
+ */
+export function canApplySlowTempo(originalSeconds: number, maxProviderSeconds: number): boolean {
+  return Number.isFinite(originalSeconds) && Number.isFinite(maxProviderSeconds) &&
+    originalSeconds > 0 &&
+    originalSeconds / 0.9 + 0.5 <= Math.min(300, maxProviderSeconds);
+}
+
 export async function slowExcerpt(
   media: PreparedMedia,
   root: string,
