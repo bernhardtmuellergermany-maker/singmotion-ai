@@ -3,7 +3,7 @@ import {useEffect,useMemo,useState} from "react";
 import Link from "next/link";
 import {ArrowDownToLine,ArrowUpDown,CalendarDays,Check,ChevronDown,
  Clapperboard,Clock3,Eye,Film,FolderOpen,Image as ImageIcon,
- MoreHorizontal,Plus,Search,SlidersHorizontal,SquarePen,Video,Copy} from "lucide-react";
+ MoreHorizontal,Plus,Search,SlidersHorizontal,SquarePen,Video,Trash2} from "lucide-react";
 import {api,ensureSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import "./my-projects-gallery.css";
@@ -12,8 +12,8 @@ type Tab="all"|"draft"|"processing"|"completed";
 type ProjectStatus="draft"|"processing"|"completed"|"review"|"awaiting-payment";
 type SavedDraft={
  id:string;projectName?:string;artistName:string;
- selection:{imageId?:string;outputFormat?:string;start:number;end:number};
- updated:number;
+ selection:{imageId?:string;outputFormat?:string;start:number;end:number;[key:string]:unknown};
+ step:number;updated:number;
 };
 type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
@@ -55,6 +55,78 @@ export function MyProjectsGallery(){
  const [tab,setTab]=useState<Tab>("all");
  const [search,setSearch]=useState("");
  const [newest,setNewest]=useState(true);
+ const [labels,setLabels]=useState<Record<string,string>>({});
+ const [renaming,setRenaming]=useState<string|null>(null);
+ const [renameText,setRenameText]=useState("");
+ const [busyId,setBusyId]=useState<string|null>(null);
+ useEffect(()=>{
+  try{
+   const saved=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}");
+   if(saved&&typeof saved==="object"&&!Array.isArray(saved))setLabels(saved);
+  }catch{}
+ },[]);
+ async function renameProject(item:ProjectItem){
+  const next=renameText.trim();
+  if(!next||next.length>80){setError("Enter a project name of up to 80 characters.");return;}
+  if(busyId)return;
+  setBusyId(item.id);setError("");
+  try{
+   if(item.kind==="draft"){
+    const id=item.id.slice(6);
+    const existing=drafts.find(d=>d.id===id);
+    if(!existing)throw Error("Saved draft unavailable. Refresh My Projects.");
+    await api("studio-drafts",{method:"POST",body:JSON.stringify({
+      id,selection:existing.selection,artistName:existing.artistName,
+      step:existing.step,projectName:next
+    })});
+    setDrafts(previous=>previous.map(d=>d.id===id?{...d,projectName:next}:d));
+    try{localStorage.setItem("singmotion-project-name:"+id,next)}catch{}
+   }
+   // Generated jobs remain immutable. Rename their visible gallery label only.
+   const updated={...labels,[item.id]:next};
+   localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));
+   if(item.kind==="admin")localStorage.setItem("sm-live-project-name:"+item.id.slice(5),next);
+   setLabels(updated);setRenaming(null);
+   window.dispatchEvent(new CustomEvent("sm-project-name-updated",{detail:{id:item.id,name:next}}));
+  }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename project.");}
+  finally{setBusyId(null);}
+ }
+ async function deleteProject(item:ProjectItem){
+  if(busyId||item.kind==="customer")return;
+  const adminState=item.kind==="admin"?live.find(p=>p.id===item.id.slice(5))?.state:null;
+  const active=item.kind==="admin" && !["prepared","completed","failed"].includes(adminState||"");
+  const warning=item.kind==="draft"
+   ?"Permanently delete draft '"+item.name+"'? This cannot be undone."
+   :active
+    ?"Remove this active project from My Projects? Generation, billing and recovery evidence will be preserved."
+    :"Permanently remove '"+item.name+"' and its finished video? This cannot be undone. Billing and audit records remain.";
+  if(!window.confirm(warning))return;
+  setBusyId(item.id);setError("");
+  try{
+   if(item.kind==="draft"){
+    const id=item.id.slice(6);
+    await api("studio-drafts/"+encodeURIComponent(id),{method:"DELETE"});
+    setDrafts(previous=>previous.filter(d=>d.id!==id));
+    try{
+     if(localStorage.getItem("singmotion-draft-id")===id){
+      localStorage.removeItem("singmotion-draft-id");
+      localStorage.removeItem("singmotion-studio");
+     }
+     localStorage.removeItem("singmotion-project-name:"+id);
+    }catch{}
+   }else{
+    const id=item.id.slice(5);
+    await api("studio-live",{method:"POST",body:JSON.stringify(active
+      ?{action:"hide",id,confirmation:"HIDE "+id}
+      :{action:"delete",id,confirmation:"DELETE "+id})});
+    setLive(previous=>previous.filter(p=>p.id!==id));
+    try{localStorage.removeItem("sm-live-project-name:"+id)}catch{}
+   }
+   const updated={...labels};delete updated[item.id];
+   localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));setLabels(updated);
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not delete this project.");}
+  finally{setBusyId(null);}
+ }
  useEffect(()=>{
   let active=true;
   async function refresh(){
@@ -113,7 +185,7 @@ export function MyProjectsGallery(){
      if(!/^[a-f0-9-]{36}$/.test(p.id))continue;
      combined.push({
        id:"live_"+p.id,kind:"admin",
-       name:p.projectName?.trim()||p.artistName||"BytePlus video",
+       name:p.projectName?.trim()||p.artistName||"Music video",
        status:adminStatus(p),date:Number(p.createdAt)||0,
        duration:p.durationSeconds||0,format:validFormat(p.selection?.outputFormat),
        image:p.imageId?`/api/assets/${encodeURIComponent(p.imageId)}`:null,
@@ -129,7 +201,7 @@ export function MyProjectsGallery(){
    processing:projects.filter(p=>p.status==="processing"||p.status==="awaiting-payment"||p.status==="review").length,
    completed:projects.filter(p=>p.status==="completed").length
  };
- const filtered=projects.filter(p=>
+ const filtered=projects.map(p=>({...p,name:labels[p.id]?.trim()||p.name})).filter(p=>
    (tab==="all"||tab==="draft"&&p.status==="draft"||
     tab==="processing"&&["processing","awaiting-payment","review"].includes(p.status)||
     tab==="completed"&&p.status==="completed")&&
@@ -176,20 +248,25 @@ export function MyProjectsGallery(){
               <span><CalendarDays size={13}/>{safeDate(item.date)}</span></div>
           </div>
         </Link>
-        <details className="sm-projects-options">
-          <summary aria-label={`More options for ${item.name}`} title="Project options"><MoreHorizontal size={18}/></summary>
-          <div className="sm-projects-options-menu">
-            <Link href={item.href}>Open project</Link>
-            {item.supportId&&<button type="button" onClick={()=>void navigator.clipboard?.writeText(item.supportId!)}><Copy size={13}/> Copy support ID</button>}
-            {item.providerId&&<button type="button" onClick={()=>void navigator.clipboard?.writeText(item.providerId!)}><Copy size={13}/> Copy BytePlus ID</button>}
-          </div>
-        </details>
-        <Link className="sm-projects-action" href={item.href} aria-label={item.status==="draft"?"Continue editing":item.status==="completed"?"Open video":item.status==="review"?"Open review":"Check video status"}>
-          {item.status==="draft"?<SquarePen size={17}/>:item.status==="completed"?<ArrowDownToLine size={17}/>:item.status==="review"?<Eye size={17}/>:<Clock3 size={17}/>}
-        </Link>
+        <div className="sm-projects-card-footer">
+          {renaming===item.id?<form className="sm-projects-rename-form" onSubmit={event=>{event.preventDefault();void renameProject(item)}}>
+            <input aria-label="New project name" autoFocus maxLength={80} value={renameText} disabled={busyId===item.id} onChange={event=>setRenameText(event.target.value)} onKeyDown={event=>{if(event.key==="Escape")setRenaming(null)}}/>
+            <button type="submit" disabled={busyId===item.id||!renameText.trim()}>Save</button>
+            <button type="button" onClick={()=>setRenaming(null)}>Cancel</button>
+          </form>:
+          <details className="sm-projects-options">
+            <summary aria-label={"More options for "+item.name} title="Project options"><MoreHorizontal size={18}/></summary>
+            <div className="sm-projects-options-menu">
+              <Link href={item.href}><SquarePen size={15}/> Edit</Link>
+              <button type="button" onClick={()=>{setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
+              <button type="button" className="sm-projects-delete" disabled={busyId===item.id||item.kind==="customer"} title={item.kind==="customer"?"Paid orders cannot be deleted from My Projects; contact support for data removal.":"Delete project"} onClick={()=>void deleteProject(item)}><Trash2 size={15}/> {busyId===item.id?"Deleting…":"Delete"}</button>
+              {item.kind==="customer"&&<small>Paid orders cannot be deleted here.</small>}
+            </div>
+          </details>}
+        </div>
         {item.supportId&&<div className="sm-projects-support" title={`Support ID: ${item.supportId}`}>
           <span>Support ID</span><code>{item.supportId.slice(0,8)}…</code>
-          {item.providerId&&<span title={`BytePlus task: ${item.providerId}`}> · BytePlus: {item.providerId.length>16?item.providerId.slice(0,12)+"…":item.providerId}</span>}
+          
         </div>}
       </article>)}
     </div>:
