@@ -36,3 +36,5 @@
 .sm-plans-package strong{font-size:26px}.sm-plans-package span{font-size:13px;color:#d8bdf4}
 .sm-plans-login-link{display:inline-flex;color:#ead4ff;text-underline-offset:5px;font-size:14px;margin-top:8px}
 @media(max-width:650px){.sm-plans-credit-packages{padding:19px}.sm-plans-package-grid{grid-template-columns:1fr}.sm-plans-package{min-height:72px}}
+
+.sm-plans-credit-custom{max-width:900px;margin:30px auto 0}
