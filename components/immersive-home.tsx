@@ -20,6 +20,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const [settling,setSettling]=useState(false);
  const [target,setTarget]=useState<number|null>(null);
  const [broken,setBroken]=useState(false);
+ const [centerAudible,setCenterAudible]=useState(false);
  const carousel=useRef<HTMLDivElement>(null);
  // All three visible clips autoplay muted, including the adjacent previews.
  useEffect(()=>{
@@ -29,7 +30,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
    if(document.hidden)return;
    root.querySelectorAll<HTMLVideoElement>(".sm-moving-card video").forEach(element=>{
     element.defaultMuted=true;
-    element.muted=true;
+    element.muted=element.closest(".sm-moving-card")?.classList.contains("is-center")?!centerAudible:true;
     if(element.paused)void element.play().catch(()=>{});
    });
   };
@@ -37,7 +38,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
   const visibility=()=>{if(!document.hidden)play();};
   document.addEventListener("visibilitychange",visibility);
   return()=>document.removeEventListener("visibilitychange",visibility);
- },[selected,clips]);
+ },[selected,clips,centerAudible]);
 
  const touchX=useRef<number|null>(null);
  const count=slides.length;
@@ -45,6 +46,7 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
  const cover=showcase.posterUrl||"/artwork/singmotion-stage.webp";
  const move=(direction:number,destination?:number)=>{
   if(motion!==0||settling)return;
+  setCenterAudible(false);
   setMotion(direction>0?-1:1);
   setTarget(destination===undefined?wrap(selected+(direction>0?1:-1)):wrap(destination));
  };
@@ -56,6 +58,15 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
   setTarget(null);
   setBroken(false);
   window.requestAnimationFrame(()=>window.requestAnimationFrame(()=>setSettling(false)));
+ };
+ const toggleCenterSound=()=>{
+  const player=carousel.current?.querySelector<HTMLVideoElement>(".sm-moving-card.is-center video");
+  if(!player)return;
+  const next=!centerAudible;
+  player.muted=!next;
+  setCenterAudible(next);
+  // Unmuting is a user gesture; never pause video when toggling sound.
+  if(player.paused)void player.play().catch(()=>{player.muted=true;setCenterAudible(false);});
  };
  const slots=[-1,0,1];
  return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
@@ -75,8 +86,10 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
        aria-hidden={Math.abs(slot)>1?true:undefined}>
       {isCenter&&item.url&&!broken?<video key={item.url} src={item.url} poster={itemCover}
         playsInline autoPlay loop muted preload="auto" className="sm-moving-video"
-        onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
-        onError={()=>setBroken(true)} aria-label={item.title}/>:
+        onLoadedMetadata={e=>{e.currentTarget.muted=!centerAudible;void e.currentTarget.play().catch(()=>{});}}
+        onError={()=>setBroken(true)} onClick={toggleCenterSound}
+        onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleCenterSound();}}}
+        role="button" tabIndex={0} aria-pressed={centerAudible} aria-label={(centerAudible?"Ton ausschalten: ":"Ton einschalten: ")+item.title}/>:
        isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
         autoPlay muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
         onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
