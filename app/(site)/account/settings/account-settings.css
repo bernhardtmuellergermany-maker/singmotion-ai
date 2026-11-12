@@ -166,3 +166,25 @@
 .sm-settings-info-grid a{display:inline-flex;align-items:center;gap:6px;font-size:13px;text-decoration:none}
 .sm-settings-support{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:24px;font-size:13px;color:#bbb0cc}
 @media(max-width:740px){.sm-settings-page{padding:24px 20px 46px}.sm-settings-info-grid{grid-template-columns:1fr}.sm-settings-invoice{align-items:flex-start}.sm-settings-invoice-link{width:100%}}
+
+
+/* Customer paid-order removal requires password confirmation before hiding only the list entry. */
+.sm-settings-orders>div{gap:11px}
+.sm-settings-remove-order{border:1px solid rgba(234,134,158,.44);border-radius:9px;
+ background:rgba(139,47,80,.12);color:#ffb9c9;padding:8px 12px;
+ font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.sm-settings-remove-order:hover{background:rgba(139,47,80,.24)}
+.sm-settings-remove-order:focus-visible{outline:2px solid #f7b4d0;outline-offset:3px}
+.sm-settings-order-confirm{display:grid;gap:13px;padding:21px;margin:19px 0;
+ border:1px solid #875a7d;border-radius:14px;background:linear-gradient(145deg,#2b192e,#1b162a)}
+.sm-settings-order-confirm>div>strong{font-size:15px}
+.sm-settings-order-confirm p{margin:8px 0 0;line-height:1.75}
+.sm-settings-order-confirm label{display:grid;gap:9px;font-size:13px;font-weight:700}
+.sm-settings-order-confirm input{width:100%;min-width:0;max-width:480px;min-height:43px;padding:10px 12px;
+ border:1px solid #87649b;border-radius:10px;background:#0e0d19;color:#fff}
+.sm-settings-order-confirm input:focus-visible{outline:2px solid #e1b2fb;outline-offset:2px}
+.sm-settings-order-actions{display:flex;flex-wrap:wrap;gap:11px}
+.sm-settings-order-actions button{margin:0;min-height:41px}
+.sm-settings-order-actions button:disabled{opacity:.5;cursor:not-allowed}
+.sm-settings-order-notice{font-size:13px;color:#e7c9fa;margin-top:12px;line-height:1.6}
+@media(max-width:600px){.sm-settings-order-confirm{padding:16px}.sm-settings-order-actions button{flex:1}}
