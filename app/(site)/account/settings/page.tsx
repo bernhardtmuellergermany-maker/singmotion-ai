@@ -73,7 +73,7 @@ export default function AccountSettings(){
       <h2>Credits & payments</h2>
       <div className="sm-plan-summary">
         <strong>Prepaid Credits</strong>
-        <p>Buy credits once when Checkout is available, monitor your wallet and save optional top-up preferences. There is no monthly plan.</p>
+        <p>Buy credits once when Checkout is available, monitor your wallet and track each transaction. There is no monthly plan or automatic top-up.</p>
         <p className="sm-settings-muted">Automatic recharge is currently off. No payment method is charged without explicit authorization. Any available Stripe invoices appear below.</p>
         <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
       </div>
