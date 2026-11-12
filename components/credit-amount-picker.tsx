@@ -62,7 +62,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true}:{purcha
   </button>:<div className="sm-credit-amount-disabled" aria-disabled="true">Credit purchases are not yet available</div>}
   {error&&<p role="alert" className="sm-credit-amount-error">{error}</p>}
   <p className="sm-credit-amount-footer">{purchaseEnabled
-   ?testMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are added only after verified payment. This is not a recurring subscription."
-   :"These prices are for information only. Live payments are not enabled."}</p>
+   ?testMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are added only after verified payment. There are no automatic top-ups or recurring charges."
+   :"These prices are for information only. Live payments are not enabled. No automatic payments will be taken."}</p>
  </div>;
 }
