@@ -121,7 +121,15 @@ test("Super Admin account settings show real security route and a safe account d
 test("Staging Stripe checkout captures sanitized 400 reason and support reference without exposing credentials",()=>{
  const route=read("app/(site)/api/credit-checkout/route.ts");
  const picker=read("components/credit-amount-picker.tsx");
- assert.match(route,/payment_method_types\[0\]/);
+ // Stripe's 2026-09-30 API rejects the old payment_method_types field.
+ // Assert on the actual encoded body, not mentions in a migration comment.
+ const checkoutForm=route.split("const form=new URLSearchParams({")[1]?.split("});")[0];
+ assert.ok(checkoutForm,"Stripe form body must remain present");
+ assert.doesNotMatch(checkoutForm,/"payment_method_types\\[0\\]"/);
+ assert.match(checkoutForm,/"line_items\\[0\\]\\[price_data\\]\\[currency\\]"/);
+ assert.match(checkoutForm,/mode:"payment"/);
+ assert.match(checkoutForm,/success_url/);
+ assert.match(checkoutForm,/cancel_url/);
  assert.match(route,/request-id/);
  assert.match(route,/Stripe Test Checkout could not be created/);
  assert.match(route,/\[secret\]/);
