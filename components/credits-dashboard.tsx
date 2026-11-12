@@ -16,6 +16,57 @@ const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const date=(n:number)=>new Date(n).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
 const eur=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
 
+type AutoTopupState={enabled:boolean;available:boolean;discountPercent:number;preference:{threshold:number;amount:number;monthlyCap:number};message:string};
+function AutoTopupPreferences(){
+ const [state,setState]=useState<AutoTopupState|null>(null);
+ const [form,setForm]=useState({threshold:500,amount:2000,monthlyCap:10000});
+ const [busy,setBusy]=useState(false);
+ const [notice,setNotice]=useState("");
+ useEffect(()=>{let mounted=true;fetch("/api/credit-auto-topup",{cache:"no-store"})
+  .then(async r=>{const data=await r.json() as AutoTopupState&{error?:string};if(!r.ok)throw Error(data.error||"Unavailable");return data;})
+  .then(data=>{if(mounted){setState(data);setForm(data.preference);}})
+  .catch(()=>{if(mounted)setNotice("Automatic top-up preferences are currently unavailable.");});
+  return()=>{mounted=false;};
+ },[]);
+ const save=async()=>{
+  setBusy(true);setNotice("");
+  try{
+   const r=await fetch("/api/credit-auto-topup",{method:"PUT",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify({...form,enabled:false})});
+   const data=await r.json() as AutoTopupState&{error?:string};
+   if(!r.ok)throw Error(data.error||"Could not save preferences");
+   setState(data);setNotice("Preferences saved. Automatic payments remain off.");
+  }catch(e){setNotice(e instanceof Error?e.message:"Preferences could not be saved");}
+  finally{setBusy(false);}
+ };
+ return <section className="sm-auto-topup" aria-labelledby="sm-auto-topup-title">
+  <div className="sm-auto-topup-head">
+   <div><span className="sm-credits-eyebrow">Wallet automation</span><h2 id="sm-auto-topup-title">Automatic top-up</h2>
+    <p>Set your preferred limits now. Automatic payments require a separate future opt-in and are not yet available.</p></div>
+   <span className="sm-auto-topup-off">Not active</span>
+  </div>
+  <div className="sm-auto-topup-options">
+   <label>Top up below
+    <select value={form.threshold} onChange={e=>setForm(v=>({...v,threshold:Number(e.target.value)}))}>
+     {[250,500,1000,2000].map(v=><option key={v} value={v}>{num(v)} credits</option>)}
+    </select></label>
+   <label>Top-up package
+    <select value={form.amount} onChange={e=>setForm(v=>({...v,amount:Number(e.target.value),monthlyCap:Math.max(v.monthlyCap,Number(e.target.value))}))}>
+     {[2000,4000,10000].map(v=><option key={v} value={v}>{num(v)} credits · {eur(v)}</option>)}
+    </select></label>
+   <label>Monthly maximum
+    <select value={form.monthlyCap} onChange={e=>setForm(v=>({...v,monthlyCap:Number(e.target.value)}))}>
+     {[2000,10000,20000,40000].map(v=><option key={v} value={v} disabled={v<form.amount}>{num(v)} credits · {eur(v)}</option>)}
+    </select></label>
+  </div>
+  <div className="sm-auto-topup-footer">
+   <p>No automatic charges, no subscription, no active discount. A savings percentage is shown only when an approved offer actually exists.</p>
+   <button type="button" disabled={busy||!state} onClick={()=>void save()}>{busy?"Saving…":"Save preferences"}</button>
+  </div>
+  {notice&&<p role="status" className="sm-auto-topup-notice">{notice}</p>}
+ </section>;
+}
+
 export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
  const [view,setView]=useState<View>("loading");
  const [balance,setBalance]=useState<Balance|null>(null);
@@ -59,6 +110,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     <div className="sm-credits-summary-links"><a href="#buy-credits">Buy Credits</a><a href="#usage">Usage & Orders</a></div>
    </section>
    {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled&&balance.testMode}/></section>}
+   {mode==="buy"&&<AutoTopupPreferences/>}
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
     <p className="sm-credits-muted">View your recorded credit transactions and previously paid video orders. Past euro payments are shown as a credit equivalent only; they have not been deducted from your balance again.</p>
