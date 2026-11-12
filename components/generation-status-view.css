@@ -22,8 +22,8 @@
 .sm-gen-preview-center p{color:#d5c0ea;font-size:12px;margin:0}
 .sm-gen-indeterminate{position:absolute;left:10%;right:10%;bottom:24px;height:7px;border-radius:99px;overflow:hidden;background:#482a66}
 .sm-gen-indeterminate>span{display:block;width:38%;height:100%;border-radius:99px;background:linear-gradient(90deg,#912deb,#ef92ff);animation:sm-gen-track 2.2s ease-in-out infinite}
-.sm-gen-watermark{position:absolute;top:13px;left:13px;padding:5px 9px;border:1px solid #ae69e677;border-radius:999px;background:#140d24cf;font-weight:700;font-size:11px}
-.sm-gen-watermark b{color:#d47dff}
+.sm-gen-watermark{position:absolute;z-index:15;top:13px;left:13px;display:inline-flex;align-items:center;min-height:32px;padding:5px 9px;border:1px solid #ae69e677;border-radius:999px;background:#140d24cf;font-weight:700;font-size:11px;color:#fff;text-decoration:none;cursor:pointer;pointer-events:auto;touch-action:manipulation}
+.sm-gen-watermark b{color:#d47dff}\n.sm-gen-watermark:hover,.sm-gen-watermark:focus-visible{border-color:#d496ff;background:#2e1b43;outline-offset:3px}
 .sm-gen-preview-caption{text-align:center;font-size:11px;color:#afa0c9;margin:10px 0}
 .sm-gen-status-column{padding:20px;border:1px solid #5d427c;border-radius:19px;background:linear-gradient(145deg,#22182e,#171423);box-shadow:0 16px 36px #0004}
 .sm-gen-status-column h2{font-size:19px;color:#fff;margin:0 0 17px;line-height:1.25}
