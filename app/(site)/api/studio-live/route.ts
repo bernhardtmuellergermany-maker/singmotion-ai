@@ -337,6 +337,7 @@ async function handler(req: NextRequest) {
           body.digest,
           body.ceilingMicroUsd,
           body.confirmation,
+          isSuperAdmin ? "super-admin:"+String(user!.id) : undefined,
         ),
       );
     }
