@@ -84,13 +84,13 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
        style={{"--slot":(slot*74)+"%"} as React.CSSProperties}
        onTransitionEnd={isCenter?endMove:undefined}
        aria-hidden={Math.abs(slot)>1?true:undefined}>
-      {isCenter&&item.url&&!broken?<video key={item.url} src={item.url} poster={itemCover}
+      {isCenter&&item.url&&!broken?<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" key={item.url} src={item.url} poster={itemCover}
         playsInline autoPlay loop muted preload="auto" className="sm-moving-video"
         onLoadedMetadata={e=>{e.currentTarget.muted=!centerAudible;void e.currentTarget.play().catch(()=>{});}}
         onError={()=>setBroken(true)} onClick={toggleCenterSound}
         onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleCenterSound();}}}
         role="button" tabIndex={0} aria-pressed={centerAudible} aria-label={(centerAudible?"Ton ausschalten: ":"Ton einschalten: ")+item.title}/>:
-       isSide&&item.url?<video className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
+       isSide&&item.url?<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
         autoPlay muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
         onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
         onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}}/>:
@@ -484,7 +484,7 @@ export function ImmersiveHome(){
     <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
        <div className="sm-mobile-reel-loading" aria-hidden="true"/>
-       {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
+       {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
@@ -522,7 +522,7 @@ export function ImmersiveHome(){
        onClick={()=>item.url&&togglePortraitSound(i)}
        aria-label={item.url?"Video "+item.title+": Klick zum Ton ein- oder ausschalten":item.title}>
        {item.url?<><img className="sm-desktop-portrait-poster" src={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} alt="" loading="eager" decoding="async"/>
-        <video className={"sm-desktop-portrait-video"+(portraitReady[i]?" is-ready":"")} src={visiblePortraits[i]?item.url:undefined} playsInline autoPlay muted={audiblePortrait!==i} loop preload="auto" poster={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} onPlaying={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onLoadedData={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}} onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
+        <video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className={"sm-desktop-portrait-video"+(portraitReady[i]?" is-ready":"")} src={visiblePortraits[i]?item.url:undefined} playsInline autoPlay muted={audiblePortrait!==i} loop preload="auto" poster={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} onPlaying={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onLoadedData={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}} onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
         <button type="button" className="sm-desktop-portrait-sound" aria-label={audiblePortrait===i?"Ton ausschalten: "+item.title:"Ton einschalten: "+item.title} aria-pressed={audiblePortrait===i}
           onClick={event=>{event.stopPropagation();togglePortraitSound(i)}}>{audiblePortrait===i?<Volume2 size={17}/>:<VolumeX size={17}/>}</button>
        </>:<div className="sm-desktop-portrait-fallback" aria-label="Video coming soon"><Play size={28}/></div>}
