@@ -40,7 +40,9 @@ test("global account menu uses Pricing, Credits and one-click Buy Credits anchor
  assert.match(nav,/>Top up credits<\/Link>/);
  assert.ok(nav.includes('href="/plans"')&&nav.includes('>Pricing</Link>'));
  assert.ok(nav.includes('href="/credits"')&&nav.includes('>Credits</Link>'));
- assert.match(panel,/>Pricing<\/Link>/);
+ assert.doesNotMatch(panel,/sm-account-pricing-link|href="\/plans"/);
+ assert.match(panel,/bring your music to life with AI-generated videos/);
+ assert.match(panel,/Build your private AI music-video workspace/);
  assert.match(panel,/href="\/credits#buy-credits"/);
  assert.match(buy,/id="buy-credits"/);
  assert.doesNotMatch(nav,/Plans & Pricing|Buy Credits & Usage/);
@@ -143,4 +145,40 @@ test("Staging Stripe checkout captures sanitized 400 reason and support referenc
  const wallets=read("lib/commerce/credit-wallet.ts");
  assert.match(wallets,/RAILWAY_ENVIRONMENT_ID===STAGING_ID/);
  assert.doesNotMatch(wallets,/sk_live_.*Stripe/);
+});
+
+test("standalone password reset visually matches the sign-in and register experience",()=>{
+ const login=read("app/(site)/login/page.tsx");
+ const reset=read("app/(site)/account/reset-password/page.tsx");
+ const css=read("app/(site)/account/reset-password/reset-password.css");
+ const auth=read("components/account-panel.tsx");
+ assert.match(login,/sm-standalone-auth/);
+ assert.match(reset,/sm-standalone-auth-main/);
+ assert.match(reset,/sm-standalone-auth-form/);
+ assert.match(reset,/SiteHeader/);
+ assert.match(reset,/sm-account-form/);
+ assert.match(reset,/sm-carousel-primary/);
+ assert.match(css,/linear-gradient/);
+ assert.match(css,/sm-reset-password/);
+ assert.match(reset,/minLength=\{20\}/);
+ assert.match(reset,/Back to sign in/);
+ assert.match(reset,/customer-password-reset/);
+ assert.doesNotMatch(auth,/sm-account-pricing-link/);
+ assert.doesNotMatch(reset,/style=\{\{/);
+});
+test("Studio video status uses customer Credits and per-job verified reservation state",()=>{
+ const status=read("components/generation-status-view.tsx");
+ const admin=read("components/super-admin-generation.tsx");
+ const workflow=read("lib/live/studio.ts");
+ const api=read("app/(site)/api/credit-balance/route.ts");
+ assert.match(status,/Video credit authorization/);
+ assert.match(status,/Credits charged/);
+ assert.match(status,/Credits reserved/);
+ assert.match(status,/Credits released/);
+ assert.doesNotMatch(status,/providerEstimate|\$0\.07|providerSeconds|USD 0\./);
+ assert.match(admin,/creditCharge=\{project\?\.creditCharge\}/);
+ assert.match(workflow,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits\)/);
+ assert.match(workflow,/this\.requirePrepaidCredits/);
+ assert.match(api,/videoReservations/);
+ assert.match(api,/videoReserved/);
 });
