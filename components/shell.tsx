@@ -17,7 +17,7 @@ export function Shell({ children, hideWorkspaceNav = false }: { children: React.
         <Link href="/artists">My artists</Link><Link href="/billing">Billing</Link><Link href="/settings">Settings</Link>
       </nav>
       <main className="app-main">{children}</main>
-      <footer className="wizard-footer"><Link href="/terms">Terms</Link><Link href="/privacy">Privacy</Link><Link href="/help">Help</Link></footer>
+      <footer className="wizard-footer"><Link href="/help">Help</Link><Link href="/legal">Legals</Link><Link href="/contact">Contact</Link></footer>
     </div>
   );
 }
