@@ -11,7 +11,7 @@ test("canonical German imprint identifies the supplied operator and contact",()=
   assert.ok(!policies.includes(v),v);
  assert.match(policies,/remainingOperatorReview/);
  assert.match(policies,/withdrawal declaration to Bernhardt Müller/);
- assert.match(policies,/Verantwortlicher und Datenschutzkontakt/);
+ assert.match(policies,/Controller and privacy contact/);
 });
 test("legacy overview has real operator address not fictional samples",()=>{
  for(const v of ["Bernhardt Müller","Erich-Kästner-Str. 37",
