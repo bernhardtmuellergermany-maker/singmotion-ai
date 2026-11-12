@@ -1,6 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
+import {CreditWallet} from "@/lib/commerce/credit-wallet";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {configuredStripeReversalMode,customerStripeCredential} from "@/lib/commerce/stripe-payment-mode";
@@ -27,14 +28,27 @@ export async function GET(req:NextRequest){
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
-  if(!accountId)return reply({error:"Sign in to view your invoices."},401);
+  let subject=accountId?"customer:"+accountId:null;
+  if(!subject&&process.env.CMS_ENABLED==="true"){
+   try{
+    const {getPayload}=await import("payload");
+    const {default:config}=await import("@payload-config");
+    const {hasRole}=await import("@/cms/policy");
+    const payload=await getPayload({config});
+    const {user}=await payload.auth({headers:req.headers});
+    if(user&&hasRole(user,["super-admin"]))subject="super-admin:"+String(user.id);
+   }catch{/* Auth errors must never bypass account ownership. */}
+  }
+  if(!subject)return reply({error:"Sign in to view your invoices."},401);
   if(!mode||!key)return reply({invoices:[],message:"Stripe invoice lookup is not available in this environment."});
-  const rows=store.db.prepare(`SELECT o.id,o.created,s.session_id FROM customer_orders o
+  new CreditWallet(store.db);
+  const rows=accountId?store.db.prepare(`SELECT o.id,o.created,s.session_id FROM customer_orders o
    JOIN stripe_checkout_sessions s ON s.order_id=o.id
    WHERE o.account_id=? AND o.status='paid'
-   ORDER BY o.created DESC LIMIT 20`).all(accountId) as {id:string;created:number;session_id:string}[];
+   ORDER BY o.created DESC LIMIT 20`).all(accountId) as {id:string;created:number;session_id:string}[]:[];
+  const topups=store.db.prepare(`SELECT id,created,stripe_session_id AS session_id FROM credit_topup_purchases WHERE subject=? AND status='paid' AND stripe_session_id IS NOT NULL ORDER BY created DESC LIMIT 20`).all(subject) as {id:string;created:number;session_id:string}[];
   const invoices:{id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null}[]=[];
-  for(const row of rows){
+  for(const row of [...rows,...topups].slice(0,30)){
    if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(row.session_id))continue;
    try{
     const session=await stripe("checkout/sessions/"+encodeURIComponent(row.session_id),key) as StripeSession;
