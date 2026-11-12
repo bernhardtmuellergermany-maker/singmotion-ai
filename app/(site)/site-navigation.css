@@ -228,3 +228,38 @@
 .sm-legal-topic li p{margin:6px 0 0;color:#b8afc9;font-size:12px;line-height:1.7}
 .sm-legal-topic a:focus-visible{outline:2px solid #e2bbff;outline-offset:3px;border-radius:2px}
 @media(max-width:690px){.sm-legal-topic-grid{grid-template-columns:1fr}.sm-legal-topic{padding:22px}}
+
+
+/* Keep both dropdowns above the animated homepage video stacks.
+   The header now sits outside the isolated/clipped hero viewport. */
+.sm-immersive-home>.sm-immersive-header{
+ position:fixed!important;top:0!important;left:0!important;right:0!important;
+ z-index:2147482000!important;overflow:visible!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu[open],
+.sm-site-header .sm-header-actions>.sm-account-menu[open]{
+ position:relative!important;z-index:2147482001!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>.sm-global-menu-list{
+ position:fixed!important;top:calc(var(--sm-nav-height) + 8px)!important;
+ right:calc(var(--sm-nav-inset) + var(--sm-nav-control) + var(--sm-nav-gap))!important;
+ left:auto!important;bottom:auto!important;z-index:2147482002!important;
+ width:min(260px,calc(100vw - 28px));max-height:calc(100dvh - var(--sm-nav-height) - 22px);
+ overflow-y:auto;overscroll-behavior:contain;box-sizing:border-box;
+ background:#181427!important;border:1px solid #765b94;border-radius:14px;
+ box-shadow:0 20px 54px rgba(0,0,0,.72);backdrop-filter:none!important;
+ -webkit-backdrop-filter:none!important;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>.sm-global-menu-list a{
+ color:#f6efff!important;display:block;min-height:39px;
+ padding:12px 13px;border-radius:8px;
+}
+.sm-site-header .sm-header-actions>.sm-global-menu>.sm-global-menu-list a:hover,
+.sm-site-header .sm-header-actions>.sm-global-menu>.sm-global-menu-list a:focus-visible{
+ background:#3d2958!important;color:#fff!important;
+}
+@media(max-width:650px){
+ .sm-site-header .sm-header-actions>.sm-global-menu>.sm-global-menu-list{
+  right:calc(12px + var(--sm-nav-control) + var(--sm-nav-gap))!important;
+ }
+}
