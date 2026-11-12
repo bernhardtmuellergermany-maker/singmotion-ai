@@ -133,7 +133,7 @@ export class LiveTestRunner {
     if (
       attempt.media.durationSeconds >
         this.provider.contract.maxDurationSeconds ||
-      !this.provider.contract.promptSupported
+      (!!attempt.media.prompt.trim() && !this.provider.contract.promptSupported)
     )
       throw new Error(
         "The reviewed contract does not support this duration or composed prompt.",
