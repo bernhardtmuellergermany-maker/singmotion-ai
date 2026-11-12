@@ -16,7 +16,7 @@ Die globale öffentliche Navigation bleibt auf `My Projects, Help, Legals, Conta
 
 - Für Gäste: Login, Plans & Pricing. Keine Guthabeninformation aus anderen Konten.
 - Für angemeldete Kunden: verfügbare Credits **direkt im Dropdown**, Buy Credits, Usage, Plans & Pricing, Account Settings, Logout.
-- Für Staff: getrennte Staff-Navigation, **kein erfundener Kunden-Creditbestand**.
+- Für Redakteure/Staff: getrennte Staff-Navigation ohne Kundenguthaben. Für **Super Admin**: explizite Testansicht mit lokal simulierten Grün/Gelb/Rot-Salden (0/500/1.500), Preisrechner und Nutzungsbeispielen; keine Änderung oder Einsicht in fremde Kundenwallets.
 - Anzeige nur aus verifizierter, privater Serverabfrage; bei Fehler oder fehlender Berechtigung "— / Balance unavailable", niemals eine irreführende Null.
 - Ampel-Logik: **grün ab 1.000 Credits**, **gelb 250–999**, **rot 0–249**, bei unbekanntem Wert neutral. Farbunabhängige Beschriftungen für Accessibility.
 - Aktualisierung beim Laden, Öffnen des Menüs, Fokus und nach einem Guthabenereignis. `Cache-Control: private, no-store`.
@@ -26,13 +26,13 @@ Die globale öffentliche Navigation bleibt auf `My Projects, Help, Legals, Conta
 - Preise und Credit-Prinzip verständlich, mit deutlich sichtbarem **Status: geplantes Modell / nicht kaufbar** bis zur produktiven Freigabe.
 - Beispieltarif: **25 Credits pro abrechenbarer Sekunde**, entsprechend bisher 0,25 €/s brutto; 1 Credit = 0,01 € interne Video-Verrechnungseinheit.
 - Beispielpakete: 20 € / 2.000 Credits; 40 € / 4.000; 100 € / 10.000. Beträge, Bonusaktionen und finale Regeln erst nach kaufmännischer Freigabe.
-- Hobby bleibt als Vorschlag 4,99 €/Monat mit 30 inkludierten Video-Sekunden je bezahltem Zeitraum und 0,20 €/zusätzlicher Sekunde; später als separater Abo-/Bonus-Topf integrieren, nicht als unbefristet gekauftes Guthaben ausgeben.
+- **Kein neuer Hobby-Tarif**: Neue Abos werden nicht mehr beworben und bleiben im alten Stripe-Checkout über das zusätzliche, standardmäßig inaktive Gate `HOBBY_NEW_PURCHASES_ENABLED` gesperrt. Bestehende Abos behalten ihre Vertragsrechte, Kontingente, Belege und gegebenenfalls Verwaltungs-/Kündigungswege. Ein bestehender historischer Abonnementpreis darf nicht nachträglich einseitig als Credit-Preis ausgegeben werden.
 - Keine Preisversprechen oder aktive Stripe-Buttons, bevor das Wallet produktionsreif ist.
 
 **/credits – Guthaben / Kaufprozess**
 
 - Aktuell: authentifiziertes Guthaben aus dem existierenden Ledger; Informationspakete, kein Checkout.
-- Ziel: konkrete Pakete und benutzerdefinierter Betrag (Min-/Max-Betrag), Stripe Hosted Checkout, Status `pending | paid | failed | refunded | disputed`, sichere Bestätigung.
+- Ziel: konkrete Pakete und **frei eingegebene Anzahl Credits** (ganze Credits statt Eurobetragseingabe), zunächst 500–100.000 Credits; vorgeschlagener Bruttopreis ist exakt `Credits × 0,01 €`. Nicht-ganzzahlige, negative oder außerhalb liegende Werte ablehnen. Server muss jede künftige Stripe-Kalkulation unabhängig vom Browser validieren. Stripe Hosted Checkout mit Status `pending | paid | failed | refunded | disputed`, sichere Bestätigung.
 - Aktuelle/verfügbare/reservierte Credits separat ausweisen.
 - Konto zwingend erforderlich, E-Mail-Validierungsregeln vor echtem Kauf prüfen.
 
@@ -64,7 +64,7 @@ Vorhandene Grundlage (nicht gleichbedeutend mit produktionsreifem Wallet):
 2. `credit_purchases`: accountId, Stripe Customer, CheckoutSession, PaymentIntent, Bruttobetrag, Währung, Preisversion, Status, verifizierte Webhook-Ereignisse, steuerliche Belegdaten, Dispute/Refund.
 3. `credit_wallet_entries`: accountId, Quelle (Kauf, Bonus, Migration, Korrektur, Verbrauch, Guthabenerstattung), delta, Buchungsreferenz, Zeitpunkt, unveränderlicher Audit-Trail.
 4. `credit_reservations`: accountId, Projekt/Job, unveränderlicher Input-Digest, Pricing-Version, erforderliche Credits, `reserved | submitted_or_unknown | consumed | released`, Provider-Job-ID, Erzeugungs-/Änderungszeit.
-5. `credit_entitlements`/Bonus-Topf für Abo-Kontingente, getrennt von gekauften Prepaid-Credits; vertraglich richtige Perioden-/Ablaufregeln.
+5. Bestands-Hobby-Kontingente als **Legacy-Entitlements** mit ihren ursprünglichen Perioden-/Ablaufregeln erhalten. Keine neuen Hobby-Abos erzeugen. Die Migration darf ungenutzte, bereits bezahlte Ansprüche nicht löschen.
 6. DB mit ACID-Transaktionen, referenzieller Integrität, Migrations-/Backup-/Restore-Plan, Lösch- und Aufbewahrungsregeln. Für Produktion robuste gemeinsame PostgreSQL-Datenhaltung bevorzugen.
 7. Konto- und Mandantentrennung streng durchsetzen. Keine Überziehung, Doppelreservierung, Replay-Buchung oder Gast-Entnahme.
 
@@ -99,7 +99,7 @@ Vorhandene Grundlage (nicht gleichbedeutend mit produktionsreifem Wallet):
 - Provider timeout/unbekannt: gesperrte Credits bleiben sicher; keine doppelte Submission.
 - Endgültiger Providerfehler: einmalige Freigabe; erfolgreicher validierter Download: einmaliger Verbrauch.
 - Cross-account Zugriff und Credit-Buchung verboten; historische Konten nicht zugänglich für Gäste.
-- Refund, Chargeback, Storno, Widerruf, Cancel, Promo, Hobby-Regeln, Migration, Kontoauflösung und Auskunft/Export behandelt.
+- Refund, Chargeback, Storno, Widerruf, Cancel, Promo, bestehende Hobby-Abos, Migration, Kontoauflösung und Auskunft/Export behandelt.
 - Header-Dropdown korrekt grün/gelb/rot und neutral bei API-Ausfall; mobil, Desktop, Tastatur, Screenreader.
 - Pricing zeigt nur freigegebene Beträge, keine aktiven Buttons vor Freigabe, keine falschen Rabatte.
 - Staging-Sandbox-Ende-zu-Ende, Build/Lint/Typecheck, Payment- und Provider-Mocks, reale private Delivery mit Zugriffsprüfung.
@@ -107,7 +107,7 @@ Vorhandene Grundlage (nicht gleichbedeutend mit produktionsreifem Wallet):
 
 ## 7. Prioritäten und Deployment
 
-**Phase A – jetzt:** UI, Read-only-Endpoint, Preise nur informativ, Buy-Credits-Einstieg ohne aktivierten Zahlungsvorgang, Usage für echte vorhandene Ledgerdaten, Tests. Bestehenden Stripe-/BytePlus-Livepfad **nicht** verändern.
+**Phase A – jetzt:** UI, Read-only-Endpoint, Preise nur informativ, frei eingebbare Credit-Anzahl, kein neu angebotenes Hobby-Abo, abgesperrter alter Hobby-Checkout für Neuabschlüsse, Super-Admin-Preview (rollengeprüft, keine Kundensaldofälschung), Buy-Credits-Einstieg ohne aktivierten Zahlungsvorgang, Usage für echte vorhandene Ledgerdaten, Tests. Bestehende Bestandsabos, Stripe-/BytePlus-Abwicklung und Live-Artefakte nicht beschädigen.
 
 **Phase B – Payment-Backend:** Wallet-Schema, Stripe Top-up-Sandbox, Webhook-Idempotenz und Refund/Dispute-Sicherheit, Register-/Login-Gates, migrationssichere Buchführung.
 

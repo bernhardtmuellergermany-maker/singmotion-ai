@@ -10,7 +10,8 @@ import "./header-account-menu.css";
 /** Shared account menu. Authentication is verified server-side, never inferred from cookies in JS. */
 export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const menu=useRef<HTMLDetailsElement>(null);
- const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff">("loading");
+ const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff"|"super-admin">("loading");
+ const [previewCredits,setPreviewCredits]=useState(1500);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [availableCredits,setAvailableCredits]=useState<number|null>(null);
@@ -18,7 +19,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  useEffect(()=>{
   let active=true;
   const refresh=()=>{void readCustomerAuthStatus()
-   .then(v=>{if(active){setIdentity(v?.authenticated===true?(v.kind==="staff"?"staff":"customer"):"guest");}})
+   .then(v=>{if(active){setIdentity(v?.authenticated===true?(v.kind==="staff"?(v.staffRole==="super-admin"?"super-admin":"staff"):"customer"):"guest");}})
    .catch(()=>{if(active)setIdentity("guest")})};
   refresh();
   const outside=(e:PointerEvent)=>{if(menu.current&&!menu.current.contains(e.target as Node))menu.current.open=false};
@@ -92,10 +93,24 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      <button type="button" disabled={busy} onClick={()=>void logout()}>{busy?"Logging out…":"Logout"}</button>
+    </>:identity==="super-admin"?<>
+     <div className={`sm-account-credit-status sm-account-credit-${creditTone(previewCredits)}`} role="status">
+      <span>SUPER ADMIN · TEST ONLY</span>
+      <strong>{new Intl.NumberFormat("en-US").format(previewCredits)} <small>Test-Credits</small></strong>
+      <small>Visual preview — not a real wallet</small>
+      <div className="sm-account-preview-buttons" role="group" aria-label="Test credit balance colors">
+       {[0,500,1500].map(amount=><button type="button" key={amount} aria-pressed={amount===previewCredits} onClick={()=>setPreviewCredits(amount)}>{amount}</button>)}
+      </div>
+     </div>
+     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credit test view</Link>
+     <Link href="/usage" onClick={()=>{if(menu.current)menu.current.open=false}}>Usage test view</Link>
+     <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
+     <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
+     <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin logout"}</button>
     </>:<>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Plans & Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
-     <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Super Admin / Staff logout"}</button>
+     <button type="button" disabled={busy} onClick={()=>void logoutStaff()}>{busy?"Signing out…":"Staff logout"}</button>
     </>}
   </nav>
   {error&&<p className="sm-account-menu-error" role="alert">{error}</p>}
