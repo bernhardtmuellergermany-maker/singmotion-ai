@@ -45,23 +45,7 @@ export async function Website({
     <div
       className={`marketing premium-site product-theme ${isHome ? "home-site" : ""}`}
     >
-      <SiteHeader
-        actions={
-          <nav aria-label="Website navigation">
-            {isHome && (
-              <Link className="button home-signin" href="/signin">
-                Sign in
-              </Link>
-            )}
-            <Link
-              className={isHome ? "button home-signin" : "button subtle"}
-              href={studioLink.url}
-            >
-              {studioLink.label}
-            </Link>
-          </nav>
-        }
-      />
+      <SiteHeader />
       <main id="content">
         {preview && <p role="status">Private draft preview — not published.</p>}
         {!page.blocks?.length && (
