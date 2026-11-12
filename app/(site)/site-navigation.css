@@ -116,7 +116,9 @@
   gap:var(--sm-nav-gap)!important;
   margin:0 0 0 auto!important;
   min-width:0!important;
-  pointer-events:auto!important;
+  /* An empty navigation hit box must not intercept taps on the left brand.
+     Child menu controls opt back into pointer events. */
+  pointer-events:none!important;
 }
 .sm-site-header .sm-header-actions>.sm-global-menu,
 .sm-site-header .sm-header-actions>.sm-account-menu{
@@ -128,6 +130,7 @@
   min-height:var(--sm-nav-control)!important;
   margin:0!important;
   padding:0!important;
+  pointer-events:auto!important;
 }
 .sm-site-header .sm-header-actions>.sm-global-menu>summary,
 .sm-site-header .sm-header-actions>.sm-account-menu>summary{
