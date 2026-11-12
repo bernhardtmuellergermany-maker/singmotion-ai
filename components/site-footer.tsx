@@ -2,33 +2,10 @@ import Link from "next/link";
 import { Brand } from "./brand";
 import { safeLink } from "../cms/policy";
 export const defaultFooterLinks = [
-  { label: "How it works", url: "/#how" },
-  ...[
-    "faq",
-    "help",
-    "contact",
-    "pricing",
-    "about",
-    "privacy",
-    "cookies",
-    "terms",
-    "withdrawal",
-    "ai-transparency",
-    "legal",
-    "rights",
-  ].map((p) => ({
-    label:
-      p === "faq"
-        ? "FAQ"
-        : p === "legal"
-          ? "Legal notice"
-          : p === "withdrawal"
-          ? "Vertrag widerrufen"
-          : p === "help"
-            ? "Help & Tips"
-            : p.charAt(0).toUpperCase() + p.slice(1),
-    url: `/${p}`,
-  })),
+  { label: "My Projects", url: "/projects" },
+  { label: "Help", url: "/help" },
+  { label: "Legals", url: "/legal" },
+  { label: "Contact", url: "/contact" },
 ];
 export function SiteFooter({
   links = defaultFooterLinks,
