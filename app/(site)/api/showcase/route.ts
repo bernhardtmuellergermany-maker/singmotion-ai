@@ -128,6 +128,12 @@ async function handler(req:NextRequest){
           if(!m)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
           start=Number(m[1]);end=m[2]?Number(m[2]):size-1;
           if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+          // Chrome/Safari often request bytes=0- for HTML video. Sending an
+          // entire 80 MiB showcase file monopolizes bandwidth while three
+          // previews compete for the first decodable frame. Keep open-ended
+          // ranges bounded so each player can progressively request its
+          // next segment. Explicit bounded ranges remain unchanged.
+          if(!m[2])end=Math.min(end,start+(2*1024*1024)-1);
           status=206;
         }
         return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":mime,"Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
