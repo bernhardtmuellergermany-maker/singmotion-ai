@@ -161,10 +161,31 @@ export function ImmersiveHome(){
      observer.unobserve(entry.target);
     }
    }
-  },{rootMargin:"250px 0px",threshold:0.01});
+  },{rootMargin:"1200px 0px",threshold:0.01});
   elements.forEach(element=>observer.observe(element));
   return()=>observer.disconnect();
  },[portraitClips]);
+ // Begin buffering well before the section enters view. Autoplay all four
+ // muted previews as soon as they can decode; restart after tab restoration.
+ useEffect(()=>{
+  const root=portraitGrid.current;
+  if(!root)return;
+  const start=()=>{
+   if(document.hidden)return;
+   root.querySelectorAll<HTMLVideoElement>("video.sm-desktop-portrait-video").forEach((player,i)=>{
+    if(!visiblePortraits[i])return;
+    player.defaultMuted=true;
+    player.muted=audiblePortrait!==i;
+    if(player.paused)void player.play().catch(()=>{
+     player.muted=true;
+     void player.play().catch(()=>{});
+    });
+   });
+  };
+  start();
+  document.addEventListener("visibilitychange",start);
+  return()=>document.removeEventListener("visibilitychange",start);
+ },[visiblePortraits,portraitClips,audiblePortrait]);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(true);
  const unlockSoundAfterGesture=useRef(false);
@@ -224,6 +245,7 @@ export function ImmersiveHome(){
     .then(data=>{
       if(!active)return;
       const videos=Array.isArray(data?.videos)?data.videos:[];
+      setPortraitReady({});
       setPortraitClips(videos.flatMap((item:unknown)=>{
         if(!item||typeof item!=="object")return [];
         const v=item as {title?:unknown;videoUrl?:unknown;posterUrl?:unknown};
@@ -488,8 +510,8 @@ export function ImmersiveHome(){
       {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}
        onClick={()=>item.url&&togglePortraitSound(i)}
        aria-label={item.url?"Video "+item.title+": Klick zum Ton ein- oder ausschalten":item.title}>
-       {item.url?<><img className="sm-desktop-portrait-poster" src={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} alt="" loading="lazy"/>
-        <video className={"sm-desktop-portrait-video"+(portraitReady[i]?" is-ready":"")} src={visiblePortraits[i]?item.url:undefined} playsInline autoPlay muted={audiblePortrait!==i} loop preload="metadata" poster={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} onLoadedData={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onCanPlay={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
+       {item.url?<><img className="sm-desktop-portrait-poster" src={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} alt="" loading="eager" decoding="async"/>
+        <video className={"sm-desktop-portrait-video"+(portraitReady[i]?" is-ready":"")} src={visiblePortraits[i]?item.url:undefined} playsInline autoPlay muted={audiblePortrait!==i} loop preload="auto" poster={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} onPlaying={()=>setPortraitReady(previous=>previous[i]?previous:{...previous,[i]:true})} onLoadedData={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}} onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}} onLoadedMetadata={e=>{if(audiblePortrait!==i)e.currentTarget.muted=true;}} aria-label={item.title}/>
         <button type="button" className="sm-desktop-portrait-sound" aria-label={audiblePortrait===i?"Ton ausschalten: "+item.title:"Ton einschalten: "+item.title} aria-pressed={audiblePortrait===i}
           onClick={event=>{event.stopPropagation();togglePortraitSound(i)}}>{audiblePortrait===i?<Volume2 size={17}/>:<VolumeX size={17}/>}</button>
        </>:<div className="sm-desktop-portrait-fallback" aria-label="Video coming soon"><Play size={28}/></div>}
