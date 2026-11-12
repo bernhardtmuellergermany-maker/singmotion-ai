@@ -8,7 +8,7 @@ const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const euro=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
 
 /** UI quote only; server decides the actual Stripe amount, and only in TEST. */
-export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boolean}){
+export function CreditAmountPicker({purchaseEnabled=false,testMode=true}:{purchaseEnabled?:boolean;testMode?:boolean}){
  const [raw,setRaw]=useState("2000");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -24,7 +24,7 @@ export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boo
     body:JSON.stringify({credits:String(credits),requestKey:crypto.randomUUID()}),
    });
    const data=await response.json() as {url?:string;error?:string;testMode?:boolean;supportReference?:string};
-   if(!response.ok||!data.testMode||typeof data.url!=="string"||
+   if(!response.ok||data.testMode!==testMode||typeof data.url!=="string"||
       !/^https:\/\/checkout\.stripe\.com\//.test(data.url))
     throw Error((data.error||"Stripe test checkout could not be started.")+
      (typeof data.supportReference==="string"&&/^req_[A-Za-z0-9]+$/.test(data.supportReference)
@@ -35,7 +35,7 @@ export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boo
  return <div className="sm-credit-amount-picker" aria-label="Buy Credits">
   <div className="sm-credit-amount-heading"><div><h2>Buy Credits</h2>
    <p>Choose a package or enter exactly how many credits you want.</p></div>
-   {purchaseEnabled&&<span className="sm-credit-amount-tag">Stripe Test Mode</span>}
+   {purchaseEnabled&&<span className="sm-credit-amount-tag">{testMode?"Stripe Test Mode":"Secure Stripe Checkout"}</span>}
   </div>
   <div className="sm-credit-presets" aria-label="Credit packages">
    {presets.map(amount=><button key={amount} type="button" aria-pressed={raw===String(amount)}
@@ -58,11 +58,11 @@ export function CreditAmountPicker({purchaseEnabled=false}:{purchaseEnabled?:boo
    <div><span>Estimated total (incl. VAT)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
   </div>
   {purchaseEnabled?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null} onClick={()=>void begin()}>
-   {busy?"Opening Stripe…":"Test purchase with Stripe"}
+   {busy?"Opening Stripe…":testMode?"Test purchase with Stripe":"Buy securely with Stripe"}
   </button>:<div className="sm-credit-amount-disabled" aria-disabled="true">Credit purchases are not yet available</div>}
   {error&&<p role="alert" className="sm-credit-amount-error">{error}</p>}
   <p className="sm-credit-amount-footer">{purchaseEnabled
-   ?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment."
+   ?testMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are added only after verified payment. This is not a recurring subscription."
    :"These prices are for information only. Live payments are not enabled."}</p>
  </div>;
 }
