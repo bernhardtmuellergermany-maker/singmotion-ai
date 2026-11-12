@@ -15,8 +15,20 @@ const json = (body: unknown, status = 200) => NextResponse.json(body, { status, 
 export async function GET(req: NextRequest) {
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
-  if (!customerAccountSettingsAccessible(process.env))
+  if (!customerAccountSettingsAccessible(process.env)) {
+    // CMS super-admins can inspect a visual preview even when the customer
+    // wallet is not enabled. This read-only response contains no ledger data.
+    if (process.env.CMS_ENABLED === "true") {
+      const { getPayload } = await import("payload");
+      const { default: config } = await import("@payload-config");
+      const { hasRole } = await import("@/cms/policy");
+      const payload = await getPayload({ config });
+      const { user } = await payload.auth({ headers: req.headers });
+      if (user && hasRole(user, ["super-admin"]))
+        return json({ staffPreview: true, purchaseEnabled: false });
+    }
     return json({ error: "Credit overview currently unavailable." }, 403);
+  }
 
   const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
   try {
