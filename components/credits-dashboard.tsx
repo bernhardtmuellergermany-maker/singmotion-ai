@@ -51,7 +51,7 @@ function AutoTopupPreferences(){
      {[250,500,1000,2000].map(v=><option key={v} value={v}>{num(v)} credits</option>)}
     </select></label>
    <label>Top-up package
-    <select value={form.amount} onChange={e=>setForm(v=>({...v,amount:Number(e.target.value),monthlyCap:Math.max(v.monthlyCap,Number(e.target.value))}))}>
+    <select value={form.amount} onChange={e=>setForm(v=>({...v,amount:Number(e.target.value),monthlyCap:[2000,10000,20000,40000].find(cap=>cap>=Math.max(v.monthlyCap,Number(e.target.value)))??40000}))}>
      {[2000,4000,10000].map(v=><option key={v} value={v}>{num(v)} credits · {eur(v)}</option>)}
     </select></label>
    <label>Monthly maximum
