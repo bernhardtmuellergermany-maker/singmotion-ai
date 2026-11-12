@@ -94,24 +94,27 @@ const pages: Record<string, {title: string; intro: string; sections: Section[]}>
 const legalTopics = [
   {
     title: "Legal & privacy",
+    description: "Find out who operates SingMotion AI, how to contact us, and what happens to your personal information when you use the service.",
     links: [
-      { href: "#imprint", label: "Imprint" },
-      { href: "/privacy", label: "Privacy policy" },
-      { href: "/cookies", label: "Cookies & tracking" },
+      { href: "#imprint", label: "Imprint", detail: "Company details and a direct contact for questions or legal notices." },
+      { href: "/privacy", label: "Privacy policy", detail: "How account details, uploaded music and photos, and generated videos may be processed." },
+      { href: "/cookies", label: "Cookies & tracking", detail: "Which technologies help keep your session secure and how optional tracking is handled." },
     ],
   },
   {
     title: "Terms & consumer rights",
+    description: "Understand the rules for using the platform, how credits and purchases work, and what rights may apply when ordering online.",
     links: [
-      { href: "/terms", label: "Terms of use" },
-      { href: "/withdrawal", label: "Withdrawal & cancellation" },
+      { href: "/terms", label: "Terms of use", detail: "Your responsibilities, service limitations, and key information about credits and orders." },
+      { href: "/withdrawal", label: "Withdrawal & cancellation", detail: "When a withdrawal right may apply and how to submit a request online." },
     ],
   },
   {
     title: "AI & media rights",
+    description: "Create confidently with your own creative material. Learn what permissions you need and how to share AI-generated performances responsibly.",
     links: [
-      { href: "/rights", label: "Music, image & voice rights" },
-      { href: "/ai-transparency", label: "AI transparency" },
+      { href: "/rights", label: "Music, image & voice rights", detail: "What to check before uploading a song, a portrait, or someone else's voice." },
+      { href: "/ai-transparency", label: "AI transparency", detail: "How synthetic performances work, their limitations, and when AI disclosure matters." },
     ],
   },
 ] as const;
@@ -129,7 +132,11 @@ export function LegalPolicyPage({slug}:{slug:string}){
           {legalTopics.map((topic) => (
             <section className="sm-legal-topic" key={topic.title}>
               <h2>{topic.title}</h2>
-              <ul>{topic.links.map((link) => <li key={link.href}><Link href={link.href}>{link.label}</Link></li>)}</ul>
+              <p className="sm-legal-topic-intro">{topic.description}</p>
+              <ul>{topic.links.map((link) => <li key={link.href}>
+                <Link href={link.href}>{link.label}<span aria-hidden="true"> ›</span></Link>
+                <p>{link.detail}</p>
+              </li>)}</ul>
             </section>
           ))}
         </nav>
