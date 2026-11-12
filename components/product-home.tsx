@@ -42,7 +42,7 @@ export function ProductHome({ page }: { page: Page }) {
               ? hero.body
               : "Upload a song, add an image, and create a stunning AI performance video."}
           </p>
-          <Link href="/studio" className="product-primary">
+          <Link href="/studio?new=1" className="product-primary">
             {hero?.buttonLabel && hero.buttonLabel !== "Create your music video"
               ? hero.buttonLabel
               : "Create your video"}{" "}
