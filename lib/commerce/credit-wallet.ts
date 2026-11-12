@@ -135,7 +135,7 @@ export class CreditWallet {
    const record=this.findById(input.id);
    if(!record||record.sessionId!==input.sessionId||record.cents!==input.amount||
       input.currency!=="eur"||input.paymentStatus!=="paid"||
-      input.livemode!==(record.sessionId.startsWith("cs_live_")))
+      input.livemode!==record.sessionId?.startsWith("cs_live_"))
     throw Error("Top-up payment verification mismatch");
    if(record.status==="reversed")return false;
    if(record.status==="paid")return false;
