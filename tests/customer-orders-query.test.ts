@@ -42,6 +42,15 @@ test("the existing paid output loads an older owned order beyond the latest 50",
   assert.equal(ownedCustomerOrderStatuses(db,"owner-a",customerOrderStatusFilter(id(100),null)).length,0);
   assert.equal(ownedCustomerOrderStatuses(db,"owner-a",customerOrderStatusFilter(id(0),"other-project")).length,0);
   assert.equal(ownedCustomerOrderStatuses(db,"owner-a",customerOrderStatusFilter(id(0),"project-a")).length,1);
+  // A password-archived payment is absent from lists but remains available by
+  // direct reference for existing download links and legally required records.
+  db.exec("CREATE TABLE customer_hidden_paid_orders(account_id TEXT,order_id TEXT,hidden_at INTEGER,PRIMARY KEY(account_id,order_id))");
+  db.prepare("INSERT INTO customer_hidden_paid_orders VALUES(?,?,?)").run("owner-a",id(64),Date.now());
+  const afterHide=ownedCustomerOrderStatuses(db,"owner-a",customerOrderStatusFilter(null,null));
+  assert.equal(afterHide.length,50);
+  assert.ok(!afterHide.some(order=>order.orderId===id(64)));
+  assert.equal(ownedCustomerOrderStatuses(db,"owner-a",customerOrderStatusFilter(id(64),null)).length,1);
+
  }finally{db.close();}
 });
 
