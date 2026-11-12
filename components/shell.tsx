@@ -5,7 +5,7 @@ import { UserRound } from "lucide-react";
 export function Shell({ children, hideWorkspaceNav = false }: { children: React.ReactNode; hideWorkspaceNav?: boolean; projectId?: string }) {
   if (hideWorkspaceNav) return (
     <div className="sm-carousel-page sm-output-page">
-      <SiteHeader showGlobalMenu={false}/>
+      <SiteHeader/>
       <main className="sm-carousel-main">{children}</main>
     </div>
   );
