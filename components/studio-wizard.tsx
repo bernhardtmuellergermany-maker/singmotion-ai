@@ -220,15 +220,53 @@ export function StudioWizard({
         localStorage.setItem("singmotion-studio-owner",sessionOwner);
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("draft");
-        const createNew = params.get("new") === "1" && !requested;
+        const copy = params.get("copy");
+        const createNew = params.get("new") === "1" && !requested && !copy;
         draftId.current =
           requested ||
-          (createNew || ownerChanged || unscopedOperatorDraft ? null : localStorage.getItem("singmotion-draft-id")) ||
+          (createNew || copy || ownerChanged || unscopedOperatorDraft ? null : localStorage.getItem("singmotion-draft-id")) ||
           crypto.randomUUID();
         localStorage.setItem("singmotion-draft-id", draftId.current);
         setProjectKey(draftId.current);
         try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${draftId.current}`)||"[]")); } catch {}
         setProjectName(localStorage.getItem(`singmotion-project-name:${draftId.current}`) || new Date().toLocaleString("en-US", { month:"short", day:"numeric", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }));
+        if(copy && !requested){
+          // Never modify the completed project or reuse its paid task key.
+          // Fetch the original inputs only via the same-owner private APIs,
+          // then autosave as a new independent editable draft.
+          try{
+            const match=/^(draft|live)_([A-Za-z0-9-]{1,80})$/.exec(copy);
+            if(!match)throw Error("Invalid source project.");
+            const saved=await api<{
+              selection:StudioDraftExport; song:Asset|null; image:Asset|null;
+              artistName:string; projectName?:string;
+            }>(match[1]==="live"
+                ? "studio-live?id="+encodeURIComponent(match[2])+"&copy=1"
+                : "studio-drafts/"+encodeURIComponent(match[2]));
+            if(!current)return;
+            if(saved.selection.owner!==sessionOwner||!saved.song||!saved.image||
+              saved.song.kind!=="audio"||saved.image.kind!=="image")
+              throw Error("The original audio or photo is no longer available in this workspace.");
+            const restored={...initial,...saved.selection,song:saved.song,artistName:saved.artistName};
+            setDraft(restored);
+            setProjectName((saved.projectName||saved.artistName||"Music video").slice(0,70)+" - New version");
+            setStep(0);
+            setTimeline([]);
+            setDetectedFormat(photoFormat(saved.image.width??null,saved.image.height??null));
+            localStorage.setItem("singmotion-studio",JSON.stringify(restored));
+            window.history.replaceState(window.history.state,"","/studio");
+            setReady(true);
+            return;
+          }catch(e){
+            if(!current)return;
+            setError(e instanceof Error?e.message:"Unable to reuse the previous setup. Open My Projects or upload your files.");
+            // Fail safely: show a new empty draft, never restore unrelated media.
+            setDraft({...initial});
+            setStep(0);
+            setReady(true);
+            return;
+          }
+        }
         if (requested) {
           const saved = await api<{
             selection: StudioDraftExport;

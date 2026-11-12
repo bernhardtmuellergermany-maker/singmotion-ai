@@ -1,4 +1,3 @@
-import { PageContentSearch } from "./page-content-search";
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { SiteHeader } from "./site-header";
@@ -66,7 +65,7 @@ const guide:FAQGroup[] = [
 export function HelpFAQ({groups=[],mode="help"}:{groups?:FAQGroup[];mode?:"help"|"faq"}){
 const allGroups= mode==="help" ? [...guide,...defaultGroups,...groups] : [...defaultGroups,...groups];
 return <div className="sm-legal sm-help-faq">
-<SiteHeader search={<PageContentSearch/>}/>
+<SiteHeader/>
 <main id="content" className="sm-legal-main">
  <div className="sm-legal-intro"><span className="sm-legal-kicker">SUPPORT & GUIDANCE</span><h1>{mode==="help"?"Help & Best Practices":"Frequently Asked Questions"}<span>.</span></h1><p>{mode==="help"?"A practical guide to better input images, cleaner vocals, natural movements and troubleshooting.":"Answers about uploads, BytePlus, AI-video quality, privacy, pricing, projects and support."}</p><small>Capabilities and limits describe the current protected preview. Provider requirements may differ from SingMotion's own upload rules.</small></div>
  <nav className="sm-legal-nav" aria-label="Help navigation"><Link href="/help">How-to & best practices</Link><Link href="/faq">Frequently asked questions</Link><Link href="/help/camera-movements">Camera movements</Link><Link href="/ai-transparency">AI transparency</Link></nav>

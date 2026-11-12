@@ -1,11 +1,11 @@
 "use client";
 import {useState} from "react";
-import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck} from "lucide-react";
+import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck,RotateCcw} from "lucide-react";
 import "./generation-status-view.css";
 
 export type GenerationProgress = "verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,providerSeconds,photoUrl,format,videoUrl,downloadUrl,note,
+  progress,paymentMode,amount,providerSeconds,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
@@ -16,6 +16,8 @@ export function GenerationStatusView({
   videoUrl?:string|null;
   downloadUrl?:string|null;
   note?:string;
+  reuseHref?:string|null;
+  reuseBlank?:boolean;
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
   const admin=paymentMode==="super-admin";
@@ -89,6 +91,10 @@ export function GenerationStatusView({
         </div>
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
           <button className="sm-gen-download" type="button" disabled><LockKeyhole size={17}/> Download video</button>}
+        {ready&&reuseHref&&<a className="sm-gen-reuse" href={reuseHref}><RotateCcw size={16}/> {reuseBlank?"Create another video":"Create another version"}</a>}
+        {ready&&reuseHref&&<p className="sm-gen-reuse-note">{reuseBlank
+          ?"Start a new video. Upload your audio and photo and choose your settings."
+          :"Reuse your photo, audio selection, prompt and settings—or change anything before generating a new video. Your finished video stays saved."}</p>}
         <p className="sm-gen-download-note">{ready?"Private MP4 available now.":"Available only after the video has been verified and securely stored."}</p>
       </div>
     </div>

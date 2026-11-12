@@ -136,6 +136,30 @@ async function handler(req: NextRequest) {
           },
         );
       }
+      if (id && req.nextUrl.searchParams.get("copy") === "1") {
+        // Reuse an owned project's original inputs for editing, never its
+        // authorization, budget, task ID, provider job or finished video.
+        const project=service.view(id,owner);
+        const selection=project.selection;
+        if(selection.owner!==owner)
+          throw new StudioLiveError("PROJECT_OWNER_MISMATCH","Private project unavailable.",403);
+        const song=asset(selection.songId,owner);
+        const image=asset(selection.imageId,owner);
+        if(song.kind!=="audio"||image.kind!=="image")
+          throw new StudioLiveError("PROJECT_MEDIA_UNAVAILABLE","Original project media unavailable.",409);
+        const publicAsset=(a:typeof song)=>({
+          id:a.id,owner:a.owner,kind:a.kind,name:a.name,mime:a.mime,
+          bytes:a.bytes,duration:a.duration,width:a.width,height:a.height,
+          created:a.created,
+        });
+        return json({
+          selection,
+          song:publicAsset(song),
+          image:publicAsset(image),
+          artistName:project.artistName,
+          projectName:project.projectName,
+        });
+      }
       if (id)
         return json(await service.withCurrentBudget(service.view(id, owner)));
       const blockers: string[] = [];

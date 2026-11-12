@@ -439,7 +439,7 @@ export function ImmersiveHome(){
  };
  return <div className="sm-immersive-home">
   <div ref={firstScreen} className="sm-immersive-first-screen" onTouchStart={startTouch} onTouchEnd={finishTouch} onTouchCancel={()=>{touchStart.current=null;resetRefreshCircle();setRefreshing(false)}}>
-   <SiteHeader className="sm-immersive-header" onAccountClick={()=>window.location.assign("/login")}/>
+   <SiteHeader className="sm-immersive-header"/>
    <main id="content" className="sm-immersive-hero">
     <div className="sm-immersive-atmosphere" aria-hidden="true"/>
     <div className="sm-immersive-desktop-intro">

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, LockKeyhole } from "lucide-react";
 
 import { SiteHeader } from "../site-header";
-import { navigation } from "../../cms/content";
 import { safeLink } from "../../cms/policy";
 // Deliberately no raw HTML, arbitrary CSS, scripts, or remote image URLs.
 import type { Page } from "../../cms/payload-types";
@@ -13,7 +12,6 @@ export async function Website({
   page: Page;
   preview?: boolean;
 }) {
-  const nav = await navigation();
   const isHome = page.slug === "home";
   // An optional CTA directly after the home hero becomes its editable secondary action.
   const secondary =
@@ -36,32 +34,11 @@ export async function Website({
       ? artworkBlock.image
       : null;
   const firstCards = page.blocks?.findIndex((b) => b.blockType === "cards");
-  const headerLinks = nav?.header?.links || [];
-  const studioLink = headerLinks.find((item) => item.url === "/studio") || {
-    label: "Open studio",
-    url: "/studio",
-  };
   return (
     <div
       className={`marketing premium-site product-theme ${isHome ? "home-site" : ""}`}
     >
-      <SiteHeader
-        actions={
-          <nav aria-label="Website navigation">
-            {isHome && (
-              <Link className="button home-signin" href="/signin">
-                Sign in
-              </Link>
-            )}
-            <Link
-              className={isHome ? "button home-signin" : "button subtle"}
-              href={studioLink.url}
-            >
-              {studioLink.label}
-            </Link>
-          </nav>
-        }
-      />
+      <SiteHeader />
       <main id="content">
         {preview && <p role="status">Private draft preview — not published.</p>}
         {!page.blocks?.length && (
