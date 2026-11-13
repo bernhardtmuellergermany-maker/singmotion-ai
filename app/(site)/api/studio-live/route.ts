@@ -385,7 +385,7 @@ async function handler(req: NextRequest) {
     if (body.action === "delete")
       return json(await service.deleteProject(body.id, owner, body.confirmation));
     if (body.action === "restore")
-      return json(service.restoreProject(body.id, owner, body.confirmation));
+      return json(service.restoreProject(body.id, owner, String(user!.id), body.confirmation));
     if (body.action === "hide")
       return json(
         service.hide(body.id, owner, String(user!.id), body.confirmation),
