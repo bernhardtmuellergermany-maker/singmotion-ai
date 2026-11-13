@@ -59,7 +59,7 @@ export function assessProtectedProductionLivePilot(env:Record<string,string|unde
  check(requiredProofs.every(key=>env[key]==="true"),"INDEPENDENT_LIVE_APPROVALS_REQUIRED");
  check(requiredRuntime.every(key=>env[key]==="true"),"CUSTOMER_FULFILLMENT_RUNTIME_REQUIRED");
  check(typeof env.SUPPORT_CONTACT_VERIFIED==="string"&&
-   /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(env.SUPPORT_CONTACT_VERIFIED),
+   /^[^\s@]+@[^\s@]+\\.[^\s@]+$/.test(env.SUPPORT_CONTACT_VERIFIED),
    "VERIFIED_SUPPORT_CONTACT_REQUIRED");
  check(env.CMS_DATABASE_URL?.startsWith("postgresql://")===true||
    env.CMS_DATABASE_URL?.startsWith("postgres://")===true,
