@@ -209,18 +209,19 @@ export function StudioWizard({
       .then(async (session) => {
         if (!current) return;
         const sessionOwner=(session as { owner: string }).owner;
+        const accountWorkspace=sessionOwner.startsWith("customer-")||sessionOwner.startsWith("cms-staff-");
         setOwner(sessionOwner);
         // Keep guest/account draft identifiers separate. Never silently reuse a
         // former owner's private media or overwrite their existing project.
         const previousOwner=localStorage.getItem("singmotion-studio-owner");
-        const ownerChanged=previousOwner!==null && previousOwner!==sessionOwner;
-        const unscopedOperatorDraft=previousOwner===null && sessionOwner.startsWith("cms-staff-");
+        const ownerChanged=!accountWorkspace && previousOwner!==null && previousOwner!==sessionOwner;
+        const unscopedOperatorDraft=false; // Account workspaces never import an unscoped browser draft.
         if(ownerChanged||unscopedOperatorDraft){
           const priorDraft=localStorage.getItem("singmotion-studio");
           if(priorDraft && previousOwner)
             localStorage.setItem(`singmotion-studio-backup:${previousOwner}`,priorDraft);
         }
-        localStorage.setItem("singmotion-studio-owner",sessionOwner);
+        if(!accountWorkspace)localStorage.setItem("singmotion-studio-owner",sessionOwner);
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("draft");
         const resumeReview = params.get("resume") === "review";
@@ -228,12 +229,12 @@ export function StudioWizard({
         const createNew = params.get("new") === "1" && !requested && !copy;
         draftId.current =
           requested ||
-          (createNew || copy || ownerChanged || unscopedOperatorDraft ? null : localStorage.getItem("singmotion-draft-id")) ||
+          (createNew || copy || ownerChanged || unscopedOperatorDraft || accountWorkspace ? null : localStorage.getItem("singmotion-draft-id")) ||
           crypto.randomUUID();
-        localStorage.setItem("singmotion-draft-id", draftId.current);
+        if(!accountWorkspace)localStorage.setItem("singmotion-draft-id", draftId.current);
         setProjectKey(draftId.current);
-        try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${draftId.current}`)||"[]")); } catch {}
-        setProjectName(localStorage.getItem(`singmotion-project-name:${draftId.current}`) || new Date().toLocaleString("en-US", { month:"short", day:"numeric", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }));
+        if(!accountWorkspace)try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${draftId.current}`)||"[]")); } catch {}
+        setProjectName((!accountWorkspace && localStorage.getItem(`singmotion-project-name:${draftId.current}`)) || new Date().toLocaleString("en-US", { month:"short", day:"numeric", year:"numeric", hour:"2-digit", minute:"2-digit", hour12:false }));
         if(copy && !requested){
           // Never modify the completed project or reuse its paid task key.
           // Fetch the original inputs only via the same-owner private APIs,
@@ -257,7 +258,7 @@ export function StudioWizard({
             setStep(0);
             setTimeline([]);
             setDetectedFormat(photoFormat(saved.image.width??null,saved.image.height??null));
-            localStorage.setItem("singmotion-studio",JSON.stringify(restored));
+            if(!accountWorkspace)localStorage.setItem("singmotion-studio",JSON.stringify(restored));
             window.history.replaceState(window.history.state,"","/studio");
             setReady(true);
             return;
@@ -281,7 +282,7 @@ export function StudioWizard({
             step: number;
           }>(`studio-drafts/${encodeURIComponent(requested)}`);
           if (!current) return;
-          setProjectName(saved.projectName || localStorage.getItem(`singmotion-project-name:${requested}`) || saved.artistName || "Untitled Project");
+          setProjectName(saved.projectName || (!accountWorkspace && localStorage.getItem(`singmotion-project-name:${requested}`)) || saved.artistName || "Untitled Project");
           setDraft({
             ...initial,
             ...saved.selection,
@@ -294,7 +295,7 @@ export function StudioWizard({
           // saved draft's last autosaved step. Do not bypass missing media.
           setStep(resumeReview && saved.song?.kind === "audio" && saved.image?.kind === "image"
             ? 3 : Math.max(0, Math.min(3, saved.step)));
-          try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
+          if(!accountWorkspace)try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
           setDetectedFormat(
             photoFormat(
               saved.image?.width ?? null,
@@ -321,9 +322,37 @@ export function StudioWizard({
           setDraft(fresh);
           setStep(0);
           setDetectedFormat("9:16");
-          localStorage.setItem("singmotion-studio", JSON.stringify(fresh));
+          if(!accountWorkspace)localStorage.setItem("singmotion-studio", JSON.stringify(fresh));
           window.history.replaceState(window.history.state, "", "/studio");
           setReady(true);
+          return;
+        }
+        // Authenticated workspaces resume the latest owner-scoped server draft.
+        // Local browser state is never authoritative for signed-in users.
+        if(accountWorkspace){
+          try{
+            const items=await api<Array<{id:string}>>("studio-drafts");
+            if(!current)return;
+            const latest=items.find(item=>typeof item.id==="string" && /^[A-Za-z0-9_-]{1,80}$/.test(item.id));
+            if(latest){
+              const saved=await api<{
+                selection:StudioDraftExport;song:Asset|null;image:Asset|null;
+                artistName:string;projectName?:string;step:number;
+              }>("studio-drafts/"+encodeURIComponent(latest.id));
+              if(!current)return;
+              if(saved.selection.owner!==sessionOwner)throw Error("Project owner mismatch.");
+              draftId.current=latest.id;
+              setProjectKey(latest.id);
+              setProjectName(saved.projectName||saved.artistName||"Untitled Project");
+              setDraft({...initial,...saved.selection,song:saved.song,artistName:saved.artistName});
+              setStep(Math.max(0,Math.min(3,saved.step)));
+              setDetectedFormat(photoFormat(saved.image?.width??null,saved.image?.height??null));
+              window.history.replaceState(window.history.state,"","/studio?draft="+encodeURIComponent(latest.id));
+            }
+          }catch(e){
+            if(current)setError(e instanceof Error?e.message:"Could not load your saved projects.");
+          }
+          if(current)setReady(true);
           return;
         }
         try {
@@ -353,7 +382,8 @@ export function StudioWizard({
     };
   }, []);
   useEffect(() => {
-    if (ready) localStorage.setItem("singmotion-studio", JSON.stringify(draft));
+    if (ready && owner && !owner.startsWith("customer-") && !owner.startsWith("cms-staff-"))
+      localStorage.setItem("singmotion-studio", JSON.stringify(draft));
   }, [draft, ready]);
   useEffect(() => {
     // A project begins at its first successful upload, not when Studio opens.
@@ -402,7 +432,7 @@ export function StudioWizard({
         .catch((cause) => {
           if (current)
             setError(
-"Draft could not be saved on the server. Your browser draft is retained; retry before leaving.",
+"Draft could not be saved on the server. Please retry before leaving.",
             );
         });
     }, delay);
@@ -430,7 +460,8 @@ export function StudioWizard({
     }
     setTimeline(next);
     update({customPrompt:timelinePrompt(next),performance:next.length?"Custom":"Natural"});
-    if(projectKey)localStorage.setItem(`singmotion-timeline:${projectKey}`,JSON.stringify(next));
+    if(projectKey && !owner.startsWith("customer-") && !owner.startsWith("cms-staff-"))
+      localStorage.setItem(`singmotion-timeline:${projectKey}`,JSON.stringify(next));
   }
   function update(patch: Partial<typeof initial>) {
     setDraft((previous) => ({ ...previous, ...patch }));
