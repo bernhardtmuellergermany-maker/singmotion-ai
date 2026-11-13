@@ -143,3 +143,23 @@ test("paid order references protect shared uploaded media even after a draft exp
   assert.ok((await readFile(path.join(f.root,"media",asset))).length>0);
  }finally{await f.close()}
 });
+
+
+test("API deletes are recoverable and direct deleted project URLs are not publicly served",async()=>{
+ const {readFileSync}=await import("node:fs");
+ const read=(file:string)=>readFileSync(new URL("../"+file,import.meta.url),"utf8");
+ const drafts=read("app/(site)/api/[...path]/route.ts"),studio=read("app/(site)/api/studio-live/route.ts");
+ const gallery=read("components/my-projects-gallery.tsx");
+ const worker=read("scripts/worker.ts");
+ assert.match(drafts,/deleteDraftToTrash\(db,id,owner\)/);
+ assert.match(drafts,/restoreDraftFromTrash\(db,id,owner\)/);
+ assert.match(drafts,/deleted_at IS NULL ORDER BY updated/);
+ assert.match(drafts,/studio_drafts.deleted_at IS NULL/);
+ assert.match(studio,/service.trashedAt\(id,owner\)/);
+ assert.match(studio,/service.restoreProject\(body.id, owner, body.confirmation\)/);
+ assert.match(studio,/service.trashedAt\(body.id,owner\)/);
+ assert.match(gallery,/Recently deleted/);
+ assert.match(gallery,/Move .+ to Recently deleted/);
+ assert.match(worker,/nextProjectTrashCleanup=Date.now\(\)\+60\*60\*1000/);
+ assert.match(worker,/runProjectTrashCleanup\(dataDir\)/);
+});
