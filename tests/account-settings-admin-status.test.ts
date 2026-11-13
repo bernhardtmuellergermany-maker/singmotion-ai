@@ -127,3 +127,32 @@ test("Account Settings anchor sequence follows visible sections, with smooth scr
  assert.match(css,/@media \(prefers-reduced-motion: reduce\)\{\s*html:has\(\.sm-settings-page\)\{scroll-behavior:auto\}/);
  assert.doesNotMatch(css,/^html\s*\{\s*scroll-behavior:smooth/m,"Do not change unrelated pages");
 });
+
+
+test("Both Super Admin consoles offer a visible stable back link to Account Settings",()=>{
+ const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
+ const supportPage=read("app/(site)/support-admin/page.tsx");
+ const promoPage=read("app/(site)/promo-admin/page.tsx");
+ const back=read("components/admin-console-back-link.tsx");
+ const css=read("components/admin-console-back-link.module.css");
+ assert.match(supportPage,/import \{AdminConsoleBackLink\} from "@\/components\/admin-console-back-link"/);
+ assert.match(supportPage,/<AdminConsoleBackLink\/>/);
+ assert.match(promoPage,/import \{ AdminConsoleBackLink \} from "@\/components\/admin-console-back-link"/);
+ assert.match(promoPage,/<AdminConsoleBackLink\/>/);
+ assert.match(back,/href="\/account\/settings#admin-console"/);
+ assert.match(back,/Back to Account Settings/);
+ assert.match(back,/aria-label="Return to account settings"/);
+ assert.doesNotMatch(back,/history\.back\(|router\.back\(/,"Direct-link visits still need a return route");
+ assert.match(css,/@media\(max-width:720px\)/);
+ assert.match(css,/min-height:44px/,"Mobile tap target must be comfortable");
+ assert.match(css, /:focus-visible/,"Keyboard users need visible focus");
+});
+test("Async Account Settings hydration honors direct return links and reduced-motion setting",()=>{
+ const page=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
+ assert.match(page,/if\(!data\)return/,"Wait until the target sections are mounted");
+ assert.match(page,/target==="admin-console"&&!canShowAdmin/,"Do not scroll to unauthorized admin target");
+ assert.match(page,/document\.getElementById\(target\)/);
+ assert.match(page,/prefers-reduced-motion: reduce/);
+ assert.match(page,/scrollIntoView\(/);
+ assert.match(page,/cancelAnimationFrame\(frame\)/);
+});
