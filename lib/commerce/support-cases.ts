@@ -147,6 +147,58 @@ export class SupportCases{
       VALUES(?,?,?,?,?,?)`).run(eventKey,id,email,"SingMotion AI – Update "+id.slice(0,8).toUpperCase(),body,Date.now());
     return changed.changes===1;
   }
+  refundIntent(orderId:string):{checkout_session:string;amount_cents:number;actor:string;reason:string;status:string;refund_id:string|null}|null{
+    return this.db.prepare("SELECT checkout_session,amount_cents,actor,reason,status,refund_id FROM support_stripe_refund_intents WHERE order_id=?")
+      .get(orderId) as {checkout_session:string;amount_cents:number;actor:string;reason:string;status:string;refund_id:string|null}|undefined??null;
+  }
+  /** Persist a stable, idempotent refund intent BEFORE contacting Stripe. An
+   * unstarted pending fulfillment is atomically stopped to avoid a dispatch race. */
+  beginStripeRefund(value:string,actor:string,reason:string,liveFile:string){
+    const id=supportReference(value);
+    if(!/^[A-Za-z0-9_-]{1,110}$/.test(actor)||reason.trim().length<20||reason.length>1200)
+      throw Error("Super Admin refund reason (at least 20 characters) is required");
+    this.db.exec("BEGIN IMMEDIATE");
+    try{
+      const current=this.refundIntent(id);
+      if(current){
+        if(current.reason!==reason.trim())throw Error("Existing refund intent uses a different reason; review original request.");
+        this.db.exec("COMMIT");return current;
+      }
+      const order=this.db.prepare(`SELECT o.status,o.price_cents,o.currency,s.session_id,
+       q.state fulfillment,
+       EXISTS(SELECT 1 FROM customer_provider_submissions x WHERE x.order_id=o.id) submitted,
+       EXISTS(SELECT 1 FROM customer_provider_jobs j WHERE j.order_id=o.id) job,
+       EXISTS(SELECT 1 FROM customer_video_deliveries d WHERE d.order_id=o.id) delivered,
+       EXISTS(SELECT 1 FROM customer_stripe_disputes t WHERE t.order_id=o.id) disputed
+       FROM customer_orders o JOIN stripe_checkout_sessions s ON s.order_id=o.id
+       LEFT JOIN customer_fulfillment_queue q ON q.order_id=o.id WHERE o.id=?`).get(id) as
+       {status:string;price_cents:number;currency:string;session_id:string;fulfillment:string;submitted:number;job:number;delivered:number;disputed:number}|undefined;
+      if(!order||order.status!=="paid"||order.currency!=="EUR"||order.price_cents<=0||
+        order.delivered||order.disputed||
+        !(order.fulfillment==="failed"||(order.fulfillment==="pending"&&!order.submitted&&!order.job)))
+        throw Error("Refund is blocked until provider job is terminal and video is undelivered.");
+      if(order.fulfillment==="pending"){
+        const changed=this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(id);
+        if(changed.changes!==1)throw Error("Fulfillment changed during refund; try status lookup again.");
+      }
+      this.db.prepare(`INSERT INTO support_stripe_refund_intents(
+       order_id,checkout_session,amount_cents,actor,reason,status,created_at,updated_at)
+       VALUES(?,?,?,?,?,'requested',?,?)`)
+        .run(id,order.session_id,order.price_cents,actor,reason.trim(),Date.now(),Date.now());
+      this.db.prepare("INSERT OR IGNORE INTO support_case_events VALUES(?,?,?,?,?,?)")
+        .run("stripe-refund-request:"+id,id,"stripe-refund-requested",actor,reason.trim(),Date.now());
+      this.db.exec("COMMIT");
+      return this.refundIntent(id)!;
+    }catch(e){this.db.exec("ROLLBACK");throw e}
+  }
+  updateRefundIntent(orderId:string,refundId:string,status:"pending"|"failed"){
+    if(!/^re_[A-Za-z0-9_]+$/.test(refundId))throw Error("Invalid Stripe refund identity");
+    const intent=this.refundIntent(orderId);
+    if(!intent||intent.status==="succeeded"||intent.refund_id&&intent.refund_id!==refundId)
+      throw Error("Stripe refund intent mismatch");
+    this.db.prepare("UPDATE support_stripe_refund_intents SET refund_id=?,status=?,updated_at=? WHERE order_id=? AND status!='succeeded'")
+      .run(refundId,status,Date.now(),orderId);
+  }
   markResolved(value:string,actor:string,note:string,liveFile:string):SupportLookup{
     const id=supportReference(value),target=this.lookup(id,liveFile);
     if(!target)throw Error("Order or project ID not found");
