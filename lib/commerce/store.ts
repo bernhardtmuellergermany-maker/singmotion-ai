@@ -723,7 +723,7 @@ export class CommerceStore {
       const pendingUntouched=fulfillment?.state==="pending"&&!alreadySubmitted;
       const approvedFailed=supportApproved&&fulfillment?.state==="failed"&&!delivered&&!disputed;
       if(order.status!=="paid"||delivered||disputed||!(pendingUntouched||approvedFailed))
-        throw Error("Refund requires terminal provider and Stripe reconciliation");
+        throw Error("Refund requires manual provider reconciliation; terminal provider and Stripe evidence are missing");
       const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(input.orderId) as {state:string;included_seconds:number}|undefined;
       if(split && split.state!=="reserved")throw Error("Allowance requires reconciliation");
       if(split?.included_seconds){
