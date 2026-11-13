@@ -35,6 +35,17 @@ export async function requestSupportStripeRefund(
  if(!idOk(orderId)||confirmation!=="REFUND "+orderId.toUpperCase())
   throw Error("Type REFUND followed by the full order ID to authorize a Stripe refund.");
  const cases=new SupportCases(store.db);
+ const existing=cases.refundIntent(orderId);
+ // Check the correct isolated Stripe account BEFORE stopping an unstarted
+ // customer's fulfillment queue. A missing key must not change its state.
+ if(existing?.status!=="succeeded"){
+   const caseInfo=cases.lookup(orderId,"");
+   const selected=(existing?.checkout_session.startsWith("cs_live_")?"live":
+     existing?.checkout_session.startsWith("cs_test_")?"test":caseInfo?.details.checkoutMode) as StripePaymentMode|null;
+   if((selected!=="test"&&selected!=="live")||
+      configuredStripeReversalMode(env)!==selected||!customerStripeCredential(env,selected))
+     throw Error("Matching Stripe refund account must be configured before recording a refund request.");
+ }
  const intent=cases.beginStripeRefund(orderId,actor,reason,"");
  if(intent.status==="succeeded"){
   if(!intent.refund_id)throw Error("Recorded refund is missing its identity");
