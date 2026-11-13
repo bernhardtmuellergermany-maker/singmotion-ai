@@ -1,4 +1,5 @@
 import {worldwideTaxPolicyAvailable} from "./worldwide-credit-tax.ts";
+import {managedCreditMoRApproved} from "./managed-credit-payments.ts";
 /** Independently gated private LIVE Credit purchases on Production.
  * This does not approve public access or permit BytePlus dispatch.
  * All checks fail closed; attestations must reflect actual verified evidence.
@@ -17,7 +18,7 @@ export function assessPrivateCreditPilot(env:Record<string,string|undefined>){
  check(env.CMS_ENABLED==="true"&&(env.PAYLOAD_SECRET?.length||0)>=32,"CMS_IDENTITY_REQUIRED");
  check(env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true"&&env.STRIPE_LIVE_CHECKOUT_ENABLED==="true","LIVE_CREDIT_CHECKOUT_DISABLED");
  check(env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true","STRIPE_LIVE_REVIEW_REQUIRED");
- check(worldwideTaxPolicyAvailable(env),"REVIEWED_COUNTRY_BY_COUNTRY_CREDIT_TAX_POLICY_REQUIRED");
+ check(worldwideTaxPolicyAvailable(env)||managedCreditMoRApproved(env),"REVIEWED_COUNTRY_POLICY_OR_STRIPE_MERCHANT_OF_RECORD_REQUIRED");
  check(env.PRODUCTION_PRIVATE_CREDIT_WEBHOOK_VERIFIED==="true","SIGNED_LIVE_WEBHOOK_REVIEW_REQUIRED");
  check(env.PRODUCTION_PRIVATE_CREDIT_REFUND_VERIFIED==="true","REFUND_RECONCILIATION_REQUIRED");
  check(env.PRODUCTION_PRIVATE_CREDIT_BACKUP_RESTORE_VERIFIED==="true","CREDIT_LEDGER_BACKUP_RESTORE_REQUIRED");
