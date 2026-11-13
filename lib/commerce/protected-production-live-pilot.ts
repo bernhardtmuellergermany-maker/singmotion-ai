@@ -70,8 +70,11 @@ export function assessProtectedProductionLivePilot(env:Record<string,string|unde
    "PRODUCTION_CMS_DATABASE_REQUIRED");
  check((env.PAYLOAD_SECRET?.length||0)>=32,"CMS_SIGNING_SECRET_REQUIRED");
  const activation=Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT);
- check(Number.isSafeInteger(activation)&&activation>0&&activation<=Date.now()&&
-   activation>=Date.now()-86_400_000,"RECENT_WORKER_ACTIVATION_REQUIRED");
+ // Never sweep historical payments before this release; do not expire the
+ // worker after 24h while already-paid orders still require fulfillment.
+ const earliest=Date.parse("2026-11-13T14:00:00.000Z");
+ check(Number.isSafeInteger(activation)&&activation>=earliest&&activation<=Date.now(),
+   "REVIEWED_PRIVATE_WORKER_ACTIVATION_REQUIRED");
  check(privateProductionLiveProviderCap(env)!==null,"FINITE_PRIVATE_PROVIDER_BUDGET_REQUIRED");
  return {ready:blockers.length===0,blockers};
 }
