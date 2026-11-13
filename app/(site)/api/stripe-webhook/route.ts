@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
+import {SupportCases} from "@/lib/commerce/support-cases";
 import { CreditWallet, stripeCreditWebhookTestEnabled, stripeCreditTopupsLiveEnabled } from "@/lib/commerce/credit-wallet";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
@@ -105,6 +106,15 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
      verified.currency!=="eur")throw Error("Full-refund verification required");
    store.reconcileVerifiedStripeRefund({orderId:bound.order_id,stripeCheckoutId:session.id,
      refundId:verified.id,refundedCents:verified.amount,evidence});
+   // A previously approved Super Admin full refund can complete via webhook
+   // after an API timeout, without relying on the admin staying online.
+   const support=new SupportCases(store.db);
+   const intent=support.refundIntent(bound.order_id);
+   if(intent&&intent.refund_id===verified.id&&intent.status==="succeeded"){
+     const order=support.lookup(bound.order_id,"");
+     support.enqueue(bound.order_id,"stripe-refunded",order?.customerEmail??null,
+       intent.actor,intent.reason);
+   }
  }else{
    store.reconcileVerifiedStripeDispute({orderId:bound.order_id,stripeCheckoutId:session.id,
      disputeId:verified.id,evidence});
