@@ -28,7 +28,10 @@ export default function Waveform({
     [editingTime, setEditingTime] = useState<"start" | "end" | null>(null),
     [timeDraft, setTimeDraft] = useState(""),
     [timeInputError, setTimeInputError] = useState(""),
-    [zoomLevel, setZoomLevel] = useState(0);
+    [zoomLevel, setZoomLevel] = useState(0),
+    // Keep the visible timeline fixed while trimming or moving the selection.
+    // The window changes only on an explicit zoom action, never on onChange.
+    [lockedView, setLockedView] = useState<{start:number;span:number}|null>(null);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
     segment = useRef(false),
@@ -88,17 +91,25 @@ export default function Waveform({
     frame = requestAnimationFrame(checkEnd);
     return () => cancelAnimationFrame(frame);
   }, [playing, end]);
-  // Only the displayed time window changes; the selected audio stays identical.
-  const viewSpan = Math.min(duration, Math.max(Math.min(duration, end - start + 8), duration / Math.pow(1.45, zoomLevel)));
-  const viewStart = Math.max(0, Math.min(duration - viewSpan, (start + end) / 2 - viewSpan / 2));
+  // Zoom may center on the selection, but moving handles must not pan or
+  // rescale the waveform underneath the pointer. Persist the current viewport
+  // after the first edit; only explicit +/- zoom chooses a fresh viewport.
+  const calculatedSpan = Math.min(duration, Math.max(Math.min(duration, end - start + 8), duration / Math.pow(1.45, zoomLevel)));
+  const viewSpan = Math.max(0.001, Math.min(duration, lockedView?.span ?? calculatedSpan));
+  const viewStart = Math.max(0, Math.min(duration - viewSpan,
+    lockedView?.start ?? ((start + end) / 2 - viewSpan / 2)));
   const viewPercent = (seconds: number) => ((seconds - viewStart) / viewSpan) * 100;
-  const zoomIn = () => setZoomLevel(level => Math.min(12, level + 1));
-  const zoomOut = () => setZoomLevel(level => Math.max(0, level - 1));
+  const lockViewport = () => {
+    if(!lockedView)setLockedView({start:viewStart,span:viewSpan});
+  };
+  const zoomIn = () => {setLockedView(null);setZoomLevel(level => Math.min(12, level + 1));};
+  const zoomOut = () => {setLockedView(null);setZoomLevel(level => Math.max(0, level - 1));};
   function drag(
     e: React.PointerEvent<HTMLButtonElement>,
     handle: "start" | "end",
   ) {
     audio.current?.pause();
+    lockViewport();
     setDragging(true);
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -190,6 +201,7 @@ export default function Waveform({
       setTimeInputError("Enter a valid time from 00:00 to " + formatHundredths(duration) + ".");
       return;
     }
+    lockViewport();
     const clipLength = Math.max(minimumClipSeconds, Math.min(300, end - start));
     if (editingTime === "start") {
       if (value > duration - minimumClipSeconds + 0.0001) {
@@ -282,6 +294,7 @@ export default function Waveform({
             onPointerDown={(e) => {
               e.stopPropagation();
               audio.current?.pause();
+              lockViewport();
               setDragging(true);
               e.currentTarget.setPointerCapture(e.pointerId);
               dragOrigin.current = { x: e.clientX, start, end };
@@ -320,6 +333,7 @@ export default function Waveform({
               if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
               e.preventDefault();
               audio.current?.pause();
+              lockViewport();
               onChange(
                 ...moveSelection(
                   start,
@@ -368,6 +382,7 @@ export default function Waveform({
                 if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
                 e.preventDefault();
                 audio.current?.pause();
+                lockViewport();
                 const delta =
                   (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 0.01);
                 if (handle === "start")
