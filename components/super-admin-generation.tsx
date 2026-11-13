@@ -13,12 +13,27 @@ export function SuperAdminGeneration({id}:{id:string}){
    resetSession();
    let live=true;
    let timer:ReturnType<typeof setTimeout>;
+   let statusReads=0;
    async function refresh(){
      if(document.visibilityState!=="hidden"){
        try{
          await ensureSession();
-         const result=await api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`);
+         let result=await api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`);
          if(live){setProject(result);setError("");}
+         if(["submitted","processing"].includes(result.state)&&++statusReads>=6){
+           statusReads=0;
+           if(navigator.onLine){
+             try{
+               result=await api<StudioProject>("studio-live",{
+                 method:"POST",body:JSON.stringify({action:"poll",id}),
+               });
+               if(live){setProject(result);setError("");}
+             }catch{
+               // Only retry the same read later; never submit a second paid job.
+             }
+           }
+         }
+         if(!["submitted","processing"].includes(result.state))statusReads=0;
          // Balance is read only from the authenticated wallet API. If it is
          // unavailable, retain the truthful prepared state rather than guessing.
          if(result.state==="prepared"&&result.creditCharge?.status==="estimated"){
