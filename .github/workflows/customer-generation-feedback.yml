@@ -7,6 +7,7 @@ on:
       - 'components/customer-feedback.*'
       - 'components/feedback-preview.*'
       - 'app/(site)/studio/feedback-preview/**'
+      - 'app/(site)/studio/output-preview/**'
       - 'tests/feedback-preview.test.ts'
       - 'components/generation-dialog.tsx'
       - 'components/generation-status-view.tsx'
