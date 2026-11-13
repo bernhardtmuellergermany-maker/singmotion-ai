@@ -7,6 +7,7 @@ import {dataDir,limit,session as mediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled} from "@/lib/commerce/customer-live-config";
 import {assessProductionSandboxPilot} from "@/lib/commerce/customer-sandbox-pilot-policy";
+import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ const reply = (body:unknown,status=200) => NextResponse.json(body,{status,header
 export async function GET(req:NextRequest) {
  const denied=stagingDenial(req.headers.get("authorization"));
  if(denied)return denied;
- if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !(productionCustomerReleaseApproved(process.env)||productionPrivateCustomerPreviewEnabled(process.env)||assessProductionSandboxPilot(process.env).ready)) ||
+ if((process.env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" && !(productionCustomerReleaseApproved(process.env)||productionPrivateCustomerPreviewEnabled(process.env)||assessProductionSandboxPilot(process.env).ready||protectedProductionLivePilotApproved(process.env))) ||
     process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
    return reply({error:"Unavailable"},403);
  const raw=new URL(req.url).searchParams.get("seconds");
