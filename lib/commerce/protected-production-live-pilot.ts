@@ -60,8 +60,10 @@ export function assessProtectedProductionLivePilot(env:Record<string,string|unde
  check(env.HOBBY_SUBSCRIPTIONS_ENABLED!=="true","HOBBY_LIVE_OFFER_NOT_REVIEWED");
  check(env.APP_ORIGIN==="https://www.singmotion.ai"&&
    env.PUBLIC_SITE_ORIGIN==="https://www.singmotion.ai","CANONICAL_PRODUCTION_ORIGIN_REQUIRED");
- check(requiredProofs.every(key=>env[key]==="true"),"INDEPENDENT_LIVE_APPROVALS_REQUIRED");
- check(requiredRuntime.every(key=>env[key]==="true"),"CUSTOMER_FULFILLMENT_RUNTIME_REQUIRED");
+ for(const key of requiredProofs)
+  check(env[key]==="true","PROOF_"+key);
+ for(const key of requiredRuntime)
+  check(env[key]==="true","RUNTIME_"+key);
  check(typeof env.SUPPORT_CONTACT_VERIFIED==="string"&&
    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(env.SUPPORT_CONTACT_VERIFIED),
    "VERIFIED_SUPPORT_CONTACT_REQUIRED");
