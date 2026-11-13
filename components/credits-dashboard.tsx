@@ -41,7 +41,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   };
   refresh();
   let checks=0;
-  let timer:ReturnType<typeof setInterval>|null=null;
+  let timer:number|null=null;
   if(checkoutResult==="success")timer=window.setInterval(()=>{
    if(document.visibilityState==="visible"){refresh();if(++checks>=12&&timer!==null)window.clearInterval(timer);}
   },5000);
