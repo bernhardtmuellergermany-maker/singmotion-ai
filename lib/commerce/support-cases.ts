@@ -140,7 +140,7 @@ export class SupportCases{
       "Your support case has been marked resolved.";
     const body=["SingMotion AI – Order / project update","",
       "Reference: "+id,"",safe,
-      "Open your account at https://www.singmotion.ai/projects to check the latest verified status.",
+      "Open My Projects in the same SingMotion environment where you placed the order to check the latest verified status.",
       "If you still need help, reply to support@singmotion.ai and include this reference.","",
       "No new payment or video generation was initiated by this notification."].join("\n");
     const eventKey="support-email:"+type+":"+id;
