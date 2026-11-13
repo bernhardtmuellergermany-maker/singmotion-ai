@@ -178,9 +178,9 @@ try{
    "Escape returns keyboard focus to the options trigger");
  await options.locator("summary").click();
  await options.getByRole("button",{name:"Rename"}).click();
- assert.equal(await options.evaluate(el=>(el as HTMLDetailsElement).open),false,
-   "Choosing Rename also dismisses the options menu");
  await page.locator(".sm-projects-rename-form").waitFor({timeout:5000});
+ assert.equal(await options.count(),0,
+   "Choosing Rename replaces the options menu with the editing form");
  await page.locator(".sm-projects-rename-form").getByRole("button",{name:"Cancel"}).click();
  console.log("BROWSER_CHECKPOINT: My Projects action menu outside-click, Escape, rename verified");
  assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
