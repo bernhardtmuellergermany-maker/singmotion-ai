@@ -35,23 +35,9 @@ export async function GET(req:NextRequest){
   // Historical cent-based entitlements must never fund the new prepaid wallet.
   // Only verified wallet ledger credits, less active wallet reservations, are spendable.
   const reserved=videoReserved;
-  let oldEntries:Array<{id:string;credits:number;type:string;created:number;reference:string}>=[];
   let oldOrders:Array<{id:string;projectId:string;credits:number;euros:number;created:number;status:string}>=[];
   if(identity.customerId){
    const accountId=identity.customerId;
-   const total=store.db.prepare(
-    "SELECT COALESCE(SUM(delta),0) AS total FROM customer_credits WHERE account_id=?"
-   ).get(accountId) as {total:number};
-   const holds=store.db.prepare(
-    "SELECT COALESCE(SUM(cents),0) AS total FROM customer_holds WHERE account_id=? AND state='reserved'"
-   ).get(accountId) as {total:number};
-   // Retain historical account transactions for display only, not spending.
-   void total;void holds;
-   oldEntries=(store.db.prepare(
-    "SELECT id,delta,kind,created FROM customer_credits WHERE account_id=? ORDER BY created DESC,id DESC LIMIT 100"
-   ).all(accountId) as Array<{id:string;delta:number;kind:string;created:number}>)
-    .map(row=>({id:row.id,credits:row.delta,type:row.kind==="order"?"video":row.kind,
-     created:row.created,reference:row.id}));
    // Only actual completed customer purchases; not estimates or unpaid orders.
    oldOrders=(store.db.prepare(`
     SELECT id,project_id,price_cents,created,status FROM customer_orders
@@ -61,8 +47,9 @@ export async function GET(req:NextRequest){
     .map(row=>({id:row.id,projectId:row.project_id,credits:row.price_cents,euros:row.price_cents,
      created:row.created,status:row.status}));
   }
-  const entries=[...wallet.entries(identity.subject),...oldEntries]
-   .sort((a,b)=>b.created-a.created).slice(0,150);
+  // Keep historical EUR transactions visible only under legacy order history.
+  // They are NOT Credit Wallet purchases or spendable deposits.
+  const entries=wallet.entries(identity.subject);
   const rawBalance=purchased-reserved;
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
