@@ -147,7 +147,7 @@ test("Stripe refund is explicitly confirmed, environment-bound and idempotent",a
   assert.equal(f.store.db.prepare("SELECT status FROM support_stripe_refund_intents WHERE order_id=?") .get(order)!.status,"succeeded");
   await requestSupportStripeRefund(f.store,order,actor,note,"REFUND "+order.toUpperCase(),env,sender);
   assert.equal(calls.length,2,"duplicate operator click cannot call Stripe again");
-  assert.equal(f.store.db.prepare("SELECT count(*) n FROM customer_stripe_refunds WHERE order_id=?").get(order).n,1);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM customer_stripe_refunds WHERE order_id=?").get(order)!.n,1);
  }finally{f.close()}
 });
 
