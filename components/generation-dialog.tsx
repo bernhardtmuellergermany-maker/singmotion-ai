@@ -358,17 +358,6 @@ export function GenerationDialog({
       setBusy(false);
     }
   }
-  // The Studio review already displays the Credit price and captures rights.
-  // Its "Generate Video" button is the only customer action required. Preserve
-  // this dialog for actual preflight failures and the operator sign-in path.
-  useEffect(()=>{
-    if(autoSubmitted.current||!rights||!terms||pilot!==true||!superAdmin||
-      !plan||plan.state!=="prepared"||!plan.digest||!plan.ceilingMicroUsd||
-      plan.budgetBlocker||busy||lock.current||error||blockers.length||
-      availableCredits===null||!creditQuote||availableCredits<creditQuote.credits)return;
-    autoSubmitted.current=true;
-    void act();
-  },[rights,terms,pilot,superAdmin,plan,busy,error,blockers.length,availableCredits,creditQuote]);
   const blocked =
     busy ||
     !rights ||
@@ -385,6 +374,17 @@ export function GenerationDialog({
   const creditQuote=quoteVideoCredits(selection.start,selection.end);
   const creditPrice=creditQuote?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits":"Unavailable";
   const insufficient=superAdmin&&creditQuote!==null&&availableCredits!==null&&availableCredits<creditQuote.credits;
+  // The Studio review already displays the Credit price and captures rights.
+  // Its "Generate Video" button is the only customer action required. Preserve
+  // this dialog for actual preflight failures and the operator sign-in path.
+  useEffect(()=>{
+    if(autoSubmitted.current||!rights||!terms||pilot!==true||!superAdmin||
+      !plan||plan.state!=="prepared"||!plan.digest||!plan.ceilingMicroUsd||
+      plan.budgetBlocker||busy||lock.current||error||blockers.length||
+      availableCredits===null||!creditQuote||availableCredits<creditQuote.credits)return;
+    autoSubmitted.current=true;
+    void act();
+  },[rights,terms,pilot,superAdmin,plan,busy,error,blockers.length,availableCredits,creditQuote]);
   const activeNotice:CustomerNotice|null=error?requestErrorFeedback(error,"generation"):
     insufficient&&creditQuote?generationFeedback("credits-needed",{credits:creditQuote.credits,status:"estimated"},availableCredits):
     busy?{key:"generation-submitting",kind:"info",title:"Checking your video request",message:"Your project and credit reservation are being checked. Keep this dialog open; a network interruption does not mean the request failed."}:
