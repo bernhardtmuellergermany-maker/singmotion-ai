@@ -1,4 +1,5 @@
 import Link from "next/link";
+import {ArrowLeft} from "lucide-react";
 import { WithdrawalTemplate } from "./withdrawal-template";
 import { OnlineWithdrawal } from "./online-withdrawal";
 import { SiteHeader } from "./site-header";
@@ -126,6 +127,9 @@ export function LegalPolicyPage({slug}:{slug:string}){
   return <div className="sm-legal">
     <SiteHeader/>
     <main id="content" className="sm-legal-main">
+      <nav className="sm-legal-back-nav" aria-label="Return navigation">
+        <Link className="sm-legal-back" href={slug==="legal"?"/":"/legal"}><ArrowLeft size={17} aria-hidden="true"/>{slug==="legal"?"Back to home":"Back to Legals"}</Link>
+      </nav>
       <div className="sm-legal-intro"><span className="sm-legal-kicker">SINGMOTION AI · LEGAL & TRUST</span><h1>{slug === "legal" ? "Legals" : page.title}</h1><p>{slug === "legal" ? "Find company details, privacy information, consumer rights and AI & media policies in one place." : page.intro}</p><small>Last updated {revision} · Operator details supplied; remaining vendor and legal approvals pending.</small></div>
       {slug === "legal" ? (
         <nav className="sm-legal-topic-grid" aria-label="Legal topics">
@@ -140,9 +144,7 @@ export function LegalPolicyPage({slug}:{slug:string}){
             </section>
           ))}
         </nav>
-      ) : (
-        <nav className="sm-legal-nav" aria-label="Legal navigation"><Link href="/legal">All legal topics</Link></nav>
-      )}
+      ) : null}
       {page.sections.map((section,i)=><section key={section.title} id={slug === "legal" && i === 0 ? "imprint" : undefined} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
       {slug==="privacy"&&<aside className="sm-legal-panel" aria-label="Official privacy references">
         <h2>Official privacy resources</h2>
@@ -161,6 +163,9 @@ export function LegalPolicyPage({slug}:{slug:string}){
         <h2>Legal reference</h2><p><a href="https://www.gesetze-im-internet.de/ddg/__5.html" target="_blank" rel="noopener noreferrer">Section 5 of the German Digital Services Act (DDG)</a>. Additional registry/tax details remain subject to operator review.</p>
       </aside>}
       {slug==="withdrawal" ? <><OnlineWithdrawal/><WithdrawalTemplate/></> : null}
+      <nav className="sm-legal-back-nav sm-legal-back-bottom" aria-label="Return navigation at the end of the page">
+        <Link className="sm-legal-back" href={slug==="legal"?"/":"/legal"}><ArrowLeft size={17} aria-hidden="true"/>{slug==="legal"?"Back to home":"Back to Legals"}</Link>
+      </nav>
       <p className="sm-legal-copyright">© SingMotion AI · A published notice does not replace verified contracts, technical controls, or professional legal review.</p>
     </main>
   </div>;
