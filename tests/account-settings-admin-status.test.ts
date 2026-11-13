@@ -5,7 +5,6 @@ import {readFileSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import {adminSupportOverview} from "../lib/commerce/admin-support-overview.ts";
 import {SupportCases} from "../lib/commerce/support-cases.ts";
-import {CommerceStore} from "../lib/commerce/store.ts";
 
 function fixture(){
  const db=new DatabaseSync(":memory:");
@@ -73,7 +72,7 @@ test("status messages distinguish invalid MP4, failed paid delivery, pending Cre
   // discoverable in the recent history; queued mail is never marked sent.
   db.prepare("INSERT INTO support_cases(reference,case_type,status,note,actor,resolved_at,updated_at) VALUES(?,'studio-project','resolved',?,?,?,?)")
     .run(invalidId,"Private note","cms-staff-1",1300,1300);
-  db.prepare("UPDATE support_case_mail_outbox SET sent_at=1500");
+  db.prepare("UPDATE support_case_mail_outbox SET sent_at=1500").run();
   const next=adminSupportOverview(db,liveEnv,1600);
   assert.equal(next.counts.supportAlerts,0);
   assert.equal(next.counts.emailsQueued,0);
