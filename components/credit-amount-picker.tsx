@@ -68,7 +68,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true}:{purcha
    {busy?"Opening Stripe…":testMode?"Test purchase with Stripe":"Buy securely with Stripe"}
   </button>:<div className="sm-credit-amount-disabled" aria-disabled="true">Credit purchases are not yet available</div>}
   <CustomerFeedback notice={status??(busy?{key:"checkout-opening",kind:"info",title:"Opening secure checkout",message:"Please keep this page open. Credits are added only after verified payment."}:null)} context="payment"/>
-  {error&&/req_[A-Za-z0-9]+/.test(error)&&<p className="sm-credit-amount-error">If support is needed, share the Stripe reference shown above your checkout request.</p>}
+  {error&&/Stripe support reference: (req_[A-Za-z0-9]+)/.test(error)&&<p className="sm-credit-amount-error">Stripe support reference: {error.match(/Stripe support reference: (req_[A-Za-z0-9]+)/)?.[1]}</p>}
   <p className="sm-credit-amount-footer">{purchaseEnabled
    ?testMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are added only after verified payment. There are no automatic top-ups or recurring charges."
    :"These prices are for information only. Live payments are not enabled. No automatic payments will be taken."}</p>
