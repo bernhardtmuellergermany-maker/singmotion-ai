@@ -48,3 +48,15 @@ test("managed global credits remain production-only and preserve verification of
  assert.match(checkout,/session.managed_payments\?\.enabled!==true/);
  assert.match(webhook,/STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED/);
 });
+
+test("live catalog product is reused for preset and custom top-ups at server-authoritative price",()=>{
+ const root=new URL("../",import.meta.url);
+ const route=readFileSync(new URL("app/(site)/api/credit-checkout/route.ts",root),"utf8");
+ const quote=readFileSync(new URL("lib/commerce/credit-topup-quote.ts",root),"utf8");
+ assert.match(route,/prod_Vchw1yEak3Xa6k/);
+ assert.match(route,/line_items\[0\]\[price_data\]\[product\]/);
+ assert.match(route,/line_items\[0\]\[price_data\]\[unit_amount\]\":String\(purchase.cents\)/);
+ assert.match(route,/testMode\?\{\"line_items\[0\]\[price_data\]\[product_data\]\[name\]\"/);
+ assert.doesNotMatch(route,/form\.set\("line_items\[0\]\[price_data\]\[product_data\]\[tax_code\]"/);
+ assert.match(quote,/TOPUP_CENTS_PER_CREDIT = 1/);
+});
