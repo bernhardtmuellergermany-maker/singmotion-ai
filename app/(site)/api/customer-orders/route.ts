@@ -85,6 +85,8 @@ export async function PATCH(req:NextRequest){
   let body:Record<string,unknown>;
   try{body=JSON.parse(raw) as Record<string,unknown>;}
   catch{return respond({error:"Invalid request."},400);}
+  if(!body||typeof body!=="object"||Array.isArray(body))
+    return respond({error:"Invalid request."},400);
   const id=body.orderId,name=body.name;
   if(typeof id!=="string"||!/^[a-f0-9-]{36}$/.test(id)||
      typeof name!=="string"||name!==name.trim()||name.length<1||
