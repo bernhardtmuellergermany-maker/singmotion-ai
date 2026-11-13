@@ -1,5 +1,20 @@
 "use client";
-import {useState} from "react";
+import {useEffect,useState} from "react";
+
+const GENERATION_WAIT_MESSAGES = [
+  "Your song is the creative foundation of this performance.",
+  "AI video combines visual movement with the rhythm of your music.",
+  "Tip: Save your favorite camera directions for your next creation.",
+  "A little stage magic takes more than one frame.",
+  "Every frame is part of the performance.",
+  "Tip: A clear reference photo helps define your artist's look.",
+  "Your original audio remains the soundtrack for your video.",
+  "Good things take rendering time. Your project stays saved.",
+  "A music video is a story told in pictures and sound.",
+  "You can leave this page and return to check your saved project.",
+  "AI-generated results can vary in expression and lip synchronization.",
+  "From your music to moving images: that's the idea behind SingMotion AI.",
+] as const;
 import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck,RotateCcw,Wallet} from "lucide-react";
 import "./generation-status-view.css";
 import {CustomerFeedback} from "./customer-feedback";
@@ -30,6 +45,14 @@ export function GenerationStatusView({
   reuseBlank?:boolean;
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
+  const [waitMessageIndex,setWaitMessageIndex]=useState(0);
+  useEffect(()=>{
+    if(progress!=="processing")return;
+    const interval=window.setInterval(()=>{
+      setWaitMessageIndex(current=>(current+1)%GENERATION_WAIT_MESSAGES.length);
+    },10000);
+    return()=>window.clearInterval(interval);
+  },[progress]);
   const admin=paymentMode==="super-admin";
   const paymentRefunded=!admin&&paymentStatus==="refunded";
   const paymentDisputed=!admin&&paymentStatus==="disputed";
@@ -96,7 +119,7 @@ export function GenerationStatusView({
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
-              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?"AI is processing your video":progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
+              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?GENERATION_WAIT_MESSAGES[waitMessageIndex]:progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&progress!=="prepared"&&progress!=="credits-needed"&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
           <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
