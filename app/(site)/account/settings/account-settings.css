@@ -258,3 +258,16 @@
  .sm-admin-dash-event-meta{text-align:left}
  .sm-admin-dash-heading .sm-admin-dash-refresh{width:100%;justify-content:center}
 }
+
+
+/* Smooth settings-only anchor navigation. The document is the scroll
+   container (the account Shell has visible overflow), not the sidebar.
+   Motion-sensitive visitors retain the native instant jump. */
+html:has(.sm-settings-page){scroll-padding-top:24px}
+.sm-settings-page .sm-settings-section[id]{scroll-margin-top:24px}
+@media (prefers-reduced-motion: no-preference){
+ html:has(.sm-settings-page){scroll-behavior:smooth}
+}
+@media (prefers-reduced-motion: reduce){
+ html:has(.sm-settings-page){scroll-behavior:auto}
+}
