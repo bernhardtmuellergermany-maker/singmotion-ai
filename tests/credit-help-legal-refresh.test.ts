@@ -215,14 +215,14 @@ test("all six Legal subpages have keyboard-accessible Back to Legals buttons",()
  for(const slug of ["privacy","cookies","terms","rights","ai-transparency","withdrawal"]){
   assert.ok(legal.includes(slug+":{")||legal.includes(slug+": {")||legal.includes('"'+slug+'":{'),slug+" must use the shared LegalPolicyPage");
  }
- assert.match(info,/legalSlugs.includes\\(slug\\)/);
+ assert.match(info,/legalSlugs.includes\(slug\)/);
  assert.equal((legal.match(/className="sm-legal-back-nav/g)||[]).length,2,"Top and bottom navigation");
  assert.equal((legal.match(/className="sm-legal-back"/g)||[]).length,2,"Each back navigation has a visible button");
- assert.equal((legal.match(/slug==="legal"\\?"\\/"\\:"\\/legal"/g)||[]).length,2,"Every policy navigates to the stable /legal hub");
+ assert.equal((legal.match(/slug==="legal"\?"\/"\:"\/legal"/g)||[]).length,2,"Every policy navigates to the stable /legal hub");
  assert.equal((legal.match(/"Back to home":"Back to Legals"/g)||[]).length,2);
  assert.match(legal,/aria-label="Return navigation"/);
  assert.match(legal,/aria-label="Return navigation at the end of the page"/);
- assert.match(legal,/ArrowLeft size=\\{17\\} aria-hidden="true"/);
- assert.match(css,/\\.sm-legal-back\\{[^}]*min-height:44px/);
- assert.match(css,/\\.sm-legal-back:focus-visible/);
+ assert.match(legal,/ArrowLeft size=\{17\} aria-hidden="true"/);
+ assert.match(css,/\.sm-legal-back\{[^}]*min-height:44px/);
+ assert.match(css,/\.sm-legal-back:focus-visible/);
 });
