@@ -3,7 +3,7 @@ import {useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ArrowDownToLine,ArrowUpDown,CalendarDays,Check,ChevronDown,
  Clapperboard,Clock3,Eye,Film,FolderOpen,Image as ImageIcon,
- MoreHorizontal,Plus,Search,SquarePen,Video,Trash2,Copy} from "lucide-react";
+ MoreHorizontal,Plus,Search,SquarePen,Video,Trash2,Copy,RefreshCw} from "lucide-react";
 import {api,ensureSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import "./my-projects-gallery.css";
@@ -54,6 +54,8 @@ export function MyProjectsGallery(){
  const [trash,setTrash]=useState<TrashedProject[]>([]);
  const [trashError,setTrashError]=useState("");
  const [loading,setLoading]=useState(true);
+ const [syncing,setSyncing]=useState(false);
+ const [syncNonce,setSyncNonce]=useState(0);
  const [error,setError]=useState("");
  const [tab,setTab]=useState<Tab>("all");
  const [search,setSearch]=useState("");
@@ -236,12 +238,13 @@ export function MyProjectsGallery(){
   async function refresh(force=false){
    if(!active||inFlight||(!force&&Date.now()-lastRead<1200))return;
    inFlight=true;lastRead=Date.now();
+   if(active)setSyncing(true);
    try{
     await ensureSession();
     const [d,o,l]=await Promise.allSettled([
       api<SavedDraft[]>("studio-drafts",{cache:"no-store"}),
       fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
-        .then(async r=>r.ok?(await r.json() as {orders:CustomerOrder[]}).orders:[]),
+        .then(async r=>r.ok?(await r.json() as {orders:CustomerOrder[]}).orders:Promise.reject(Error("Customer projects unavailable"))),
       api<{projects:StudioProject[]}>("studio-live",{cache:"no-store"})
         .then(v=>v.projects||[]),
     ]);
@@ -249,13 +252,13 @@ export function MyProjectsGallery(){
     if(d.status==="fulfilled"&&Array.isArray(d.value))setDrafts(d.value);
     if(o.status==="fulfilled"&&Array.isArray(o.value))setOrders(o.value);
     if(l.status==="fulfilled"&&Array.isArray(l.value))setLive(l.value);
-    setError(d.status==="rejected"
-      ?"Your saved drafts could not be loaded. Check that you are signed into the same account on both devices."
+    setError(d.status==="rejected"||o.status==="rejected"||l.status==="rejected"
+      ?"Some account projects could not be synchronized. Confirm that you are signed into the same account on desktop and mobile, then tap Sync names."
       :"");
     await refreshTrash().catch(()=>{});
    }catch{
     if(active)setError("Your projects could not be refreshed. Check your account and connection.");
-   }finally{inFlight=false;if(active)setLoading(false);}
+   }finally{inFlight=false;if(active){setLoading(false);setSyncing(false);}}
   }
   const onVisibility=()=>{if(!document.hidden)void refresh();};
   const onFocus=()=>void refresh();
@@ -270,7 +273,7 @@ export function MyProjectsGallery(){
    window.removeEventListener("focus",onFocus);
    window.removeEventListener("pageshow",onFocus);
   };
- },[]);
+ },[syncNonce]);
  // Old desktop versions kept generated-video titles in localStorage only.
  // Import each owned label once into the authenticated account database so
  // subsequent mobile/desktop sessions use the same server-authoritative name.
@@ -406,6 +409,9 @@ export function MyProjectsGallery(){
        </select>
        <ChevronDown size={15} aria-hidden="true"/>
      </label>
+     <button type="button" className="sm-projects-sort" disabled={syncing} onClick={()=>setSyncNonce(n=>n+1)} aria-label="Sync project names from account" title="Sync account project names">
+       <RefreshCw size={15}/><span className="sr-only">{syncing?"Syncing names…":"Sync names"}</span>
+     </button>
      <button type="button" className="sm-projects-sort" onClick={()=>setNewest(v=>!v)} aria-label={newest?"Sort oldest first":"Sort newest first"} title={newest?"Newest first":"Oldest first"}>
        <ArrowUpDown size={15}/><span>{newest?"Newest first":"Oldest first"}</span>
      </button>
