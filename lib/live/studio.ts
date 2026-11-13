@@ -207,6 +207,12 @@ export class StudioWorkflow {
       if(state==="completed")return wallet.reconcileVideo(id,"completed");
       if(state==="failed"&&failureCode==="CONTENT_PREFILTER_REJECTED")
        return wallet.reconcileVideo(id,"nonbillable");
+      // A VERIFIED terminal provider failure without a deliverable MP4 is a
+      // customer-service refund even if BytePlus may still charge us. Mark
+      // this separately from zero-cost prefilter rejection. Unknown tasks,
+      // corrupt output and unfinished processing never enter this branch.
+      if(state==="failed"&&["PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"].includes(failureCode??""))
+       return wallet.reconcileVideo(id,"service-failed");
       if(state==="failed"||state==="uncertain")
        return wallet.reconcileVideo(id,"review");
       return wallet.videoReservation(id);
