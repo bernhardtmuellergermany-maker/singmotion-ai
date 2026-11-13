@@ -231,7 +231,7 @@ test("owned project display names survive new sessions without changing immutabl
   assert.throws(()=>f.service.renameProject(f.plan.id,"another-owner","operator","Stolen"),/not found/);
   assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator",""),/project name/i);
   assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator","a".repeat(81)),/project name/i);
-  assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator","Line\\nBreak"),/project name/i);
+  assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator","Line\nBreak"),/project name/i);
   const after=f.store.db.prepare(
     "SELECT project_name,selection_json,policy_json FROM live_studio_projects WHERE attempt_id=?"
   ).get(f.plan.id);
