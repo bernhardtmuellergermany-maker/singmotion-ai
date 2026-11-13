@@ -16,7 +16,7 @@ export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{"Cache-Control":"private, no-store","Referrer-Policy":"no-referrer"}});
 
-/** A separately gated Stripe TEST Checkout, never a live or per-video payment. */
+/** Independently gated Credit top-up. Staging TEST only; Production LIVE\n * requires reviewed tax handling, full fulfillment readiness and explicit\n * public-release OR protected-private-LIVE admission. Never per-video Checkout. */
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  const testMode=stripeCreditTopupsTestEnabled(process.env);
