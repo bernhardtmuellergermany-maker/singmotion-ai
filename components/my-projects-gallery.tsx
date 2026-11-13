@@ -175,10 +175,10 @@ export function MyProjectsGallery(){
   const adminState=item.kind==="admin"?live.find(p=>p.id===item.id.slice(5))?.state:null;
   const active=item.kind==="admin" && !["prepared","completed","failed"].includes(adminState||"");
   const warning=item.kind==="draft"
-   ?"Move '"+item.name+"' to Recently deleted? You can restore it for 30 days. After that, unshared media will be permanently removed."
+   ?"Move '"+item.name+"' to Recently deleted? You can restore it for 30 days. After that, unshared media becomes eligible for cleanup."
    :active
     ?"Move this active project to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
-    :"Move '"+item.name+"' to Recently deleted? Its MP4 is retained for 30 days, then automatically removed. Payment and audit records remain.";
+    :"Move '"+item.name+"' to Recently deleted? Its MP4 is retained for 30 days, then eligible for cleanup. Payment and audit records remain.";
   if(!window.confirm(warning))return;
   setBusyId(item.id);setError("");
   try{
@@ -379,12 +379,12 @@ export function MyProjectsGallery(){
     </div>}
    <section className="sm-projects-trash" aria-label="Recently deleted projects">
     <details>
-      <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Files retained for 30 days</span></summary>
-      <p className="sm-projects-trash-explain">Deleted projects are hidden immediately. Media not needed by other projects is automatically removed after 30 days. Financial and provider audit records are retained as required.</p>
+      <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Restore within 30 days</span></summary>
+      <p className="sm-projects-trash-explain">Deleted projects are hidden immediately. Media not needed by other projects becomes eligible for cleanup after 30 days; physical cleanup requires approved backups. Financial and provider audit records are retained as required.</p>
       {trashError&&<p className="sm-projects-error" role="alert">{trashError}</p>}
       {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted projects.</p>:
        <ul>{trash.map(item=><li key={item.kind+"_"+item.id}>
-         <div><strong>{item.name}</strong><small>Scheduled for cleanup: {safeDate(item.purgeAfter)}</small></div>
+         <div><strong>{item.name}</strong><small>Eligible for cleanup from: {safeDate(item.purgeAfter)}</small></div>
          {item.restorable===false?<small>Preparation canceled; restore the original saved draft instead.</small>:
           <button type="button" disabled={busyId!==null}
             onClick={()=>void restoreTrash(item)}>
