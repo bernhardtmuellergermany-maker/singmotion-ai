@@ -7,10 +7,13 @@ import {generationFeedback,providerFeedback,requestErrorFeedback,type CustomerNo
 
 export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,
+  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,paymentStatus,statusNotice,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
+  paymentStatus?:string|null;
+  /** Only supplied from the verified owner-scoped paid order read. */
+  statusNotice?:CustomerNotice|null;
   amount?:number|null;
   creditCharge?:{credits:number;status:"estimated"|"reserved"|"review"|"settled"|"released"|"legacy"};
   availableCredits?:number|null;
@@ -28,7 +31,10 @@ export function GenerationStatusView({
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
   const admin=paymentMode==="super-admin";
-  const paymentConfirmed=admin?!!creditCharge&&["reserved","review","settled","released"].includes(creditCharge.status):!["verifying-payment","unavailable"].includes(progress);
+  const paymentRefunded=!admin&&paymentStatus==="refunded";
+  const paymentDisputed=!admin&&paymentStatus==="disputed";
+  const paymentConfirmed=admin?!!creditCharge&&["reserved","review","settled","released"].includes(creditCharge.status):
+    paymentStatus!==undefined&&paymentStatus!==null?paymentStatus==="paid":!["verifying-payment","unavailable"].includes(progress);
   const working=progress==="processing";
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
@@ -37,24 +43,26 @@ export function GenerationStatusView({
     /\[CONTENT_PREFILTER_REJECTED\]/.test(note??"")||
     previewNotice?.key.startsWith("provider-prefilter-")===true);
   const releasedFailure=failed&&creditCharge?.status==="released";
-  const customerNotice=previewNotice??(note&&/network|failed to fetch|connection interrupted|timed out/i.test(note)
+  const customerNotice=statusNotice??previewNotice??(note&&/network|failed to fetch|connection interrupted|timed out/i.test(note)
     ?requestErrorFeedback(note,"generation")
     :failed&&/\[[A-Z][A-Z0-9_]{2,79}\]/.test(note??"")
       ?providerFeedback("failed",note??"",creditCharge,undefined,Date.now(),editHref)
       :generationFeedback(progress,creditCharge,availableCredits,editHref));
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
-    {title:admin?"Video credit authorization":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Credit reservation checked before provider submission":"Secure payment verified by Stripe",state:paymentConfirmed||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
+    {title:admin?"Video credit authorization":paymentRefunded?"Payment refunded":paymentDisputed?"Payment disputed":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Credit reservation checked before provider submission":paymentRefunded?"Stripe refund recorded for this order":paymentDisputed?"Payment is in dispute": "Secure payment verified by Stripe",state:paymentConfirmed||paymentRefunded||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
     {title:"Video generation",description:"Singing, expressions and camera direction",state:ready?"done" as const:working?"active" as const:"pending" as const},
     {title:"Final render & verification",description:"Private output retrieval and technical validation",state:ready?"done" as const:"pending" as const},
     {title:"Ready to download",description:"Your private MP4 is ready",state:ready?"done" as const:"pending" as const},
   ];
   // Provider processing stages cannot be measured as percentages. Never
   // display an invented completion percentage or estimated completion time.
-  const label=ready?"Your video is ready":inputRejected?"Update your photo or audio":releasedFailure?"Credits returned · Update your inputs":failed?"Video generation stopped":review?"Your video is under review":
+  const label=paymentRefunded?"Your payment was refunded":paymentDisputed?"Payment under review":ready?"Your video is ready":inputRejected?"Update your photo or audio":releasedFailure?"Credits returned · Update your inputs":failed?"Video generation stopped":review?"Your video is under review":
     progress==="credits-needed"?"Not enough Credits":progress==="verifying-payment"?"Verifying your payment…":progress==="prepared"?"Ready for operator approval":progress==="queued"?"Your video is queued":
     working?"Generating your video":"Checking your video status";
-  const detail=ready?"Watch your finished video and download the private MP4.":
+  const detail=paymentRefunded?"This order has been refunded. You can review your original inputs and decide whether to create a new project.":
+    paymentDisputed?"The original payment is under review. No new payment or provider task should be started for this order.":
+    ready?"Watch your finished video and download the private MP4.":
     inputRejected&&releasedFailure?"The provider could not accept the supplied media. Your reserved Credits are available again; make changes in Studio before approving a new request.":
     inputRejected?"The provider rejected the supplied media. You can edit a new draft while the original Credit reservation is verified.":
     releasedFailure?"Your Credit reservation is released. Review a new draft before deciding whether to generate again.":
@@ -77,9 +85,9 @@ export function GenerationStatusView({
     <CustomerFeedback notice={customerNotice} context="generation"/>
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
-      <span>{progress==="credits-needed"?"Insufficient Credits · nothing reserved or charged":admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Credits released · no final charge":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
+      <span>{progress==="credits-needed"?"Insufficient Credits · nothing reserved or charged":admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Credits released · no final charge":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentRefunded?"Payment refunded · Stripe":paymentDisputed?"Payment under dispute":paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
       {admin?<strong title="Customer-facing credit charge, excluding internal BytePlus costs">{creditCharge?new Intl.NumberFormat("en-GB").format(creditCharge.credits)+" Credits"+(creditCharge.status==="settled"?" charged":creditCharge.status==="reserved"?" reserved":creditCharge.status==="review"?" held for review":creditCharge.status==="released"?" released":" estimated"):"Credit charge unavailable"}</strong>:
-       formattedAmount&&paymentConfirmed&&<strong>{formattedAmount} paid</strong>}
+       formattedAmount&&(paymentConfirmed||paymentRefunded)&&<strong>{formattedAmount} {paymentRefunded?"refunded":"paid"}</strong>}
     </div>
     <div className="sm-gen-grid">
       <div className="sm-gen-media-column">
@@ -107,8 +115,8 @@ export function GenerationStatusView({
           </li>)}
         </ol>
         <div className="sm-gen-wait">
-          <Clock3 size={19}/><p><strong>{ready?"Your video is complete":releasedFailure?"Your Credits are available again":progress==="credits-needed"?"Generation has not started":progress==="prepared"?"Awaiting generation confirmation":review||failed?"Existing task is being checked":"This may take several minutes."}</strong>
-          <span>{ready?"Download your video below.":releasedFailure?"Use Edit photo or audio to create a fresh draft without reusing the rejected provider request.":progress==="credits-needed"?"The project is saved. No video generation or credit charge has started.":progress==="prepared"?"This prepared project has not been submitted. Return to Studio to review it.":review||failed?"This project is saved. Its payment and provider evidence are being checked without starting another task.":"You can leave this page. Your order remains saved and you can return to check progress."}</span></p>
+          <Clock3 size={19}/><p><strong>{paymentRefunded?"Refund recorded":paymentDisputed?"Payment dispute in progress":ready?"Your video is complete":releasedFailure?"Your Credits are available again":progress==="credits-needed"?"Generation has not started":progress==="prepared"?"Awaiting generation confirmation":review||failed?"Existing task is being checked":"This may take several minutes."}</strong>
+          <span>{paymentRefunded?"No additional payment or generation will be started.":paymentDisputed?"Wait for the payment review on this order before attempting a new purchase.":ready?"Download your video below.":releasedFailure?"Use Edit photo or audio to create a fresh draft without reusing the rejected provider request.":progress==="credits-needed"?"The project is saved. No video generation or credit charge has started.":progress==="prepared"?"This prepared project has not been submitted. Return to Studio to review it.":review||failed?"This project is saved. Its payment and provider evidence are being checked without starting another task.":"You can leave this page. Your order remains saved and you can return to check progress."}</span></p>
         </div>
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
           <button className="sm-gen-download" type="button" disabled><LockKeyhole size={17}/> Download video</button>}
