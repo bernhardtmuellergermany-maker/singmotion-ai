@@ -10,6 +10,7 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
+import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -21,7 +22,8 @@ export async function POST(req:NextRequest){
  const testMode=stripeCreditTopupsTestEnabled(process.env);
  const liveMode=stripeCreditTopupsLiveEnabled(process.env)&&
   customerLaunchReadiness().readyForPaidOrders&&
-  auditSingMotionLaunch(process.env,"production").ready;
+  (auditSingMotionLaunch(process.env,"production").ready||
+   protectedProductionLivePilotApproved(process.env));
  if(!testMode&&!liveMode)
   return json({error:"Credit Checkout is not enabled on this environment."},503);
  const origin=applicationOrigin(req.url,req.headers.get("host"));
