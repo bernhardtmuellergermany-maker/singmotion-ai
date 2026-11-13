@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useMemo,useState} from "react";
+import {useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ArrowDownToLine,ArrowUpDown,CalendarDays,Check,ChevronDown,
  Clapperboard,Clock3,Eye,Film,FolderOpen,Image as ImageIcon,
@@ -17,7 +17,7 @@ type SavedDraft={
 };
 type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
- videoReady:number;created:number;outputFormat?:string|null;durationSeconds?:number|null;
+ videoReady:number;created:number;outputFormat?:string|null;durationSeconds?:number|null;displayName?:string|null;
 };
 type TrashedProject={id:string;name:string;kind:"draft"|"admin";deletedAt:number;purgeAfter:number;restorable?:boolean};
 type ProjectItem={
@@ -59,6 +59,7 @@ export function MyProjectsGallery(){
  const [search,setSearch]=useState("");
  const [newest,setNewest]=useState(true);
  const [labels,setLabels]=useState<Record<string,string>>({});
+ const migratingLabels=useRef(false);
  const [renaming,setRenaming]=useState<string|null>(null);
  const [openOptionsId,setOpenOptionsId]=useState<string|null>(null);
  const [renameText,setRenameText]=useState("");
@@ -136,11 +137,30 @@ export function MyProjectsGallery(){
     })});
     setDrafts(previous=>previous.map(d=>d.id===id?{...d,projectName:next}:d));
     try{localStorage.setItem("singmotion-project-name:"+id,next)}catch{}
+   }else if(item.kind==="admin"){
+    const id=item.id.slice(5);
+    const saved=await api<StudioProject>("studio-live",{method:"POST",
+      body:JSON.stringify({action:"rename",id,name:next})});
+    setLive(previous=>previous.map(p=>p.id===id?saved:p));
+   }else{
+    const id=item.id.slice(6);
+    const response=await fetch("/api/customer-orders",{
+      method:"PATCH",credentials:"same-origin",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({orderId:id,name:next})
+    });
+    if(!response.ok){
+      const message=await response.json().catch(()=>null) as {error?:string}|null;
+      throw Error(message?.error||"Unable to save this project name.");
+    }
+    setOrders(previous=>previous.map(o=>o.orderId===id?{...o,displayName:next}:o));
    }
-   // Generated jobs remain immutable. Rename their visible gallery label only.
-   const updated={...labels,[item.id]:next};
-   localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));
-   if(item.kind==="admin")localStorage.setItem("sm-live-project-name:"+item.id.slice(5),next);
+   // Never shadow server names with a stale browser-local label.
+   const updated={...labels};delete updated[item.id];
+   try{
+    localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));
+    if(item.kind==="admin")localStorage.removeItem("sm-live-project-name:"+item.id.slice(5));
+   }catch{}
    setLabels(updated);setRenaming(null);
    window.dispatchEvent(new CustomEvent("sm-project-name-updated",{detail:{id:item.id,name:next}}));
   }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename project.");}
@@ -231,6 +251,57 @@ export function MyProjectsGallery(){
   }
   void refresh();return()=>{active=false};
  },[]);
+ // Old desktop versions kept generated-video titles in localStorage only.
+ // Import each owned label once into the authenticated account database so
+ // subsequent mobile/desktop sessions use the same server-authoritative name.
+ useEffect(()=>{
+  if(loading||migratingLabels.current||!Object.keys(labels).length)return;
+  migratingLabels.current=true;
+  let cancelled=false;
+  void (async()=>{
+   const remaining={...labels};
+   for(const [key,raw] of Object.entries(labels)){
+    if(cancelled)break;
+    const name=typeof raw==="string"?raw.trim():"";
+    if(!name||name.length>80){delete remaining[key];continue;}
+    try{
+     if(key.startsWith("live_")){
+      const id=key.slice(5),p=live.find(x=>x.id===id);
+      if(!p)continue;
+      if(!p.displayName){
+       const saved=await api<StudioProject>("studio-live",{
+        method:"POST",body:JSON.stringify({action:"rename",id,name})
+       });
+       if(!cancelled)setLive(old=>old.map(x=>x.id===id?saved:x));
+      }
+     }else if(key.startsWith("order_")){
+      const id=key.slice(6),o=orders.find(x=>x.orderId===id);
+      if(!o)continue;
+      if(!o.displayName){
+       const response=await fetch("/api/customer-orders",{
+        method:"PATCH",credentials:"same-origin",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({orderId:id,name})
+       });
+       if(!response.ok)throw Error("Legacy project name could not be synced.");
+       if(!cancelled)setOrders(old=>old.map(x=>x.orderId===id?{...x,displayName:name}:x));
+      }
+     }
+     // Draft names were already saved to the account by the previous editor.
+     delete remaining[key];
+     if(key.startsWith("live_"))try{localStorage.removeItem("sm-live-project-name:"+key.slice(5))}catch{}
+    }catch{if(!cancelled)setError("Some older desktop names could not sync. Refresh this page after signing into the same account.");}
+   }
+   if(!cancelled){
+    try{localStorage.setItem("sm-gallery-labels",JSON.stringify(remaining))}catch{}
+    setLabels(remaining);
+   }
+   migratingLabels.current=false;
+  })();
+  return()=>{cancelled=true;migratingLabels.current=false};
+ // Run after the first successful server load; do not restart on every name update.
+ // eslint-disable-next-line react-hooks/exhaustive-deps
+ },[loading]);
  const projects=useMemo(()=>{
    const combined:ProjectItem[]=[];
    const draftNames=new Map(drafts.map(d=>[d.id,d]));
@@ -257,7 +328,7 @@ export function MyProjectsGallery(){
      const d=draftNames.get(o.projectId);
      combined.push({
        id:"order_"+o.orderId,kind:"customer",
-       name:d?.projectName?.trim()||d?.artistName||"Music video "+o.orderId.slice(0,8),
+       name:o.displayName?.trim()||d?.projectName?.trim()||d?.artistName||"Music video "+o.orderId.slice(0,8),
        status:customerStatus(o),date:Number(o.created)||0,
        duration:Number(o.durationSeconds)||Math.max(0,(d?.selection.end||0)-(d?.selection.start||0)),
        format:validFormat(o.outputFormat||d?.selection.outputFormat),
@@ -288,7 +359,7 @@ export function MyProjectsGallery(){
    processing:projects.filter(p=>p.status==="processing"||p.status==="awaiting-payment"||p.status==="review").length,
    completed:projects.filter(p=>p.status==="completed").length
  };
- const filtered=projects.map(p=>({...p,name:labels[p.id]?.trim()||p.name})).filter(p=>
+ const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||labels[p.id]?.trim()||p.name})).filter(p=>
    (tab==="all"||tab==="draft"&&p.status==="draft"||
     tab==="processing"&&["processing","awaiting-payment","review"].includes(p.status)||
     tab==="completed"&&p.status==="completed")&&

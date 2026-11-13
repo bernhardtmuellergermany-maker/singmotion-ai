@@ -15,27 +15,57 @@ export function ProjectHeaderName({id}:{id:string}){
  const [error,setError]=useState("");
  const menu=useRef<HTMLDetailsElement>(null);
  const cancelEdit=useRef(false);
+ const saving=useRef(false);
  useEffect(()=>{const dismiss=(e:PointerEvent)=>{if(menu.current&&!menu.current.contains(e.target as Node))menu.current.open=false};const escape=(e:KeyboardEvent)=>{if(e.key==="Escape"&&menu.current)menu.current.open=false};document.addEventListener("pointerdown",dismiss);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("pointerdown",dismiss);document.removeEventListener("keydown",escape)}},[]);
  useEffect(()=>{
   if(!id.startsWith("live_"))return;
   let active=true;const key=id.slice(5);
-  try{const local=localStorage.getItem("sm-live-project-name:"+key);if(local)void Promise.resolve().then(()=>{if(active)setName(local)});}catch{}
   void ensureSession().then(()=>api<StudioProject>("studio-live?id="+encodeURIComponent(key)))
-   .then(p=>{if(active){setName(old=>old||p.projectName||p.artistName||"Untitled Project");setProjectState(p.state)}}).catch(()=>{});
+   .then(async p=>{
+    if(!active)return;
+    let current=p;
+    // Migrate the desktop-only title once; never overwrite a newer server
+    // rename that may already have been made on another device.
+    let oldLabel="";
+    try{
+     const labels=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}") as Record<string,string>;
+     oldLabel=localStorage.getItem("sm-live-project-name:"+key)||labels[id]||"";
+    }catch{}
+    if(!p.displayName&&oldLabel.trim()&&oldLabel.trim().length<=80){
+     try{
+      current=await api<StudioProject>("studio-live",{method:"POST",
+       body:JSON.stringify({action:"rename",id:key,name:oldLabel.trim()})});
+      localStorage.removeItem("sm-live-project-name:"+key);
+      const labels=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}") as Record<string,string>;
+      delete labels[id];localStorage.setItem("sm-gallery-labels",JSON.stringify(labels));
+     }catch{if(active)setError("Your old desktop project name could not sync. Please save it again.");}
+    }
+    if(active){setName(current.projectName||current.artistName||"Untitled Project");setProjectState(current.state)}
+   }).catch(()=>{if(active)setError("Could not load the saved project name.");});
   return()=>{active=false};
  },[id]);
  if(!id.startsWith("live_"))return null;
  const startEdit=()=>{cancelEdit.current=false;setDraft(name);setEdit(true);setError("")};
- const save=()=>{
+ const save=async()=>{
   if(cancelEdit.current){cancelEdit.current=false;setEdit(false);return;}
-  const value=draft.trim().slice(0,80);
-  if(value){setName(value);try{
-    localStorage.setItem("sm-live-project-name:"+id.slice(5),value);
+  if(saving.current)return;
+  const value=draft.trim();
+  if(!value||value.length>80){setError("Enter a project name of up to 80 characters.");return;}
+  saving.current=true;setBusy(true);setError("");
+  try{
+   const updated=await api<StudioProject>("studio-live",{method:"POST",
+     body:JSON.stringify({action:"rename",id:id.slice(5),name:value})});
+   setName(updated.projectName);
+   try{
+    localStorage.removeItem("sm-live-project-name:"+id.slice(5));
     const previous=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}") as Record<string,string>;
-    localStorage.setItem("sm-gallery-labels",JSON.stringify({...previous,[id]:value}));
-    window.dispatchEvent(new CustomEvent("sm-project-name-updated",{detail:{id,name:value}}));
-  }catch{}}
-  setEdit(false);
+    delete previous[id];
+    localStorage.setItem("sm-gallery-labels",JSON.stringify(previous));
+   }catch{}
+   window.dispatchEvent(new CustomEvent("sm-project-name-updated",{detail:{id,name:value}}));
+   setEdit(false);
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not save project name.")}
+  finally{saving.current=false;setBusy(false)}
  };
  const remove=async()=>{
   const active=projectState===null||!["prepared","completed","failed"].includes(projectState);
@@ -54,7 +84,7 @@ export function ProjectHeaderName({id}:{id:string}){
   }catch(e){setError((e as Error).message);setBusy(false)}
  };
  return <div className="sm-header-project-name sm-output-project-name">
-  {edit?<input className="flow-project-input" aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={save} onKeyDown={e=>{if(e.key==="Enter")save();if(e.key==="Escape"){cancelEdit.current=true;setEdit(false)}}}/>:<>
+  {edit?<input className="flow-project-input" aria-label="Project name" autoFocus maxLength={80} value={draft} onChange={e=>setDraft(e.target.value)} onBlur={()=>void save()} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();void save();}if(e.key==="Escape"){cancelEdit.current=true;setEdit(false)}}}/>:<>
    <button type="button" className="flow-project-name" title="Click to rename project" onClick={startEdit}>{name||"Project"}</button>
    <details ref={menu} className="flow-menu"><summary aria-label="Project options"><MoreVertical size={19}/></summary>
     <div className="flow-popover"><button type="button" onClick={e=>{e.currentTarget.closest("details")!.open=false;startEdit()}}>Rename project</button><button type="button" disabled={busy} onClick={()=>void remove()}>{busy?"Removing…":projectState===null||!["prepared","completed","failed"].includes(projectState)?"Remove from My Videos":"Delete project"}</button></div>

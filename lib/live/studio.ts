@@ -109,6 +109,8 @@ export interface StudioProject {
   imageId: string;
   artistName: string;
   projectName: string;
+  /** Owner-editable title, separate from immutable paid generation metadata. */
+  displayName?: string | null;
   /** Original Studio draft ID when this render was prepared from a saved project. */
   sourceDraftId?: string | null;
   selection: StudioDraftExport;
@@ -155,6 +157,10 @@ export class StudioWorkflow {
     );
     const projectColumns = store.db.prepare("PRAGMA table_info(live_studio_projects)").all() as {name:string}[];
     if (!projectColumns.some(column => column.name === "project_name")) store.db.exec("ALTER TABLE live_studio_projects ADD COLUMN project_name TEXT NOT NULL DEFAULT ''");
+    // User-editable display title is stored independently of the immutable
+    // paid media/provenance fields, and is shared by all signed-in devices.
+    if (!projectColumns.some(column => column.name === "display_name"))
+      store.db.exec("ALTER TABLE live_studio_projects ADD COLUMN display_name TEXT NOT NULL DEFAULT ''");
     ensureLiveTrash(store.db);
     store.db.exec(`CREATE TABLE IF NOT EXISTS live_studio_actions (
       id INTEGER PRIMARY KEY, attempt_id TEXT NOT NULL, action TEXT NOT NULL,
@@ -172,6 +178,7 @@ export class StudioWorkflow {
           policy_json: string;
           artist_name: string;
           project_name: string;
+          display_name: string;
           diagnostic: string | null;
         }
       | undefined;
@@ -182,6 +189,24 @@ export class StudioWorkflow {
         404,
       );
     return row;
+  }
+  renameProject(id:string,owner:string,actor:string,name:unknown):StudioProject {
+    // Ownership is verified before changing any display-only metadata.
+    this.row(id,owner);
+    if(typeof name!=="string"||name!==name.trim()||name.length<1||name.length>80||
+       /[\x00-\x1f\x7f]/.test(name))
+      throw new StudioLiveError("PROJECT_NAME_INVALID","Enter a project name of up to 80 characters.",400);
+    this.store.db.exec("BEGIN IMMEDIATE");
+    try{
+      this.store.db.prepare(
+        "UPDATE live_studio_projects SET display_name=? WHERE attempt_id=? AND owner=?"
+      ).run(name,id,owner);
+      this.store.db.prepare(
+        "INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'rename',?,?,?)"
+      ).run(id,actor,JSON.stringify({name}),Date.now());
+      this.store.db.exec("COMMIT");
+    }catch(error){this.store.db.exec("ROLLBACK");throw error;}
+    return this.view(id,owner);
   }
   private budgetReview(policy: StudioPolicy): EuroBudget | undefined {
     const slot = this.store.secondTest();
@@ -302,7 +327,8 @@ export class StudioWorkflow {
       prompt: a.media.prompt,
       imageId: JSON.parse(row.selection_json).imageId,
       artistName: row.artist_name,
-      projectName: row.project_name || row.artist_name,
+      projectName: row.display_name || row.project_name || row.artist_name,
+      displayName: row.display_name || null,
       sourceDraftId:linkedDraft,
       selection: JSON.parse(row.selection_json),
       estimatedGeneratedSeconds,
