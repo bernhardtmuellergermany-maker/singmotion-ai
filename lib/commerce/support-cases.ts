@@ -207,11 +207,10 @@ export class SupportCases{
     if(!/^[a-zA-Z0-9_-]{1,110}$/.test(actor)||note.trim().length<20||note.length>1200)
       throw Error("A specific resolution reason (at least 20 characters) is required.");
     if(target.type==="stripe-order" && target.state==="paid" &&
-      target.details.fulfillment==="failed" && target.details.refundStatus!=="succeeded")
+      target.details.hasDeliveredVideo!==true && target.details.refundStatus!=="succeeded")
       throw Error("Paid undelivered video cannot be closed as resolved until refund or verified delivery.");
     if(target.type==="credit-video" &&
-      ["reserved","review"].includes(String(target.details.creditReservation)) &&
-      ["failed","uncertain"].includes(target.state))
+      ["reserved","review"].includes(String(target.details.creditReservation)))
       throw Error("Unsettled Credit reservation cannot be marked resolved before reconciliation.");
     const key="resolved:"+target.id;
     this.db.exec("BEGIN IMMEDIATE");
