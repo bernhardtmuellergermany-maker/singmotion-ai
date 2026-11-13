@@ -267,7 +267,7 @@ export function MyProjectsGallery(){
     try{
      if(key.startsWith("live_")){
       const id=key.slice(5),p=live.find(x=>x.id===id);
-      if(!p){delete remaining[key];continue;}
+      if(!p)continue;
       if(!p.displayName){
        const saved=await api<StudioProject>("studio-live",{
         method:"POST",body:JSON.stringify({action:"rename",id,name})
@@ -276,7 +276,7 @@ export function MyProjectsGallery(){
       }
      }else if(key.startsWith("order_")){
       const id=key.slice(6),o=orders.find(x=>x.orderId===id);
-      if(!o){delete remaining[key];continue;}
+      if(!o)continue;
       if(!o.displayName){
        const response=await fetch("/api/customer-orders",{
         method:"PATCH",credentials:"same-origin",
