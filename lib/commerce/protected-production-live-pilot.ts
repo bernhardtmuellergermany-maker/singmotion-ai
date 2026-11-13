@@ -8,6 +8,10 @@ const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const requiredProofs=[
  "PRODUCTION_PRIVATE_LIVE_PILOT_APPROVED",
  "PRODUCTION_PRIVATE_LIVE_WEBHOOK_VERIFIED",
+ "PRODUCTION_PRIVATE_LIVE_PRICE_TAX_APPROVED",
+ "PRODUCTION_MEDIA_MIGRATION_VERIFIED",
+ "PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED",
+ "PRODUCTION_CMS_RBAC_AND_PUBLISH_E2E_VERIFIED",
  "STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED",
  "BYTEPLUS_BILLING_AND_TAX_APPROVED",
  "BYTEPLUS_OUTPUT_HOSTS_APPROVED",
@@ -66,7 +70,8 @@ export function assessProtectedProductionLivePilot(env:Record<string,string|unde
    "PRODUCTION_CMS_DATABASE_REQUIRED");
  check((env.PAYLOAD_SECRET?.length||0)>=32,"CMS_SIGNING_SECRET_REQUIRED");
  const activation=Number(env.CUSTOMER_PAID_WORKER_ACTIVATED_AT);
- check(Number.isSafeInteger(activation)&&activation>0&&activation<=Date.now(),"WORKER_ACTIVATION_REQUIRED");
+ check(Number.isSafeInteger(activation)&&activation>0&&activation<=Date.now()&&
+   activation>=Date.now()-86_400_000,"RECENT_WORKER_ACTIVATION_REQUIRED");
  check(privateProductionLiveProviderCap(env)!==null,"FINITE_PRIVATE_PROVIDER_BUDGET_REQUIRED");
  return {ready:blockers.length===0,blockers};
 }
