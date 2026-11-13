@@ -2,7 +2,9 @@
 import {useEffect,useState} from "react";
 import Link from "next/link";
 import {Shell} from "@/components/shell";
-import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole} from "lucide-react";
+import {AdminAccountDashboard} from "@/components/admin-account-dashboard";
+import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
+import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard} from "lucide-react";
 import "./account-settings.css";
 type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null};
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
@@ -14,6 +16,28 @@ export default function AccountSettings(){
  const [removeNotice,setRemoveNotice]=useState("");
  const [storageUsage,setStorageUsage]=useState<{usedBytes:number;unlimited?:boolean;limitBytes:number|null;provider?:string}|null>(null);
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
+ const [adminOverview,setAdminOverview]=useState<AdminSupportOverview|null>(null);
+ const [adminStatusBusy,setAdminStatusBusy]=useState(true);
+ const [adminStatusError,setAdminStatusError]=useState("");
+ const [adminDenied,setAdminDenied]=useState(false);
+ async function refreshAdminStatus(){
+  setAdminStatusBusy(true);setAdminStatusError("");
+  try{
+   const reply=await fetch("/api/support-admin/overview",{cache:"no-store",credentials:"same-origin"});
+   if(reply.status===401||reply.status===403){
+    setAdminDenied(true);setAdminOverview(null);return;
+   }
+   if(!reply.ok)throw Error("Support status is temporarily unavailable. Use the consoles directly.");
+   const body=await reply.json() as {overview?:AdminSupportOverview};
+   if(!body.overview||!Array.isArray(body.overview.messages))throw Error("Invalid support status response.");
+   setAdminDenied(false);setAdminOverview(body.overview);
+  }catch(e){
+   setAdminOverview(null);
+   setAdminStatusError(e instanceof Error?e.message:"Support status unavailable.");
+  }finally{setAdminStatusBusy(false)}
+ }
+ useEffect(()=>{void refreshAdminStatus();},[]);
+ const canShowAdmin=!adminDenied&&(adminOverview!==null||data?.staffPreview===true);
  useEffect(()=>{fetch("/api/customer-invoices",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load invoices.");setInvoices(Array.isArray(d.invoices)?d.invoices:[]);setInvoiceMessage(d.message||"");}).catch(e=>setInvoiceMessage(e instanceof Error?e.message:"Invoices unavailable")).finally(()=>setInvoicesLoading(false));},[]);
  useEffect(()=>{fetch("/api/customer-plan",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setStorageUsage(d?.storage||null)).catch(()=>{});},[]);
  async function resendVerification(){setNotice("");setBusy(true);try{
@@ -50,9 +74,10 @@ export default function AccountSettings(){
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
  <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR WORKSPACE</span><h1>Account settings</h1><p>Manage your profile, security, payments and privacy in one place.</p></header>
  <div className="sm-settings-layout">
-  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a></nav>
+  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}</nav>
   <div className="sm-settings-content">
    {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super Admin account</strong><p className="sm-settings-muted">You can view your own real credits and purchases under Credits, just like a customer. Account security and staff management remain in the admin area.</p></section>}
+   {canShowAdmin&&<AdminAccountDashboard overview={adminOverview} busy={adminStatusBusy} error={adminStatusError} refresh={()=>void refreshAdminStatus()}/>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
    {data&&<>
     <section id="profile" className="sm-settings-section"><h2>Account information</h2><label>Email address<input readOnly value={data.profile.email}/></label>
