@@ -27,7 +27,7 @@ export function managedCreditTaxDecision(
  if(buyerType!=="consumer"&&buyerType!=="business")
   return {ready:false,reason:"CUSTOMER_TYPE_REQUIRED",decision:null};
  return {ready:true,reason:"STRIPE_MERCHANT_OF_RECORD",decision:{
-  country:country as string,buyerType,voucherKind:"merchant-of-record-determined" as const,
+  country:country as string,buyerType:buyerType as "consumer"|"business",voucherKind:"merchant-of-record-determined" as const,
   mode:"stripe-managed-payments" as const,revision:"stripe-mor-v1",
   taxAtIssue:false,taxCode:env.STRIPE_CREDIT_TAX_CODE!,
  }};
