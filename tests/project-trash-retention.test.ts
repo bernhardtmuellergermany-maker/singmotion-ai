@@ -124,3 +124,22 @@ test("uncertain provider never has its project or files physically purged",async
   assert.equal((await readFile(file)).length,8);
  }finally{await f.close()}
 });
+
+
+test("paid order references protect shared uploaded media even after a draft expires",async()=>{
+ const f=await fixture();try{
+  const owner="customer-"+randomUUID(),id=randomUUID(),asset=randomUUID();
+  draft(f.db,owner,id,asset);await ownedAsset(f.root,f.db,owner,asset);
+  const paid=new DatabaseSync(path.join(f.root,"commerce.sqlite"));
+  paid.exec("CREATE TABLE customer_prepared_media(order_id TEXT PRIMARY KEY,media_json TEXT NOT NULL);CREATE TABLE customer_orders(id TEXT PRIMARY KEY,project_id TEXT NOT NULL);");
+  paid.prepare("INSERT INTO customer_prepared_media VALUES(?,?)").run(randomUUID(),JSON.stringify({audioPath:asset}));
+  paid.prepare("INSERT INTO customer_orders VALUES(?,?)").run(randomUUID(),id);
+  paid.close();
+  deleteDraftToTrash(f.db,id,owner,now);
+  const outcome=await runProjectTrashCleanup(f.root,{now:now+PROJECT_TRASH_MS});
+  assert.equal(outcome.draftsPurged,1);
+  assert.equal(outcome.assetsDeleted,0);
+  assert.equal(f.db.prepare("SELECT count(*) n FROM assets").get()!.n,1);
+  assert.ok((await readFile(path.join(f.root,"media",asset))).length>0);
+ }finally{await f.close()}
+});
