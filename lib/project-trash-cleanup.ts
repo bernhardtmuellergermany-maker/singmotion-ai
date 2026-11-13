@@ -126,8 +126,13 @@ export async function runProjectTrashCleanup(root:string,options:Options={}){
      // A completed tempo-restoration can also retain an intermediate provider
      // MP4. Stale lease-bound partials may remain after an interrupted worker.
      // Only exact files belonging to this expired, terminal project qualify.
-     await removeOwnedLocal(root,candidate.id+".provider-source.mp4","live-output");
-     const leftovers=await readdir(path.join(root,"live-output"));
+     const outputFolder=path.join(root,"live-output");
+     const leftovers=await readdir(outputFolder).catch((e:NodeJS.ErrnoException)=>{
+       if(e.code==="ENOENT")return [] as string[];
+       throw e;
+     });
+     if(leftovers.length)
+       await removeOwnedLocal(root,candidate.id+".provider-source.mp4","live-output");
      for(const filename of leftovers){
        const prefix=candidate.id+".";
        if(filename.startsWith(prefix)&&filename.endsWith(".partial.mp4")&&
