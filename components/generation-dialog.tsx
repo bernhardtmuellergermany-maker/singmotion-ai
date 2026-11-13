@@ -6,6 +6,8 @@ import { api, ensureSession, resetSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
 import {quoteVideoCredits,VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
+import {CustomerFeedback} from "./customer-feedback";
+import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 
 export function GenerationDialog({
   selection,
@@ -37,6 +39,7 @@ export function GenerationDialog({
     [checkoutStep,setCheckoutStep]=useState<"preparing"|"redirecting">("preparing"),
     [pilot, setPilot] = useState<boolean | null>(null),
     [superAdmin, setSuperAdmin] = useState(false),
+    [availableCredits,setAvailableCredits] = useState<number|null>(null),
     [loginBusy, setLoginBusy] = useState(false),
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
@@ -106,6 +109,16 @@ export function GenerationDialog({
       .finally(()=>{if(active)setQuotePending(false)});
     return ()=>{active=false};
   },[selection.start,selection.end,appliedPromo,operatorFlow]);
+  useEffect(()=>{
+    if(!superAdmin)return;
+    let active=true;
+    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
+      .then(async response=>{
+        const result=await response.json() as {availableCredits?:number};
+        if(active)setAvailableCredits(response.ok&&Number.isSafeInteger(result.availableCredits)&&typeof result.availableCredits==="number"&&result.availableCredits>=0?result.availableCredits:null);
+      }).catch(()=>{if(active)setAvailableCredits(null);});
+    return()=>{active=false;};
+  },[superAdmin]);
   // Prepare and price server-side inside the same dialog once the operator
   // accepts the media rights. This is NOT a paid provider submission.
   useEffect(() => {
@@ -359,6 +372,11 @@ export function GenerationDialog({
   const selectedSeconds = Math.max(0, selection.end - selection.start);
   const creditQuote=quoteVideoCredits(selection.start,selection.end);
   const creditPrice=creditQuote?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits":"Unavailable";
+  const insufficient=superAdmin&&creditQuote!==null&&availableCredits!==null&&availableCredits<creditQuote.credits;
+  const activeNotice:CustomerNotice|null=error?requestErrorFeedback(error,"generation"):
+    insufficient&&creditQuote?generationFeedback("credits-needed",{credits:creditQuote.credits,status:"estimated"},availableCredits):
+    busy?{key:"generation-submitting",kind:"info",title:"Checking your video request",message:"Your project and credit reservation are being checked. Keep this dialog open; a network interruption does not mean the request failed."}:
+    null;
   const time = (seconds: number) => {
     const centis = Math.round(Math.max(0, seconds) * 100);
     return String(Math.floor(centis / 6000)).padStart(2, "0") + ":" +
@@ -369,6 +387,7 @@ export function GenerationDialog({
     <dialog ref={dialog} className="product-dialog product-theme sm-confirm-simple"
       onCancel={onClose} onClose={onClose} aria-labelledby="confirm-generation-title">
       <h2 id="confirm-generation-title">Confirm generation</h2>
+      <CustomerFeedback notice={activeNotice} context="generation"/>
       <div className="sm-confirm-summary">
         <div><span>Estimated video cost</span><strong>{creditPrice}</strong></div>
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
@@ -396,12 +415,12 @@ export function GenerationDialog({
       {customerFlow && <p role={customerCheckoutEnabled ? "status" : "alert"} className="sm-confirm-notice">{customerCheckoutEnabled ? "The legacy per-video checkout is retired. Credit-based generation is not yet released." : (checkoutUnavailableReason || "Credit-based video generation is not enabled here. Nothing is charged.")}</p>}
       {!customerFlow && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
-      {error && <p role="alert" className="sm-confirm-notice">{error}</p>}
+      {error && <p className="sm-confirm-notice">Your original project remains saved. Check its status before trying another paid request.</p>}
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerFlow ?
           <Link href="/credits#buy-credits" className="product-secondary" onClick={onClose}>Open Credits</Link> :
-          <button type="button" className="product-primary" disabled={blocked} onClick={()=>void act()}>{busy ? "Working…" : `Generate video · ${creditPrice}`}</button>}
+          <button type="button" className="product-primary" disabled={blocked||insufficient} onClick={()=>void act()}>{busy ? "Working…" : `Generate video · ${creditPrice}`}</button>}
       </div>
     </dialog>
   );
