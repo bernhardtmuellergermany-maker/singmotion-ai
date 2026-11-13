@@ -31,6 +31,7 @@ let nextCustomerPaidPoll=0;
 let nextWithdrawalReceiptRetry=0;
 let nextVideoReadyEmailRetry=0;
 let nextSupportMailRetry=0;
+let nextProjectTrashCleanup=0;
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
@@ -68,6 +69,18 @@ while (!stopping) {
         path.join(dataDir,"live-test.sqlite"),process.env.CONTACT_EMAIL_TO||"support@singmotion.ai");
       await retrySupportCaseEmails(path.join(dataDir,"commerce.sqlite"));
     }catch{console.warn("Support case mail outbox retry unavailable");}
+  }
+  // Automated private media retention: at most eight expired projects per
+  // hour, and only after 30 full days in Recently deleted. Fail closed on
+  // unverified cloud deletions or objects still referenced elsewhere.
+  if(Date.now()>=nextProjectTrashCleanup){
+    nextProjectTrashCleanup=Date.now()+60*60*1000;
+    try{
+      const {runProjectTrashCleanup}=await import("../lib/project-trash-cleanup.ts");
+      const outcome=await runProjectTrashCleanup(dataDir);
+      if(outcome.draftsPurged||outcome.studioPurged||outcome.held)
+        console.log("PROJECT_TRASH_RETENTION",JSON.stringify(outcome));
+    }catch{console.warn("PROJECT_TRASH_RETENTION unavailable; files preserved")}
   }
   // A separately reviewed contract, TEST Stripe key, private R2 and two explicit
   // customer worker flags are all required before automatic paid processing.
