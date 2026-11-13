@@ -3,6 +3,7 @@ import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-c
 import {customerLaunchReadiness} from "../lib/commerce/readiness.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 import {retryVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
+import {retrySupportCaseEmails} from "../lib/commerce/support-notifications.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { copyFile, unlink, writeFile } from "node:fs/promises";
@@ -29,6 +30,7 @@ if(!approvedLiveCustomer)demoOnly();
 let nextCustomerPaidPoll=0;
 let nextWithdrawalReceiptRetry=0;
 let nextVideoReadyEmailRetry=0;
+let nextSupportMailRetry=0;
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
@@ -58,6 +60,11 @@ while (!stopping) {
     nextVideoReadyEmailRetry=Date.now()+60_000;
     try{await retryVideoReadyNotifications(path.join(dataDir,"commerce.sqlite"));}
     catch{console.warn("Video-ready mail outbox retry unavailable");}
+  }
+  if(Date.now()>=nextSupportMailRetry){
+    nextSupportMailRetry=Date.now()+60_000;
+    try{await retrySupportCaseEmails(path.join(dataDir,"commerce.sqlite"));}
+    catch{console.warn("Support case email outbox retry unavailable");}
   }
   // A separately reviewed contract, TEST Stripe key, private R2 and two explicit
   // customer worker flags are all required before automatic paid processing.
