@@ -27,7 +27,7 @@ export function queueFailedOutputSupportEmails(
      (event_key,reference,recipient,subject,body,created_at)
      VALUES(?,?,?,?,?,?)`).run(key,id,operatorEmail,
       "SingMotion AI Support – "+id.slice(0,8).toUpperCase(),body,Date.now());
-   added+=changed.changes;
+   added+=Number(changed.changes);
   };
   if(existsSync(liveFile)){
    const live=new DatabaseSync(liveFile,{readOnly:true});
