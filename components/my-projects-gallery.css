@@ -62,7 +62,7 @@
 
 /* Compact My Projects controls */
 .sm-projects-toolbar{
-  display:grid!important;grid-template-columns:minmax(140px,1fr) auto auto;
+  display:grid!important;grid-template-columns:minmax(140px,1fr) auto auto auto;
   gap:9px!important;align-items:center;margin-bottom:17px;
 }
 .sm-projects-toolbar .sm-projects-search{
@@ -105,9 +105,10 @@
 }
 .sm-projects-search:focus-within,.sm-projects-filter-select:focus-within,
 .sm-projects-sort:focus-visible{outline:2px solid #ad79d0;outline-offset:2px}
+.sm-projects-sort:disabled{opacity:.65;cursor:wait;}
 @media(max-width:800px){
   .sm-projects-toolbar{
-    grid-template-columns:minmax(0,1fr) minmax(125px,auto)!important;
+    grid-template-columns:minmax(0,1fr) auto auto!important;
     gap:8px!important;
   }
   .sm-projects-toolbar .sm-projects-search{grid-column:1/-1}
