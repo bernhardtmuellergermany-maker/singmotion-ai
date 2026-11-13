@@ -5,6 +5,7 @@
 import {CommerceStore} from "./store.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import {assessProductionSandboxPilot} from "./customer-sandbox-pilot-policy.ts";
+import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 import {submitReviewedPaidVideo} from "./paid-video-worker.ts";
 import {planUpperBoundMicroUsd,contractDigest,type VerifiedContract} from "../live/contract.ts";
 import {BytePlusProtocol,submitPreparedInputs,type PrivateInputDelivery} from "../live/byteplus.ts";
@@ -59,7 +60,8 @@ export async function dispatchReviewedCustomerBytePlus(
  env:Record<string,string|undefined>=process.env,
 ){
  if((env.RAILWAY_ENVIRONMENT_ID!=="dfaeabed-03df-43ed-aa71-50f343a75041" &&
-     !productionCustomerReleaseApproved(env) && !assessProductionSandboxPilot(env).ready) ||
+     !productionCustomerReleaseApproved(env) && !assessProductionSandboxPilot(env).ready &&
+     !protectedProductionLivePilotApproved(env)) ||
     env.CUSTOMER_PAID_PROVIDER_DISPATCH_ENABLED!=="true")
   throw Error("Customer provider dispatch not authorized for this environment");
  const order=store.db.prepare("SELECT account_id,status,guest_hash FROM customer_orders WHERE id=?")
