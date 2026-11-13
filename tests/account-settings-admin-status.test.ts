@@ -121,8 +121,8 @@ test("Account Settings anchor sequence follows visible sections, with smooth scr
    assert.ok(navPositions[i]>navPositions[i-1],"Sidebar navigation must follow section order: "+anchors[i]);
    assert.ok(contentPositions[i]>contentPositions[i-1],"Sections must follow sidebar order: "+anchors[i]);
  }
- assert.match(css,/html:has\(\.sm-settings-page\)\{scroll-padding-top:24px\}/);
- assert.match(css,/\.sm-settings-page \.sm-settings-section\[id\]\{scroll-margin-top:24px\}/);
+ assert.match(css,/html:has\(\.sm-settings-page\)\{scroll-padding-top:82px\}/);
+ assert.match(css,/\.sm-settings-page \.sm-settings-section\[id\]\{scroll-margin-top:16px\}/);
  assert.match(css,/@media \(prefers-reduced-motion: no-preference\)\{\s*html:has\(\.sm-settings-page\)\{scroll-behavior:smooth\}/);
  assert.match(css,/@media \(prefers-reduced-motion: reduce\)\{\s*html:has\(\.sm-settings-page\)\{scroll-behavior:auto\}/);
  assert.doesNotMatch(css,/^html\s*\{\s*scroll-behavior:smooth/m,"Do not change unrelated pages");
