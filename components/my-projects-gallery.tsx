@@ -262,10 +262,13 @@ export function MyProjectsGallery(){
   void refresh(true);
   document.addEventListener("visibilitychange",onVisibility);
   window.addEventListener("focus",onFocus);
+  // Mobile Safari may restore the Projects page from its back/forward cache.
+  window.addEventListener("pageshow",onFocus);
   return()=>{
    active=false;
    document.removeEventListener("visibilitychange",onVisibility);
    window.removeEventListener("focus",onFocus);
+   window.removeEventListener("pageshow",onFocus);
   };
  },[]);
  // Old desktop versions kept generated-video titles in localStorage only.
