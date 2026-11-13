@@ -19,8 +19,11 @@ const approved=():Record<string,string>=>({
  CUSTOMER_ACCOUNTS_ENABLED:"true",CMS_ENABLED:"true",
  PAYLOAD_SECRET:"test-only-signing-secret-longer-than-32",
  STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",STRIPE_LIVE_CHECKOUT_ENABLED:"true",
- STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",STRIPE_CREDIT_TAX_REVIEW_APPROVED:"true",
- STRIPE_CREDIT_TAX_CODE:"txcd_12345678",
+ STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",
+ CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"true",
+ CREDIT_TAX_COUNTRY_POLICY_JSON:JSON.stringify({revision:"fixture-2026",reviewedAt:new Date().toISOString().slice(0,10),entries:[
+  {country:"DE",buyerType:"consumer",voucherKind:"single-purpose",mode:"de-small-business",evidence:"Synthetic DE small business tax voucher issuance review for tests only"}
+ ]}),
  STRIPE_SECRET_KEY:"sk_live_synthetic",STRIPE_WEBHOOK_SECRET:"whsec_synthetic"
 });
 test("private credit gate is independent of public video or provider dispatch approval",()=>{
@@ -36,7 +39,7 @@ test("every independently required proof must fail closed",()=>{
  for(const name of Object.keys(env)){
   const v=env[name];
   if(v==="true"||name==="RAILWAY_ENVIRONMENT_ID"||name==="STAGING_PASSWORD"||
-     name==="PAYLOAD_SECRET"||name==="STRIPE_CREDIT_TAX_CODE"||name==="APP_ORIGIN"||
+     name==="PAYLOAD_SECRET"||name==="CREDIT_TAX_COUNTRY_POLICY_JSON"||name==="APP_ORIGIN"||
      name==="PUBLIC_SITE_ORIGIN"||name==="STRIPE_SECRET_KEY"||name==="STRIPE_WEBHOOK_SECRET"){
    const changed={...env,[name]:"false"};
    assert.equal(privateCreditPilotApproved(changed),false,name);

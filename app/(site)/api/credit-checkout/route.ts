@@ -12,6 +12,7 @@ import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
+import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -34,12 +35,17 @@ export async function POST(req:NextRequest){
   limit("credit-test-checkout",12,60000);
   if(Number(req.headers.get("content-length"))>1024)return json({error:"Request too large."},413);
   const raw=await req.text();if(Buffer.byteLength(raw)>1024)return json({error:"Request too large."},413);
-  const body=JSON.parse(raw) as {credits?:unknown;requestKey?:unknown};
+  const body=JSON.parse(raw) as {credits?:unknown;requestKey?:unknown;billingCountry?:unknown;buyerType?:unknown};
   if(typeof body.credits!=="string"||typeof body.requestKey!=="string")
    return json({error:"Enter a valid credit amount."},400);
   const credits=parseCreditTopup(body.credits);
   if(credits===null||!/^[0-9a-f-]{36}$/i.test(body.requestKey))
    return json({error:"Enter 500–100,000 whole credits."},400);
+  // Never infer overseas tax exemption from the German Kleinunternehmer status.
+  // Actual billing country is independently checked against Stripe's paid session.
+  const tax=liveMode?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
+  if(liveMode&&!tax?.ready)
+   return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
   try{
    const identity=await resolveCreditWalletIdentity(req,store);
@@ -48,6 +54,7 @@ export async function POST(req:NextRequest){
     return json({error:"Verify your customer email before purchasing."},403);
    const wallet=new CreditWallet(store.db);
    const purchase=wallet.pending(identity,credits,body.requestKey);
+   if(liveMode&&tax?.decision)wallet.bindTaxContext(purchase.id,tax.decision);
    if(purchase.status==="paid"||purchase.status==="reversed")
     return json({error:"This top-up request was already settled. Start a new purchase."},409);
    if(purchase.sessionId&&purchase.checkoutUrl)
@@ -72,16 +79,31 @@ export async function POST(req:NextRequest){
     customer_email:identity.email,
     "metadata[creditTopupId]":purchase.id,
     "metadata[flow]":"singmotion_credit_topup",
+    ...(liveMode&&tax?.decision?{
+      "metadata[creditTaxCountry]":tax.decision.country,
+      "metadata[creditTaxBuyerType]":tax.decision.buyerType,
+      "metadata[creditVoucherKind]":tax.decision.voucherKind,
+      "metadata[creditTaxMode]":tax.decision.mode,
+      "metadata[creditTaxRevision]":tax.decision.revision,
+    }:{}),
     success_url:`${origin}/credits?checkout=success`,
     cancel_url:`${origin}/credits?checkout=cancelled`,
    });
-   if(liveMode){
-    // Live billing must collect a valid address, use Stripe Tax, and attach
-    // the merchant-reviewed tax code before permitting a real charge.
+   if(liveMode&&tax?.decision){
+    const decision=tax.decision;
     form.set("billing_address_collection","required");
-    form.set("automatic_tax[enabled]","true");
+    form.set("tax_id_collection[enabled]","true");
     form.set("line_items[0][price_data][tax_behavior]","inclusive");
-    form.set("line_items[0][price_data][product_data][tax_code]",process.env.STRIPE_CREDIT_TAX_CODE!);
+    // No invented zero-percent VAT line for an approved exemption.
+    // Stripe Tax only when a reviewed issue-time taxable classification exists.
+    if(decision.mode==="stripe-tax"){
+     form.set("automatic_tax[enabled]","true");
+     form.set("line_items[0][price_data][product_data][tax_code]",decision.taxCode!);
+    }else{
+     form.set("automatic_tax[enabled]","false");
+     if(decision.mode==="de-small-business")
+      form.set("invoice_creation[invoice_data][footer]","Gemäß § 19 UStG gilt die Steuerbefreiung für Kleinunternehmer. Es wird keine Umsatzsteuer ausgewiesen.");
+    }
    }
    const response=await fetch("https://api.stripe.com/v1/checkout/sessions",{
     method:"POST",

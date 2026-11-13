@@ -133,9 +133,13 @@ test("LIVE credit purchases remain separately controlled by VAT review and owner
  const e=approved();
  assert.equal(stripeCreditTopupsLiveEnabled(e),false);
  const taxReviewed={...e,STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",
-  STRIPE_CREDIT_TAX_REVIEW_APPROVED:"true",STRIPE_CREDIT_TAX_CODE:"txcd_12345"};
+  CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"true",
+  CREDIT_TAX_COUNTRY_POLICY_JSON:JSON.stringify({revision:"fixture-2026",reviewedAt:new Date().toISOString().slice(0,10),entries:[{
+   country:"DE",buyerType:"consumer",voucherKind:"single-purpose",mode:"de-small-business",
+   evidence:"Synthetic domestic voucher review with accountant, for tests only"
+  }]}),};
  assert.equal(stripeCreditTopupsLiveEnabled(taxReviewed),true);
- assert.equal(stripeCreditTopupsLiveEnabled({...taxReviewed,STRIPE_CREDIT_TAX_REVIEW_APPROVED:"false"}),false);
+ assert.equal(stripeCreditTopupsLiveEnabled({...taxReviewed,CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"false"}),false);
  assert.equal(stripeCreditTopupsLiveEnabled({...taxReviewed,PRODUCTION_PRIVATE_LIVE_PILOT_ENABLED:"false"}),false);
 });
 test("real customer checkout, refund webhook and R2 have distinct protected-live checks",()=>{

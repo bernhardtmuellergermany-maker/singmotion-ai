@@ -114,7 +114,11 @@ test("live credit purchases require independent reviewed billing, tax and launch
   RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
   STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",STRIPE_LIVE_CHECKOUT_ENABLED:"true",
   PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",
-  STRIPE_CREDIT_TAX_REVIEW_APPROVED:"true",STRIPE_CREDIT_TAX_CODE:"txcd_10000000",
+  CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"true",
+  CREDIT_TAX_COUNTRY_POLICY_JSON:JSON.stringify({revision:"fixture-2026",reviewedAt:new Date().toISOString().slice(0,10),entries:[{
+   country:"DE",buyerType:"consumer",voucherKind:"single-purpose",mode:"de-small-business",
+   evidence:"Synthetic domestic voucher review with accountant, for tests only"
+  }]}),
   STRIPE_SECRET_KEY:"sk_live_mock",STRIPE_WEBHOOK_SECRET:"whsec_mock"
  };
  assert.equal(stripeCreditTopupsLiveEnabled(approved),true);
@@ -124,8 +128,8 @@ test("live credit purchases require independent reviewed billing, tax and launch
   {STRIPE_LIVE_CHECKOUT_ENABLED:"false"},
   {PUBLIC_CUSTOMER_LAUNCH_APPROVED:"false"},
   {STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"false"},
-  {STRIPE_CREDIT_TAX_REVIEW_APPROVED:"false"},
-  {STRIPE_CREDIT_TAX_CODE:""},
+  {CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"false"},
+  {CREDIT_TAX_COUNTRY_POLICY_JSON:""},
   {STRIPE_SECRET_KEY:"sk_test_mock"},
   {STRIPE_WEBHOOK_SECRET:""},
  ])assert.equal(stripeCreditTopupsLiveEnabled({...approved,...change}),false);
