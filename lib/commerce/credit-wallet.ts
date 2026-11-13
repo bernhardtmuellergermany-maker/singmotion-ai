@@ -2,6 +2,7 @@ import {protectedProductionLivePilotApproved} from "./protected-production-live-
 import {privateCreditPilotApproved} from "./private-credit-pilot.ts";
 import {randomUUID} from "node:crypto";
 import type {DatabaseSync} from "node:sqlite";
+import type {CreditTaxDecision,BuyerType} from "./worldwide-credit-tax.ts";
 import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,proposedTopupCents} from "./credit-topup-quote.ts";
 
 const STAGING_ID="dfaeabed-03df-43ed-aa71-50f343a75041";
@@ -61,6 +62,13 @@ export class CreditWallet {
     checkout_url TEXT,created INTEGER NOT NULL,paid_at INTEGER
    );
    CREATE INDEX IF NOT EXISTS credit_topup_subject_idx ON credit_topup_purchases(subject,created DESC);
+   CREATE TABLE IF NOT EXISTS credit_purchase_tax_context(
+    purchase_id TEXT PRIMARY KEY,country TEXT NOT NULL,
+    buyer_type TEXT NOT NULL,voucher_kind TEXT NOT NULL,
+    tax_mode TEXT NOT NULL,policy_revision TEXT NOT NULL,
+    created INTEGER NOT NULL,
+    FOREIGN KEY(purchase_id) REFERENCES credit_topup_purchases(id)
+   );
    CREATE TABLE IF NOT EXISTS credit_wallet_ledger(
     id TEXT PRIMARY KEY,subject TEXT NOT NULL,delta INTEGER NOT NULL,
     kind TEXT NOT NULL,reference TEXT UNIQUE NOT NULL,created INTEGER NOT NULL
@@ -108,6 +116,38 @@ export class CreditWallet {
    const added=this.db.prepare("SELECT * FROM credit_topup_purchases WHERE id=?").get(id) as Record<string,unknown>;
    return this.map(added);
   });
+ }
+ /**
+  * Capture exact legal jurisdiction decision before contacting Stripe.
+  * Retries cannot silently change a country's tax treatment or buyer type.
+  */
+ bindTaxContext(id:string,decision:CreditTaxDecision):void {
+  this.tx(()=>{
+   const existing=this.taxContext(id);
+   if(existing){
+    if(existing.country!==decision.country||existing.buyerType!==decision.buyerType||
+       existing.voucherKind!==decision.voucherKind||existing.mode!==decision.mode||
+       existing.revision!==decision.revision)
+     throw Error("Credit tax decision idempotency conflict");
+    return;
+   }
+   const purchase=this.findById(id);
+   if(!purchase||purchase.status!=="pending"||purchase.sessionId)
+    throw Error("Tax decision must precede Checkout session");
+   this.db.prepare(`INSERT INTO credit_purchase_tax_context
+     (purchase_id,country,buyer_type,voucher_kind,tax_mode,policy_revision,created)
+     VALUES(?,?,?,?,?,?,?)`).run(id,decision.country,decision.buyerType,
+       decision.voucherKind,decision.mode,decision.revision,Date.now());
+  });
+ }
+ taxContext(id:string):{
+  country:string;buyerType:BuyerType;voucherKind:string;mode:string;revision:string
+ }|null{
+  const result=this.db.prepare(`SELECT country,buyer_type,voucher_kind,tax_mode,policy_revision
+    FROM credit_purchase_tax_context WHERE purchase_id=?`).get(id) as
+    {country:string;buyer_type:BuyerType;voucher_kind:string;tax_mode:string;policy_revision:string}|undefined;
+  return result?{country:result.country,buyerType:result.buyer_type,
+   voucherKind:result.voucher_kind,mode:result.tax_mode,revision:result.policy_revision}:null;
  }
  findById(id:string):Topup|null {
   const row=this.db.prepare("SELECT * FROM credit_topup_purchases WHERE id=?")
