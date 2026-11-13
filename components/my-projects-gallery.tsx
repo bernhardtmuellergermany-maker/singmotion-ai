@@ -19,6 +19,7 @@ type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
  videoReady:number;created:number;outputFormat?:string|null;durationSeconds?:number|null;
 };
+type TrashedProject={id:string;name:string;kind:"draft"|"admin";deletedAt:number;purgeAfter:number;restorable?:boolean};
 type ProjectItem={
  id:string;kind:"draft"|"customer"|"admin";name:string;status:ProjectStatus;
  date:number;duration:number;format:string;image:string|null;
@@ -50,6 +51,8 @@ export function MyProjectsGallery(){
  const [drafts,setDrafts]=useState<SavedDraft[]>([]);
  const [orders,setOrders]=useState<CustomerOrder[]>([]);
  const [live,setLive]=useState<StudioProject[]>([]);
+ const [trash,setTrash]=useState<TrashedProject[]>([]);
+ const [trashError,setTrashError]=useState("");
  const [loading,setLoading]=useState(true);
  const [error,setError]=useState("");
  const [tab,setTab]=useState<Tab>("all");
@@ -143,15 +146,39 @@ export function MyProjectsGallery(){
   }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename project.");}
   finally{setBusyId(null);}
  }
+ async function refreshTrash(){
+  const [draft,admin]=await Promise.allSettled([
+   api<{items:TrashedProject[]}>("studio-drafts?trash=1"),
+   api<{items:TrashedProject[]}>("studio-live?trash=1")
+  ]);
+  setTrash([
+   ...(draft.status==="fulfilled"?(draft.value.items||[]):[]),
+   ...(admin.status==="fulfilled"?(admin.value.items||[]):[])
+  ].sort((a,b)=>b.deletedAt-a.deletedAt));
+ }
+ async function restoreTrash(item:TrashedProject){
+  if(busyId)return;
+  setBusyId(item.kind+"_"+item.id);setTrashError("");
+  try{
+   if(item.kind==="draft")
+    await api("studio-drafts/"+encodeURIComponent(item.id)+"/restore",{method:"POST"});
+   else await api("studio-live",{method:"POST",body:JSON.stringify({
+    action:"restore",id:item.id,confirmation:"RESTORE "+item.id
+   })});
+   // Reload fresh server-authoritative selections; no cached project objects.
+   window.location.reload();
+  }catch(e){setTrashError(e instanceof Error?e.message:"Could not restore project.");}
+  finally{setBusyId(null)}
+ }
  async function deleteProject(item:ProjectItem){
   if(busyId||item.kind==="customer")return;
   const adminState=item.kind==="admin"?live.find(p=>p.id===item.id.slice(5))?.state:null;
   const active=item.kind==="admin" && !["prepared","completed","failed"].includes(adminState||"");
   const warning=item.kind==="draft"
-   ?"Permanently delete draft '"+item.name+"'? This cannot be undone."
+   ?"Move '"+item.name+"' to Recently deleted? You can restore it for 30 days. After that, unshared media becomes eligible for cleanup."
    :active
-    ?"Remove this active project from My Projects? Generation, billing and recovery evidence will be preserved."
-    :"Permanently remove '"+item.name+"' and its finished video? This cannot be undone. Billing and audit records remain.";
+    ?"Move this active project to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
+    :"Move '"+item.name+"' to Recently deleted? Its MP4 is retained for 30 days, then eligible for cleanup. Payment and audit records remain.";
   if(!window.confirm(warning))return;
   setBusyId(item.id);setError("");
   try{
@@ -176,6 +203,7 @@ export function MyProjectsGallery(){
    }
    const updated={...labels};delete updated[item.id];
    localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));setLabels(updated);
+   await refreshTrash();
   }catch(cause){setError(cause instanceof Error?cause.message:"Could not delete this project.");}
   finally{setBusyId(null);}
  }
@@ -196,6 +224,7 @@ export function MyProjectsGallery(){
     setOrders(o.status==="fulfilled"&&Array.isArray(o.value)?o.value:[]);
     setLive(l.status==="fulfilled"&&Array.isArray(l.value)?l.value:[]);
     setError(d.status==="rejected"?"Your saved drafts could not be loaded. Please reopen the Studio to restore your workspace.":"");
+    await refreshTrash().catch(()=>{});
    }catch{
     if(active)setError("Your private projects could not be loaded. Please sign in or reopen Studio.");
    }finally{if(active)setLoading(false);}
@@ -348,5 +377,21 @@ export function MyProjectsGallery(){
       <p>{projects.length?"Try another search or status filter.":"Upload your music and artist photo to create your first project."}</p>
       {!projects.length&&<Link href="/studio?new=1">Create a video</Link>}
     </div>}
+   <section className="sm-projects-trash" aria-label="Recently deleted projects">
+    <details>
+      <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Restore within 30 days</span></summary>
+      <p className="sm-projects-trash-explain">Deleted projects are hidden immediately. Media not needed by other projects becomes eligible for cleanup after 30 days; physical cleanup requires approved backups. Financial and provider audit records are retained as required.</p>
+      {trashError&&<p className="sm-projects-error" role="alert">{trashError}</p>}
+      {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted projects.</p>:
+       <ul>{trash.map(item=><li key={item.kind+"_"+item.id}>
+         <div><strong>{item.name}</strong><small>Eligible for cleanup from: {safeDate(item.purgeAfter)}</small></div>
+         {item.restorable===false?<small>Preparation canceled; restore the original saved draft instead.</small>:
+          <button type="button" disabled={busyId!==null}
+            onClick={()=>void restoreTrash(item)}>
+            {busyId===item.kind+"_"+item.id?"Restoring…":"Restore"}
+          </button>}
+       </li>)}</ul>}
+    </details>
+   </section>
  </div>;
 }

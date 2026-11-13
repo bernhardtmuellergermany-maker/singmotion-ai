@@ -230,3 +230,22 @@
 .sm-projects-copy-support:focus-visible{outline:2px solid #e8b2ff;outline-offset:2px}
 .sm-projects-copy-feedback{font-size:10px;color:#7ff1b5;font-weight:650}
 .sm-projects-copy-error{font-size:10px;color:#ff9da8}
+
+
+/* Recoverable 30-day project trash; never mistaken for a permanent wipe. */
+.sm-projects-trash{margin:28px 0 0;border:1px solid #57416c;border-radius:13px;background:#171224;color:#e8dcf3}
+.sm-projects-trash>details>summary{display:flex;align-items:center;gap:9px;min-height:48px;padding:12px 17px;cursor:pointer;font-size:14px;font-weight:750;list-style:none}
+.sm-projects-trash>details>summary::-webkit-details-marker{display:none}
+.sm-projects-trash>details>summary>span{font-size:11px;font-weight:500;color:#bbabc9;margin-left:auto;text-align:right}
+.sm-projects-trash>details>summary:focus-visible{outline:2px solid #d391ff;outline-offset:2px}
+.sm-projects-trash-explain,.sm-projects-trash-empty{margin:0;padding:6px 17px 14px;color:#bcadcb;font-size:12px;line-height:1.55}
+.sm-projects-trash ul{margin:0;padding:0 12px 13px;list-style:none;display:grid;gap:8px}
+.sm-projects-trash li{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:11px 13px;border:1px solid #40314f;border-radius:10px;background:#21192d}
+.sm-projects-trash li>div{display:grid;gap:4px;min-width:0}
+.sm-projects-trash li strong{overflow-wrap:anywhere;font-size:12px}
+.sm-projects-trash li small{font-size:11px;color:#bdafce;line-height:1.45}
+.sm-projects-trash li button{min-height:40px;padding:8px 14px;border-radius:9px;border:1px solid #966ab8;background:#322142;color:#f8eaff;cursor:pointer}
+.sm-projects-trash li button:hover{background:#4a305e}
+.sm-projects-trash li button:disabled{opacity:.5;cursor:wait}
+.sm-projects-trash li button:focus-visible{outline:2px solid #e6b9ff;outline-offset:3px}
+@media(max-width:500px){.sm-projects-trash>details>summary{flex-wrap:wrap}.sm-projects-trash>details>summary>span{margin-left:0;flex-basis:100%}.sm-projects-trash li button{width:100%}}

@@ -96,6 +96,10 @@ async function handler(req: NextRequest) {
     const service = runtime.service;
     if (req.method === "GET") {
       const id = req.nextUrl.searchParams.get("id");
+      if(!id && req.nextUrl.searchParams.get("trash")==="1")
+        return json({items:service.listTrash(owner)});
+      if(id && service.trashedAt(id,owner)!==null)
+        throw new StudioLiveError("PROJECT_IN_TRASH","Project is in Recently deleted.",404);
       if (id && req.nextUrl.searchParams.has("video")) {
         const file = await service.output(id, owner),
           size = (await stat(file)).size;
@@ -309,6 +313,8 @@ async function handler(req: NextRequest) {
         "Choose a saved Studio project.",
       );
     if (body.action === "submit") {
+      if(service.trashedAt(body.id,owner)!==null)
+        throw new StudioLiveError("PROJECT_IN_TRASH","Restore this project before continuing.",409);
       // The same wallet shown on /credits MUST be the wallet used for billing.
       // An overlapping customer session takes precedence over CMS staff identity
       // in the account menu; refuse to charge a different, hidden wallet.
@@ -378,6 +384,8 @@ async function handler(req: NextRequest) {
       );
     if (body.action === "delete")
       return json(await service.deleteProject(body.id, owner, body.confirmation));
+    if (body.action === "restore")
+      return json(service.restoreProject(body.id, owner, String(user!.id), body.confirmation));
     if (body.action === "hide")
       return json(
         service.hide(body.id, owner, String(user!.id), body.confirmation),
