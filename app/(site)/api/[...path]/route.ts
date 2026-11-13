@@ -3,6 +3,7 @@ import { reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from 
 import {customerR2Enabled,mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
 import {ensureLocalAsset} from "@/lib/cloud-hydration";
 import { parseSavedStudioDraft, hasFirstStudioUpload } from "@/lib/studio-draft";
+import {ensureDraftTrash,deleteDraftToTrash,restoreDraftFromTrash,listDraftTrash} from "@/lib/project-trash";
 import { requireRights, recordRights, termsVersion } from "@/lib/rights";
 import { applicationOrigin } from "@/lib/request-origin";
 import { stagingDenial, stagingEnabled } from "@/lib/staging";
@@ -233,11 +234,7 @@ async function handler(
       );
     const owner = auth.owner;
     if (route === "studio-drafts") {
-      db.exec(
-        "CREATE TABLE IF NOT EXISTS studio_drafts (id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, artist_name TEXT NOT NULL, step INTEGER NOT NULL, updated INTEGER NOT NULL)",
-      );
-      const draftColumns = db.prepare("PRAGMA table_info(studio_drafts)").all() as {name:string}[];
-      if (!draftColumns.some(column => column.name === "project_name")) db.exec("ALTER TABLE studio_drafts ADD COLUMN project_name TEXT NOT NULL DEFAULT ''");
+      ensureDraftTrash(db);
       const view = (row: Record<string, unknown>) => {
         const selected = parseSavedStudioDraft(
           JSON.parse(String(row.selection)),
@@ -258,11 +255,13 @@ async function handler(
         };
       };
       if (method === "GET") {
+        if (!id && req.nextUrl.searchParams.get("trash")==="1")
+          return json({items:listDraftTrash(db,owner)});
         if (!id)
           return json(
             db
               .prepare(
-                "SELECT * FROM studio_drafts WHERE owner=? ORDER BY updated DESC",
+                "SELECT * FROM studio_drafts WHERE owner=? AND deleted_at IS NULL ORDER BY updated DESC",
               )
               .all(owner)
               .map(view)
@@ -270,15 +269,19 @@ async function handler(
               .filter(draft => hasFirstStudioUpload(draft.selection)),
           );
         const row = db
-          .prepare("SELECT * FROM studio_drafts WHERE id=? AND owner=?")
+          .prepare("SELECT * FROM studio_drafts WHERE id=? AND owner=? AND deleted_at IS NULL")
           .get(id, owner);
         if (!row) throw new AppError("Draft unavailable.", 404);
         return json(view(row));
       }
       if (method === "DELETE" && id) {
-        const result = db.prepare("DELETE FROM studio_drafts WHERE id=? AND owner=?").run(id,owner);
-        if (!result.changes) throw new AppError("Draft unavailable.",404);
-        return json({deleted:true});
+        try{return json(deleteDraftToTrash(db,id,owner));}
+        catch{throw new AppError("Draft unavailable.",404)}
+      }
+      if (method === "POST" && id && parts[2]==="restore") {
+        limit(owner+":restore-draft",15,60000);
+        try{return json(restoreDraftFromTrash(db,id,owner));}
+        catch{throw new AppError("Draft unavailable or recovery window expired.",404)}
       }
       if (method === "POST") {
         limit(`${owner}:drafts`, 60, 60000);
@@ -305,7 +308,7 @@ async function handler(
         // are independently metered, and the write rate limit still applies.
         const result = db
           .prepare(
-            "INSERT INTO studio_drafts (id,owner,selection,artist_name,step,updated,project_name) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated,project_name=excluded.project_name WHERE studio_drafts.owner=excluded.owner",
+            "INSERT INTO studio_drafts (id,owner,selection,artist_name,step,updated,project_name) VALUES(?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET selection=excluded.selection,artist_name=excluded.artist_name,step=excluded.step,updated=excluded.updated,project_name=excluded.project_name WHERE studio_drafts.owner=excluded.owner AND studio_drafts.deleted_at IS NULL",
           )
           .run(
             key,
