@@ -1,0 +1,29 @@
+/* Non-blocking, in-flow customer status close to the action that needs attention. */
+.sm-customer-feedback{
+  display:flex;align-items:flex-start;gap:12px;width:100%;max-width:100%;
+  box-sizing:border-box;padding:14px 16px;margin:12px 0 18px;
+  border:1px solid rgba(176,139,219,.52);border-radius:15px;
+  background:#241a35;color:#f7f1ff;
+  box-shadow:0 8px 28px rgba(7,5,19,.12);overflow-wrap:anywhere;
+}
+.sm-customer-feedback.is-success{border-color:#5da886;background:#142e2d}
+.sm-customer-feedback.is-warning{border-color:#b78d55;background:#34291e}
+.sm-customer-feedback.is-error{border-color:#c86b7e;background:#3c202e}
+.sm-customer-feedback-icon{display:grid;place-items:center;flex:0 0 22px;margin-top:1px;color:#d9b3ff}
+.sm-customer-feedback.is-success .sm-customer-feedback-icon{color:#8be1b0}
+.sm-customer-feedback.is-warning .sm-customer-feedback-icon{color:#f2c987}
+.sm-customer-feedback.is-error .sm-customer-feedback-icon{color:#ffb6c2}
+.sm-customer-feedback-body{min-width:0;flex:1}
+.sm-customer-feedback-body strong{display:block;font-size:14px;font-weight:720;line-height:1.35;color:#fff}
+.sm-customer-feedback-body p{font-size:13px;line-height:1.5;margin:5px 0 0;color:#e0d6ed}
+.sm-customer-feedback-action{display:inline-flex;min-height:35px;align-items:center;gap:6px;margin-top:9px;padding:5px 11px;border:1px solid rgba(219,184,252,.6);border-radius:9px;color:#f2dfff;font-size:13px;font-weight:700;text-decoration:none}
+.sm-customer-feedback-action:hover{background:rgba(255,255,255,.09)}
+.sm-customer-feedback-action:focus-visible,.sm-customer-feedback-close:focus-visible{outline:2px solid #efc4ff;outline-offset:3px}
+.sm-customer-feedback-close{display:grid;place-items:center;flex:0 0 32px;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:#dcd0e7;cursor:pointer}
+.sm-customer-feedback-close:hover{background:rgba(255,255,255,.1)}
+@media(max-width:680px){
+  .sm-customer-feedback{gap:9px;padding:12px;margin:9px 0 14px;border-radius:12px}
+  .sm-customer-feedback-body strong{font-size:13px}
+  .sm-customer-feedback-body p{font-size:12px;line-height:1.5}
+  .sm-customer-feedback-action{font-size:12px}
+}

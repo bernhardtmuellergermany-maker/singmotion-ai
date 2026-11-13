@@ -4,6 +4,8 @@ import Link from "next/link";
 import {useEffect,useState} from "react";
 import {creditTone} from "@/lib/commerce/credit-display";
 import {CreditAmountPicker} from "@/components/credit-amount-picker";
+import {CustomerFeedback} from "@/components/customer-feedback";
+import {checkoutFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 
 type Ledger={id:string;credits:number;type:string;reference:string;created:number};
 type Order={id:string;projectId:string;credits:number;euros:number;created:number;status:string};
@@ -19,8 +21,11 @@ const eur=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"
 export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
  const [view,setView]=useState<View>("loading");
  const [balance,setBalance]=useState<Balance|null>(null);
+ const [checkoutNotice,setCheckoutNotice]=useState<CustomerNotice|null>(null);
  useEffect(()=>{
   let active=true;
+  const checkoutResult=new URLSearchParams(window.location.search).get("checkout");
+  setCheckoutNotice(checkoutFeedback(checkoutResult));
   const refresh=()=>{
    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
     .then(async response=>{
@@ -35,12 +40,18 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     }).catch(()=>{if(active)setView("unavailable");});
   };
   refresh();
+  let checks=0;
+  let timer:number|null=null;
+  if(checkoutResult==="success")timer=window.setInterval(()=>{
+   if(document.visibilityState==="visible"){refresh();if(++checks>=12&&timer!==null)window.clearInterval(timer);}
+  },5000);
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
-  return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh)};
+  return()=>{active=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh)};
  },[]);
  const tone=creditTone(view==="ready"?balance?.availableCredits??null:null);
  return <div className="sm-credits-layout">
+  <CustomerFeedback notice={checkoutNotice} context="payment"/>
   {view==="loading"&&<p role="status" className="sm-credits-message">Checking your credit balance…</p>}
   {view==="signed-out"&&<section className="sm-credits-notice">
    <h2>Sign in to continue</h2><p>Credits and orders belong to your personal account.</p>
