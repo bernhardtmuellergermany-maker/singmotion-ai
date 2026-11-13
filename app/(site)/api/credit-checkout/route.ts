@@ -13,6 +13,7 @@ import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
+import {managedCreditMoRApproved,managedCreditTaxDecision} from "@/lib/commerce/managed-credit-payments";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -43,7 +44,10 @@ export async function POST(req:NextRequest){
    return json({error:"Enter 500–100,000 whole credits."},400);
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
-  const tax=liveMode?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
+  const useMoR=liveMode&&managedCreditMoRApproved(process.env);
+  const tax=liveMode?(useMoR
+   ?managedCreditTaxDecision(process.env,body.billingCountry,body.buyerType)
+   :assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType)):null;
   if(liveMode&&!tax?.ready)
    return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
@@ -64,12 +68,9 @@ export async function POST(req:NextRequest){
    const form=new URLSearchParams({
     mode:"payment",
     "invoice_creation[enabled]":"true",
-    // Sandbox ONLY: this account defaults to Stripe Managed Payments. Without
-    // a legally reviewed product tax_code, its merchant-of-record flow returns
-    // HTTP 400. Disable that optional flow explicitly for staging TEST
-    // purchases; production is hard-blocked by stripeCreditTopupsTestEnabled.
-    // Do not reuse this setting for future live credit sales without tax review.
-    ...(testMode?{"managed_payments[enabled]":"false"}:{}),
+    // Managed Payments is the merchant of record only when the account and this
+    // exact prepaid AI-video credit product have confirmed eligibility.
+    "managed_payments[enabled]":useMoR?"true":"false",
     // Stripe API 2026-09-30+ rejects payment_method_types with HTTP 400.
     // Use Dashboard-configured dynamic payment methods (cards enabled in sandbox).
     "line_items[0][price_data][currency]":"eur",
@@ -94,12 +95,17 @@ export async function POST(req:NextRequest){
     form.set("billing_address_collection","required");
     form.set("tax_id_collection[enabled]","true");
     form.set("line_items[0][price_data][tax_behavior]","inclusive");
+    if(decision.mode==="stripe-managed-payments"){
+     form.set("line_items[0][price_data][product_data][tax_code]",decision.taxCode!);
+     // Stripe/Link, not this merchant, collects/remits supported-country tax.
+     // Do not mix own-merchant automatic_tax or German Kleinunternehmer footer.
+    }
     // No invented zero-percent VAT line for an approved exemption.
     // Stripe Tax only when a reviewed issue-time taxable classification exists.
     if(decision.mode==="stripe-tax"){
      form.set("automatic_tax[enabled]","true");
      form.set("line_items[0][price_data][product_data][tax_code]",decision.taxCode!);
-    }else{
+    }else if(decision.mode!=="stripe-managed-payments"){
      form.set("automatic_tax[enabled]","false");
      if(decision.mode==="de-small-business")
       form.set("invoice_creation[invoice_data][footer]","Gemäß § 19 UStG gilt die Steuerbefreiung für Kleinunternehmer. Es wird keine Umsatzsteuer ausgewiesen.");
@@ -137,8 +143,9 @@ export async function POST(req:NextRequest){
     return json({error:testMode?"Stripe Test Checkout could not be created. No payment was taken.":"Secure Credit Checkout could not be created. No payment was taken.",
       ...(requestId?{supportReference:requestId}:{})},502);
    }
-   const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string};
-   if(session.livemode!==liveMode||session.mode!=="payment"||session.amount_total!==purchase.cents||
+   const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string;managed_payments?:{enabled?:boolean}};
+   if((useMoR&&session.managed_payments?.enabled!==true)||
+      session.livemode!==liveMode||session.mode!=="payment"||session.amount_total!==purchase.cents||
       session.currency!=="eur"||!session.id||!session.url)
     return json({error:"Stripe Checkout verification failed."},502);
    const saved=wallet.bind(purchase.id,session.id,session.url);
