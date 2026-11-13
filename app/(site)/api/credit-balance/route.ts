@@ -8,6 +8,7 @@ import {stagingDenial} from "@/lib/staging";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
+import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -53,9 +54,10 @@ export async function GET(req:NextRequest){
   const rawBalance=purchased-reserved;
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
-    customerLaunchReadiness().readyForPaidOrders&&
-    (auditSingMotionLaunch(process.env,"production").ready||
-     protectedProductionLivePilotApproved(process.env));
+    (privateCreditPilotApproved(process.env)||
+     (customerLaunchReadiness().readyForPaidOrders&&
+      (auditSingMotionLaunch(process.env,"production").ready||
+       protectedProductionLivePilotApproved(process.env))));
   return json({
    availableCredits:Math.max(0,rawBalance),
    reservedCredits:Math.max(0,reserved),
