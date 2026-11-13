@@ -8,7 +8,7 @@ import {randomUUID} from "node:crypto";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 import {SupportCases} from "../lib/commerce/support-cases.ts";
-import {retrySupportCaseEmails} from "../lib/commerce/support-notifications.ts";
+import {retrySupportCaseEmails,queueFailedOutputSupportEmails} from "../lib/commerce/support-notifications.ts";
 import {requestSupportStripeRefund} from "../lib/commerce/support-stripe-refund.ts";
 
 const actor="cms-staff-123";
@@ -148,5 +148,31 @@ test("Stripe refund is explicitly confirmed, environment-bound and idempotent",a
   await requestSupportStripeRefund(f.store,order,actor,note,"REFUND "+order.toUpperCase(),env,sender);
   assert.equal(calls.length,2,"duplicate operator click cannot call Stripe again");
   assert.equal(f.store.db.prepare("SELECT count(*) n FROM customer_stripe_refunds WHERE order_id=?").get(order).n,1);
+ }finally{f.close()}
+});
+
+test("invalid MP4 alerts Support once with a safe ID and never refunds Credits",()=>{
+ const f=fixture();try{
+  const id=randomUUID();
+  liveFailure(f,id,"INVALID_OUTPUT");
+  const added=queueFailedOutputSupportEmails(path.join(f.root,"commerce.sqlite"),f.liveFile);
+  assert.equal(added,1);
+  assert.equal(queueFailedOutputSupportEmails(path.join(f.root,"commerce.sqlite"),f.liveFile),0);
+  const mail=f.store.db.prepare("SELECT recipient,body FROM support_case_mail_outbox WHERE reference=?").get(id) as {recipient:string;body:string};
+  assert.equal(mail.recipient,"support@singmotion.ai");
+  assert.match(mail.body,new RegExp(id));
+  assert.doesNotMatch(mail.body,/signed|\/private\/|api_key/i);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM credit_wallet_ledger").get().n,0);
+ }finally{f.close()}
+});
+test("a failed charged video cannot be marked resolved before refund verification",()=>{
+ const f=fixture();try{
+  const id=randomUUID(),project=randomUUID();
+  f.store.db.prepare("INSERT INTO customer_orders VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+   .run(id,null,null,null,"buyer@example.test",project,125,"EUR","paid","offline",randomUUID(),Date.now());
+  f.store.db.prepare("INSERT INTO customer_fulfillment_queue VALUES(?,'failed',?)").run(id,Date.now());
+  const support=new SupportCases(f.store.db);
+  assert.throws(()=>support.markResolved(id,actor,note,f.liveFile),/cannot be closed/);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_cases").get().n,0);
  }finally{f.close()}
 });
