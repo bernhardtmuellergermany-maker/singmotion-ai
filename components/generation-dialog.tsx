@@ -28,8 +28,9 @@ export function GenerationDialog({
 }) {
   const dialog = useRef<HTMLDialogElement>(null),
     lock = useRef(false),
+    autoSubmitted = useRef(false),
     router = useRouter();
-  const [rights, setRights] = useState(initialRights),
+  const [rights] = useState(initialRights),
     [immediateStart,setImmediateStart] = useState(false),
     [withdrawalConsequences,setWithdrawalConsequences] = useState(false),
     [terms, setTerms] = useState(""),
@@ -357,6 +358,17 @@ export function GenerationDialog({
       setBusy(false);
     }
   }
+  // The Studio review already displays the Credit price and captures rights.
+  // Its "Generate Video" button is the only customer action required. Preserve
+  // this dialog for actual preflight failures and the operator sign-in path.
+  useEffect(()=>{
+    if(autoSubmitted.current||!rights||!terms||pilot!==true||!superAdmin||
+      !plan||plan.state!=="prepared"||!plan.digest||!plan.ceilingMicroUsd||
+      plan.budgetBlocker||busy||lock.current||error||blockers.length||
+      availableCredits===null||!creditQuote||availableCredits<creditQuote.credits)return;
+    autoSubmitted.current=true;
+    void act();
+  },[rights,terms,pilot,superAdmin,plan,busy,error,blockers.length,availableCredits,creditQuote]);
   const blocked =
     busy ||
     !rights ||
@@ -395,10 +407,6 @@ export function GenerationDialog({
       </div>
       {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"Customer credit-paid generation is not yet enabled, so this preview does not deduct Credits.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
       <p className="sm-confirm-notice">{customerFlow?"Customer video generation with Credits is not yet enabled.":<>Your own wallet must contain enough available Credits. <Link href="/credits#buy-credits">Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
-      <label className="consent sm-confirm-consent">
-        <input type="checkbox" checked={rights} disabled={busy} onChange={e=>setRights(e.target.checked)}/>
-        <span>I confirm that I own the rights or have permission to use this audio, image, and any depicted person(s).</span>
-      </label>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot !== true && !customerFlow && (
         <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Optional Super Admin sign-in">
