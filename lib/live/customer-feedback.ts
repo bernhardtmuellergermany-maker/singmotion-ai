@@ -120,6 +120,30 @@ export function providerFeedback(
   return null;
 }
 
+/** The paid order is charged through Stripe, NOT the prepaid Credit wallet.
+ * Only the verified owner-scoped order status may justify "payment refunded".
+ * A provider failure without a verified external refund never promises money. */
+export function paidOrderFeedback(
+  paymentStatus:string|null|undefined,
+  fulfillmentState:string|null|undefined,
+  editDraftHref?:string|null,
+):CustomerNotice|null {
+  if(paymentStatus==="refunded"){
+    const draftSafe=typeof editDraftHref==="string"&&
+      /^\/studio\?copy=draft_[A-Za-z0-9_-]{1,80}$/.test(editDraftHref);
+    return {key:"order-payment-refunded",kind:"success",title:"Your video payment was refunded",
+      message:"This order has been marked refunded. A refund to your original payment method can take time to appear. No new video is started automatically.",
+      action:draftSafe?{label:"Edit photo or audio",href:editDraftHref}:{label:"Start a new Studio draft",href:"/studio?new=1"}};
+  }
+  if(paymentStatus==="disputed")
+    return {key:"order-payment-disputed",kind:"warning",title:"Your payment is under review",
+      message:"The payment is in a dispute or reversal process. Do not place another order for this video. No new generation is started automatically."};
+  if(paymentStatus==="paid"&&["failed","requires-review"].includes(fulfillmentState??""))
+    return {key:"paid-output-not-delivered",kind:"warning",title:"Your paid video could not be delivered",
+      message:"The payment is confirmed, but the existing provider task or video delivery was not successful. Billing and refund eligibility must be verified before a replacement is charged. Do not pay again or submit a duplicate order."};
+  return null;
+}
+
 export function checkoutFeedback(result:string|null):CustomerNotice|null {
   if(result==="cancelled")
     return {key:"checkout-cancelled",kind:"info",title:"Checkout cancelled",
