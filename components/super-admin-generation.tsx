@@ -68,6 +68,11 @@ export function SuperAdminGeneration({id}:{id:string}){
  const shortage=!!project&&project.state==="prepared"&&project.creditCharge?.status==="estimated"&&
    typeof availableCredits==="number"&&availableCredits<project.creditCharge.credits;
  if(shortage)progress="credits-needed";
+ const resumeDraft=project?.sourceDraftId&&/^[A-Za-z0-9_-]{1,80}$/.test(project.sourceDraftId)
+   ?project.sourceDraftId:null;
+ const resumeHref=resumeDraft?"/studio?draft="+encodeURIComponent(resumeDraft):null;
+ const creditsHref=resumeDraft&&project?.creditCharge?.credits
+   ?"/credits?resumeDraft="+encodeURIComponent(resumeDraft)+"&requiredCredits="+project.creditCharge.credits+"#buy-credits":"/credits#buy-credits";
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;
  return <main id="content" className="sm-super-admin-generation">
    {!project&&!error?<p role="status" className="sm-gen-extra-message">Loading the saved video status…</p>:<GenerationStatusView progress={progress} paymentMode="super-admin"
@@ -77,10 +82,15 @@ export function SuperAdminGeneration({id}:{id:string}){
      format={project?.selection.outputFormat}
      videoUrl={project?.outputReady?link:null}
      downloadUrl={project?.outputReady?link+"&download=1":null}
-     editHref={project?.state==="failed"&&/^[a-f0-9-]{36}$/i.test(id)?`/studio?copy=live_${encodeURIComponent(id)}`:null}
+     editHref={project?.state==="prepared"?resumeHref:project?.state==="failed"&&/^[a-f0-9-]{36}$/i.test(id)?`/studio?copy=live_${encodeURIComponent(id)}`:null}
+     creditTopupHref={creditsHref}
      reuseHref={project?.outputReady?`/studio?copy=live_${encodeURIComponent(id)}`:null}
      note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>}
 
-   {project?.state==="prepared"&&!shortage&&<p className="sm-gen-extra-message">This project is prepared, but its generation request has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
+   {project?.state==="prepared"&&<div className="sm-gen-extra-message">
+      {resumeHref?<a className="sm-gen-reuse" href={resumeHref}>Return to Studio · Step 4 to continue generation</a>:
+        <a className="sm-gen-reuse" href={`/studio?copy=live_${encodeURIComponent(id)}`}>Edit a new version in Studio</a>}
+      {!shortage&&<p>Your saved project has not been submitted. Confirm generation from the Studio review; this status page never starts a second task.</p>}
+    </div>}
  </main>;
 }

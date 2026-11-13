@@ -876,6 +876,10 @@ export function StudioWizard({
             <span>I confirm that I own or have permission to use the audio, photo and depicted person(s).</span>
           </label>
           <p className="sm-review-ai-notice">AI-generated videos can contain unexpected visual, motion or lip-sync imperfections. Results may vary; review your selections before payment. Your statutory rights remain unaffected.</p>
+          {reviewShortage&&creditQuote&&projectKey&&<p className="sm-review-payment-note" role="status">
+            You need {new Intl.NumberFormat("en-GB").format(creditQuote.credits)} Credits to generate this video.
+            <a className="sm-gen-reuse" href={`/credits?resumeDraft=${encodeURIComponent(projectKey)}&requiredCredits=${creditQuote.credits}#buy-credits`}>Buy Credits and return to Step 4</a>
+          </p>}
           <p className="sm-review-payment-note">{operatorStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Credit-paid customer video generation is not enabled yet. No Credits will be charged by this preview."}</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">

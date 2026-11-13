@@ -22,7 +22,7 @@ import {generationFeedback,providerFeedback,requestErrorFeedback,type CustomerNo
 
 export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,paymentStatus,statusNotice,
+  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,creditTopupHref="/credits#buy-credits",paymentStatus,statusNotice,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
@@ -41,6 +41,7 @@ export function GenerationStatusView({
   previewNotice?:CustomerNotice|null;
   /** Owner-checked Studio copy endpoint for changing rejected audio/photo in a NEW draft. */
   editHref?:string|null;
+  creditTopupHref?:string;
   reuseHref?:string|null;
   reuseBlank?:boolean;
 }){
@@ -128,7 +129,7 @@ export function GenerationStatusView({
       </div>
       <div className="sm-gen-status-column">
         {note&&!failed&&!review&&!/network|failed to fetch|connection interrupted|timed out/i.test(note)&&<p className="sm-gen-status-message" role="status">{note}</p>}
-        {progress==="credits-needed"&&<div className="sm-gen-credit-help" role="alert"><strong>Credits required to generate this video</strong><p>{creditCharge?`${new Intl.NumberFormat("en-GB").format(creditCharge.credits)} Credits needed. `:""}{typeof availableCredits==="number"?`${new Intl.NumberFormat("en-GB").format(availableCredits)} Credits available. `:""}Your project and uploaded files are saved. Return to Studio after adding sufficient Credits.</p><a className="sm-gen-reuse" href="/credits"><Wallet size={17}/> View Credits</a></div>}
+        {progress==="credits-needed"&&<div className="sm-gen-credit-help" role="alert"><strong>Credits required to generate this video</strong><p>{creditCharge?`${new Intl.NumberFormat("en-GB").format(creditCharge.credits)} Credits needed. `:""}{typeof availableCredits==="number"?`${new Intl.NumberFormat("en-GB").format(availableCredits)} Credits available. `:""}Your project and uploaded files are saved. Return to Studio after adding sufficient Credits.</p><a className="sm-gen-reuse" href={creditTopupHref}><Wallet size={17}/> Buy Credits and return to Step 4</a></div>}
         <h2>Generation progress</h2>
         <ol className="sm-gen-timeline">
           {stages.map((stage,index)=><li className={"sm-gen-milestone is-"+stage.state} key={stage.title}>
@@ -141,6 +142,8 @@ export function GenerationStatusView({
           <Clock3 size={19}/><p><strong>{paymentRefunded?"Refund recorded":paymentDisputed?"Payment dispute in progress":ready?"Your video is complete":releasedFailure?"Your Credits are available again":progress==="credits-needed"?"Generation has not started":progress==="prepared"?"Awaiting generation confirmation":review||failed?"Existing task is being checked":"This may take several minutes."}</strong>
           <span>{paymentRefunded?"No additional payment or generation will be started.":paymentDisputed?"Wait for the payment review on this order before attempting a new purchase.":ready?"Download your video below.":releasedFailure?"Use Edit photo or audio to create a fresh draft without reusing the rejected provider request.":progress==="credits-needed"?"The project is saved. No video generation or credit charge has started.":progress==="prepared"?"This prepared project has not been submitted. Return to Studio to review it.":review||failed?"This project is saved. Its payment and provider evidence are being checked without starting another task.":"You can leave this page. Your order remains saved and you can return to check progress."}</span></p>
         </div>
+        {(progress==="prepared"||progress==="credits-needed")&&editHref&&
+          <a className="sm-gen-reuse" href={editHref}><RotateCcw size={16}/> Return to Studio · Step 4</a>}
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
           <button className="sm-gen-download" type="button" disabled><LockKeyhole size={17}/> Download video</button>}
         {ready&&reuseHref&&<a className="sm-gen-reuse" href={reuseHref}><RotateCcw size={16}/> {reuseBlank?"Create another video":"Create another version"}</a>}

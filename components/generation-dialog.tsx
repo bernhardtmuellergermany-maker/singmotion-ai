@@ -374,6 +374,7 @@ export function GenerationDialog({
   const creditQuote=quoteVideoCredits(selection.start,selection.end);
   const creditPrice=creditQuote?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits":"Unavailable";
   const insufficient=superAdmin&&creditQuote!==null&&availableCredits!==null&&availableCredits<creditQuote.credits;
+  const creditsHref=creditQuote?`/credits?resumeDraft=${encodeURIComponent(requestKey)}&requiredCredits=${creditQuote.credits}#buy-credits`:"/credits#buy-credits";
   // The Studio review already displays the Credit price and captures rights.
   // Its "Generate Video" button is the only customer action required. Preserve
   // this dialog for actual preflight failures and the operator sign-in path.
@@ -406,7 +407,7 @@ export function GenerationDialog({
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
       {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"Customer credit-paid generation is not yet enabled, so this preview does not deduct Credits.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
-      <p className="sm-confirm-notice">{customerFlow?"Customer video generation with Credits is not yet enabled.":<>Your own wallet must contain enough available Credits. <Link href="/credits#buy-credits">Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
+      <p className="sm-confirm-notice">{customerFlow?"Customer video generation with Credits is not yet enabled.":<>Your own wallet must contain enough available Credits. <Link href={creditsHref}>Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot !== true && !customerFlow && (
         <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Optional Super Admin sign-in">
@@ -424,10 +425,11 @@ export function GenerationDialog({
       {!customerFlow && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p className="sm-confirm-notice">Your original project remains saved. Check its status before trying another paid request.</p>}
+      {insufficient&&<p className="sm-confirm-notice" role="status">Your video is saved. <Link href={creditsHref}>Buy Credits and return to Step 4</Link> to continue without losing your selection.</p>}
       <div className="product-actions">
         <button type="button" className="product-secondary" onClick={onClose} disabled={busy}>Cancel</button>
         {customerFlow ?
-          <Link href="/credits#buy-credits" className="product-secondary" onClick={onClose}>Open Credits</Link> :
+          <Link href={creditsHref} className="product-secondary" onClick={onClose}>Open Credits</Link> :
           <button type="button" className="product-primary" disabled={blocked||insufficient} onClick={()=>void act()}>{busy ? "Working…" : `Generate video · ${creditPrice}`}</button>}
       </div>
     </dialog>
