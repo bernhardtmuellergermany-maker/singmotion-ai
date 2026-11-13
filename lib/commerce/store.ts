@@ -695,18 +695,35 @@ export class CommerceStore {
       if(!order||!checkout||checkout.session_id!==input.stripeCheckoutId||
          order.price_cents!==input.refundedCents)
         throw Error("Refund amount or Checkout mismatch");
+      const hasSupportIntent=!!this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='support_stripe_refund_intents'").get();
+      const support=hasSupportIntent?this.db.prepare(
+        "SELECT checkout_session,amount_cents,status,refund_id FROM support_stripe_refund_intents WHERE order_id=?"
+      ).get(input.orderId) as {checkout_session:string;amount_cents:number;status:string;refund_id:string|null}|undefined:undefined;
+      const supportApproved=!!support&&support.checkout_session===input.stripeCheckoutId&&
+        support.amount_cents===input.refundedCents&&
+        (!support.refund_id||support.refund_id===input.refundId)&&
+        ["requested","pending","succeeded"].includes(support.status);
       const prior=this.db.prepare("SELECT refund_id FROM customer_stripe_refunds WHERE order_id=?").get(input.orderId) as {refund_id:string}|undefined;
       if(prior){
         if(prior.refund_id!==input.refundId)throw Error("Refund identity conflict");
+        if(supportApproved)this.db.prepare("UPDATE support_stripe_refund_intents SET status='succeeded',refund_id=?,updated_at=? WHERE order_id=?")
+          .run(input.refundId,Date.now(),input.orderId);
         return false;
       }
-      // A provider job might already have been submitted, even if its receipt was lost.
-      // Do not release the allowance or reopen the job in that state.
+      // A genuinely pending, never-submitted order may be automatically
+      // reconciled. A submitted but terminal FAILED provider job may be
+      // refunded only after a separate audited Super Admin refund intent
+      // already blocked further dispatch. No delivered MP4 is refundable by
+      // this shortcut; disputed/processing jobs remain blocked.
       const fulfillment=this.db.prepare("SELECT state FROM customer_fulfillment_queue WHERE order_id=?").get(input.orderId) as {state:string}|undefined;
-      if(order.status!=="paid"||fulfillment?.state!=="pending"||
-         this.db.prepare("SELECT 1 FROM customer_provider_submissions WHERE order_id=?").get(input.orderId)||
-         this.db.prepare("SELECT 1 FROM customer_provider_jobs WHERE order_id=?").get(input.orderId))
-        throw Error("Refund requires manual provider reconciliation");
+      const alreadySubmitted=!!this.db.prepare("SELECT 1 FROM customer_provider_submissions WHERE order_id=?").get(input.orderId)||
+         !!this.db.prepare("SELECT 1 FROM customer_provider_jobs WHERE order_id=?").get(input.orderId);
+      const delivered=!!this.db.prepare("SELECT 1 FROM customer_video_deliveries WHERE order_id=?").get(input.orderId);
+      const disputed=!!this.db.prepare("SELECT 1 FROM customer_stripe_disputes WHERE order_id=?").get(input.orderId);
+      const pendingUntouched=fulfillment?.state==="pending"&&!alreadySubmitted;
+      const approvedFailed=supportApproved&&fulfillment?.state==="failed"&&!delivered&&!disputed;
+      if(order.status!=="paid"||delivered||disputed||!(pendingUntouched||approvedFailed))
+        throw Error("Refund requires terminal provider and Stripe reconciliation");
       const split=this.db.prepare("SELECT state,included_seconds FROM customer_split_quotes WHERE attempt_id=?").get(input.orderId) as {state:string;included_seconds:number}|undefined;
       if(split && split.state!=="reserved")throw Error("Allowance requires reconciliation");
       if(split?.included_seconds){
@@ -720,6 +737,8 @@ export class CommerceStore {
         new PromotionLedger(this.db).release(input.orderId);
       this.db.prepare("UPDATE customer_fulfillment_queue SET state='failed' WHERE order_id=? AND state='pending'").run(input.orderId);
       this.db.prepare("INSERT INTO customer_stripe_refunds VALUES(?,?,?,?)").run(input.orderId,input.refundId,input.refundedCents,Date.now());
+      if(supportApproved)this.db.prepare("UPDATE support_stripe_refund_intents SET status='succeeded',refund_id=?,updated_at=? WHERE order_id=?")
+        .run(input.refundId,Date.now(),input.orderId);
       this.audit("stripe-refund-reconciliation","verified-full-refund",input.orderId+":"+hash(input.evidence));
       return true;
     });
