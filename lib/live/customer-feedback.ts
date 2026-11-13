@@ -93,6 +93,16 @@ export function providerFeedback(
           title:"Photo or audio not accepted · Credits released",
           message:`The video provider rejected the submitted photo or audio before generating a video. ${number(charge.credits)} reserved Credits have been released and are available again. Update your photo or audio, then review a NEW request when you're ready.`,
           action:editInputsAction(editHref)};
+      if(charge?.status==="legacy"||charge?.status==="estimated"||!charge)
+        return {key:"provider-prefilter-no-held-ledger",kind:"warning",
+          title:"Photo or audio was not accepted",
+          message:"The provider rejected the input before generation. There is no confirmed prepaid Credit reservation to release for this older or unpriced task. Review the original project before approving any new charge.",
+          action:editInputsAction(editHref)};
+      if(charge.status==="settled")
+        return {key:"provider-prefilter-settled-review",kind:"error",
+          title:"Photo or audio was not accepted · Charge needs reconciliation",
+          message:"This task has a recorded final charge. A provider rejection does not automatically reverse an already settled ledger entry. Your original payment record remains protected while the outcome is checked.",
+          action:editInputsAction(editHref)};
       return {key:"provider-prefilter-awaiting-ledger",kind:"warning",
         title:"Photo or audio not accepted · Credit release pending",
         message:"The provider rejected the input before generating a video. We cannot yet confirm that the Credit reservation was released to your available balance. You can edit a new draft now, but do not start another paid generation until the original reservation is resolved.",
