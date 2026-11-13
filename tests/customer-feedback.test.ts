@@ -1,18 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {checkoutFeedback,generationFeedback,providerFeedback,requestErrorFeedback} from "../lib/live/customer-feedback.ts";
+import {checkoutFeedback,editInputsAction,generationFeedback,providerFeedback,requestErrorFeedback} from "../lib/live/customer-feedback.ts";
 
 test("provider prefilter refund is displayed only after durable ledger release",()=>{
   const held={credits:150,status:"review" as const};
   const released={credits:150,status:"released" as const};
   const stage="BytePlus rejected the content before generation. [CONTENT_PREFILTER_REJECTED]";
   const pending=providerFeedback("failed",stage,held);
-  assert.match(pending?.message??"",/cannot yet confirm the credit release/i);
+  assert.match(pending?.message??"",/cannot yet confirm that the Credit reservation was released/i);
   assert.doesNotMatch(pending?.message??"",/have been released/i);
   const done=providerFeedback("failed",stage,released);
-  assert.match(done?.title??"",/rejected by the provider/i);
+  assert.match(done?.title??"",/not accepted.*Credits released/i);
   assert.match(done?.message??"",/150 reserved Credits have been released/i);
-  assert.equal(done?.action?.href,"/credits#usage");
+  assert.equal(done?.action?.label,"Edit photo or audio");
+  assert.equal(done?.action?.href,"/studio");
+  assert.notEqual(done?.action?.href,"/credits#usage");
 });
 
 test("unknown provider outcome retains credits and never suggests a paid retry",()=>{
@@ -51,4 +53,68 @@ test("verified completion can fade, unsettled financial states cannot",()=>{
   assert.equal(generationFeedback("ready")?.dismissAfterMs,9000);
   for(const p of ["failed","review","verifying-payment","credits-needed"] as const)
     assert.equal(generationFeedback(p)?.dismissAfterMs,undefined);
+});
+
+test("verified 50510 release offers owner-checked draft editing, not a wallet detour",()=>{
+  const editHref="/studio?copy=live_550e8400-e29b-41d4-a716-446655440000";
+  const done=providerFeedback("failed","[CONTENT_PREFILTER_REJECTED]",
+    {credits:150,status:"released"},undefined,Date.now(),editHref);
+  assert.equal(done?.action?.href,editHref);
+  assert.equal(done?.action?.label,"Edit photo or audio");
+  assert.match(done?.message??"",/available again/i);
+  assert.doesNotMatch(done?.message??"",/pay again|contact support|check credits/i);
+  assert.equal(editInputsAction("https://attacker.example/steal").href,"/studio");
+  assert.equal(editInputsAction("/studio?copy=live_invalid&id=1").href,"/studio");
+  assert.equal(editInputsAction("/credits#usage").href,"/studio");
+});
+
+test("provider prefilter with UNRELEASED wallet retains honest billing state and still supports editing",()=>{
+  for(const status of ["reserved","review","settled","legacy"] as const){
+    const notice=providerFeedback("failed","Task rejected [CONTENT_PREFILTER_REJECTED]",{credits:150,status});
+    assert.match(notice?.title??"",/Credit release pending/i);
+    assert.match(notice?.message??"",/cannot yet confirm/i);
+    assert.equal(notice?.action?.label,"Edit photo or audio");
+    assert.doesNotMatch(notice?.message??"",/Credits have been released/i);
+    assert.equal(notice?.dismissAfterMs,undefined);
+  }
+});
+
+test("other provider problems never pretend photo edits fix delivery or refund reserved credits",()=>{
+  const charge={credits:150,status:"review" as const};
+  for(const code of ["PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"]){
+    const notice=providerFeedback("failed",`[${code}]`,charge);
+    assert.match(notice?.title??"",/provider stopped/i);
+    assert.equal(notice?.action,undefined);
+    assert.doesNotMatch(notice?.message??"",/released|refunded/i);
+  }
+  for(const code of ["MISSING_OUTPUT","OUTPUT_MP4_VALIDATION_FAILED","TEMPO_RESTORATION_FAILED"]){
+    const notice=providerFeedback("failed",`[${code}]`,charge);
+    assert.match(notice?.title??"",/output could not be verified/i);
+    assert.equal(notice?.action,undefined);
+    assert.doesNotMatch(notice?.message??"",/replace photo|upload again/i);
+  }
+});
+
+test("released vs held vs unknown outcomes use distinct, actionable messages",()=>{
+  const release=generationFeedback("failed",{credits:125,status:"released"});
+  assert.equal(release?.action?.label,"Edit photo or audio");
+  assert.match(release?.message??"",/125 reserved Credits have been released/);
+  const held=generationFeedback("failed",{credits:125,status:"review"});
+  assert.match(held?.message??"",/remain reserved/i);
+  assert.equal(held?.action,undefined);
+  const uncertain=providerFeedback("uncertain","[SUBMISSION_OUTCOME_UNKNOWN]",
+    {credits:125,status:"reserved"});
+  assert.match(uncertain?.message??"",/reserved/i);
+  assert.equal(uncertain?.action,undefined);
+  assert.equal(uncertain?.dismissAfterMs,undefined);
+});
+
+test("only insufficient balance leads to buying Credits; payment and upload errors do not",()=>{
+  assert.equal(generationFeedback("credits-needed")?.action?.label,"Buy Credits");
+  for(const notice of [
+    checkoutFeedback("cancelled"),checkoutFeedback("success"),
+    requestErrorFeedback("Upload timed out","upload"),
+    requestErrorFeedback("Payment failed, card declined","payment"),
+    providerFeedback("processing","Provider busy",{credits:125,status:"reserved"}),
+  ])assert.notEqual(notice?.action?.label,"Buy Credits");
 });
