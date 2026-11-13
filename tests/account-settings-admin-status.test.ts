@@ -103,3 +103,56 @@ test("Account Settings admin navigation is gated on verified server access and s
  assert.match(support,/new URLSearchParams\(window.location.search\).get\("id"\)/);
  assert.doesNotMatch(widget,/refund-credits|refund-stripe|stripeRequest\(/);
 });
+
+
+test("Account Settings anchor sequence follows visible sections, with smooth scroll and reduced-motion fallback",()=>{
+ const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
+ const page=read("app/(site)/account/settings/page.tsx");
+ const css=read("app/(site)/account/settings/account-settings.css");
+ const nav=page.slice(page.indexOf('<nav aria-label="Settings sections"'),page.indexOf("</nav>"));
+ const content=page.slice(page.indexOf("{data&&<>"));
+ const anchors=["profile","security","billing","invoices","privacy","admin-console"];
+ const navPositions=anchors.map(id=>nav.indexOf('href="#'+id+'"'));
+ const contentPositions=anchors.map(id=>id==="admin-console"?
+   content.indexOf('canShowAdmin&&<AdminAccountDashboard'):content.indexOf('id="'+id+'"'));
+ assert.ok(navPositions.every(n=>n>=0),"Every section has a visible matching anchor");
+ assert.ok(contentPositions.every(n=>n>=0),"Every anchor points to a rendered section");
+ for(let i=1;i<anchors.length;i++){
+   assert.ok(navPositions[i]>navPositions[i-1],"Sidebar navigation must follow section order: "+anchors[i]);
+   assert.ok(contentPositions[i]>contentPositions[i-1],"Sections must follow sidebar order: "+anchors[i]);
+ }
+ assert.match(css,/html:has\(\.sm-settings-page\)\{scroll-padding-top:82px\}/);
+ assert.match(css,/\.sm-settings-page \.sm-settings-section\[id\]\{scroll-margin-top:16px\}/);
+ assert.match(css,/@media \(prefers-reduced-motion: no-preference\)\{\s*html:has\(\.sm-settings-page\)\{scroll-behavior:smooth\}/);
+ assert.match(css,/@media \(prefers-reduced-motion: reduce\)\{\s*html:has\(\.sm-settings-page\)\{scroll-behavior:auto\}/);
+ assert.doesNotMatch(css,/^html\s*\{\s*scroll-behavior:smooth/m,"Do not change unrelated pages");
+});
+
+
+test("Both Super Admin consoles offer a visible stable back link to Account Settings",()=>{
+ const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
+ const supportPage=read("app/(site)/support-admin/page.tsx");
+ const promoPage=read("app/(site)/promo-admin/page.tsx");
+ const back=read("components/admin-console-back-link.tsx");
+ const css=read("components/admin-console-back-link.module.css");
+ assert.match(supportPage,/import \{AdminConsoleBackLink\} from "@\/components\/admin-console-back-link"/);
+ assert.match(supportPage,/<AdminConsoleBackLink\/>/);
+ assert.match(promoPage,/import \{ AdminConsoleBackLink \} from "@\/components\/admin-console-back-link"/);
+ assert.match(promoPage,/<AdminConsoleBackLink\/>/);
+ assert.match(back,/href="\/account\/settings#admin-console"/);
+ assert.match(back,/Back to Account Settings/);
+ assert.match(back,/aria-label="Return to account settings"/);
+ assert.doesNotMatch(back,/history\.back\(|router\.back\(/,"Direct-link visits still need a return route");
+ assert.match(css,/@media\(max-width:720px\)/);
+ assert.match(css,/min-height:44px/,"Mobile tap target must be comfortable");
+ assert.match(css, /:focus-visible/,"Keyboard users need visible focus");
+});
+test("Async Account Settings hydration honors direct return links and reduced-motion setting",()=>{
+ const page=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
+ assert.match(page,/if\(!data\)return/,"Wait until the target sections are mounted");
+ assert.match(page,/target==="admin-console"&&!canShowAdmin/,"Do not scroll to unauthorized admin target");
+ assert.match(page,/document\.getElementById\(target\)/);
+ assert.match(page,/prefers-reduced-motion: reduce/);
+ assert.match(page,/scrollIntoView\(/);
+ assert.match(page,/cancelAnimationFrame\(frame\)/);
+});
