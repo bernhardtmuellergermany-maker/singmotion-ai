@@ -572,48 +572,53 @@ export class StudioWorkflow {
       ),
     };
   }
+  trashedAt(id:string,owner:string):number|null{
+    const row=this.store.db.prepare("SELECT deleted_at FROM live_studio_projects WHERE attempt_id=? AND owner=?").get(id,owner) as {deleted_at:number|null}|undefined;
+    return row?.deleted_at??null;
+  }
+  listTrash(owner:string,now=Date.now()){
+    const rows=this.store.db.prepare("SELECT attempt_id,artist_name,project_name,deleted_at FROM live_studio_projects WHERE owner=? AND deleted_at IS NOT NULL AND deleted_at>? ORDER BY deleted_at DESC LIMIT 60")
+      .all(owner,now-PROJECT_TRASH_MS) as Array<{attempt_id:string;artist_name:string;project_name:string;deleted_at:number}>;
+    return rows.map(r=>({id:r.attempt_id,name:r.project_name||r.artist_name||"Music video",
+      deletedAt:r.deleted_at,purgeAfter:trashDeadline(r.deleted_at),kind:"admin" as const,
+      restorable:this.store.get(r.attempt_id).state!=="prepared"}));
+  }
+  restoreProject(id:string,owner:string,confirmation:unknown,now=Date.now()){
+    if(confirmation!==`RESTORE ${id}`)throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm restoring the exact project.",400);
+    const attempt=this.store.get(id);
+    if(attempt.media.owner!==owner)throw new StudioLiveError("PROJECT_NOT_FOUND","Private project not found.",404);
+    if(attempt.state==="prepared")
+      throw new StudioLiveError("PREPARATION_CANCELLED","Canceled prepared videos cannot be resubmitted. Reopen the saved draft and authorize a new video.",409);
+    const result=this.store.db.prepare("UPDATE live_studio_projects SET deleted_at=NULL WHERE attempt_id=? AND owner=? AND deleted_at IS NOT NULL AND deleted_at>?")
+      .run(id,owner,now-PROJECT_TRASH_MS);
+    if(Number(result.changes)!==1)throw new StudioLiveError("RESTORE_EXPIRED","Project recovery period expired.",404);
+    this.store.db.prepare("DELETE FROM live_studio_actions WHERE attempt_id=? AND action='hide'").run(id);
+    return {restored:true};
+  }
   async deleteProject(id: string, owner: string, confirmation: unknown) {
     this.row(id, owner);
     if (confirmation !== `DELETE ${id}`)
-      throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm permanent deletion of this project.",400);
+      throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm moving this project to Recently deleted.",400);
     const attempt = this.store.get(id);
     if (!["prepared","completed","failed"].includes(attempt.state))
-      throw new StudioLiveError("ACTIVE_TASK","Active or uncertain provider jobs cannot be deleted.",409);
-    const file = attempt.outputPath;
-    // An unsubmitted prepared project has no provider task. Deleting it may
-    // safely release its hold, while completed/failed accounting is retained.
+      throw new StudioLiveError("ACTIVE_TASK","Active or uncertain provider jobs cannot be deleted until the provider status is resolved.",409);
     if(this.requirePrepaidCredits&&attempt.state==="prepared"){
       const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
       try{new CreditWallet(commerce.db).reconcileVideo(id,"nonbillable");}
       finally{commerce.close();}
     }
-    // Keep billing/authorization ledger and immutable provider task evidence
-    // for reconciliation. Remove the owned project from every gallery/list.
-    this.store.db.prepare("DELETE FROM live_studio_projects WHERE attempt_id=? AND owner=?").run(id,owner);
-    if (file) {
-      const outputDir = await realpath(path.join(this.root,"live-output"));
-      const candidate = await realpath(file).catch(() => null);
-      if (candidate?.startsWith(outputDir + path.sep))
-        await unlink(candidate).catch((error: NodeJS.ErrnoException) => {
-          if (error.code !== "ENOENT") throw error;
-        });
-    }
-    return { deleted: true };
+    const now=Date.now();
+    const result=this.store.db.prepare("UPDATE live_studio_projects SET deleted_at=? WHERE attempt_id=? AND owner=? AND deleted_at IS NULL").run(now,id,owner);
+    if(Number(result.changes)!==1)throw new StudioLiveError("PROJECT_NOT_FOUND","Project already deleted.",404);
+    return {deleted:true,deletedAt:now,purgeAfter:trashDeadline(now)};
   }
   hide(id: string, owner: string, actor: string, confirmation: unknown) {
     this.row(id, owner);
     if (confirmation !== `HIDE ${id}`)
-      throw new StudioLiveError(
-        "CONFIRMATION_REQUIRED",
-        "Confirm hiding this exact project.",
-      );
-    if (!this.view(id, owner).hidden)
-      this.store.db
-        .prepare(
-          "INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'hide',?,'{}',?)",
-        )
-        .run(id, actor, Date.now());
-    return this.view(id, owner);
+      throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm moving this project to Recently deleted.");
+    const now=Date.now();
+    this.store.db.prepare("UPDATE live_studio_projects SET deleted_at=COALESCE(deleted_at,?) WHERE attempt_id=? AND owner=?").run(now,id,owner);
+    return {deleted:true,deletedAt:now,purgeAfter:trashDeadline(now),pendingProviderReconciliation:true};
   }
   reconcile(id: string, owner: string, actor: string, evidence: unknown) {
     this.row(id, owner);
