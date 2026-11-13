@@ -6,6 +6,7 @@ import {readFileSync} from "node:fs";
 import path from "node:path";
 import {configuredStripePaymentMode} from "./stripe-payment-mode.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
+import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 import {customerWorkerEnabled,validateCustomerWorkerPolicy,boundPrivatePilotPolicy} from "./customer-paid-worker.ts";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {loadBytePlusCredentials} from "../live/signing.ts";
@@ -23,7 +24,8 @@ export interface CustomerLaunchReadiness{
 export function customerLaunchReadiness(env:Record<string,string|undefined>=process.env):CustomerLaunchReadiness{
  const accountsEnabled=env.CUSTOMER_ACCOUNTS_ENABLED==="true";
  const mode=configuredStripePaymentMode(env);
- const paymentsConnected=mode==="test" || (mode==="live"&&productionCustomerReleaseApproved(env));
+ const liveApproved=productionCustomerReleaseApproved(env)||protectedProductionLivePilotApproved(env);
+ const paymentsConnected=mode==="test" || (mode==="live"&&liveApproved);
  const customerGenerationEnabled=customerWorkerEnabled(env)&&
   env.CUSTOMER_GENERATION_ENABLED==="true";
  let fulfillmentConnected=false,deliveryConnected=false;
@@ -31,7 +33,7 @@ export function customerLaunchReadiness(env:Record<string,string|undefined>=proc
   try{
    // Fail the whole checkout when any required provider or private R2 secret
    // is missing. This check never sends a charge or provider request.
-   if(mode==="live"&&!productionCustomerReleaseApproved(env))
+   if(mode==="live"&&!liveApproved)
     throw Error("Production customer release not approved");
    const byteplus=loadBytePlusCredentials(env);
    // Avoid treating placeholder strings like "false" or "test" as a configured
