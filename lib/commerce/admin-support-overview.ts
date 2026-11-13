@@ -77,6 +77,24 @@ export function adminSupportOverview(
     messages.push({id:"event:"+e.event_key,reference:e.reference,kind:item.kind,
       text:item.text,at:Number(e.created_at)});
   }
+  // Surface pending problems immediately even before the email worker has
+  // created a support alert. Never imply the original provider job is retried.
+  const paid=db.prepare(`SELECT o.id,o.created FROM customer_orders o
+    JOIN customer_fulfillment_queue q ON q.order_id=o.id
+    WHERE o.status='paid' AND q.state='failed'
+      AND NOT EXISTS(SELECT 1 FROM customer_video_deliveries d WHERE d.order_id=o.id)
+    ORDER BY o.created DESC LIMIT 10`).all() as Array<{id:string;created:number}>;
+  for(const row of paid){
+    if(messages.some(m=>m.reference===row.id&&m.text.startsWith("Paid video not delivered")))continue;
+    messages.push({id:"undelivered:"+row.id,reference:row.id,kind:"issue",
+      text:"Paid video not delivered — requires review",at:Number(row.created)});
+  }
+  const reviews=db.prepare(`SELECT project_id,updated FROM credit_video_reservations
+    WHERE state='review' ORDER BY updated DESC LIMIT 10`).all() as
+    Array<{project_id:string;updated:number}>;
+  for(const row of reviews)messages.push({id:"credit-review:"+row.project_id,
+    reference:row.project_id,kind:"credit",text:"Video Credits awaiting provider review",
+    at:Number(row.updated)});
   const intents=db.prepare(`SELECT order_id,status,updated_at FROM support_stripe_refund_intents
      ORDER BY updated_at DESC LIMIT 12`).all() as
       Array<{order_id:string;status:string;updated_at:number}>;
