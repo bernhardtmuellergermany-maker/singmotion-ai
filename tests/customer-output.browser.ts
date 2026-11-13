@@ -241,7 +241,8 @@ try{
   disputeId:"dp_browser_offline",evidence:"verified offline browser dispute notification"});
  console.log("BROWSER_CHECKPOINT: download complete; validating dispute revocation");
  await page.reload();
- await output.getByRole("heading",{name:"Your video is under review"}).waitFor({timeout:15000});
+ await output.getByRole("heading",{name:"Payment under review"}).waitFor({timeout:15000});
+ await output.getByText("Payment under dispute",{exact:true}).waitFor({timeout:15000});
  assert.equal(await output.locator("video").count(),0);
  assert.equal(await output.getByRole("link",{name:/Download video/}).count(),0);
  assert.equal((await context.request.get(origin+`/api/customer-video?orderId=${id}`)).status(),404);
