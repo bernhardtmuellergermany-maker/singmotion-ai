@@ -13,6 +13,7 @@ import {SupportCases} from "../commerce/support-cases.ts";
 import {quoteVideoCredits} from "../commerce/video-credit-quote.ts";
 import {PlanLedger} from "../commerce/plans.ts";
 import { mkdir, realpath, stat, unlink } from "node:fs/promises";
+import {ensureLiveTrash,PROJECT_TRASH_MS,trashDeadline} from "../project-trash.ts";
 import { LiveTestStore, confirmationPhrase, type Attempt } from "./store.ts";
 import { prepareStudioDraft } from "./media.ts";
 import { parseStudioDraft, type StudioDraftExport } from "../studio-draft.ts";
@@ -154,6 +155,7 @@ export class StudioWorkflow {
     );
     const projectColumns = store.db.prepare("PRAGMA table_info(live_studio_projects)").all() as {name:string}[];
     if (!projectColumns.some(column => column.name === "project_name")) store.db.exec("ALTER TABLE live_studio_projects ADD COLUMN project_name TEXT NOT NULL DEFAULT ''");
+    ensureLiveTrash(store.db);
     store.db.exec(`CREATE TABLE IF NOT EXISTS live_studio_actions (
       id INTEGER PRIMARY KEY, attempt_id TEXT NOT NULL, action TEXT NOT NULL,
       actor TEXT NOT NULL, evidence TEXT NOT NULL, created_at INTEGER NOT NULL
@@ -321,7 +323,7 @@ export class StudioWorkflow {
     return (
       this.store.db
         .prepare(
-          "SELECT attempt_id FROM live_studio_projects WHERE owner=? AND attempt_id NOT IN (SELECT attempt_id FROM live_studio_actions WHERE action='hide') ORDER BY rowid DESC",
+          "SELECT attempt_id FROM live_studio_projects WHERE owner=? AND deleted_at IS NULL AND attempt_id NOT IN (SELECT attempt_id FROM live_studio_actions WHERE action='hide') ORDER BY rowid DESC",
         )
         .all(owner) as { attempt_id: string }[]
     ).map((r) => this.view(r.attempt_id, owner));
