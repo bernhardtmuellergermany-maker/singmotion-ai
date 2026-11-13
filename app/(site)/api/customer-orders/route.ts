@@ -88,7 +88,7 @@ export async function PATCH(req:NextRequest){
   const id=body.orderId,name=body.name;
   if(typeof id!=="string"||!/^[a-f0-9-]{36}$/.test(id)||
      typeof name!=="string"||name!==name.trim()||name.length<1||
-     name.length>80||/[\\x00-\\x1f\\x7f]/.test(name))
+     name.length>80||/[\x00-\x1f\x7f]/.test(name))
     return respond({error:"Invalid order reference or project name."},400);
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
   try{
