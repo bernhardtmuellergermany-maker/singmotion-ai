@@ -75,7 +75,9 @@ export async function POST(req:NextRequest){
     // Use Dashboard-configured dynamic payment methods (cards enabled in sandbox).
     "line_items[0][price_data][currency]":"eur",
     "line_items[0][price_data][unit_amount]":String(purchase.cents),
-    "line_items[0][price_data][product_data][name]":testMode?"SingMotion AI Test-Credits":"SingMotion AI Prepaid Credits",
+    // Preserve separate sandbox catalog; only live charges use the user-created Stripe product.
+    ...(testMode?{"line_items[0][price_data][product_data][name]":"SingMotion AI Test-Credits"}:
+      {"line_items[0][price_data][product]":"prod_Vchw1yEak3Xa6k"}),
     "line_items[0][quantity]":"1",
     customer_email:identity.email,
     "metadata[creditTopupId]":purchase.id,
@@ -96,7 +98,7 @@ export async function POST(req:NextRequest){
     form.set("tax_id_collection[enabled]","true");
     form.set("line_items[0][price_data][tax_behavior]","inclusive");
     if(decision.mode==="stripe-managed-payments"){
-     form.set("line_items[0][price_data][product_data][tax_code]",decision.taxCode!);
+     // Tax code belongs to the existing live Stripe Product in the catalog.
      // Stripe/Link, not this merchant, collects/remits supported-country tax.
      // Do not mix own-merchant automatic_tax or German Kleinunternehmer footer.
     }
@@ -104,7 +106,7 @@ export async function POST(req:NextRequest){
     // Stripe Tax only when a reviewed issue-time taxable classification exists.
     if(decision.mode==="stripe-tax"){
      form.set("automatic_tax[enabled]","true");
-     form.set("line_items[0][price_data][product_data][tax_code]",decision.taxCode!);
+     // Uses the live product catalog tax code; no inline product_data permitted.
     }else if(decision.mode!=="stripe-managed-payments"){
      form.set("automatic_tax[enabled]","false");
      if(decision.mode==="de-small-business")
