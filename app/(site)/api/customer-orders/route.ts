@@ -16,6 +16,7 @@ import {quotePlanSeconds} from "@/lib/commerce/plans";
 import {reviewedVideoInputDigest} from "@/lib/commerce/reviewed-video";
 import {reviewedCustomerOrderMaxSeconds} from "@/lib/commerce/reviewed-customer-duration";
 import {createHash} from "node:crypto";
+import {legacyCustomerPurchaseRetired,LEGACY_PURCHASE_RETIRED_RESPONSE} from "@/lib/commerce/credits-only-commerce";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,9 +47,9 @@ export async function GET(req: NextRequest) {
   }
   const readiness=customerLaunchReadiness();
   return respond({
-    available: process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
+    available: !legacyCustomerPurchaseRetired() && process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" &&
       process.env.CUSTOMER_ORDER_PREPARATION_ENABLED === "true",
-    checkoutEnabled: readiness.readyForPaidOrders,
+    checkoutEnabled: !legacyCustomerPurchaseRetired() && readiness.readyForPaidOrders,
     // Public, non-secret categories only. An estimate is never evidence of
     // a working Stripe/BytePlus delivery system.
     checkoutUnavailableReason: readiness.readyForPaidOrders ? null :
@@ -58,6 +59,7 @@ export async function GET(req: NextRequest) {
 
 /** Customer-only preparation. No Checkout, BytePlus request or paid worker start. */
 export async function POST(req: NextRequest) {
+  if(legacyCustomerPurchaseRetired())return respond(LEGACY_PURCHASE_RETIRED_RESPONSE,410);
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
   if (process.env.CUSTOMER_ACCOUNTS_ENABLED !== "true" ||

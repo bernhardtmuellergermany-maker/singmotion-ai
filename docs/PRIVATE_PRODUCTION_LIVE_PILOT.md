@@ -46,3 +46,13 @@ Use `npm run stripe:video-live-preflight -- --production` **inside the actual Pr
 The report intentionally separates **Stripe video configuration** from **private Production owner approvals** and **real customer fulfillment**. The active Live endpoint is a structural check; actual authenticated signed-webhook delivery to the app still needs independent evidence. Likewise the tax-registration count is observational: **zero registrations is neither proof of compliance nor proof of a violation**. Obtain owner/qualified tax review for applicable taxable jurisdictions and demonstrate correct invoice/VAT outputs before any real charge. Hobby remains disabled until reviewed separately.
 
 The command exits nonzero until all three independent readiness dimensions pass. Do not set the human review variables on the strength of API availability alone.
+
+## Credits-only commerce contract (13 November 2026)
+
+**Current product contract:** customers buy Credits through `/api/credit-checkout`, receive signed and amount-verified webhook settlement in `CreditWallet`, and later fund video generation from their own credit balance. There is no new Hobby subscription and no separate card payment for a single video. The historical order/Stripe tables and signed refund/dispute processing remain intact for existing customers.
+
+New calls to `/api/hobby-checkout`, `/api/stripe-checkout` and `POST /api/customer-orders` return `410 CREDITS_ONLY`; historical customer status GET and cancellation, old MP4 ownership/delivery, subscription management and signed reversals remain supported. Do not switch these retired purchase paths back on by setting Railway flags.
+
+The `/api/credit-balance` spendable balance now consists **only** of `CreditWallet.total(subject) - CreditWallet.reserved(subject)`. Historical euro-cent `customer_credits`, Hobby allowances and legacy order status are not fungible with prepaid Credits. Historical paid videos still display separately in the account's historical orders.
+
+**Critical outstanding requirement:** customer Credit-funded video generation remains disabled; only the independently authorised operator Studio has a reviewed credit reservation/settlement path. Production LIVE top-ups must remain unavailable until a real authenticated credit-to-BytePlus-to-private-MP4-to-credit-settlement customer end-to-end is verified, signed Stripe webhook and tax handling are independently approved, and provider financial caps are in place. Green CI is not permission to take real money. Staging supports signed Stripe TEST Credit purchases subject to its explicit top-up switch. Never convert previous euro payments into new credit wallet deposits or create test credits without verified Stripe settlement.
