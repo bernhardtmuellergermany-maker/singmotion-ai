@@ -5,6 +5,7 @@
  * verified customer order, provider and delivery runtime is connected.
  */
 import {assessProductionSandboxPilot} from "./customer-sandbox-pilot-policy.ts";
+import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 export type StripePaymentMode="test"|"live";
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -19,7 +20,7 @@ export function configuredStripePaymentMode(env:Record<string,string|undefined>)
    return "test";
  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true"&&
-    env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"&&
+    (env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"||protectedProductionLivePilotApproved(env))&&
     env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true"&&
     /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(key))
    return "live";
