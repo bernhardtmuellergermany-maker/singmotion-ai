@@ -5,7 +5,7 @@ import { customerLaunchReadiness } from "@/lib/commerce/readiness";
 import {verifiedStripeCheckoutSession} from "@/lib/commerce/stripe-webhook";
 import {configuredStripePaymentMode,customerStripeCredential} from "@/lib/commerce/stripe-payment-mode";
 import {sanitizedStripeCheckoutError} from "@/lib/commerce/stripe-error-diagnostics";
-import {stripeVideoCheckoutLineItem,stripeVideoCheckoutIdempotencyKey} from "@/lib/commerce/stripe-video-checkout-line-item";
+import {stripeVideoCheckoutLineItem,stripeVideoCheckoutIdempotencyKey,stripeVideoCheckoutLiveTaxSettings} from "@/lib/commerce/stripe-video-checkout-line-item";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import { dataDir, limit } from "@/lib/db";
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
     const form = new URLSearchParams({
       mode: "payment",
       ...stripeVideoCheckoutLineItem(cents),
+      ...stripeVideoCheckoutLiveTaxSettings(mode),
       "metadata[orderId]": String(order.id),
       "payment_intent_data[metadata][orderId]": String(order.id),
       customer_email: String(order.email),

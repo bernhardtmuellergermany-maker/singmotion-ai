@@ -26,6 +26,7 @@ test("Super Admin support overview is read-only with meaningful empty status",()
  const db=fixture();try{
   const state=adminSupportOverview(db,stageEnv,1234567890);
   assert.equal(state.environment,"Staging");
+  assert.equal(state.privateLive,undefined,"Staging must never offer a LIVE checkout status");
   assert.equal(state.checkedAt,1234567890);
   assert.deepEqual(state.counts,{
    supportAlerts:0,paidUndelivered:0,creditReviews:0,stripeRefundsPending:0,emailsQueued:0});
@@ -57,6 +58,11 @@ test("status messages distinguish invalid MP4, failed paid delivery, pending Cre
    .run("resolved:"+invalidId,invalidId,"resolved","cms-staff-1","Private case note",950);
   const state=adminSupportOverview(db,liveEnv,1200);
   assert.equal(state.environment,"Production");
+  assert.equal(state.privateLive?.admissionReady,false);
+  assert.equal(state.privateLive?.checkoutReady,false);
+  assert.ok(state.privateLive?.blockers.includes("PRIVATE_LIVE_PILOT_DISABLED"));
+  assert.ok(state.privateLive?.blockers.some(b=>b.startsWith("PROOF_")));
+  assert.ok(state.privateLive?.blockers.some(b=>b.startsWith("RUNTIME_")));
   assert.deepEqual(state.counts,{
    supportAlerts:1,paidUndelivered:1,creditReviews:1,stripeRefundsPending:1,emailsQueued:2});
   assert.ok(state.messages.some(m=>m.text.includes("Invalid MP4")&&m.reference===invalidId&&m.emailState==="queued"));
@@ -97,6 +103,11 @@ test("Account Settings admin navigation is gated on verified server access and s
  assert.match(widget,/href="\/support-admin"/);
  assert.match(widget,/href="\/promo-admin"/);
  assert.match(widget,/href="\/admin"/);
+ assert.match(widget,/Private Production LIVE readiness/);
+ assert.match(widget,/Real-money checkout still blocked/);
+ assert.match(widget,/live\.blockers/);
+ assert.doesNotMatch(widget,/PRODUCTION_PRIVATE_LIVE_PILOT_ENABLED.*=.*true/);
+ assert.match(api,/adminTestOwner\(user,"GET",req.headers,process.env\)/);
  assert.match(widget,/https:\/\/www.singmotion.ai\/support-admin/);
  assert.match(widget,/https:\/\/singmotion-ai-staging.up.railway.app\/support-admin/);
  assert.match(widget,/\/support-admin\?id=/);

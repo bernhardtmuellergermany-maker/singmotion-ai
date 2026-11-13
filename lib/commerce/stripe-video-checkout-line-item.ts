@@ -5,6 +5,20 @@
  */
 export const SINGMOTION_VIDEO_TAX_CODE="txcd_10402100" as const;
 
+/** LIVE video pricing is VAT-inclusive. Stripe needs the buyer's billing
+ * location to calculate the actual tax amount. The account-wide default is
+ * not authoritative for this product's immutable EUR quote.
+ * Never change Staging TEST Checkout payloads through this helper.
+ */
+export function stripeVideoCheckoutLiveTaxSettings(mode:"test"|"live"):Record<string,string>{
+ return mode==="live" ? {
+  "billing_address_collection":"required",
+  "automatic_tax[enabled]":"true",
+  "tax_id_collection[enabled]":"true",
+  "invoice_creation[enabled]":"true",
+ } : {};
+}
+
 export function stripeVideoCheckoutLineItem(cents:number):Record<string,string>{
  if(!Number.isSafeInteger(cents)||cents<=0)
   throw Error("Invalid positive Stripe checkout amount");

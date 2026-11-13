@@ -1,4 +1,6 @@
 import type {DatabaseSync} from "node:sqlite";
+import {assessProtectedProductionLivePilot} from "./protected-production-live-pilot.ts";
+import {customerLaunchReadiness} from "./readiness.ts";
 
 /** Redacted, read-only status feed for the private Super Admin Account Settings.
  * This is intentionally NOT Railway deployment health: it reports locally
@@ -12,6 +14,7 @@ export type AdminSupportOverview={
   checkedAt:number;
   counts:{supportAlerts:number;paidUndelivered:number;creditReviews:number;stripeRefundsPending:number;emailsQueued:number};
   messages:AdminSupportMessage[];
+  privateLive?:{admissionReady:boolean;checkoutReady:boolean;blockers:string[]};
 };
 const environmentName=(env:Record<string,string|undefined>):AdminSupportOverview["environment"]=>
   env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"?"Staging":
@@ -104,7 +107,17 @@ export function adminSupportOverview(
     messages.push({id:"refund:"+item.order_id+":"+item.status,reference:item.order_id,
       kind:"refund",text,at:Number(item.updated_at)});
   }
-  return {environment:environmentName(env),checkedAt,counts,
+  // Read-only local checks only. No Stripe network request, provider
+  // submission, secret value or automatic approval is exposed here.
+  const environment=environmentName(env);
+  const privateLive=environment==="Production"?(()=>{
+    const admission=assessProtectedProductionLivePilot(env);
+    const checkout=customerLaunchReadiness(env);
+    return {admissionReady:admission.ready,checkoutReady:checkout.readyForPaidOrders,
+      blockers:[...new Set([...admission.blockers,...checkout.blockers])].slice(0,40)};
+  })():undefined;
+  return {environment,checkedAt,counts,
+    ...(privateLive?{privateLive}:{}),
     messages:messages
       .filter(m=>/^[a-z0-9-]{8,64}$/i.test(m.reference)&&Number.isFinite(m.at))
       .sort((a,b)=>b.at-a.at||a.id.localeCompare(b.id))

@@ -1,9 +1,11 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {createHmac} from "node:crypto";
 import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode} from "../lib/commerce/stripe-payment-mode.ts";
 import {verifyStripePaymentEvent,stripeCheckoutAdapter,verifiedStripeCheckoutSession} from "../lib/commerce/stripe-webhook.ts";
 import {CommerceStore} from "../lib/commerce/store.ts";
+import {stripeVideoCheckoutLineItem,stripeVideoCheckoutLiveTaxSettings} from "../lib/commerce/stripe-video-checkout-line-item.ts";
 
 const stage="dfaeabed-03df-43ed-aa71-50f343a75041";
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -143,4 +145,23 @@ test("P0 checkout kill switch preserves only signed refund/dispute reconciliatio
  }
  const tampered=signed({...liveEvent,type:"refund.created",livemode:false});
  assert.throws(()=>verifyStripePaymentEvent(tampered.raw,tampered.signature,secret,"live"),/mode mismatch/);
+});
+
+test("LIVE pay-per-video Checkout requests inclusive VAT and required customer billing details",()=>{
+ const live=new URLSearchParams({mode:"payment",...stripeVideoCheckoutLineItem(250),
+  ...stripeVideoCheckoutLiveTaxSettings("live")});
+ assert.equal(live.get("billing_address_collection"),"required");
+ assert.equal(live.get("automatic_tax[enabled]"),"true");
+ assert.equal(live.get("tax_id_collection[enabled]"),"true");
+ assert.equal(live.get("invoice_creation[enabled]"),"true");
+ assert.equal(live.get("line_items[0][price_data][tax_behavior]"),"inclusive");
+ assert.equal(live.get("line_items[0][price_data][unit_amount]"),"250");
+ assert.match(String(live.get("line_items[0][price_data][product_data][tax_code]")) ,/^txcd_[0-9]+$/);
+ const sandbox=new URLSearchParams({mode:"payment",...stripeVideoCheckoutLineItem(250),
+  ...stripeVideoCheckoutLiveTaxSettings("test")});
+ assert.equal(sandbox.has("automatic_tax[enabled]"),false);
+ assert.equal(sandbox.has("billing_address_collection"),false);
+ assert.equal(sandbox.has("invoice_creation[enabled]"),false);
+ const route=readFileSync(new URL("../app/(site)/api/stripe-checkout/route.ts",import.meta.url),"utf8");
+ assert.match(route,/\.\.\.stripeVideoCheckoutLiveTaxSettings\(mode\)/);
 });

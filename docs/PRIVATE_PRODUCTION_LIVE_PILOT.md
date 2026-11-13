@@ -30,3 +30,9 @@
 - Shut down *new* purchases/provider dispatch by disabling the private pilot flag or worker/checkout flags; retain signed live reversal reconciliation and existing financial records. Roll back code without removing attached Railway volumes, customer records or private media.
 
 **As delivered in this PR:** code paths + tests only; no Railway secrets, flags, provider submissions, charges, webhook registrations or public DNS changes.
+
+## Checkout and Super Admin readiness display
+
+Live one-time customer video purchases now request `billing_address_collection=required`, `automatic_tax[enabled]=true`, optional business tax-ID collection and invoice creation. Their dynamic EUR price remains explicitly **tax inclusive**; Staging TEST purchases preserve the existing request format. Independently review the tax product classification and invoice/legal terms before accepting any charge. A configured Stripe Tax account alone is not proof of that legal review.
+
+The authenticated Super Admin Account Settings support overview shows a **read-only Production LIVE readiness** list with per-proof and per-runtime blockers. It performs no Stripe mutation, provider request or launch action. On Staging it does not offer LIVE readiness. It is informational: all green local checks are necessary but not sufficient to authorize money without the signed real-world acceptance evidence above.

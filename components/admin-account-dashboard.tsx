@@ -23,6 +23,12 @@ export function AdminAccountDashboard({overview,busy,error,refresh}:Props){
   window.location.assign("/support-admin?id="+encodeURIComponent(normalized.toLowerCase()));
  }
  const counts=overview?.counts;
+ const live=overview?.privateLive;
+ const blockerLabel=(blocker:string)=>blocker.startsWith("PROOF_")?
+  "Review required: "+blocker.slice(6).replaceAll("_"," ").toLowerCase():
+  blocker.startsWith("RUNTIME_")?
+  "Service not enabled: "+blocker.slice(8).replaceAll("_"," ").toLowerCase():
+  blocker.replaceAll("_"," ").toLowerCase();
  return <section id="admin-console" className="sm-settings-section sm-settings-admin-dashboard" aria-label="Super Admin consoles and support status">
   <div className="sm-admin-dash-heading">
    <div>
@@ -59,6 +65,17 @@ export function AdminAccountDashboard({overview,busy,error,refresh}:Props){
     </div>
     <small>Opens the detailed case in the Support Console. Nothing is refunded or submitted by this search.</small>
   </form>
+  {live&&<section className="sm-admin-dash-live" aria-label="Protected Production live payment readiness">
+   <div className="sm-admin-dash-live-head">
+    <h3><ShieldCheck size={19} aria-hidden="true"/> Private Production LIVE readiness</h3>
+    <strong>{live.admissionReady&&live.checkoutReady?"Checkout prerequisites ready":"Real-money checkout still blocked"}</strong>
+   </div>
+   <p>For the password-protected Production environment only. This status never starts a payment or approves a release.</p>
+   {live.blockers.length>0?<ul>
+    {live.blockers.slice(0,8).map(blocker=><li key={blocker}>{blockerLabel(blocker)}</li>)}
+    {live.blockers.length>8&&<li>And {live.blockers.length-8} more requirements to verify.</li>}
+   </ul>:<p>All local admission and fulfillment checks passed. Confirm independent external evidence before taking real money.</p>}
+  </section>}
   <div className="sm-admin-dash-status-heading">
    <div><h3><Activity size={19} aria-hidden="true"/> Support status messages</h3>
     <p className="sm-settings-muted">{overview?
