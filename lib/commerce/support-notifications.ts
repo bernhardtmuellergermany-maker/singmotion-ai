@@ -20,7 +20,7 @@ export function queueFailedOutputSupportEmails(
    const body=["SingMotion AI – Technical support case","",
     "Reference ID: "+id,"Issue: "+reason,
     "Inspect the exact project/order in the private Super Admin console:",
-    "https://www.singmotion.ai/support-admin",
+    "Open /support-admin in the same SingMotion environment.",
     "Do not automatically refund a possibly billable provider result or resubmit the same task.",
    ].join("\n");
    const changed=commerce.prepare(`INSERT OR IGNORE INTO support_case_mail_outbox
