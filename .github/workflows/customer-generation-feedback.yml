@@ -17,6 +17,11 @@ on:
       - 'components/credit-amount-picker.tsx'
       - 'lib/live/customer-feedback.ts'
       - 'tests/customer-feedback.test.ts'
+      - 'tests/customer-output.browser.ts'
+      - 'tests/byteplus.test.ts'
+      - 'lib/live/byteplus.ts'
+      - 'components/customer-paid-output.tsx'
+      - 'components/super-admin-generation.tsx'
       - 'package.json'
       - '.github/workflows/customer-generation-feedback.yml'
   workflow_dispatch:
@@ -37,8 +42,10 @@ jobs:
         with:
           node-version: '24.22.1'
           cache: npm
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg chromium
       - run: npm ci
       - run: npm run typecheck
       - run: node --experimental-strip-types --test tests/customer-feedback.test.ts tests/feedback-preview.test.ts
       - run: npm run build
+      - name: Real Chromium customer payment and Output regression
+        run: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:customer:browser
