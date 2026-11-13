@@ -156,3 +156,23 @@ test("Async Account Settings hydration honors direct return links and reduced-mo
  assert.match(page,/scrollIntoView\(/);
  assert.match(page,/cancelAnimationFrame\(frame\)/);
 });
+
+
+test("Customer Output page preview is linked only from the gated Super Admin consoles",()=>{
+ const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
+ const page=read("app/(site)/account/settings/page.tsx");
+ const widget=read("components/admin-account-dashboard.tsx");
+ const preview=read("app/(site)/studio/output-preview/page.tsx");
+ const css=read("app/(site)/account/settings/account-settings.css");
+ assert.match(page,/canShowAdmin=!adminDenied&&\\(adminOverview!==null\\|\\|data\\?\\.staffPreview===true\\)/);
+ assert.match(page,/\\{canShowAdmin&&<AdminAccountDashboard/);
+ assert.doesNotMatch(page,/studio\\/output-preview/,"No standalone preview link for ordinary customers");
+ assert.match(widget,/Customer Output page preview/);
+ assert.match(widget,/https:\\/\\/singmotion-ai-staging\\.up\\.railway\\.app\\/studio\\/output-preview/);
+ assert.match(widget,/Staging only/);
+ assert.match(widget,/target="_blank" rel="noopener noreferrer"/);
+ assert.match(css,/\\.sm-admin-dash-links\\{display:grid;grid-template-columns:repeat\\(2,minmax\\(0,1fr\\)\\)/);
+ assert.match(preview,/hasRole\\(user,\\["super-admin"\\]\\)/);
+ assert.match(preview,/payload\\.auth\\(\\{headers:await headers\\(\\)\\}\\)/);
+ assert.match(preview,/if\\(!allowed\\)notFound\\(\\)/);
+});
