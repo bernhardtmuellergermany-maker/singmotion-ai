@@ -95,6 +95,9 @@ test("individual missing approval, secret, budget, authentication or runtime swi
  assert.equal(protectedProductionLivePilotApproved({...e,
   CUSTOMER_PAID_WORKER_ACTIVATED_AT:"1"}),false,
   "Never sweep old paid orders as though freshly admitted into pilot");
+ assert.equal(protectedProductionLivePilotApproved({...e,
+  CUSTOMER_PAID_WORKER_ACTIVATED_AT:String(Date.parse("2026-11-13T14:01:00Z"))}),true,
+  "Do not orphan paid customers by expiring the worker after 24 hours");
 });
 
 test("Staging can NEVER accept LIVE Stripe mode even with the entire private pilot config",()=>{
