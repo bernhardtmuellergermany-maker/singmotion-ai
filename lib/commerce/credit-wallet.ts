@@ -1,4 +1,5 @@
 import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
+import {privateCreditPilotApproved} from "./private-credit-pilot.ts";
 import {randomUUID} from "node:crypto";
 import type {DatabaseSync} from "node:sqlite";
 import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,proposedTopupCents} from "./credit-topup-quote.ts";
@@ -28,7 +29,7 @@ export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_ID &&
   env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true" &&
   env.STRIPE_LIVE_CHECKOUT_ENABLED==="true" &&
-  (env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"||protectedProductionLivePilotApproved(env)) &&
+  (env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"||protectedProductionLivePilotApproved(env)||privateCreditPilotApproved(env)) &&
   env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true" &&
   env.STRIPE_CREDIT_TAX_REVIEW_APPROVED==="true" &&
   /^txcd_[A-Za-z0-9]+$/.test(env.STRIPE_CREDIT_TAX_CODE||"") &&
