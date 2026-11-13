@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   BytePlusProtocol,
   BytePlusError,
+  DocumentedBytePlusProvider,
   wireRequest,
   omni20,
   type WireRequest,
@@ -199,4 +200,41 @@ test("model limits enforce strict sizes, inclusive duration/dimensions and aspec
     { duration: NaN },
   ])
     assert.throws(() => validateOmniAudio({ ...audio, ...change }));
+});
+
+test("verified 50510 status error reaches Studio reconciliation, without a second provider submission",async()=>{
+ const actions:string[]=[];
+ const originalTask="existing-paid-task-50510";
+ const protocol=new BytePlusProtocol(async request=>{
+  const action=new URL(request.url).searchParams.get("Action")||"";
+  actions.push(action);
+  assert.equal(action,"CVSync2AsyncGetResult","this test only READS the existing provider task");
+  assert.equal((JSON.parse(request.body) as {task_id?:string}).task_id,originalTask);
+  return {status:500,body:{code:50510,data:null,message:"private diagnostic must not leak"}};
+ });
+ const provider=new DocumentedBytePlusProvider(
+   {} as ConstructorParameters<typeof DocumentedBytePlusProvider>[0],
+   {} as ConstructorParameters<typeof DocumentedBytePlusProvider>[1],[],protocol);
+ await assert.rejects(provider.poll(originalTask,signal()),error=>{
+  assert.ok(error instanceof BytePlusError);
+  assert.equal(error.rejection?.taskId,originalTask);
+  assert.equal(error.rejection?.code,50510);
+  assert.equal(error.rejection?.httpStatus,500);
+  assert.match(error.rejection?.responseSha256??"",/^[a-f0-9]{64}$/);
+  assert.doesNotMatch(error.message,/private diagnostic/);
+  return true;
+ });
+ assert.deepEqual(actions,["CVSync2AsyncGetResult"]);
+});
+test("ordinary nonbillability-unknown provider failures remain terminal without refund evidence",async()=>{
+ const actions:string[]=[];
+ const protocol=new BytePlusProtocol(async request=>{
+  actions.push(new URL(request.url).searchParams.get("Action")||"");
+  return {status:500,body:{code:50400,data:null}};
+ });
+ const provider=new DocumentedBytePlusProvider(
+   {} as ConstructorParameters<typeof DocumentedBytePlusProvider>[0],
+   {} as ConstructorParameters<typeof DocumentedBytePlusProvider>[1],[],protocol);
+ assert.deepEqual(await provider.poll("existing-task",signal()),{state:"failed"});
+ assert.deepEqual(actions,["CVSync2AsyncGetResult"]);
 });
