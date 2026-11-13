@@ -214,8 +214,8 @@ export function StudioWizard({
         // Keep guest/account draft identifiers separate. Never silently reuse a
         // former owner's private media or overwrite their existing project.
         const previousOwner=localStorage.getItem("singmotion-studio-owner");
-        const ownerChanged=previousOwner!==null && previousOwner!==sessionOwner;
-        const unscopedOperatorDraft=previousOwner===null && sessionOwner.startsWith("cms-staff-");
+        const ownerChanged=!accountWorkspace && previousOwner!==null && previousOwner!==sessionOwner;
+        const unscopedOperatorDraft=false; // Account workspaces never import an unscoped browser draft.
         if(ownerChanged||unscopedOperatorDraft){
           const priorDraft=localStorage.getItem("singmotion-studio");
           if(priorDraft && previousOwner)
