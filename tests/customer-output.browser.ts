@@ -264,6 +264,18 @@ try{
  const preserved=afterNew.find(d=>d.id===old.id);
  assert.equal(preserved?.selection.customPrompt,note,"first guest project remains unchanged");
  await guestPage.goto(origin+"/projects");
+ await guestPage.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ const draftMenus=guestPage.locator("details.sm-projects-options");
+ await draftMenus.nth(1).waitFor({timeout:5000});
+ await draftMenus.nth(0).locator("summary").click();
+ assert.equal(await draftMenus.nth(0).evaluate(el=>(el as HTMLDetailsElement).open),true);
+ await draftMenus.nth(1).locator("summary").click();
+ assert.equal(await draftMenus.nth(0).evaluate(el=>(el as HTMLDetailsElement).open),false,
+   "Opening another project menu automatically closes the previously opened menu");
+ assert.equal(await draftMenus.nth(1).evaluate(el=>(el as HTMLDetailsElement).open),true);
+ await guestPage.getByRole("searchbox",{name:"Search projects and support IDs"}).focus();
+ assert.equal(await draftMenus.nth(1).evaluate(el=>(el as HTMLDetailsElement).open),false,
+   "Moving keyboard focus outside also closes a project menu");
  await guestPage.getByRole("link",{name:/Open Old Guest Project, Draft/}).click();
  await guestPage.waitForURL(origin+`/studio?draft=${encodeURIComponent(old.id)}`);
  await guestPage.locator("#flow-performance-prompt").waitFor({timeout:15000});
