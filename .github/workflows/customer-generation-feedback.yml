@@ -5,6 +5,9 @@ on:
       - design/studio-audio-redesign-20261111
     paths:
       - 'components/customer-feedback.*'
+      - 'components/feedback-preview.*'
+      - 'app/(site)/studio/feedback-preview/**'
+      - 'tests/feedback-preview.test.ts'
       - 'components/generation-dialog.tsx'
       - 'components/generation-status-view.tsx'
       - 'components/studio-wizard.tsx'
@@ -36,5 +39,5 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       - run: npm ci
       - run: npm run typecheck
-      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts
+      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts tests/feedback-preview.test.ts
       - run: npm run build
