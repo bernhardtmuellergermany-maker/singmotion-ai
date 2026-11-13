@@ -291,7 +291,7 @@ export class StudioWorkflow {
         .get(owner),
       hidden: !!this.store.db
         .prepare(
-          "SELECT 1 FROM live_studio_actions WHERE attempt_id=? AND action='hide'",
+          "SELECT 1 FROM live_studio_actions h WHERE h.attempt_id=? AND h.action='hide' AND NOT EXISTS (SELECT 1 FROM live_studio_actions r WHERE r.attempt_id=h.attempt_id AND r.action='restore' AND r.id>h.id) LIMIT 1",
         )
         .get(id),
       experimental: !!JSON.parse(row.policy_json).contract.pilotAdmission
@@ -323,7 +323,7 @@ export class StudioWorkflow {
     return (
       this.store.db
         .prepare(
-          "SELECT attempt_id FROM live_studio_projects WHERE owner=? AND deleted_at IS NULL AND attempt_id NOT IN (SELECT attempt_id FROM live_studio_actions WHERE action='hide') ORDER BY rowid DESC",
+          "SELECT attempt_id FROM live_studio_projects WHERE owner=? AND deleted_at IS NULL AND attempt_id NOT IN (SELECT h.attempt_id FROM live_studio_actions h WHERE h.action='hide' AND NOT EXISTS (SELECT 1 FROM live_studio_actions r WHERE r.attempt_id=h.attempt_id AND r.action='restore' AND r.id>h.id)) ORDER BY rowid DESC",
         )
         .all(owner) as { attempt_id: string }[]
     ).map((r) => this.view(r.attempt_id, owner));
@@ -583,7 +583,7 @@ export class StudioWorkflow {
       deletedAt:r.deleted_at,purgeAfter:trashDeadline(r.deleted_at),kind:"admin" as const,
       restorable:this.store.get(r.attempt_id).state!=="prepared"}));
   }
-  restoreProject(id:string,owner:string,confirmation:unknown,now=Date.now()){
+  restoreProject(id:string,owner:string,actor:string,confirmation:unknown,now=Date.now()){
     if(confirmation!==`RESTORE ${id}`)throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm restoring the exact project.",400);
     const attempt=this.store.get(id);
     if(attempt.media.owner!==owner)throw new StudioLiveError("PROJECT_NOT_FOUND","Private project not found.",404);
@@ -592,7 +592,8 @@ export class StudioWorkflow {
     const result=this.store.db.prepare("UPDATE live_studio_projects SET deleted_at=NULL WHERE attempt_id=? AND owner=? AND deleted_at IS NOT NULL AND deleted_at>?")
       .run(id,owner,now-PROJECT_TRASH_MS);
     if(Number(result.changes)!==1)throw new StudioLiveError("RESTORE_EXPIRED","Project recovery period expired.",404);
-    this.store.db.prepare("DELETE FROM live_studio_actions WHERE attempt_id=? AND action='hide'").run(id);
+    this.store.db.prepare("INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'restore',?,'{}',?)")
+      .run(id,actor,now);
     return {restored:true};
   }
   async deleteProject(id: string, owner: string, confirmation: unknown) {
