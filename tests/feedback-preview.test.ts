@@ -11,9 +11,9 @@ test("feedback and Output preview are explicitly restricted to private Railway s
     assert.match(route,/index:false,follow:false/);
     if(page==="output-preview"){
       assert.match(route,/CMS_ENABLED!=="true"/);
-      assert.match(route,/payload.auth\\(\\{headers:await headers\\(\\)\\}\\)/);
-      assert.match(route,/hasRole\\(user,\\["super-admin"\\]\\)/);
-      assert.match(route,/if\\(!allowed\\)notFound\\(\\)/);
+      assert.match(route,/payload.auth\(\{headers:await headers\(\)\}\)/);
+      assert.match(route,/hasRole\(user,\["super-admin"\]\)/);
+      assert.match(route,/if\(!allowed\)notFound\(\)/);
     }
   }
 });
