@@ -34,7 +34,9 @@ export function readStudioEvidence(id:string,liveFile:string):LiveEvidence{
 }
 /** Search is exact-ID only, never fuzzy or across another customer's session. Access is exclusively Super Admin API. */
 export class SupportCases{
-  constructor(private db:DatabaseSync){
+  private readonly db:DatabaseSync;
+  constructor(db:DatabaseSync){
+    this.db=db;
     new CreditWallet(db);
     db.exec(`CREATE TABLE IF NOT EXISTS support_cases(
       reference TEXT PRIMARY KEY,case_type TEXT NOT NULL,status TEXT NOT NULL CHECK(status IN ('open','resolved')),
