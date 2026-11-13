@@ -618,7 +618,9 @@ export class StudioWorkflow {
       throw new StudioLiveError("CONFIRMATION_REQUIRED","Confirm moving this project to Recently deleted.");
     const now=Date.now();
     this.store.db.prepare("UPDATE live_studio_projects SET deleted_at=COALESCE(deleted_at,?) WHERE attempt_id=? AND owner=?").run(now,id,owner);
-    return {deleted:true,deletedAt:now,purgeAfter:trashDeadline(now),pendingProviderReconciliation:true};
+    if(!this.view(id,owner).hidden)
+      this.store.db.prepare("INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'hide',?,'{}',?)").run(id,actor,now);
+    return this.view(id,owner);
   }
   reconcile(id: string, owner: string, actor: string, evidence: unknown) {
     this.row(id, owner);
