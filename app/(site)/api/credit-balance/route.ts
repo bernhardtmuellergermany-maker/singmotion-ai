@@ -7,6 +7,7 @@ import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
+import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -31,7 +32,9 @@ export async function GET(req:NextRequest){
   const videoReservations=wallet.videoReservations(identity.subject)
     .filter(row=>row.state==="reserved"||row.state==="review")
     .map(row=>({projectId:row.projectId,credits:row.credits,state:row.state,created:row.created}));
-  let legacy=0,reserved=videoReserved;
+  // Historical cent-based entitlements must never fund the new prepaid wallet.
+  // Only verified wallet ledger credits, less active wallet reservations, are spendable.
+  const reserved=videoReserved;
   let oldEntries:Array<{id:string;credits:number;type:string;created:number;reference:string}>=[];
   let oldOrders:Array<{id:string;projectId:string;credits:number;euros:number;created:number;status:string}>=[];
   if(identity.customerId){
@@ -42,7 +45,8 @@ export async function GET(req:NextRequest){
    const holds=store.db.prepare(
     "SELECT COALESCE(SUM(cents),0) AS total FROM customer_holds WHERE account_id=? AND state='reserved'"
    ).get(accountId) as {total:number};
-   legacy=Number(total.total);reserved=Number(holds.total);
+   // Retain historical account transactions for display only, not spending.
+   void total;void holds;
    oldEntries=(store.db.prepare(
     "SELECT id,delta,kind,created FROM customer_credits WHERE account_id=? ORDER BY created DESC,id DESC LIMIT 100"
    ).all(accountId) as Array<{id:string;delta:number;kind:string;created:number}>)
@@ -59,11 +63,12 @@ export async function GET(req:NextRequest){
   }
   const entries=[...wallet.entries(identity.subject),...oldEntries]
    .sort((a,b)=>b.created-a.created).slice(0,150);
-  const rawBalance=purchased+legacy-reserved;
+  const rawBalance=purchased-reserved;
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
     customerLaunchReadiness().readyForPaidOrders&&
-    auditSingMotionLaunch(process.env,"production").ready;
+    (auditSingMotionLaunch(process.env,"production").ready||
+     protectedProductionLivePilotApproved(process.env));
   return json({
    availableCredits:Math.max(0,rawBalance),
    reservedCredits:Math.max(0,reserved),
