@@ -53,6 +53,9 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
  }
  if(mode==="live"){
   const prior=new CreditWallet(store.db).taxContext(id);
+  if(prior?.mode==="stripe-managed-payments"&&
+     (session.managed_payments as {enabled?:boolean}|undefined)?.enabled!==true)
+   throw Error("STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED");
   const details=session.customer_details as {
    address?:{country?:string};tax_ids?:Array<{type?:string;value?:string}>
   }|undefined;
