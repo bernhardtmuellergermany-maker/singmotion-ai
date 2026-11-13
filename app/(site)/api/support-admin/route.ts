@@ -46,8 +46,20 @@ export async function POST(req:NextRequest){
  const actor=await authorized(req);
  if(!actor)return json({error:"Super Admin authorization and exact CMS origin required."},403);
  if(!req.headers.get("content-type")?.startsWith("application/json"))return json({error:"JSON request required"},415);
- const bodyText=await req.text();
- if(Buffer.byteLength(bodyText)>4096)return json({error:"Request too large"},413);
+ if(Number(req.headers.get("content-length"))>4096)return json({error:"Request too large"},413);
+ const reader=req.body?.getReader();
+ if(!reader)return json({error:"Request body required"},400);
+ const chunks:Uint8Array[]=[];let size=0;
+ try{
+  while(true){
+   const part=await reader.read();
+   if(part.done)break;
+   size+=part.value.byteLength;
+   if(size>4096){await reader.cancel();return json({error:"Request too large"},413)}
+   chunks.push(part.value);
+  }
+ }finally{reader.releaseLock()}
+ const bodyText=Buffer.concat(chunks,size).toString("utf8");
  let input:{action?:string;id?:string;reason?:string;confirmation?:string};
  try{input=JSON.parse(bodyText)}catch{return json({error:"Invalid request"},400)}
  if(typeof input.id!=="string"||typeof input.reason!=="string"||
