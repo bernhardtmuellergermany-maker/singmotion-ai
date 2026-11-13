@@ -150,3 +150,25 @@ test("live Stripe credit payment is account bound, settles once and reverses onc
   assert.equal(wallet.total(identity.subject),0);
  }finally{db.close();}
 });
+
+test("terminal provider failure returns reserved Credits as goodwill exactly once; uncertain failures retain holds",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db),owner="customer:retry-owner";
+  const pending=wallet.pending({subject:owner,email:"refund@example.test",customerId:"retry-owner"},500,randomUUID());
+  wallet.bind(pending.id,"cs_test_service_failure","https://checkout.stripe.com/c/offline");
+  wallet.settle({id:pending.id,sessionId:"cs_test_service_failure",amount:500,currency:"eur",paymentStatus:"paid",livemode:false});
+  const job=randomUUID(),unknown=randomUUID();
+  wallet.reserveVideo(job,owner,150);
+  wallet.reserveVideo(unknown,owner,125);
+  assert.equal(wallet.available(owner),225);
+  wallet.reconcileVideo(unknown,"review");
+  assert.equal(wallet.available(owner),225);
+  assert.equal(wallet.reconcileVideo(job,"service-failed")?.state,"released");
+  assert.equal(wallet.reconcileVideo(job,"service-failed")?.state,"released");
+  assert.equal(wallet.available(owner),375);
+  assert.equal(wallet.reserved(owner),125);
+  assert.equal(wallet.total(owner),500);
+  assert.equal(wallet.entries(owner).filter(e=>e.type==="video-service-refund"&&e.reference==="video-service-refund:"+job).length,1);
+ }finally{db.close()}
+});
