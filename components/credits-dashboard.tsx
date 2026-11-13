@@ -41,9 +41,10 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   };
   refresh();
   let checks=0;
-  const timer=checkoutResult==="success"?window.setInterval(()=>{
-   if(document.visibilityState==="visible"){refresh();if(++checks>=12)window.clearInterval(timer);}
-  },5000):null;
+  let timer:ReturnType<typeof setInterval>|null=null;
+  if(checkoutResult==="success")timer=window.setInterval(()=>{
+   if(document.visibilityState==="visible"){refresh();if(++checks>=12&&timer!==null)window.clearInterval(timer);}
+  },5000);
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
   return()=>{active=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh)};
