@@ -55,7 +55,7 @@ export function SuperAdminGeneration({id}:{id:string}){
  if(shortage)progress="credits-needed";
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;
  return <main id="content" className="sm-super-admin-generation">
-   <GenerationStatusView progress={progress} paymentMode="super-admin"
+   {!project&&!error?<p role="status" className="sm-gen-extra-message">Loading the saved video status…</p>:<GenerationStatusView progress={progress} paymentMode="super-admin"
      creditCharge={project?.creditCharge}
      availableCredits={availableCredits}
      photoUrl={project?.imageId?`/api/assets/${encodeURIComponent(project.imageId)}`:null}
@@ -63,7 +63,7 @@ export function SuperAdminGeneration({id}:{id:string}){
      videoUrl={project?.outputReady?link:null}
      downloadUrl={project?.outputReady?link+"&download=1":null}
      reuseHref={project?.outputReady?`/studio?copy=live_${encodeURIComponent(id)}`:null}
-     note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>
+     note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>}
 
    {project?.state==="prepared"&&!shortage&&<p className="sm-gen-extra-message">This project is prepared, but its generation request has not been confirmed. Return to the authorized Studio review to submit; this status page cannot start another task.</p>}
  </main>;
