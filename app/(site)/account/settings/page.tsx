@@ -38,6 +38,22 @@ export default function AccountSettings(){
  }
  useEffect(()=>{void refreshAdminStatus();},[]);
  const canShowAdmin=!adminDenied&&(adminOverview!==null||data?.staffPreview===true);
+ // The Account sections render after account authentication, so a hash from
+ // a different page can arrive before its target exists. Reapply the deep
+ // link after hydration, without changing unrelated routes or user settings.
+ useEffect(()=>{
+  if(!data)return;
+  const target=window.location.hash.slice(1);
+  if(!["profile","security","billing","invoices","privacy","admin-console"].includes(target))return;
+  if(target==="admin-console"&&!canShowAdmin)return;
+  const frame=window.requestAnimationFrame(()=>{
+   const section=document.getElementById(target);
+   if(!section)return;
+   const reduce=window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+   section.scrollIntoView({behavior:reduce?"instant":"smooth",block:"start"});
+  });
+  return()=>window.cancelAnimationFrame(frame);
+ },[data,canShowAdmin]);
  useEffect(()=>{fetch("/api/customer-invoices",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw Error(d.error||"Could not load invoices.");setInvoices(Array.isArray(d.invoices)?d.invoices:[]);setInvoiceMessage(d.message||"");}).catch(e=>setInvoiceMessage(e instanceof Error?e.message:"Invoices unavailable")).finally(()=>setInvoicesLoading(false));},[]);
  useEffect(()=>{fetch("/api/customer-plan",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setStorageUsage(d?.storage||null)).catch(()=>{});},[]);
  async function resendVerification(){setNotice("");setBusy(true);try{
