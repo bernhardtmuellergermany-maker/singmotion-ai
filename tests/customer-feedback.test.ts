@@ -69,7 +69,7 @@ test("verified 50510 release offers owner-checked draft editing, not a wallet de
 });
 
 test("provider prefilter with UNRELEASED wallet retains honest billing state and still supports editing",()=>{
-  for(const status of ["reserved","review","settled","legacy"] as const){
+  for(const status of ["reserved","review"] as const){
     const notice=providerFeedback("failed","Task rejected [CONTENT_PREFILTER_REJECTED]",{credits:150,status});
     assert.match(notice?.title??"",/Credit release pending/i);
     assert.match(notice?.message??"",/cannot yet confirm/i);
@@ -140,4 +140,14 @@ test("paid provider failure never promises Stripe refund or another paid task",(
   assert.equal(disputed?.action,undefined);
   assert.equal(paidOrderFeedback("paid","processing"),null);
   assert.equal(paidOrderFeedback("awaiting_payment",null),null);
+});
+
+test("legacy and already settled tasks never imply a credit reservation can be released",()=>{
+  const legacy=providerFeedback("failed","[CONTENT_PREFILTER_REJECTED]",{credits:150,status:"legacy"});
+  assert.match(legacy?.message??"",/no confirmed prepaid Credit reservation/i);
+  assert.doesNotMatch(legacy?.message??"",/will be released|have been released/i);
+  const settled=providerFeedback("failed","[CONTENT_PREFILTER_REJECTED]",{credits:150,status:"settled"});
+  assert.match(settled?.message??"",/recorded final charge/i);
+  assert.doesNotMatch(settled?.message??"",/Credits have been released/i);
+  assert.equal(settled?.dismissAfterMs,undefined);
 });
