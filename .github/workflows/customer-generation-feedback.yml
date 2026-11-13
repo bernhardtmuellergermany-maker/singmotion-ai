@@ -13,6 +13,7 @@ on:
       - 'components/generation-status-view.tsx'
       - 'components/studio-wizard.tsx'
       - 'tests/studio-direct-generation-ui.test.ts'
+      - 'tests/studio-credit-resume-step4.test.ts'
       - 'components/waveform.tsx'
       - 'tests/waveform-stable-viewport.test.ts'
       - 'components/studio-live.tsx'
@@ -48,7 +49,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg chromium
       - run: npm ci
       - run: npm run typecheck
-      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts tests/feedback-preview.test.ts tests/waveform-stable-viewport.test.ts tests/studio-direct-generation-ui.test.ts
+      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts tests/feedback-preview.test.ts tests/waveform-stable-viewport.test.ts tests/studio-direct-generation-ui.test.ts tests/studio-credit-resume-step4.test.ts
       - run: npm run build
       - name: Real Chromium customer payment and Output regression
         run: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:customer:browser
