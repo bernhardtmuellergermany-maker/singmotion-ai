@@ -2,6 +2,8 @@
 import {useState} from "react";
 import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck,RotateCcw,Wallet} from "lucide-react";
 import "./generation-status-view.css";
+import {CustomerFeedback} from "./customer-feedback";
+import {generationFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
 
 export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
@@ -27,6 +29,9 @@ export function GenerationStatusView({
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
   const failed=progress==="failed";
+  const customerNotice=note&&/network|failed to fetch|connection interrupted|timed out/i.test(note)
+    ?requestErrorFeedback(note,"generation")
+    :generationFeedback(progress,creditCharge,availableCredits);
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
     {title:admin?"Video credit authorization":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Credit reservation checked before provider submission":"Secure payment verified by Stripe",state:paymentConfirmed||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
@@ -56,6 +61,7 @@ export function GenerationStatusView({
       <h1>{label}</h1>
       <p>{detail}</p>
     </header>
+    <CustomerFeedback notice={customerNotice} context="generation"/>
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
       <span>{progress==="credits-needed"?"Insufficient Credits · nothing reserved or charged":admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Video rejected · Credits released":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
@@ -77,7 +83,7 @@ export function GenerationStatusView({
         <p className="sm-gen-preview-caption">{ready?"Private video · verified delivery":review||failed?"Existing project · manual attention needed":"Private preview · video not yet available"}</p>
       </div>
       <div className="sm-gen-status-column">
-        {note&&<p className="sm-gen-status-message" role={failed||review?"alert":"status"}>{note}</p>}
+        {note&&!failed&&!review&&!/network|failed to fetch|connection interrupted|timed out/i.test(note)&&<p className="sm-gen-status-message" role="status">{note}</p>}
         {progress==="credits-needed"&&<div className="sm-gen-credit-help" role="alert"><strong>Credits required to generate this video</strong><p>{creditCharge?`${new Intl.NumberFormat("en-GB").format(creditCharge.credits)} Credits needed. `:""}{typeof availableCredits==="number"?`${new Intl.NumberFormat("en-GB").format(availableCredits)} Credits available. `:""}Your project and uploaded files are saved. Return to Studio after adding sufficient Credits.</p><a className="sm-gen-reuse" href="/credits"><Wallet size={17}/> View Credits</a></div>}
         <h2>Generation progress</h2>
         <ol className="sm-gen-timeline">
