@@ -227,29 +227,46 @@ export function MyProjectsGallery(){
   }catch(cause){setError(cause instanceof Error?cause.message:"Could not delete this project.");}
   finally{setBusyId(null);}
  }
+ // Refresh account-owned names when returning from another device or tab.
+ // Never let an older response or locally cached browser label become authority.
  useEffect(()=>{
   let active=true;
-  async function refresh(){
+  let inFlight=false;
+  let lastRead=0;
+  async function refresh(force=false){
+   if(!active||inFlight||(!force&&Date.now()-lastRead<1200))return;
+   inFlight=true;lastRead=Date.now();
    try{
     await ensureSession();
     const [d,o,l]=await Promise.allSettled([
-      api<SavedDraft[]>("studio-drafts"),
+      api<SavedDraft[]>("studio-drafts",{cache:"no-store"}),
       fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
         .then(async r=>r.ok?(await r.json() as {orders:CustomerOrder[]}).orders:[]),
-      api<{projects:StudioProject[]}>("studio-live")
+      api<{projects:StudioProject[]}>("studio-live",{cache:"no-store"})
         .then(v=>v.projects||[]),
     ]);
     if(!active)return;
-    setDrafts(d.status==="fulfilled"&&Array.isArray(d.value)?d.value:[]);
-    setOrders(o.status==="fulfilled"&&Array.isArray(o.value)?o.value:[]);
-    setLive(l.status==="fulfilled"&&Array.isArray(l.value)?l.value:[]);
-    setError(d.status==="rejected"?"Your saved drafts could not be loaded. Please reopen the Studio to restore your workspace.":"");
+    if(d.status==="fulfilled"&&Array.isArray(d.value))setDrafts(d.value);
+    if(o.status==="fulfilled"&&Array.isArray(o.value))setOrders(o.value);
+    if(l.status==="fulfilled"&&Array.isArray(l.value))setLive(l.value);
+    setError(d.status==="rejected"
+      ?"Your saved drafts could not be loaded. Check that you are signed into the same account on both devices."
+      :"");
     await refreshTrash().catch(()=>{});
    }catch{
-    if(active)setError("Your private projects could not be loaded. Please sign in or reopen Studio.");
-   }finally{if(active)setLoading(false);}
+    if(active)setError("Your projects could not be refreshed. Check your account and connection.");
+   }finally{inFlight=false;if(active)setLoading(false);}
   }
-  void refresh();return()=>{active=false};
+  const onVisibility=()=>{if(!document.hidden)void refresh();};
+  const onFocus=()=>void refresh();
+  void refresh(true);
+  document.addEventListener("visibilitychange",onVisibility);
+  window.addEventListener("focus",onFocus);
+  return()=>{
+   active=false;
+   document.removeEventListener("visibilitychange",onVisibility);
+   window.removeEventListener("focus",onFocus);
+  };
  },[]);
  // Old desktop versions kept generated-video titles in localStorage only.
  // Import each owned label once into the authenticated account database so
@@ -359,7 +376,7 @@ export function MyProjectsGallery(){
    processing:projects.filter(p=>p.status==="processing"||p.status==="awaiting-payment"||p.status==="review").length,
    completed:projects.filter(p=>p.status==="completed").length
  };
- const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||labels[p.id]?.trim()||p.name})).filter(p=>
+ const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||p.name||labels[p.id]?.trim()||"Untitled project"})).filter(p=>
    (tab==="all"||tab==="draft"&&p.status==="draft"||
     tab==="processing"&&["processing","awaiting-payment","review"].includes(p.status)||
     tab==="completed"&&p.status==="completed")&&
