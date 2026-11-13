@@ -151,3 +151,18 @@ test("legacy and already settled tasks never imply a credit reservation can be r
   assert.doesNotMatch(settled?.message??"",/Credits have been released/i);
   assert.equal(settled?.dismissAfterMs,undefined);
 });
+
+test("verified terminal provider failure returns credits and offers a safe new draft",()=>{
+ const ready=providerFeedback("failed","[PROVIDER_JOB_FAILED]",
+  {credits:175,status:"released"});
+ assert.match(ready?.title??"",/Credits returned/);
+ assert.match(ready?.message??"",/service refund/);
+ assert.equal(ready?.action?.label,"Review and retry");
+ assert.equal(ready?.action?.href,"/studio");
+ assert.equal(ready?.dismissAfterMs,undefined);
+ const stillHeld=providerFeedback("failed","[PROVIDER_JOB_FAILED]",
+  {credits:175,status:"review"});
+ assert.match(stillHeld?.title??"",/provider stopped/i);
+ assert.doesNotMatch(stillHeld?.message??"",/Credits have been returned/i);
+ assert.equal(stillHeld?.action,undefined);
+});
