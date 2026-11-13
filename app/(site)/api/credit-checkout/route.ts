@@ -106,11 +106,11 @@ export async function POST(req:NextRequest){
       .replace(/\b(?:acct|cus|cs|pi|pm|ch|req|evt|seti)_[A-Za-z0-9_]+\b/g,"[identifier]")
       .replace(/\b[0-9]{8,}\b/g,"[number]"):null;
     const requestId=safe(response.headers.get("request-id")||response.headers.get("stripe-request-id"));
-    console.error("STRIPE_CREDIT_TEST_CHECKOUT_REJECTED",{
+    console.error(testMode?"STRIPE_CREDIT_TEST_CHECKOUT_REJECTED":"STRIPE_CREDIT_LIVE_CHECKOUT_REJECTED",{
      status:response.status,type:safe(detail?.type),code:safe(detail?.code),
      param:safe(detail?.param),message,requestId,
     });
-    return json({error:"Stripe Test Checkout could not be created. No payment was taken.",
+    return json({error:testMode?"Stripe Test Checkout could not be created. No payment was taken.":"Secure Credit Checkout could not be created. No payment was taken.",
       ...(requestId?{supportReference:requestId}:{})},502);
    }
    const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string};
@@ -121,7 +121,7 @@ export async function POST(req:NextRequest){
    return json({url:saved.checkoutUrl,purchaseId:saved.id,testMode});
   }finally{store.close();}
  }catch(e){
-  console.error("Credit test checkout failed",{category:e instanceof Error?e.name:"unknown"});
-  return json({error:"Credit Test Checkout is temporarily unavailable."},503);
+  console.error("Credit Checkout failed",{category:e instanceof Error?e.name:"unknown"});
+  return json({error:"Credit Checkout is temporarily unavailable."},503);
  }
 }
