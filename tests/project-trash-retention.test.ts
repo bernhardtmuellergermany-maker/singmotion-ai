@@ -100,6 +100,9 @@ test("terminal private video MP4 expires while immutable provider evidence remai
  const f=await fixture();try{
   const owner="cms-staff-owner",id=randomUUID(),asset=randomUUID(),file=path.join(f.root,"live-output",id+".mp4");
   await writeFile(file,"validated test MP4");
+  const source=path.join(f.root,"live-output",id+".provider-source.mp4");
+  const partial=path.join(f.root,"live-output",id+"."+randomUUID()+".partial.mp4");
+  await writeFile(source,"provider original");await writeFile(partial,"interrupted processing");
   f.live.prepare("INSERT INTO live_studio_projects(attempt_id,owner,selection_json,policy_json,artist_name,project_name,deleted_at) VALUES(?,?,?,?,?,?,?)")
     .run(id,owner,selection(owner,asset),"{}","Artist","Finished project",now);
   f.live.prepare("INSERT INTO live_attempts VALUES(?,?,?)")
@@ -109,6 +112,8 @@ test("terminal private video MP4 expires while immutable provider evidence remai
   assert.equal(f.live.prepare("SELECT count(*) n FROM live_studio_projects").get()!.n,0);
   assert.equal(f.live.prepare("SELECT count(*) n FROM live_attempts").get()!.n,1);
   await assert.rejects(stat(file));
+  await assert.rejects(stat(source));
+  await assert.rejects(stat(partial));
  }finally{await f.close()}
 });
 test("uncertain provider never has its project or files physically purged",async()=>{
