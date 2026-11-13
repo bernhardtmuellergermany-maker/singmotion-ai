@@ -8,6 +8,7 @@ import {configuredStripePaymentMode,stripeSessionIdMatchesMode} from "@/lib/comm
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {applicationOrigin} from "@/lib/request-origin";
 import {verifiedHobbyCheckoutSession,verifiedReusableHobbyCheckoutSession,verifiedHobbyLiveProduct} from "@/lib/commerce/stripe-hobby-checkout";
+import {legacyCustomerPurchaseRetired,LEGACY_PURCHASE_RETIRED_RESPONSE} from "@/lib/commerce/credits-only-commerce";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const ready=()=>configuredStripePaymentMode(process.env)!==null&&
  customerLaunchReadiness().readyForPaidOrders&&
@@ -18,8 +19,9 @@ const ready=()=>configuredStripePaymentMode(process.env)!==null&&
  process.env.HOBBY_NEW_PURCHASES_ENABLED==="true"&&
  /^price_[A-Za-z0-9_]+$/.test(process.env.STRIPE_HOBBY_PRICE_ID||"")&&
  /^whsec_[A-Za-z0-9_]+$/.test(process.env.STRIPE_HOBBY_WEBHOOK_SECRET||"");
-export async function GET(){return NextResponse.json({enabled:ready()},{headers:{"Cache-Control":"no-store"}})}
+export async function GET(){return NextResponse.json({enabled:!legacyCustomerPurchaseRetired()&&ready()},{headers:{"Cache-Control":"no-store"}})}
 export async function POST(req:NextRequest){
+ if(legacyCustomerPurchaseRetired())return NextResponse.json(LEGACY_PURCHASE_RETIRED_RESPONSE,{status:410,headers:{"Cache-Control":"no-store"}});
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  if(!ready())return NextResponse.json({error:"Hobby Checkout is not configured."},{status:503});
  const origin=applicationOrigin(req.url,req.headers.get("host"));
