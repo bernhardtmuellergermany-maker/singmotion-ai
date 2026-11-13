@@ -215,6 +215,17 @@
 .sm-legal-topic a:hover,.sm-legal-topic a:focus-visible{color:#fff}
 
 
+/* Direct-link-safe navigation on every legal policy, including the overview. */
+.sm-legal-back-nav{display:flex;align-items:center;margin:18px 0 22px}
+.sm-legal-back-nav.sm-legal-back-bottom{margin:32px 0 18px}
+.sm-legal-back{display:inline-flex;align-items:center;gap:9px;min-height:44px;
+ padding:10px 15px;border:1px solid rgba(190,151,232,.52);border-radius:11px;
+ color:#eedaff;background:rgba(43,29,65,.8);text-decoration:none;
+ font-weight:700;font-size:14px;line-height:1.3;transition:background .15s,border-color .15s}
+.sm-legal-back:hover{background:#513670;border-color:#d1a4f4;color:#fff}
+.sm-legal-back:focus-visible{outline:2px solid #e0b5ff;outline-offset:3px}
+@media(max-width:690px){.sm-legal-back-nav{margin:14px 0 18px}.sm-legal-back{max-width:100%}}
+
 /* Legal overview: useful customer explanations under each policy destination. */
 .sm-legal-topic-grid{gap:19px;align-items:stretch;margin:32px 0 42px}
 .sm-legal-topic{padding:clamp(23px,2.6vw,31px);border-color:rgba(175,122,225,.32);
