@@ -70,7 +70,7 @@ export function SuperAdminGeneration({id}:{id:string}){
  if(shortage)progress="credits-needed";
  const resumeDraft=project?.sourceDraftId&&/^[A-Za-z0-9_-]{1,80}$/.test(project.sourceDraftId)
    ?project.sourceDraftId:null;
- const resumeHref=resumeDraft?"/studio?draft="+encodeURIComponent(resumeDraft):null;
+ const resumeHref=resumeDraft?"/studio?draft="+encodeURIComponent(resumeDraft)+"&resume=review":null;
  const creditsHref=resumeDraft&&project?.creditCharge?.credits
    ?"/credits?resumeDraft="+encodeURIComponent(resumeDraft)+"&requiredCredits="+project.creditCharge.credits+"#buy-credits":"/credits#buy-credits";
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;

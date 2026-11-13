@@ -34,6 +34,7 @@ import {
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
+import type {StudioProject} from "@/lib/live/studio";
 import {CustomerFeedback} from "./customer-feedback";
 import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 import { PerformanceTimeline, timelinePrompt, type PerformanceSection } from "./performance-timeline";
@@ -115,6 +116,8 @@ export function StudioWizard({
     [reviewBalance,setReviewBalance] = useState<number|null>(null),
     [reviewRights, setReviewRights] = useState(false),
     [confirm, setConfirm] = useState(false),
+    [generationProjectId,setGenerationProjectId] = useState(""),
+    [generating,setGenerating] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
     [cropX,setCropX] = useState(50),
     [cropY,setCropY] = useState(50),
@@ -220,6 +223,7 @@ export function StudioWizard({
         localStorage.setItem("singmotion-studio-owner",sessionOwner);
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("draft");
+        const resumeReview = params.get("resume") === "review";
         const copy = params.get("copy");
         const createNew = params.get("new") === "1" && !requested && !copy;
         draftId.current =
@@ -286,7 +290,10 @@ export function StudioWizard({
           });
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
-          setStep(Math.max(0, Math.min(3, saved.step)));
+          // A purchase return is an explicit Step 4 request, independent of the
+          // saved draft's last autosaved step. Do not bypass missing media.
+          setStep(resumeReview && saved.song?.kind === "audio" && saved.image?.kind === "image"
+            ? 3 : Math.max(0, Math.min(3, saved.step)));
           try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
           setDetectedFormat(
             photoFormat(
@@ -577,6 +584,60 @@ export function StudioWizard({
     return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);};
   },[step,operatorStudio]);
   const reviewShortage=step===3&&operatorStudio&&creditQuote!==null&&reviewBalance!==null&&reviewBalance<creditQuote.credits;
+  // Step 4 already captures the rights consent and displays the exact Credits
+  // quote. For CMS operators do the reviewed action in place, without a second
+  // modal or any automatic submission triggered merely by opening a dialog.
+  async function startOperatorGeneration(){
+    if(busy||generating||!selection||!available||!reviewRights||!creditQuote||
+       reviewShortage||!projectKey||generationProjectId)return;
+    setGenerating(true);setError("");
+    let preparedId="";
+    try{
+      const [rights,access]=await Promise.all([
+        api<{version:string}>("rights"),
+        api<{pilot?:boolean;superAdmin?:boolean;blockers?:string[]}>("studio-live"),
+      ]);
+      if(!rights.version||!access.pilot||!access.superAdmin||
+         (access.blockers?.length??0)>0)
+        throw Error("Private Super Admin generation is not authorized. Your saved Studio project is unchanged.");
+      const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
+      if(!response.ok)throw Error("Credit balance unavailable. Please retry after checking your wallet.");
+      const wallet=await response.json() as {availableCredits?:number};
+      if(!Number.isSafeInteger(wallet.availableCredits)||typeof wallet.availableCredits!=="number"||
+         wallet.availableCredits<creditQuote.credits)
+        throw Error("Not enough available Credits. Buy Credits and return to Step 4.");
+      // The original requestKey is reused for server-side idempotency.
+      const prepared=await api<StudioProject>("studio-live",{
+        method:"POST",body:JSON.stringify({
+          action:"prepare",requestKey:projectKey,selection,
+          artistName:draft.artistName,projectName,consent:true,
+          termsVersion:rights.version,english:true,
+        }),
+      });
+      preparedId=prepared.id;setGenerationProjectId(prepared.id);
+      if(prepared.state!=="prepared"){
+        // Never create another provider task if this key is already in use.
+        window.location.assign("/projects/live_"+encodeURIComponent(prepared.id));
+        return;
+      }
+      if(!prepared.digest||!prepared.ceilingMicroUsd||prepared.budgetBlocker||prepared.providerJobId)
+        throw Error("The saved project requires operator review. Check its status before generating.");
+      await api("studio-live",{
+        method:"POST",body:JSON.stringify({
+          action:"submit",id:prepared.id,digest:prepared.digest,
+          ceilingMicroUsd:prepared.ceilingMicroUsd,consent:true,
+          termsVersion:rights.version,
+          confirmation:`CONFIRM PAID STUDIO ${prepared.id} ${prepared.digest} ${prepared.ceilingMicroUsd}${prepared.experimental?" ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA":""}`,
+        }),
+      });
+      window.location.assign("/projects/live_"+encodeURIComponent(prepared.id));
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:"Video request could not be verified.");
+      // A failed/uncertain submission must be inspected using its original ID,
+      // not retried with another paid provider request.
+      if(preparedId)setGenerationProjectId(preparedId);
+    }finally{setGenerating(false);}
+  }
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -885,8 +946,10 @@ export function StudioWizard({
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||reviewShortage} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||reviewShortage||generating||!!generationProjectId} onClick={()=>operatorStudio?void startOperatorGeneration():setConfirm(true)}>{generating?"Checking Credits and starting video…":"Generate Video"} <ArrowRight size={19}/></button>}
         </nav>
+        {step===3&&generating&&<p className="sm-review-payment-note" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
+        {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/projects/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
         {/* Errors stay beside the current step heading; no off-screen footer alert. */}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>

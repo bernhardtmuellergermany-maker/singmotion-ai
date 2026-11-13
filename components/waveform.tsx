@@ -80,9 +80,11 @@ export default function Waveform({
     let frame: number;
     const checkEnd = () => {
       const player = audio.current;
-      if (player && segment.current && player.currentTime >= end) {
+      if (!player || player.paused) return;
+      if (player.currentTime >= end) {
         player.pause();
         player.currentTime = end;
+        setPosition(end);
         segment.current = false;
         return;
       }
@@ -91,6 +93,19 @@ export default function Waveform({
     frame = requestAnimationFrame(checkEnd);
     return () => cancelAnimationFrame(frame);
   }, [playing, end]);
+  // A new trim selection must immediately constrain any ongoing audio.
+  // Zoom alone changes the visual window, not these absolute clip boundaries.
+  useEffect(() => {
+    const player=audio.current;
+    if (!player) return;
+    if (player.currentTime < start || player.currentTime > end) {
+      ++playRequest.current;
+      player.pause();
+      player.currentTime=start;
+      setPosition(start);
+      segment.current=false;
+    }
+  }, [start,end]);
   // Zoom may center on the selection, but moving handles must not pan or
   // rescale the waveform underneath the pointer. Persist the current viewport
   // after the first edit; only explicit +/- zoom chooses a fresh viewport.
@@ -439,25 +454,44 @@ export default function Waveform({
         controls
         src={url}
         preload="metadata"
-        onPlay={() => { setPlaying(true); setError(""); }}
+        onPlay={() => {
+          const a=audio.current;
+          if(a){
+            // Native controls can start playback without using our Play button.
+            segment.current=true;
+            if(a.currentTime < start || a.currentTime >= end){
+              a.currentTime=start;
+              setPosition(start);
+            }
+          }
+          setPlaying(true);setError("");
+        }}
         onPause={() => setPlaying(false)}
         onTimeUpdate={() => {
-          const a = audio.current;
-          if (a) {
+          const a=audio.current;
+          if(!a)return;
+          if(a.currentTime >= end){
+            a.pause();
+            a.currentTime=end;
+            setPosition(end);
+            segment.current=false;
+          }else if(a.currentTime < start){
+            a.currentTime=start;
+            setPosition(start);
+          }else{
             setPosition(a.currentTime);
-            if (segment.current && a.currentTime >= end) {
-              a.pause();
-              segment.current = false;
-            }
           }
         }}
         onSeeking={() => {
-          if (
-            audio.current &&
-            (audio.current.currentTime < start ||
-              audio.current.currentTime > end)
-          )
-            segment.current = false;
+          const a=audio.current;
+          if(!a)return;
+          // Seeking with the native audio controls must never disable the
+          // clip-end guard. Snap seeks outside the selection back to its start.
+          if(a.currentTime < start || a.currentTime > end){
+            a.currentTime=start;
+            setPosition(start);
+            segment.current=!a.paused;
+          }
         }}
       />
       <small className="quiet">
