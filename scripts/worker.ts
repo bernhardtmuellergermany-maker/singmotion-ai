@@ -70,10 +70,10 @@ while (!stopping) {
       await retrySupportCaseEmails(path.join(dataDir,"commerce.sqlite"));
     }catch{console.warn("Support case mail outbox retry unavailable");}
   }
-  // Automated private media retention: at most eight expired projects per
-  // hour, and only after 30 full days in Recently deleted. Fail closed on
-  // unverified cloud deletions or objects still referenced elsewhere.
-  if(Date.now()>=nextProjectTrashCleanup){
+  // Physical media purging is separately approved only after verified volume
+  // backups and private R2 recovery. UI trash/restore works while disabled.
+  // When approved, purge at most eight expired projects per hour, after 30 days.
+  if(process.env.PROJECT_TRASH_PURGE_ENABLED==="true" && Date.now()>=nextProjectTrashCleanup){
     nextProjectTrashCleanup=Date.now()+60*60*1000;
     try{
       const {runProjectTrashCleanup}=await import("../lib/project-trash-cleanup.ts");
