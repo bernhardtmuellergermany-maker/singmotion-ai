@@ -199,7 +199,7 @@
  display:inline-flex;gap:8px;align-items:center;justify-content:center;
  width:auto;max-width:none;margin-top:5px;min-height:40px;padding:9px 14px;
  background:#2d233d;border:1px solid #5d4876;color:#f1e7ff;font-size:13px}
-.sm-admin-dash-links{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:13px 0 18px}
+.sm-admin-dash-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:13px 0 18px}
 .sm-admin-dash-links>a{display:flex;align-items:flex-start;gap:11px;min-width:0;min-height:124px;
  border:1px solid #49365c;border-radius:12px;background:#1c172a;
  padding:17px 14px;text-decoration:none;transition:border-color .16s,background .16s}
