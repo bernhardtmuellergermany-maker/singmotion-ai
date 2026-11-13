@@ -51,6 +51,22 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
   // An asynchronous payment may still be unpaid. It does not grant credits.
   return;
  }
+ if(mode==="live"){
+  const prior=new CreditWallet(store.db).taxContext(id);
+  const details=session.customer_details as {
+   address?:{country?:string};tax_ids?:Array<{type?:string;value?:string}>
+  }|undefined;
+  if(!prior||prior.country!==verifiedMetadata.creditTaxCountry||
+     prior.buyerType!==verifiedMetadata.creditTaxBuyerType||
+     prior.voucherKind!==verifiedMetadata.creditVoucherKind||
+     prior.mode!==verifiedMetadata.creditTaxMode||
+     prior.revision!==verifiedMetadata.creditTaxRevision||
+     details?.address?.country!==prior.country||
+     (prior.buyerType==="business"&&(!Array.isArray(details.tax_ids)||details.tax_ids.length===0)))
+   throw Error("CREDIT_TAX_LOCATION_OR_BUSINESS_PROOF_MISMATCH");
+  // Country or business proof disagreement never grants spendable credits.
+  // Preserve the verified paid event for a manually reviewed refund.
+ }
  const wallet=new CreditWallet(store.db);
  wallet.settle({id,sessionId:obj.id,amount:Number(session.amount_total),
   currency:String(session.currency||""),paymentStatus:String(session.payment_status),livemode:mode==="live"});
