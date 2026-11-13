@@ -382,6 +382,8 @@ async function handler(req: NextRequest) {
           body.confirmation,
         ),
       );
+    if (body.action === "rename")
+      return json(service.renameProject(body.id,owner,String(user!.id),body.name));
     if (body.action === "delete")
       return json(await service.deleteProject(body.id, owner, body.confirmation));
     if (body.action === "restore")
