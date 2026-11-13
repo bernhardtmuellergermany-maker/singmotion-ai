@@ -50,7 +50,7 @@ test("draft deletion hides it, allows owner restore for 30 days, and prohibits o
 });
 test("cleanup removes expired unreferenced files and DB asset records; keeps immutable ledger",async()=>{
  const f=await fixture();try{
-  const owner="customer-"+randomUUID(),id=randomUUID(),asset=randomUUID();
+  const owner="cms-staff-owner",id=randomUUID(),asset=randomUUID();
   draft(f.db,owner,id,asset);await ownedAsset(f.root,f.db,owner,asset);
   f.db.exec("CREATE TABLE ledger(id TEXT PRIMARY KEY,amount INTEGER NOT NULL)");
   f.db.prepare("INSERT INTO ledger VALUES(?,?)").run(randomUUID(),150);
