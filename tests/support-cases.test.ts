@@ -58,8 +58,8 @@ test("terminal failed provider job credits refund exactly once, with owner email
   assert.equal(after.details.creditReservation,"released");
   assert.equal(wallet.available(subject),500);
   assert.throws(()=>support.refundCredit(id,actor,note,f.liveFile),/already released|Credits already released/);
-  assert.equal(f.store.db.prepare("SELECT count(*) n FROM credit_wallet_ledger WHERE kind='support-video-refund'").get().n,1);
-  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_case_mail_outbox").get().n,1);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM credit_wallet_ledger WHERE kind='support-video-refund'").get()!.n,1);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_case_mail_outbox").get()!.n,1);
  }finally{f.close()}
 });
 test("no money returned for active, uncertain or malformed MP4 jobs",()=>{
@@ -94,7 +94,7 @@ test("settled failed video Credit refund reverses final debit once",()=>{
   assert.equal(wallet.total(subject),500);
   assert.equal(wallet.videoReservation(job)?.state,"released");
   assert.equal(f.store.db.prepare("SELECT count(*) n FROM credit_wallet_ledger WHERE reference=?")
-    .get("support-video-refund:"+job).n,1);
+    .get("support-video-refund:"+job)!.n,1);
  }finally{f.close()}
 });
 test("resolution is idempotent, auditable, and email retries after a failure",async()=>{
@@ -105,7 +105,7 @@ test("resolution is idempotent, auditable, and email retries after a failure",as
   const support=new SupportCases(f.store.db);
   support.markResolved(id,actor,note,f.liveFile);
   support.markResolved(id,actor,note,f.liveFile);
-  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_case_mail_outbox").get().n,1);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_case_mail_outbox").get()!.n,1);
   const sent:string[]=[];
   const sender=(async(_url:RequestInfo|URL,init?:RequestInit)=>{
     sent.push(String(init?.headers&&
@@ -143,8 +143,8 @@ test("Stripe refund is explicitly confirmed, environment-bound and idempotent",a
   assert.equal(calls.length,0);
   const result=await requestSupportStripeRefund(f.store,order,actor,note,"REFUND "+order.toUpperCase(),env,sender);
   assert.equal(result.status,"succeeded");
-  assert.equal(f.store.db.prepare("SELECT status FROM customer_orders WHERE id=?").get(order).status,"refunded");
-  assert.equal(f.store.db.prepare("SELECT status FROM support_stripe_refund_intents WHERE order_id=?").get(order).status,"succeeded");
+  assert.equal(f.store.db.prepare("SELECT status FROM customer_orders WHERE id=?") .get(order)!.status,"refunded");
+  assert.equal(f.store.db.prepare("SELECT status FROM support_stripe_refund_intents WHERE order_id=?") .get(order)!.status,"succeeded");
   await requestSupportStripeRefund(f.store,order,actor,note,"REFUND "+order.toUpperCase(),env,sender);
   assert.equal(calls.length,2,"duplicate operator click cannot call Stripe again");
   assert.equal(f.store.db.prepare("SELECT count(*) n FROM customer_stripe_refunds WHERE order_id=?").get(order).n,1);
@@ -162,7 +162,7 @@ test("invalid MP4 alerts Support once with a safe ID and never refunds Credits",
   assert.equal(mail.recipient,"support@singmotion.ai");
   assert.match(mail.body,new RegExp(id));
   assert.doesNotMatch(mail.body,/signed|\/private\/|api_key/i);
-  assert.equal(f.store.db.prepare("SELECT count(*) n FROM credit_wallet_ledger").get().n,0);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM credit_wallet_ledger").get()!.n,0);
  }finally{f.close()}
 });
 test("a failed charged video cannot be marked resolved before refund verification",()=>{
@@ -173,6 +173,6 @@ test("a failed charged video cannot be marked resolved before refund verificatio
   f.store.db.prepare("INSERT INTO customer_fulfillment_queue VALUES(?,'failed',?)").run(id,Date.now());
   const support=new SupportCases(f.store.db);
   assert.throws(()=>support.markResolved(id,actor,note,f.liveFile),/cannot be closed/);
-  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_cases").get().n,0);
+  assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_cases").get()!.n,0);
  }finally{f.close()}
 });
