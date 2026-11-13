@@ -148,8 +148,8 @@ export class SupportCases{
     return changed.changes===1;
   }
   refundIntent(orderId:string):{checkout_session:string;amount_cents:number;actor:string;reason:string;status:string;refund_id:string|null}|null{
-    return this.db.prepare("SELECT checkout_session,amount_cents,actor,reason,status,refund_id FROM support_stripe_refund_intents WHERE order_id=?")
-      .get(orderId) as {checkout_session:string;amount_cents:number;actor:string;reason:string;status:string;refund_id:string|null}|undefined??null;
+    return (this.db.prepare("SELECT checkout_session,amount_cents,actor,reason,status,refund_id FROM support_stripe_refund_intents WHERE order_id=?")
+      .get(orderId) as {checkout_session:string;amount_cents:number;actor:string;reason:string;status:string;refund_id:string|null}|undefined)??null;
   }
   /** Persist a stable, idempotent refund intent BEFORE contacting Stripe. An
    * unstarted pending fulfillment is atomically stopped to avoid a dispatch race. */
@@ -207,6 +207,10 @@ export class SupportCases{
     if(target.type==="stripe-order" && target.state==="paid" &&
       target.details.fulfillment==="failed" && target.details.refundStatus!=="succeeded")
       throw Error("Paid undelivered video cannot be closed as resolved until refund or verified delivery.");
+    if(target.type==="credit-video" &&
+      ["reserved","review"].includes(String(target.details.creditReservation)) &&
+      ["failed","uncertain"].includes(target.state))
+      throw Error("Unsettled Credit reservation cannot be marked resolved before reconciliation.");
     const key="resolved:"+target.id;
     this.db.exec("BEGIN IMMEDIATE");
     try{
