@@ -272,3 +272,5 @@ html:has(.sm-settings-page){scroll-padding-top:82px}
 @media (prefers-reduced-motion: reduce){
  html:has(.sm-settings-page){scroll-behavior:auto}
 }
+
+.sm-admin-dash-live{margin:22px 0;padding:18px 20px;border:1px solid #786b9766;border-radius:15px;background:#17162b;color:#eee9fc}.sm-admin-dash-live-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}.sm-admin-dash-live-head h3{display:flex;align-items:center;gap:9px;margin:0;font-size:1.05rem}.sm-admin-dash-live-head strong{font-size:.86rem;color:#f6d3a9}.sm-admin-dash-live p{margin:12px 0 6px;color:#cfcae0;font-size:.88rem}.sm-admin-dash-live ul{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;margin:12px 0 0;padding-left:19px;color:#d8d3e9;font-size:.86rem}.sm-admin-dash-live li{overflow-wrap:anywhere}@media(max-width:720px){.sm-admin-dash-live{padding:16px}.sm-admin-dash-live ul{grid-template-columns:1fr}}
