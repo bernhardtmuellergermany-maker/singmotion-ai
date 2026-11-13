@@ -240,11 +240,21 @@ export function MyProjectsGallery(){
    inFlight=true;lastRead=Date.now();
    if(active)setSyncing(true);
    try{
-    await ensureSession();
+    const session=await ensureSession() as {owner?:string};
+    // The private CMS Super Admin workspace does not have a customer-order
+    // cookie. Asking the customer-only endpoint returns an expected 401;
+    // never report that as a failure to synchronize the operator's projects.
+    // Only authenticated customer workspaces may read customer order titles.
+    const isCustomer=typeof session?.owner==="string"&&session.owner.startsWith("customer-");
     const [d,o,l]=await Promise.allSettled([
       api<SavedDraft[]>("studio-drafts",{cache:"no-store"}),
-      fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
-        .then(async r=>r.ok?(await r.json() as {orders:CustomerOrder[]}).orders:Promise.reject(Error("Customer projects unavailable"))),
+      isCustomer
+        ?fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
+          .then(async r=>{
+            if(!r.ok)throw Error("Customer projects unavailable");
+            return (await r.json() as {orders:CustomerOrder[]}).orders;
+          })
+        :Promise.resolve([] as CustomerOrder[]),
       api<{projects:StudioProject[]}>("studio-live",{cache:"no-store"})
         .then(v=>v.projects||[]),
     ]);
