@@ -20,7 +20,7 @@ export function ProjectHeaderName({id}:{id:string}){
  useEffect(()=>{
   if(!id.startsWith("live_"))return;
   let active=true;const key=id.slice(5);
-  void ensureSession().then(()=>api<StudioProject>("studio-live?id="+encodeURIComponent(key)))
+  void ensureSession().then(()=>api<StudioProject>("studio-live?id="+encodeURIComponent(key),{cache:"no-store"}))
    .then(async p=>{
     if(!active)return;
     let current=p;
@@ -44,6 +44,41 @@ export function ProjectHeaderName({id}:{id:string}){
    }).catch(()=>{if(active)setError("Could not load the saved project name.");});
   return()=>{active=false};
  },[id]);
+ // Mobile Safari may restore an old project header from its back/forward
+ // cache. Always re-read the server title when the page becomes visible;
+ // never overwrite a name while the user is editing or saving it.
+ useEffect(()=>{
+  if(!id.startsWith("live_")||edit||busy)return;
+  let active=true,inFlight=false;
+  const reload=async()=>{
+   if(!active||inFlight||document.hidden||saving.current)return;
+   inFlight=true;
+   try{
+    await ensureSession();
+    const project=await api<StudioProject>("studio-live?id="+encodeURIComponent(id.slice(5)),{cache:"no-store"});
+    if(active&&!saving.current){
+     setName(project.projectName||project.artistName||"Untitled Project");
+     setProjectState(project.state);
+     setError("");
+    }
+   }catch{
+    if(active)setError("Project name could not sync. Check that this device is signed into the same account, then reopen the project.");
+   }finally{inFlight=false;}
+  };
+  const onFocus=()=>{void reload();};
+  const onVisibility=()=>{if(!document.hidden)void reload();};
+  window.addEventListener("focus",onFocus);
+  window.addEventListener("pageshow",onFocus);
+  window.addEventListener("sm-project-name-updated",onFocus);
+  document.addEventListener("visibilitychange",onVisibility);
+  return()=>{
+   active=false;
+   window.removeEventListener("focus",onFocus);
+   window.removeEventListener("pageshow",onFocus);
+   window.removeEventListener("sm-project-name-updated",onFocus);
+   document.removeEventListener("visibilitychange",onVisibility);
+  };
+ },[id,edit,busy]);
  if(!id.startsWith("live_"))return null;
  const startEdit=()=>{cancelEdit.current=false;setDraft(name);setEdit(true);setError("")};
  const save=async()=>{
