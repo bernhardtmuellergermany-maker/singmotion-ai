@@ -57,6 +57,7 @@ export function MyProjectsGallery(){
  const [newest,setNewest]=useState(true);
  const [labels,setLabels]=useState<Record<string,string>>({});
  const [renaming,setRenaming]=useState<string|null>(null);
+ const [openOptionsId,setOpenOptionsId]=useState<string|null>(null);
  const [renameText,setRenameText]=useState("");
  const [busyId,setBusyId]=useState<string|null>(null);
  const [copiedSupportId,setCopiedSupportId]=useState<string|null>(null);
@@ -88,6 +89,34 @@ export function MyProjectsGallery(){
    if(saved&&typeof saved==="object"&&!Array.isArray(saved))setLabels(saved);
   }catch{}
  },[]);
+ // Only one project menu can be open. Clicking/tapping outside, focusing
+ // another control, or pressing Escape closes it without affecting that
+ // outside action. Capture pointerdown also handles mobile taps reliably.
+ useEffect(()=>{
+  if(openOptionsId===null)return;
+  const currentMenu=()=>document.querySelector<HTMLDetailsElement>("details.sm-projects-options[open]");
+  const outside=(target:EventTarget|null)=>{
+   const menu=currentMenu();
+   if(!menu||!(target instanceof Node)||!menu.contains(target))setOpenOptionsId(null);
+  };
+  const onPointerDown=(event:PointerEvent)=>outside(event.target);
+  const onFocusIn=(event:FocusEvent)=>outside(event.target);
+  const onEscape=(event:KeyboardEvent)=>{
+   if(event.key!=="Escape")return;
+   event.preventDefault();
+   const summary=currentMenu()?.querySelector<HTMLElement>("summary");
+   setOpenOptionsId(null);
+   summary?.focus();
+  };
+  document.addEventListener("pointerdown",onPointerDown,true);
+  document.addEventListener("focusin",onFocusIn);
+  document.addEventListener("keydown",onEscape);
+  return ()=>{
+   document.removeEventListener("pointerdown",onPointerDown,true);
+   document.removeEventListener("focusin",onFocusIn);
+   document.removeEventListener("keydown",onEscape);
+  };
+ },[openOptionsId]);
  async function renameProject(item:ProjectItem){
   const next=renameText.trim();
   if(!next||next.length>80){setError("Enter a project name of up to 80 characters.");return;}
@@ -289,12 +318,13 @@ export function MyProjectsGallery(){
             <button type="submit" disabled={busyId===item.id||!renameText.trim()}>Save</button>
             <button type="button" onClick={()=>setRenaming(null)}>Cancel</button>
           </form>:
-          <details className="sm-projects-options">
-            <summary aria-label={"More options for "+item.name} title="Project options"><MoreHorizontal size={18}/></summary>
+          <details className="sm-projects-options" open={openOptionsId===item.id}>
+            <summary aria-label={"More options for "+item.name} title="Project options" aria-expanded={openOptionsId===item.id}
+              onClick={event=>{event.preventDefault();setOpenOptionsId(current=>current===item.id?null:item.id);}}><MoreHorizontal size={18}/></summary>
             <div className="sm-projects-options-menu">
-              <Link href={item.href}><SquarePen size={15}/> Edit</Link>
-              <button type="button" onClick={()=>{setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
-              <button type="button" className="sm-projects-delete" disabled={busyId===item.id||item.kind==="customer"} title={item.kind==="customer"?"Paid orders cannot be deleted from My Projects; contact support for data removal.":"Delete project"} onClick={()=>void deleteProject(item)}><Trash2 size={15}/> {busyId===item.id?"Deleting…":"Delete"}</button>
+              <Link href={item.href} onClick={()=>setOpenOptionsId(null)}><SquarePen size={15}/> Edit</Link>
+              <button type="button" onClick={()=>{setOpenOptionsId(null);setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
+              <button type="button" className="sm-projects-delete" disabled={busyId===item.id||item.kind==="customer"} title={item.kind==="customer"?"Paid orders cannot be deleted from My Projects; contact support for data removal.":"Delete project"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Deleting…":"Delete"}</button>
               {item.kind==="customer"&&<small>Paid orders cannot be deleted here.</small>}
             </div>
           </details>}

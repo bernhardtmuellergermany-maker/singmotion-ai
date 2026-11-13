@@ -160,6 +160,29 @@ try{
  assert.equal(await page.getByRole("link",{name:/New video/}).getAttribute("href"),"/studio?new=1","New video must allocate a fresh draft instead of reusing the previous project");
  const libraryCard=page.getByRole("link",{name:/Open Music video .* Ready/});
  await libraryCard.waitFor({timeout:15000});
+ // My Projects action menu: close on any outside mouse/touch pointer or
+ // keyboard Escape; regular Edit/Rename/Delete actions remain accessible.
+ const options=page.locator("details.sm-projects-options").first();
+ await options.locator("summary").click();
+ assert.equal(await options.evaluate(el=>(el as HTMLDetailsElement).open),true,
+   "Project action dropdown opens on its own summary");
+ assert.equal(await options.getByRole("button",{name:"Rename"}).isVisible(),true);
+ await page.getByRole("heading",{name:"My Projects"}).click();
+ assert.equal(await options.evaluate(el=>(el as HTMLDetailsElement).open),false,
+   "Clicking anywhere outside dismisses the dropdown without navigation");
+ await options.locator("summary").click();
+ await page.keyboard.press("Escape");
+ assert.equal(await options.evaluate(el=>(el as HTMLDetailsElement).open),false,
+   "Escape dismisses the dropdown");
+ assert.equal(await options.locator("summary").evaluate(el=>document.activeElement===el),true,
+   "Escape returns keyboard focus to the options trigger");
+ await options.locator("summary").click();
+ await options.getByRole("button",{name:"Rename"}).click();
+ await page.locator(".sm-projects-rename-form").waitFor({timeout:5000});
+ assert.equal(await options.count(),0,
+   "Choosing Rename replaces the options menu with the editing form");
+ await page.locator(".sm-projects-rename-form").getByRole("button",{name:"Cancel"}).click();
+ console.log("BROWSER_CHECKPOINT: My Projects action menu outside-click, Escape, rename verified");
  assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
  // One click must copy the full support reference, not the eight-character
  // preview displayed on the project card.
@@ -241,6 +264,18 @@ try{
  const preserved=afterNew.find(d=>d.id===old.id);
  assert.equal(preserved?.selection.customPrompt,note,"first guest project remains unchanged");
  await guestPage.goto(origin+"/projects");
+ await guestPage.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ const draftMenus=guestPage.locator("details.sm-projects-options");
+ await draftMenus.nth(1).waitFor({timeout:5000});
+ await draftMenus.nth(0).locator("summary").click();
+ assert.equal(await draftMenus.nth(0).evaluate(el=>(el as HTMLDetailsElement).open),true);
+ await draftMenus.nth(1).locator("summary").click();
+ assert.equal(await draftMenus.nth(0).evaluate(el=>(el as HTMLDetailsElement).open),false,
+   "Opening another project menu automatically closes the previously opened menu");
+ assert.equal(await draftMenus.nth(1).evaluate(el=>(el as HTMLDetailsElement).open),true);
+ await guestPage.getByRole("searchbox",{name:"Search projects and support IDs"}).focus();
+ assert.equal(await draftMenus.nth(1).evaluate(el=>(el as HTMLDetailsElement).open),false,
+   "Moving keyboard focus outside also closes a project menu");
  await guestPage.getByRole("link",{name:/Open Old Guest Project, Draft/}).click();
  await guestPage.waitForURL(origin+`/studio?draft=${encodeURIComponent(old.id)}`);
  await guestPage.locator("#flow-performance-prompt").waitFor({timeout:15000});
