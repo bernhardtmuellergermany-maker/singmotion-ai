@@ -200,16 +200,16 @@ export class CreditWallet {
  /** Completed + validated MP4: bill once. Verified zero-charge prefilter:
   * release once. Uncertain/other failures: hold until reconciliation.
   * Historical jobs without a hold are NEVER retroactively charged. */
- reconcileVideo(projectId:string,outcome:"completed"|"nonbillable"|"review"):VideoReservation|null {
+ reconcileVideo(projectId:string,outcome:"completed"|"nonbillable"|"service-failed"|"review"):VideoReservation|null {
   return this.tx(()=>{
    const hold=this.videoReservation(projectId);
    if(!hold||hold.state==="settled"||hold.state==="released")return hold;
-   const state=outcome==="completed"?"settled":outcome==="nonbillable"?"released":"review";
+   const state=outcome==="completed"?"settled":outcome==="nonbillable"||outcome==="service-failed"?"released":"review";
    if(state==="settled"||state==="released"){
-    const key=(state==="settled"?"video-charge:":"video-release:")+projectId;
+    const key=(state==="settled"?"video-charge:":outcome==="service-failed"?"video-service-refund:":"video-release:")+projectId;
     this.db.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
      .run(key,hold.subject,state==="settled"?-hold.credits:0,
-       state==="settled"?"video":"video-release",key,Date.now());
+       state==="settled"?"video":outcome==="service-failed"?"video-service-refund":"video-release",key,Date.now());
    }
    this.db.prepare("UPDATE credit_video_reservations SET state=?,updated=? WHERE project_id=?")
     .run(state,Date.now(),projectId);
