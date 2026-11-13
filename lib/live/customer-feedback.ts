@@ -108,10 +108,16 @@ export function providerFeedback(
         message:"The provider rejected the input before generating a video. We cannot yet confirm that the Credit reservation was released to your available balance. You can edit a new draft now, but do not start another paid generation until the original reservation is resolved.",
         action:editInputsAction(editHref)};
     }
-    if(has("PROVIDER_JOB_FAILED")||has("PROVIDER_TASK_CANCELED"))
+    if(has("PROVIDER_JOB_FAILED")||has("PROVIDER_TASK_CANCELED")){
+      if(charge?.status==="released")
+        return {key:"provider-terminal-credits-returned",kind:"warning",
+          title:"Provider could not finish · Credits returned",
+          message:`The provider permanently stopped the original request. ${number(charge.credits)} Credits have been returned to your available balance as a service refund. Review the inputs before authorizing a NEW video generation; no second provider request starts automatically.`,
+          action:{label:"Review and retry",href:editInputsAction(editHref).href}};
       return {key:"provider-terminal-billing-review",kind:"warning",
         title:"The video provider stopped this task",
-        message:"The original task was not completed. A provider failure does not prove that it was free of charge. We are checking the existing reservation; no second request will be submitted automatically."};
+        message:"The original request did not finish. We are automatically checking the existing reservation and whether your Credits can be returned. Do not resubmit the old task or pay again."};
+    }
     if(["MISSING_OUTPUT","INVALID_OUTPUT","OUTPUT_MP4_VALIDATION_FAILED","OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED","OUTPUT_STORAGE_FAILED","TEMPO_RESTORATION_FAILED"].some(has))
       return {key:"provider-output-validation",kind:"warning",
         title:"Your video output could not be verified",
