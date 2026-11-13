@@ -36,8 +36,8 @@ test("prepared operator project with insufficient wallet credits shows actionabl
  assert.match(view,/No Credits were charged/);
  assert.match(view,/href=\{creditTopupHref\}/);
  assert.match(view,/progress!=="credits-needed"/);
- assert.match(status,/project\\?\\.state==="prepared"/);
+ assert.match(status,/project\?\.state==="prepared"/);
  assert.match(status,/sourceDraftId/);
  assert.match(status,/resumeHref/);
- assert.match(status,/creditTopupHref=\\{creditsHref\\}/);
+ assert.match(status,/creditTopupHref=\{creditsHref\}/);
 });
