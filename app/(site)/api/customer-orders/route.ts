@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
         "SELECT name FROM customer_order_display_names WHERE order_id=? AND account_id=?"
       );
       const safeOrders=orders.map((item:Record<string,unknown>)=>{
-        const alias=displayName.get(item.orderId,accountId) as {name:string}|undefined;
+        const alias=typeof item.orderId==="string"
+          ?displayName.get(item.orderId,accountId) as {name:string}|undefined
+          :undefined;
         return {...item,...privateCustomerVideoLinks(item),displayName:alias?.name??null};
       });
       return respond({orders:safeOrders});
