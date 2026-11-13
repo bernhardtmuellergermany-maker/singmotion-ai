@@ -14,6 +14,17 @@ type VideoReservation={projectId:string;credits:number;state:"reserved"|"review"
 type Balance={videoReservations?:VideoReservation[];availableCredits:number;reservedCredits:number;outstandingCredits:number;
  purchaseEnabled:boolean;testMode:boolean;entries:Ledger[];legacyOrders:Order[];purchases:Purchase[]};
 type View="loading"|"signed-out"|"unavailable"|"ready";
+type CreditResume={draftId:string;requiredCredits:number;created:number};
+const RESUME_KEY="sm-credit-checkout-resume";
+function readCreditResume():CreditResume|null {
+ try{
+  const value=JSON.parse(sessionStorage.getItem(RESUME_KEY)||"null") as CreditResume|null;
+  if(!value||!/^[A-Za-z0-9_-]{1,80}$/.test(value.draftId)||
+     !Number.isSafeInteger(value.requiredCredits)||value.requiredCredits<1||value.requiredCredits>7500||
+     !Number.isFinite(value.created)||Date.now()-value.created>2*60*60*1000)return null;
+  return value;
+ }catch{return null;}
+}
 const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const date=(n:number)=>new Date(n).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
 const eur=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
@@ -22,9 +33,19 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
  const [view,setView]=useState<View>("loading");
  const [balance,setBalance]=useState<Balance|null>(null);
  const [checkoutNotice,setCheckoutNotice]=useState<CustomerNotice|null>(null);
+ const [resume,setResume]=useState<CreditResume|null>(null);
  useEffect(()=>{
   let active=true;
-  const checkoutResult=new URLSearchParams(window.location.search).get("checkout");
+  const params=new URLSearchParams(window.location.search);
+  const checkoutResult=params.get("checkout");
+  const draftId=params.get("resumeDraft");
+  const required=Number(params.get("requiredCredits"));
+  if(draftId&&/^[A-Za-z0-9_-]{1,80}$/.test(draftId)&&
+     Number.isSafeInteger(required)&&required>=1&&required<=7500){
+    const next={draftId,requiredCredits:required,created:Date.now()};
+    sessionStorage.setItem(RESUME_KEY,JSON.stringify(next));
+    setResume(next);
+  }else setResume(readCreditResume());
   setCheckoutNotice(checkoutFeedback(checkoutResult));
   const refresh=()=>{
    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
@@ -36,7 +57,14 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
         !Number.isSafeInteger(data.reservedCredits)||data.reservedCredits<0||
         !Array.isArray(data.entries)||!Array.isArray(data.legacyOrders)||!Array.isArray(data.purchases))
       throw Error("Invalid account balance");
-     if(active){setBalance(data);setView("ready");}
+     if(active){
+      setBalance(data);setView("ready");
+      const pending=readCreditResume();
+      if(checkoutResult==="success"&&pending&&data.availableCredits>=pending.requiredCredits){
+        sessionStorage.removeItem(RESUME_KEY);
+        window.location.replace("/studio?draft="+encodeURIComponent(pending.draftId));
+      }
+     }
     }).catch(()=>{if(active)setView("unavailable");});
   };
   refresh();
@@ -69,6 +97,14 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     </div>
     <div className="sm-credits-summary-links"><a href="#buy-credits">Buy Credits</a><a href="#usage">Usage & Orders</a></div>
    </section>
+   {resume&&<section className="sm-credits-notice" aria-label="Continue your video project">
+     <h2>Continue your video</h2>
+     <p>Your Studio project is saved. {balance.availableCredits>=resume.requiredCredits
+       ?"Your available Credits cover the video estimate. Continue to Step 4 and confirm generation."
+       :`You need ${num(resume.requiredCredits)} available Credits for this video. After your Stripe payment is verified, you will return to Step 4 automatically.`}</p>
+     <Link href={`/studio?draft=${encodeURIComponent(resume.draftId)}`} className="sm-plan-action sm-plan-action-outline"
+       onClick={()=>{sessionStorage.removeItem(RESUME_KEY)}}>Return to Step 4</Link>
+   </section>}
    {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode}/></section>}
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
