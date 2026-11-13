@@ -1,0 +1,40 @@
+name: Customer generation feedback safety
+on:
+  pull_request:
+    branches:
+      - design/studio-audio-redesign-20261111
+    paths:
+      - 'components/customer-feedback.*'
+      - 'components/generation-dialog.tsx'
+      - 'components/generation-status-view.tsx'
+      - 'components/studio-wizard.tsx'
+      - 'components/studio-live.tsx'
+      - 'components/credits-dashboard.tsx'
+      - 'components/credit-amount-picker.tsx'
+      - 'lib/live/customer-feedback.ts'
+      - 'tests/customer-feedback.test.ts'
+      - 'package.json'
+      - '.github/workflows/customer-generation-feedback.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: customer-generation-feedback-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts
+      - run: npm run build
