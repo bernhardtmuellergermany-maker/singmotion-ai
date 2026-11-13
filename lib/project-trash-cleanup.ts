@@ -5,7 +5,7 @@
  */
 import {DatabaseSync} from "node:sqlite";
 import {existsSync} from "node:fs";
-import {lstat,realpath,unlink} from "node:fs/promises";
+import {lstat,realpath,unlink,readdir} from "node:fs/promises";
 import path from "node:path";
 import {deleteMirroredPrivateSource,type CloudMediaRecord} from "./cloud-media.ts";
 import {ensureDraftTrash,ensureLiveTrash,PROJECT_TRASH_MS} from "./project-trash.ts";
@@ -122,6 +122,17 @@ export async function runProjectTrashCleanup(root:string,options:Options={}){
       const filename=path.basename(record.outputPath);
       if(!filename.endsWith(".mp4"))throw Error("Unexpected output file");
       await removeOwnedLocal(root,filename,"live-output");
+     }
+     // A completed tempo-restoration can also retain an intermediate provider
+     // MP4. Stale lease-bound partials may remain after an interrupted worker.
+     // Only exact files belonging to this expired, terminal project qualify.
+     await removeOwnedLocal(root,candidate.id+".provider-source.mp4","live-output");
+     const leftovers=await readdir(path.join(root,"live-output"));
+     for(const filename of leftovers){
+       const prefix=candidate.id+".";
+       if(filename.startsWith(prefix)&&filename.endsWith(".partial.mp4")&&
+          /^[A-Za-z0-9_-]{8,128}$/.test(filename.slice(prefix.length,-".partial.mp4".length)))
+         await removeOwnedLocal(root,filename,"live-output");
      }
     }
     const ids=selectionAssetIds(candidate.selection);
