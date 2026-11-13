@@ -77,7 +77,6 @@ export default function AccountSettings(){
   <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}</nav>
   <div className="sm-settings-content">
    {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super Admin account</strong><p className="sm-settings-muted">You can view your own real credits and purchases under Credits, just like a customer. Account security and staff management remain in the admin area.</p></section>}
-   {canShowAdmin&&<AdminAccountDashboard overview={adminOverview} busy={adminStatusBusy} error={adminStatusError} refresh={()=>void refreshAdminStatus()}/>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
    {data&&<>
     <section id="profile" className="sm-settings-section"><h2>Account information</h2><label>Email address<input readOnly value={data.profile.email}/></label>
@@ -156,6 +155,7 @@ export default function AccountSettings(){
       <p className="sm-settings-muted">Deletion is reviewed by support after identity verification. The button opens a draft email; you must send it yourself. Super Admin deletion requires an administrator handover and cannot be performed automatically. Legally required financial and security records may need to be retained.</p>
       <p className="sm-settings-support"><LifeBuoy size={17}/> Questions about account access, payments or privacy? <a href="mailto:support@singmotion.ai">Contact support</a>.</p>
      </section>
+   {canShowAdmin&&<AdminAccountDashboard overview={adminOverview} busy={adminStatusBusy} error={adminStatusError} refresh={()=>void refreshAdminStatus()}/>}
    </>}
   </div></div></div></Shell>;
 }
