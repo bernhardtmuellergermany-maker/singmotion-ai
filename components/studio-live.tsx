@@ -494,17 +494,34 @@ export function LiveProject({ id }: { id: string }) {
     [busy, setBusy] = useState(false);
   useEffect(() => {
     let active = true;
-    const read = () =>
-      ensureSession()
-        .then(() =>
-          api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`),
-        )
-        .then((p) => {
-          if (active) {setProject(p);setError("");}
-        })
-        .catch((e) => {
-          if (active) setError(e.message);
-        });
+    let statusReads=0;
+    const read = async () => {
+      try{
+        await ensureSession();
+        let p=await api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`);
+        if(active){setProject(p);setError("");}
+        // Status checks are read-only against the ORIGINAL provider job, never
+        // a new submission. They allow 50510 terminal pre-filter evidence to
+        // release a wallet reservation automatically while the page is open.
+        if(["submitted","processing"].includes(p.state) && ++statusReads>=6){
+          statusReads=0;
+          if(navigator.onLine){
+            try{
+              p=await api<StudioProject>("studio-live",{
+                method:"POST",body:JSON.stringify({action:"poll",id}),
+              });
+              if(active){setProject(p);setError("");}
+            }catch{
+              // A transient read conflict never changes, refunds or resubmits
+              // the task. Keep its previous truthful status on-screen.
+            }
+          }
+        }
+        if(!["submitted","processing"].includes(p.state))statusReads=0;
+      }catch(e){
+        if(active)setError(e instanceof Error?e.message:"Unable to refresh the saved project.");
+      }
+    };
     let timer: ReturnType<typeof setTimeout>;
     async function refresh() {
       if (document.visibilityState !== "hidden") await read();
