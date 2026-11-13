@@ -41,7 +41,18 @@ export async function GET(req: NextRequest) {
       try { filter=customerOrderStatusFilter(orderId,projectId); }
       catch { return respond({error:"Invalid order or project reference."},400); }
       const orders=ownedCustomerOrderStatuses(store.db,accountId,filter);
-      const safeOrders=orders.map((item:Record<string,unknown>)=>({...item,...privateCustomerVideoLinks(item)}));
+      // Display-only names are account-scoped; the financial order is immutable.
+      store.db.exec(`CREATE TABLE IF NOT EXISTS customer_order_display_names (
+        order_id TEXT NOT NULL,account_id TEXT NOT NULL,name TEXT NOT NULL,
+        PRIMARY KEY(order_id,account_id)
+      )`);
+      const displayName=store.db.prepare(
+        "SELECT name FROM customer_order_display_names WHERE order_id=? AND account_id=?"
+      );
+      const safeOrders=orders.map((item:Record<string,unknown>)=>{
+        const alias=displayName.get(item.orderId,accountId) as {name:string}|undefined;
+        return {...item,...privateCustomerVideoLinks(item),displayName:alias?.name??null};
+      });
       return respond({orders:safeOrders});
     } finally {store.close();}
   }
@@ -55,6 +66,47 @@ export async function GET(req: NextRequest) {
     checkoutUnavailableReason: readiness.readyForPaidOrders ? null :
       "Stripe Checkout und private BytePlus-Videolieferung sind für diese Umgebung noch nicht vollständig freigegeben.",
   });
+}
+
+/** Edit only the visible name of an order owned by the authenticated customer.
+ * This never changes purchase amounts, delivery, provider tasks or a guest order.
+ */
+export async function PATCH(req:NextRequest){
+  const denied=stagingDenial(req.headers.get("authorization"));
+  if(denied)return denied;
+  if(process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
+    return respond({error:"Customer accounts unavailable."},503);
+  const origin=applicationOrigin(req.url,req.headers.get("host"));
+  if(!origin||req.headers.get("origin")!==origin)
+    return respond({error:"Request origin is not allowed."},403);
+  if(Number(req.headers.get("content-length"))>2048)return respond({error:"Request too large."},413);
+  const raw=await req.text();
+  if(Buffer.byteLength(raw)>2048)return respond({error:"Request too large."},413);
+  let body:Record<string,unknown>;
+  try{body=JSON.parse(raw) as Record<string,unknown>;}
+  catch{return respond({error:"Invalid request."},400);}
+  const id=body.orderId,name=body.name;
+  if(typeof id!=="string"||!/^[a-f0-9-]{36}$/.test(id)||
+     typeof name!=="string"||name!==name.trim()||name.length<1||
+     name.length>80||/[\\x00-\\x1f\\x7f]/.test(name))
+    return respond({error:"Invalid order reference or project name."},400);
+  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+  try{
+    const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
+    if(!accountId)return respond({error:"Customer login required."},401);
+    limit(accountId+":customer-order-rename",20,60000);
+    if(!ownedCustomerOrderStatuses(store.db,accountId,
+       customerOrderStatusFilter(id,null)).some(o=>o.orderId===id))
+      return respond({error:"Project not found."},404);
+    store.db.exec(`CREATE TABLE IF NOT EXISTS customer_order_display_names (
+      order_id TEXT NOT NULL,account_id TEXT NOT NULL,name TEXT NOT NULL,
+      PRIMARY KEY(order_id,account_id)
+    )`);
+    store.db.prepare(`INSERT INTO customer_order_display_names(order_id,account_id,name)
+      VALUES (?,?,?) ON CONFLICT(order_id,account_id) DO UPDATE SET name=excluded.name`
+    ).run(id,accountId,name);
+    return respond({orderId:id,displayName:name});
+  }finally{store.close();}
 }
 
 /** Customer-only preparation. No Checkout, BytePlus request or paid worker start. */
