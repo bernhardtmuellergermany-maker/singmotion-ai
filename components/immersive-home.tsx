@@ -68,32 +68,41 @@ function DesktopShowcaseCarousel({clips}:{clips:ShowcaseClip[]}){
   // Unmuting is a user gesture; never pause video when toggling sound.
   if(player.paused)void player.play().catch(()=>{player.muted=true;setCenterAudible(false);});
  };
- const slots=[-1,0,1];
+ // Render one persistent video element per approved clip. Moving a card must
+ // not tear down its already-buffered player or reset playback to 00:00.
+ const slots=slides.length===3
+  ? slides.map((item,index)=>{
+      const step=(index-selected+3)%3;
+      return {offset:step===2?-1:step,item,key:item.url+"-"+index};
+    })
+  : [-1,0,1].map(offset=>({
+      offset,item:slides[wrap(selected+offset)],key:"slot-"+offset,
+    }));
  return <section className="sm-desktop-showcase" id="showcase" aria-label="Music video carousel">
   <div ref={carousel} className="sm-moving-carousel" tabIndex={0} aria-label="Use left and right arrows to move through music videos"
    onKeyDown={e=>{if(e.key==="ArrowLeft"){e.preventDefault();move(-1)}else if(e.key==="ArrowRight"){e.preventDefault();move(1)}}}
    onTouchStart={e=>{touchX.current=e.touches[0]?.clientX??null}}
    onTouchEnd={e=>{const x=e.changedTouches[0]?.clientX;if(x!==undefined&&touchX.current!==null&&Math.abs(x-touchX.current)>50)move(x<touchX.current?1:-1);touchX.current=null}}>
-   {slots.map(offset=>{
-    const item=slides[wrap(selected+offset)];
+   {slots.map(({offset,item,key})=>{
     const itemCover=item.posterUrl||cover;
     const isCenter=offset===0;
     const isSide=Math.abs(offset)===1;
     const slot=offset+motion;
-    return <div key={offset} className={"sm-moving-card"+(isCenter?" is-center":"")+(isSide?" is-side":"")+(motion!==0&&isCenter?" is-leaving":"")+(motion!==0&&slot===0?" is-entering":"")+(settling?" no-transition":"")}
+    return <div key={key} className={"sm-moving-card"+(isCenter?" is-center":"")+(isSide?" is-side":"")+(motion!==0&&isCenter?" is-leaving":"")+(motion!==0&&slot===0?" is-entering":"")+(settling?" no-transition":"")}
        style={{"--slot":(slot*74)+"%"} as React.CSSProperties}
        onTransitionEnd={isCenter?endMove:undefined}
        aria-hidden={Math.abs(slot)>1?true:undefined}>
-      {isCenter&&item.url&&!broken?<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" key={item.url} src={item.url} poster={itemCover}
-        playsInline autoPlay loop muted preload="auto" className="sm-moving-video"
-        onLoadedMetadata={e=>{e.currentTarget.muted=!centerAudible;void e.currentTarget.play().catch(()=>{});}}
-        onError={()=>setBroken(true)} onClick={toggleCenterSound}
-        onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleCenterSound();}}}
-        role="button" tabIndex={0} aria-pressed={centerAudible} aria-label={(centerAudible?"Ton ausschalten: ":"Ton einschalten: ")+item.title}/>:
-       isSide&&item.url?<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-moving-video sm-moving-preview" src={item.url} poster={itemCover}
-        autoPlay muted playsInline loop preload="auto" aria-hidden="true" tabIndex={-1}
-        onLoadedMetadata={e=>{e.currentTarget.muted=true;void e.currentTarget.play().catch(()=>{});}}
-        onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}}/>:
+      {(isCenter&&!broken||isSide)&&item.url?<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback"
+        className={"sm-moving-video"+(isSide?" sm-moving-preview":"")} src={item.url} poster={itemCover}
+        playsInline autoPlay loop muted preload="auto"
+        onLoadedMetadata={e=>{e.currentTarget.muted=!isCenter||!centerAudible;void e.currentTarget.play().catch(()=>{});}}
+        onCanPlay={e=>{if(e.currentTarget.paused)void e.currentTarget.play().catch(()=>{});}}
+        onError={()=>{if(isCenter)setBroken(true);}}
+        onClick={isCenter?toggleCenterSound:undefined}
+        onKeyDown={isCenter?e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();toggleCenterSound();}}:undefined}
+        role={isCenter?"button":undefined} tabIndex={isCenter?0:-1} aria-hidden={isSide?true:undefined}
+        aria-pressed={isCenter?centerAudible:undefined}
+        aria-label={isCenter?(centerAudible?"Ton ausschalten: ":"Ton einschalten: ")+item.title:undefined}/>:
        <div className="sm-moving-poster" style={{backgroundImage:"linear-gradient(0deg,#080513a6,#12091b3b),url('"+itemCover+"')"}}/>}
       {isCenter&&item.url&&!broken&&<button className="sm-moving-mute" type="button"
         aria-label={centerAudible?"Ton ausschalten":"Ton einschalten"} aria-pressed={centerAudible}
