@@ -34,6 +34,8 @@ import {
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
+import {CustomerFeedback} from "./customer-feedback";
+import {requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 import { PerformanceTimeline, timelinePrompt, type PerformanceSection } from "./performance-timeline";
 import { api, ensureSession, upload, uploadWithProgress } from "@/lib/client";
 import {
@@ -574,6 +576,10 @@ export function StudioWizard({
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
   }, []);
+  const wizardNotice:CustomerNotice|null=error?
+    step<=1?requestErrorFeedback(error,"upload"):
+    /prompt|overlap|source project|audio|photo|permission|selection/i.test(error)?{key:"studio-input-error",kind:"warning",title:"Please check your video inputs",message:error.slice(0,240)}:
+    requestErrorFeedback(error,"generation"):null;
   return (
     <div className="product-theme singmotion-flow">
       <SiteHeader />
@@ -588,6 +594,7 @@ export function StudioWizard({
           ))}
         </div>
         <div className={`sm-new-page-heading ${step===2?"sm-performance-heading":""}`}><span>Step {step+1} of 4 · {["Audio","Photo","Performance","Generate"][step]}</span><h1>{step===0 && draft.song ? content.audioReadyHeadline : ["Upload your audio",draft.imageId?"Your artist photo":"Upload your artist photo","Your performance","Ready to generate?"][step]}</h1><p>{step===0 && draft.song ? content.audioReadySubtitle : ["Upload the audio file you’ll use for the music video.","Upload a clear photo and choose the video format.","Describe the movement, emotion and camera style for your music video.","Review your setup before starting."][step]}</p></div>
+        <CustomerFeedback notice={wizardNotice} context={step<=1?"upload":"generation"}/>
         
         {step===0&&<div className="sm-new-audio-workspace">
           <input ref={audioFileInput} className="sr-only" type="file" aria-label="Choose audio file" accept=".mp3,.wav,.m4a,audio/mpeg,audio/wav,audio/mp4" disabled={!ready||busy} onChange={e=>{void add(e.target.files?.[0],"audio");e.currentTarget.value="";}}/>
@@ -860,7 +867,7 @@ export function StudioWizard({
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
           {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
-        {error && <p className="flow-error" role="alert">{error} {error.includes("3 guest drafts") && <Link href="/login">Log in</Link>}</p>}
+        {/* Errors stay beside the current step heading; no off-screen footer alert. */}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} initialRights={reviewRights} onClose={()=>setConfirm(false)}/>}
