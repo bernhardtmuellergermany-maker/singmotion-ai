@@ -83,7 +83,7 @@ export function providerFeedback(state:string,stage:string,charge?:CreditCharge|
   }
   if(state==="uncertain"||state==="output_observed"||state==="submitting"||state==="authorized")
     return generationFeedback("review",charge);
-  if((state==="submitted"||state==="processing")&&Number.isFinite(createdAt)&&createdAt!>0&&now-createdAt!>45*60*1000)
+  if((state==="submitted"||state==="processing")&&typeof createdAt==="number"&&Number.isFinite(createdAt)&&createdAt>0&&now-createdAt>45*60*1000)
     return {key:"provider-delayed",kind:"warning",title:"Your video is taking longer than usual",
       message:"Your request is still under review. We have not confirmed a failure or a refund. Please check this project later, without paying or submitting again."};
   if(state==="submitted")return generationFeedback("queued",charge);
@@ -96,10 +96,10 @@ export function providerFeedback(state:string,stage:string,charge?:CreditCharge|
 export function checkoutFeedback(result:string|null):CustomerNotice|null {
   if(result==="cancelled")
     return {key:"checkout-cancelled",kind:"info",title:"Checkout cancelled",
-      message:"You returned without completing this purchase. No Credits have been added for this checkout. Your previous balance is unchanged."};
+      message:"You returned without completing this purchase. No Credits have been added for this checkout. Your previous balance is unchanged.",dismissAfterMs:15000};
   if(result==="success")
     return {key:"checkout-returned",kind:"info",title:"Payment confirmation pending",
-      message:"You returned from Stripe. Credits are added only after the verified payment reaches your wallet. Check the balance below before paying again."};
+      message:"You returned from Stripe. Credits are added only after the verified payment reaches your wallet. Check the balance below before paying again.",dismissAfterMs:20000};
   return null;
 }
 
@@ -111,7 +111,19 @@ export function requestErrorFeedback(error:string,context:"upload"|"payment"|"ge
       context==="generation"?
         "We cannot confirm whether your request reached the provider. Open the saved project to check its status; do not start a second paid request.":
         "The upload may be incomplete. Reconnect, then check whether the file appears in your Studio before uploading again."};
-  if(/insufficient|not enough.*credit|balance/i.test(error))return generationFeedback("credits-needed")!;
+  if(/insufficient|not enough.*credit/i.test(error))return generationFeedback("credits-needed")!;
+  if(/429|rate.?limit|too many requests/i.test(error))
+    return {key:"rate-limit-"+context,kind:"warning",title:"Too many requests",
+      message:"Please wait before trying again. Your saved video or payment is not automatically repeated."};
+  if(/declined|payment failed|card.*(failed|rejected)/i.test(error)&&context==="payment")
+    return {key:"payment-declined",kind:"error",title:"Payment was not completed",
+      message:"No new Credits are available from this attempt. Check the Stripe payment result and your wallet before trying a different payment method."};
+  if(/maintenance|service unavailable|503|502|gateway|temporarily unavailable/i.test(error))
+    return {key:"service-unavailable-"+context,kind:"warning",title:"Service temporarily unavailable",
+      message:"SingMotion cannot confirm this step right now. Your existing project remains saved where confirmed; do not create a duplicate payment or generation."};
+  if(context==="upload"&&/invalid|unsupported|too (large|small)|exceeds|file size|decode|format|corrupt/i.test(error))
+    return {key:"invalid-upload",kind:"error",title:"Please check your audio or photo",
+      message:"The file was not accepted. Check its format, dimensions and file size. Choose a supported file and upload it again."};
   if(/401|403|sign.?in|session|authorization|authentication/i.test(error))
     return {key:"session-required",kind:"warning",title:"Your session needs attention",
       message:"Sign in again to confirm your account and saved project. Do not submit another paid request until you have checked the existing one.",
