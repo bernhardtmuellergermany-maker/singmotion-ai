@@ -109,6 +109,8 @@ export interface StudioProject {
   imageId: string;
   artistName: string;
   projectName: string;
+  /** Owner-editable title, separate from immutable paid generation metadata. */
+  displayName?: string | null;
   /** Original Studio draft ID when this render was prepared from a saved project. */
   sourceDraftId?: string | null;
   selection: StudioDraftExport;
@@ -326,6 +328,7 @@ export class StudioWorkflow {
       imageId: JSON.parse(row.selection_json).imageId,
       artistName: row.artist_name,
       projectName: row.display_name || row.project_name || row.artist_name,
+      displayName: row.display_name || null,
       sourceDraftId:linkedDraft,
       selection: JSON.parse(row.selection_json),
       estimatedGeneratedSeconds,
