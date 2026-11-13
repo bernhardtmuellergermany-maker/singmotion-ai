@@ -13,19 +13,22 @@ const euro=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:
 export function CreditAmountPicker({purchaseEnabled=false,testMode=true}:{purchaseEnabled?:boolean;testMode?:boolean}){
  const [raw,setRaw]=useState("2000");
  const [busy,setBusy]=useState(false);
+ const [billingCountry,setBillingCountry]=useState("");
+ const [buyerType,setBuyerType]=useState<"consumer"|"business">("consumer");
  const [error,setError]=useState("");
  const requestKey=useRef<string|null>(null);
  const [status,setStatus]=useState<CustomerNotice|null>(null);
  const inputId=useId();
  const credits=parseCreditTopup(raw),cents=credits===null?null:proposedTopupCents(credits);
  const begin=async()=>{
-  if(!purchaseEnabled||credits===null||busy)return;
+  if(!purchaseEnabled||credits===null||busy||(!testMode&&!/^[A-Z]{2}$/.test(billingCountry)))return;
   setBusy(true);setError("");setStatus(null);
   try{
    const response=await fetch("/api/credit-checkout",{
     method:"POST",credentials:"same-origin",
     headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({credits:String(credits),requestKey:(requestKey.current??=crypto.randomUUID())}),
+    body:JSON.stringify({credits:String(credits),requestKey:(requestKey.current??=crypto.randomUUID()),
+      ...(!testMode?{billingCountry,buyerType}:{})}),
    });
    const data=await response.json() as {url?:string;error?:string;testMode?:boolean;supportReference?:string};
    if(!response.ok||data.testMode!==testMode||typeof data.url!=="string"||
@@ -60,17 +63,33 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true}:{purcha
    <p id={inputId+"-hint"} className={credits===null?"sm-credit-amount-error":"sm-credit-amount-helper"}>
     {credits===null?"Enter 500 to 100,000 whole credits.":"1 Credit = €0.01."}</p>
   </div>
+  {!testMode&&<fieldset className="sm-credit-amount-field" style={{border:0,padding:0,margin:0}}>
+   <legend>Billing country and customer type</legend>
+   <label htmlFor={inputId+"-country"}>Billing country (two-letter ISO code, e.g. DE, US, GB)</label>
+   <input id={inputId+"-country"} type="text" autoComplete="country" inputMode="text"
+    maxLength={2} value={billingCountry} placeholder="DE" aria-required="true"
+    aria-invalid={!/^[A-Z]{2}$/.test(billingCountry)}
+    onChange={e=>{setBillingCountry(e.target.value.toUpperCase().replace(/[^A-Z]/g,"").slice(0,2));
+     requestKey.current=null;setError("");setStatus(null);}}/>
+   <label htmlFor={inputId+"-type"}>I am buying as</label>
+   <select id={inputId+"-type"} value={buyerType}
+    onChange={e=>{setBuyerType(e.target.value as "consumer"|"business");requestKey.current=null;setError("");setStatus(null);}}>
+    <option value="consumer">Private customer</option>
+    <option value="business">Business customer</option>
+   </select>
+   <p className="sm-credit-amount-helper">Country and business status determine the applicable tax rules. Stripe will verify your billing address. If your country is not yet approved, checkout will not start.</p>
+  </fieldset>}
   <div className="sm-credit-amount-total" aria-live="polite">
    <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
-   <div><span>Estimated total (incl. VAT)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
+   <div><span>Estimated payment (tax determined at checkout)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
   </div>
-  {purchaseEnabled?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null} onClick={()=>void begin()}>
+  {purchaseEnabled?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null||(!testMode&&!/^[A-Z]{2}$/.test(billingCountry))} onClick={()=>void begin()}>
    {busy?"Opening Stripe…":testMode?"Test purchase with Stripe":"Buy securely with Stripe"}
   </button>:<div className="sm-credit-amount-disabled" aria-disabled="true">Credit purchases are not yet available</div>}
   <CustomerFeedback notice={status??(busy?{key:"checkout-opening",kind:"info",title:"Opening secure checkout",message:"Please keep this page open. Credits are added only after verified payment."}:null)} context="payment"/>
   {error&&/Stripe support reference: (req_[A-Za-z0-9]+)/.test(error)&&<p className="sm-credit-amount-error">Stripe support reference: {error.match(/Stripe support reference: (req_[A-Za-z0-9]+)/)?.[1]}</p>}
   <p className="sm-credit-amount-footer">{purchaseEnabled
-   ?testMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are added only after verified payment. There are no automatic top-ups or recurring charges."
+   ?testMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are issued only after verified payment and billing-country checks. Credit voucher treatment and local taxes vary by jurisdiction. There are no automatic top-ups or recurring charges."
    :"These prices are for information only. Live payments are not enabled. No automatic payments will be taken."}</p>
  </div>;
 }
