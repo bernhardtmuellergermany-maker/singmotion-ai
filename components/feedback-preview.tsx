@@ -4,7 +4,7 @@ import {useState} from "react";
 import {CustomerFeedback} from "@/components/customer-feedback";
 import {GenerationStatusView,type GenerationProgress} from "@/components/generation-status-view";
 import {
-  checkoutFeedback,generationFeedback,providerFeedback,requestErrorFeedback,
+  checkoutFeedback,generationFeedback,providerFeedback,paidOrderFeedback,requestErrorFeedback,
   type CustomerNotice,
 } from "@/lib/live/customer-feedback";
 import "./feedback-preview.css";
@@ -28,6 +28,12 @@ const cases:PreviewScenario[]=[
   {id:"provider-review",label:"Provider rejected · release pending",category:"generation",stage:"Billing check",
     notice:providerFeedback("failed",rejection,sampleHold)!,
     explanation:"An unclear financial result does not promise a refund. The customer sees that reconciliation is pending."},
+  {id:"provider-job-failed",label:"Provider stopped · billing check",category:"generation",stage:"Provider task failed",
+    notice:providerFeedback("failed","[PROVIDER_JOB_FAILED]",sampleHold)!,
+    explanation:"A provider task failure may still be billable. Do not show an automatic refund or an upload-replacement action."},
+  {id:"output-validation",label:"Output invalid · original task saved",category:"generation",stage:"Output validation",
+    notice:providerFeedback("failed","[OUTPUT_MP4_VALIDATION_FAILED]",sampleHold)!,
+    explanation:"Changing the photo does not fix a broken output file. Recovery must inspect the original task."},
   {id:"credits-low",label:"Not enough Credits",category:"generation",stage:"Credit check",
     notice:generationFeedback("credits-needed",{credits:250,status:"estimated"},100)!,
     explanation:"Sample balance: 100 Credits available; 250 required. The button displays Buy Credits."},
@@ -49,6 +55,15 @@ const cases:PreviewScenario[]=[
   {id:"ready",label:"Video ready",category:"generation",stage:"Completed",
     notice:generationFeedback("ready")!,
     explanation:"Success message automatically disappears after 9 seconds. Refresh the example to see it again."},
+  {id:"payment-refunded",label:"Stripe payment refunded",category:"payment",stage:"Refund recorded",
+    notice:paidOrderFeedback("refunded","failed","/studio?copy=draft_original")!,
+    explanation:"The PAID ORDER was marked refunded. The customer can edit their old draft. This is not a prepaid Credit release."},
+  {id:"payment-disputed",label:"Payment dispute",category:"payment",stage:"Dispute recorded",
+    notice:paidOrderFeedback("disputed","failed")!,
+    explanation:"Do not display payment completed or initiate a replacement job when the charge is disputed."},
+  {id:"paid-output-failed",label:"Paid order failed · refund unverified",category:"payment",stage:"Output not delivered",
+    notice:paidOrderFeedback("paid","failed")!,
+    explanation:"A confirmed Stripe charge is not a Credit wallet reservation. Provider failure alone does not prove an external refund."},
   {id:"payment-cancelled",label:"Payment cancelled",category:"payment",stage:"Checkout returned",
     notice:checkoutFeedback("cancelled")!,
     explanation:"No order is created by this preview. The cancellation notice fades after 15 seconds."},
@@ -82,18 +97,22 @@ const cases:PreviewScenario[]=[
 function outputExample(id:string):{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
+  paymentStatus?:string;
   creditCharge?:{credits:number;status:"estimated"|"reserved"|"review"|"settled"|"released"};
   availableCredits?:number;
   videoUrl?:string;
   downloadUrl?:string;
 }{
+  if(id==="payment-refunded")return {progress:"review",paymentMode:"stripe",paymentStatus:"refunded"};
+  if(id==="payment-disputed")return {progress:"review",paymentMode:"stripe",paymentStatus:"disputed"};
+  if(id==="paid-output-failed")return {progress:"review",paymentMode:"stripe",paymentStatus:"paid"};
   if(id==="payment-cancelled"||id==="payment-return"||id==="payment-declined"||id==="payment-offline")
     return {progress:"verifying-payment",paymentMode:"stripe"};
   if(id==="credits-low")
     return {progress:"credits-needed",paymentMode:"super-admin",creditCharge:{credits:250,status:"estimated"},availableCredits:100};
   if(id==="provider-refund")
     return {progress:"failed",paymentMode:"super-admin",creditCharge:{credits:150,status:"released"}};
-  if(id==="provider-review"||id==="failed")
+  if(id==="provider-review"||id==="failed"||id==="provider-job-failed"||id==="output-validation")
     return {progress:"failed",paymentMode:"super-admin",creditCharge:{credits:150,status:"review"}};
   if(id==="uncertain"||id==="delayed")
     return {progress:"review",paymentMode:"super-admin",creditCharge:{credits:150,status:"review"}};
@@ -115,6 +134,7 @@ export function FeedbackPreview(){
   const [device,setDevice]=useState<"desktop"|"mobile">("desktop");
   const active=cases.find(item=>item.id===selected)??cases[0];
   const output=outputExample(active.id);
+  const checkoutOnly=["payment-cancelled","payment-return","payment-declined","payment-offline"].includes(active.id);
   const visible=cases.filter(item=>group==="all"||item.category===group);
   const chooseGroup=(next:typeof group)=>{
     setGroup(next);
@@ -162,8 +182,8 @@ export function FeedbackPreview(){
           <button type="button" aria-pressed={device==="mobile"} onClick={()=>setDevice("mobile")}>Mobile</button>
         </div>
       </div>
-      {active.category!=="generation"&&layout==="output"&&<p className="sm-preview-location-note" role="status">
-        {active.category==="payment"
+      {(checkoutOnly||active.category==="upload")&&layout==="output"&&<p className="sm-preview-location-note" role="status">
+        {checkoutOnly
           ?"Payment notifications normally appear in the Credit checkout / order flow. This example also shows how the banner looks on Output."
           :"Upload problems normally appear in Studio before an Output page exists. This example demonstrates the banner placement in the Output layout."}
       </p>}
@@ -175,7 +195,7 @@ export function FeedbackPreview(){
         <div className="sm-preview-demo-ribbon"><span>EXAMPLE OUTPUT · NO ACTUAL ORDER</span><span>{device==="mobile"?"MOBILE":"DESKTOP"}</span></div>
         {layout==="output"
           ?<GenerationStatusView key={active.id+":"+refresh} progress={output.progress}
-            paymentMode={output.paymentMode} creditCharge={output.creditCharge}
+            paymentMode={output.paymentMode} paymentStatus={output.paymentStatus} creditCharge={output.creditCharge}
             availableCredits={output.availableCredits} format="16:9"
             videoUrl={output.videoUrl} downloadUrl={output.downloadUrl}
             previewNotice={active.notice}/>

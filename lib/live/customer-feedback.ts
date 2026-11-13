@@ -15,11 +15,20 @@ export type CreditCharge = {
 };
 
 const number = (n:number) => new Intl.NumberFormat("en-GB").format(n);
+/** Only same-origin, owner-checked Studio copy URLs may act on failed project media.
+ * The Studio copy endpoint creates a fresh draft; never reuses a provider task
+ * or an old paid reservation. A fallback opens Studio, not the wallet. */
+export function editInputsAction(editHref?:string|null):{label:string;href:string} {
+  return {label:"Edit photo or audio",
+    href:typeof editHref==="string"&&/^\/studio\?copy=live_[a-f0-9-]{36}$/i.test(editHref)
+      ?editHref:"/studio"};
+}
 
 export function generationFeedback(
   progress: "credits-needed" | "verifying-payment" | "prepared" | "queued" | "processing" | "review" | "ready" | "failed" | "unavailable",
   charge?: CreditCharge | null,
   available?: number | null,
+  editHref?:string|null,
 ): CustomerNotice | null {
   if (progress === "ready")
     return {key:"video-ready",kind:"success",title:"Your video is ready",
@@ -36,15 +45,14 @@ export function generationFeedback(
       message:"Stripe has not yet confirmed this payment to SingMotion. Do not pay again while we check your existing order."};
   if (progress === "failed") {
     if(charge?.status==="released")
-      return {key:"generation-failed-released",kind:"warning",title:"Video could not be created · Credits returned",
-        message:`${number(charge.credits)} reserved Credits have been released back to your available balance. Review your audio or photo before starting a NEW project.`,
-        action:{label:"View Credits",href:"/credits#usage"}};
+      return {key:"generation-failed-released",kind:"warning",title:"Video not created · Credits returned",
+        message:`${number(charge.credits)} reserved Credits have been released to your available balance. You can update your audio or photo in a new draft. Nothing is generated or charged until you explicitly approve a new request.`,
+        action:editInputsAction(editHref)};
     if(charge?.status==="review"||charge?.status==="reserved")
-      return {key:"generation-failed-held",kind:"error",title:"Video could not be completed · Credits still reserved",
-        message:"The provider outcome or billing is not yet fully verified. Your Credits have not been finally deducted. We are checking the existing task. Do not submit or pay again.",
-        action:{label:"View reservations",href:"/credits#usage"}};
-    return {key:"generation-failed",kind:"error",title:"Video generation stopped",
-      message:"We could not complete this video. Please check its saved status before creating another paid request. Any refund must first be confirmed by the payment or credit ledger."};
+      return {key:"generation-failed-held",kind:"warning",title:"Video stopped · Credit reservation being checked",
+        message:`${number(charge.credits)} Credits remain reserved while we verify whether the provider generated or billed the existing task. You are not being charged again. Please do not submit another paid request.`};
+    return {key:"generation-failed",kind:"error",title:"Video could not be completed",
+      message:"The original task remains saved. We cannot confirm a Credit return from this status. No new paid task will start automatically."};
   }
   if (progress === "review")
     return {key:"generation-review",kind:"warning",title:"We are checking your existing video",
@@ -69,27 +77,80 @@ export function generationFeedback(
 }
 
 /** Only a verified ledger state can confirm a credit return. */
-export function providerFeedback(state:string,stage:string,charge?:CreditCharge|null,createdAt?:number,now=Date.now()):CustomerNotice|null {
+export function providerFeedback(
+  state:string,stage:string,charge?:CreditCharge|null,createdAt?:number,
+  now=Date.now(),editHref?:string|null,
+):CustomerNotice|null {
   const codes=[...String(stage||"").matchAll(/\[([A-Z][A-Z0-9_]{2,79})\]/g)].map(match=>match[1]);
   const has=(code:string)=>codes.includes(code);
   if(state==="failed"){
-    if(has("CONTENT_PREFILTER_REJECTED"))
-      return {key:"provider-prefilter-"+(charge?.status??"none"),kind:"warning",title:"Audio or photo was rejected by the provider",
-        message:charge?.status==="released"?
-          `The provider did not accept the submitted content. ${number(charge.credits)} reserved Credits have been released and are available again. You can revise your image or audio for a new request.`:
-          "The provider did not accept the submitted content. We cannot yet confirm the credit release. Check the saved project's credit status before trying again.",
-        action:{label:"Check Credits",href:"/credits#usage"}};
-    return generationFeedback("failed",charge);
+    // Code is server-generated from the persisted BytePlus task, never from
+    // an upload filename or user-supplied message. Only the durable wallet
+    // state 'released' proves that a hold is spendable again.
+    if(has("CONTENT_PREFILTER_REJECTED")){
+      if(charge?.status==="released")
+        return {key:"provider-prefilter-released",kind:"warning",
+          title:"Photo or audio not accepted · Credits released",
+          message:`The video provider rejected the submitted photo or audio before generating a video. ${number(charge.credits)} reserved Credits have been released and are available again. Update your photo or audio, then review a NEW request when you're ready.`,
+          action:editInputsAction(editHref)};
+      if(charge?.status==="legacy"||charge?.status==="estimated"||!charge)
+        return {key:"provider-prefilter-no-held-ledger",kind:"warning",
+          title:"Photo or audio was not accepted",
+          message:"The provider rejected the input before generation. There is no confirmed prepaid Credit reservation to release for this older or unpriced task. Review the original project before approving any new charge.",
+          action:editInputsAction(editHref)};
+      if(charge.status==="settled")
+        return {key:"provider-prefilter-settled-review",kind:"error",
+          title:"Photo or audio was not accepted · Charge needs reconciliation",
+          message:"This task has a recorded final charge. A provider rejection does not automatically reverse an already settled ledger entry. Your original payment record remains protected while the outcome is checked.",
+          action:editInputsAction(editHref)};
+      return {key:"provider-prefilter-awaiting-ledger",kind:"warning",
+        title:"Photo or audio not accepted · Credit release pending",
+        message:"The provider rejected the input before generating a video. We cannot yet confirm that the Credit reservation was released to your available balance. You can edit a new draft now, but do not start another paid generation until the original reservation is resolved.",
+        action:editInputsAction(editHref)};
+    }
+    if(has("PROVIDER_JOB_FAILED")||has("PROVIDER_TASK_CANCELED"))
+      return {key:"provider-terminal-billing-review",kind:"warning",
+        title:"The video provider stopped this task",
+        message:"The original task was not completed. A provider failure does not prove that it was free of charge. We are checking the existing reservation; no second request will be submitted automatically."};
+    if(["MISSING_OUTPUT","INVALID_OUTPUT","OUTPUT_MP4_VALIDATION_FAILED","OUTPUT_DOWNLOAD_OR_VALIDATION_FAILED","OUTPUT_STORAGE_FAILED","TEMPO_RESTORATION_FAILED"].some(has))
+      return {key:"provider-output-validation",kind:"warning",
+        title:"Your video output could not be verified",
+        message:"The source photo and audio may be fine. The result was not delivered successfully. Please keep this project: its original provider task and Credit reservation must be checked, not submitted again."};
+    return generationFeedback("failed",charge,undefined,editHref);
   }
   if(state==="uncertain"||state==="output_observed"||state==="submitting"||state==="authorized")
     return generationFeedback("review",charge);
   if((state==="submitted"||state==="processing")&&typeof createdAt==="number"&&Number.isFinite(createdAt)&&createdAt>0&&now-createdAt>45*60*1000)
     return {key:"provider-delayed",kind:"warning",title:"Your video is taking longer than usual",
-      message:"Your request is still under review. We have not confirmed a failure or a refund. Please check this project later, without paying or submitting again."};
+      message:"The existing provider task is still being checked automatically. Your files are saved. No second video will be submitted or charged, and the reserved Credits will only be released after a confirmed non-billable result."};
   if(state==="submitted")return generationFeedback("queued",charge);
   if(state==="processing")return generationFeedback("processing",charge);
   if(state==="prepared")return generationFeedback("prepared",charge);
   if(state==="completed")return generationFeedback("ready",charge);
+  return null;
+}
+
+/** The paid order is charged through Stripe, NOT the prepaid Credit wallet.
+ * Only the verified owner-scoped order status may justify "payment refunded".
+ * A provider failure without a verified external refund never promises money. */
+export function paidOrderFeedback(
+  paymentStatus:string|null|undefined,
+  fulfillmentState:string|null|undefined,
+  editDraftHref?:string|null,
+):CustomerNotice|null {
+  if(paymentStatus==="refunded"){
+    const draftSafe=typeof editDraftHref==="string"&&
+      /^\/studio\?copy=draft_[A-Za-z0-9_-]{1,80}$/.test(editDraftHref);
+    return {key:"order-payment-refunded",kind:"success",title:"Your video payment was refunded",
+      message:"This order has been marked refunded. A refund to your original payment method can take time to appear. No new video is started automatically.",
+      action:draftSafe?{label:"Edit photo or audio",href:editDraftHref}:{label:"Start a new Studio draft",href:"/studio?new=1"}};
+  }
+  if(paymentStatus==="disputed")
+    return {key:"order-payment-disputed",kind:"warning",title:"Your payment is under review",
+      message:"The payment is in a dispute or reversal process. Do not place another order for this video. No new generation is started automatically."};
+  if(paymentStatus==="paid"&&["failed","requires-review"].includes(fulfillmentState??""))
+    return {key:"paid-output-not-delivered",kind:"warning",title:"Your paid video could not be delivered",
+      message:"The payment is confirmed, but the existing provider task or video delivery was not successful. Billing and refund eligibility must be verified before a replacement is charged. Do not pay again or submit a duplicate order."};
   return null;
 }
 

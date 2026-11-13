@@ -300,6 +300,17 @@ export class DocumentedBytePlusProvider implements ReviewedProvider {
           return { state: "failed" as const };
       }
     } catch (error) {
+      // BytePlus 50510 with an immutable GetResult task binding and digest is
+      // a documented, terminal pre-filter refusal. Preserve this evidence for
+      // StudioWorkflow.poll: only THAT server handler may release an owned,
+      // persisted Credit reservation. A generic provider failure is not proof
+      // of zero billing and must never release Credits.
+      if(error instanceof BytePlusError &&
+         error.rejection?.taskId===id &&
+         error.rejection.code===50510 &&
+         error.rejection.httpStatus===500 &&
+         /^[a-f0-9]{64}$/.test(error.rejection.responseSha256))
+        throw error;
       if (error instanceof BytePlusError && !error.retryableRead)
         return { state: "failed" as const };
       throw error; // Read-only retries retain the persisted task ID; never resubmit.

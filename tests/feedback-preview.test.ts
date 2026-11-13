@@ -24,7 +24,7 @@ test("preview does not call any payment, upload, provider or account API",()=>{
 test("all actionable customer states can be simulated without real orders",()=>{
   const preview=read("components/feedback-preview.tsx");
   for(const code of ["provider-refund","provider-review","credits-low","queued","processing","delayed",
-    "uncertain","failed","ready","payment-cancelled","payment-return","payment-declined","payment-offline",
+    "uncertain","failed","ready","provider-job-failed","output-validation","payment-refunded","payment-disputed","paid-output-failed","payment-cancelled","payment-return","payment-declined","payment-offline",
     "upload-offline","upload-invalid","maintenance","session","rate-limit"]){
     assert.match(preview,new RegExp(`id:"${code}"`));
   }

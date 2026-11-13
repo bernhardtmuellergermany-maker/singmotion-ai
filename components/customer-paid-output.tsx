@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import {GenerationStatusView,type GenerationProgress} from "./generation-status-view";
+import {paidOrderFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
 
 type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
@@ -52,15 +53,16 @@ export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
  else if(fulfillment==="failed")progress="review";
  // A signed redirect is not proof of payment. Only the owner-scoped server
  // status can mark payment confirmed and unlock a private verified MP4.
- const note=error||
-  (order?.status==="refunded"?"The payment was refunded. Contact support if you need help.":
-   order?.status==="disputed"?"The payment is under review. No duplicate payment is needed.":
-   progress==="review"?"Your video is being reviewed. No additional payment or automatic provider retry will occur.":"");
+ const editDraftHref=!guest&&order?.projectId&&/^[A-Za-z0-9_-]{1,80}$/.test(order.projectId)
+   ?"/studio?copy=draft_"+encodeURIComponent(order.projectId):null;
+ const ownerNotice=error?requestErrorFeedback("Network connection interrupted","generation"):
+   paidOrderFeedback(order?.status,fulfillment,editDraftHref);
  return <div className="sm-private-output sm-private-output-generation" aria-label="Private generation page">
-   <GenerationStatusView progress={loaded?progress:"unavailable"} paymentMode="stripe"
+   {!loaded?<p role="status" className="sm-gen-extra-message">Checking the saved order and payment status…</p>:<GenerationStatusView progress={progress} paymentMode="stripe"
+    paymentStatus={order?.status} statusNotice={ownerNotice}
     amount={amountCents} photoUrl={order?.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(orderId)}`:null} videoUrl={ready?order?.videoUrl:null}
-    downloadUrl={ready?order?.downloadUrl:null} note={note}
+    downloadUrl={ready?order?.downloadUrl:null}
     reuseHref={ready?(order?.projectId?`/studio?copy=draft_${encodeURIComponent(order.projectId)}`:"/studio?new=1"):null}
-    reuseBlank={ready&&!order?.projectId}/>
+    reuseBlank={ready&&!order?.projectId}/>}
  </div>;
 }
