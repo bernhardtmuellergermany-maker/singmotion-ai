@@ -8,6 +8,7 @@ import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
 import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,customerStripeCredential,customerStripeWebhookSecret,privateProductionSandboxSettlementAllowed,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
+import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
 export const runtime = "nodejs";
@@ -138,7 +139,8 @@ export async function POST(req: NextRequest) {
   const settlementEnabled=!!checkoutMode &&
    privateProductionSandboxSettlementAllowed(process.env,checkoutMode,customerReady) &&
    (checkoutMode!=="live"||(customerLaunchReadiness().readyForPaidOrders&&
-     auditSingMotionLaunch(process.env,"production").ready));
+     (auditSingMotionLaunch(process.env,"production").ready||
+      protectedProductionLivePilotApproved(process.env))));
   const secret=mode?customerStripeWebhookSecret(process.env,mode):null;
   if (!secret || !mode)
     return NextResponse.json({ error: "Stripe webhook verification is unavailable." }, { status: 503 });
