@@ -1,6 +1,6 @@
 /** Customer payment admission: requires an actually configured bounded worker,
  * validated owner-confirmed price, authenticated customer and private R2 delivery.
- * Staging may accept Stripe TEST money only; Production is a separate rollout.
+ * Staging supports Stripe TEST only. Production LIVE needs independent\n * protected-pilot or public release approval; the payment/provider worker\n * and private owner-scoped R2 delivery must also be ready.
  */
 import {readFileSync} from "node:fs";
 import path from "node:path";
