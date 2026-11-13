@@ -22,7 +22,7 @@ export function queueFailedOutputSupportEmails(
     "Inspect the exact project/order in the private Super Admin console:",
     "https://www.singmotion.ai/support-admin",
     "Do not automatically refund a possibly billable provider result or resubmit the same task.",
-   ].join("\\n");
+   ].join("\n");
    const changed=commerce.prepare(`INSERT OR IGNORE INTO support_case_mail_outbox
      (event_key,reference,recipient,subject,body,created_at)
      VALUES(?,?,?,?,?,?)`).run(key,id,operatorEmail,
