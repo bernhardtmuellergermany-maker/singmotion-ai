@@ -3,11 +3,11 @@ import {useState} from "react";
 import {Check,Clock3,Clapperboard,Download,LoaderCircle,LockKeyhole,ShieldCheck,RotateCcw,Wallet} from "lucide-react";
 import "./generation-status-view.css";
 import {CustomerFeedback} from "./customer-feedback";
-import {generationFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
+import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 
 export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,
+  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,
 }:{
   progress:GenerationProgress;
   paymentMode:"stripe"|"super-admin";
@@ -19,6 +19,8 @@ export function GenerationStatusView({
   videoUrl?:string|null;
   downloadUrl?:string|null;
   note?:string;
+  /** Private staging preview only; real customer status normally comes from verified server state. */
+  previewNotice?:CustomerNotice|null;
   reuseHref?:string|null;
   reuseBlank?:boolean;
 }){
@@ -29,9 +31,9 @@ export function GenerationStatusView({
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
   const failed=progress==="failed";
-  const customerNotice=note&&/network|failed to fetch|connection interrupted|timed out/i.test(note)
+  const customerNotice=previewNotice??(note&&/network|failed to fetch|connection interrupted|timed out/i.test(note)
     ?requestErrorFeedback(note,"generation")
-    :generationFeedback(progress,creditCharge,availableCredits);
+    :generationFeedback(progress,creditCharge,availableCredits));
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
     {title:admin?"Video credit authorization":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Credit reservation checked before provider submission":"Secure payment verified by Stripe",state:paymentConfirmed||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
