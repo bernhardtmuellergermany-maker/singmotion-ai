@@ -410,7 +410,7 @@ export function MyProjectsGallery(){
        <ChevronDown size={15} aria-hidden="true"/>
      </label>
      <button type="button" className="sm-projects-sort" disabled={syncing} onClick={()=>setSyncNonce(n=>n+1)} aria-label="Sync project names from account" title="Sync account project names">
-       <RefreshCw size={15}/><span>{syncing?"Syncing…":"Sync names"}</span>
+       <RefreshCw size={15}/><span className="sr-only">{syncing?"Syncing names…":"Sync names"}</span>
      </button>
      <button type="button" className="sm-projects-sort" onClick={()=>setNewest(v=>!v)} aria-label={newest?"Sort oldest first":"Sort newest first"} title={newest?"Newest first":"Oldest first"}>
        <ArrowUpDown size={15}/><span>{newest?"Newest first":"Oldest first"}</span>
