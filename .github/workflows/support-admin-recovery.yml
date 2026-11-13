@@ -5,6 +5,10 @@ on:
     paths:
       - 'app/(site)/api/support-admin/**'
       - 'app/(site)/support-admin/**'
+      - 'app/(site)/account/settings/**'
+      - 'components/admin-account-dashboard.tsx'
+      - 'lib/commerce/admin-support-overview.ts'
+      - 'tests/account-settings-admin-status.test.ts'
       - 'components/support-admin.*'
       - 'lib/commerce/support-*.ts'
       - 'lib/commerce/credit-wallet.ts'
@@ -35,7 +39,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg chromium
       - run: npm ci
       - run: npm run typecheck
-      - run: node --experimental-strip-types --test tests/support-cases.test.ts
+      - run: node --experimental-strip-types --test tests/support-cases.test.ts tests/account-settings-admin-status.test.ts
       - run: npm run build
       - name: Payment and private Output browser regression
         run: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:customer:browser

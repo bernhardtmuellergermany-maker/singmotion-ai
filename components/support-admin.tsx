@@ -1,5 +1,5 @@
 "use client";
-import {useState} from "react";
+import {useEffect,useState} from "react";
 import "./support-admin.css";
 
 type Case={
@@ -10,6 +10,16 @@ type Case={
  resolvedAt:number|null;
 };
 const cleanId=(v:string)=>v.trim().replace(/^SM-/i,"").toLowerCase();
+const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+async function loadCase(value:string):Promise<Case>{
+ const reference=cleanId(value);
+ if(!UUID.test(reference))throw Error("Enter the complete order or project ID.");
+ const reply=await fetch("/api/support-admin?id="+encodeURIComponent(reference),
+   {cache:"no-store",credentials:"same-origin"});
+ const json=await reply.json() as {case?:Case;error?:string};
+ if(!reply.ok||!json.case)throw Error(json.error??"Support status unavailable.");
+ return json.case;
+}
 const confirmFor=(action:string,id:string)=>{
  const prefix=action==="refund-credits"?"RETURN":action==="refund-stripe"?"REFUND":"RESOLVE";
  return prefix+" "+id.toUpperCase();
@@ -24,14 +34,23 @@ export function SupportAdmin(){
  const [message,setMessage]=useState("");
  const [busy,setBusy]=useState(false);
  async function fetchCase(value:string){
-  const reference=cleanId(value);
-  if(!reference)throw Error("Enter the complete order or project ID.");
-  const reply=await fetch("/api/support-admin?id="+encodeURIComponent(reference),
-    {cache:"no-store",credentials:"same-origin"});
-  const json=await reply.json() as {case?:Case;error?:string};
-  if(!reply.ok||!json.case)throw Error(json.error??"Support status unavailable.");
-  setRecord(json.case);setId(json.case.id);return json.case;
+  const result=await loadCase(value);
+  setRecord(result);setId(result.id);return result;
  }
+ // Read-only deep link from the private Account Settings status messages.
+ // Never pre-authorize a refund, resolve a case or trigger provider generation.
+ useEffect(()=>{
+  const requested=new URLSearchParams(window.location.search).get("id");
+  if(!requested||!UUID.test(cleanId(requested)))return;
+  let mounted=true;
+  const reference=cleanId(requested);
+  void loadCase(reference).then(result=>{
+   if(mounted){setRecord(result);setId(result.id);}
+  }).catch(err=>{
+   if(mounted)setError(err instanceof Error?err.message:"Case unavailable");
+  }).finally(()=>{if(mounted)setBusy(false)});
+  return()=>{mounted=false};
+ },[]);
  async function search(e:React.FormEvent){
   e.preventDefault();setBusy(true);setError("");setMessage("");setRecord(null);setAction(null);
   try{await fetchCase(id)}catch(e){setError(e instanceof Error?e.message:"Search failed")}
