@@ -36,3 +36,13 @@
 Live one-time customer video purchases now request `billing_address_collection=required`, `automatic_tax[enabled]=true`, optional business tax-ID collection and invoice creation. Their dynamic EUR price remains explicitly **tax inclusive**; Staging TEST purchases preserve the existing request format. Independently review the tax product classification and invoice/legal terms before accepting any charge. A configured Stripe Tax account alone is not proof of that legal review.
 
 The authenticated Super Admin Account Settings support overview shows a **read-only Production LIVE readiness** list with per-proof and per-runtime blockers. It performs no Stripe mutation, provider request or launch action. On Staging it does not offer LIVE readiness. It is informational: all green local checks are necessary but not sufficient to authorize money without the signed real-world acceptance evidence above.
+
+## Separate one-time video LIVE preflight (does not require Hobby)
+
+The former `npm run stripe:live-preflight -- --production` checks **both** video and Hobby subscription contracts, including the unapproved staging-labelled €4.99/month Hobby product. This is still correct for a *full combined launch*, but it is not a pass/fail report for **individual videos**.
+
+Use `npm run stripe:video-live-preflight -- --production` **inside the actual Production runtime**, with the existing mode-matched Production environment. The new check uses only Stripe `GET /v1/account`, `GET /v1/webhook_endpoints?limit=100`, `GET /v1/tax/settings` and `GET /v1/tax/registrations?limit=100`; no Stripe mutation or secret values appear in the report. It only contacts Stripe with the live key when the exact Railway Production ID, canonical `www.singmotion.ai` HTTPS origin and private Basic Auth are configured. Staging and public-release contexts never perform a Live Stripe request.
+
+The report intentionally separates **Stripe video configuration** from **private Production owner approvals** and **real customer fulfillment**. The active Live endpoint is a structural check; actual authenticated signed-webhook delivery to the app still needs independent evidence. Likewise the tax-registration count is observational: **zero registrations is neither proof of compliance nor proof of a violation**. Obtain owner/qualified tax review for applicable taxable jurisdictions and demonstrate correct invoice/VAT outputs before any real charge. Hobby remains disabled until reviewed separately.
+
+The command exits nonzero until all three independent readiness dimensions pass. Do not set the human review variables on the strength of API availability alone.
