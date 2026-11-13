@@ -7,6 +7,7 @@ import {configuredStripePaymentMode,customerStripeCredential} from "@/lib/commer
 import {sanitizedStripeCheckoutError} from "@/lib/commerce/stripe-error-diagnostics";
 import {stripeVideoCheckoutLineItem,stripeVideoCheckoutIdempotencyKey} from "@/lib/commerce/stripe-video-checkout-line-item";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
+import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -27,7 +28,8 @@ export async function POST(req: NextRequest) {
   const key = mode?customerStripeCredential(process.env,mode):null;
   // Do not collect money before real paid-order generation and delivery work.
   if (!mode || !customerLaunchReadiness().readyForPaidOrders ||
-      (mode==="live"&&!auditSingMotionLaunch(process.env,"production").ready) ||
+      (mode==="live"&&!protectedProductionLivePilotApproved(process.env)&&
+       !auditSingMotionLaunch(process.env,"production").ready) ||
       process.env.CUSTOMER_GENERATION_ENABLED !== "true" ||
       process.env.CUSTOMER_FULFILLMENT_ENABLED !== "true" ||
       process.env.CUSTOMER_DELIVERY_ENABLED !== "true" ||
@@ -56,6 +58,9 @@ export async function POST(req: NextRequest) {
     // that guest without the exact order capability.
     const owner=resolveVideoCheckoutOwner(store,input.orderId,accountId,guestToken);
     const order=owner.order;
+    // A protected LIVE pilot never charges an anonymous guest order.
+    if(mode==="live"&&protectedProductionLivePilotApproved(process.env)&&owner.kind!=="account")
+      return reply({error:"Sign in to purchase a customer video."},403);
     // Payment cannot open until the reviewed input snapshot is permanently bound.
     if (!store.reviewedOrderReadyForCheckout(String(order.id)))
       return reply({ error: "Video inputs must be reviewed before Checkout." }, 409);
