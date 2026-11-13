@@ -62,7 +62,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
       const pending=readCreditResume();
       if(checkoutResult==="success"&&pending&&data.availableCredits>=pending.requiredCredits){
         sessionStorage.removeItem(RESUME_KEY);
-        window.location.replace("/studio?draft="+encodeURIComponent(pending.draftId));
+        window.location.replace("/studio?draft="+encodeURIComponent(pending.draftId)+"&resume=review");
       }
      }
     }).catch(()=>{if(active)setView("unavailable");});
@@ -102,7 +102,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
      <p>Your Studio project is saved. {balance.availableCredits>=resume.requiredCredits
        ?"Your available Credits cover the video estimate. Continue to Step 4 and confirm generation."
        :`You need ${num(resume.requiredCredits)} available Credits for this video. After your Stripe payment is verified, you will return to Step 4 automatically.`}</p>
-     <Link href={`/studio?draft=${encodeURIComponent(resume.draftId)}`} className="sm-plan-action sm-plan-action-outline"
+     <Link href={`/studio?draft=${encodeURIComponent(resume.draftId)}&resume=review`} className="sm-plan-action sm-plan-action-outline"
        onClick={()=>{sessionStorage.removeItem(RESUME_KEY)}}>Return to Step 4</Link>
    </section>}
    {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode}/></section>}
