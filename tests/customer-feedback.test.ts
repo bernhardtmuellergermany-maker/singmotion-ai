@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {checkoutFeedback,editInputsAction,generationFeedback,providerFeedback,requestErrorFeedback} from "../lib/live/customer-feedback.ts";
+import {checkoutFeedback,editInputsAction,generationFeedback,providerFeedback,paidOrderFeedback,requestErrorFeedback} from "../lib/live/customer-feedback.ts";
 
 test("provider prefilter refund is displayed only after durable ledger release",()=>{
   const held={credits:150,status:"review" as const};
@@ -117,4 +117,27 @@ test("only insufficient balance leads to buying Credits; payment and upload erro
     requestErrorFeedback("Payment failed, card declined","payment"),
     providerFeedback("processing","Provider busy",{credits:125,status:"reserved"}),
   ])assert.notEqual(notice?.action?.label,"Buy Credits");
+});
+
+test("verified paid-order refund shows editor only for owner-scoped project draft",()=>{
+  const safe="/studio?copy=draft_38cd9f61-ed61-49d7-82cf-42d5177f6729";
+  const notice=paidOrderFeedback("refunded","failed",safe);
+  assert.match(notice?.title??"",/payment was refunded/i);
+  assert.equal(notice?.action?.href,safe);
+  assert.equal(notice?.action?.label,"Edit photo or audio");
+  assert.doesNotMatch(notice?.message??"",/Credits released/i);
+  assert.equal(paidOrderFeedback("refunded","failed","https://evil.example")?.action?.href,"/studio?new=1");
+});
+
+test("paid provider failure never promises Stripe refund or another paid task",()=>{
+  const pending=paidOrderFeedback("paid","failed");
+  assert.match(pending?.title??"",/paid video could not be delivered/i);
+  assert.match(pending?.message??"",/refund eligibility must be verified/i);
+  assert.equal(pending?.action,undefined);
+  assert.doesNotMatch(pending?.message??"",/refund was issued|refunded/i);
+  const disputed=paidOrderFeedback("disputed","failed");
+  assert.match(disputed?.title??"",/payment is under review/i);
+  assert.equal(disputed?.action,undefined);
+  assert.equal(paidOrderFeedback("paid","processing"),null);
+  assert.equal(paidOrderFeedback("awaiting_payment",null),null);
 });
