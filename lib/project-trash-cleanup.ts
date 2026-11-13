@@ -23,8 +23,10 @@ const selectionAssetIds=(json:string):string[]=>{
    .filter((id):id is string=>typeof id==="string"&&validId(id)))];
 };
 async function removeOwnedLocal(root:string,filename:string,base:string){
+ const rootCanonical=await realpath(root);
  const dir=await realpath(path.join(root,base)).catch(()=>null);
- if(!dir)throw Error("Storage directory unavailable");
+ if(!dir||dir!==path.join(rootCanonical,base))
+   throw Error("Storage directory unavailable or redirected");
  const expected=path.join(dir,filename);
  const resolved=path.resolve(expected);
  if(path.dirname(resolved)!==dir)throw Error("Unexpected media path");
