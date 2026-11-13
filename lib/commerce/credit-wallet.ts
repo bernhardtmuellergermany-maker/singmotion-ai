@@ -200,20 +200,46 @@ export class CreditWallet {
  /** Completed + validated MP4: bill once. Verified zero-charge prefilter:
   * release once. Uncertain/other failures: hold until reconciliation.
   * Historical jobs without a hold are NEVER retroactively charged. */
- reconcileVideo(projectId:string,outcome:"completed"|"nonbillable"|"review"):VideoReservation|null {
+ reconcileVideo(projectId:string,outcome:"completed"|"nonbillable"|"service-failed"|"review"):VideoReservation|null {
   return this.tx(()=>{
    const hold=this.videoReservation(projectId);
    if(!hold||hold.state==="settled"||hold.state==="released")return hold;
-   const state=outcome==="completed"?"settled":outcome==="nonbillable"?"released":"review";
+   const state=outcome==="completed"?"settled":outcome==="nonbillable"||outcome==="service-failed"?"released":"review";
    if(state==="settled"||state==="released"){
-    const key=(state==="settled"?"video-charge:":"video-release:")+projectId;
+    const key=(state==="settled"?"video-charge:":outcome==="service-failed"?"video-service-refund:":"video-release:")+projectId;
     this.db.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
      .run(key,hold.subject,state==="settled"?-hold.credits:0,
-       state==="settled"?"video":"video-release",key,Date.now());
+       state==="settled"?"video":outcome==="service-failed"?"video-service-refund":"video-release",key,Date.now());
    }
    this.db.prepare("UPDATE credit_video_reservations SET state=?,updated=? WHERE project_id=?")
     .run(state,Date.now(),projectId);
    return this.videoReservation(projectId);
+  });
+ }
+ /** Explicit Super Admin goodwill refund for a permanently failed task,
+  * including provider failures that may still have incurred internal BytePlus costs.
+  * Never callable for an ongoing/uncertain task or a defective delivered MP4:
+  * terminal evidence is independently checked in the privileged API.
+  * Supports the two DIFFERENT financial states: release a hold (delta=0)
+  * or reverse a settled video Credit debit (delta=+credits), exactly once. */
+ supportRefundVideo(projectId:string,actor:string,reason:string,failureCode:string):VideoReservation{
+  if(!/^[a-f0-9-]{36}$/i.test(projectId)||!/^[A-Za-z0-9_-]{1,110}$/.test(actor)||
+     reason.trim().length<20||reason.length>1200||
+     !["CONTENT_PREFILTER_REJECTED","PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"].includes(failureCode))
+    throw Error("Protected Super Admin refund evidence required");
+  return this.tx(()=>{
+    const hold=this.videoReservation(projectId);
+    if(!hold)throw Error("Video reservation not found");
+    if(hold.state==="released")return hold;
+    const eventId="support-video-refund:"+projectId;
+    const existing=this.db.prepare("SELECT delta FROM credit_wallet_ledger WHERE reference=?").get(eventId) as {delta:number}|undefined;
+    if(existing)throw Error("Support refund ledger conflict");
+    this.db.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
+      .run(eventId,hold.subject,hold.state==="settled"?hold.credits:0,
+        "support-video-refund",eventId,Date.now());
+    this.db.prepare("UPDATE credit_video_reservations SET state='released',updated=? WHERE project_id=? AND state=?")
+      .run(Date.now(),projectId,hold.state);
+    return this.videoReservation(projectId)!;
   });
  }
  videoReservations(subject:string):VideoReservation[]{
