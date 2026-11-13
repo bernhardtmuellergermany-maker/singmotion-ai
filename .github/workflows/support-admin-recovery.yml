@@ -1,0 +1,41 @@
+name: Super Admin recovery safety
+on:
+  pull_request:
+    branches: [design/studio-audio-redesign-20261111]
+    paths:
+      - 'app/(site)/api/support-admin/**'
+      - 'app/(site)/support-admin/**'
+      - 'components/support-admin.*'
+      - 'lib/commerce/support-*.ts'
+      - 'lib/commerce/credit-wallet.ts'
+      - 'lib/commerce/store.ts'
+      - 'app/(site)/api/stripe-webhook/route.ts'
+      - 'scripts/worker.ts'
+      - 'tests/support-cases.test.ts'
+      - 'package.json'
+      - '.github/workflows/support-admin-recovery.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: super-admin-recovery-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg chromium
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --experimental-strip-types --test tests/support-cases.test.ts
+      - run: npm run build
+      - name: Payment and private Output browser regression
+        run: PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:customer:browser
