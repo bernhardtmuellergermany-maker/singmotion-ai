@@ -9,6 +9,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "../commerce/store.ts";
 import {CreditWallet,type VideoReservation} from "../commerce/credit-wallet.ts";
+import {SupportCases} from "../commerce/support-cases.ts";
 import {quoteVideoCredits} from "../commerce/video-credit-quote.ts";
 import {PlanLedger} from "../commerce/plans.ts";
 import { mkdir, realpath, stat, unlink } from "node:fs/promises";
@@ -204,18 +205,30 @@ export class StudioWorkflow {
     const store=new CommerceStore(path.join(this.root,"commerce.sqlite"));
     try {
       const wallet=new CreditWallet(store.db);
-      if(state==="completed")return wallet.reconcileVideo(id,"completed");
-      if(state==="failed"&&failureCode==="CONTENT_PREFILTER_REJECTED")
-       return wallet.reconcileVideo(id,"nonbillable");
-      // A VERIFIED terminal provider failure without a deliverable MP4 is a
-      // customer-service refund even if BytePlus may still charge us. Mark
-      // this separately from zero-cost prefilter rejection. Unknown tasks,
-      // corrupt output and unfinished processing never enter this branch.
-      if(state==="failed"&&["PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"].includes(failureCode??""))
-       return wallet.reconcileVideo(id,"service-failed");
-      if(state==="failed"||state==="uncertain")
-       return wallet.reconcileVideo(id,"review");
-      return wallet.videoReservation(id);
+      let result:VideoReservation|null;
+      if(state==="completed")result=wallet.reconcileVideo(id,"completed");
+      else if(state==="failed"&&failureCode==="CONTENT_PREFILTER_REJECTED")
+        result=wallet.reconcileVideo(id,"nonbillable");
+      else if(state==="failed"&&["PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"].includes(failureCode??""))
+        result=wallet.reconcileVideo(id,"service-failed");
+      else if(state==="failed"||state==="uncertain")
+        result=wallet.reconcileVideo(id,"review");
+      else result=wallet.videoReservation(id);
+      // A returned customer Credit hold is authoritative, even when a prior
+      // response or outgoing mail failed. Queue one durable account-bound mail
+      // per project; it is sent by the existing worker, never by a page poll.
+      if(result?.state==="released"&&state==="failed"&&
+        ["CONTENT_PREFILTER_REJECTED","PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"].includes(failureCode??"")){
+        const account=/^customer:([A-Za-z0-9_-]{1,100})$/.exec(result.subject)?.[1];
+        if(account){
+          const customer=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(account) as {email:string}|undefined;
+          if(customer){
+            new SupportCases(store.db).enqueue(id,"credits-returned",customer.email,"provider-status",
+              "Verified terminal provider failure; customer video Credits were released once.");
+          }
+        }
+      }
+      return result;
     }finally{store.close();}
   }
   async withCurrentBudget(project: StudioProject): Promise<StudioProject> {
