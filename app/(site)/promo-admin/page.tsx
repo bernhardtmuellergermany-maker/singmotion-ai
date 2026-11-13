@@ -5,6 +5,7 @@ import config from "@payload-config";
 import { hasRole } from "@/cms/policy";
 import { PromotionAdmin } from "@/components/promotion-admin";
 import { ProductHeader } from "@/components/product-header";
+import { AdminConsoleBackLink } from "@/components/admin-console-back-link";
 export const dynamic="force-dynamic";
 export const metadata={title:"SingMotion · Promotions (Super Admin)",robots:{index:false,follow:false}};
 export default async function Page(){
@@ -13,6 +14,7 @@ export default async function Page(){
   const {user}=await payload.auth({headers:await headers()});
   if(!hasRole(user,["super-admin"]))return <main><p>Super Admin login required.</p></main>;
   return <div className="product-theme"><ProductHeader/><main id="content">
+    <AdminConsoleBackLink/>
     <p style={{margin:"16px auto",maxWidth:1050}}><Link href="/support-admin">Customer orders, refunds and support cases →</Link></p>
     <PromotionAdmin/>
   </main></div>;
