@@ -1,7 +1,7 @@
 "use client";
 import {useState} from "react";
 import Link from "next/link";
-import {Activity,ArrowUpRight,ClipboardList,Gift,RefreshCw,ShieldCheck} from "lucide-react";
+import {Activity,ArrowUpRight,ClipboardList,Gift,MonitorPlay,RefreshCw,ShieldCheck} from "lucide-react";
 import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
 
 const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -41,6 +41,9 @@ export function AdminAccountDashboard({overview,busy,error,refresh}:Props){
     <span><strong>Promotion Console</strong><small>Manage promotions and campaign codes</small></span><ArrowUpRight size={17} aria-hidden="true"/></Link>
    <Link href="/admin"><span className="sm-admin-dash-link-icon"><ShieldCheck size={19}/></span>
     <span><strong>CMS &amp; staff admin</strong><small>Protected administrator dashboard</small></span><ArrowUpRight size={17} aria-hidden="true"/></Link>
+   <a href="https://singmotion-ai-staging.up.railway.app/studio/output-preview" target="_blank" rel="noopener noreferrer">
+    <span className="sm-admin-dash-link-icon"><MonitorPlay size={19}/></span>
+    <span><strong>Customer Output page preview</strong><small>Read-only examples · Staging only · Separate Super Admin sign-in</small></span><ArrowUpRight size={17} aria-hidden="true"/></a>
   </div>
   <div className="sm-admin-dash-environments">
    <span>Other environments:</span>
