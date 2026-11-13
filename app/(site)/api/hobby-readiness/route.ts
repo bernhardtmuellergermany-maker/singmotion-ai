@@ -1,3 +1,4 @@
+import {legacyCustomerPurchaseRetired} from "@/lib/commerce/credits-only-commerce";
 import {NextRequest,NextResponse} from "next/server";
 import {stagingDenial} from "@/lib/staging";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
@@ -18,5 +19,5 @@ export async function GET(req:NextRequest){
   customerFulfillment:process.env.CUSTOMER_FULFILLMENT_ENABLED==="true",
   customerDelivery:process.env.CUSTOMER_DELIVERY_ENABLED==="true",
  };
- return NextResponse.json({environment:"staging",checks,launchAudit:auditSingMotionLaunch(process.env,"staging"),publicLaunchReady:false,checkoutConfigured:checks.customerAccounts&&checks.stripeTestKey&&checks.stripeHobbyPrice&&checks.stripeHobbyWebhook&&checks.subscriptionSwitch&&checks.customerGeneration&&checks.customerFulfillment&&checks.customerDelivery,productionAffected:false},{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
+ return NextResponse.json({environment:"staging",checks,launchAudit:auditSingMotionLaunch(process.env,"staging"),publicLaunchReady:false,checkoutConfigured:!legacyCustomerPurchaseRetired()&&checks.customerAccounts&&checks.stripeTestKey&&checks.stripeHobbyPrice&&checks.stripeHobbyWebhook&&checks.subscriptionSwitch&&checks.customerGeneration&&checks.customerFulfillment&&checks.customerDelivery,productionAffected:false},{headers:{"Cache-Control":"no-store","X-Content-Type-Options":"nosniff"}});
 }
