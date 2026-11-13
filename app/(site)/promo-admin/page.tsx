@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headers } from "next/headers";
 import { getPayload } from "payload";
 import config from "@payload-config";
@@ -12,6 +13,7 @@ export default async function Page(){
   const {user}=await payload.auth({headers:await headers()});
   if(!hasRole(user,["super-admin"]))return <main><p>Super Admin login required.</p></main>;
   return <div className="product-theme"><ProductHeader/><main id="content">
+    <p style={{margin:"16px auto",maxWidth:1050}}><Link href="/support-admin">Customer orders, refunds and support cases →</Link></p>
     <PromotionAdmin/>
   </main></div>;
 }
