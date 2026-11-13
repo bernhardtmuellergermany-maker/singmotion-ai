@@ -8,6 +8,7 @@ import {sanitizedStripeCheckoutError} from "@/lib/commerce/stripe-error-diagnost
 import {stripeVideoCheckoutLineItem,stripeVideoCheckoutIdempotencyKey,stripeVideoCheckoutLiveTaxSettings} from "@/lib/commerce/stripe-video-checkout-line-item";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
+import {legacyCustomerPurchaseRetired,LEGACY_PURCHASE_RETIRED_RESPONSE} from "@/lib/commerce/credits-only-commerce";
 import { dataDir, limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
@@ -20,6 +21,7 @@ const reply = (data: unknown, status = 200) => NextResponse.json(data, {
 });
 
 export async function POST(req: NextRequest) {
+  if(legacyCustomerPurchaseRetired())return NextResponse.json(LEGACY_PURCHASE_RETIRED_RESPONSE,{status:410,headers:{"Cache-Control":"no-store"}});
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
   // Checkout mode is fixed by the actual Railway environment and credential
