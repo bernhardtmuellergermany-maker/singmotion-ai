@@ -218,6 +218,26 @@ async function fixture(taskId = "mock-task") {
     counts: () => ({ submits, polls }),
   };
 }
+test("owned project display names survive new sessions without changing immutable generation records", async () => {
+  const f=await fixture();
+  const before=f.store.db.prepare(
+    "SELECT project_name,selection_json,policy_json FROM live_studio_projects WHERE attempt_id=?"
+  ).get(f.plan.id) as {project_name:string;selection_json:string;policy_json:string};
+  const saved=f.service.renameProject(f.plan.id,owner,"operator","First Love, Last Summer");
+  assert.equal(saved.displayName,"First Love, Last Summer");
+  assert.equal(saved.projectName,"First Love, Last Summer");
+  assert.equal(f.factory().view(f.plan.id,owner).projectName,"First Love, Last Summer");
+  assert.equal(f.factory().list(owner).find(p=>p.id===f.plan.id)?.projectName,"First Love, Last Summer");
+  assert.throws(()=>f.service.renameProject(f.plan.id,"another-owner","operator","Stolen"),/not found/);
+  assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator",""),/project name/i);
+  assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator","a".repeat(81)),/project name/i);
+  assert.throws(()=>f.service.renameProject(f.plan.id,owner,"operator","Line\\nBreak"),/project name/i);
+  const after=f.store.db.prepare(
+    "SELECT project_name,selection_json,policy_json FROM live_studio_projects WHERE attempt_id=?"
+  ).get(f.plan.id);
+  assert.deepEqual(after,before);
+  assert.equal(f.factory().view(f.plan.id,owner).projectName,"First Love, Last Summer");
+});
 test("pilot disabled by default and incomplete/replayed policy cannot price", () => {
   assert.throws(() => studioGate(studioConfig({})), /server enablement/);
   assert.equal(validateStudioPolicy(policy).contract.model, "OmniHuman 2.0");
