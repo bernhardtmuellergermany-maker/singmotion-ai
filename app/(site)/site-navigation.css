@@ -50,7 +50,11 @@
   box-shadow:none!important;
   backdrop-filter:none!important;
   -webkit-backdrop-filter:none!important;
-  pointer-events:auto!important;
+  /* Transparent fixed header must not swallow downward drags on mobile.
+     Only actual links/menu buttons take pointer events; elsewhere native
+     document scrolling and browser pull-to-refresh start at y=0. */
+  pointer-events:none!important;
+  touch-action:pan-y!important;
 }
 .sm-site-header-space{
   display:block!important;
@@ -69,7 +73,12 @@
   gap:0!important;
   min-width:0!important;
   margin:0!important;
+  pointer-events:none!important;
+}
+.sm-site-header .sm-site-header-left>.sm-wordmark,
+.sm-site-header .sm-site-header-left>*:not(.sm-wordmark){
   pointer-events:auto!important;
+  touch-action:pan-y!important;
 }
 .sm-site-header .sm-site-header-left>.sm-wordmark{
   position:relative!important;
@@ -93,7 +102,8 @@
   text-decoration:none!important;
   cursor:pointer!important;
   pointer-events:auto!important;
-  touch-action:manipulation!important;
+  /* Keep native vertical gestures, including pull-to-refresh, on the logo. */
+  touch-action:pan-y!important;
 }
 .sm-site-header .sm-site-header-left>.sm-wordmark>span{
   font:inherit!important;
@@ -119,6 +129,11 @@
   /* An empty navigation hit box must not intercept taps on the left brand.
      Child menu controls opt back into pointer events. */
   pointer-events:none!important;
+}
+/* Restore taps on actual navigation controls, not the empty fixed header. */
+.sm-site-header .sm-header-actions>*{
+  pointer-events:auto!important;
+  touch-action:pan-y!important;
 }
 .sm-site-header .sm-header-actions>.sm-global-menu,
 .sm-site-header .sm-header-actions>.sm-account-menu{
@@ -189,7 +204,7 @@
   left:0!important;
   right:0!important;
   z-index:2147483000!important;
-  pointer-events:auto!important;
+  pointer-events:none!important;
 }
 .sm-output-page>.sm-site-header .sm-wordmark{
   pointer-events:auto!important;
