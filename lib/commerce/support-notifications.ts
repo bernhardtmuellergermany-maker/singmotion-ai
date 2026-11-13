@@ -8,7 +8,7 @@ import {SupportCases} from "./support-cases.ts";
 export function queueFailedOutputSupportEmails(
  commerceFile:string,liveFile:string,operatorEmail="support@singmotion.ai",
 ):number{
- if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(operatorEmail)||!existsSync(commerceFile))return 0;
+ if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(operatorEmail)||!existsSync(commerceFile))return 0;
  const commerce=new DatabaseSync(commerceFile);
  commerce.exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL");
  let added=0;
