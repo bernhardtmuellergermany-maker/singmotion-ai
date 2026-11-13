@@ -13,6 +13,8 @@ on:
       - 'components/generation-status-view.tsx'
       - 'components/studio-wizard.tsx'
       - 'components/my-projects-gallery.tsx'
+      - 'tests/project-name-mobile-sync.test.ts'
+      - 'components/my-projects-gallery.tsx'
       - 'components/project-header-name.tsx'
       - 'app/(site)/api/studio-live/route.ts'
       - 'app/(site)/api/customer-orders/route.ts'
@@ -57,7 +59,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg chromium
       - run: npm ci
       - run: npm run typecheck
-      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts tests/feedback-preview.test.ts tests/waveform-stable-viewport.test.ts tests/studio-direct-generation-ui.test.ts tests/studio-credit-resume-step4.test.ts tests/waveform-selection-playback.test.ts tests/project-name-sync-ui.test.ts
+      - run: node --experimental-strip-types --test tests/customer-feedback.test.ts tests/feedback-preview.test.ts tests/waveform-stable-viewport.test.ts tests/studio-direct-generation-ui.test.ts tests/studio-credit-resume-step4.test.ts tests/waveform-selection-playback.test.ts tests/project-name-mobile-sync.test.ts tests/project-name-sync-ui.test.ts
       - run: node --experimental-strip-types --test --test-name-pattern="owned project display names survive" tests/studio-live.test.ts
       - run: npm run build
       - name: Real Chromium customer payment and Output regression
