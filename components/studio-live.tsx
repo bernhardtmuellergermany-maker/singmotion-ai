@@ -595,7 +595,9 @@ export function LiveProject({ id }: { id: string }) {
   },[frontCard,project?.outputReady,id]);
   const complete = project?.outputReady === true;
   const failed = project?.state === "failed";
-  const notice = project ? providerFeedback(project.state,project.stage,project.creditCharge,project.createdAt) : null;
+  const editHref=project&&/^[a-f0-9-]{36}$/i.test(project.id)
+    ?"/studio?copy=live_"+encodeURIComponent(project.id):null;
+  const notice = project ? providerFeedback(project.state,project.stage,project.creditCharge,project.createdAt,Date.now(),editHref) : null;
   const visibleNotice=error?requestErrorFeedback(error,"generation"):notice;
   const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Video status pending" : "Preparing project";
   return (
