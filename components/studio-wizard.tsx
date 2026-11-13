@@ -223,6 +223,7 @@ export function StudioWizard({
         localStorage.setItem("singmotion-studio-owner",sessionOwner);
         const params = new URLSearchParams(window.location.search);
         const requested = params.get("draft");
+        const resumeReview = params.get("resume") === "review";
         const copy = params.get("copy");
         const createNew = params.get("new") === "1" && !requested && !copy;
         draftId.current =
@@ -289,7 +290,10 @@ export function StudioWizard({
           });
           // Drafts already saved by the four-step wizard use 0–3 unchanged.
           // Earlier five-step drafts used 3 for performance and 4 for review.
-          setStep(Math.max(0, Math.min(3, saved.step)));
+          // A purchase return is an explicit Step 4 request, independent of the
+          // saved draft's last autosaved step. Do not bypass missing media.
+          setStep(resumeReview && saved.song?.kind === "audio" && saved.image?.kind === "image"
+            ? 3 : Math.max(0, Math.min(3, saved.step)));
           try { setTimeline(JSON.parse(localStorage.getItem(`singmotion-timeline:${requested}`)||"[]")); } catch {}
           setDetectedFormat(
             photoFormat(
