@@ -9,7 +9,7 @@
  */
 export type BuyerType="consumer"|"business";
 export type VoucherKind="single-purpose"|"multi-purpose";
-export type CreditTaxMode="de-small-business"|"eu-sme-exempt"|"stripe-tax"|"reviewed-no-tax";
+export type CreditTaxMode="stripe-managed-payments"|"de-small-business"|"eu-sme-exempt"|"stripe-tax"|"reviewed-no-tax";
 export type CreditTaxDecision={
  country:string;buyerType:BuyerType;voucherKind:VoucherKind;
  mode:CreditTaxMode;revision:string;taxAtIssue:boolean;taxCode:string|null;
