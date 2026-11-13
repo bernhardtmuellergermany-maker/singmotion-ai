@@ -11,6 +11,7 @@ test("gallery obtains the canonical names from authenticated no-cache server req
  assert.match(gallery,/credentials:"same-origin",cache:"no-store"/);
  assert.match(gallery,/document\.addEventListener\("visibilitychange",onVisibility\)/);
  assert.match(gallery,/window\.addEventListener\("focus",onFocus\)/);
+ assert.match(gallery,/window\.addEventListener\("pageshow",onFocus\)/);
 });
 
 test("old browser-only names cannot override server-owned project titles",()=>{
