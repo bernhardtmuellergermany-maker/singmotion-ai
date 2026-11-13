@@ -152,4 +152,12 @@ test("real customer checkout, refund webhook and R2 have distinct protected-live
  assert.match(read("app/(site)/api/stripe-checkout/route.ts"),/owner.kind!=="account"/);
  assert.match(read("lib/staging.ts"),/stagingAccess/);
  assert.match(read("app/(site)/api/stripe-webhook/route.ts"),/verifyStripePaymentEvent/);
+ for(const route of [
+  "app/(site)/api/customer-auth/route.ts",
+  "app/(site)/api/customer-quote/route.ts",
+  "app/(site)/api/customer-plan/route.ts",
+ ]){
+  assert.match(read(route),/protectedProductionLivePilotApproved/,route+
+   ": authenticated customer and plan/quote UI must work with Basic Auth still enabled");
+ }
 });
