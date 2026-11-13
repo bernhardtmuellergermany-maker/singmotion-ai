@@ -21,7 +21,6 @@ const approved=():Record<string,string>=>({
  STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",STRIPE_LIVE_CHECKOUT_ENABLED:"true",
  STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",
  CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"true",
- CREDIT_TAX_DE_KLEINUNTERNEHMER_APPROVED:"true",
  CREDIT_TAX_COUNTRY_POLICY_JSON:JSON.stringify({revision:"fixture-2026",reviewedAt:new Date().toISOString().slice(0,10),entries:[
   {country:"DE",buyerType:"consumer",voucherKind:"single-purpose",mode:"de-small-business",evidence:"Synthetic DE small business tax voucher issuance review for tests only"}
  ]}),
