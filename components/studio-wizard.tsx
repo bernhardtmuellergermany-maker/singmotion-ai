@@ -35,7 +35,7 @@ import {
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
 import {CustomerFeedback} from "./customer-feedback";
-import {requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
+import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 import { PerformanceTimeline, timelinePrompt, type PerformanceSection } from "./performance-timeline";
 import { api, ensureSession, upload, uploadWithProgress } from "@/lib/client";
 import {
@@ -112,6 +112,7 @@ export function StudioWizard({
     [photoUploadingName,setPhotoUploadingName] = useState(""),
     [photoSize,setPhotoSize] = useState({width:1,height:1}),
     [error, setError] = useState(""),
+    [reviewBalance,setReviewBalance] = useState<number|null>(null),
     [reviewRights, setReviewRights] = useState(false),
     [confirm, setConfirm] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
@@ -562,6 +563,20 @@ export function StudioWizard({
   const reviewPrice=creditQuote
     ?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits"
     :"Unavailable";
+  useEffect(()=>{
+    if(step!==3||!operatorStudio)return;
+    let active=true;
+    const refresh=()=>{
+      void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
+        .then(async response=>{
+          const body=await response.json() as {availableCredits?:number};
+          if(active)setReviewBalance(response.ok&&typeof body.availableCredits==="number"&&Number.isSafeInteger(body.availableCredits)&&body.availableCredits>=0?body.availableCredits:null);
+        }).catch(()=>{if(active)setReviewBalance(null);});
+    };
+    refresh();window.addEventListener("focus",refresh);window.addEventListener("credits-changed",refresh);
+    return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);};
+  },[step,operatorStudio]);
+  const reviewShortage=step===3&&operatorStudio&&creditQuote!==null&&reviewBalance!==null&&reviewBalance<creditQuote.credits;
   const cameraOptions: readonly string[] = cameras;
   useEffect(() => {
     const dismiss = (event: PointerEvent) => {
@@ -579,7 +594,8 @@ export function StudioWizard({
   const wizardNotice:CustomerNotice|null=error?
     step<=1?requestErrorFeedback(error,"upload"):
     /prompt|overlap|source project|audio|photo|permission|selection/i.test(error)?{key:"studio-input-error",kind:"warning",title:"Please check your video inputs",message:error.slice(0,240)}:
-    requestErrorFeedback(error,"generation"):null;
+    requestErrorFeedback(error,"generation"):
+    reviewShortage&&creditQuote?generationFeedback("credits-needed",{credits:creditQuote.credits,status:"estimated"},reviewBalance):null;
   return (
     <div className="product-theme singmotion-flow">
       <SiteHeader />
@@ -865,7 +881,7 @@ export function StudioWizard({
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||reviewShortage} onClick={()=>setConfirm(true)}>Generate Video <ArrowRight size={19}/></button>}
         </nav>
         {/* Errors stay beside the current step heading; no off-screen footer alert. */}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
