@@ -97,6 +97,24 @@ export async function runProjectTrashCleanup(root:string,options:Options={}){
      const record=JSON.parse(attempt.data) as {state:string;outputPath?:string|null};
      if(!["prepared","completed","failed"].includes(record.state))
        throw Error("Provider still active or unknown");
+     // BytePlus private R2 input objects are separate from uploaded source
+     // media. Purge only exact, owner-bound manifest keys after both TTL and
+     // grace; missing credentials or ambiguous delivery leaves the tombstone
+     // for retry without removing the original media or financial evidence.
+     if(table(live,"live_input_deliveries")){
+       const delivery=live!.prepare("SELECT state FROM live_input_deliveries WHERE attempt_id=?")
+         .get(candidate.id) as {state:string}|undefined;
+       if(delivery&&delivery.state!=="cleaned"){
+         const {LiveTestStore}=await import("./live/store.ts");
+         const {R2PrivateInputDelivery}=await import("./live/r2.ts");
+         const store=new LiveTestStore(liveFile);
+         try{
+           const r2=new R2PrivateInputDelivery(store,root);
+           try{await r2.cleanupExpired(candidate.id,new AbortController().signal)}
+           finally{r2.close()}
+         }finally{store.close()}
+       }
+     }
      if(record.outputPath){
       const liveDir=await realpath(path.join(root,"live-output")).catch(()=>null);
       if(!liveDir||path.dirname(path.resolve(record.outputPath))!==liveDir)
