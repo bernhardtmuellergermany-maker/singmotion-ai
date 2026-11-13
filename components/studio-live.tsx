@@ -500,7 +500,7 @@ export function LiveProject({ id }: { id: string }) {
           api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`),
         )
         .then((p) => {
-          if (active) setProject(p);
+          if (active) {setProject(p);setError("");}
         })
         .catch((e) => {
           if (active) setError(e.message);
