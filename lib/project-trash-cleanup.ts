@@ -49,7 +49,7 @@ function otherReference(demo:DatabaseSync,live:DatabaseSync|null,commerce:Databa
  // An unresolved provider attempt may need its inputs even when removed from
  // the gallery. Terminal audited attempts are retained without holding raw files.
  if(live&&table(live,"live_attempts")&&referenced(live,
-   "SELECT 1 FROM live_attempts WHERE id<>? AND data LIKE ? AND json_extract(data,'$.state') NOT IN ('completed','failed','prepared') LIMIT 1",
+   "SELECT 1 FROM live_attempts WHERE id<>? AND data LIKE ? AND (json_extract(data,'$.state') IS NULL OR json_extract(data,'$.state') NOT IN ('completed','failed','prepared')) LIMIT 1",
    excluding.kind==="live"?excluding.id:"",like))return true;
  // Never garbage-collect input data linked to a paid customer order, even
  // if that order is hidden. Financial/legal retention has a separate policy.
