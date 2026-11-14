@@ -6,6 +6,7 @@ import {GenerationStatusView,type GenerationProgress} from "./generation-status-
 
 export function SuperAdminGeneration({id}:{id:string}){
  const [project,setProject]=useState<StudioProject|null>(null);
+ const [customerProject,setCustomerProject]=useState(false);
  const [error,setError]=useState("");
  const [availableCredits,setAvailableCredits]=useState<number|null>(null);
  useEffect(()=>{
@@ -17,7 +18,8 @@ export function SuperAdminGeneration({id}:{id:string}){
    async function refresh(){
      if(document.visibilityState!=="hidden"){
        try{
-         await ensureSession();
+         const media=await ensureSession() as {owner?:string};
+         if(live)setCustomerProject(!!media.owner?.startsWith("customer-"));
          let result=await api<StudioProject>(`studio-live?id=${encodeURIComponent(id)}`);
          if(live){setProject(result);setError("");}
          if(["submitted","processing"].includes(result.state)&&++statusReads>=6){
@@ -75,7 +77,7 @@ export function SuperAdminGeneration({id}:{id:string}){
    ?"/credits?resumeDraft="+encodeURIComponent(resumeDraft)+"&requiredCredits="+project.creditCharge.credits+"#buy-credits":"/credits#buy-credits";
  const link=`/api/studio-live?id=${encodeURIComponent(id)}&video=1`;
  return <main id="content" className="sm-super-admin-generation">
-   {!project&&!error?<p role="status" className="sm-gen-extra-message">Loading the saved video status…</p>:<GenerationStatusView progress={progress} paymentMode="super-admin"
+   {!project&&!error?<p role="status" className="sm-gen-extra-message">Loading the saved video status…</p>:<GenerationStatusView progress={progress} paymentMode={customerProject?"credits":"super-admin"}
      creditCharge={project?.creditCharge}
      availableCredits={availableCredits}
      photoUrl={project?.imageId?`/api/assets/${encodeURIComponent(project.imageId)}`:null}
