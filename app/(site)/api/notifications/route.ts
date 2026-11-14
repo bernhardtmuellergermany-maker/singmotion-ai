@@ -1,4 +1,6 @@
 import {NextRequest,NextResponse} from "next/server";
+import {DatabaseSync} from "node:sqlite";
+import {existsSync} from "node:fs";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {CreditWallet} from "@/lib/commerce/credit-wallet";
@@ -18,7 +20,16 @@ async function withAccount(req:NextRequest,fn:(inbox:NotificationInbox,subject:s
   const identity=await resolveCreditWalletIdentity(req,store);
   if(!identity)return json({error:"Login required."},401);
   new CreditWallet(store.db); // Initialize ledger for an account with no purchases.
-  return json(fn(new NotificationInbox(store.db),identity.subject));
+  // Read only the live-project database to enrich the already-account-scoped
+  // ledger notifications. If absent/unavailable, show the original credit
+  // event without fabricating a link or changing financial records.
+  const projectFile=path.join(dataDir,"live-test.sqlite");
+  let live:DatabaseSync|null=null;
+  try{
+   if(existsSync(projectFile))live=new DatabaseSync(projectFile,{readOnly:true});
+  }catch{live=null;}
+  try{return json(fn(new NotificationInbox(store.db,live),identity.subject));}
+  finally{live?.close();}
  }catch(e){console.error("Notifications unavailable",{category:e instanceof Error?e.name:"unknown"});return json({error:"Notifications temporarily unavailable."},503)}
  finally{store.close();}
 }
