@@ -74,3 +74,7 @@
 .sm-account-topup-link{color:#f2c1ff!important;text-decoration:underline!important;text-underline-offset:3px;display:inline-flex;min-height:26px;align-items:center;font-weight:800}
 .sm-account-topup-link:hover{color:#fff!important}
 .sm-account-topup-link:focus-visible{outline:2px solid #ddbaff;outline-offset:3px}
+
+/* Quiet, account-only notification affordance. */
+.sm-account-menu .sm-account-notifications-link{display:flex!important;align-items:center;gap:9px}
+.sm-account-notifications-link .sm-account-unread-count{margin-left:auto;min-width:21px;height:21px;box-sizing:border-box;display:grid;place-items:center;padding:0 5px;border-radius:15px;background:#8547bd;color:#fff;font-size:11px;font-weight:750}
