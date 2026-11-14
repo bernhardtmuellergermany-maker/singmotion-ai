@@ -185,6 +185,9 @@ export function requestErrorFeedback(error:string,context:"upload"|"payment"|"ge
   if(/declined|payment failed|card.*(failed|rejected)/i.test(error)&&context==="payment")
     return {key:"payment-declined",kind:"error",title:"Payment was not completed",
       message:"No new Credits are available from this attempt. Check the Stripe payment result and your wallet before trying a different payment method."};
+  if(context==="upload"&&/upload storage|server capacity|storage capacity|disk space|\b507\b/i.test(error))
+    return {key:"upload-capacity",kind:"warning",title:"Upload storage temporarily full",
+      message:"Your audio or photo was not saved. Our temporary processing space is full; your existing projects are safe in private storage. Try again later. No payment or video generation has started."};
   if(/maintenance|service unavailable|503|502|gateway|temporarily unavailable/i.test(error))
     return {key:"service-unavailable-"+context,kind:"warning",title:"Service temporarily unavailable",
       message:"SingMotion cannot confirm this step right now. Your existing project remains saved where confirmed; do not create a duplicate payment or generation."};
