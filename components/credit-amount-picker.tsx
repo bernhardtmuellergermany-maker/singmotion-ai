@@ -24,11 +24,30 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true}:{purcha
   if(!purchaseEnabled||credits===null||busy||(!testMode&&!/^[A-Z]{2}$/.test(billingCountry)))return;
   setBusy(true);setError("");setStatus(null);
   try{
+   // Keep the exact interrupted Step 4 draft across the external Stripe redirect,
+   // even if the sessionStorage context is lost when the buyer returns.
+   const params=new URLSearchParams(window.location.search);
+   let draftId=params.get("resumeDraft");
+   let required=Number(params.get("requiredCredits"));
+   if(!draftId||!/^[A-Za-z0-9_-]{1,80}$/.test(draftId)||!Number.isSafeInteger(required)||required<1||required>7500){
+    try{
+     const saved=JSON.parse(sessionStorage.getItem("sm-credit-checkout-resume")||"null") as
+       {draftId?:unknown;requiredCredits?:unknown;created?:unknown}|null;
+     if(saved&&typeof saved.draftId==="string"&&/^[A-Za-z0-9_-]{1,80}$/.test(saved.draftId)&&
+       typeof saved.requiredCredits==="number"&&Number.isSafeInteger(saved.requiredCredits)&&
+       saved.requiredCredits>=1&&saved.requiredCredits<=7500&&typeof saved.created==="number"&&
+       Date.now()-saved.created>=0&&Date.now()-saved.created<7200000){
+       draftId=saved.draftId;required=saved.requiredCredits;
+     }else draftId=null;
+    }catch{draftId=null;}
+   }
+   const resume=draftId&&Number.isSafeInteger(required)&&required>=1&&required<=7500
+     ?{resumeDraft:draftId,requiredCredits:required}:{};
    const response=await fetch("/api/credit-checkout",{
     method:"POST",credentials:"same-origin",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({credits:String(credits),requestKey:(requestKey.current??=crypto.randomUUID()),
-      ...(!testMode?{billingCountry,buyerType}:{})}),
+      ...(!testMode?{billingCountry,buyerType}:{}),...resume}),
    });
    const data=await response.json() as {url?:string;error?:string;testMode?:boolean;supportReference?:string};
    if(!response.ok||data.testMode!==testMode||typeof data.url!=="string"||
