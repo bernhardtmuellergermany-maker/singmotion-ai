@@ -126,7 +126,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
    if(typeof verified.amount!=="number"||!Number.isSafeInteger(verified.amount)||verified.amount!==charge.amount||
      verified.currency!=="eur")throw Error("Full-refund verification required");
    store.reconcileVerifiedStripeRefund({orderId:bound.order_id,stripeCheckoutId:session.id,
-     refundId:verified.id,refundedCents:verified.amount,evidence});
+     refundId:verified.id!,refundedCents:verified.amount,evidence});
    // A previously approved Super Admin full refund can complete via webhook
    // after an API timeout, without relying on the admin staying online.
    const support=new SupportCases(store.db);
@@ -138,7 +138,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
    }
  }else{
    store.reconcileVerifiedStripeDispute({orderId:bound.order_id,stripeCheckoutId:session.id,
-     disputeId:verified.id,evidence});
+     disputeId:verified.id!,evidence});
  }
 }
 
