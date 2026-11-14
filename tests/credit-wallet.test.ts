@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
 import {randomUUID} from "node:crypto";
 import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
+import {selectWalletPrincipal} from "../lib/commerce/credit-wallet-auth.ts";
+import {readFileSync} from "node:fs";
 
 const safeEnv={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
  STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"true",
@@ -175,4 +177,23 @@ test("terminal provider failure returns reserved Credits as goodwill exactly onc
   assert.equal(wallet.total(owner),500);
   assert.equal(wallet.entries(owner).filter(e=>e.type==="video-service-refund"&&e.reference==="video-service-refund:"+job).length,1);
  }finally{db.close()}
+});
+
+
+test("wallet credit checkout follows verified staff precedence when both browser identities are present",()=>{
+ assert.equal(selectWalletPrincipal("customer-A","super-admin"),"super-admin");
+ assert.equal(selectWalletPrincipal(null,"super-admin"),"super-admin");
+ assert.equal(selectWalletPrincipal("customer-A","editor"),null,"editor cannot spend old customer wallet");
+ assert.equal(selectWalletPrincipal(null,"editor"),null);
+ assert.equal(selectWalletPrincipal("customer-A",null),"customer");
+ assert.equal(selectWalletPrincipal(null,null),null);
+ const identity=readFileSync(new URL("../lib/commerce/credit-wallet-auth.ts",import.meta.url),"utf8");
+ const account=readFileSync(new URL("../app/(site)/api/customer-auth/route.ts",import.meta.url),"utf8");
+ const creditBalance=readFileSync(new URL("../app/(site)/api/credit-balance/route.ts",import.meta.url),"utf8");
+ const creditCheckout=readFileSync(new URL("../app/(site)/api/credit-checkout/route.ts",import.meta.url),"utf8");
+ assert.match(account,/id&&req\\.cookies\\.has\\("payload-token"\\)/);
+ assert.match(identity,/!id\\|\\|req\\.cookies\\.has\\("payload-token"\\)/);
+ assert.match(identity,/selectWalletPrincipal\\(id,staffRole\\)/);
+ assert.match(creditBalance,/resolveCreditWalletIdentity\\(req,store\\)/);
+ assert.match(creditCheckout,/resolveCreditWalletIdentity\\(req,store\\)/);
 });
