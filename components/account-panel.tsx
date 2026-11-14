@@ -71,7 +71,7 @@ export function AccountPanel({active}:{active:boolean}){
    const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,email,password})});
    const d=await res.json();
    if(!res.ok){
-    if(action==="login" && res.status===401){
+    if(action==="login" && [401,403,503].includes(res.status)){
      const staffRes=await fetch("/api/cms/staff/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
      if(staffRes.ok){notifyAuthTransition();setPassword("");window.location.reload();return;}
     }
