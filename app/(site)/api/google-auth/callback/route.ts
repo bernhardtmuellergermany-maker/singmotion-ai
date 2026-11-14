@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
-import {dataDir,createAccountMediaSession,session} from "@/lib/db";
+import {dataDir,createAccountMediaSession,session,revokeMediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
 export const runtime="nodejs";export const dynamic="force-dynamic";
@@ -32,7 +32,10 @@ export async function GET(req:NextRequest){
   const media=createAccountMediaSession("customer-"+account.id);
   const old=req.cookies.get("sm_session")?.value;
   const owner=old?session(old)?.owner:null;
-  const response=clear(NextResponse.redirect(trustedOrigin+"/?card=login"));
+  if(old&&owner&&(owner.startsWith("customer-")||owner.startsWith("cms-staff-")))
+    revokeMediaSession(old);
+  const response=clear(NextResponse.redirect(trustedOrigin+"/?card=login&auth_changed=1"));
+  response.cookies.delete("payload-token"); // OAuth customer login replaces a prior CMS staff session.
   if(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-"))response.cookies.set("sm_guest_session",old,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   response.cookies.set("sm_customer",account.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
   response.cookies.set("sm_session",media.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
