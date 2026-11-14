@@ -7,6 +7,8 @@ const b = "b".repeat(40);
 const valid = {
   stagingSha: a, candidateSha: a, stagingStatus: "SUCCESS",
   stagingBuilder: "RAILPACK", productionBuilder: "RAILPACK",
+  stagingBranch: "feature/showcase-unified-auth-20261114",
+  productionBranch: "release/production-promoted-20261114",
 };
 test("only the exact successfully deployed staging commit is promotable", () => {
   assert.equal(assessPromotion(valid).permitted, true);
@@ -30,4 +32,13 @@ test("different build systems, unknown metadata or mismatched images fail closed
     candidateImageDigest: "sha256:" + "1".repeat(64),
   }).permitted, true);
   assert.equal(assessPromotion().permitted, false);
+});
+
+test("production promotion refuses identical/missing branches and unreviewed refs", () => {
+  assert.equal(assessPromotion({ ...valid, stagingBranch: valid.productionBranch }).permitted, false);
+  assert.equal(assessPromotion({ ...valid, productionBranch: valid.stagingBranch }).permitted, false);
+  assert.equal(assessPromotion({ ...valid, productionBranch: "main" }).permitted, false);
+  assert.equal(assessPromotion({ ...valid, productionBranch: "../release/unsafe" }).permitted, false);
+  assert.equal(assessPromotion({ ...valid, stagingBranch: undefined }).permitted, false);
+  assert.equal(assessPromotion({ ...valid, productionBranch: undefined }).permitted, false);
 });
