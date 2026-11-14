@@ -50,6 +50,7 @@ test("Google OAuth redirects back to only the validated server-bound Studio retu
  const callback=read("app/(site)/api/google-auth/callback/route.ts");
  assert.match(oauth,/parseStudioAccountReturn\(req\.nextUrl\.searchParams\.get\("returnTo"\)\)/);
  assert.match(oauth,/returnTo\?\{returnTo\}:\{\}/);
+ assert.match(oauth,/studioAccountReturn\(allowedReturn\.draftId,allowedReturn\.requiredCredits\)/);
  assert.match(callback,/savedReturn=parseStudioAccountReturn\(saved\.returnTo\|\|null\)/);
  assert.match(callback,/savedReturn\?savedReturn\+"&auth_changed=1"/);
  assert.match(callback,/sm_guest_session/);
@@ -66,7 +67,8 @@ test("Account handoff never grants cross-account ownership or payments based on 
  assert.match(resume,/quote\.credits!==wanted\.requiredCredits/);
  assert.match(resume,/mode:"execute",confirmation:"IMPORT MY GUEST PROJECTS",draftId/);
  assert.match(importer,/customerIdentityOrigin\(process\.env\)/);
- assert.match(importer,/session\(req\.cookies\.get\("sm_guest_session"\)\?\.value\)/);
+ assert.match(importer,/guestToken=req\.cookies\.get\("sm_guest_session"\)\?\.value/);
+ assert.match(importer,/guestOwner=session\(guestToken\)\?\.owner/);
  assert.match(importer,/SELECT selection,step FROM studio_drafts WHERE id=\? AND owner=\?/);
  assert.match(importer,/rehomeMirroredPrivateSource\(guestOwner,accountOwner,asset,original\)/);
  assert.match(importer,/BEGIN IMMEDIATE/);
