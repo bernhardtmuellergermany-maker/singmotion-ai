@@ -19,7 +19,7 @@ type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
  videoReady:number;created:number;outputFormat?:string|null;durationSeconds?:number|null;displayName?:string|null;
 };
-type TrashedProject={id:string;name:string;kind:"draft"|"admin";deletedAt:number;purgeAfter:number;restorable?:boolean};
+type TrashedProject={id:string;name:string;kind:"draft"|"admin"|"customer";deletedAt:number;purgeAfter?:number;restorable?:boolean};
 type ProjectItem={
  id:string;kind:"draft"|"customer"|"admin";name:string;status:ProjectStatus;
  date:number;duration:number;format:string;image:string|null;
@@ -129,7 +129,18 @@ export function MyProjectsGallery(){
   if(busyId)return;
   setBusyId(item.id);setError("");
   try{
-   if(item.kind==="draft"){
+   if(item.kind==="customer"){
+    const id=item.id.slice(6);
+    const response=await fetch("/api/customer-orders",{
+     method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({orderId:id,hidden:true})
+    });
+    if(!response.ok){
+     const body=await response.json().catch(()=>null) as {error?:string}|null;
+     throw Error(body?.error||"Could not remove this project.");
+    }
+    setOrders(previous=>previous.filter(o=>o.orderId!==id));
+   }else if(item.kind==="draft"){
     const id=item.id.slice(6);
     const existing=drafts.find(d=>d.id===id);
     if(!existing)throw Error("Saved draft unavailable. Refresh My Projects.");
@@ -169,20 +180,33 @@ export function MyProjectsGallery(){
   finally{setBusyId(null);}
  }
  async function refreshTrash(){
-  const [draft,admin]=await Promise.allSettled([
+  const [draft,admin,customer]=await Promise.allSettled([
    api<{items:TrashedProject[]}>("studio-drafts?trash=1"),
-   api<{items:TrashedProject[]}>("studio-live?trash=1")
+   api<{items:TrashedProject[]}>("studio-live?trash=1"),
+   fetch("/api/customer-orders?view=hidden",{credentials:"same-origin",cache:"no-store"})
+    .then(async response=>{
+      if(!response.ok)return [] as TrashedProject[];
+      const data=await response.json() as {items:Array<{id:string;name:string;deletedAt:number}>};
+      return (data.items||[]).map(item=>({...item,kind:"customer" as const}));
+    })
   ]);
   setTrash([
    ...(draft.status==="fulfilled"?(draft.value.items||[]):[]),
-   ...(admin.status==="fulfilled"?(admin.value.items||[]):[])
+   ...(admin.status==="fulfilled"?(admin.value.items||[]):[]),
+   ...(customer.status==="fulfilled"?customer.value:[])
   ].sort((a,b)=>b.deletedAt-a.deletedAt));
  }
  async function restoreTrash(item:TrashedProject){
   if(busyId)return;
   setBusyId(item.kind+"_"+item.id);setTrashError("");
   try{
-   if(item.kind==="draft")
+   if(item.kind==="customer"){
+    const response=await fetch("/api/customer-orders",{
+     method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({orderId:item.id,hidden:false})
+    });
+    if(!response.ok)throw Error("Could not restore this paid project.");
+   }else if(item.kind==="draft")
     await api("studio-drafts/"+encodeURIComponent(item.id)+"/restore",{method:"POST"});
    else await api("studio-live",{method:"POST",body:JSON.stringify({
     action:"restore",id:item.id,confirmation:"RESTORE "+item.id
@@ -193,10 +217,12 @@ export function MyProjectsGallery(){
   finally{setBusyId(null)}
  }
  async function deleteProject(item:ProjectItem){
-  if(busyId||item.kind==="customer")return;
+  if(busyId)return;
   const adminState=item.kind==="admin"?live.find(p=>p.id===item.id.slice(5))?.state:null;
   const active=item.kind==="admin" && !["prepared","completed","failed"].includes(adminState||"");
-  const warning=item.kind==="draft"
+  const warning=item.kind==="customer"
+   ?"Remove '"+item.name+"' from My Projects? You can restore it under Recently deleted. Any active generation continues; payment, refunds and video delivery records are kept."
+   :item.kind==="draft"
    ?"Move '"+item.name+"' to Recently deleted? You can restore it for 30 days. After that, unshared media becomes eligible for cleanup."
    :active
     ?"Move this active project to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
@@ -460,8 +486,8 @@ export function MyProjectsGallery(){
             <div className="sm-projects-options-menu">
               <Link href={item.href} onClick={()=>setOpenOptionsId(null)}><SquarePen size={15}/> Edit</Link>
               <button type="button" onClick={()=>{setOpenOptionsId(null);setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
-              <button type="button" className="sm-projects-delete" disabled={busyId===item.id||item.kind==="customer"} title={item.kind==="customer"?"Paid orders cannot be deleted from My Projects; contact support for data removal.":"Delete project"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Deleting…":"Delete"}</button>
-              {item.kind==="customer"&&<small>Paid orders cannot be deleted here.</small>}
+              <button type="button" className="sm-projects-delete" disabled={busyId===item.id} title={item.kind==="customer"?"Remove from My Projects without deleting payment records":"Delete project"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Removing…":item.kind==="customer"?"Remove":"Delete"}</button>
+              {item.kind==="customer"&&<small>Payment records are retained.</small>}
             </div>
           </details>}
           </div>
@@ -486,12 +512,12 @@ export function MyProjectsGallery(){
     </div>}
    <section className="sm-projects-trash" aria-label="Recently deleted projects">
     <details>
-      <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Restore within 30 days</span></summary>
-      <p className="sm-projects-trash-explain">Deleted projects are hidden immediately. Media not needed by other projects becomes eligible for cleanup after 30 days; physical cleanup requires approved backups. Financial and provider audit records are retained as required.</p>
+      <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Drafts: 30-day recovery · Paid orders: restorable</span></summary>
+      <p className="sm-projects-trash-explain">Drafts and eligible private videos can be recovered for 30 days before retention-based cleanup. Removed paid orders are only hidden from My Projects and can be restored here; payment, provider and delivery records are retained.</p>
       {trashError&&<p className="sm-projects-error" role="alert">{trashError}</p>}
       {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted projects.</p>:
        <ul>{trash.map(item=><li key={item.kind+"_"+item.id}>
-         <div><strong>{item.name}</strong><small>Eligible for cleanup from: {safeDate(item.purgeAfter)}</small></div>
+         <div><strong>{item.name}</strong><small>{item.kind==="customer"?"Removed from My Projects · payment record kept":`Eligible for cleanup from: ${safeDate(item.purgeAfter||0)}`}</small></div>
          {item.restorable===false?<small>Preparation canceled; restore the original saved draft instead.</small>:
           <button type="button" disabled={busyId!==null}
             onClick={()=>void restoreTrash(item)}>
