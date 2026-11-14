@@ -3,7 +3,9 @@ import type {DatabaseSync} from "node:sqlite";
 /** Account-scoped inbox; source payment ledger remains immutable when a notice is deleted. */
 export type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement";href:string};
 export class NotificationInbox {
- constructor(private readonly db:DatabaseSync){
+ private readonly db:DatabaseSync;
+ constructor(db:DatabaseSync){
+  this.db=db;
   db.exec(`CREATE TABLE IF NOT EXISTS notification_user_state(
     subject TEXT NOT NULL,notice_id TEXT NOT NULL,read_at INTEGER,deleted_at INTEGER,
     PRIMARY KEY(subject,notice_id)
