@@ -41,12 +41,14 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   const checkoutResult=params.get("checkout");
   const draftId=params.get("resumeDraft");
   const required=Number(params.get("requiredCredits"));
-  if(draftId&&/^[A-Za-z0-9_-]{1,80}$/.test(draftId)&&
-     Number.isSafeInteger(required)&&required>=1&&required<=7500){
-    const next={draftId,requiredCredits:required,created:Date.now()};
-    sessionStorage.setItem(RESUME_KEY,JSON.stringify(next));
-    setResume(next);
-  }else setResume(readCreditResume());
+  const resumeCandidate:CreditResume|null=
+   draftId&&/^[A-Za-z0-9_-]{1,80}$/.test(draftId)&&
+     Number.isSafeInteger(required)&&required>=1&&required<=7500
+    ?{draftId,requiredCredits:required,created:Date.now()}
+    :readCreditResume();
+  if(resumeCandidate)sessionStorage.setItem(RESUME_KEY,JSON.stringify(resumeCandidate));
+  setResume(resumeCandidate);
+  let returnTimer:number|null=null,returnScheduled=false;
   setCheckoutNotice(checkoutFeedback(checkoutResult));
   const refresh=()=>{
    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
@@ -66,6 +68,17 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
        lastBroadcastBalance.current=data.availableCredits;
        window.dispatchEvent(new Event("credit-balance-updated"));
       }
+      // A Stripe success URL alone cannot authorize resuming a video.
+      // Navigate only AFTER the signed-in account's server-verified wallet
+      // contains the full quoted amount. The user still explicitly clicks
+      // Generate Video on Step 4 (no automatic paid provider submission).
+      if(checkoutResult==="success"&&resumeCandidate&&
+         data.availableCredits>=resumeCandidate.requiredCredits&&!returnScheduled){
+       returnScheduled=true;
+       returnTimer=window.setTimeout(()=>{
+        window.location.assign("/studio?draft="+encodeURIComponent(resumeCandidate.draftId)+"&resume=review");
+       },1400);
+      }
      }
     }).catch(()=>{if(active)setView("unavailable");});
   };
@@ -78,7 +91,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
   window.addEventListener("pageshow",refresh);
-  return()=>{active=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("pageshow",refresh)};
+  return()=>{active=false;if(timer!==null)window.clearInterval(timer);if(returnTimer!==null)window.clearTimeout(returnTimer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
  const tone=creditTone(view==="ready"?balance?.availableCredits??null:null);
  return <div className="sm-credits-layout">
