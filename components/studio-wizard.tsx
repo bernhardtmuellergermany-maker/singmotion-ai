@@ -597,12 +597,13 @@ export function StudioWizard({
   // The source clip's start/end timestamps remain unchanged if a later provider
   // uses slowed playback, extra output frames or another internal cost uplift.
   const operatorStudio=owner.startsWith("cms-staff-");
+  const creditStudio=operatorStudio||owner.startsWith("customer-");
   const creditQuote=selection?quoteVideoCredits(selection.start,selection.end):null;
   const reviewPrice=creditQuote
     ?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits"
     :"Unavailable";
   useEffect(()=>{
-    if(step!==3||!operatorStudio)return;
+    if(step!==3||!creditStudio)return;
     let active=true;
     const refresh=()=>{
       void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
@@ -613,8 +614,8 @@ export function StudioWizard({
     };
     refresh();window.addEventListener("focus",refresh);window.addEventListener("credits-changed",refresh);
     return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);};
-  },[step,operatorStudio]);
-  const reviewShortage=step===3&&operatorStudio&&creditQuote!==null&&reviewBalance!==null&&reviewBalance<creditQuote.credits;
+  },[step,creditStudio]);
+  const reviewShortage=step===3&&creditStudio&&creditQuote!==null&&reviewBalance!==null&&reviewBalance<creditQuote.credits;
   // Save the exact interrupted draft before the customer opens Credits,
   // including when they use the Account menu instead of the shortage link.
   useEffect(()=>{
@@ -629,7 +630,7 @@ export function StudioWizard({
   // Step 4 already captures the rights consent and displays the exact Credits
   // quote. For CMS operators do the reviewed action in place, without a second
   // modal or any automatic submission triggered merely by opening a dialog.
-  async function startOperatorGeneration(){
+  async function startCreditGeneration(){
     if(busy||generating||!selection||!available||!reviewRights||!creditQuote||
        reviewShortage||!projectKey||generationProjectId)return;
     setGenerating(true);setError("");
@@ -637,11 +638,11 @@ export function StudioWizard({
     try{
       const [rights,access]=await Promise.all([
         api<{version:string}>("rights"),
-        api<{pilot?:boolean;superAdmin?:boolean;blockers?:string[]}>("studio-live"),
+        api<{pilot?:boolean;superAdmin?:boolean;customerBeta?:boolean;blockers?:string[]}>("studio-live"),
       ]);
-      if(!rights.version||!access.pilot||!access.superAdmin||
+      if(!rights.version||!access.pilot||!(operatorStudio?access.superAdmin:access.customerBeta)||
          (access.blockers?.length??0)>0)
-        throw Error("Private Super Admin generation is not authorized. Your saved Studio project is unchanged.");
+        throw Error("Credit video generation is not authorized for this signed-in account. Your saved Studio project is unchanged.");
       const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
       if(!response.ok)throw Error("Credit balance unavailable. Please retry after checking your wallet.");
       const wallet=await response.json() as {availableCredits?:number};
@@ -969,7 +970,7 @@ export function StudioWizard({
                   <p><strong>Rate:</strong> {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second</p>
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
                   <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
-                  <p className="sm-review-credit-disclaimer">{operatorStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
+                  <p className="sm-review-credit-disclaimer">{creditStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
                 </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>
             </details>
@@ -983,12 +984,12 @@ export function StudioWizard({
             You need {new Intl.NumberFormat("en-GB").format(creditQuote.credits)} Credits to generate this video.
             <a className="sm-gen-reuse" href={`/credits?resumeDraft=${encodeURIComponent(projectKey)}&requiredCredits=${creditQuote.credits}#buy-credits`}>Buy Credits and return to Step 4</a>
           </p>}
-          <p className="sm-review-payment-note">{operatorStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Credit-paid customer video generation is not enabled yet. No Credits will be charged by this preview."}</p>
+          <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Credit-paid customer video generation is not enabled yet. No Credits will be charged by this preview."}</p>
         </section>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||reviewShortage||generating||!!generationProjectId} onClick={()=>operatorStudio?void startOperatorGeneration():setConfirm(true)}>{generating?"Checking Credits and starting video…":"Generate Video"} <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||reviewShortage||generating||!!generationProjectId} onClick={()=>creditStudio?void startCreditGeneration():setConfirm(true)}>{generating?"Checking Credits and starting video…":"Generate Video"} <ArrowRight size={19}/></button>}
         </nav>
         {step===3&&generating&&<p className="sm-review-payment-note" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
         {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/projects/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
