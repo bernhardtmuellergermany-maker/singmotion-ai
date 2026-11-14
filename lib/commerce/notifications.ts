@@ -21,7 +21,7 @@ export class NotificationInbox {
   const ledger=this.db.prepare(`SELECT id,kind,delta,created FROM credit_wallet_ledger
    WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund')
    ORDER BY created DESC LIMIT 150`).all(subject) as Array<{id:string;kind:string;delta:number;created:number}>;
-  const items=ledger.map(row=>{
+  const items:Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>=ledger.map(row=>{
    const n=Math.abs(row.delta).toLocaleString("en-GB");
    if(row.kind==="purchase")return {id:"wallet:"+row.id,title:"Credits purchased",message:n+" credits added to your wallet.",created:row.created,kind:"payment" as const,href:"/credits#usage"};
    if(row.kind==="refund")return {id:"wallet:"+row.id,title:"Refund completed",message:n+" credits reversed following a refunded payment.",created:row.created,kind:"payment" as const,href:"/credits#usage"};
