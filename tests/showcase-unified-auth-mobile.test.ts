@@ -49,7 +49,7 @@ test("Customer, Payload staff, and private Studio sessions are exclusive and sig
  assert.match(login,/store\.logout\(token\)/);
  assert.match(customer,/response\.cookies\.delete\("payload-token"\)/);
  assert.match(media,/commerce\.session\(req\.cookies\.get\("sm_customer"\)/);
- assert.match(media,/if\(!valid\)auth=null/);
+ assert.match(media,/if\(!valid\)auth=undefined/);
  assert.match(menu,/\/api\/unified-logout/);
  assert.match(account,/\/api\/unified-logout/);
 });
