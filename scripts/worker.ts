@@ -2,7 +2,7 @@ import { pollStudioProjects } from "../lib/live/studio-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 import {customerLaunchReadiness} from "../lib/commerce/readiness.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
-import {retryVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
+import {retryVideoReadyNotifications,retryStudioCreditVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
 import {retrySupportCaseEmails,queueFailedOutputSupportEmails} from "../lib/commerce/support-notifications.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -59,8 +59,12 @@ while (!stopping) {
   }
   if(Date.now()>=nextVideoReadyEmailRetry){
     nextVideoReadyEmailRetry=Date.now()+60_000;
-    try{await retryVideoReadyNotifications(path.join(dataDir,"commerce.sqlite"));}
-    catch{console.warn("Video-ready mail outbox retry unavailable");}
+    try{
+      await retryVideoReadyNotifications(path.join(dataDir,"commerce.sqlite"));
+      const result=await retryStudioCreditVideoReadyNotifications(dataDir);
+      if(result.attempted||result.sent||result.suppressed)
+        console.info("STUDIO_CREDIT_VIDEO_READY_EMAIL",{attempted:result.attempted,sent:result.sent,suppressed:result.suppressed});
+    }catch{console.warn("Video-ready mail outbox retry unavailable");}
   }
   if(Date.now()>=nextSupportMailRetry){
     nextSupportMailRetry=Date.now()+60_000;
