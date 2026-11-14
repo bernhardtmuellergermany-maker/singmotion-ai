@@ -5,7 +5,7 @@ import {Shell} from "@/components/shell";
 import {AdminAccountDashboard} from "@/components/admin-account-dashboard";
 import {AdminAnnouncements} from "@/components/admin-announcements";
 import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
-import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard,Bell} from "lucide-react";
+import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard,Bell,Mail} from "lucide-react";
 import "./account-settings.css";
 type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null};
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
@@ -21,6 +21,33 @@ export default function AccountSettings(){
  const [adminStatusBusy,setAdminStatusBusy]=useState(true);
  const [adminStatusError,setAdminStatusError]=useState("");
  const [adminDenied,setAdminDenied]=useState(false);
+ const [videoEmailEnabled,setVideoEmailEnabled]=useState<boolean|null>(null);
+ const [videoEmailSaving,setVideoEmailSaving]=useState(false);
+ const [videoEmailNotice,setVideoEmailNotice]=useState("");
+ useEffect(()=>{
+  if(!data||data.staffPreview)return;
+  let live=true;
+  fetch("/api/customer-email-preferences",{cache:"no-store",credentials:"same-origin"})
+   .then(async r=>{if(!r.ok)throw Error("Could not load email preferences.");return r.json() as Promise<{videoReadyEmailEnabled:boolean}>})
+   .then(x=>{if(live)setVideoEmailEnabled(x.videoReadyEmailEnabled)})
+   .catch(()=>{if(live)setVideoEmailNotice("Email preferences could not be loaded.")});
+  return()=>{live=false};
+ },[data?.profile.email,data?.staffPreview]);
+ async function changeVideoEmail(enabled:boolean){
+  if(videoEmailSaving)return;
+  setVideoEmailSaving(true);setVideoEmailNotice("");
+  try{
+   const response=await fetch("/api/customer-email-preferences",{
+    method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({videoReadyEmailEnabled:enabled})
+   });
+   const data=await response.json() as {videoReadyEmailEnabled?:boolean;error?:string};
+   if(!response.ok||data.videoReadyEmailEnabled!==enabled)throw Error(data.error||"Could not update email preferences.");
+   setVideoEmailEnabled(enabled);setVideoEmailNotice("Email notification preference saved.");
+  }catch(e){setVideoEmailNotice(e instanceof Error?e.message:"Could not save preference.")}
+  finally{setVideoEmailSaving(false)}
+ }
+
  async function refreshAdminStatus(){
   setAdminStatusBusy(true);setAdminStatusError("");
   try{
@@ -45,7 +72,7 @@ export default function AccountSettings(){
  useEffect(()=>{
   if(!data)return;
   const target=window.location.hash.slice(1);
-  if(!["profile","security","billing","invoices","privacy","admin-console","announcements"].includes(target))return;
+  if(!["profile","security","billing","invoices","privacy","admin-console","announcements","email-notifications"].includes(target))return;
   if(target==="admin-console"&&!canShowAdmin)return;
   if(target==="announcements"&&!canShowAdmin)return;
   const frame=window.requestAnimationFrame(()=>{
@@ -92,7 +119,7 @@ export default function AccountSettings(){
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
  <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR WORKSPACE</span><h1>Account settings</h1><p>Manage your profile, security, payments and privacy in one place.</p></header>
  <div className="sm-settings-layout">
-  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}{canShowAdmin&&<a href="#announcements"><Bell size={17}/> Notifications · Broadcast</a>}</nav>
+  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a>{data&&!data.staffPreview&&<a href="#email-notifications"><Mail size={17}/> Email notifications</a>}<a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}{canShowAdmin&&<a href="#announcements"><Bell size={17}/> Notifications · Broadcast</a>}</nav>
   <div className="sm-settings-content">
    {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super Admin account</strong><p className="sm-settings-muted">You can view your own real credits and purchases under Credits, just like a customer. Account security and staff management remain in the admin area.</p></section>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
@@ -131,6 +158,18 @@ export default function AccountSettings(){
         <button className="sm-settings-secondary" type="button" disabled={busy} onClick={()=>void action("logout-all")}>Sign out on all devices</button>
       </div>
       {notice&&<p className="sm-security-notice" role="status">{notice}</p>}
+    </section>}
+    {!data.staffPreview&&<section id="email-notifications" className="sm-settings-section">
+     <h2><Mail size={21} aria-hidden="true"/> Email notifications</h2>
+     <p className="sm-settings-muted">Choose whether to receive an email when your generated video is ready. This applies to future video completions on your account.</p>
+     <label className="sm-settings-email-toggle">
+      <input type="checkbox" checked={videoEmailEnabled===true}
+       disabled={videoEmailEnabled===null||videoEmailSaving}
+       onChange={e=>void changeVideoEmail(e.target.checked)}/>
+      <span>Send me an email when my video is ready</span>
+     </label>
+     <p className="sm-settings-muted">Security verification emails, receipts and essential billing notifications are not affected.</p>
+     {videoEmailNotice&&<p role="status" className="sm-settings-muted">{videoEmailNotice}</p>}
     </section>}
     <section id="billing" className="sm-settings-section">
       <h2>Credits & payments</h2>
