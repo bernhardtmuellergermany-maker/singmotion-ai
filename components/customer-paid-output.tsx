@@ -6,6 +6,7 @@ import {paidOrderFeedback,requestErrorFeedback} from "@/lib/live/customer-feedba
 type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
  videoReady:number;videoUrl:string|null;downloadUrl:string|null;
+ displayName?:string|null;created?:number|null;durationSeconds?:number|null;
 };
 export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
  orderId:string;guest?:boolean;amountCents?:number|null;
@@ -60,6 +61,14 @@ export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
  return <div className="sm-private-output sm-private-output-generation" aria-label="Private generation page">
    {!loaded?<p role="status" className="sm-gen-extra-message">Checking the saved order and payment status…</p>:<GenerationStatusView progress={progress} paymentMode="stripe"
     paymentStatus={order?.status} statusNotice={ownerNotice}
+    projectDetails={ready?{
+      id:order?.projectId||orderId,
+      idLabel:order?.projectId?"Project ID":"Order ID",
+      name:order?.displayName||"Music video",
+      createdAt:order?.created,
+      selectedDurationSeconds:order?.durationSeconds,
+      renameOrderId:guest?null:orderId,
+    }:null}
     amount={amountCents} photoUrl={order?.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(orderId)}`:null} videoUrl={ready?order?.videoUrl:null}
     downloadUrl={ready?order?.downloadUrl:null}
     reuseHref={ready?(order?.projectId?`/studio?copy=draft_${encodeURIComponent(order.projectId)}`:"/studio?new=1"):null}

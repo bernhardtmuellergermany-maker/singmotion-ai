@@ -104,6 +104,9 @@ export interface StudioProject {
   providerJobId: string | null;
   state: Attempt["state"];
   createdAt: number;
+  /** Recorded attempt submission and final verified-output timestamps. */
+  generationStartedAt?:number|null;
+  generationFinishedAt?:number|null;
   durationSeconds: number;
   prompt: string;
   imageId: string;
@@ -180,6 +183,7 @@ export class StudioWorkflow {
           project_name: string;
           display_name: string;
           diagnostic: string | null;
+          started_at: number | null;
         }
       | undefined;
     if (!row || this.store.get(id).media.owner !== owner)
@@ -323,6 +327,13 @@ export class StudioWorkflow {
         ?.experimental,
       state: a.state,
       createdAt: a.createdAt,
+      // Both values are persisted by the trusted provider workflow. Never
+      // calculate the elapsed time from Date.now() or display an estimate.
+      generationStartedAt:typeof row.started_at==="number"&&Number.isSafeInteger(row.started_at)&&row.started_at>0?row.started_at:null,
+      generationFinishedAt:a.state==="completed"&&a.outputPath&&
+       typeof row.started_at==="number"&&Number.isSafeInteger(row.started_at)&&row.started_at>0&&
+       Number.isSafeInteger(a.updatedAt)&&a.updatedAt>=row.started_at
+        ?a.updatedAt:null,
       durationSeconds: a.media.durationSeconds,
       prompt: a.media.prompt,
       imageId: JSON.parse(row.selection_json).imageId,

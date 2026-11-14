@@ -83,3 +83,52 @@
 .sm-gen-credit-help strong{font-size:15px;color:#fff}
 .sm-gen-credit-help p{margin:8px 0 12px;color:#d8c8e6;font-size:13px;line-height:1.7}
 .sm-gen-credit-help .sm-gen-reuse{margin-top:10px;max-width:260px}
+
+
+/* Completed videos show trustworthy project facts instead of a timeline of
+   already-completed stages. Same premium dark-purple look, mobile-first. */
+.sm-finished{display:grid;gap:15px;min-width:0}
+.sm-finished-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.sm-finished-heading h2,.sm-gen-status-column .sm-finished-heading h2{font-size:21px;letter-spacing:-.025em;margin:3px 0 0}
+.sm-finished-eyebrow{display:block;color:#c08bdc;font-weight:800;font-size:10px;letter-spacing:.14em}
+.sm-finished-ready{display:inline-flex;align-items:center;gap:6px;padding:7px 10px;border-radius:99px;border:1px solid #75619a;color:#d6ffdf;background:#3a2850;font-size:11px;font-weight:750;white-space:nowrap}
+.sm-finished-name{padding:14px 15px;background:linear-gradient(125deg,#3c2455,#30213f);border:1px solid #784a9a;border-radius:13px;min-width:0}
+.sm-finished-label{display:block;color:#c5b1d7;font-size:11px;margin-bottom:6px;letter-spacing:.02em}
+.sm-finished-name-display{display:flex;align-items:center;justify-content:space-between;gap:10px;min-width:0}
+.sm-finished-name-display strong{font-size:18px;color:#fff;line-height:1.25;overflow-wrap:anywhere}
+.sm-finished-name button,.sm-finished-identifier button,.sm-finished-prompt button{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid #81609d;color:#e6d2fc;background:#3b2b4a;border-radius:9px;cursor:pointer;padding:8px 9px;flex:0 0 auto}
+.sm-finished-name button:hover,.sm-finished-identifier button:hover,.sm-finished-prompt button:hover{background:#533664;border-color:#b56bee}
+.sm-finished-name button:focus-visible,.sm-finished-identifier button:focus-visible,.sm-finished-prompt button:focus-visible,.sm-finished-prompt summary:focus-visible{outline:2px solid #c27cff;outline-offset:2px}
+.sm-finished-rename{display:flex;align-items:stretch;gap:6px;min-width:0}
+.sm-finished-rename input{min-width:0;flex:1;border:1px solid #a67ac8;border-radius:9px;background:#160f22;color:#fff;font:inherit;padding:9px 10px}
+.sm-finished-error{font-size:12px;color:#ffb3c5;margin:10px 0 0;line-height:1.4}
+.sm-finished-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.sm-finished-field{min-height:84px;display:flex;align-items:flex-start;gap:9px;padding:12px 10px;border:1px solid #524062;border-radius:12px;background:#201a2b;min-width:0}
+.sm-finished-field-icon{color:#bb8dea;display:grid;place-items:center;margin-top:2px;flex:0 0 auto}
+.sm-finished-field>div{min-width:0;overflow-wrap:anywhere}
+.sm-finished-field strong{display:block;font-size:15px;color:#fff;line-height:1.3;font-weight:740}
+.sm-finished-field small{display:block;color:#a99ab7;font-size:10px;line-height:1.4;margin-top:5px}
+.sm-finished-identifier{padding:12px 14px;border-radius:11px;border:1px solid #50405f;background:#1b1725;min-width:0}
+.sm-finished-identifier>span{display:flex;align-items:center;gap:6px;color:#c6b1d7;font-size:11px;margin-bottom:8px}
+.sm-finished-identifier>div{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sm-finished-identifier code{color:#ecdafa;font-size:11px;word-break:break-all}
+.sm-finished-identifier button{font-size:11px}
+.sm-finished-prompt{border:1px solid #624677;border-radius:12px;background:#251a32;overflow:hidden}
+.sm-finished-prompt summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;cursor:pointer;list-style:none;color:#f4e7ff;font-size:12px;font-weight:750}
+.sm-finished-prompt summary::-webkit-details-marker{display:none}
+.sm-finished-prompt summary>span{display:inline-flex;align-items:center;gap:8px}
+.sm-finished-prompt summary>span:last-child{font-size:11px;color:#bc8fdb;white-space:nowrap}
+.sm-finished-prompt[open] summary>span:last-child{visibility:hidden}
+.sm-finished-prompt[open] summary>span:last-child:after{content:"Hide prompt";visibility:visible;display:block;margin-left:-76px}
+.sm-finished-prompt-body{padding:0 14px 14px}
+.sm-finished-prompt-body p{white-space:pre-wrap;overflow-wrap:anywhere;max-height:240px;overflow-y:auto;padding:12px;border-radius:9px;background:#150f20;color:#e1d2ef;font-size:12px;line-height:1.65;margin:0 0 11px;user-select:text}
+.sm-finished-prompt-body button{font-size:12px}
+.sm-finished-subtitle{color:#b5a4ca;font-size:12px;line-height:1.5;margin:0}
+@media(max-width:500px){
+ .sm-finished-fields{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+ .sm-finished-field{min-height:95px;padding:11px 8px;gap:7px}
+ .sm-finished-field strong{font-size:13px}
+ .sm-finished-field-icon svg{width:15px;height:15px}
+ .sm-finished-name-display strong{font-size:16px}
+ .sm-finished-identifier>div{align-items:flex-start}
+}
