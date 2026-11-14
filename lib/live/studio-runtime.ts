@@ -83,7 +83,7 @@ export async function studioReadiness(
       503,
     );
 }
-export async function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = process.env, superAdmin = false, customerBeta = false) {
+export async function loadRuntimeStudioPolicy(root: string, env: Record<string,string|undefined> = process.env, superAdmin = false, customerBeta = false) {
       // Customer beta explicitly selects its own bounded and expiring reviewed
       // contract, independently of the historic CMS operator policy file.
       // Invalid CMS policies remain blocked for ALL non-beta Studio callers.
