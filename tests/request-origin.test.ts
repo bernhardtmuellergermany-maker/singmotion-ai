@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { applicationOrigin } from "../lib/request-origin.ts";
+import {showcaseMutationOriginAllowed,isShowcasePosterFilename} from "../lib/showcase-media-security.ts";
+import {readFileSync} from "node:fs";
 import { privateGateMutationOriginAllowed } from "../lib/staging.ts";
 const deployed = {
   NODE_ENV: "production",
@@ -139,4 +141,46 @@ test("unprotected loopback development can still use local request origin",()=>{
   "http://localhost:3000",{STAGING_AUTH_ENABLED:"false"}),false);
  assert.equal(privateGateMutationOriginAllowed("http://localhost:3000","/api/session",
   "http://localhost:3000",{STAGING_AUTH_ENABLED:"true"}),false);
+});
+
+
+test("showcase delete accepts trusted public CMS origin behind Railway HTTPS proxy, never internal or forged origins",()=>{
+ const prod={
+  NODE_ENV:"production",
+  RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
+  CMS_ENABLED:"true",
+  CMS_ORIGIN:"https://www.singmotion.ai",
+  APP_ORIGIN:"https://www.singmotion.ai",
+ };
+ const internal="http://0.0.0.0:8080/api/showcase-media?kind=video&id=upload-test";
+ const host="singmotion-ai-production.up.railway.app";
+ assert.equal(showcaseMutationOriginAllowed(internal,host,"https://www.singmotion.ai",prod),true);
+ for(const origin of [null,"null","http://www.singmotion.ai",
+  "https://evil.example","https://www.singmotion.ai.evil.example",
+  "http://0.0.0.0:8080","https://singmotion-ai-production.up.railway.app"]){
+   assert.equal(showcaseMutationOriginAllowed(internal,host,origin,prod),false,String(origin));
+ }
+ assert.equal(showcaseMutationOriginAllowed(internal,"attacker.example","https://attacker.example",prod),false);
+ assert.equal(showcaseMutationOriginAllowed(internal,host,"https://www.singmotion.ai",
+  {...prod,APP_ORIGIN:"",CMS_ORIGIN:""}),false,"Railway must fail closed without configured public origin");
+ assert.equal(showcaseMutationOriginAllowed(internal,host,"https://www.singmotion.ai",
+  {...prod,APP_ORIGIN:"https://evil.example"}),false,"stale public origin must not silently broaden CSRF policy");
+ const route=readFileSync(new URL("../app/(site)/api/showcase-media/route.ts",import.meta.url),"utf8");
+ assert.match(route,/if\(!await superAdmin\(req\)\)return respond\(\{error:"Super Admin required"\},403\)/);
+ assert.match(route,/if\(!showcaseMutationOriginAllowed\(req\.url,req\.headers\.get\("host"\),req\.headers\.get\("origin"\)\)\)/);
+ assert.doesNotMatch(route,/req\.headers\.get\("origin"\)!==new URL\(req\.url\)\.origin/);
+ assert.match(route,/DELETE FROM public_showcase_uploads WHERE id=\?/);
+ assert.doesNotMatch(route,/DELETE FROM live_studio_projects/);
+});
+
+test("showcase upload deletion can remove only server-generated UUID preview images",()=>{
+ const uuid="123e4567-e89b-42d3-a456-426614174000";
+ assert.equal(isShowcasePosterFilename(uuid+".webp"),true);
+ assert.equal(isShowcasePosterFilename(uuid+".mp4"),false);
+ assert.equal(isShowcasePosterFilename("../"+uuid+".webp"),false);
+ assert.equal(isShowcasePosterFilename("upload-"+uuid+".webp"),false);
+ assert.equal(isShowcasePosterFilename(uuid+"\\xwebp"),false);
+ assert.equal(isShowcasePosterFilename(uuid+".webp/../customer.mp4"),false);
+ const route=readFileSync(new URL("../app/(site)/api/showcase-media/route.ts",import.meta.url),"utf8");
+ assert.equal((route.match(/isShowcasePosterFilename\(.*?filename\)/g)||[]).length,2);
 });
