@@ -128,7 +128,28 @@ async function handler(
       throw new AppError("Demo endpoints are unavailable in paid production.",503);
     if (method !== "GET") requireOrigin(req);
     const token = req.cookies.get("sm_session")?.value;
-    let auth = session(token);
+    let auth=session(token);
+    // The private media cookie is not itself a customer/staff login.
+    // Never serve paid source files from an orphaned account-media session
+    // after the principal changed or signed out in another browser tab.
+    if(auth?.owner.startsWith("customer-")){
+      const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+      try{
+        if(commerce.session(req.cookies.get("sm_customer")?.value||"")!==
+           auth.owner.slice("customer-".length))auth=null;
+      }finally{commerce.close()}
+    }else if(auth?.owner.startsWith("cms-staff-")){
+      let valid=false;
+      if(process.env.CMS_ENABLED==="true"){
+        const {getPayload}=await import("payload");
+        const {default:payloadConfig}=await import("@payload-config");
+        const {studioStaff}=await import("@/cms/studio-access");
+        const payload=await getPayload({config:payloadConfig});
+        const identity=await payload.auth({headers:req.headers});
+        try{valid=studioStaff(identity.user,method,req.headers,process.env)===auth.owner}catch{}
+      }
+      if(!valid)auth=null;
+    }
     if(liveCustomer && auth && !auth.owner.startsWith("customer-") &&
        !auth.owner.startsWith("cms-staff-"))auth=null;
     // Disconnect this browser's private demo workspace without deleting its data.
