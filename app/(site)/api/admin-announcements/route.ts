@@ -54,7 +54,8 @@ export async function POST(req:NextRequest){
     typeof data.title!=="string"||typeof data.message!=="string"||
     !["update","offer","important"].includes(String(data.category)))
   return json({error:"Invalid announcement."},400);
- const title=data.title.trim(),message=data.message.trim(),category=data.category as Category;
+ const id=data.id as string;
+ const title=(data.title as string).trim(),message=(data.message as string).trim(),category=data.category as Category;
  if(title.length<4||title.length>100||message.length<10||message.length>2000||
     /[\u0000-\u001f\u007f]/.test(title)||/[\u0000-\u0008\u000b\u000e-\u001f\u007f]/.test(message))
   return json({error:"Announcement title or message length is invalid."},400);
@@ -63,13 +64,13 @@ export async function POST(req:NextRequest){
   // A stable client-generated UUID makes retries idempotent.
   const inserted=store.db.prepare(`INSERT OR IGNORE INTO notification_announcements
    (id,title,message,audience,category,published_at,expires_at)
-   VALUES(?,?,?,'all',?,?,NULL)`).run(data.id,title,message,category,Date.now());
+   VALUES(?,?,?,'all',?,?,NULL)`).run(id,title,message,category,Date.now());
   if(!inserted.changes){
    const existing=store.db.prepare("SELECT title,message,category FROM notification_announcements WHERE id=?")
-    .get(data.id) as {title:string;message:string;category:string}|undefined;
+    .get(id) as {title:string;message:string;category:string}|undefined;
    if(!existing||existing.title!==title||existing.message!==message||existing.category!==category)
     throw Error("Announcement ID conflict");
   }
-  return {published:true,id:data.id,created:inserted.changes===1};
+  return {published:true,id,created:inserted.changes===1};
  });
 }
