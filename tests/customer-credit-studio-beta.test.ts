@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {LiveTestStore,confirmationPhrase} from "../lib/live/store.ts";
+import {loadRuntimeStudioPolicy} from "../lib/live/studio-runtime.ts";
 import {customerCreditStudioBetaEnabled,exactCustomerCreditSubject} from "../lib/commerce/customer-credit-studio-beta.ts";
 
 const root=new URL("../",import.meta.url);
@@ -82,4 +83,13 @@ test("Customer Beta production guard always stays closed",()=>{
  assert.match(data,/attempt\.media\.owner\.startsWith\("customer-"\)/);
  assert.match(data,/daily\.total\+attempt\.upperBoundMicroUsd!>2500000/);
  assert.match(data,/cumulativeCap!==Number\.MAX_SAFE_INTEGER/);
+});
+
+test("Customer beta uses only its independently reviewed expiring contract; legacy operator policy remains blocked",async()=>{
+ const fakeRoot="__singmotion_nonexistent_policy_path__";
+ const policy=await loadRuntimeStudioPolicy(fakeRoot,env(),false,true);
+ assert.equal(policy.contract.revision,"owner-confirmed-2026-11-05-staging-v1");
+ assert.equal(policy.contract.generatedDurationBound?.maxInputSeconds,30);
+ await assert.rejects(loadRuntimeStudioPolicy(fakeRoot,env(),false,false));
+ await assert.rejects(loadRuntimeStudioPolicy(fakeRoot,{...env(),CUSTOMER_CREDIT_STUDIO_TEST_ENABLED:"false"},false,true),/Customer Credit Studio testing is not enabled/);
 });
