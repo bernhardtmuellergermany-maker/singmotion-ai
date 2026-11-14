@@ -130,3 +130,22 @@ test("production and staging uploads require a private R2 backend, not an unback
  assert.match(api,/readMirroredPrivateSource\(owner,assetId,mirrored/);
  assert.doesNotMatch(api,/uploadStorageLimit\(plan\)/);
 });
+
+test("Production scratch budget permits R2 uploads on a 500 MB volume while preserving emergency space",()=>{
+ const db=make(),mb=1024*1024,owner="guest-capacity";
+ // Production observed ~121 MiB free. Old hard-coded 128 MiB floor
+ // rejected every upload, including an audio smaller than 1 MiB.
+ const scratch={availableBytes:121*mb,minimumFreeBytes:48*mb,extraBytesPerUpload:16*mb};
+ const first=randomUUID(),second=randomUUID();
+ reserveUploadStorage(db,owner,first,40*mb,Date.now(),scratch);
+ assert.throws(()=>reserveUploadStorage(db,owner,second,20*mb,Date.now(),scratch),/capacity is low/);
+ assert.equal((db.prepare("SELECT COUNT(*) AS n FROM pending_upload_storage").get() as {n:number}).n,1);
+ releaseUploadStorage(db,owner,first);
+ reserveUploadStorage(db,owner,second,20*mb,Date.now(),scratch);
+ releaseUploadStorage(db,owner,second);
+ // No reservation is admitted if it would consume the protected reserve.
+ assert.throws(()=>reserveUploadStorage(db,owner,randomUUID(),50*mb,Date.now(),
+  {...scratch,availableBytes:80*mb}),/capacity is low/);
+ assert.equal((db.prepare("SELECT COUNT(*) AS n FROM pending_upload_storage").get() as {n:number}).n,0);
+ db.close();
+});
