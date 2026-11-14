@@ -27,6 +27,10 @@
 .sm-notice-body small{color:#9586a6;font-size:11px}
 .sm-notice-body a{color:#e0acff;text-decoration:none;font-size:12px;margin-left:12px}
 .sm-notice-body a:hover{text-decoration:underline}
+.sm-notice-body .sm-notice-video-link{display:inline-flex;align-items:center;gap:7px;margin:7px 0 8px;padding:7px 11px;color:#f0d7ff;background:#332343;border:1px solid #8457a9;border-radius:9px;font-size:12px;font-weight:700;line-height:1.3;text-decoration:none}
+.sm-notice-body .sm-notice-video-link:hover{background:#4b315f;border-color:#c786f8;text-decoration:none}
+.sm-notice-body .sm-notice-video-link:focus-visible{outline:2px solid #d4a5ff;outline-offset:2px}
+
 .sm-notice-actions{display:flex;gap:7px;align-self:flex-start}
 .sm-notice-actions button{width:35px;height:35px;padding:0}
 .sm-notifications-empty{padding:56px 20px;text-align:center;color:#b6a8c5}
