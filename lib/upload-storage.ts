@@ -19,7 +19,19 @@ export function uploadedBytes(db:DatabaseSync,owner:string):number{
  * not block new uploads. The private R2 upload must pass SHA-256 readback
  * before commitUploadedAsset can publish the source asset.
  */
-export function reserveUploadStorage(db:DatabaseSync,owner:string,id:string,bytes:number,now=Date.now()):void{
+/** Real-time free disk plus reserved in-flight scratch for an R2 upload.
+ * The estimate is checked while holding SQLite's IMMEDIATE write lock so
+ * concurrent requests cannot each claim the same remaining headroom.
+ */
+export type UploadScratchBudget={
+ availableBytes:number;
+ minimumFreeBytes:number;
+ extraBytesPerUpload:number;
+};
+export function reserveUploadStorage(
+ db:DatabaseSync,owner:string,id:string,bytes:number,now=Date.now(),
+ scratch?:UploadScratchBudget,
+):void{
  if(!/^[a-f0-9-]{36}$/.test(id)||!Number.isSafeInteger(bytes)||bytes<=0||
     bytes>50*1024*1024||typeof owner!=="string"||owner.length<1)
   throw new AppError("Invalid upload reservation or file size.",400);
@@ -27,6 +39,22 @@ export function reserveUploadStorage(db:DatabaseSync,owner:string,id:string,byte
  db.exec("BEGIN IMMEDIATE");
  try{
   db.prepare("DELETE FROM pending_upload_storage WHERE created<?").run(now-3600000);
+  if(scratch){
+   const {availableBytes,minimumFreeBytes,extraBytesPerUpload}=scratch;
+   if(![availableBytes,minimumFreeBytes,extraBytesPerUpload].every(Number.isSafeInteger)||
+      availableBytes<0||minimumFreeBytes<=0||extraBytesPerUpload<0)
+    throw new AppError("Upload storage capacity could not be verified.",507);
+   const pending=db.prepare(
+    "SELECT COALESCE(SUM(bytes),0) AS bytes,COUNT(*) AS count FROM pending_upload_storage"
+   ).get() as {bytes:number;count:number};
+   // Files already written to disk may be counted twice: intentionally
+   // conservative while uploads and MP3 previews are in flight.
+   const budget=availableBytes-minimumFreeBytes-
+    pending.bytes-pending.count*extraBytesPerUpload-
+    bytes-extraBytesPerUpload;
+   if(budget<0)
+    throw new AppError("Upload storage temporarily unavailable: server capacity is low. Existing videos and files are safe.",507);
+  }
   db.prepare("INSERT INTO pending_upload_storage(id,owner,bytes,created) VALUES(?,?,?,?)").run(id,owner,bytes,now);
   db.exec("COMMIT");
  }catch(e){db.exec("ROLLBACK");throw e;}

@@ -367,14 +367,18 @@ async function handler(
           process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d")&&
          !customerR2Enabled())
         throw new AppError("Private Cloudflare storage is not ready. Please try again later.",503);
-      // Cloud originals still require a small, transient validation scratch
-      // space on Railway. Preserve its emergency capacity reserve.
+      // R2 holds the authoritative media. Railway only needs a bounded
+      // transient source and (for WAV/M4A) MP3 preview. Preserve 48 MiB
+      // emergency capacity plus 16 MiB per concurrent in-flight upload.
+      // The SQLite reservation is atomic across simultaneous customers.
       const disk=await statfs(dataDir);
       const available=disk.bavail*disk.bsize;
-      if(available-file.size<128*1024*1024)
-        throw new AppError("Upload storage temporarily unavailable: server capacity is low. Existing videos and files are safe.",507);
       const assetId = randomUUID();
-      reserveUploadStorage(db,owner,assetId,file.size);
+      reserveUploadStorage(db,owner,assetId,file.size,Date.now(),{
+        availableBytes:available,
+        minimumFreeBytes:48*1024*1024,
+        extraBytesPerUpload:16*1024*1024,
+      });
       const dest = path.join(dataDir, "media", assetId);
       const preview = path.join(dataDir, "media", `${assetId}.preview.mp3`);
       let duration: number | null = null,
