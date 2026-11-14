@@ -4,7 +4,7 @@ import Link from "next/link";
 import {UserRound,Bell} from "lucide-react";
 import {creditTone} from "@/lib/commerce/credit-display";
 import {readCustomerAuthStatus} from "@/lib/client-auth-status";
-import {resetSession} from "@/lib/client";
+import {notifyAuthTransition} from "@/lib/client";
 import "./header-account-menu.css";
 
 /** Shared account menu. Authentication is verified server-side, never inferred from cookies in JS. */
@@ -69,27 +69,14 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   if(busy)return;
   setBusy(true);setError("");
   try{
-   const response=await fetch("/api/customer-auth",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"logout"})});
-   if(!response.ok)throw Error("Logout failed. Please try again.");
+   const response=await fetch("/api/unified-logout",{method:"POST",credentials:"same-origin",cache:"no-store"});
+   if(!response.ok)throw Error("Sign out failed. Please retry.");
+   notifyAuthTransition();
    menu.current?.removeAttribute("open");
    window.location.assign("/");
-  }catch(e){setError(e instanceof Error?e.message:"Logout failed");setBusy(false)}
+  }catch(e){setError(e instanceof Error?e.message:"Sign out failed");setBusy(false)}
  }
- async function logoutStaff(){
-  if(busy)return;
-  setBusy(true);setError("");
-  try{
-   // Payload handles the actual HTTP-only CMS auth cookie and invalidates
-   // the staff session; closing the private workspace separately prevents
-   // a stale cms-staff media session from surviving the sign-out.
-   const staff=await fetch("/api/cms/staff/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});
-   if(!staff.ok)throw Error("Staff sign-out failed. Try again.");
-   const media=await fetch("/api/session/logout",{method:"POST",credentials:"same-origin",cache:"no-store"});
-   if(!media.ok)throw Error("Staff signed out, but private workspace sign-out failed. Please reload.");
-   resetSession();
-   window.location.assign("/operator-signin");
-  }catch(e){setError(e instanceof Error?e.message:"Staff sign-out failed");setBusy(false)}
- }
+ const logoutStaff=logout;
  return <details ref={menu} className="sm-global-menu sm-account-menu">
   <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
