@@ -4,6 +4,7 @@ import Link from "next/link";
 import {UserRound,Eye,EyeOff} from "lucide-react";
 import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import {AccountCreditSummary} from "@/components/account-credit-summary";
+import {notifyAuthTransition} from "@/lib/client";
 
 export function AccountPanel({active}:{active:boolean}){
  const [guestPreview,setGuestPreview]=useState<{counts:{uploads:number;artists:number;drafts:number;jobs:number;videoProjects:number};pendingProjects:number}|null>(null),[importMessage,setImportMessage]=useState("");
@@ -62,22 +63,21 @@ export function AccountPanel({active}:{active:boolean}){
   if(action==="register" && (password!==confirmPassword)){setError("Passwords do not match.");return;}
   setBusy(true);setError("");
   try{
-   if(action==="logout" && staff){
-    const reply=await fetch("/api/cms/staff/logout",{method:"POST",credentials:"same-origin"});
-    if(!reply.ok)throw Error("Staff logout failed");
-    await fetch("/api/session/logout",{method:"POST",headers:{"Content-Type":"application/json"}});
-    setAccount(null);window.location.reload();return;
+   if(action==="logout"){
+    const reply=await fetch("/api/unified-logout",{method:"POST",credentials:"same-origin"});
+    if(!reply.ok)throw Error("Sign out failed");
+    notifyAuthTransition();setAccount(null);window.location.reload();return;
    }
    const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,email,password})});
    const d=await res.json();
    if(!res.ok){
     if(action==="login" && res.status===401){
      const staffRes=await fetch("/api/cms/staff/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
-     if(staffRes.ok){setPassword("");window.location.reload();return;}
+     if(staffRes.ok){notifyAuthTransition();setPassword("");window.location.reload();return;}
     }
     throw Error(d.error||"Sign-in failed");
    }
-   setPassword("");setAccount(action==="logout"?null:d.email);window.location.reload();
+   notifyAuthTransition();setPassword("");setAccount(d.email);window.location.reload();
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
  return <div className="sm-carousel-login" data-mode={mode}>
