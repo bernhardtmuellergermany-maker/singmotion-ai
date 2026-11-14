@@ -79,6 +79,16 @@ export function SuperAdminGeneration({id}:{id:string}){
  return <main id="content" className="sm-super-admin-generation">
    {!project&&!error?<p role="status" className="sm-gen-extra-message">Loading the saved video status…</p>:<GenerationStatusView progress={progress} paymentMode={customerProject?"credits":"super-admin"}
      creditCharge={project?.creditCharge}
+     projectDetails={project?.outputReady?{
+       id:project.id,name:project.projectName,createdAt:project.createdAt,
+       selectedDurationSeconds:project.durationSeconds,
+       sourceStartSeconds:project.selection.start,
+       sourceEndSeconds:project.selection.end,
+       prompt:project.prompt,
+       generationStartedAt:project.generationStartedAt,
+       generationFinishedAt:project.generationFinishedAt,
+       renameId:project.id,
+     }:null}
      availableCredits={availableCredits}
      photoUrl={project?.imageId?`/api/assets/${encodeURIComponent(project.imageId)}`:null}
      format={project?.selection.outputFormat}
