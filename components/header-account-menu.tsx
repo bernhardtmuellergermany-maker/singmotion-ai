@@ -45,9 +45,10 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   refresh();
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
+  window.addEventListener("credit-balance-updated",refresh);
   menu.current?.addEventListener("toggle",onToggle);
   const current=menu.current;
-  return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);current?.removeEventListener("toggle",onToggle)};
+  return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("credit-balance-updated",refresh);current?.removeEventListener("toggle",onToggle)};
  },[identity]);
  useEffect(()=>{
   if(identity!=="customer"&&identity!=="super-admin"){setUnreadNotices(0);return;}
