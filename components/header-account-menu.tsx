@@ -13,7 +13,8 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff"|"super-admin">("loading");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
- const [availableCredits,setAvailableCredits]=useState<number|null>(null);\n const [unreadNotices,setUnreadNotices]=useState(0);
+ const [availableCredits,setAvailableCredits]=useState<number|null>(null);
+ const [unreadNotices,setUnreadNotices]=useState(0);
  const [creditState,setCreditState]=useState<"loading"|"ready"|"unavailable">("loading");
  useEffect(()=>{
   let active=true;
@@ -102,7 +103,8 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
       <strong>{creditState==="ready"&&availableCredits!==null?new Intl.NumberFormat("en-GB").format(availableCredits):"—"}</strong>
       <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":<Link href="/credits#buy-credits" className="sm-account-topup-link" onClick={()=>{if(menu.current)menu.current.open=false}}>Top up credits</Link>):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
      </div>
-     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credits</Link>\n     <Link href="/notifications" className="sm-account-notifications-link" onClick={()=>{if(menu.current)menu.current.open=false}}><Bell size={16} aria-hidden="true"/> Notifications {unreadNotices>0&&<span className="sm-account-unread-count" aria-label={`${unreadNotices} unread`}>{unreadNotices>99?"99+":unreadNotices}</span>}</Link>
+     <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credits</Link>
+     <Link href="/notifications" className="sm-account-notifications-link" onClick={()=>{if(menu.current)menu.current.open=false}}><Bell size={16} aria-hidden="true"/> Notifications {unreadNotices>0&&<span className="sm-account-unread-count" aria-label={`${unreadNotices} unread`}>{unreadNotices>99?"99+":unreadNotices}</span>}</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      <button type="button" disabled={busy} onClick={()=>void (identity==="super-admin"?logoutStaff():logout())}>{busy?"Signing out…":"Logout"}</button>
