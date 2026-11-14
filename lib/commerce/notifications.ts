@@ -44,8 +44,10 @@ export function creditedVideoProject(
 export type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement";href:string};
 export class NotificationInbox {
  private readonly db:DatabaseSync;
- constructor(db:DatabaseSync,private readonly live:DatabaseSync|null=null){
+ private readonly live:DatabaseSync|null;
+ constructor(db:DatabaseSync,live:DatabaseSync|null=null){
   this.db=db;
+  this.live=live;
   db.exec(`CREATE TABLE IF NOT EXISTS notification_user_state(
     subject TEXT NOT NULL,notice_id TEXT NOT NULL,read_at INTEGER,deleted_at INTEGER,
     PRIMARY KEY(subject,notice_id)
