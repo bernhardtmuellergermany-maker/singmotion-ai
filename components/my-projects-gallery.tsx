@@ -230,7 +230,17 @@ export function MyProjectsGallery(){
   if(!window.confirm(warning))return;
   setBusyId(item.id);setError("");
   try{
-   if(item.kind==="draft"){
+   if(item.kind==="customer"){
+    const id=item.id.slice(6);
+    const response=await fetch("/api/customer-orders",{
+      method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({orderId:id,hidden:true})
+    });
+    const result=await response.json().catch(()=>null) as {hidden?:boolean;error?:string}|null;
+    if(!response.ok||result?.hidden!==true)
+      throw Error(result?.error||"Could not remove this paid project.");
+    setOrders(previous=>previous.filter(o=>o.orderId!==id));
+   }else if(item.kind==="draft"){
     const id=item.id.slice(6);
     await api("studio-drafts/"+encodeURIComponent(id),{method:"DELETE"});
     setDrafts(previous=>previous.filter(d=>d.id!==id));
