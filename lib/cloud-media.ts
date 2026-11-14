@@ -101,6 +101,51 @@ export async function readMirroredPrivateSource(owner:string,id:string,record:Cl
  }finally{client.destroy()}
 }
 
+/** Re-home a verified guest source into the signed-in customer's private
+ * R2 namespace before ownership changes in SQLite. Never rename a manifest
+ * without verifying its new R2 object, or the original audio/photo vanishes.
+ * The old guest object is deliberately retained for rollback and recovery.
+ */
+export async function rehomeMirroredPrivateSource(
+ guestOwner:string,customerOwner:string,asset:Pick<Asset,"id"|"kind"|"mime">,
+ original:CloudMediaRecord,
+):Promise<CloudMediaRecord>{
+ if(!validCloudRecord(guestOwner,asset.id,original)||!validOwner(customerOwner)||
+    !customerOwner.startsWith("customer-")||guestOwner===customerOwner||
+    original.bytes>sourceAssetLimit(asset.kind))throw Error("Invalid guest cloud ownership transfer");
+ const originalBytes=await readMirroredPrivateSource(guestOwner,asset.id,original,sourceAssetLimit(asset.kind));
+ const record={...original,key:privateSourceKey(customerOwner,asset.id,original.sha256)};
+ const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
+ try{
+  let present=false;
+  try{
+   const head=await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}));
+   if(head.ContentLength!==record.bytes||head.Metadata?.["singmotion-sha256"]!==record.sha256)
+    throw Error("New owner cloud object mismatch; manual review required");
+   present=true;
+  }catch(error){
+   if((error as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==404)throw error;
+  }
+  if(!present){
+   try{
+    await client.send(new PutObjectCommand({
+     Bucket:config.bucket,Key:record.key,Body:originalBytes,
+     ContentLength:originalBytes.length,ContentType:asset.mime,
+     ContentMD5:createHash("md5").update(originalBytes).digest("base64"),
+     CacheControl:"private, no-store",IfNoneMatch:"*",
+     Metadata:{"singmotion-sha256":record.sha256},
+    }));
+   }catch(error){if((error as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw error}
+  }
+  const head=await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}));
+  if(head.ContentLength!==record.bytes||head.Metadata?.["singmotion-sha256"]!==record.sha256)
+   throw Error("New owner private cloud readback mismatch");
+ }finally{client.destroy()}
+ // Independent GET proves that the new record is usable before switching
+ // the owner-bound database rows. No payment or provider task is triggered.
+ await readMirroredPrivateSource(customerOwner,asset.id,record,sourceAssetLimit(asset.kind));
+ return record;
+}
 /** Explicit deletion only after a separately authorized unused-upload check.
  * Never use prefix/list operations, and do not remove a manifest if a remote
  * delete cannot be independently confirmed.

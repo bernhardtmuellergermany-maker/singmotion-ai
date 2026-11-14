@@ -4,16 +4,23 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,createAccountMediaSession,session,revokeMediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
+import {parseStudioAccountReturn} from "@/lib/studio-account-handoff";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  const trustedOrigin=customerIdentityOrigin(process.env);
  if(!trustedOrigin||!trustedIdentityHost(req.headers.get("host"),trustedOrigin))return NextResponse.json({error:"Invalid OAuth origin"},{status:403});
  const clear=(response:NextResponse)=>{response.cookies.set("sm_google_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:0});return response;};
- const go=(reason:string)=>clear(NextResponse.redirect(trustedOrigin+"/?card=login&google_error="+encodeURIComponent(reason)));
+ let savedReturn:string|null=null;
+ const go=(reason:string)=>{
+  const target=savedReturn||"/?card=login";
+  const sep=target.includes("?")?"&":"?";
+  return clear(NextResponse.redirect(trustedOrigin+target+sep+"google_error="+encodeURIComponent(reason)));
+ };
  if(!googleLoginReady(process.env))return go("Google sign-in unavailable");
- let saved:{state:string;verifier:string;nonce:string};
+ let saved:{state:string;verifier:string;nonce:string;returnTo?:string};
  try{saved=JSON.parse(req.cookies.get("sm_google_oauth")?.value||"");}catch{return go("Sign-in session expired");}
+ savedReturn=parseStudioAccountReturn(saved.returnTo||null)?saved.returnTo!:null;
  const state=req.nextUrl.searchParams.get("state"),code=req.nextUrl.searchParams.get("code");
  if(!saved?.state||!saved.verifier||!saved.nonce||!state||saved.state!==state||!code)return go("Google sign-in cancelled or expired");
  try{
@@ -34,7 +41,7 @@ export async function GET(req:NextRequest){
   const owner=old?session(old)?.owner:null;
   if(old&&owner&&(owner.startsWith("customer-")||owner.startsWith("cms-staff-")))
     revokeMediaSession(old);
-  const response=clear(NextResponse.redirect(trustedOrigin+"/?card=login&auth_changed=1"));
+  const response=clear(NextResponse.redirect(trustedOrigin+(savedReturn?savedReturn+"&auth_changed=1":"/?card=login&auth_changed=1")));
   response.cookies.delete("payload-token"); // OAuth customer login replaces a prior CMS staff session.
   if(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-"))response.cookies.set("sm_guest_session",old,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   response.cookies.set("sm_customer",account.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
