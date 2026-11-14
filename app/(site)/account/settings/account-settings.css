@@ -291,3 +291,8 @@ html:has(.sm-settings-page){scroll-padding-top:82px}
 .sm-announcement-history li{border:1px solid #514261;border-radius:11px;padding:14px;background:#201b2c;display:grid;gap:5px}
 .sm-announcement-history li span{font-size:12px;color:#c4b2d3}
 .sm-announcement-history li p{white-space:pre-wrap;overflow-wrap:anywhere;color:#e0d2e8;margin:5px 0}
+
+.sm-settings-email-toggle{display:flex!important;flex-direction:row!important;align-items:center;gap:12px;padding:17px 18px;border:1px solid #5b476c;border-radius:12px;background:#231b30;color:#f7eaff;cursor:pointer;font-weight:650}
+.sm-settings-email-toggle input[type="checkbox"]{width:21px;height:21px;margin:0;flex:0 0 auto;accent-color:#a95bdb;cursor:pointer}
+.sm-settings-email-toggle input:disabled{cursor:wait;opacity:.55}
+#email-notifications h2{display:flex;align-items:center;gap:10px}
