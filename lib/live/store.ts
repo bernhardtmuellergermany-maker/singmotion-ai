@@ -347,6 +347,10 @@ export class LiveTestStore {
     }
     // Private Studio is uncapped by its historical operator-test ledger.
     // Reservations remain immutable and counted for accounting, not admission.
+    // Private CMS operator jobs keep the historic independent admission.
+    // Customer video jobs must NEVER inherit that unlimited pilot exemption.
+    if(studio && attempt.media.owner.startsWith("customer-"))
+      return config.maxTotalMicroUsd;
     return studio ? Number.MAX_SAFE_INTEGER : config.maxTotalMicroUsd;
   }
   authorize(
@@ -376,16 +380,27 @@ export class LiveTestStore {
       const total = (
         this.db
           .prepare(
-            "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
+            attempt.media.owner.startsWith("customer-")
+              ? "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts WHERE json_extract(data,'$.media.owner') LIKE 'customer-%'"
+              : "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
           )
           .get() as { total: number }
       ).total;
       if (
         !Number.isSafeInteger(total) ||
-        (!attempt.media.sourceJobId.startsWith("studio-") &&
+        (cumulativeCap!==Number.MAX_SAFE_INTEGER &&
           total + attempt.upperBoundMicroUsd! > cumulativeCap)
       )
         throw new Error("Total live-test spending cap exceeded.");
+      if(attempt.media.owner.startsWith("customer-")){
+        // Immutable paid reservations count even after completion. The daily
+        // ceiling is global for the beta and cannot be evaded by switching accounts.
+        const daily=this.db.prepare(
+          "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts WHERE json_extract(data,'$.media.owner') LIKE 'customer-%' AND json_extract(data,'$.createdAt')>=?"
+        ).get(Date.now()-86400000) as {total:number};
+        if(!Number.isSafeInteger(daily.total)||daily.total+attempt.upperBoundMicroUsd!>2500000)
+          throw new Error("Customer Studio daily provider cap reached.");
+      }
       // No daily-budget reservation is required for private Studio jobs.
       // The exact task's USD reservation is still persisted below.
       const token = randomBytes(32).toString("hex");
@@ -434,14 +449,16 @@ export class LiveTestStore {
       const total = (
         this.db
           .prepare(
-            "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
+            attempt.media.owner.startsWith("customer-")
+              ? "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts WHERE json_extract(data,'$.media.owner') LIKE 'customer-%'"
+              : "SELECT COALESCE(SUM(reserved_micro_usd),0) AS total FROM live_attempts",
           )
           .get() as { total: number }
       ).total;
       const cumulativeCap = this.studioGuard(attempt, config);
       if (
         !Number.isSafeInteger(total) ||
-        (!attempt.media.sourceJobId.startsWith("studio-") && total > cumulativeCap)
+        (cumulativeCap!==Number.MAX_SAFE_INTEGER && total > cumulativeCap)
       )
         throw new Error("Total live-test spending cap exceeded.");
       // Historic daily ledger entries remain intact. Fresh Studio jobs
