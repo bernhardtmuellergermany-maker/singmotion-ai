@@ -9,7 +9,7 @@ import { createSignedTransport } from "./signed-transport.ts";
 import { loadBytePlusCredentials } from "./signing.ts";
 import { R2PrivateInputDelivery, loadR2Config } from "./r2.ts";
 import { StudioWorkflow } from "./studio.ts";
-import { loadStudioPolicy, studioConfig, StudioLiveError as PolicyError } from "./studio-policy.ts";
+import { loadStudioPolicy, studioConfig, StudioLiveError as PolicyError, validateStudioPolicy } from "./studio-policy.ts";
 import { superAdminRuntimeBootstrapPolicy } from "./super-admin-runtime-bootstrap.ts";
 import {ownerConfirmedBytePlusPolicy} from "../commerce/owner-confirmed-provider-policy.ts";
 import {CUSTOMER_STUDIO_BETA_DAILY_CAP,CUSTOMER_STUDIO_BETA_LIFETIME_CAP,CUSTOMER_STUDIO_BETA_MAX_SECONDS,customerCreditStudioBetaEnabled} from "../commerce/customer-credit-studio-beta.ts";
@@ -84,18 +84,17 @@ export async function studioReadiness(
     );
 }
 export async function loadRuntimeStudioPolicy(root: string, env: NodeJS.ProcessEnv = process.env, superAdmin = false, customerBeta = false) {
+      // Customer beta explicitly selects its own bounded and expiring reviewed
+      // contract, independently of the historic CMS operator policy file.
+      // Invalid CMS policies remain blocked for ALL non-beta Studio callers.
+      if(customerBeta){
+        if(!customerCreditStudioBetaEnabled(env))
+          throw new StudioLiveError("CUSTOMER_BETA_DISABLED","Customer Credit Studio testing is not enabled.",503);
+        return validateStudioPolicy(ownerConfirmedBytePlusPolicy());
+      }
       try {
         return await loadStudioPolicy(root, !superAdmin);
       } catch (error) {
-        if(customerBeta && customerCreditStudioBetaEnabled(env) &&
-          error instanceof PolicyError && error.code==="POLICY_MISSING" &&
-          !env.STUDIO_LIVE_POLICY_JSON){
-          // A stored but invalid policy is not silently replaced.
-          let absent=false;
-          try{await stat(path.join(root,"studio-live-policy.json"));}
-          catch(failure){if((failure as NodeJS.ErrnoException).code!=="ENOENT")throw failure;absent=true;}
-          if(absent)return ownerConfirmedBytePlusPolicy();
-        }
         // A missing operator file is not a BytePlus requirement. The private
         // Super Admin can use an explicit conservative, server-owned bootstrap.
         // Existing but invalid policies remain blocked; customers never fall back.
