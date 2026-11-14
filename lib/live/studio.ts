@@ -329,10 +329,10 @@ export class StudioWorkflow {
       createdAt: a.createdAt,
       // Both values are persisted by the trusted provider workflow. Never
       // calculate the elapsed time from Date.now() or display an estimate.
-      generationStartedAt:Number.isSafeInteger(row.started_at)&&row.started_at!>0?row.started_at:null,
+      generationStartedAt:typeof row.started_at==="number"&&Number.isSafeInteger(row.started_at)&&row.started_at>0?row.started_at:null,
       generationFinishedAt:a.state==="completed"&&a.outputPath&&
-       Number.isSafeInteger(row.started_at)&&row.started_at!>0&&
-       Number.isSafeInteger(a.updatedAt)&&a.updatedAt>=row.started_at!
+       typeof row.started_at==="number"&&Number.isSafeInteger(row.started_at)&&row.started_at>0&&
+       Number.isSafeInteger(a.updatedAt)&&a.updatedAt>=row.started_at
         ?a.updatedAt:null,
       durationSeconds: a.media.durationSeconds,
       prompt: a.media.prompt,
