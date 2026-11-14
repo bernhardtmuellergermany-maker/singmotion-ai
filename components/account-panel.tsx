@@ -31,7 +31,14 @@ export function AccountPanel({active}:{active:boolean}){
  const [googleAvailable,setGoogleAvailable]=useState(false);
 
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
- useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const reason=new URLSearchParams(window.location.search).get("google_error");if(reason)void Promise.resolve().then(()=>setError(reason));},[active]);
+ useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const search=new URLSearchParams(window.location.search);
+  const reason=search.get("google_error");
+  if(reason)void Promise.resolve().then(()=>setError(reason));
+  if(search.has("auth_changed")){
+   search.delete("auth_changed");
+   window.history.replaceState(null,"",window.location.pathname+(search.toString()?"?"+search.toString():"")+window.location.hash);
+   notifyAuthTransition();
+  }},[active]);
  useEffect(()=>{
   if(!active)return;
   let live=true;
