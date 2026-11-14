@@ -983,8 +983,11 @@ export class StudioWorkflow {
     // operator tests. A role/owner string from the browser is never an auth key.
     // Reserve BEFORE the first externally billable approval/submission.
     if(this.requirePrepaidCredits){
-      if(!this.superAdmin || verifiedCreditSubject!=="super-admin:"+owner.slice("cms-staff-".length)||
-         !owner.startsWith("cms-staff-"))
+      const matchedStaff=this.superAdmin && owner.startsWith("cms-staff-") &&
+        verifiedCreditSubject==="super-admin:"+owner.slice("cms-staff-".length);
+      const matchedCustomer=!this.superAdmin && /^customer-[a-f0-9-]{36}$/.test(owner) &&
+        verifiedCreditSubject==="customer:"+owner.slice("customer-".length);
+      if(!matchedStaff&&!matchedCustomer)
         throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","Verified account required before generating a paid video.",403);
       const selection=JSON.parse(row.selection_json) as StudioDraftExport;
       const quote=quoteVideoCredits(selection.start,selection.end);
@@ -1003,7 +1006,7 @@ export class StudioWorkflow {
     }
     // STAGING customer entitlements are checked at the last gate before any provider approval.
     // Keep operational staff workflows independent of consumer billing.
-    if (!this.superAdmin && owner.startsWith("customer-") &&
+    if (!this.requirePrepaidCredits && !this.superAdmin && owner.startsWith("customer-") &&
         process.env.RAILWAY_ENVIRONMENT_ID === "dfaeabed-03df-43ed-aa71-50f343a75041") {
       const customerStore = new CommerceStore(path.join(this.root, "commerce.sqlite"));
       try {
@@ -1050,7 +1053,7 @@ export class StudioWorkflow {
     return this.withCurrentBudget(this.view(id, owner));
   }
   private reconcileHobbyUsage(id: string, owner: string, state: string, failureCode?: string | null) {
-    if (this.superAdmin || !owner.startsWith("customer-") ||
+    if (this.requirePrepaidCredits || this.superAdmin || !owner.startsWith("customer-") ||
         process.env.RAILWAY_ENVIRONMENT_ID !== "dfaeabed-03df-43ed-aa71-50f343a75041") return;
     // Never refund unknown provider outcomes: a failed task may still be billable.
     if (state !== "completed" && !(state === "failed" && failureCode === "CONTENT_PREFILTER_REJECTED")) return;
