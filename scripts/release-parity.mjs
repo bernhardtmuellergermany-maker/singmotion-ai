@@ -4,11 +4,14 @@
  *
  * Example:
  * node scripts/release-parity.mjs --staging-sha <40-hex> --candidate-sha <40-hex> \
- *   --staging-status SUCCESS --staging-builder RAILPACK --production-builder RAILPACK
+ *   --staging-status SUCCESS --staging-builder RAILPACK --production-builder RAILPACK \
+ *   --staging-branch feature/showcase-unified-auth-20261114 \
+ *   --production-branch release/production-promoted-20261114
  *
  * This gate does not deploy, submit provider tasks or touch production data.
  */
 const SHA = /^[0-9a-f]{40}$/i;
+const BRANCH = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,127}$/;
 const allowedBuilders = new Set(["RAILPACK", "NIXPACKS", "DOCKERFILE"]);
 export function assessPromotion({
   stagingSha,
@@ -16,6 +19,8 @@ export function assessPromotion({
   stagingStatus,
   stagingBuilder,
   productionBuilder,
+  stagingBranch,
+  productionBranch,
   stagingImageDigest,
   candidateImageDigest,
 } = {}) {
@@ -24,6 +29,16 @@ export function assessPromotion({
     failures.push("Both commits must be exact 40-character Git SHAs from deployed artifacts.");
   else if (stagingSha.toLowerCase() !== candidateSha.toLowerCase())
     failures.push("Staging deployment and production candidate must use the identical Git commit.");
+  // A shared branch causes both Railway environments to deploy simultaneously.
+  // Production must follow its own reviewed release ref: staging success FIRST.
+  if (!BRANCH.test(stagingBranch || "") || !BRANCH.test(productionBranch || ""))
+    failures.push("Both live Railway source branches must be provided.");
+  else {
+    if (stagingBranch === productionBranch)
+      failures.push("Staging and Production must not auto-deploy the same branch.");
+    if (!productionBranch.startsWith("release/"))
+      failures.push("Production must follow a dedicated release/* branch.");
+  }
   if (stagingStatus !== "SUCCESS")
     failures.push("Staging deployment must have succeeded before promotion.");
   if (!allowedBuilders.has(stagingBuilder) || !allowedBuilders.has(productionBuilder))
@@ -47,6 +62,7 @@ function parseArgs(args) {
     if (!(key in {
       stagingSha: 1, candidateSha: 1, stagingStatus: 1,
       stagingBuilder: 1, productionBuilder: 1,
+      stagingBranch: 1, productionBranch: 1,
       stagingImageDigest: 1, candidateImageDigest: 1,
     }) || key in params)
       throw Error("Unexpected or duplicate argument.");
