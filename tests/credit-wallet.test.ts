@@ -191,9 +191,9 @@ test("wallet credit checkout follows verified staff precedence when both browser
  const account=readFileSync(new URL("../app/(site)/api/customer-auth/route.ts",import.meta.url),"utf8");
  const creditBalance=readFileSync(new URL("../app/(site)/api/credit-balance/route.ts",import.meta.url),"utf8");
  const creditCheckout=readFileSync(new URL("../app/(site)/api/credit-checkout/route.ts",import.meta.url),"utf8");
- assert.match(account,/id&&req\\.cookies\\.has\\("payload-token"\\)/);
- assert.match(identity,/!id\\|\\|req\\.cookies\\.has\\("payload-token"\\)/);
- assert.match(identity,/selectWalletPrincipal\\(id,staffRole\\)/);
- assert.match(creditBalance,/resolveCreditWalletIdentity\\(req,store\\)/);
- assert.match(creditCheckout,/resolveCreditWalletIdentity\\(req,store\\)/);
+ assert.match(account,/id&&req\.cookies\.has\("payload-token"\)/);
+ assert.match(identity,/!id\|\|req\.cookies\.has\("payload-token"\)/);
+ assert.match(identity,/selectWalletPrincipal\(id,staffRole\)/);
+ assert.match(creditBalance,/resolveCreditWalletIdentity\(req,store\)/);
+ assert.match(creditCheckout,/resolveCreditWalletIdentity\(req,store\)/);
 });
