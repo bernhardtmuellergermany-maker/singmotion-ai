@@ -166,3 +166,17 @@ test("verified terminal provider failure returns credits and offers a safe new d
  assert.doesNotMatch(stillHeld?.message??"",/Credits have been returned/i);
  assert.equal(stillHeld?.action,undefined);
 });
+
+test("507 scratch exhaustion is distinct from a network outage or customer auth failure",()=>{
+ const notice=requestErrorFeedback(
+  "Upload storage temporarily unavailable: server capacity is low. Existing videos and files are safe.",
+  "upload",
+ );
+ assert.equal(notice.key,"upload-capacity");
+ assert.match(notice.title,/storage/i);
+ assert.match(notice.message,/temporary processing space/i);
+ assert.doesNotMatch(notice.message,/pay again|Credits refunded/i);
+ assert.equal(notice.action,undefined);
+ assert.equal(notice.dismissAfterMs,undefined);
+ assert.notEqual(requestErrorFeedback("503 Service temporarily unavailable","upload").key,"upload-capacity");
+});
