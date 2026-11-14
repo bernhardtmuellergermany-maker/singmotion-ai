@@ -14,14 +14,15 @@ export function sourceTimeLabel(start:number|null|undefined,end:number|null|unde
  return from&&to?from+" – "+to:null;
 }
 export function aiGenerationElapsed(startedAt:number|null|undefined,finishedAt:number|null|undefined):string|null{
- if(!Number.isSafeInteger(startedAt)||!Number.isSafeInteger(finishedAt)||
-    !startedAt||!finishedAt||finishedAt<startedAt||finishedAt-startedAt>7*24*3600000)return null;
+ if(typeof startedAt!=="number"||typeof finishedAt!=="number"||
+    !Number.isSafeInteger(startedAt)||!Number.isSafeInteger(finishedAt)||
+    startedAt<=0||finishedAt<startedAt||finishedAt-startedAt>7*24*3600000)return null;
  const total=Math.max(0,Math.floor((finishedAt-startedAt)/1000));
  const hours=Math.floor(total/3600),mins=Math.floor(total%3600/60),secs=total%60;
  return (hours?hours+"h ":"")+(mins?mins+"m ":"")+(secs+"s");
 }
 export function projectCreatedLabel(createdAt:number|null|undefined):string|null{
- if(!Number.isSafeInteger(createdAt)||!createdAt||createdAt<946684800000||
+ if(typeof createdAt!=="number"||!Number.isSafeInteger(createdAt)||createdAt<946684800000||
     createdAt>Date.now()+24*3600000)return null;
  return new Intl.DateTimeFormat("en-GB",{
   year:"numeric",month:"short",day:"2-digit",hour:"2-digit",minute:"2-digit",
