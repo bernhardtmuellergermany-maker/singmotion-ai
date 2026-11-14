@@ -46,7 +46,8 @@ export default function AccountSettings(){
   if(!data)return;
   const target=window.location.hash.slice(1);
   if(!["profile","security","billing","invoices","privacy","admin-console","announcements"].includes(target))return;
-  if((target==="admin-console"||target==="announcements")&&!canShowAdmin)return;
+  if(target==="admin-console"&&!canShowAdmin)return;
+  if(target==="announcements"&&!canShowAdmin)return;
   const frame=window.requestAnimationFrame(()=>{
    const section=document.getElementById(target);
    if(!section)return;
