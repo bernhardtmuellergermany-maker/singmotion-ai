@@ -7,7 +7,7 @@ export type StudioAccountReturn={draftId:string;requiredCredits:number};
 export function studioAccountReturn(draftId:string,requiredCredits:number):string|null{
  if(!id.test(draftId)||!Number.isSafeInteger(requiredCredits)||
     requiredCredits<1||requiredCredits>7500)return null;
- return "/studio?draft="+encodeURIComponent(draftId)+"&resume=account&requiredCredits="+requiredCredits;
+ return "/studio/continue?draft="+encodeURIComponent(draftId)+"&requiredCredits="+requiredCredits;
 }
 export function parseStudioAccountReturn(raw:string|null):StudioAccountReturn|null{
  if(!raw||raw.length>260||!raw.startsWith("/")||raw.startsWith("//")||
@@ -16,8 +16,7 @@ export function parseStudioAccountReturn(raw:string|null):StudioAccountReturn|nu
   const parsed=new URL(raw,"https://www.singmotion.ai");
   const draftId=parsed.searchParams.get("draft")||"";
   const requiredCredits=Number(parsed.searchParams.get("requiredCredits"));
-  if(parsed.pathname!=="/studio"||parsed.searchParams.size!==3||
-     parsed.searchParams.get("resume")!=="account")return null;
+  if(parsed.pathname!=="/studio/continue"||parsed.searchParams.size!==2)return null;
   const canonical=studioAccountReturn(draftId,requiredCredits);
   return canonical===raw?{draftId,requiredCredits}:null;
  }catch{return null}
