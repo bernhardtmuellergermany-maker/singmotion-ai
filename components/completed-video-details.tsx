@@ -7,6 +7,7 @@ import {aiGenerationElapsed,projectCreatedLabel,sourceTimeLabel,videoTimecode} f
 
 export type CompletedVideoMetadata={
  id:string;
+ idLabel?:"Project ID"|"Order ID";
  name?:string|null;
  createdAt?:number|null;
  selectedDurationSeconds?:number|null;
@@ -17,6 +18,7 @@ export type CompletedVideoMetadata={
  generationFinishedAt?:number|null;
  /** Only private Studio projects have the authenticated rename endpoint. */
  renameId?:string|null;
+ renameOrderId?:string|null;
 };
 export function CompletedVideoDetails({data,measuredDurationSeconds}:{
  data:CompletedVideoMetadata;measuredDurationSeconds?:number|null;
@@ -27,7 +29,8 @@ export function CompletedVideoDetails({data,measuredDurationSeconds}:{
  const [error,setError]=useState("");
  const [copied,setCopied]=useState<"prompt"|"id"|null>(null);
  useEffect(()=>{if(!editing&&!saving)setName(data.name?.trim()||"Untitled video")},[data.name,editing,saving]);
- const canRename=!!data.renameId&&/^[a-f0-9-]{36}$/i.test(data.renameId);
+ const canRename=(!!data.renameId&&/^[a-f0-9-]{36}$/i.test(data.renameId))||
+  (!!data.renameOrderId&&/^[a-f0-9-]{36}$/i.test(data.renameOrderId));
  const created=projectCreatedLabel(data.createdAt);
  const duration=videoTimecode(measuredDurationSeconds??data.selectedDurationSeconds);
  const source=sourceTimeLabel(data.sourceStartSeconds,data.sourceEndSeconds);
@@ -46,13 +49,26 @@ export function CompletedVideoDetails({data,measuredDurationSeconds}:{
   }
   setSaving(true);setError("");
   try{
-   const result=await api<StudioProject>("studio-live",{
-    method:"POST",body:JSON.stringify({action:"rename",id:data.renameId,name:next}),
-   });
-   setName(result.projectName||next);
+   let updated=next;
+   if(data.renameOrderId){
+    const response=await fetch("/api/customer-orders",{
+     method:"PATCH",credentials:"same-origin",
+     headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({orderId:data.renameOrderId,name:next}),
+    });
+    const result=await response.json() as {error?:string;displayName?:string};
+    if(!response.ok)throw Error(result.error||"Project name could not be updated.");
+    updated=result.displayName||next;
+   }else{
+    const result=await api<StudioProject>("studio-live",{
+     method:"POST",body:JSON.stringify({action:"rename",id:data.renameId,name:next}),
+    });
+    updated=result.projectName||next;
+   }
+   setName(updated);
    setEditing(false);
    window.dispatchEvent(new CustomEvent("sm-project-name-updated",{
-    detail:{id:"live_"+data.renameId,name:result.projectName||next},
+    detail:{id:data.renameOrderId?"paid_"+data.renameOrderId:"live_"+data.renameId,name:updated},
    }));
   }catch(cause){setError(cause instanceof Error?cause.message:"The project name could not be saved.");}
   finally{setSaving(false)}
@@ -93,7 +109,7 @@ export function CompletedVideoDetails({data,measuredDurationSeconds}:{
       "From generation submission to verified output")}
   </div>
   <div className="sm-finished-identifier">
-   <span><Hash size={15}/> Project ID</span>
+   <span><Hash size={15}/> {data.idLabel||"Project ID"}</span>
    <div><code title={data.id}>{data.id}</code>
     <button type="button" title="Copy project ID" aria-label="Copy project ID"
       onClick={()=>void copy(data.id,"id")}>{copied==="id"?<Check size={15}/>:<Copy size={15}/>}
