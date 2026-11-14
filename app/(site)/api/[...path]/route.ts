@@ -136,7 +136,7 @@ async function handler(
       const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
       try{
         if(commerce.session(req.cookies.get("sm_customer")?.value||"")!==
-           auth.owner.slice("customer-".length))auth=null;
+           auth.owner.slice("customer-".length))auth=undefined;
       }finally{commerce.close()}
     }else if(auth?.owner.startsWith("cms-staff-")){
       let valid=false;
@@ -148,10 +148,10 @@ async function handler(
         const identity=await payload.auth({headers:req.headers});
         try{valid=studioStaff(identity.user,method,req.headers,process.env)===auth.owner}catch{}
       }
-      if(!valid)auth=null;
+      if(!valid)auth=undefined;
     }
     if(liveCustomer && auth && !auth.owner.startsWith("customer-") &&
-       !auth.owner.startsWith("cms-staff-"))auth=null;
+       !auth.owner.startsWith("cms-staff-"))auth=undefined;
     // Disconnect this browser's private demo workspace without deleting its data.
     if (!liveCustomer && route === "session" && id === "guest" && method === "POST") {
       const guestToken = req.cookies.get("sm_guest_session")?.value;
