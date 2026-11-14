@@ -32,7 +32,7 @@ export function StudioAccountResume(){
        Date.now()-stored.created<0||Date.now()-stored.created>2*60*60*1000)
      throw Error("The private guest project handoff has expired. Open Step 4 in your original browser and sign in again.");
     const identityResponse=await fetch("/api/customer-auth",{cache:"no-store",credentials:"same-origin"});
-    const identity=await identityResponse.json().catch(()=>null) as {authenticated?:boolean;kind?:string}|null;
+    const identity=await identityResponse.json().catch(()=>null) as {authenticated?:boolean;kind?:string;emailVerification?:"pending"|"verified"|"legacy"}|null;
     if(!identityResponse.ok||identity?.authenticated!==true||identity.kind!=="customer")
      throw Error("Sign in to your customer account before transferring your guest project.");
     const workspace=await ensureSession() as {owner?:string};
@@ -65,6 +65,14 @@ export function StudioAccountResume(){
     sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
      draftId:wanted.draftId,requiredCredits:quote.credits,created:Date.now(),
     }));
+    // The guest media transfer is complete, but an email/password signup
+    // still needs inbox proof. Never route an unverified customer into a
+    // Stripe purchase, even in the staging sandbox.
+    if(identity.emailVerification==="pending"){
+     setMessage("Your draft is safe. Confirm your email before buying Credits…");
+     window.location.assign("/account/verify-email?from=studio");
+     return;
+    }
     const balanceResponse=await fetch("/api/credit-balance",{
      credentials:"same-origin",cache:"no-store",
     });
