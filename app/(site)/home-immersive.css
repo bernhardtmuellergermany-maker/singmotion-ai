@@ -1105,3 +1105,12 @@
  display:none!important;
  -webkit-appearance:none!important;
 }
+
+/* Small thumb-reach improvement: lift mobile hero copy and CTA as one group. */
+@media(max-width:760px){
+ .sm-mobile-reel-content{bottom:max(84px,calc(env(safe-area-inset-bottom) + 72px));}
+ .sm-mobile-reel-mute{display:none!important;}
+}
+@media(max-width:760px) and (max-height:620px){
+ .sm-mobile-reel-content{bottom:max(50px,calc(env(safe-area-inset-bottom) + 36px));}
+}
