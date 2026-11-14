@@ -2,7 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {randomBytes,createHash} from "node:crypto";
 import {stagingDenial} from "@/lib/staging";
 import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
-import {parseStudioAccountReturn} from "@/lib/studio-account-handoff";
+import {parseStudioAccountReturn,studioAccountReturn} from "@/lib/studio-account-handoff";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 
 export async function GET(req:NextRequest){
@@ -12,8 +12,7 @@ export async function GET(req:NextRequest){
  if(!googleLoginReady(process.env))return NextResponse.json({enabled:false},{headers:{"Cache-Control":"no-store"}});
  if(req.nextUrl.searchParams.get("start")!=="1")return NextResponse.json({enabled:true},{headers:{"Cache-Control":"no-store"}});
  const allowedReturn=parseStudioAccountReturn(req.nextUrl.searchParams.get("returnTo"));
- const returnTo=allowedReturn?"/studio?draft="+encodeURIComponent(allowedReturn.draftId)+
-  "&resume=account&requiredCredits="+allowedReturn.requiredCredits:undefined;
+ const returnTo=allowedReturn?studioAccountReturn(allowedReturn.draftId,allowedReturn.requiredCredits):undefined;
  const state=randomBytes(32).toString("base64url"),verifier=randomBytes(32).toString("base64url"),nonce=randomBytes(24).toString("base64url");
  const challenge=createHash("sha256").update(verifier).digest("base64url");
  const redirectUri=trustedOrigin+"/api/google-auth/callback";
