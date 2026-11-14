@@ -3,8 +3,9 @@ import {useEffect,useState} from "react";
 import Link from "next/link";
 import {Shell} from "@/components/shell";
 import {AdminAccountDashboard} from "@/components/admin-account-dashboard";
+import {AdminAnnouncements} from "@/components/admin-announcements";
 import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
-import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard} from "lucide-react";
+import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard,Bell} from "lucide-react";
 import "./account-settings.css";
 type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null};
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
@@ -44,8 +45,9 @@ export default function AccountSettings(){
  useEffect(()=>{
   if(!data)return;
   const target=window.location.hash.slice(1);
-  if(!["profile","security","billing","invoices","privacy","admin-console"].includes(target))return;
+  if(!["profile","security","billing","invoices","privacy","admin-console","announcements"].includes(target))return;
   if(target==="admin-console"&&!canShowAdmin)return;
+  if(target==="announcements"&&!canShowAdmin)return;
   const frame=window.requestAnimationFrame(()=>{
    const section=document.getElementById(target);
    if(!section)return;
@@ -90,7 +92,7 @@ export default function AccountSettings(){
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
  <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR WORKSPACE</span><h1>Account settings</h1><p>Manage your profile, security, payments and privacy in one place.</p></header>
  <div className="sm-settings-layout">
-  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}</nav>
+  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a><a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}{canShowAdmin&&<a href="#announcements"><Bell size={17}/> Notifications · Broadcast</a>}</nav>
   <div className="sm-settings-content">
    {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super Admin account</strong><p className="sm-settings-muted">You can view your own real credits and purchases under Credits, just like a customer. Account security and staff management remain in the admin area.</p></section>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
@@ -171,6 +173,7 @@ export default function AccountSettings(){
       <p className="sm-settings-muted">Deletion is reviewed by support after identity verification. The button opens a draft email; you must send it yourself. Super Admin deletion requires an administrator handover and cannot be performed automatically. Legally required financial and security records may need to be retained.</p>
       <p className="sm-settings-support"><LifeBuoy size={17}/> Questions about account access, payments or privacy? <a href="mailto:support@singmotion.ai">Contact support</a>.</p>
      </section>
+   {canShowAdmin&&<AdminAnnouncements/>}
    {canShowAdmin&&<AdminAccountDashboard overview={adminOverview} busy={adminStatusBusy} error={adminStatusError} refresh={()=>void refreshAdminStatus()}/>}
    </>}
   </div></div></div></Shell>;
