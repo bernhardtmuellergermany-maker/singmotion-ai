@@ -1,4 +1,5 @@
 import {worldwideTaxPolicyAvailable} from "./worldwide-credit-tax.ts";
+import {managedCreditMoRApproved} from "./managed-credit-payments.ts";
 import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 import {privateCreditPilotApproved} from "./private-credit-pilot.ts";
 import {randomUUID} from "node:crypto";
@@ -33,7 +34,7 @@ export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined
   env.STRIPE_LIVE_CHECKOUT_ENABLED==="true" &&
   (env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"||protectedProductionLivePilotApproved(env)||privateCreditPilotApproved(env)) &&
   env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true" &&
-  worldwideTaxPolicyAvailable(env) &&
+  (worldwideTaxPolicyAvailable(env)||managedCreditMoRApproved(env)) &&
   /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
 }

@@ -615,6 +615,17 @@ export function StudioWizard({
     return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);};
   },[step,operatorStudio]);
   const reviewShortage=step===3&&operatorStudio&&creditQuote!==null&&reviewBalance!==null&&reviewBalance<creditQuote.credits;
+  // Save the exact interrupted draft before the customer opens Credits,
+  // including when they use the Account menu instead of the shortage link.
+  useEffect(()=>{
+    if(!reviewShortage||!projectKey||!creditQuote||!/^[A-Za-z0-9_-]{1,80}$/.test(projectKey))return;
+    try {
+      sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
+        draftId:projectKey,requiredCredits:creditQuote.credits,created:Date.now()
+      }));
+    }catch{/* Browser storage may be disabled; the explicit link still carries the ID. */}
+  },[reviewShortage,projectKey,creditQuote?.credits]);
+
   // Step 4 already captures the rights consent and displays the exact Credits
   // quote. For CMS operators do the reviewed action in place, without a second
   // modal or any automatic submission triggered merely by opening a dialog.

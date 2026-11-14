@@ -53,6 +53,9 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
  }
  if(mode==="live"){
   const prior=new CreditWallet(store.db).taxContext(id);
+  if(prior?.mode==="stripe-managed-payments"&&
+     (session.managed_payments as {enabled?:boolean}|undefined)?.enabled!==true)
+   throw Error("STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED");
   const details=session.customer_details as {
    address?:{country?:string};tax_ids?:Array<{type?:string;value?:string}>
   }|undefined;
@@ -82,7 +85,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
  if(!new RegExp(refund?"^re_[A-Za-z0-9_]+$":"^dp_[A-Za-z0-9_]+$").test(object.id))
    throw Error("Invalid reversal ID");
  const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
- if(verified.livemode!==(mode==="live")||typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
+ // Stripe Refund objects can omit livemode (including in the 2026 API).\n // Verify the signed event mode, same-key refund lookup, and the charge/session\n // livemode below; reject explicit conflicting modes, never require an absent field.\n if((verified.livemode!==undefined&&verified.livemode!==(mode==="live"))||\n    typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
  if(refund&&verified.status!=="succeeded")return; // No release on pending/failed refunds.
  if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status||""))
    return;
@@ -123,7 +126,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
    if(typeof verified.amount!=="number"||!Number.isSafeInteger(verified.amount)||verified.amount!==charge.amount||
      verified.currency!=="eur")throw Error("Full-refund verification required");
    store.reconcileVerifiedStripeRefund({orderId:bound.order_id,stripeCheckoutId:session.id,
-     refundId:verified.id,refundedCents:verified.amount,evidence});
+     refundId:verified.id!,refundedCents:verified.amount,evidence});
    // A previously approved Super Admin full refund can complete via webhook
    // after an API timeout, without relying on the admin staying online.
    const support=new SupportCases(store.db);
@@ -135,7 +138,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
    }
  }else{
    store.reconcileVerifiedStripeDispute({orderId:bound.order_id,stripeCheckoutId:session.id,
-     disputeId:verified.id,evidence});
+     disputeId:verified.id!,evidence});
  }
 }
 

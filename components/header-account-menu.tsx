@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {UserRound} from "lucide-react";
+import {UserRound,Bell} from "lucide-react";
 import {creditTone} from "@/lib/commerce/credit-display";
 import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import {resetSession} from "@/lib/client";
@@ -14,6 +14,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [availableCredits,setAvailableCredits]=useState<number|null>(null);
+ const [unreadNotices,setUnreadNotices]=useState(0);
  const [creditState,setCreditState]=useState<"loading"|"ready"|"unavailable">("loading");
  useEffect(()=>{
   let active=true;
@@ -44,9 +45,25 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   refresh();
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
+  window.addEventListener("credit-balance-updated",refresh);
   menu.current?.addEventListener("toggle",onToggle);
   const current=menu.current;
-  return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);current?.removeEventListener("toggle",onToggle)};
+  return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("credit-balance-updated",refresh);current?.removeEventListener("toggle",onToggle)};
+ },[identity]);
+ useEffect(()=>{
+  if(identity!=="customer"&&identity!=="super-admin"){setUnreadNotices(0);return;}
+  let active=true;
+  const refresh=()=>{void fetch("/api/notifications",{cache:"no-store",credentials:"same-origin"})
+   .then(async r=>{if(!r.ok)throw Error("Unavailable");return r.json() as Promise<{unread?:number}>})
+   .then(data=>{if(active)setUnreadNotices(typeof data.unread==="number"?Math.max(0,data.unread):0)})
+   .catch(()=>{if(active)setUnreadNotices(0)});};
+  const onToggle=()=>{if(menu.current?.open)refresh()};
+  refresh();
+  window.addEventListener("notifications-changed",refresh);
+  window.addEventListener("focus",refresh);
+  const current=menu.current;
+  current?.addEventListener("toggle",onToggle);
+  return()=>{active=false;window.removeEventListener("notifications-changed",refresh);window.removeEventListener("focus",refresh);current?.removeEventListener("toggle",onToggle)};
  },[identity]);
  async function logout(){
   if(busy)return;
@@ -88,6 +105,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
       <small>{creditState==="ready"&&availableCredits!==null?(availableCredits>=1000?"Balance healthy":availableCredits>=250?"Low balance":<Link href="/credits#buy-credits" className="sm-account-topup-link" onClick={()=>{if(menu.current)menu.current.open=false}}>Top up credits</Link>):creditState==="loading"?"Checking balance…":"Balance unavailable"}</small>
      </div>
      <Link href="/credits" onClick={()=>{if(menu.current)menu.current.open=false}}>Credits</Link>
+     <Link href="/notifications" className="sm-account-notifications-link" onClick={()=>{if(menu.current)menu.current.open=false}}><Bell size={16} aria-hidden="true"/> Notifications {unreadNotices>0&&<span className="sm-account-unread-count" aria-label={`${unreadNotices} unread`}>{unreadNotices>99?"99+":unreadNotices}</span>}</Link>
      <Link href="/plans" onClick={()=>{if(menu.current)menu.current.open=false}}>Pricing</Link>
      <Link href="/account/settings" onClick={()=>{if(menu.current)menu.current.open=false}}>Account Settings</Link>
      <button type="button" disabled={busy} onClick={()=>void (identity==="super-admin"?logoutStaff():logout())}>{busy?"Signing out…":"Logout"}</button>

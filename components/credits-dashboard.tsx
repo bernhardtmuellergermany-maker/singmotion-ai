@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useEffect,useState} from "react";
+import {useEffect,useRef,useState} from "react";
 import {creditTone} from "@/lib/commerce/credit-display";
 import {CreditAmountPicker} from "@/components/credit-amount-picker";
 import {CustomerFeedback} from "@/components/customer-feedback";
@@ -34,6 +34,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
  const [balance,setBalance]=useState<Balance|null>(null);
  const [checkoutNotice,setCheckoutNotice]=useState<CustomerNotice|null>(null);
  const [resume,setResume]=useState<CreditResume|null>(null);
+ const lastBroadcastBalance=useRef<number|null>(null);
  useEffect(()=>{
   let active=true;
   const params=new URLSearchParams(window.location.search);
@@ -59,10 +60,11 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
       throw Error("Invalid account balance");
      if(active){
       setBalance(data);setView("ready");
-      const pending=readCreditResume();
-      if(checkoutResult==="success"&&pending&&data.availableCredits>=pending.requiredCredits){
-        sessionStorage.removeItem(RESUME_KEY);
-        window.location.replace("/studio?draft="+encodeURIComponent(pending.draftId)+"&resume=review");
+      // Synchronize the header's credit counter after Stripe fulfillment.
+      // Use a different event than the dashboard's own refresh trigger to avoid loops.
+      if(lastBroadcastBalance.current!==data.availableCredits){
+       lastBroadcastBalance.current=data.availableCredits;
+       window.dispatchEvent(new Event("credit-balance-updated"));
       }
      }
     }).catch(()=>{if(active)setView("unavailable");});
@@ -75,7 +77,8 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   },5000);
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
-  return()=>{active=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh)};
+  window.addEventListener("pageshow",refresh);
+  return()=>{active=false;if(timer!==null)window.clearInterval(timer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
  const tone=creditTone(view==="ready"?balance?.availableCredits??null:null);
  return <div className="sm-credits-layout">
@@ -97,13 +100,13 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     </div>
     <div className="sm-credits-summary-links"><a href="#buy-credits">Buy Credits</a><a href="#usage">Usage & Orders</a></div>
    </section>
-   {resume&&<section className="sm-credits-notice" aria-label="Continue your video project">
+   {resume&&<section className="sm-credits-notice sm-credits-resume" aria-label="Continue your video project">
      <h2>Continue your video</h2>
      <p>Your Studio project is saved. {balance.availableCredits>=resume.requiredCredits
        ?"Your available Credits cover the video estimate. Continue to Step 4 and confirm generation."
-       :`You need ${num(resume.requiredCredits)} available Credits for this video. After your Stripe payment is verified, you will return to Step 4 automatically.`}</p>
+       :`This video needs ${num(resume.requiredCredits)} available Credits. If your purchase is still being confirmed, the balance above will refresh automatically.`}</p>
      <Link href={`/studio?draft=${encodeURIComponent(resume.draftId)}&resume=review`} className="sm-plan-action sm-plan-action-outline"
-       onClick={()=>{sessionStorage.removeItem(RESUME_KEY)}}>Return to Step 4</Link>
+       >Continue project · Step 4</Link>
    </section>}
    {mode==="buy"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode}/></section>}
    <section className="sm-credits-history" id="usage">
