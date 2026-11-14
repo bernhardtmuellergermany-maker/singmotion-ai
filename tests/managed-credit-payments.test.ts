@@ -60,3 +60,13 @@ test("live catalog product is reused for preset and custom top-ups at server-aut
  assert.doesNotMatch(route,/form\.set\("line_items\[0\]\[price_data\]\[product_data\]\[tax_code\]"/);
  assert.match(quote,/TOPUP_CENTS_PER_CREDIT = 1/);
 });
+
+test("Stripe refunds may omit livemode; checked charge and Checkout still enforce mode",()=>{
+ const root=new URL("../",import.meta.url);
+ const webhook=readFileSync(new URL("app/(site)/api/stripe-webhook/route.ts",root),"utf8");
+ assert.match(webhook,/verified\.livemode!==undefined&&verified\.livemode!==\(mode==="live"\)/);
+ assert.match(webhook,/charge\.livemode!==\(mode==="live"\)/);
+ assert.match(webhook,/session\.livemode!==\(mode==="live"\)/);
+ assert.match(webhook,/verified\.id!==object\.id/);
+ assert.match(webhook,/wallet\.reverse\(/);
+});
