@@ -63,7 +63,11 @@ export async function GET(req:NextRequest){
    reservedCredits:Math.max(0,reserved),
    outstandingCredits:Math.max(0,-rawBalance),
    currency:"EUR",
-   purchaseEnabled:testCheckout||liveCheckout,
+   // The purchase button must mirror the server's existing verification
+   // requirement, not offer a checkout that will inevitably return 403.
+   emailVerification:identity.customerId?store.verificationState(identity.customerId):null,
+   purchaseEnabled:(testCheckout||liveCheckout)&&
+    (!identity.customerId||store.emailVerified(identity.customerId)),
    testMode:testCheckout,
    entries,
    legacyOrders:oldOrders,
