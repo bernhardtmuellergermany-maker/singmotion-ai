@@ -85,7 +85,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
  if(!new RegExp(refund?"^re_[A-Za-z0-9_]+$":"^dp_[A-Za-z0-9_]+$").test(object.id))
    throw Error("Invalid reversal ID");
  const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
- if(verified.livemode!==(mode==="live")||typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
+ // Stripe Refund objects can omit livemode (including in the 2026 API).\n // Verify the signed event mode, same-key refund lookup, and the charge/session\n // livemode below; reject explicit conflicting modes, never require an absent field.\n if((verified.livemode!==undefined&&verified.livemode!==(mode==="live"))||\n    typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
  if(refund&&verified.status!=="succeeded")return; // No release on pending/failed refunds.
  if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status||""))
    return;
