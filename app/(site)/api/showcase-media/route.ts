@@ -3,6 +3,7 @@ import {getPayload} from "payload";
 import payloadConfig from "@payload-config";
 import {hasRole} from "@/cms/policy";
 import {stagingDenial} from "@/lib/staging";
+import {showcaseMutationOriginAllowed,isShowcasePosterFilename} from "@/lib/showcase-media-security";
 import {dataDir} from "@/lib/db";
 import {openStudioStore} from "@/lib/live/studio";
 import {mkdir,writeFile,readFile,unlink} from "node:fs/promises";
@@ -58,7 +59,8 @@ export async function GET(req:NextRequest){
 export async function DELETE(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  if(!await superAdmin(req))return respond({error:"Super Admin required"},403);
- if(req.headers.get("origin")!==new URL(req.url).origin)return respond({error:"Invalid request origin"},403);
+ if(!showcaseMutationOriginAllowed(req.url,req.headers.get("host"),req.headers.get("origin")))
+  return respond({error:"Invalid request origin"},403);
  const kind=req.nextUrl.searchParams.get("kind");
  const id=req.nextUrl.searchParams.get("id")||"";
  if(kind==="video"){
@@ -88,7 +90,7 @@ export async function DELETE(req:NextRequest){
    // UUID-controlled local showcase uploads only; never touch generated source
    // files, credit wallet entries or private video deliveries.
    await unlink(path.join(root,row.filename)).catch(()=>{});
-   if(poster && /^[0-9a-f-]{36}\\.webp$/i.test(poster.filename))
+   if(poster && isShowcasePosterFilename(poster.filename))
       await unlink(path.join(root,poster.filename)).catch(()=>{});
    return respond({ok:true,id,deleted:true});
   }finally{s.close()}
@@ -100,7 +102,7 @@ export async function DELETE(req:NextRequest){
   if(!row)return respond({error:"Preview image not found"},404);
   store.db.prepare("DELETE FROM public_showcase_posters WHERE id=?").run(id);
   // Files are server-generated UUID WebP names. The video record is untouched.
-  if(/^[0-9a-f-]{36}\\.webp$/i.test(row.filename)){
+  if(isShowcasePosterFilename(row.filename)){
    try{await unlink(path.join(root,row.filename));}catch{/* Database deletion already succeeded. */}
   }
   return respond({ok:true,id});
