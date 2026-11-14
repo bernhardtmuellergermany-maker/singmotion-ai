@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
 import Link from "next/link";
-import {Bell,CheckCheck,Mail,MailOpen,Trash2,ArrowLeft,CheckCircle2,AlertCircle,Film,Wallet} from "lucide-react";
+import {Bell,CheckCheck,Mail,MailOpen,Trash2,CheckCircle2,Film,Wallet} from "lucide-react";
 import "./notifications.css";
 type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement";href:string};
 type Inbox={notifications:Notice[];unread:number};
@@ -32,7 +32,6 @@ export default function NotificationCenter(){
  }
  return <main className="sm-notifications-page" id="content">
   <div className="sm-notifications-container">
-   <Link className="sm-notifications-back" href="/credits"><ArrowLeft size={16}/> Back to credits</Link>
    <div className="sm-notifications-heading"><div>
     <span className="sm-notifications-kicker">SINGMOTION AI · ACCOUNT</span>
     <h1>Notifications<span>.</span></h1>
@@ -52,10 +51,9 @@ export default function NotificationCenter(){
        <div className="sm-notice-title">{!item.read&&<span className="sm-notice-dot" aria-label="Unread"/>}<strong>{item.title}</strong></div>
        <p>{item.message}</p>
        <small>{new Date(item.created).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"})}</small>
-       <Link href={item.href}>View details</Link>
       </div>
       <div className="sm-notice-actions">
-       <button disabled={busy} aria-label={item.read?"Mark unread":"Mark read"} title={item.read?"Mark unread":"Mark read"} onClick={()=>void apply(item.read?"unread":"read",item.id)}>{item.read?<Mail size={17}/>:<MailOpen size={17}/>}</button>
+       <button disabled={busy} aria-label={item.read?"Mark unread":"Mark read"} title={item.read?"Mark unread":"Mark read"} onClick={()=>void apply(item.read?"unread":"read",item.id)}>{item.read?<MailOpen size={17}/>:<Mail size={17}/>}</button>
        <button disabled={busy} aria-label="Delete notification" title="Delete" onClick={()=>void apply("delete",item.id)}><Trash2 size={17}/></button>
       </div>
      </li>)}</ul>}
