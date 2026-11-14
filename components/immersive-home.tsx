@@ -10,6 +10,30 @@ import {showcase} from "@/lib/showcase";
  * The public API serves only per-channel, explicitly approved videos. */
 type ShowcaseClip = {title:string;url:string;posterUrl?:string|null};
 
+/** Every page load picks four distinct CMS-published portraits. A prior
+ * visit's set is deprioritized when new approved videos are available. */
+export function randomDesktopPortraits(pool:ShowcaseClip[],previous:string[]=[],random:()=>number=Math.random):ShowcaseClip[]{
+ const unique=[...new Map(pool.filter(c=>c.url).map(c=>[c.url,c])).values()];
+ const shuffle=(items:ShowcaseClip[])=>{
+   const result=[...items];
+   for(let i=result.length-1;i>0;i--){
+    const j=Math.floor(random()*(i+1));[result[i],result[j]]=[result[j],result[i]];
+   }
+   return result;
+ };
+ if(unique.length<=1)return unique;
+ // If 5+ are published, alternate the featured set rather than only its order.
+ const earlier=new Set(previous);
+ const unseen=shuffle(unique.filter(c=>!earlier.has(c.url)));
+ const already=shuffle(unique.filter(c=>earlier.has(c.url)));
+ const result=[...unseen,...already].slice(0,4);
+ // If all four are always shown, force a new order on reload.
+ if(result.length>1&&result.map(c=>c.url).join("|")===previous.join("|")){
+  result.push(result.shift()!);
+ }
+ return result;
+}
+
 /** A five-card filmstrip translates as one carousel, then recycles offscreen cards.
  * Only owner-approved video URLs are playable; upcoming slots stay labeled.
  */
@@ -266,12 +290,18 @@ export function ImmersiveHome(){
       if(!active)return;
       const videos=Array.isArray(data?.videos)?data.videos:[];
       setPortraitReady({});
-      setPortraitClips(videos.flatMap((item:unknown)=>{
+      const publicPortraits=videos.flatMap((item:unknown)=>{
         if(!item||typeof item!=="object")return [];
         const v=item as {title?:unknown;videoUrl?:unknown;posterUrl?:unknown};
         return typeof v.videoUrl==="string"&&(v.videoUrl.startsWith("/")&&!v.videoUrl.startsWith("//")||v.videoUrl.startsWith("https://"))?
           [{title:typeof v.title==="string"?v.title:showcase.title,url:v.videoUrl,posterUrl:typeof v.posterUrl==="string"?v.posterUrl:null}]:[];
-      }));
+      });
+      let previous:string[]=[];
+      try{previous=JSON.parse(localStorage.getItem("sm-last-desktop-portraits")||"[]") as string[];
+        if(!Array.isArray(previous))previous=[];}catch{}
+      const selected=randomDesktopPortraits(publicPortraits,previous);
+      try{localStorage.setItem("sm-last-desktop-portraits",JSON.stringify(selected.map(c=>c.url)));}catch{}
+      setPortraitClips(selected);
     }).catch(()=>{if(active)setPortraitClips([])});
   fetch("/api/showcase?channel=desktop",{cache:"no-store"})
    .then(r=>r.ok?r.json():null)
