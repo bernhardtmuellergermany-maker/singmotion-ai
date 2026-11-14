@@ -1,5 +1,5 @@
 "use client";
-import {useEffect,useState} from "react";
+import {useEffect,useState,type ReactNode} from "react";
 import {CalendarDays,Check,Clock3,Copy,Hash,Pencil,Save,Timer,WandSparkles,X} from "lucide-react";
 import {api} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
@@ -73,7 +73,7 @@ export function CompletedVideoDetails({data,measuredDurationSeconds}:{
   }catch(cause){setError(cause instanceof Error?cause.message:"The project name could not be saved.");}
   finally{setSaving(false)}
  }
- const show=(label:string,value:string|null,icon:React.ReactNode,detail?:string)=>
+ const show=(label:string,value:string|null,icon:ReactNode,detail?:string)=>
   <div className="sm-finished-field">
    <span className="sm-finished-field-icon" aria-hidden="true">{icon}</span>
    <div><span className="sm-finished-label">{label}</span>
