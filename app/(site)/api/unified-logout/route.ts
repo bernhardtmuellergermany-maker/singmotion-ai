@@ -26,7 +26,7 @@ export async function POST(req:NextRequest){
  }
  const media=req.cookies.get("sm_session")?.value;
  if(media&&session(media))revokeMediaSession(media);
- const response=NextResponse.json({signedOut:true},{headers:{"Cache-Control":"no-store","Clear-Site-Data":""}});
+ const response=NextResponse.json({signedOut:true},{headers:{"Cache-Control":"no-store"}});
  response.cookies.delete("sm_customer");
  response.cookies.delete("sm_session");
  response.cookies.delete("payload-token");
