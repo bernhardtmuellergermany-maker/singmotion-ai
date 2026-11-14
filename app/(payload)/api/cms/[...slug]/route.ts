@@ -1,4 +1,7 @@
-import { NextRequest } from "next/server";
+import { NextRequest,NextResponse } from "next/server";
+import {CommerceStore} from "@/lib/commerce/store";
+import {dataDir,session,revokeMediaSession} from "@/lib/db";
+import path from "node:path";
 import config from "@payload-config";
 import {
   REST_GET,
@@ -82,6 +85,24 @@ function protect(
       });
     }
     const response = await handler(request, args);
+    // A verified CMS staff login replaces the customer identity on this
+    // browser. Never let two valid principals coexist in separate tabs.
+    if(slug[0]==="staff"&&slug[1]==="login"&&request.method==="POST"&&response.ok){
+      const incoming=new NextRequest(request.url,{headers:request.headers});
+      const token=incoming.cookies.get("sm_customer")?.value;
+      const media=incoming.cookies.get("sm_session")?.value;
+      if(token){
+        const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+        try{store.logout(token)}finally{store.close()}
+      }
+      if(media&&session(media))revokeMediaSession(media);
+      const exclusive=new NextResponse(response.body,{status:response.status,headers:response.headers});
+      exclusive.cookies.delete("sm_customer");
+      exclusive.cookies.delete("sm_session");
+      exclusive.headers.set("Cache-Control","private, no-store");
+      exclusive.headers.set("X-Content-Type-Options","nosniff");
+      return exclusive;
+    }
     if (slug[0] === "staff" && slug[1] === "login") {
       const code = cmsLoginDiagnostic(response.status);
       if (code) annotateCmsFailure(response, code);
