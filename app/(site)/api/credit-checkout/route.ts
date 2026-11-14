@@ -36,12 +36,18 @@ export async function POST(req:NextRequest){
   limit("credit-test-checkout",12,60000);
   if(Number(req.headers.get("content-length"))>1024)return json({error:"Request too large."},413);
   const raw=await req.text();if(Buffer.byteLength(raw)>1024)return json({error:"Request too large."},413);
-  const body=JSON.parse(raw) as {credits?:unknown;requestKey?:unknown;billingCountry?:unknown;buyerType?:unknown};
+  const body=JSON.parse(raw) as {credits?:unknown;requestKey?:unknown;billingCountry?:unknown;buyerType?:unknown;resumeDraft?:unknown;requiredCredits?:unknown};
   if(typeof body.credits!=="string"||typeof body.requestKey!=="string")
    return json({error:"Enter a valid credit amount."},400);
   const credits=parseCreditTopup(body.credits);
   if(credits===null||!/^[0-9a-f-]{36}$/i.test(body.requestKey))
    return json({error:"Enter 500–100,000 whole credits."},400);
+  // Optional navigation-only context. Never authorizes spending or reads a draft;
+  // Studio reload verifies ownership when the user follows the return link.
+  const resume=typeof body.resumeDraft==="string"&&/^[A-Za-z0-9_-]{1,80}$/.test(body.resumeDraft)&&
+    typeof body.requiredCredits==="number"&&Number.isSafeInteger(body.requiredCredits)&&
+    body.requiredCredits>=1&&body.requiredCredits<=7500
+    ?`&resumeDraft=${encodeURIComponent(body.resumeDraft)}&requiredCredits=${body.requiredCredits}`:"";
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
   const useMoR=liveMode&&managedCreditMoRApproved(process.env);
@@ -89,8 +95,8 @@ export async function POST(req:NextRequest){
       "metadata[creditTaxMode]":tax.decision.mode,
       "metadata[creditTaxRevision]":tax.decision.revision,
     }:{}),
-    success_url:`${origin}/credits?checkout=success`,
-    cancel_url:`${origin}/credits?checkout=cancelled`,
+    success_url:`${origin}/credits?checkout=success${resume}`,
+    cancel_url:`${origin}/credits?checkout=cancelled${resume}`,
    });
    if(liveMode&&tax?.decision){
     const decision=tax.decision;
