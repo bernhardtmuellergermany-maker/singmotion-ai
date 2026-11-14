@@ -26,13 +26,35 @@ const respond = (body: unknown, status = 200) =>
 export async function GET(req: NextRequest) {
   const denied = stagingDenial(req.headers.get("authorization"));
   if (denied) return denied;
-  if (req.nextUrl.searchParams.get("view") === "mine") {
+  if (["mine","hidden"].includes(req.nextUrl.searchParams.get("view")||"")) {
     if (process.env.CUSTOMER_ACCOUNTS_ENABLED !== "true")
       return respond({error:"Customer accounts unavailable."},503);
     const store = new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     try {
       const accountId=store.session(req.cookies.get("sm_customer")?.value || "");
       if (!accountId) return respond({error:"Customer login required."},401);
+      if(req.nextUrl.searchParams.get("view")==="hidden"){
+        // A paid order is only removed from this account's project gallery.
+        // Payment, refund, provider audit, and direct order URL all survive.
+        store.db.exec(`CREATE TABLE IF NOT EXISTS customer_order_display_names (
+          order_id TEXT NOT NULL,account_id TEXT NOT NULL,name TEXT NOT NULL,
+          PRIMARY KEY(order_id,account_id)
+        )`);
+        const items=store.db.prepare(`SELECT h.order_id AS id,
+          COALESCE(n.name,'Music video '||substr(h.order_id,1,8)) AS name,
+          h.hidden_at AS deletedAt
+          FROM customer_hidden_paid_orders h
+          JOIN customer_orders o ON o.id=h.order_id
+          LEFT JOIN customer_order_display_names n
+            ON n.order_id=h.order_id AND n.account_id=h.account_id
+          WHERE h.account_id=? AND
+            (o.account_id=? OR EXISTS(
+              SELECT 1 FROM customer_guest_order_claims gc
+              WHERE gc.order_id=o.id AND gc.account_id=?
+            ))
+          ORDER BY h.hidden_at DESC LIMIT 50`).all(accountId,accountId,accountId);
+        return respond({items});
+      }
       // Read-only status: never expose provider identifiers, input paths, payment
       // evidence or another account's order. This endpoint does not dispatch work.
       const orderId=req.nextUrl.searchParams.get("orderId");
@@ -110,6 +132,51 @@ export async function PATCH(req:NextRequest){
       VALUES (?,?,?) ON CONFLICT(order_id,account_id) DO UPDATE SET name=excluded.name`
     ).run(id,accountId,name);
     return respond({orderId:id,displayName:name});
+  }finally{store.close();}
+}
+
+/** Hide or restore an owned paid order in My Projects.
+ * Not a payment cancellation, media deletion or provider job cancellation.
+ * The existing order endpoint and customer purchases remain accessible.
+ */
+export async function PUT(req:NextRequest){
+  const denied=stagingDenial(req.headers.get("authorization"));
+  if(denied)return denied;
+  if(process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")
+    return respond({error:"Customer accounts unavailable."},503);
+  const origin=applicationOrigin(req.url,req.headers.get("host"));
+  if(!origin||req.headers.get("origin")!==origin)
+    return respond({error:"Request origin is not allowed."},403);
+  if(Number(req.headers.get("content-length")||"0")>1024)
+    return respond({error:"Request too large."},413);
+  const raw=await req.text();
+  if(Buffer.byteLength(raw)>1024)return respond({error:"Request too large."},413);
+  let body:unknown;
+  try{body=JSON.parse(raw)}catch{return respond({error:"Invalid request."},400)}
+  if(!body||typeof body!=="object"||Array.isArray(body))
+    return respond({error:"Invalid request."},400);
+  const {orderId,hidden}=body as {orderId?:unknown;hidden?:unknown};
+  if(typeof orderId!=="string"||
+     !/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/.test(orderId)||
+     typeof hidden!=="boolean")
+    return respond({error:"Invalid project reference or action."},400);
+  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+  try{
+    const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
+    if(!accountId)return respond({error:"Customer login required."},401);
+    limit(accountId+":paid-project-visibility",20,60000);
+    if(!ownedCustomerOrderStatuses(store.db,accountId,customerOrderStatusFilter(orderId,null))
+      .some(o=>o.orderId===orderId))
+      return respond({error:"Project not found."},404);
+    if(hidden){
+      store.db.prepare(`INSERT INTO customer_hidden_paid_orders(account_id,order_id,hidden_at)
+        VALUES(?,?,?) ON CONFLICT(account_id,order_id)
+        DO UPDATE SET hidden_at=excluded.hidden_at`).run(accountId,orderId,Date.now());
+    }else{
+      store.db.prepare("DELETE FROM customer_hidden_paid_orders WHERE account_id=? AND order_id=?")
+        .run(accountId,orderId);
+    }
+    return respond({orderId,hidden});
   }finally{store.close();}
 }
 
