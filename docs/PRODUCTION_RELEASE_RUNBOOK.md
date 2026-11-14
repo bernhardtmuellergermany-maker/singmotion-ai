@@ -3,9 +3,33 @@
 
 ## Current baselines
 - Railway project: `96ab3402-f974-4cdf-b9a3-408443b17025`.
-- Production environment: `36adc41d-7e54-4396-ad1a-fd432ba0441d`; service `2c6bca77-61e6-4ab5-9447-fa23767622aa`; deployment **pinned to a reviewed feature branch SHA**, not `main`. Confirm the exact latest SUCCESS SHA before any cutover.
+- Production environment: `36adc41d-7e54-4396-ad1a-fd432ba0441d`; service `2c6bca77-61e6-4ab5-9447-fa23767622aa`. Since 14 Nov 2026 it follows dedicated `release/production-promoted-20261114`, not `main` and **not** the staging branch. The original production release started at the same reviewed `4451c2e0faa36bbabc01e139142da356942e49ac` as staging. Confirm current LIVE SUCCESS before every further change.
 - Private Staging: `dfaeabed-03df-43ed-aa71-50f343a75041`; 36/36 registered test media, 71,952,319 bytes were verified in R2. This does NOT prove Production migrated.
 - The Production private R2 read-only preflight is verified and R2 credentials are present, but no complete Production migration/restore and owner-scoped upload/download proof has been established. Do not claim paid-customer 2 GiB recovery readiness.
+
+## Staging-first promotion contract (14 Nov 2026)
+
+Railway's source branch is environment-scoped. Previously **both** Staging and Production followed `feature/showcase-unified-auth-20261114`, which made each push trigger two simultaneous deployments. This is unsafe for customer billing. From this release onward:
+
+1. Staging follows `feature/showcase-unified-auth-20261114`. Make changes in a reviewed short-lived PR into that branch. Its Railway deployment must finish with **SUCCESS**, including build-gated tests and a no-charge, authenticated smoke check. Record its **actual deployed** 40-hex commit SHA, not merely the branch head.
+2. Production follows `release/production-promoted-20261114`. Do not push untested changes directly onto that release branch, change its upstream to Staging, or enable automatic merging from Staging. Preserve Production's currently deployed successful commit as rollback evidence before every promotion.
+3. Verify the candidate commit exactly matches the successful Staging deployment and both builders match. Run the offline gate before updating the release ref:
+
+   ```sh
+   node scripts/release-parity.mjs \
+     --staging-sha <successful-staging-deployment-sha> \
+     --candidate-sha <same-reviewed-sha> \
+     --staging-status SUCCESS \
+     --staging-builder RAILPACK --production-builder RAILPACK \
+     --staging-branch feature/showcase-unified-auth-20261114 \
+     --production-branch release/production-promoted-20261114
+   ```
+
+4. Promote **only the same successfully deployed commit** to the dedicated Production release branch with a non-force GitHub fast-forward (or a reviewed exact-SHA deployment). If Staging has moved ahead, do not silently deploy the newer branch head; review and repeat the gate. Railway Production then builds its independent release branch; inspect its final SUCCESS deployment and confirm the exact commit and domain response.
+5. When Production deployment FAILS, keep the previous working instance, do not activate payment/provider switches, and investigate its build/runtime logs. Do not revert or delete persistent databases, volumes, credit ledgers or assets to roll back code.
+6. Production LIVE Credit Checkout, paid worker/provider dispatch and public release remain **disabled** until verified financial and fulfillment approvals independently pass. Staging parity is necessary but never sufficient for actual money.
+
+The promotion command above is a **read-only check**, not a deployment. Verify env variables and operational proofs separately. A source branch change alone must not be interpreted as permission to charge customers.
 
 ## Phase A — external prerequisites, no payment/provider charges
 1. Create a **dedicated private Cloudflare R2 Production bucket** with no anonymous access, in the operator's own Cloudflare account.
