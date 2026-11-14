@@ -95,3 +95,45 @@ test("Stripe success only resumes Step 4 after the actual wallet meets the quote
  assert.match(credits,/Continue project · Step 4/);
  assert.doesNotMatch(credits,/window\.location\.replace\("\/studio\?draft="/);
 });
+
+
+test("signed-in customer without enough Credits can purchase from Step 4, never via disabled Generate",()=>{
+ const wizard=read("components/studio-wizard.tsx");
+ const start=wizard.indexOf("async function continueToCreditPurchase()");
+ const end=wizard.indexOf("async function startCreditGeneration()",start);
+ assert.ok(start>0&&end>start);
+ const action=wizard.slice(start,end);
+ assert.match(action,/!reviewShortage\|\|operatorStudio/);
+ assert.match(action,/await saveQueue\.current/);
+ assert.match(action,/await api\("studio-drafts"/);
+ assert.match(action,/id:projectKey,selection,artistName:draft\.artistName/);
+ assert.match(action,/projectName,step:3/);
+ assert.match(action,/sessionStorage\.setItem\("sm-credit-checkout-resume"/);
+ assert.match(action,/draftId:projectKey,requiredCredits:creditQuote\.credits/);
+ assert.match(action,/window\.location\.assign\("\/credits\?resumeDraft="/);
+ assert.match(wizard,/reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
+ assert.match(wizard,/reviewShortage&&!operatorStudio\?"Buy Credits to generate":"Generate Video"/);
+ assert.match(wizard,/\(reviewShortage&&operatorStudio\)/);
+ // No Stripe or paid provider action may happen before explicitly
+ // choosing checkout on the separate verified, signed-in Credits page.
+ assert.doesNotMatch(action,/\/api\/credit-checkout|action:"submit"|stripe\.com/);
+});
+
+test("guest sign-in and Stripe wallet settlement preserve same Step 4 without automatic generation",()=>{
+ const wizard=read("components/studio-wizard.tsx");
+ const gate=read("components/studio-account-gate.tsx");
+ const resume=read("components/studio-account-resume.tsx");
+ const credits=read("components/credits-dashboard.tsx");
+ assert.match(wizard,/!creditStudio\?"Login to generate video"/);
+ assert.match(gate,/Create your free account/);
+ assert.match(gate,/Continue with Google/);
+ assert.match(gate,/Email address/);
+ assert.match(gate,/Account creation is <strong>free<\/strong>/);
+ assert.match(resume,/identity\.kind!=="customer"/);
+ assert.match(resume,/quote\.credits!==wanted\.requiredCredits/);
+ assert.match(resume,/window\.location\.assign\("\/credits\?resumeDraft="/);
+ assert.match(credits,/checkoutResult==="success"&&resumeCandidate&&/);
+ assert.match(credits,/data\.availableCredits>=resumeCandidate\.requiredCredits/);
+ assert.match(credits,/window\.location\.assign\("\/studio\?draft="/);
+ assert.doesNotMatch(credits,/api\/studio-live.*submit/);
+});

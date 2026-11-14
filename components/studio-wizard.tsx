@@ -654,6 +654,34 @@ export function StudioWizard({
       setError("Your Step 4 project could not be saved. Retry before signing in; no payment or video generation started.");
     }finally{setBusy(false);}
   }
+  // A signed-in customer with too few Credits must not encounter a disabled
+  // Generate button. Save Step 4 (including the exact owner-bound audio/photo
+  // selection) before opening the purchase screen; Stripe itself is gated.
+  async function continueToCreditPurchase(){
+    if(busy||generating||!selection||!projectKey||!creditQuote||!available||
+       !reviewRights||!reviewShortage||operatorStudio)return;
+    setBusy(true);setError("");
+    try{
+      await saveQueue.current;
+      await api("studio-drafts",{
+        method:"POST",
+        body:JSON.stringify({
+          id:projectKey,selection,artistName:draft.artistName,
+          projectName,step:3,
+        }),
+      });
+      setSaved(true);
+      sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
+        draftId:projectKey,requiredCredits:creditQuote.credits,created:Date.now()
+      }));
+      window.location.assign("/credits?resumeDraft="+encodeURIComponent(projectKey)+
+        "&requiredCredits="+creditQuote.credits+"#buy-credits");
+    }catch(cause){
+      setError(cause instanceof Error?cause.message:
+        "Your Step 4 project could not be saved. No payment was started.");
+      setBusy(false);
+    }
+  }
   async function startCreditGeneration(){
     if(busy||generating||!selection||!available||!reviewRights||!creditQuote||
        reviewShortage||!projectKey||generationProjectId)return;
@@ -1013,7 +1041,7 @@ export function StudioWizard({
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||reviewShortage||busy||generating||!!generationProjectId} onClick={()=>creditStudio?void startCreditGeneration():void openGuestAccount()}>{generating?"Checking Credits and starting video…":busy?"Saving your project…":creditStudio?"Generate Video":"Login to generate video"} <ArrowRight size={19}/></button>}
+          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||(reviewShortage&&operatorStudio)||busy||generating||!!generationProjectId} onClick={()=>!creditStudio?void openGuestAccount():reviewShortage?void continueToCreditPurchase():void startCreditGeneration()}>{generating?"Checking Credits and starting video…":busy?"Saving your project…":!creditStudio?"Login to generate video":reviewShortage&&!operatorStudio?"Buy Credits to generate":"Generate Video"} <ArrowRight size={19}/></button>}
         </nav>
         {step===3&&generating&&<p className="sm-review-payment-note" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
         {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/projects/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
