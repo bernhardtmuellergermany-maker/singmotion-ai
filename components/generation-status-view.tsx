@@ -1,5 +1,6 @@
 "use client";
 import {useEffect,useState} from "react";
+import {CompletedVideoDetails,type CompletedVideoMetadata} from "./completed-video-details";
 
 const GENERATION_WAIT_MESSAGES = [
   "Your song is the creative foundation of this performance.",
@@ -22,9 +23,10 @@ import {generationFeedback,providerFeedback,requestErrorFeedback,type CustomerNo
 
 export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,creditTopupHref="/credits#buy-credits",paymentStatus,statusNotice,
+  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,creditTopupHref="/credits#buy-credits",paymentStatus,statusNotice,projectDetails,
 }:{
   progress:GenerationProgress;
+  projectDetails?:CompletedVideoMetadata|null;
   paymentMode:"stripe"|"super-admin"|"credits";
   paymentStatus?:string|null;
   /** Only supplied from the verified owner-scoped paid order read. */
@@ -46,7 +48,9 @@ export function GenerationStatusView({
   reuseBlank?:boolean;
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
+  const [measuredVideoSeconds,setMeasuredVideoSeconds]=useState<number|null>(null);
   const [waitMessageIndex,setWaitMessageIndex]=useState(0);
+  useEffect(()=>{setMeasuredVideoSeconds(null)},[videoUrl]);
   useEffect(()=>{
     if(progress!=="processing")return;
     const interval=window.setInterval(()=>{
@@ -116,7 +120,12 @@ export function GenerationStatusView({
     <div className="sm-gen-grid">
       <div className="sm-gen-media-column">
         <div className={"sm-gen-preview "+(format==="9:16"||(format===undefined&&imagePortrait)?"is-portrait":"is-landscape")}>
-          {ready?<video src={videoUrl!} controls playsInline preload="metadata" aria-label="Your finished SingMotion video"/>:
+          {ready?<video src={videoUrl!} controls playsInline preload="metadata"
+            onLoadedMetadata={event=>{
+              const duration=event.currentTarget.duration;
+              if(Number.isFinite(duration)&&duration>0)setMeasuredVideoSeconds(duration);
+            }}
+            aria-label="Your finished SingMotion video"/>:
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
@@ -130,6 +139,11 @@ export function GenerationStatusView({
       <div className="sm-gen-status-column">
         {note&&!failed&&!review&&!/network|failed to fetch|connection interrupted|timed out/i.test(note)&&<p className="sm-gen-status-message" role="status">{note}</p>}
         {progress==="credits-needed"&&<div className="sm-gen-credit-help" role="alert"><strong>Credits required to generate this video</strong><p>{creditCharge?`${new Intl.NumberFormat("en-GB").format(creditCharge.credits)} Credits needed. `:""}{typeof availableCredits==="number"?`${new Intl.NumberFormat("en-GB").format(availableCredits)} Credits available. `:""}Your project and uploaded files are saved. Return to Studio after adding sufficient Credits.</p><a className="sm-gen-reuse" href={creditTopupHref}><Wallet size={17}/> Buy Credits and return to Step 4</a></div>}
+        {ready?(projectDetails?
+          <CompletedVideoDetails data={projectDetails} measuredDurationSeconds={measuredVideoSeconds}/>:
+          <section className="sm-finished" aria-label="Completed video details">
+           <h2>Video details</h2><p className="sm-finished-subtitle">Your private MP4 is ready. The source project did not include additional metadata.</p>
+          </section>):<>
         <h2>Generation progress</h2>
         <ol className="sm-gen-timeline">
           {stages.map((stage,index)=><li className={"sm-gen-milestone is-"+stage.state} key={stage.title}>
@@ -142,6 +156,7 @@ export function GenerationStatusView({
           <Clock3 size={19}/><p><strong>{paymentRefunded?"Refund recorded":paymentDisputed?"Payment dispute in progress":ready?"Your video is complete":releasedFailure?"Your Credits are available again":progress==="credits-needed"?"Generation has not started":progress==="prepared"?"Awaiting generation confirmation":review||failed?"Existing task is being checked":"This may take several minutes."}</strong>
           <span>{paymentRefunded?"No additional payment or generation will be started.":paymentDisputed?"Wait for the payment review on this order before attempting a new purchase.":ready?"Download your video below.":releasedFailure?"Use Edit photo or audio to create a fresh draft without reusing the rejected provider request.":progress==="credits-needed"?"The project is saved. No video generation or credit charge has started.":progress==="prepared"?"This prepared project has not been submitted. Return to Studio to review it.":review||failed?"This project is saved. Its payment and provider evidence are being checked without starting another task.":"You can leave this page. Your order remains saved and you can return to check progress."}</span></p>
         </div>
+        </>}
         {(progress==="prepared"||progress==="credits-needed")&&editHref&&
           <a className="sm-gen-reuse" href={editHref}><RotateCcw size={16}/> Return to Studio · Step 4</a>}
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
