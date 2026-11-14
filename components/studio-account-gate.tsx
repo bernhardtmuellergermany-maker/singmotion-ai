@@ -46,10 +46,12 @@ export function StudioAccountGate({draftId,requiredCredits,onClose}:{
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({action:mode,email,password}),
    });
-   const v=await r.json() as {error?:string;authenticated?:boolean;kind?:string};
+   const v=await r.json() as {error?:string;authenticated?:boolean;emailVerification?:string;verificationEmailSent?:boolean};
    if(!r.ok||v.authenticated!==true)throw Error(v.error||"Account sign-in failed.");
    // The authenticated session is established by the server. Its verified
    // ownership import and credit check happen on the return route, not here.
+   // The continuation page transfers the media first and then directs
+   // pending email accounts to the verification screen, not Stripe.
    window.location.assign(returnTo);
   }catch(cause){setError(cause instanceof Error?cause.message:"Sign-in unavailable.");setBusy(false);}
  }
@@ -59,7 +61,7 @@ export function StudioAccountGate({draftId,requiredCredits,onClose}:{
   style={{maxWidth:490,width:"calc(100vw - 28px)",maxHeight:"90dvh",overflowY:"auto"}}>
   <h2 id="sm-guest-account-title">{mode==="register"?"Create your free account":"Sign in to generate"}</h2>
   <p className="sm-confirm-notice">Account creation is <strong>free</strong>. You only buy Credits when you choose to generate a video. Your audio, photo, performance and Step 4 selection will be kept.</p>
-  <p className="sm-confirm-notice">This video needs <strong>{requiredCredits.toLocaleString("en-GB")} Credits</strong>. After signing in, review your wallet and purchase Credits securely through Stripe when checkout is available. You will return to Step 4 before any video is generated.</p>
+  <p className="sm-confirm-notice">This video needs <strong>{requiredCredits.toLocaleString("en-GB")} Credits</strong>. After signing in, review your wallet and purchase Credits securely through Stripe when checkout is available. Email accounts must verify their address before purchasing Credits; Google sign-in uses Google’s verified email. You will return to Step 4 before any video is generated.</p>
   <div style={{display:"flex",gap:8,marginBottom:14}}>
    <button type="button" className="product-secondary" aria-pressed={mode==="register"}
     disabled={busy} onClick={()=>{setMode("register");setError("");}}>Create account</button>
