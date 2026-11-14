@@ -238,7 +238,7 @@ export function ImmersiveHome(){
   return()=>document.removeEventListener("visibilitychange",start);
  },[visiblePortraits,portraitClips,audiblePortrait]);
  const [currentClip,setCurrentClip]=useState(0);
- const [muted,setMuted]=useState(true);
+ const [muted,setMuted]=useState(false); // Prefer audible playback when the browser grants it; fall back to muted autoplay.
  const unlockSoundAfterGesture=useRef(false);
  const [failed,setFailed]=useState<Record<number,boolean>>({});
  const [loaded,setLoaded]=useState<Record<number,boolean>>({});
@@ -415,16 +415,7 @@ export function ImmersiveHome(){
    refreshGesture.current=false;
    const atTop=(feed.current?.scrollTop??0)<=48;
    touchStart.current={x:t.clientX,y:t.clientY,atTop};
-   if(unlockSoundAfterGesture.current){
-    unlockSoundAfterGesture.current=false;
-    const activeVideo=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);
-    if(activeVideo){
-     activeVideo.muted=false;
-     void activeVideo.play().then(()=>setMuted(false)).catch(()=>{
-      activeVideo.muted=true;setMuted(true);
-     });
-    }
-   }
+
   }
  };
  // A short, easy pull (independent of swipe speed or screen height).
@@ -523,7 +514,13 @@ export function ImmersiveHome(){
     <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
        <div className="sm-mobile-reel-loading" aria-hidden="true"/>
-       {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;if(video.paused)void video.play().catch(()=>{});else video.pause();}} aria-label={item.title}/>}
+       {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;
+        unlockSoundAfterGesture.current=false;
+        const next=!video.muted;
+        video.muted=next;setMuted(next);
+        // Taps toggle sound only; pausing is reserved for offscreen/hidden reels.
+        if(video.paused)void video.play().catch(()=>{if(!video.muted){video.muted=true;setMuted(true);void video.play().catch(()=>{});}});
+       }} aria-label={item.title+": Tippen, um Ton ein- oder auszuschalten"}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
      </section>)}
     </div>
@@ -535,7 +532,6 @@ export function ImmersiveHome(){
      <p>Make your music come alive with SingMotion AI.</p>
      <Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>
     </div>
-    {clip&&!failed[currentClip]&&<button className="sm-mobile-reel-mute" type="button" aria-label={muted?"Ton einschalten":"Ton ausschalten"} onClick={()=>{unlockSoundAfterGesture.current=false;const next=!muted;setMuted(next);const v=feed.current?.querySelector<HTMLVideoElement>(`video[data-feed-index="${currentClip}"]`);if(v){v.muted=next;if(v.paused)void v.play().catch(()=>{});}}}>{muted?<VolumeX size={17}/>:<Volume2 size={17}/>}</button>}
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}
     <a href="#showcase" onClick={scrollToShowcase} className="sm-immersive-scroll-cue" aria-label="Sanft zum 16:9-Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>
    </main>
