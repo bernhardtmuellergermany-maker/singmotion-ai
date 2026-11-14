@@ -3,8 +3,8 @@
 import {useCallback,useEffect,useRef,useState} from "react";
 
 type Channel="mobile"|"desktop"|"desktop_portrait";
-type Project={id:string;name:string;selected:boolean;posterUrl?:string|null};
-type Listing={randomOrder?:boolean;projects:Project[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number;totalStudioRecords?:number;verifiedSuperAdmin?:number;incompleteSuperAdmin?:number;missingOutputRecord?:number;unverifiedLegacy?:number;uploadedVideos?:number}};
+type Project={id:string;name:string;selected:boolean;posterUrl?:string|null;source:"generated"|"upload"};
+type Listing={randomOrder?:boolean;projects:Project[];hiddenVideos?:{id:string;name:string}[];published:{id:string;title:string;position:number}[];inventory:{completedSuperAdmin:number;published:number;totalStudioRecords?:number;verifiedSuperAdmin?:number;incompleteSuperAdmin?:number;missingOutputRecord?:number;unverifiedLegacy?:number;uploadedVideos?:number}};
 const channels:{id:Channel;label:string;hint:string}[]=[
  {id:"mobile",label:"Mobile · Inspiration Feed (9:16)",hint:"Unlimited SingMotion-approved ideas for vertical swipe browsing"},
  {id:"desktop",label:"Desktop · Top carousel (16:9)",hint:"Featured landscape performances below the fullscreen hero"},
@@ -14,6 +14,8 @@ const channels:{id:Channel;label:string;hint:string}[]=[
 export function ShowcaseManager(){
  const [channel,setChannel]=useState<Channel>("mobile");
  const [available,setAvailable]=useState<Project[]>([]);
+ const [hiddenVideos,setHiddenVideos]=useState<{id:string;name:string}[]>([]);
+ const [cleaningId,setCleaningId]=useState<string|null>(null);
  const [ordered,setOrdered]=useState<string[]>([]);
  const [saved,setSaved]=useState<string[]>([]);
  const [randomOrder,setRandomOrder]=useState(false);
@@ -89,6 +91,7 @@ export function ShowcaseManager(){
    const data=await res.json() as Listing&{error?:string};
    if(!res.ok)throw Error(data.error||"Could not load Super Admin videos");
    setAvailable(data.projects||[]);
+   setHiddenVideos(data.hiddenVideos||[]);
    setInventory(data.inventory||null);
    const ids=(data.published||[]).map(item=>item.id);
    setOrdered(ids);setSaved(ids);
@@ -98,6 +101,40 @@ export function ShowcaseManager(){
   finally{setLoading(false)}
  },[channel]);
  useEffect(()=>{void load()},[load]);
+ async function manageVideo(item:{id:string;name:string;source?:"generated"|"upload"},restore=false){
+  if(cleaningId!==null||saving)return;
+  const upload=item.source==="upload";
+  const message=upload
+   ?"Upload '"+item.name+"' endgültig aus der Showcase-Mediathek löschen? Veröffentlichungen in ALLEN Bereichen und das Vorschaubild werden entfernt. Dies betrifft keine Kundenprojekte."
+   :restore
+    ?"Generiertes Video '"+item.name+"' wieder in der CMS-Auswahl anzeigen? Es wird NICHT automatisch veröffentlicht."
+    :"Generiertes Video '"+item.name+"' aus der CMS-Auswahl und ALLEN öffentlichen Bereichen ausblenden? Die Originaldatei und Generierungsnachweise bleiben erhalten.";
+  if(!window.confirm(message))return;
+  setCleaningId(item.id);setMessage("");
+  try{
+   const response=upload?await fetch("/api/showcase-media?kind=video&id="+encodeURIComponent(item.id),{
+    method:"DELETE",credentials:"same-origin"
+   }):await fetch("/api/showcase?channel="+channel,{
+    method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:restore?"restore-generated":"hide-generated",id:item.id})
+   });
+   const data=await response.json() as {ok?:boolean;error?:string};
+   if(!response.ok||data.ok!==true)throw Error(data.error||"Video konnte nicht verwaltet werden.");
+   await load();
+   setMessage(upload?"Showcase-Upload endgültig gelöscht.":restore?
+    "Video wieder zur Auswahl hinzugefügt (noch nicht veröffentlicht).":
+    "Generiertes Video aus allen Bereichen ausgeblendet. Original bleibt sicher gespeichert.");
+  }catch(e){setMessage(e instanceof Error?e.message:"Verwaltung fehlgeschlagen");}
+  finally{setCleaningId(null)}
+ }
+ const manageActions=(item:Project)=>(
+  <button type="button" disabled={cleaningId!==null||saving||uploading}
+   title={item.source==="upload"?"Eigenen Showcase-Upload endgültig löschen":"Generiertes Original behalten, aus der CMS-Auswahl ausblenden"}
+   onClick={()=>void manageVideo(item)}
+   style={{border:"1px solid #78507f",borderRadius:8,padding:"7px 10px",color:item.source==="upload"?"#ffb8c5":"#eac3ff",background:"#28172f"}}>
+   {cleaningId===item.id?"Bitte warten…":item.source==="upload"?"Upload löschen":"Ausblenden"}
+  </button>
+ );
  const add=(id:string)=>setOrdered(current=>current.includes(id)?current:[...current,id]);
  const remove=(id:string)=>setOrdered(current=>current.filter(x=>x!==id));
  const shift=(i:number,delta:number)=>setOrdered(current=>{
@@ -165,6 +202,7 @@ export function ShowcaseManager(){
     {ordered.map((id,i)=><li key={id} style={{padding:"8px 0",borderBottom:"1px solid #ffffff22"}}>
      <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap",marginBottom:6}}>
        <span>{name(id)}</span>
+       {available.find(x=>x.id===id)&&manageActions(available.find(x=>x.id===id)!)}
        {available.find(x=>x.id===id)?.posterUrl&&<img src={available.find(x=>x.id===id)!.posterUrl!+"&v="+backgroundRevision} alt={"Vorschaubild für "+name(id)} style={{height:72,width:42,objectFit:"contain",background:"#0d0b18",borderRadius:5}}/>}
        {available.find(x=>x.id===id)?.posterUrl&&<button type="button" disabled={posterSaving!==null||uploading} onClick={()=>void deletePoster(id)} aria-label={"Vorschaubild löschen für "+name(id)}>Vorschaubild löschen</button>}
        <label style={{fontSize:12,display:"grid",gap:3,color:"#e8d5f8"}}>Vorschaubild {posterSaving===id?"wird gespeichert…":""}
@@ -184,7 +222,8 @@ export function ShowcaseManager(){
     <p style={{margin:"4px 0"}}>Noch nicht fertig / ohne Ausgabe: {inventory.incompleteSuperAdmin??"–"} · Fehlende alte Ausgabe-Einträge: {inventory.missingOutputRecord??"–"} · Ohne überprüfbaren Super-Admin-Nachweis: {inventory.unverifiedLegacy??"–"}</p>
     <p style={{margin:"6px 0 0",opacity:.8}}>Die Auswahl ist nicht auf drei Videos begrenzt. Fehlende alte Produktionen können in einer anderen Umgebung liegen oder noch nicht als sichere Veröffentlichungsquelle erfasst sein. Sie werden nicht automatisch öffentlich gemacht.</p>
    </div>}
-   <h3 style={{fontSize:16,margin:"22px 0 8px"}}>Verfügbare Super-Admin-Videos und Uploads ({available.length})</h3>
+   <h3 style={{fontSize:16,margin:"22px 0 8px"}}>Mediathek · verfügbare Videos ({available.length})</h3>
+   <p style={{fontSize:12,opacity:.8}}>Nur freigegebene Super-Admin-Generierungen und eigene Showcase-Uploads. Generierte Videos ausblenden oder hochgeladene Testvideos endgültig löschen. Die Auswahl oben bleibt unabhängig davon erhalten.</p>
    <div style={{maxHeight:340,overflowY:"auto",display:"grid",gap:6}}>
     {available.filter(x=>!ordered.includes(x.id)).map(x=><div key={x.id} style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",border:"1px solid #68417d",borderRadius:8,padding:8}}>
       <button type="button" onClick={()=>add(x.id)} style={{textAlign:"left",padding:"10px 12px",borderRadius:8,background:"#2a1739",color:"#fff",border:0,flex:"1 1 170px"}}>+ {x.name}</button>
@@ -193,9 +232,20 @@ export function ShowcaseManager(){
       <label style={{fontSize:12,color:"#dfc2f5"}}>Poster wählen
        <input type="file" aria-label={"Vorschaubild hochladen für "+x.name} accept="image/jpeg,image/png,image/webp" disabled={posterSaving!==null||uploading} onChange={e=>{void uploadPoster(x.id,e.target.files?.[0]||null);e.currentTarget.value=""}}/>
       </label>
+      {manageActions(x)}
     </div>)}
     {available.length===0&&<p style={{fontSize:13}}>No completed Super Admin videos available in this environment.</p>}
    </div>
+   {hiddenVideos.length>0&&<details style={{border:"1px solid #604074",borderRadius:10,padding:12,marginTop:16}}>
+    <summary style={{cursor:"pointer",fontWeight:700}}>Ausgeblendete generierte Videos ({hiddenVideos.length})</summary>
+    <p style={{fontSize:12}}>Diese Videos sind nicht öffentlich und nicht in der aktiven Auswahl. Die privaten Originaldateien bleiben erhalten.</p>
+    <div style={{display:"grid",gap:8,maxHeight:240,overflowY:"auto"}}>
+     {hiddenVideos.map(item=><div key={item.id} style={{display:"flex",alignItems:"center",gap:10,justifyContent:"space-between"}}>
+      <span>{item.name}</span>
+      <button type="button" disabled={cleaningId!==null||saving} onClick={()=>void manageVideo(item,true)}>Wieder anzeigen</button>
+     </div>)}
+    </div>
+   </details>}
    <button type="button" disabled={saving||!dirty} onClick={()=>void save()} style={{marginTop:18,padding:"12px 20px",borderRadius:10,background:"#ad35d9",color:"#fff",border:0,fontWeight:700}}>{saving?"Saving…":"Publish selection & order"}</button>
   </>}
   {message&&<p role="status" style={{marginTop:12,fontSize:13}}>{message}</p>}
