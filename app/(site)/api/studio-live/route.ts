@@ -8,6 +8,8 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
+import {customerCreditStudioBetaEnabled} from "@/lib/commerce/customer-credit-studio-beta";
+import {applicationOrigin} from "@/lib/request-origin";
 import { NextRequest } from "next/server";
 import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
@@ -57,42 +59,47 @@ async function handler(req: NextRequest) {
         blockers: ["Studio paid pilot is disabled."],
       });
     }
-    const payload = await getPayload({ config: payloadConfig });
-    const { user } = await payload.auth({ headers: req.headers });
-    let verifiedOwner: string;
-    try {
-      verifiedOwner = studioStaff(user, req.method, req.headers, process.env);
-    } catch (e) {
-      if (
-        req.method === "GET" &&
-        !req.nextUrl.searchParams.has("id") &&
-        e instanceof StudioLiveError &&
-        e.code === "STAFF_AUTH_REQUIRED"
-      )
-        return json({
-          available: false,
-          projects: [],
-          blockers: ["Paid Studio requires an approved operator account."],
-        });
-      throw e;
+    const mediaAuth=session(req.cookies.get("sm_session")?.value);
+    if(!mediaAuth)throw new StudioLiveError("SESSION_REQUIRED","Open Studio to establish your private media session.",401);
+    const owner=mediaAuth.owner;
+    const isCustomerMedia=/^customer-[a-f0-9-]{36}$/.test(owner);
+    const customerBeta=isCustomerMedia&&customerCreditStudioBetaEnabled(process.env);
+    let payload:Awaited<ReturnType<typeof getPayload>>|null=null;
+    let user:unknown=null;
+    let actor:string;
+    let isSuperAdmin=false;
+    if(isCustomerMedia){
+      if(!customerBeta)
+        throw new StudioLiveError("CUSTOMER_BETA_DISABLED","Customer Credit Studio beta is not enabled for this environment.",503);
+      const origin=applicationOrigin(req.url,req.headers.get("host"));
+      if(req.method!=="GET"&&(!origin||req.headers.get("origin")!==origin))
+        throw new StudioLiveError("INVALID_ORIGIN","Request origin is not allowed.",403);
+      const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+      try{
+        const customerId=commerce.session(req.cookies.get("sm_customer")?.value||"");
+        if(!customerId||owner!=="customer-"+customerId||!commerce.emailVerified(customerId))
+          throw new StudioLiveError("CUSTOMER_AUTH_REQUIRED","Sign in with your verified customer account.",403);
+        actor=customerId;
+      }finally{commerce.close();}
+    }else{
+      payload=await getPayload({config:payloadConfig});
+      const response=await payload.auth({headers:req.headers});
+      user=response.user;
+      let verifiedOwner:string;
+      try{verifiedOwner=studioStaff(user,req.method,req.headers,process.env);}
+      catch(e){
+        if(req.method==="GET"&&!req.nextUrl.searchParams.has("id")&&
+           e instanceof StudioLiveError&&e.code==="STAFF_AUTH_REQUIRED")
+          return json({available:false,projects:[],blockers:["Paid Studio requires an approved operator account."]});
+        throw e;
+      }
+      if(verifiedOwner!==owner)throw new StudioLiveError("OPERATOR_SESSION_MISMATCH",
+        "Your private workspace does not match the signed-in Studio operator. Reopen Studio to refresh the operator session.",403);
+      isSuperAdmin=hasRole(user,["super-admin"]);
+      actor=String((user as {id?:unknown}).id);
     }
-    const auth = session(req.cookies.get("sm_session")?.value);
-    if (!auth)
-      throw new StudioLiveError(
-        "SESSION_REQUIRED",
-        "Open Studio to establish your private media session.",
-        401,
-      );
-    const owner = auth.owner;
-    if (owner !== verifiedOwner)
-      throw new StudioLiveError(
-        "OPERATOR_SESSION_MISMATCH",
-        "Your private workspace does not match the signed-in Studio operator. Reopen Studio to refresh the operator session.",
-        403,
-      );
-    limit(`${owner}:studio-live`, req.method === "POST" ? 30 : 180, 60000);
-    const isSuperAdmin = hasRole(user, ["super-admin"]);
-    runtime = studioRuntime(await openStudioStore(dataDir), dataDir, process.env, isSuperAdmin);
+    limit(`${owner}:studio-live`,req.method==="POST"?30:180,60000);
+    runtime=studioRuntime(await openStudioStore(dataDir),dataDir,process.env,isSuperAdmin,customerBeta);
     const service = runtime.service;
     if (req.method === "GET") {
       const id = req.nextUrl.searchParams.get("id");
@@ -172,7 +179,7 @@ async function handler(req: NextRequest) {
       const blockers: string[] = [];
       try {
         studioGate(studioConfig());
-        await loadRuntimeStudioPolicy(dataDir, process.env, isSuperAdmin);
+        await loadRuntimeStudioPolicy(dataDir, process.env, isSuperAdmin, customerBeta);
         await studioReadiness(dataDir);
       } catch (e) {
         blockers.push(
@@ -185,6 +192,7 @@ async function handler(req: NextRequest) {
       return json({
         budget,
         superAdmin: isSuperAdmin,
+        customerBeta,
         pilot: true,
         available: blockers.length === 0,
         projects: service.list(owner),
@@ -213,6 +221,8 @@ async function handler(req: NextRequest) {
       await reader.cancel();
     }
     const body = JSON.parse(Buffer.concat(chunks).toString());
+    if(customerBeta && !["prepare","submit","poll","rights-status","rename","delete","restore","hide"].includes(body.action))
+      throw new StudioLiveError("CUSTOMER_ACTION_DENIED","This operation is not available to customer accounts.",403);
     if (
       [
         "budget-review",
@@ -231,7 +241,7 @@ async function handler(req: NextRequest) {
       return json(
         await offerStudioBudget(
           service.store.db,
-          String(user!.id),
+          actor,
           owner,
           service.config.maxTotalMicroUsd,
         ),
@@ -240,7 +250,7 @@ async function handler(req: NextRequest) {
       return json(
         authorizeStudioBudget(
           service.store.db,
-          String(user!.id),
+          actor,
           owner,
           service.config.maxTotalMicroUsd,
           body.offerId,
@@ -255,7 +265,7 @@ async function handler(req: NextRequest) {
           service.store,
           parseStudioDraft(body.selection),
           owner,
-          String(user!.id),
+          actor,
           body.evidence,
           body.confirmation,
         ),
@@ -273,7 +283,7 @@ async function handler(req: NextRequest) {
       return json({
         confirmed: hasRights(
           service.store.db,
-          String(user!.id),
+          actor,
           owner,
           content,
         ),
@@ -293,7 +303,7 @@ async function handler(req: NextRequest) {
       );
       recordRights(
         service.store.db,
-        String(user!.id),
+        actor,
         project.id,
         termsVersion(),
         {
@@ -306,7 +316,7 @@ async function handler(req: NextRequest) {
       return json(project);
     }
     if (body.action === "fresh-test")
-      return json(await service.freshTest(owner, String(user!.id)));
+      return json(await service.freshTest(owner, actor));
     if (typeof body.id !== "string")
       throw new StudioLiveError(
         "PROJECT_REQUIRED",
@@ -318,22 +328,23 @@ async function handler(req: NextRequest) {
       // The same wallet shown on /credits MUST be the wallet used for billing.
       // An overlapping customer session takes precedence over CMS staff identity
       // in the account menu; refuse to charge a different, hidden wallet.
-      if(!isSuperAdmin)
-        throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","A verified Super Admin wallet is required for private paid generation.",403);
+      if(!isSuperAdmin&&!customerBeta)
+        throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","A verified account wallet is required for paid generation.",403);
       const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
       let creditSubject:string|null=null;
       try{
         const identity=await resolveCreditWalletIdentity(req,commerce);
         creditSubject=identity?.subject??null;
       }finally{commerce.close();}
-      if(creditSubject!=="super-admin:"+String(user!.id))
+      const expectedSubject=customerBeta?"customer:"+actor:"super-admin:"+actor;
+      if(creditSubject!==expectedSubject)
         throw new StudioLiveError("CREDIT_ACCOUNT_MISMATCH",
-         "Sign out of any customer account before using your Super Admin Credits. The account on /credits must match this Studio session.",403);
+         "The account on /credits must match this authenticated Studio session.",403);
       requireRights(body.consent, body.termsVersion);
       const project = service.view(body.id, owner);
       recordRights(
         service.store.db,
-        String(user!.id),
+        actor,
         body.id,
         termsVersion(),
         {
@@ -343,11 +354,11 @@ async function handler(req: NextRequest) {
             .digest("hex"),
         },
       );
-      await payload.create({
+      if(!customerBeta&&payload)await payload.create({
         collection: "audit-events",
         overrideAccess: true,
         data: {
-          actor: String(user!.id),
+          actor: actor,
           action: "studio:explicit-paid-confirmation",
           resource: "private-studio-project",
           record: body.id,
@@ -368,33 +379,33 @@ async function handler(req: NextRequest) {
       service.acknowledgeOperatorRisk(
         body.id,
         owner,
-        String(user!.id),
+        actor,
         body.confirmation,
       );
-      return json(await service.freshTest(owner, String(user!.id)));
+      return json(await service.freshTest(owner, actor));
     }
     if (body.action === "acknowledge-private-risk")
       return json(
         service.acknowledgePrivateRisk(
           body.id,
           owner,
-          String(user!.id),
+          actor,
           body.confirmation,
         ),
       );
     if (body.action === "rename")
-      return json(service.renameProject(body.id,owner,String(user!.id),body.name));
+      return json(service.renameProject(body.id,owner,actor,body.name));
     if (body.action === "delete")
       return json(await service.deleteProject(body.id, owner, body.confirmation));
     if (body.action === "restore")
-      return json(service.restoreProject(body.id, owner, String(user!.id), body.confirmation));
+      return json(service.restoreProject(body.id, owner, actor, body.confirmation));
     if (body.action === "hide")
       return json(
-        service.hide(body.id, owner, String(user!.id), body.confirmation),
+        service.hide(body.id, owner, actor, body.confirmation),
       );
     if (body.action === "reconcile")
       return json(
-        service.reconcile(body.id, owner, String(user!.id), body.evidence),
+        service.reconcile(body.id, owner, actor, body.evidence),
       );
     if (body.action === "poll") return json(await service.poll(body.id, owner));
     throw new StudioLiveError("ACTION_INVALID", "Unsupported Studio action.");
