@@ -30,6 +30,18 @@ export async function GET(req:NextRequest){
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
+  // A legacy browser may still carry both cookies. Staff identity wins until
+  // the next unified sign-out; newer logins revoke the opposite principal.
+  if(id&&req.cookies.has("payload-token")&&process.env.CMS_ENABLED==="true"){
+   const {getPayload}=await import("payload");
+   const {default:config}=await import("@payload-config");
+   const {hasRole}=await import("@/cms/policy");
+   const payload=await getPayload({config});
+   const {user}=await payload.auth({headers:req.headers});
+   if(user&&hasRole(user,["super-admin","editor"]))
+    return json({authenticated:true,email:typeof user.email==="string"?user.email:"Staff account",
+      kind:"staff",staffRole:hasRole(user,["super-admin"])?"super-admin":"editor"});
+  }
   if(!id){
    if(process.env.CMS_ENABLED==="true"){
     const {getPayload}=await import("payload");
@@ -85,8 +97,9 @@ export async function POST(req:NextRequest){
    else if(token)store.logout(token);
    const response=json({authenticated:false});
    response.cookies.delete("sm_customer");
+   response.cookies.delete("payload-token");
    const media=req.cookies.get("sm_session")?.value;
-   if(media && session(media)?.owner.startsWith("customer-"))revokeMediaSession(media);
+   if(media && session(media) && (session(media)?.owner.startsWith("customer-")||session(media)?.owner.startsWith("cms-staff-")))revokeMediaSession(media);
    const guest=req.cookies.get("sm_guest_session")?.value;
    if(guest && session(guest) && !session(guest)?.owner.startsWith("customer-") && !session(guest)?.owner.startsWith("cms-staff-")){
     response.cookies.set("sm_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
@@ -104,7 +117,7 @@ export async function POST(req:NextRequest){
   const previous=req.cookies.get("sm_session")?.value;
   const previousOwner=session(previous)?.owner;
   const guest=previousOwner && !previousOwner.startsWith("customer-") && !previousOwner.startsWith("cms-staff-") ? previous : null;
-  if(previous && previousOwner?.startsWith("customer-"))revokeMediaSession(previous);
+  if(previous && (previousOwner?.startsWith("customer-")||previousOwner?.startsWith("cms-staff-")))revokeMediaSession(previous);
   let verificationEmailSent=false;
   if(registrationId){
    const pending=store.issueEmailVerification(registrationId);
@@ -116,6 +129,7 @@ export async function POST(req:NextRequest){
   const response=json({authenticated:true,email:input.email.trim().toLowerCase(),owner:media.owner,
    emailVerification:store.verificationState(id),verificationEmailSent});
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
+  response.cookies.delete("payload-token"); // Customer login replaces any staff login on this browser.
   for(const [name,value] of [["sm_customer",token],["sm_session",media.token]]){
    // Stripe Checkout returns via cross-site top-level GET. The customer
    // account cookie must be sent on that navigation; keep media cookie Strict.
