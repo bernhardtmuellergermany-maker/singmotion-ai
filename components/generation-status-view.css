@@ -87,7 +87,8 @@
 
 /* Completed videos show trustworthy project facts instead of a timeline of
    already-completed stages. Same premium dark-purple look, mobile-first. */
-.sm-finished{display:grid;gap:15px;min-width:0}
+/* Keep the finished details visually separate from the download CTA, especially on mobile. */
+.sm-finished{display:grid;gap:15px;min-width:0;margin-bottom:22px}
 .sm-finished-heading{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .sm-finished-heading h2,.sm-gen-status-column .sm-finished-heading h2{font-size:21px;letter-spacing:-.025em;margin:3px 0 0}
 .sm-finished-eyebrow{display:block;color:#c08bdc;font-weight:800;font-size:10px;letter-spacing:.14em}
