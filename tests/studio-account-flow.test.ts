@@ -31,7 +31,7 @@ test("Guest Step 4 never opens an operator dialog or starts paid work before log
  const wizard=read("components/studio-wizard.tsx");
  const gate=read("components/studio-account-gate.tsx");
  assert.match(wizard,/Login to generate video/);
- assert.match(wizard,/creditStudio\?void startCreditGeneration\(\):void openGuestAccount\(\)/);
+ assert.match(wizard,/!creditStudio\?void openGuestAccount\(\):reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
  assert.match(wizard,/await saveQueue\.current/);
  assert.match(wizard,/await api\("studio-drafts"/);
  assert.match(wizard,/setGuestAccountOpen\(true\)/);
