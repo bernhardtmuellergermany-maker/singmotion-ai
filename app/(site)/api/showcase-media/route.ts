@@ -61,6 +61,38 @@ export async function DELETE(req:NextRequest){
  if(req.headers.get("origin")!==new URL(req.url).origin)return respond({error:"Invalid request origin"},403);
  const kind=req.nextUrl.searchParams.get("kind");
  const id=req.nextUrl.searchParams.get("id")||"";
+ if(kind==="video"){
+  if(!/^upload-[a-f0-9]{8}-[a-f0-9-]{27}$/i.test(id))
+    return respond({error:"Invalid uploaded video ID"},400);
+  const s=await tables();
+  try{
+   const row=s.db.prepare("SELECT filename,mime FROM public_showcase_uploads WHERE id=?")
+    .get(id) as {filename:string;mime:string}|undefined;
+   if(!row)return respond({error:"Uploaded video not found"},404);
+   const suffix=row.mime==="video/mp4"?".mp4":row.mime==="video/webm"?".webm":null;
+   if(!suffix||row.filename!==id+suffix)
+    return respond({error:"Unexpected upload storage reference"},409);
+   const poster=s.db.prepare("SELECT filename FROM public_showcase_posters WHERE id=?")
+    .get(id) as {filename:string}|undefined;
+   const exists=(name:string)=>!!s.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+   s.db.exec("BEGIN IMMEDIATE");
+   try{
+    if(exists("public_showcase_entries"))
+      s.db.prepare("DELETE FROM public_showcase_entries WHERE attempt_id=?").run(id);
+    if(exists("public_showcase_selection"))
+      s.db.prepare("DELETE FROM public_showcase_selection WHERE attempt_id=?").run(id);
+    s.db.prepare("DELETE FROM public_showcase_posters WHERE id=?").run(id);
+    s.db.prepare("DELETE FROM public_showcase_uploads WHERE id=?").run(id);
+    s.db.exec("COMMIT");
+   }catch(error){s.db.exec("ROLLBACK");throw error;}
+   // UUID-controlled local showcase uploads only; never touch generated source
+   // files, credit wallet entries or private video deliveries.
+   await unlink(path.join(root,row.filename)).catch(()=>{});
+   if(poster && /^[0-9a-f-]{36}\\.webp$/i.test(poster.filename))
+      await unlink(path.join(root,poster.filename)).catch(()=>{});
+   return respond({ok:true,id,deleted:true});
+  }finally{s.close()}
+ }
  if(kind!=="poster"||!/^[a-zA-Z0-9_-]{1,160}$/.test(id))return respond({error:"Invalid poster request"},400);
  try{
   const store=await tables();
