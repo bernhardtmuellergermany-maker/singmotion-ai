@@ -25,7 +25,7 @@ export function GenerationStatusView({
   progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,creditTopupHref="/credits#buy-credits",paymentStatus,statusNotice,
 }:{
   progress:GenerationProgress;
-  paymentMode:"stripe"|"super-admin";
+  paymentMode:"stripe"|"super-admin"|"credits";
   paymentStatus?:string|null;
   /** Only supplied from the verified owner-scoped paid order read. */
   statusNotice?:CustomerNotice|null;
@@ -54,7 +54,7 @@ export function GenerationStatusView({
     },10000);
     return()=>window.clearInterval(interval);
   },[progress]);
-  const admin=paymentMode==="super-admin";
+  const admin=paymentMode!=="stripe";
   const paymentRefunded=!admin&&paymentStatus==="refunded";
   const paymentDisputed=!admin&&paymentStatus==="disputed";
   const paymentConfirmed=admin?!!creditCharge&&["reserved","review","settled","released"].includes(creditCharge.status):
@@ -120,7 +120,7 @@ export function GenerationStatusView({
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
-              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?GENERATION_WAIT_MESSAGES[waitMessageIndex]:progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking Super Admin access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
+              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?GENERATION_WAIT_MESSAGES[waitMessageIndex]:progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking account access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&progress!=="prepared"&&progress!=="credits-needed"&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
           <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
