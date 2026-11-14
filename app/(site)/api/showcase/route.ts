@@ -3,6 +3,7 @@ import { getPayload } from "payload";
 import payloadConfig from "@payload-config";
 import { hasRole } from "@/cms/policy";
 import { stagingDenial } from "@/lib/staging";
+import {applicationOrigin} from "@/lib/request-origin";
 import { dataDir } from "@/lib/db";
 import { openStudioStore } from "@/lib/live/studio";
 import { createReadStream } from "node:fs";
@@ -72,6 +73,7 @@ async function store(){
   }
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_uploads(id TEXT PRIMARY KEY,title TEXT NOT NULL,filename TEXT NOT NULL,mime TEXT NOT NULL,size INTEGER NOT NULL,created_at INTEGER NOT NULL)");
   s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_posters(id TEXT PRIMARY KEY,filename TEXT NOT NULL,created_at INTEGER NOT NULL)");
+  s.db.exec("CREATE TABLE IF NOT EXISTS public_showcase_hidden(attempt_id TEXT PRIMARY KEY,hidden_at INTEGER NOT NULL)");
   return s;
 }
 async function admin(req:NextRequest){
@@ -83,6 +85,11 @@ async function admin(req:NextRequest){
 async function handler(req:NextRequest){
   const denial=stagingDenial(req.headers.get("authorization"));
   if(denial)return denial;
+  if(req.method!=="GET"){
+    const origin=applicationOrigin(req.url,req.headers.get("host"));
+    if(!origin||req.headers.get("origin")!==origin)
+      return json({error:"Invalid request origin."},403);
+  }
   try{
     const s=await store();
     const channelParam=req.nextUrl.searchParams.get("channel");
@@ -93,6 +100,7 @@ async function handler(req:NextRequest){
       const channel=channelParam as Channel;
       const entries=()=>s.db.prepare("SELECT e.channel,e.attempt_id,e.owner,e.artist_name,e.sort_order,p.policy_json FROM public_showcase_entries e LEFT JOIN live_studio_projects p ON p.attempt_id=e.attempt_id AND p.owner=e.owner WHERE e.channel=? ORDER BY e.sort_order,e.rowid").all(channel) as ChannelEntry[];
       const validated=()=>entries().filter(entry=>{
+        if(s.db.prepare("SELECT 1 FROM public_showcase_hidden WHERE attempt_id=?").get(entry.attempt_id))return false;
         if(entry.attempt_id.startsWith("upload-")){
           return !!s.db.prepare("SELECT 1 FROM public_showcase_uploads WHERE id=?").get(entry.attempt_id);
         }
@@ -150,7 +158,8 @@ async function handler(req:NextRequest){
           const legacy=s.db.prepare("SELECT slot,attempt_id,owner,artist_name FROM public_showcase_selection ORDER BY CASE slot WHEN 'main' THEN 0 WHEN 'second' THEN 1 ELSE 2 END").all() as (Selected&{slot:string})[];
           const publicOld=legacy.filter(row=>{
             const verified=s.db.prepare("SELECT policy_json FROM live_studio_projects WHERE attempt_id=? AND owner=?").get(row.attempt_id,row.owner) as {policy_json:string}|undefined;
-            if(!verified||!superAdminPolicy(verified.policy_json))return false;
+            if(!verified||!superAdminPolicy(verified.policy_json)||
+              s.db.prepare("SELECT 1 FROM public_showcase_hidden WHERE attempt_id=?").get(row.attempt_id))return false;
             try{const output=s.get(row.attempt_id);return output.state==="completed"&&!!output.outputPath;}catch{return false;}
           }).map(row=>({id:row.attempt_id,title:row.artist_name,videoUrl:"/api/showcase?video=1&slot="+row.slot}));
           return json({channel,legacyFallback:true,title:publicOld[0]?.title||"SingMotion AI Showcase",videoUrl:publicOld[0]?.videoUrl||"",videos:publicOld});
@@ -171,9 +180,14 @@ async function handler(req:NextRequest){
         }
         return {...row,approved,state,outputReady};
       });
-      const completedStudio=classified.filter(row=>row.approved&&row.outputReady).map(row=>({id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}));
+      const completedStudio=classified.filter(row=>row.approved&&row.outputReady&&
+        !s.db.prepare("SELECT 1 FROM public_showcase_hidden WHERE attempt_id=?").get(row.attempt_id)).map(row=>({id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner,artistName:row.artist_name}));
       const uploaded=s.db.prepare("SELECT id,title FROM public_showcase_uploads ORDER BY created_at DESC").all() as {id:string;title:string}[];
-      const eligible=[...completedStudio,...uploaded.map(row=>({id:row.id,name:row.title,owner:"cms-upload",artistName:row.title}))];
+      const hiddenVideos=classified.filter(row=>row.approved&&row.outputReady&&
+        !!s.db.prepare("SELECT 1 FROM public_showcase_hidden WHERE attempt_id=?").get(row.attempt_id))
+       .map(row=>({id:row.attempt_id,name:row.project_name?.trim()||row.artist_name}));
+      const eligible=[...completedStudio.map(row=>({...row,source:"generated" as const})),
+        ...uploaded.map(row=>({id:row.id,name:row.title,owner:"cms-upload",artistName:row.title,source:"upload" as const}))];
       const inventory={
         totalStudioRecords:all.length,
         verifiedSuperAdmin:classified.filter(row=>row.approved).length,
@@ -182,16 +196,36 @@ async function handler(req:NextRequest){
         incompleteSuperAdmin:classified.filter(row=>row.approved&&!row.outputReady&&row.state!=="missing").length,
         missingOutputRecord:classified.filter(row=>row.approved&&row.state==="missing").length,
         unverifiedLegacy:classified.filter(row=>!row.approved).length,
-        published:validated().length
+        published:validated().length,
+        hiddenGenerated:hiddenVideos.length
       };
       if(req.method==="GET"){
         const published=validated();
         const selectedIds=published.map(v=>v.attempt_id);
         const config=s.db.prepare("SELECT random_order FROM public_showcase_channel_config WHERE channel=?").get(channel) as {random_order:number}|undefined;
-        return json({channel,randomOrder:channel==="mobile"&&(config?.random_order??1)===1,projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id),posterUrl:posterUrl(p.id)})),published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
+        return json({channel,randomOrder:channel==="mobile"&&(config?.random_order??1)===1,
+          projects:eligible.map(p=>({...p,selected:selectedIds.includes(p.id),posterUrl:posterUrl(p.id)})),
+          hiddenVideos,published:published.map((p,index)=>({id:p.attempt_id,title:p.artist_name,position:index+1})),inventory});
       }
       if(req.method==="POST"){
         const body=await req.json() as {action?:unknown;id?:unknown;ids?:unknown;randomOrder?:unknown};
+        if(body.action==="hide-generated"||body.action==="restore-generated"){
+          const id=body.id;
+          if(typeof id!=="string"||!/^[a-f0-9-]{36}$/i.test(id))
+            return json({error:"Invalid generated video ID."},400);
+          const selected=classified.find(row=>row.attempt_id===id&&row.approved&&row.outputReady);
+          if(!selected)return json({error:"Generated video is not available for curation."},404);
+          s.db.exec("BEGIN IMMEDIATE");
+          try{
+            if(body.action==="hide-generated"){
+              s.db.prepare("INSERT OR IGNORE INTO public_showcase_hidden(attempt_id,hidden_at) VALUES(?,?)").run(id,Date.now());
+              s.db.prepare("DELETE FROM public_showcase_entries WHERE attempt_id=?").run(id);
+              s.db.prepare("DELETE FROM public_showcase_selection WHERE attempt_id=?").run(id);
+            }else s.db.prepare("DELETE FROM public_showcase_hidden WHERE attempt_id=?").run(id);
+            s.db.exec("COMMIT");
+          }catch(error){s.db.exec("ROLLBACK");throw error;}
+          return json({ok:true,id,hidden:body.action==="hide-generated"});
+        }
         // An explicit complete ordered set supports publishing, removal,
         // reordering, and clearing without any fixed three-item ceiling.
         if(body.action!=="set-list"||!Array.isArray(body.ids)||body.ids.length>500||!body.ids.every((id:unknown)=>typeof id==="string"&&id.length>0&&id.length<=160)||new Set(body.ids).size!==body.ids.length)return json({error:"Invalid ordered showcase selection"},400);
@@ -253,7 +287,7 @@ async function handler(req:NextRequest){
     // server-authenticated generation policy instead of current session.
     // This cannot include customer, guest, or editor-generated projects.
     const rows=s.db.prepare("SELECT attempt_id,owner,artist_name,project_name,policy_json FROM live_studio_projects ORDER BY rowid DESC LIMIT 500").all() as (Selected&{policy_json:string})[];
-    const verified=rows.filter(row=>superAdminPolicy(row.policy_json));
+    const verified=rows.filter(row=>superAdminPolicy(row.policy_json)&&!s.db.prepare("SELECT 1 FROM public_showcase_hidden WHERE attempt_id=?").get(row.attempt_id));
     const eligible=verified.flatMap(row=>{
       try{const a=s.get(row.attempt_id);return a.state==="completed"&&a.outputPath?[{id:row.attempt_id,name:row.project_name?.trim()||row.artist_name,owner:row.owner}]:[]}catch{return []}
     });
