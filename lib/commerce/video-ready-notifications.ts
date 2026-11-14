@@ -86,6 +86,11 @@ export async function retryVideoReadyNotifications(
        (last_attempt_at IS NULL OR last_attempt_at<=?)`)
     .run(Date.now(),row.order_id,Date.now()-60_000);
    if(claimed.changes!==1)continue;
+   if(!shouldSendCustomerVideoReadyEmail(db,row.account_id,row.order_created)){
+    db.prepare("UPDATE customer_video_ready_outbox SET suppressed_at=? WHERE order_id=? AND sent_at IS NULL")
+      .run(Date.now(),row.order_id);
+    continue;
+   }
    attempted++;
    // Email contains no secret token, provider URL or private filename.
    const mail={from:env.ACCOUNT_EMAIL_FROM,to:[row.email],
