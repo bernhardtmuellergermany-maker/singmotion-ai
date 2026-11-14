@@ -161,7 +161,10 @@ test("API deletes are recoverable and direct deleted project URLs are not public
  assert.match(drafts,/deleted_at IS NULL ORDER BY updated/);
  assert.match(drafts,/studio_drafts.deleted_at IS NULL/);
  assert.match(studio,/service.trashedAt\(id,owner\)/);
- assert.match(studio,/service.restoreProject\(body.id, owner, String\(user!\.id\), body.confirmation\)/);
+ assert.match(studio,/service.restoreProject\\(body.id, owner, actor, body.confirmation\\)/);
+ assert.match(studio,/actor=customerId/);
+ assert.match(studio,/actor=String\\(\\(user as \\{id\\?:unknown\\}\\)\\.id\\)/);
+ assert.match(studio,/owner!=="customer-"\\+customerId/);
  assert.match(studio,/service.trashedAt\(body.id,owner\)/);
  assert.match(gallery,/Recently deleted/);
  assert.match(gallery,/Move .+ to Recently deleted/);
