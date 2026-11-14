@@ -56,6 +56,23 @@ export async function upload(file: File, kind: "audio" | "image", onProgress?: (
 export function resetSession() {
   sessionPromise = undefined;
 }
+/** Browser-wide single-principal session: all tabs drop stale cached owners
+ * whenever this tab signs in, signs out or switches customer/staff identity. */
+export function notifyAuthTransition(){
+ resetSession();
+ if(typeof window!=="undefined"){
+  try{localStorage.setItem("sm-auth-revision",Date.now()+":"+Math.random())}catch{}
+ }
+}
+if(typeof window!=="undefined"){
+ window.addEventListener("storage",event=>{
+  if(event.key==="sm-auth-revision"){
+   resetSession();
+   window.location.reload();
+  }
+ });
+}
+
 
 /** Report real bytes sent; once complete the server may still be processing metadata. */
 export function uploadWithProgress(
