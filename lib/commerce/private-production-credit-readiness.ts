@@ -12,6 +12,11 @@ import {customerCreditStudioBetaEnabled} from "./customer-credit-studio-beta.ts"
  */
 export function assessPrivateProductionCreditVideo(env:Record<string,string|undefined>) {
  const checks=[
+  {id:"PRIVATE_LIVE_CREDIT_TEST_SWITCH",ready:env.PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED==="true"},
+  {id:"CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_SWITCH",ready:env.CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED==="true"},
+  {id:"PRIVATE_BASIC_AUTH_CONFIGURED",ready:env.STAGING_AUTH_ENABLED==="true"&&(env.STAGING_PASSWORD?.length||0)>=32},
+  {id:"CANONICAL_LIVE_ORIGINS",ready:env.APP_ORIGIN==="https://www.singmotion.ai"&&env.PUBLIC_SITE_ORIGIN==="https://www.singmotion.ai"},
+  {id:"LIVE_STRIPE_CREDENTIAL_FORMAT",ready:/^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"")&&/^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"")},
   {id:"PRIVATE_LIVE_STRIPE_ORIGIN_AND_IDENTITY",ready:privateLiveCreditTestEnabled(env)},
   {id:"CREDIT_CHECKOUT_AND_SIGNED_SETTLEMENT",ready:stripeCreditTopupsLiveEnabled(env)},
   {id:"ACCOUNT_WALLET_VIDEO_ADMISSION",ready:customerCreditStudioBetaEnabled(env)},
