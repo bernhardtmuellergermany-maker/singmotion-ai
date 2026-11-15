@@ -21,7 +21,7 @@ export function reconcileSignedFullCreditRefund(
  const refund=asObject(asObject(event?.data)?.object);
  const session=asObject(stripeSession);
  const metadata=asObject(session?.metadata);
- if(!event||event.type!=="refund.updated"||event.livemode!==(mode==="live")||
+ if(!event||!["refund.created","refund.updated"].includes(String(event.type))||event.livemode!==(mode==="live")||
     typeof event.id!=="string"||!/^evt_[A-Za-z0-9_]+$/.test(event.id)||
     !refund||refund.object!=="refund"||!validStripeRefundId(refund.id)||
     refund.status!=="succeeded"||!validStripeChargeId(refund.charge)||
