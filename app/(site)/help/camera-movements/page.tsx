@@ -1,91 +1,367 @@
 import Link from "next/link";
-import {ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,ShieldCheck,TriangleAlert} from "lucide-react";
+import {ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,ShieldCheck,TriangleAlert,Lightbulb} from "lucide-react";
 import {SiteHeader} from "@/components/site-header";
-import {cameras,cameraHelp} from "@/lib/domain";
+import {PromptCopyButton} from "@/components/prompt-copy-button";
 import "./camera-movements.css";
 
 export const metadata={
- title:"Camera Movement Guide · SingMotion AI",
- description:"Learn how to choose a camera direction, write effective 500-character performance prompts, and reduce visual artefacts in BytePlus-powered AI singing videos.",
+ title:"Camera Movements & Prompt Guide · SingMotion AI",
+ description:"Practical prompts for continuous actions, singing, speaking, camera movements and creative video ideas. Copy examples directly into SingMotion Studio.",
 };
 
+/** Studio presets are distinguished from exploratory language instructions.
+ * Prompts are creative guidance: model adherence, trajectory and timing are not guaranteed. */
 const techniques=[
- {name:"Static / locked-off",where:"Best first test",text:"The singer performs in a steady shot. This is the most useful baseline for checking lip-sync, facial consistency and motion without adding camera changes.",example:"The camera remains stationary while the singer performs naturally. Keep the face clearly visible.",risk:"Low complexity, not a guarantee of a motionless output."},
- {name:"Orbit left",where:"Moderate difficulty",text:"The viewpoint makes a slow, small arc to the left. Leave room around the person's head and shoulders. An extreme orbit can reveal facial regions missing from the reference photo.",example:"Camera: Slowly orbit left around the singer, keeping the face clearly visible and centered.",risk:"May alter facial identity, the background or body shape."},
- {name:"Push in",where:"Emotional close-up",text:"The framing gradually becomes tighter to bring attention to the singer's expression. Start from a wider medium shot so there is room to move closer.",example:"Camera: Slowly push in toward the singer for a closer view, keeping the eyes and mouth visible.",risk:"May crop the chin or introduce unexpected changes in face detail."},
- {name:"Pull out",where:"Reveal a performance scene",text:"The view slowly becomes wider. Include meaningful background context in the source image rather than asking the model to invent a detailed environment from a tightly cropped selfie.",example:"Camera: Move gently backward to reveal more of the singer and the surrounding stage.",risk:"Background details and limbs may be invented or inconsistent."},
- {name:"Tilt up / tilt down",where:"Small framing adjustment",text:"The viewpoint angles gently upward or downward without changing the singer's identity or introducing a dramatic perspective change. Keep the subject in shot.",example:"Camera: Tilt up very slowly while keeping the singer's face visible throughout.",risk:"A strong tilt can cut off the singer or change perspective unnaturally."},
- {name:"Follow singer",where:"Visible walking / tracking",text:"Useful only when the original reference shows enough of the singer's body to support walking. Describe the singer's movement separately from the camera's matching movement.",example:"The singer takes visible steps forward while singing. Camera: Track smoothly backward, keeping the singer framed.",risk:"Full-body action, hands, feet and background are difficult to keep consistent."},
- {name:"Gentle handheld",where:"Subtle live-performance energy",text:"Adds a restrained, human-operated feel. Ask for smooth micro-movement rather than shake or whip pans; use shorter clips first.",example:"Camera: Add very subtle, smooth handheld motion without abrupt shake or focus changes.",risk:"Excessive motion may cause blur, flicker or facial distortion."},
+  {
+    "name": "Static / locked shot",
+    "level": "Studio preset",
+    "where": "Easy starting point",
+    "text": "No camera travel. Good for announcements, facial consistency and lip sync.",
+    "example": "Static medium shot. The performer speaks calmly to the camera, maintains natural eye contact, and makes one small open-hand gesture.",
+    "risk": "Even a static prompt cannot guarantee zero background or facial movement."
+  },
+  {
+    "name": "Slow push-in",
+    "level": "Quick idea / custom prompt",
+    "where": "Emotion, choruses, strong openings",
+    "text": "Camera physically moves closer as the shot becomes tighter.",
+    "example": "Slowly push the camera from a medium shot toward a medium close-up. The singer performs warmly, briefly closes their eyes, then looks into the lens.",
+    "risk": "Keep the mouth visible; too tight a crop may change facial details."
+  },
+  {
+    "name": "Slow pull-out / dolly out",
+    "level": "Studio preset",
+    "where": "Reveal the environment",
+    "text": "Camera travels backward, gradually showing more of the frame.",
+    "example": "The camera slowly pulls back from a medium close-up to a medium shot while the singer continues singing and opens both hands.",
+    "risk": "The model may invent background details outside the original photo."
+  },
+  {
+    "name": "Orbit left",
+    "level": "Studio preset",
+    "where": "Music performance energy",
+    "text": "Camera moves along a gentle curved path to the performer's left.",
+    "example": "Gently orbit left from a front view to a slight three-quarter view. The singer smiles while singing and keeps their face visible.",
+    "risk": "Large orbits can expose unseen facial details and distort identity."
+  },
+  {
+    "name": "Orbit right",
+    "level": "Custom prompt",
+    "where": "A second view of the performer",
+    "text": "Camera makes a small rightward arc around the subject.",
+    "example": "Slowly orbit right from a front medium shot to a subtle three-quarter view. The performer sings and turns their eyes toward the camera.",
+    "risk": "Treat this as a creative prompt, not an additional Studio control."
+  },
+  {
+    "name": "Tilt up",
+    "level": "Studio preset",
+    "where": "Reveal from hands to face",
+    "text": "Camera pivots upward without changing its physical location.",
+    "example": "Begin on the singer's hands and gently tilt up to an eye-level medium shot of the face as the singing begins.",
+    "risk": "Needs room in the source image; large tilts may invent detail."
+  },
+  {
+    "name": "Tilt down",
+    "level": "Studio preset",
+    "where": "Hands, instruments or products",
+    "text": "Camera pivots downward to a lower part of the scene.",
+    "example": "Start with the presenter at eye level, then slowly tilt down toward the product held at chest height while they continue speaking.",
+    "risk": "Avoid a final frame where the face disappears during lip sync."
+  },
+  {
+    "name": "Gentle handheld",
+    "level": "Studio preset",
+    "where": "UGC and natural energy",
+    "text": "Very small handheld-style drift; no hard shake.",
+    "example": "Soft handheld camera feel with subtle natural movement. The creator speaks confidently to the camera and nods once.",
+    "risk": "Too much shake can reduce visual clarity."
+  },
+  {
+    "name": "Follow backwards",
+    "level": "Studio preset",
+    "where": "Walking and singing",
+    "text": "Camera tracks backward while the singer moves toward it.",
+    "example": "The singer walks forward with short visible steps while singing. The camera smoothly tracks backward to keep them in a medium shot.",
+    "risk": "Use a full-body or wide-enough source; feet and backgrounds may become unstable."
+  },
+  {
+    "name": "Pan left",
+    "level": "Custom prompt",
+    "where": "Reveal a person or object",
+    "text": "Camera rotates horizontally left from one composition to another.",
+    "example": "The camera slowly pans left and settles on the presenter in a centered medium shot. The presenter begins speaking with a welcoming smile.",
+    "risk": "A sweeping pan is less predictable when the source has little side detail."
+  },
+  {
+    "name": "Pan right",
+    "level": "Custom prompt",
+    "where": "Show a staged reveal",
+    "text": "Camera rotates horizontally right.",
+    "example": "Gently pan right, then settle on a front-facing medium shot of the singer as they continue the chorus.",
+    "risk": "Specify where the camera should stop for better clarity."
+  },
+  {
+    "name": "Zoom in",
+    "level": "Custom prompt",
+    "where": "Emphasize a line",
+    "text": "Image framing tightens; unlike a push-in, the virtual position need not change.",
+    "example": "Begin with a steady medium shot, then slowly zoom in to a close-up of the presenter's face on the final sentence.",
+    "risk": "May crop lips or produce artificial facial texture."
+  },
+  {
+    "name": "Zoom out",
+    "level": "Custom prompt",
+    "where": "Provide more context",
+    "text": "Framing widens without requiring a camera move backward.",
+    "example": "Begin on a close view of the speaker, then slowly zoom out to a comfortable medium shot while they finish speaking.",
+    "risk": "Background outside the source portrait may be inconsistent."
+  },
+  {
+    "name": "Side tracking / truck",
+    "level": "Custom prompt · advanced",
+    "where": "Dynamic profile reveal",
+    "text": "Camera travels horizontally, trying to maintain similar distance.",
+    "example": "Track the camera gently from left to right while keeping the performer in a medium shot. The performer continues singing without turning away.",
+    "risk": "More likely to distort background geometry than a stationary shot."
+  },
+  {
+    "name": "Forward tracking",
+    "level": "Custom prompt · advanced",
+    "where": "Walk-through or approach",
+    "text": "Camera moves forward with a walking subject.",
+    "example": "The camera smoothly follows behind the presenter for two steps, then settles at a slight side angle as they speak.",
+    "risk": "Difficult if the source image does not show the subject's body or surroundings."
+  },
+  {
+    "name": "Crane up",
+    "level": "Custom prompt · advanced",
+    "where": "Elevated ending",
+    "text": "Camera travels upward toward a higher viewpoint.",
+    "example": "Start at eye level, then slowly rise to a slightly elevated angle while the performer finishes the last phrase.",
+    "risk": "High angles may alter face geometry and scene continuity."
+  },
+  {
+    "name": "Crane down",
+    "level": "Custom prompt · advanced",
+    "where": "Introduce a speaker",
+    "text": "Camera lowers from a higher vantage point.",
+    "example": "Slowly lower the camera from a gentle high angle to eye level, ending with a clear medium close-up of the speaker.",
+    "risk": "Keep the change small; dramatic overhead moves are less reliable."
+  },
+  {
+    "name": "Pedestal up / down",
+    "level": "Custom prompt · advanced",
+    "where": "Small vertical reframing",
+    "text": "Camera moves vertically while its direction stays approximately level.",
+    "example": "Raise the camera slightly while keeping it level, finishing at eye height as the host speaks.",
+    "risk": "Do not combine with a large tilt in the same short clip."
+  },
+  {
+    "name": "Low angle → eye level",
+    "level": "Custom prompt · advanced",
+    "where": "Confident introduction",
+    "text": "The apparent viewpoint transitions from slightly below to eye level.",
+    "example": "Start at a subtle low angle and move gently to eye level, ending on the presenter's front face as they say the final line.",
+    "risk": "Strong perspective shifts can deform the face."
+  },
+  {
+    "name": "Rack focus",
+    "level": "Custom prompt · experimental",
+    "where": "Attention shift",
+    "text": "Focus moves between visible foreground and speaker.",
+    "example": "Start with the product in focus, then smoothly shift focus to the presenter, who smiles and begins speaking.",
+    "risk": "Not a dependable focus control; both subjects must be present in the image."
+  },
+  {
+    "name": "Whip pan",
+    "level": "Custom prompt · experimental",
+    "where": "Fast transitions",
+    "text": "Very fast horizontal movement meant to imply a cut.",
+    "example": "A brief, fast pan right leads into a steady frontal medium shot, where the performer starts singing.",
+    "risk": "Often produces blur and scene drift. Prefer separate clips for this edit."
+  },
+  {
+    "name": "Dolly zoom",
+    "level": "Custom prompt · experimental",
+    "where": "Stylized perspective",
+    "text": "Camera moves while zooming in the opposite direction.",
+    "example": "Gently pull the camera back while slowly zooming in so the singer stays roughly the same size.",
+    "risk": "Complex opposing actions frequently fail in image-driven generation."
+  }
 ];
-const checklist=[
- ["Start with 5–10 seconds","A short excerpt with clear vocals is easier to evaluate before attempting longer, more expensive generation."],
- ["Choose the right reference photo","Use a sharp JPEG or PNG showing the face and mouth. Leave space in the intended movement direction; full-body motion needs the legs visible."],
- ["Write one main camera instruction","Avoid simultaneous orbit, zoom, rapid pan and tracking. The instruction should match the scene and your desired mood."],
- ["Keep the prompt concise","The current SingMotion performance field accepts up to 500 characters. The Quick ideas buttons insert editable text; they do not enable a separate hardware camera controller."],
- ["Review before spending credits","Check the final prompt and account balance. Stripe test credit purchases are only available on staging; customer generation remains subject to separate release controls."],
- ["Inspect the finished video","Check mouth sync, expression, hands, edges, framing, resolution and sound from beginning to end. A technically defective paid delivery is subject to applicable consumer remedies."],
+const useCases=[
+  {
+    "name": "Original songs & music videos",
+    "description": "Animate your own singer, rapper or illustrated character to a vocal excerpt.",
+    "prompt": "Medium shot. The singer performs the original chorus with emotion, first holding one hand over the heart, then opening both arms as the camera gently pushes in."
+  },
+  {
+    "name": "TikTok Shop & product showcases",
+    "description": "Explain a product with a clearly labeled synthetic presenter. Use real product claims and follow advertising rules.",
+    "prompt": "Static medium shot. The presenter speaks energetically, first holding the product at chest height, then pointing out one practical feature and smiling to camera."
+  },
+  {
+    "name": "User-generated-style advertisements",
+    "description": "Create a natural social ad from your authorized portrait and recorded voice.",
+    "prompt": "Gentle handheld camera feel. The creator speaks to camera with a friendly smile, then lifts the product slightly and nods while explaining its value."
+  },
+  {
+    "name": "News & community updates",
+    "description": "A clearly labeled AI presenter for checked facts, local bulletins or updates; never impersonate a real journalist.",
+    "prompt": "Static eye-level medium shot. The virtual news presenter speaks clearly with a serious, neutral expression, briefly nods, then looks directly into the camera."
+  },
+  {
+    "name": "Voiceovers made with ElevenLabs",
+    "description": "Use an exported audio recording from a speech tool; an upload is not a native integration. Have rights to the voice.",
+    "prompt": "Static medium shot. The digital narrator speaks warmly and clearly, makes a small welcoming gesture, then holds steady eye contact."
+  },
+  {
+    "name": "Podcasts turned into video",
+    "description": "Visualize a single speaker's licensed podcast or commentary track.",
+    "prompt": "Slow push-in from a medium shot. The podcast host speaks thoughtfully, first glances down briefly, then looks back at the camera and smiles."
+  },
+  {
+    "name": "Explainer & educational clips",
+    "description": "Teach a lesson, demonstrate a concept or introduce a class.",
+    "prompt": "Static medium shot. The educator speaks confidently, counts two key points on their fingers, then opens one hand toward the viewer."
+  },
+  {
+    "name": "Audiobooks & storytelling",
+    "description": "Give an original or properly licensed story a visual narrator.",
+    "prompt": "Slow, gentle orbit left. The storyteller speaks softly, pauses for emphasis, then smiles slightly while the camera settles on a front view."
+  },
+  {
+    "name": "Company onboarding & training",
+    "description": "Introduce employees, welcome new customers and explain procedures.",
+    "prompt": "Static eye-level medium shot. The presenter greets the viewer warmly, offers one short open-hand gesture, then nods as the message ends."
+  },
+  {
+    "name": "Multilingual information videos",
+    "description": "Record an authorized voice track in the target language and animate a speaker accordingly.",
+    "prompt": "Static medium close-up. The presenter speaks clearly and naturally to camera with relaxed shoulders and a friendly expression, ending with a small nod."
+  },
+  {
+    "name": "Game characters & virtual hosts",
+    "description": "Animate licensed fictional characters, mascots or game announcers.",
+    "prompt": "Gentle push-in. The fictional host speaks with playful excitement, first raises a hand in greeting, then turns slightly toward the viewer."
+  },
+  {
+    "name": "Real estate & local businesses",
+    "description": "Welcome prospective visitors or explain the features of a business.",
+    "prompt": "Eye-level medium shot. The host speaks warmly, makes one small inviting gesture toward the room, then returns their gaze to camera."
+  },
+  {
+    "name": "Event announcements & invitations",
+    "description": "Announce performances, launches, community events or celebrations.",
+    "prompt": "Slow push-in from a medium shot. The host speaks excitedly, first smiles and gestures toward the audience, then looks into the lens at the end."
+  },
+  {
+    "name": "Nonprofit & awareness campaigns",
+    "description": "Communicate a message using properly authorized portraits and fact-checked claims.",
+    "prompt": "Static medium shot. The presenter speaks sincerely, places one hand over the heart for a moment, then addresses the viewer with steady eye contact."
+  },
+  {
+    "name": "Personal messages & celebrations",
+    "description": "Create original greetings, birthday videos or private announcements.",
+    "prompt": "Gentle handheld medium shot. The speaker smiles as they talk, briefly waves hello, then looks back into the camera and laughs softly."
+  }
+];
+const steps=[
+ ["Choose your image first","A sharp, well-lit face with visible mouth works best for spoken or sung lines. A wide/full-body action needs more of the body visible."],
+ ["Use clear audio","Choose an original or properly licensed MP3/WAV or supported M4A with a clear speaking or singing voice. Trim a short 5–10-second segment first."],
+ ["Write a short scene, not keywords","Describe camera, emotion, 'speaks' or 'sings', and up to two or three visible actions in natural English. Avoid describing clothes or details already in the image."],
+ ["Give movements an order","Write 'first', 'then' and 'finally' to choreograph continuous actions. Say whether the gesture comes before, during or after the line."],
+ ["Describe the final framing","Specify speed and where the camera should finish: for example, 'slowly move forward and settle on a medium close-up of the face'."],
+ ["Keep the first attempt simple","Prefer one main camera move per short clip; rapidly stacking zoom, pan, orbit and walking can reduce identity and background stability."],
+ ["Review the exact instructions","The Studio prompt field accepts up to 500 characters. Copy a complete example, adjust it to your photo and audio, then check what Studio will submit."],
+ ["Watch and refine","Results are generative and never guaranteed. Review lips, face, hands, background, audio and framing, and change one instruction at a time."]
 ];
 const issues=[
- ["The face changes or becomes unfamiliar","Switch to Static, use a well-lit front-facing portrait, reduce head turns and keep the camera move small."],
- ["The singer does not walk or dance","Use a full-body photo that includes legs and surrounding space. Describe visible body movement before asking the camera to follow."],
- ["The camera ignores my instruction","Camera text is a creative hint, not a deterministic API parameter. Try one simpler instruction and a shorter excerpt."],
- ["The background becomes unstable","Avoid orbiting around a cropped portrait. Start from a wider photograph with fewer background details and try a stationary shot."],
- ["The final video is cropped differently","The delivered dimensions are provider-dependent. Choose and prepare the photo for the intended 9:16 or 16:9 composition and review the actual output."],
+ ["My face looks different","Try a clear frontal reference, Static camera, shorter head turns and a smaller movement arc."],
+ ["The motion is ignored","Use one short, direct action and describe the endpoint. Try a 5–10-second excerpt rather than stacking many moves."],
+ ["The background flickers","Reduce orbiting, camera travel and full-body gestures. Start with a medium shot and a simple background."],
+ ["The mouth doesn't animate naturally","Use a clearly audible voice, visible lips and explicitly say 'the singer sings' or 'the speaker talks'."],
+ ["Two people are talking","Start with one clearly identified speaker and a silent reacting character. Alternating dialogue and independently animated speakers require separate workflows and are not guaranteed in the current Studio."],
+ ["The subject walks out of frame","Ask the camera to keep the subject centered and finish in a medium shot; avoid exiting and re-entering the frame."],
+ ["A fast movement looks broken","Replace whip pans, large orbits and complex zoom combinations with a slow, small movement; assemble transitions from separate clips if needed."]
 ];
+const readyToCopy="Slow push-in from a medium shot to a medium close-up. The singer performs warmly and sings to the camera. First they smile, then place one hand over their heart, and finally look directly into the lens as the camera settles on their face.";
+const continuous="Static medium shot. The presenter speaks to the camera confidently. First they raise one hand to greet the audience, then lower it and explain the main point, and finally smile and nod at the end.";
+const beforeAfter="The singer first looks toward the window and takes a breath. Then they turn to the camera and begin singing, gently lifting one hand during the final phrase. The camera stays in a medium shot.";
+const twoCharacters="Static medium shot. Only the presenter on the right speaks calmly to the camera. The person on the left listens, nods once, and smiles without speaking.";
 export default function CameraMovementsHelp(){
  return <div className="sm-legal sm-camera-guide">
   <SiteHeader/>
   <main id="content" className="sm-legal-main sm-camera-main">
-   <nav className="sm-camera-breadcrumb" aria-label="Guide navigation">
-    
-    <Link href="/help">Help & best practices</Link>
-    <Link href="/faq">FAQ</Link>
-   </nav>
+   <nav className="sm-camera-breadcrumb" aria-label="Guide navigation"><Link href="/help">Help & best practices</Link><Link href="/faq">FAQ</Link></nav>
    <header className="sm-legal-intro sm-camera-intro">
     <span className="sm-legal-kicker">SINGMOTION AI · CREATIVE GUIDE</span>
-    <h1>Camera movements<span>.</span></h1>
-    <p>Give your singer a convincing on-screen presence. Learn when to keep the viewpoint steady, when to introduce a gentle move, and how to describe it without confusing the AI.</p>
-    <small>Creative guidance, not guaranteed controls. The current Studio uses editable English prompt text, not a physical or deterministic virtual camera.</small>
+    <h1>Camera movements & prompts<span>.</span></h1>
+    <p>Make an image come alive with clear camera direction, continuous movements, gestures, emotions and a strong speaking or singing performance.</p>
+    <small>Every example is an editable English prompt for SingMotion Studio. Prompts are creative guidance, not guaranteed camera controls. No example videos are included.</small>
    </header>
    <div className="sm-camera-callout">
     <Camera size={23} aria-hidden="true"/>
-    <div><strong>Best first result: a static, well-framed portrait.</strong><p>Choose a clear 5–10-second vocal passage and a natural performance. Change only one setting at a time to understand what improves your output.</p></div>
+    <div><strong>The best prompt is a short, natural scene.</strong>
+     <p>Camera movement → emotion → say who speaks or sings → specific actions in order → optional background action. A clear start, speed and end frame are more useful than a list of camera keywords.</p>
+    </div>
    </div>
    <section className="sm-legal-panel">
-    <span className="sm-legal-num">01 / HOW IT WORKS</span><h2>How camera guidance works in SingMotion</h2>
-    <p>Open <Link href="/studio">Studio</Link>, upload your audio and artist image, then go to the <strong>Performance prompt</strong> step. You can write your own instructions or insert a camera phrase with <strong>Quick ideas</strong>: Orbit left, Push in, Static, Follow singer or Tilt. The inserted text stays editable; use one main camera direction, with a separate description of the singer's actions.</p>
-    <p>These directions are sent as part of the user prompt to the generation workflow when provider submission is enabled. A provider may interpret, soften or ignore them. The current OmniHuman integration is an image-and-audio-driven performer model; do not confuse its creative prompt with a guaranteed `camera_fixed` setting from BytePlus's separate Seedance APIs.</p>
-    <p><strong>Prompt example:</strong> “The singer faces the camera and sings confidently with small natural gestures. Camera: Slowly push in, keeping the eyes and mouth clearly visible.”</p>
+    <span className="sm-legal-num">01 / HOW TO WRITE A PROMPT</span>
+    <h2>One scene. One camera move. A clear sequence.</h2>
+    <p>In <Link href="/studio">Studio</Link>, choose your own music or spoken audio and a reference image. Then use the <strong>Performance prompt</strong> field. The <strong>Quick ideas</strong> buttons insert editable phrases, and the Advanced camera menu offers presets. For the most reliable interpretation, spell out the movement in your prompt rather than relying only on a preset label.</p>
+    <p>Write who is performing and whether they are <strong>singing, rapping or speaking</strong>. Describe a couple of visible actions using <strong>first → then → finally</strong>. Specify how fast the camera moves and where it stops. Avoid contradicting the source image or asking for several unrelated scenes at once.</p>
+    <div className="sm-camera-copy-example"><div><strong>Complete example to copy</strong><p>{readyToCopy}</p></div><PromptCopyButton text={readyToCopy} label="Copy complete performance example"/></div>
+    <p className="sm-camera-fineprint">The Studio field currently accepts up to <strong>500 characters</strong>. The voice track determines the words; camera and gesture prompts direct the visual performance. They do not generate a new spoken script.</p>
    </section>
-   <section className="sm-camera-section">
-    <div className="sm-camera-section-title"><span className="sm-legal-num">02 / CHOOSE A MOVEMENT</span><h2>Which camera direction should I use?</h2><p>Choose based on the input photo, not only on the effect you want. These examples are plain English prompts you can adapt in Studio.</p></div>
+   <section className="sm-legal-panel" id="continuous-actions">
+    <span className="sm-legal-num">02 / CONTINUOUS ACTIONS</span>
+    <h2>What should happen first, then and finally?</h2>
+    <p>Describe connected actions in the order they should occur. You can place a gesture before speech, during a lyric, or after speaking ends. Keep the sequence achievable in your selected audio length.</p>
+    <div className="sm-camera-copied-examples">
+     <div className="sm-camera-copy-example"><div><strong>Speak while gesturing</strong><p>{continuous}</p></div><PromptCopyButton text={continuous} label="Copy continuous actions prompt"/></div>
+     <div className="sm-camera-copy-example"><div><strong>Gesture first, sing next</strong><p>{beforeAfter}</p></div><PromptCopyButton text={beforeAfter} label="Copy gesture then singing prompt"/></div>
+     <div className="sm-camera-copy-example"><div><strong>Two people in one image</strong><p>{twoCharacters}</p><small>One designated speaker is a safer starting point than an alternating conversation. Distinct speakers and simultaneous vocal tracks are not a verified control in this Studio flow.</small></div><PromptCopyButton text={twoCharacters} label="Copy one-speaker group prompt"/></div>
+    </div>
+   </section>
+   <section className="sm-camera-section" id="camera-movements">
+    <div className="sm-camera-section-title"><span className="sm-legal-num">03 / CAMERA MOVEMENTS</span><h2>Camera moves and copy-ready instructions</h2>
+     <p>Start with a SingMotion preset or a simple push-in. Advanced camera terms are creative experiments, not extra buttons or guaranteed features. Match each move to what is visible in your reference image.</p>
+    </div>
     <div className="sm-camera-techniques">{techniques.map((t,i)=><article key={t.name} className="sm-camera-technique">
-     <div className="sm-camera-technique-top"><span className="sm-camera-number">{String(i+1).padStart(2,"0")}</span><div><h3>{t.name}</h3><small>{t.where}</small></div></div>
-     <p>{t.text}</p><blockquote>{t.example}</blockquote><p className="sm-camera-risk"><TriangleAlert size={16} aria-hidden="true"/>{t.risk}</p>
+     <div className="sm-camera-technique-top"><span className="sm-camera-number">{String(i+1).padStart(2,"0")}</span><div><h3>{t.name}</h3><small>{t.level} · {t.where}</small></div></div>
+     <p>{t.text}</p>
+     <div className="sm-camera-prompt-top"><strong>Copy this prompt</strong><PromptCopyButton text={t.example} label={"Copy "+t.name+" prompt"}/></div>
+     <blockquote>{t.example}</blockquote>
+     <p className="sm-camera-risk"><TriangleAlert size={16} aria-hidden="true"/>{t.risk}</p>
     </article>)}</div>
    </section>
    <section className="sm-legal-panel">
-    <span className="sm-legal-num">03 / PREPARE YOUR MEDIA</span><h2>A reliable workflow, from photo to video</h2>
-    <div className="sm-camera-checklist">{checklist.map(([heading,body])=><div key={heading}><CheckCircle2 size={19} aria-hidden="true"/><div><h3>{heading}</h3><p>{body}</p></div></div>)}</div>
-    <p><Music2 size={17} style={{display:"inline",verticalAlign:"middle",marginRight:6}} aria-hidden="true"/><strong>Current SingMotion uploads:</strong> audio MP3/WAV or audio-only M4A up to 50 MB, JPEG/PNG image up to 30 MB. Selected audio is prepared separately for provider limits; a valid site upload does not automatically mean a valid BytePlus task.</p>
+    <span className="sm-legal-num">04 / WORKFLOW</span><h2>Make the first attempt count</h2>
+    <div className="sm-camera-checklist">{steps.map(([heading,body])=><div key={heading}><CheckCircle2 size={19} aria-hidden="true"/><div><h3>{heading}</h3><p>{body}</p></div></div>)}</div>
+    <p><Music2 size={17} style={{display:"inline",verticalAlign:"middle",marginRight:6}} aria-hidden="true"/><strong>Media uploads:</strong> MP3, WAV or audio-only M4A up to 50 MB, plus JPEG or PNG up to 30 MB. Provider and generation limits can be stricter; not every uploaded file can be rendered as a video.</p>
    </section>
    <section className="sm-legal-panel">
-    <span className="sm-legal-num">04 / TROUBLESHOOTING</span><h2>When camera motion does not look right</h2>
+    <span className="sm-legal-num">05 / FIX COMMON PROBLEMS</span><h2>If the camera or performance looks wrong</h2>
     <div className="sm-camera-questions">{issues.map(([title,answer])=><details key={title}><summary>{title}</summary><p>{answer}</p></details>)}</div>
    </section>
    <section className="sm-legal-panel">
-    <span className="sm-legal-num">05 / PROVIDER REALITY</span><h2>What BytePlus documents—and what it does not promise</h2>
-    <p>BytePlus documents image, audio and optional text prompts for OmniHuman-style video generation, including camera-movement descriptions. The cited OmniHuman 2.0 integration reference lists one image, an MP3/WAV audio track under 15 MB and approximately 4–300 seconds of audio; SingMotion applies its own tighter minimum clip length of five seconds. Exact contracted model, availability, input limits and supported output duration must be confirmed for each live workflow.</p>
-    <p>Different BytePlus model families have different controls. The <em>Seedance</em> `camera_fixed` option is not evidence that SingMotion's OmniHuman workflow has an equivalent deterministic switch. Camera prompting is a suggestion, and no preset guarantees the output or timing.</p>
-    <p>Sources: <a href="https://github.com/byteplus-sa/ark-mcp/blob/main/docs/tools.md" target="_blank" rel="noopener noreferrer">BytePlus OmniHuman 2.0 integration reference</a>.</p>
+    <span className="sm-legal-num">06 / RIGHTS & SAFETY</span><h2>Publish responsibly</h2>
+    <p>Use only songs, photos, recordings and voices you have permission to animate and publish. Never imply that a real person endorsed a product or reported an event without authorization. Label synthetic presenters and manipulated news-style footage when required, verify claims, and follow platform advertising rules.</p>
+    <p>See <Link href="/rights">Media rights</Link>, <Link href="/ai-transparency">AI transparency</Link> and <Link href="/privacy">Privacy</Link>. No example videos or links to external platforms are included in this guide.</p>
    </section>
-   <section className="sm-legal-panel">
-    <span className="sm-legal-num">06 / RIGHTS & SAFETY</span><h2>Use real performers with permission</h2>
-    <p>Only animate images, recordings or voices you are allowed to use for synthetic generation and the intended publication. Permission to listen to music or repost a photo is not necessarily permission to produce an AI performance. Clearly disclose artificially generated or manipulated performances where required, especially when a viewer could mistake them for a real event.</p>
-    <p>Read <Link href="/rights">Music & likeness rights</Link>, <Link href="/ai-transparency">AI transparency</Link> and <Link href="/privacy">Privacy</Link>. For output questions, consult <Link href="/help">Help & best practices</Link>.</p>
+   <section className="sm-camera-section" id="ideas">
+    <div className="sm-camera-section-title"><span className="sm-legal-num">07 / WHAT ELSE CAN YOU MAKE?</span>
+     <h2>Creative uses for SingMotion</h2><p>These are ideas for turning a photo and your own licensed audio into a performed video. They are not promises of native integrations with outside apps, guaranteed exports to social platforms, or automatically enabled paid rendering.</p></div>
+    <div className="sm-camera-techniques sm-camera-uses">{useCases.map((idea,i)=><article className="sm-camera-technique" key={idea.name}>
+     <div className="sm-camera-technique-top"><span className="sm-camera-number">{String(i+1).padStart(2,"0")}</span><h3>{idea.name}</h3></div>
+     <p>{idea.description}</p>
+     <div className="sm-camera-prompt-top"><strong>Prompt idea</strong><PromptCopyButton text={idea.prompt} label={"Copy "+idea.name+" prompt"}/></div>
+     <blockquote>{idea.prompt}</blockquote>
+    </article>)}</div>
+    <p className="sm-camera-fineprint">A synthetic voiceover created in another app can be uploaded as a supported audio file if you have the necessary rights. This does not mean those apps are directly connected to SingMotion.</p>
    </section>
-   <div className="sm-camera-bottom"><Link href="/studio"><Clapperboard size={18}/> Open Studio <ArrowRight size={17}/></Link><Link href="/help">More help</Link></div>
+   <div className="sm-camera-bottom"><Link href="/studio"><Clapperboard size={18}/> Try a prompt in Studio <ArrowRight size={17}/></Link><Link href="/help">More help</Link></div>
   </main>
  </div>;
 }
