@@ -17,11 +17,26 @@ test("super-admin and customer share the same wallet menu; usage lives under cre
  assert.match(dashboard,/id="usage"/);assert.match(dashboard,/legacyOrders/);assert.match(dashboard,/Equivalent only/);
  assert.doesNotMatch(dashboard,/admin-preview|testCredits|Simuliertes/);
 });
-test("public pricing info and staging-only Stripe credit Checkout",()=>{
- const plans=read("app/(site)/plans/page.tsx"),picker=read("components/credit-amount-picker.tsx");
- assert.match(plans,/CreditAmountPicker/);assert.match(plans,/25 Credits/);
- assert.match(picker,/purchaseEnabled/);assert.match(picker,/api\/credit-checkout/);
- assert.match(picker,/Stripe Test Mode/);assert.doesNotMatch(picker,/api\/stripe-checkout/);
+test("Pricing opens Stripe only for the authenticated, server-approved credit buyer",()=>{
+ const plans=read("app/(site)/plans/page.tsx");
+ const picker=read("components/credit-amount-picker.tsx");
+ const balance=read("app/(site)/api/credit-balance/route.ts");
+ const checkout=read("app/(site)/api/credit-checkout/route.ts");
+ assert.match(plans,/CreditAmountPicker discoverAvailability/);
+ assert.match(plans,/25 Credits/);
+ assert.doesNotMatch(plans,/Live credit purchasing is not available yet/);
+ assert.match(picker,/fetch\("\/api\/credit-balance",\{cache:"no-store",credentials:"same-origin"\}\)/);
+ assert.match(picker,/const canPurchase=discoverAvailability\?checkoutAccess\.state==="ready"&&checkoutAccess\.purchaseEnabled:purchaseEnabled/);
+ assert.match(picker,/data\.testMode!==checkoutTestMode/);
+ assert.match(picker,/Sign in to buy Credits/);
+ assert.match(picker,/Verify email to buy Credits/);
+ assert.match(picker,/Credit purchases are not yet available for this account/);
+ assert.match(picker,/api\/credit-checkout/);
+ assert.match(picker,/Stripe Test Mode/);
+ assert.doesNotMatch(picker,/api\/stripe-checkout/);
+ assert.match(balance,/purchaseEnabled:\(testCheckout\|\|liveCheckout\)/);
+ assert.match(checkout,/if\(!testMode&&!liveMode\)/);
+ assert.match(checkout,/resolveCreditWalletIdentity\(req,store\)/);
 });
 
 test("prepared operator project with insufficient wallet credits shows actionable shortage, never progress",()=>{
