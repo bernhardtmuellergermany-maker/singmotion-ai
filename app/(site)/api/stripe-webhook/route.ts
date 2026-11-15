@@ -85,7 +85,8 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
      prior.mode!==verifiedMetadata.creditTaxMode||
      prior.revision!==verifiedMetadata.creditTaxRevision||
      details?.address?.country!==prior.country||
-     (prior.buyerType==="business"&&(!Array.isArray(details.tax_ids)||details.tax_ids.length===0)))
+     (prior.buyerType==="business"&&(!Array.isArray(details.tax_ids)||details.tax_ids.length===0))||
+     (prior.buyerType==="consumer"&&Array.isArray(details?.tax_ids)&&details.tax_ids.length>0))
    throw Error("CREDIT_TAX_LOCATION_OR_BUSINESS_PROOF_MISMATCH");
   // Country or business proof disagreement never grants spendable credits.
   // Preserve the verified paid event for a manually reviewed refund.
