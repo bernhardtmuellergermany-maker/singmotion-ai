@@ -1038,12 +1038,13 @@ export function StudioWizard({
           </p>}
           <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Next: create your free account or sign in. Your saved audio and photo will move into your personal workspace. Buy Credits when available, then return to Step 4. Creating an account costs nothing."}</p>
         </section>}
+        {step===3&&generating&&<p className="sm-review-payment-note sm-review-starting-status" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
           {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||(reviewShortage&&operatorStudio)||busy||generating||!!generationProjectId} onClick={()=>!creditStudio?void openGuestAccount():reviewShortage?void continueToCreditPurchase():void startCreditGeneration()}>{<span className="sm-studio-next-label">{generating?"Starting video…":busy?"Saving project…":!creditStudio?"Login to generate video":reviewShortage&&!operatorStudio?"Buy Credits to generate":"Generate Video"}</span>}{!generating&&<ArrowRight size={19} aria-hidden="true"/>}</button>}
         </nav>
-        {step===3&&generating&&<p className="sm-review-payment-note" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
+        
         {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/projects/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
         {/* Errors stay beside the current step heading; no off-screen footer alert. */}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
