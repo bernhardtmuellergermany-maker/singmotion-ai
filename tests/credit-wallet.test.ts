@@ -5,6 +5,7 @@ import {randomUUID} from "node:crypto";
 import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 import {selectWalletPrincipal} from "../lib/commerce/credit-wallet-auth.ts";
 import {readFileSync} from "node:fs";
+import {validStripeRefundId,validStripeChargeId,validStripeDisputeId} from "../lib/commerce/stripe-reversal-identifiers.ts";
 
 const safeEnv={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
  STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"true",
@@ -196,4 +197,42 @@ test("wallet credit checkout follows verified staff precedence when both browser
  assert.match(identity,/selectWalletPrincipal\(id,staffRole\)/);
  assert.match(creditBalance,/resolveCreditWalletIdentity\(req,store\)/);
  assert.match(creditCheckout,/resolveCreditWalletIdentity\(req,store\)/);
+});
+
+test("Stripe refund identifiers accept the actual 2026 LIVE pyr_/py_ formats without weakening verification",()=>{
+ assert.equal(validStripeRefundId("pyr_1Uc6HsBAVolbZIfAKsTK2wvF"),true);
+ assert.equal(validStripeChargeId("py_3Uc5qFBAVolbZIfA1JpifPBg"),true);
+ assert.equal(validStripeRefundId("re_oldSafe123"),true);
+ assert.equal(validStripeChargeId("ch_oldSafe123"),true);
+ assert.equal(validStripeDisputeId("dp_safe123"),true);
+ for(const invalid of ["cs_live_test","pi_123","https://evil.example/re_x","re_bad/../x","pyr_-bad","",null])
+  assert.equal(validStripeRefundId(invalid),false,JSON.stringify(invalid));
+ for(const invalid of ["pi_123","re_123","py_bad/../x","py_-bad","",null])
+  assert.equal(validStripeChargeId(invalid),false,JSON.stringify(invalid));
+ const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
+ assert.ok(hook.includes("validStripeRefundId(object.id)"));
+ assert.ok(hook.includes("validStripeChargeId(verified.charge)"));
+ assert.match(hook,/verified\.status!=="succeeded"/);
+ assert.match(hook,/wallet\.reverse\(\{sessionId:session\.id/);
+});
+test("refund preserves Stripe invoice history and returns exact Credits in the wallet only once",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db),subject="customer:refund-test";
+  const p=wallet.pending({subject,email:"buyer@example.test",customerId:"refund-test"},500,randomUUID());
+  const checkout="cs_live_refund_test";
+  wallet.bind(p.id,checkout,"https://checkout.stripe.com/c/pay/refund-test");
+  wallet.settle({id:p.id,sessionId:checkout,amount:500,currency:"eur",paymentStatus:"paid",livemode:true});
+  assert.equal(wallet.total(subject),500);
+  assert.equal(wallet.reverse({sessionId:checkout,amount:500,currency:"eur",livemode:true,kind:"refund"}),true);
+  assert.equal(wallet.reverse({sessionId:checkout,amount:500,currency:"eur",livemode:true,kind:"refund"}),false);
+  assert.equal(wallet.total(subject),0);
+  assert.equal(wallet.purchases(subject)[0]?.status,"reversed");
+  assert.equal(wallet.entries(subject).filter(x=>x.type==="refund").length,1);
+  const invoices=readFileSync(new URL("../app/(site)/api/customer-invoices/route.ts",import.meta.url),"utf8");
+ assert.ok(invoices.includes("status IN ('paid','reversed')"));
+  assert.match(invoices,/paymentStatus:"topup_status" in row/);
+  const account=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
+  assert.match(account,/invoice\.paymentStatus==="refunded"/);
+ }finally{db.close()}
 });
