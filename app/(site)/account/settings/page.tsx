@@ -7,7 +7,7 @@ import {AdminAnnouncements} from "@/components/admin-announcements";
 import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
 import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard,Bell,Mail} from "lucide-react";
 import "./account-settings.css";
-type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null};
+type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null;paymentStatus?:"paid"|"refunded"};
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
 export default function AccountSettings(){
  const [invoices,setInvoices]=useState<Invoice[]>([]),[invoiceMessage,setInvoiceMessage]=useState(""),[invoicesLoading,setInvoicesLoading]=useState(true);
@@ -194,7 +194,7 @@ export default function AccountSettings(){
       <p className="sm-settings-muted">Download available Stripe invoices for completed purchases. Only documents actually issued by Stripe appear here; an order confirmation is not automatically a tax invoice.</p>
       {invoicesLoading?<p className="sm-settings-muted" role="status">Checking available invoices…</p>:invoices.length?
        <div className="sm-settings-invoice-list">{invoices.map(invoice=><div className="sm-settings-invoice" key={invoice.id}>
-         <div><strong>{invoice.number}</strong><p className="sm-settings-muted">{new Date(invoice.created).toLocaleDateString("en-GB")} · {(invoice.amount/100).toLocaleString("en-GB",{style:"currency",currency:invoice.currency.toUpperCase()})}</p></div>
+         <div><strong>{invoice.number}</strong><p className="sm-settings-muted">{new Date(invoice.created).toLocaleDateString("en-GB")} · {(invoice.amount/100).toLocaleString("en-GB",{style:"currency",currency:invoice.currency.toUpperCase()})}{invoice.paymentStatus==="refunded"?" · Refunded":""}</p></div>
          <a href={invoice.pdf||invoice.hosted||"#"} rel="noopener noreferrer" target="_blank" className="sm-settings-invoice-link"><Download size={16}/> {invoice.pdf?"Download PDF":"View invoice"}</a>
        </div>)}</div>:<div className="sm-settings-empty"><FileText size={22}/><div><strong>No invoices available</strong><p className="sm-settings-muted">{invoiceMessage||"Invoices will appear here when Stripe has issued them for your paid orders."}</p></div></div>}
       <p className="sm-settings-muted">Need a receipt or invoice correction? <a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Contact billing support</a>. </p>
