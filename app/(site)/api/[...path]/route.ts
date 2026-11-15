@@ -480,12 +480,21 @@ async function handler(
           content=await readMirroredPrivateSource(owner,a.id,row,a.kind==="video"?256*1024*1024:51*1024*1024);
         }
       }
+      // Private My Projects previews use a bounded WebP instead of returning
+      // the original image (which may be multiple megabytes from private R2).
+      // Auth, account-owner checks, and source hydration above are unchanged.
+      const thumbnail=a.kind==="image"&&req.nextUrl.searchParams.get("thumbnail")==="1";
+      if(thumbnail){
+        content=await sharp(content,{limitInputPixels:4096*4096,failOn:"error"})
+          .rotate().resize({width:520,height:520,fit:"inside",withoutEnlargement:true})
+          .webp({quality:74,effort:3}).toBuffer();
+      }
       const headers: Record<string, string> = {
-        "Content-Type": playback ? "audio/mpeg" : a.mime,
+        "Content-Type": thumbnail ? "image/webp" : playback ? "audio/mpeg" : a.mime,
         "Cache-Control": "private, no-store",
         "X-Content-Type-Options": "nosniff",
         "Accept-Ranges": "bytes",
-        "Content-Disposition": `${req.nextUrl.searchParams.has("download") ? "attachment" : "inline"}; filename="${a.kind === "video" ? "singmotion-demo.mp4" : a.kind === "audio" ? "song" + (a.mime === "audio/wav" ? ".wav" : a.mime === "audio/mp4" ? ".m4a" : ".mp3") : "reference" + (a.mime === "image/png" ? ".png" : ".jpg")}"`,
+        "Content-Disposition": `${req.nextUrl.searchParams.has("download") ? "attachment" : "inline"}; filename="${a.kind === "video" ? "singmotion-demo.mp4" : a.kind === "audio" ? "song" + (a.mime === "audio/wav" ? ".wav" : a.mime === "audio/mp4" ? ".m4a" : ".mp3") : thumbnail ? "reference.webp" : "reference" + (a.mime === "image/png" ? ".png" : ".jpg")}"`,
       };
       const range = req.headers.get("range");
       if (range) {
