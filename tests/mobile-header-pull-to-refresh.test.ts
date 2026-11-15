@@ -20,3 +20,12 @@ test("fixed transparent navigation does not intercept pull-to-refresh drags",()=
  assert.match(rule(".sm-site-header .sm-header-actions>*"),/pointer-events:auto!important/);
  assert.match(rule(".sm-output-page>.sm-site-header"),/pointer-events:none!important/);
 });
+
+
+test("all routes use the same viewport-anchored global header geometry as home",()=>{
+ const common=css.match(/\.sm-site-header\.home-gallery-header\.sm-carousel-header,[\s\S]*?\.sm-standalone-auth \.sm-site-header\s*\{([^}]+)\}/);
+ assert.ok(common);
+ assert.match(common[1],/left:0!important/);
+ assert.match(common[1],/right:0!important/);
+ assert.doesNotMatch(common[1],/left:auto!important|right:auto!important/);
+});
