@@ -61,3 +61,16 @@ test("notification API is authenticated and write operations are origin guarded"
  assert.match(menu,/href="\/notifications"/);
  assert.match(menu,/unreadNotices/);
 });
+
+test("Notifications shares the site-wide transparent header and background with its own canvas",()=>{
+ const root=new URL("../",import.meta.url);
+ const page=readFileSync(new URL("app/(site)/notifications/page.tsx",root),"utf8");
+ const styles=readFileSync(new URL("components/notifications.css",root),"utf8");
+ const navigation=readFileSync(new URL("app/(site)/site-navigation.css",root),"utf8");
+ assert.match(page,/className="sm-carousel-page sm-notifications-layout"/);
+ assert.match(page,/<SiteHeader\/>/);
+ assert.match(styles,/\.sm-carousel-page\.sm-notifications-layout\{background:#0b0b16\}/);
+ assert.match(styles,/\.sm-notifications-page\{[^}]*background:#0b0b16/);
+ assert.match(navigation,/\.sm-site-header\s*\{[^}]*background:transparent!important/);
+ assert.doesNotMatch(styles,/\.sm-site-header\s*\{/);
+});
