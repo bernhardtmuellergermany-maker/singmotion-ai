@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { safeLink, hasRole, cmsEnvironment, pageSlugs } from "../cms/policy.ts";
+import { safeLink, publicSiteLink, hasRole, cmsEnvironment, pageSlugs } from "../cms/policy.ts";
 test("CMS roles require the dedicated staff collection; customer identities cannot escalate", () => {
   for (const user of [
     null,
@@ -58,4 +58,12 @@ test("CMS configuration fails closed without dedicated server secrets and HTTPS"
       CMS_ORIGIN: "https://staging.example.com",
     }),
   );
+});
+
+test("Public CMS hero and CTA links cannot send visitors to outside websites",()=>{
+ for(const value of ["/studio","/help","/help/camera-movements","/legal#privacy"])
+  assert.equal(publicSiteLink(value),true,value);
+ for(const value of ["https://example.com/legal","https://github.com","https://docs.byteplus.com",
+  "https://omnihumanai.net","//external.example","javascript:alert(1)","/x%2f%2fevil.example",null])
+  assert.equal(publicSiteLink(value),false,String(value));
 });
