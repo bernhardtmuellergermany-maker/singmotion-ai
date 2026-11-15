@@ -6,8 +6,6 @@ import {customerLaunchReadiness} from "./readiness.ts";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const videoEvents=["checkout.session.completed","checkout.session.async_payment_succeeded",
  "refund.created","refund.updated","charge.dispute.created"] as const;
-const hobbyEvents=["customer.subscription.created","customer.subscription.updated",
- "customer.subscription.deleted","invoice.paid","invoice.payment_failed"] as const;
 type Fetcher=(input:string,init:RequestInit)=>Promise<Response>;
 export type StripePreflightResult={
  environment:"production"; account:string; checks:{name:string;ok:boolean}[];
@@ -34,13 +32,9 @@ export async function readOnlyStripeLivePreflight(
  const webhookConfigured=check("live-webhook-signing-secret",/^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||""));
  const origin=safeOrigin(env.PUBLIC_SITE_ORIGIN);
  check("public-https-origin",origin!==null);
- const priceId=env.STRIPE_HOBBY_PRICE_ID||"";
- const hasPrice=check("separate-hobby-live-price",/^price_[A-Za-z0-9_]+$/.test(priceId));
- const hobbyWebhook=check("live-hobby-webhook-signing-secret",
-  /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_HOBBY_WEBHOOK_SECRET||""));
  // The connection cannot access live Stripe outside real Production. This
  // protects private Staging from accidentally using an operator's live key.
- if(environment&&credential&&webhookConfigured&&hobbyWebhook&&origin&&hasPrice){
+ if(environment&&credential&&webhookConfigured&&origin){
   const request=async(url:string):Promise<Record<string,unknown>|null>=>{
    try{
     const response=await fetcher(url,{
@@ -53,43 +47,28 @@ export async function readOnlyStripeLivePreflight(
      result as Record<string,unknown>:null;
    }catch{return null}
   };
-  const [account,price,webhooks]=await Promise.all([
+  const [account,product,webhooks]=await Promise.all([
    request("https://api.stripe.com/v1/account"),
-   request("https://api.stripe.com/v1/prices/"+encodeURIComponent(priceId)),
+   request("https://api.stripe.com/v1/products/prod_Vchw1yEak3Xa6k"),
    request("https://api.stripe.com/v1/webhook_endpoints?limit=100"),
   ]);
   check("stripe-account-accepts-charges",
    account?.object==="account"&&account.charges_enabled===true&&
    account.details_submitted===true);
-  const p=price?.recurring;
-  const recurring=p&&typeof p==="object"?p as Record<string,unknown>:null;
-  check("hobby-price-is-active-inclusive-eur-monthly",
-   price?.id===priceId&&price.livemode===true&&price.active===true&&
-   price.currency==="eur"&&price.unit_amount===499&&
-   price.tax_behavior==="inclusive"&&recurring?.interval==="month"&&
-   recurring?.interval_count===1&&recurring?.usage_type==="licensed");
-  // A live Stripe API object may still be mislabeled as a staging/sandbox
-  // product; require a real Production product review before public billing.
-  const productId=typeof price?.product==="string"&&
-   /^prod_[A-Za-z0-9_]+$/.test(price.product)?price.product:null;
-  const product=productId?await request("https://api.stripe.com/v1/products/"+
-   encodeURIComponent(productId)):null;
-  const stagingLabel=(value:unknown)=>typeof value==="string"&&
-   /(?:^|[^a-z])(?:staging|sandbox)(?:$|[^a-z])/i.test(value);
-  const productMetadata=product?.metadata&&typeof product.metadata==="object"&&
-   !Array.isArray(product.metadata)?product.metadata as Record<string,unknown>:{};
-  check("hobby-live-product-reviewed-not-staging",
-   !!productId&&product?.id===productId&&product.livemode===true&&
-   product.active===true&&
-   // A live Stripe object still needs explicit Production classification.
-   // Missing or staging-labelled metadata must never unlock customer billing.
-   productMetadata.environment==="production"&&
-   ![price?.nickname,price?.lookup_key,product.name,product.description,
-     productMetadata.environment].some(stagingLabel));
+  // Credits-only release: verify the exact live product rather than retired Hobby billing.
+  // The tax code does not by itself certify a tax or merchant-of-record decision.
+  const creditProductId="prod_Vchw1yEak3Xa6k";
+  const approvedCreditTaxCodes=new Set(["txcd_10105001","txcd_10105002",
+    "txcd_10105003","txcd_10105004"]);
+  const description=typeof product?.description==="string"?product.description:"";
+  check("credits-live-product-active-and-classified",
+    product?.id===creditProductId&&product.livemode===true&&
+    product.active===true&&product.name==="SingMotion AI Credits"&&
+    /prepaid credits/i.test(description)&&
+    approvedCreditTaxCodes.has(String(product.tax_code||"")));
   const items=Array.isArray(webhooks?.data)?webhooks.data:[];
-  // Video purchases and Hobby subscriptions use separate signing secrets.
-  // Both endpoints must exist in the same Live account before admitting
-  // either type of charge, otherwise fulfillment/quota may never arrive.
+  // Credits purchases require the signed payment/refund/dispute endpoint.
+  // Hobby is retired and its webhook cannot block a credits-only release.
   // Stripe currently delivers to this specific, TLS-verified Production
   // Railway domain. The public custom host is also permitted. No arbitrary
   // staging Railway host, wildcard or untrusted configured redirect is valid.
@@ -106,11 +85,9 @@ export async function readOnlyStripeLivePreflight(
      Array.isArray(enabled)&&required.every(t=>enabled.includes(t)||enabled.includes("*"));
   });
   check("verified-live-checkout-webhook",endpoint("/api/stripe-webhook",videoEvents));
-  check("verified-live-hobby-webhook",endpoint("/api/hobby-webhook",hobbyEvents));
  }else{
   check("stripe-account-accepts-charges",false);
-  check("hobby-price-is-active-inclusive-eur-monthly",false);
-  check("hobby-live-product-reviewed-not-staging",false);
+  check("credits-live-product-active-and-classified",false);
   check("verified-live-checkout-webhook",false);
   check("verified-live-hobby-webhook",false);
  }
