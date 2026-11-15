@@ -60,3 +60,11 @@ test("mobile generation status never renders after the fixed action bar",()=>{
  assert.match(css,/\.flow-main > \.sm-review-starting-status/);
  assert.match(css,/margin-bottom:calc\(115px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
 });
+
+test("Studio credit warning matches the 860px review width without desktop overflow",()=>{
+ const wizard=read("components/studio-wizard.tsx");
+ const css=read("app/(site)/studio-refinement.css");
+ assert.match(wizard,/\<CustomerFeedback notice=\{wizardNotice\}/);
+ assert.match(css,/\.flow-main > \.sm-customer-feedback\{[\s\S]*?width:min\(100%,860px\);[\s\S]*?max-width:860px;[\s\S]*?align-self:center;[\s\S]*?margin:12px auto 18px;/);
+ assert.match(css,/\.sm-review-checkout\{\s*width:min\(100%,860px\);/);
+});
