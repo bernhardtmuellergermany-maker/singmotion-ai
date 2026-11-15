@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ArrowUpRight, LockKeyhole } from "lucide-react";
 
 import { SiteHeader } from "../site-header";
-import { safeLink } from "../../cms/policy";
+import { publicSiteLink } from "../../cms/policy";
 // Deliberately no raw HTML, arbitrary CSS, scripts, or remote image URLs.
 import type { Page } from "../../cms/payload-types";
 export async function Website({
@@ -68,13 +68,13 @@ export async function Website({
                     <h1>{b.heading}</h1>
                     <p>{b.body}</p>
                     <div className="hero-actions">
-                      {b.url && safeLink(b.url) && (
+                      {b.url && publicSiteLink(b.url) && (
                         <Link className="button primary large" href={b.url}>
                           {b.buttonLabel}
                           <ArrowRight size={18} />
                         </Link>
                       )}
-                      {secondary && safeLink(secondary.url) && (
+                      {secondary && publicSiteLink(secondary.url) && (
                         <Link className="hero-secondary" href={secondary.url}>
                           {secondary.buttonLabel}
                           <ArrowUpRight size={16} aria-hidden="true" />
@@ -158,7 +158,7 @@ export async function Website({
               return (
                 <section key={i} className="pricing-section closing-cta">
                   <h2>{b.heading}</h2>
-                  {b.url && safeLink(b.url) && (
+                  {b.url && publicSiteLink(b.url) && (
                     <Link className="button primary" href={b.url}>
                       {b.buttonLabel}
                     </Link>

@@ -23,3 +23,38 @@
 .sm-camera-bottom a:first-child{display:inline-flex;align-items:center;gap:11px;padding:13px 18px;border-radius:12px;background:#914ff0;color:#fff;font-weight:750;text-decoration:none}
 .sm-camera-bottom a:last-child{color:#cfabeb}
 @media(max-width:700px){.sm-camera-main{padding-top:97px!important}.sm-camera-techniques{grid-template-columns:1fr}.sm-camera-technique{padding:19px}.sm-camera-callout{padding:17px}.sm-camera-breadcrumb{gap:12px}}
+
+/* Prompt library: full text remains selectable and readable without JavaScript. */
+.sm-camera-copied-examples{display:grid;gap:14px;margin:16px 0 8px}
+.sm-camera-copy-example{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  min-width:0;padding:18px 19px;background:#1f1a32;border:1px solid #534269;border-radius:14px}
+.sm-camera-copy-example>div{min-width:0;flex:1}
+.sm-camera-copy-example strong,.sm-camera-prompt-top strong{color:#f8eaff;font-size:13px}
+.sm-camera-copy-example p{margin:8px 0 0;color:#ddd2e8;line-height:1.75}
+.sm-camera-copy-example small{display:block;margin:10px 0 0;font-size:12px;color:#bbadd0;line-height:1.65}
+.sm-camera-prompt-top{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:auto}
+.sm-camera-copy{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:0 0 auto;
+ padding:8px 12px;min-height:37px;border:1px solid rgba(198,158,231,.56);border-radius:999px;
+ color:#f2e0ff;background:rgba(69,44,91,.55);font-size:12px;font-weight:750;line-height:1;
+ cursor:pointer;transition:background .18s,border-color .18s,transform .18s}
+.sm-camera-copy:hover{background:rgba(111,60,142,.72);border-color:#dbb4f7;transform:translateY(-1px)}
+.sm-camera-copy:focus-visible{outline:2px solid #e8caff;outline-offset:3px}
+.sm-camera-technique .sm-camera-prompt-top + blockquote{margin-top:-8px}
+.sm-camera-uses .sm-camera-technique{justify-content:flex-start}
+.sm-camera-uses .sm-camera-technique>p{margin:0}
+.sm-camera-uses .sm-camera-technique-top>h3{margin:0}
+.sm-camera-fineprint{margin:18px 0 8px!important;color:#c9b8d9;font-size:13px;line-height:1.75}
+.sm-camera-guide .sm-legal-panel h2{font-size:clamp(22px,2.6vw,30px);color:#fff}
+.sm-camera-guide .sm-legal-panel>p{line-height:1.75}
+.sm-camera-guide .sm-legal-panel h2 + p{margin-top:14px}
+.sm-camera-guide .sm-camera-technique .sm-camera-risk{margin:0}
+@media(max-width:700px){
+ .sm-camera-copy-example{flex-direction:column;gap:12px;padding:15px}
+ .sm-camera-copy-example .sm-camera-copy{align-self:flex-start}
+ .sm-camera-prompt-top{flex-wrap:wrap}
+ .sm-camera-copy{min-height:40px}
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-camera-copy{transition:none!important}
+ .sm-camera-copy:hover{transform:none}
+}

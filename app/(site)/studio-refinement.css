@@ -2597,3 +2597,13 @@
     margin-bottom:calc(115px + env(safe-area-inset-bottom,0px))!important;
   }
 }
+
+/* Studio: link users to the first-party prompt library without leaving the app. */
+.product-theme.singmotion-flow .sm-prompt-guide-library-link{
+ color:#e6c2ff;text-underline-offset:4px;font-weight:750;
+ text-decoration:underline;text-decoration-thickness:1px;
+}
+.product-theme.singmotion-flow .sm-prompt-guide-library-link:hover{color:#fff}
+.product-theme.singmotion-flow .sm-prompt-guide-library-link:focus-visible{
+ outline:2px solid #dfacff;outline-offset:3px;border-radius:3px
+}

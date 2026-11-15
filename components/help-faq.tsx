@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { SiteHeader } from "./site-header";
+import "./help-faq-highlight.css";
 
 export type FAQGroup = {heading:string;items:[string,string][]};
 export const defaultGroups:FAQGroup[] = [
@@ -24,11 +25,11 @@ export const defaultGroups:FAQGroup[] = [
     ["Does my photo need to match portrait or landscape video?","Studio offers automatic image-based orientation and manual 9:16 / 16:9 output preferences. A chosen ratio is guidance subject to the output validation and provider capability; cropping and composition may differ. Keep important features away from image edges."],
     ["May I use a celebrity, friend's voice or someone else's picture?","Only if you hold the necessary copyright, performer, likeness, voice and personality permissions for AI processing and the intended publication. Publicly available material is not automatically licensed. Do not create deceptive impersonation, non-consensual intimate media or fake endorsements."]
   ]},
-  {heading:"Performance, camera and BytePlus best practices",items:[
+  {heading:"Performance, camera and prompt best practices",items:[
     ["Which performance and camera settings should I choose first?","Start with Natural performance and Static camera. After reviewing the first clip, test one change at a time: Emotional or Energetic expression, then gentle handheld or a slow camera move. Aggressive orbiting, walking and fast movement may distort faces, limbs or backgrounds."],
     ["What do camera directions actually do?","Camera choices such as Static camera, Orbit left, Tilt up/down, Pull out, Gentle Handheld and Follow backwards are converted into English instructions. They guide the model but are not precise camera controls. See the Camera movements guide below."],
     ["How should I write a useful custom prompt?","Keep it short, specific and consistent with what the photo supports. Example: 'Sing naturally with a gentle smile, subtle head movement, relaxed shoulders and steady eye contact. Keep the background stable.' Avoid contradictory commands, sudden outfit changes or several camera movements at once. The current Studio Performance prompt field accepts up to 500 characters; keep instructions concise."],
-    ["Does a custom prompt replace the camera setting?","In the current Studio workflow the custom performance direction is composed with the selected camera direction and consistency guidance. Check the final composed prompt shown before generation. Other legacy demos may behave differently."],
+    ["Does a custom prompt replace the camera setting?","The current generation text uses your own typed prompt, not hidden camera preset text. If a camera move matters, write it explicitly into your Performance prompt and check the final text before generation. The separate camera preset is an editor choice, not a guarantee of model behavior."],
     ["What is BytePlus OmniHuman 2.0?","OmniHuman 2.0 is an external image-and-audio-to-video model intended to animate a person from a reference image and audio. Its published integration documents accept an image and MP3/WAV input, with a documented 4–300-second provider-audio window and a 15 MB audio limit. SingMotion uses stricter product rules in places. Provider availability, commercial contract, output duration, pricing and actual customer access are separate matters."],
     ["What are BytePlus image requirements versus SingMotion requirements?","The BytePlus ark-mcp OmniHuman integration documents image formats such as JPEG/PNG and dimensions of 300–6000 pixels per side with aspect ratio 0.4–2.5. These are provider-side specifications, not a promise that SingMotion accepts all those image formats and dimensions: SingMotion currently allows JPEG/PNG only and applies its own validation. Do not stretch a tiny or distorted portrait just to pass a numeric limit."],
     ["Can I guarantee perfect lip-sync, facial likeness or smooth dancing?","No. Generative output may alter mouth shapes, teeth, fingers, face, clothing, timing, background, camera motion or pose, and may contain flicker. Start from strong input media, make one adjustment at a time and inspect the entire output. If paid output is technically defective, statutory remedies are not removed by this warning."],
@@ -44,6 +45,22 @@ export const defaultGroups:FAQGroup[] = [
     ["How do I protect my content and account?","Use only media you have rights to, avoid highly sensitive images or documents, keep login details private and download results you need. Session and storage retention vary. Review Privacy and Settings; do not rely on the private preview as permanent archival storage."],
     ["How do I report misuse or request deletion?","Review the Privacy, Legal and Contact sections for the actual operator and reporting channels. A verified direct support/privacy address and tested deletion procedure are still launch requirements; this help page does not claim they are already operational."]
   ]}
+];
+const creativeGuidance:FAQGroup[] = [
+ {heading:"Make actions flow naturally",items:[
+  ["How should I structure a performance prompt?","Start with one camera move, then the speaker's mood, explicitly say the person speaks, sings or raps, and describe two or three actions in order. Example: 'Static medium shot. The singer sings warmly, first smiles, then lifts one hand, and finally looks into the lens.' Use the Copy buttons in the Camera movements guide."],
+  ["How do I control continuous actions?","Use 'first', 'then' and 'finally' instead of disjointed keywords. Be explicit about whether the gesture comes before, during or after speaking or singing. Work with an audio selection long enough to show the action."],
+  ["Which camera movements can I try?","SingMotion Studio includes Static camera, Orbit left, Tilt up, Tilt down, Pull out, Gentle Handheld and Follow backwards. The prompt can also describe push-in, orbit right, pans, zooms and more exploratory moves. None is a deterministic camera command; consult the complete guide for 22 copy-ready examples."],
+  ["What if several people appear in my image?","Name the intended speaker, make the others listen or react, and avoid multiple competing speech instructions. Alternating conversations between distinct speakers cannot be assumed to work as one generation."],
+  ["Can I reuse an example unchanged?","Yes, tap Copy and paste into the Studio Performance prompt. Adapt actions and framing to the visible photo, actual vocal audio and the 500-character input limit; copying does not automatically start generation or cost Credits."]
+ ]},
+ {heading:"Creative ways to use SingMotion",items:[
+  ["Can I make product and TikTok Shop-style videos?","You can experiment with synthetic product presentations and UGC-style ads using authorized images and recorded or licensed voiceover. Verify every product claim, disclose AI content when required and follow the destination platform's advertising rules. Publishing to external marketplaces is not an automatic SingMotion integration."],
+  ["What about my own music and virtual performers?","Use your original song or licensed track, an authorized portrait or fictional singer, and a prompt describing expression and camera rhythm. Start with a 5–10-second chorus before a longer performance."],
+  ["Can I use narration or ElevenLabs voice audio?","A properly licensed voice track exported from a speech application can be uploaded as a supported audio file. No native connection to ElevenLabs or any other speech service is promised."],
+  ["Can I create news-style videos or educational explainers?","You can try clearly labeled synthetic presenters for fact-checked news summaries, lessons, onboarding and announcements. Do not impersonate a real newsreader, misrepresent a real event or publish unauthorized voices and likenesses."],
+  ["Any other ideas?","Think podcasts made visual, audiobook narrators, event invitations, game characters, animated mascots, multilingual information, local-business introductions, real-estate guides, charity campaigns and personal celebrations. The Camera movements guide has 15 copy-ready ideas."]
+ ]}
 ];
 const guide:FAQGroup[] = [
   {heading:"Step-by-step studio guide",items:[
@@ -63,14 +80,15 @@ const guide:FAQGroup[] = [
   ]}
 ];
 export function HelpFAQ({groups=[],mode="help"}:{groups?:FAQGroup[];mode?:"help"|"faq"}){
-const allGroups= mode==="help" ? [...guide,...defaultGroups,...groups] : [...defaultGroups,...groups];
+const allGroups= mode==="help" ? [...guide,...creativeGuidance,...defaultGroups,...groups] : [...creativeGuidance,...defaultGroups,...groups];
 return <div className="sm-legal sm-help-faq">
 <SiteHeader/>
 <main id="content" className="sm-legal-main">
  <div className="sm-legal-intro"><span className="sm-legal-kicker">SUPPORT & GUIDANCE</span><h1>{mode==="help"?"Help & Best Practices":"Frequently Asked Questions"}<span>.</span></h1><p>{mode==="help"?"A practical guide to better input images, cleaner vocals, natural movements and troubleshooting.":"Answers about uploads, BytePlus, AI-video quality, privacy, pricing, projects and support."}</p><small>Capabilities and limits describe the current protected preview. Provider requirements may differ from SingMotion's own upload rules.</small></div>
+ {mode==="help"&&<div className="sm-camera-help-highlight"><strong>Camera moves & prompt library</strong><p>Learn continuous actions, copy any of 22 camera prompts and explore 15 creative ways to use SingMotion. No example videos or outside websites.</p><Link href="/help/camera-movements">Open the complete prompt guide →</Link></div>}
  <nav className="sm-legal-nav" aria-label="Help navigation"><Link href="/help">How-to & best practices</Link><Link href="/faq">Frequently asked questions</Link><Link href="/help/camera-movements">Camera movements</Link><Link href="/ai-transparency">AI transparency</Link></nav>
  {allGroups.map((group,index)=><section key={group.heading} className="sm-help-group"><div className="sm-help-group-header"><span className="sm-legal-num">{String(index+1).padStart(2,"0")} / {mode==="help"?"GUIDE":"FAQ"}</span><h2>{group.heading}</h2></div><div className="sm-help-questions">{group.items.map(([question,answer])=><details className="sm-help-question" key={question}><summary>{question}<ChevronDown size={18} aria-hidden="true"/></summary><p>{answer}</p></details>)}</div></section>)}
- <div className="sm-help-bottom">More details: <Link href="/help/camera-movements">Camera movements</Link> · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link> · <Link href="/rights">Media rights</Link>. BytePlus technical source: <a href="https://github.com/byteplus-sa/ark-mcp/blob/main/docs/tools.md" target="_blank" rel="noopener noreferrer">OmniHuman integration documentation</a>.</div>
+ <div className="sm-help-bottom">More details: <Link href="/help/camera-movements">Camera movements & copy-ready prompts</Link> · <Link href="/privacy">Privacy</Link> · <Link href="/terms">Terms</Link> · <Link href="/rights">Media rights</Link>.</div>
 </main>
 </div>;
 }

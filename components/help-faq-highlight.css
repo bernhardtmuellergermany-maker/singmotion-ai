@@ -1,0 +1,13 @@
+/* SingMotion Help: internal guide discovery, no outside links. */
+.sm-camera-help-highlight{
+ margin:22px 0 24px;padding:22px 24px;border:1px solid rgba(200,147,234,.4);
+ border-radius:18px;background:linear-gradient(120deg,#302042,#18162a);color:#f9efff
+}
+.sm-camera-help-highlight strong{display:block;font-size:18px;letter-spacing:-.02em}
+.sm-camera-help-highlight p{margin:8px 0 14px;line-height:1.7;color:#d2c4df;font-size:14px}
+.sm-camera-help-highlight a{display:inline-flex;align-items:center;min-height:40px;
+ padding:9px 15px;border-radius:10px;background:#7542b8;color:#fff;
+ font-size:13px;font-weight:750;text-decoration:none}
+.sm-camera-help-highlight a:hover{background:#9254d6}
+.sm-camera-help-highlight a:focus-visible{outline:2px solid #f2d4ff;outline-offset:3px}
+@media(max-width:650px){.sm-camera-help-highlight{padding:18px}}
