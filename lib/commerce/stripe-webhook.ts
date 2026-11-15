@@ -11,6 +11,7 @@ export type StripeTestEvent = {
     object?: string;
     mode?: string;
     payment_status?: string;
+    payment_intent?: string;
     currency?: string;
     amount_total?: number;
     metadata?: {orderId?: string};
