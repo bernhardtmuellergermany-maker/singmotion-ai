@@ -377,7 +377,7 @@ export function MyProjectsGallery(){
       status:"draft",date:Number(d.updated)||0,
       duration:Math.max(0,(d.selection?.end||0)-(d.selection?.start||0)),
       format:validFormat(d.selection?.outputFormat),
-      image:d.selection?.imageId?`/api/assets/${encodeURIComponent(d.selection.imageId)}`:null,
+      image:d.selection?.imageId?`/api/assets/${encodeURIComponent(d.selection.imageId)}?thumbnail=1`:null,
       href:`/studio?draft=${encodeURIComponent(d.id)}`,supportId:null,providerId:null
      });
    }
@@ -390,8 +390,8 @@ export function MyProjectsGallery(){
        status:customerStatus(o),date:Number(o.created)||0,
        duration:Number(o.durationSeconds)||Math.max(0,(d?.selection.end||0)-(d?.selection.start||0)),
        format:validFormat(o.outputFormat||d?.selection.outputFormat),
-       image:o.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(o.orderId)}`:
-         d?.selection.imageId?`/api/assets/${encodeURIComponent(d.selection.imageId)}`:null,
+       image:o.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(o.orderId)}&thumbnail=1`:
+         d?.selection.imageId?`/api/assets/${encodeURIComponent(d.selection.imageId)}?thumbnail=1`:null,
        href:`/orders/${encodeURIComponent(o.orderId)}`,
        supportId:o.status==="awaiting_payment"?null:o.orderId,providerId:null
      });
@@ -404,7 +404,7 @@ export function MyProjectsGallery(){
        name:p.projectName?.trim()||sourceDraft?.projectName?.trim()||p.artistName||"Music video",
        status:adminStatus(p),date:Number(p.createdAt)||0,
        duration:p.durationSeconds||0,format:validFormat(p.selection?.outputFormat),
-       image:p.imageId?`/api/assets/${encodeURIComponent(p.imageId)}`:null,
+       image:p.imageId?`/api/assets/${encodeURIComponent(p.imageId)}?thumbnail=1`:null,
        href:`/projects/live_${encodeURIComponent(p.id)}`,
        supportId:p.providerJobId?p.id:null,providerId:p.providerJobId||null
      });
@@ -457,7 +457,7 @@ export function MyProjectsGallery(){
       {filtered.map(item=><article className="sm-projects-card" key={item.id}>
         <Link className="sm-projects-card-main" href={item.href} aria-label={`Open ${item.name}, ${statusText(item.status)}`}>
           <div className="sm-projects-cover">
-            {item.image?<img src={item.image} alt="" loading="lazy"/>:
+            {item.image?<img src={item.image} alt="" loading="lazy" decoding="async"/>:
              <div className="sm-projects-cover-placeholder"><Film size={31}/></div>}
             {item.format!=="—"&&<span className="sm-projects-format"><Video size={12}/>{item.format}</span>}
             {item.duration>0&&<span className="sm-projects-duration">{durationLabel(item.duration)}</span>}
