@@ -122,7 +122,7 @@ test("failed email delivery leaves paid receipt pending for a signed webhook ret
   assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),false);
   assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),false);
   assert.equal(count,2);
-  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM credit_topup_email_notifications").get()?.n,0);
+  assert.equal((store.db.prepare("SELECT COUNT(*) AS n FROM credit_topup_email_notifications").get() as {n:number}).n,0);
  }finally{store.close()}
 });
 test("invoice lookup binds each paid session to its LIVE or TEST key, never the reversal-mode default",()=>{
