@@ -2316,6 +2316,17 @@
  }
 }
 
+/* Keep Studio notices aligned with the review form instead of letting
+   the credit-shortage warning span the entire desktop viewport.
+   On phones the notice uses the available content width without overflow. */
+.product-theme.singmotion-flow .flow-main > .sm-customer-feedback{
+  box-sizing:border-box;
+  width:min(100%,860px);
+  max-width:860px;
+  align-self:center;
+  margin:12px auto 18px;
+}
+
 /* Review & Generate: read-only expandable order summary. */
 .product-theme.singmotion-flow .sm-review-checkout{
  width:min(100%,860px);align-self:center;display:flex;flex-direction:column;gap:14px;
