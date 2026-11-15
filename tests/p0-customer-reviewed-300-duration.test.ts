@@ -18,7 +18,11 @@ test("customer checkout duration remains 30s without a new independently reviewe
 test("guest and account paid preparation can reach 300s with a validated worker policy, not a UI flag",async()=>{
  const dir=await mkdtemp(path.join(tmpdir(),"sm-reviewed-300-"));
  try{
-  const policy=ownerConfirmedBytePlusPolicy();
+  // The standalone customer-order worker fixture exercises its own
+  // independent caps; Studio prepaid tests no longer inherit these quotas.
+  const policy=Object.assign(ownerConfirmedBytePlusPolicy(),{
+   dailyCapMicroUsd:25_000_000,lifetimeCapMicroUsd:100_000_000,
+  });
   policy.reviewedBy="synthetic-independent-reviewer-for-offline-regression";
   policy.reviewedAt=new Date(Date.now()-3600000).toISOString();
   policy.expiresAt=new Date(Date.now()+2*86400000).toISOString();

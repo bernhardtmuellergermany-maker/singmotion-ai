@@ -30,7 +30,7 @@ test("Customer generation beta requires private Staging, Stripe TEST, pricing an
  }
 });
 test("private signed TEST Credit videos work without opening unlimited staff Studio",()=>{
- const isolated={...env(),BYTEPLUS_STUDIO_ENABLED:"false",BYTEPLUS_STUDIO_MAX_DURATION_SECONDS:"0"};
+ const isolated={...env(),NODE_ENV:"test",BYTEPLUS_STUDIO_ENABLED:"false",BYTEPLUS_STUDIO_MAX_DURATION_SECONDS:"0"};
  assert.equal(customerCreditStudioBetaEnabled(isolated),true);
  const store=new LiveTestStore(":memory:");
  const runtime=studioRuntime(store,"/unused-test-data",isolated,false,true);
