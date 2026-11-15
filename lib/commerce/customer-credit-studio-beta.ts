@@ -1,5 +1,6 @@
 /** Authenticated, prepaid customer Credit video test.
- * Staging only and Stripe TEST only. Each accepted task must have its own
+ * Restricted to Staging Stripe TEST or an independently gated private Production LIVE pilot.
+ * Each accepted task must have its own
  * verified prepaid wallet reservation and provider-specific priced plan.
  * No separate daily, cumulative or customer-count spending quota is applied.
  */

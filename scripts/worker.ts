@@ -1,6 +1,7 @@
 import { pollStudioProjects } from "../lib/live/studio-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 import {customerLaunchReadiness} from "../lib/commerce/readiness.ts";
+import {assessPrivateProductionCreditVideo} from "../lib/commerce/private-production-credit-readiness.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 import {retryVideoReadyNotifications,retryStudioCreditVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
 import {retrySupportCaseEmails,queueFailedOutputSupportEmails} from "../lib/commerce/support-notifications.ts";
@@ -49,6 +50,21 @@ console.info("CUSTOMER_CHECKOUT_READINESS",JSON.stringify({
  ready:paidReadiness.readyForPaidOrders,
  blockers:paidReadiness.blockers,
 }));
+/** The credits-only private Studio uses a DIFFERENT admission gate from the
+ * retired pay-per-video Checkout/worker. The legacy checkout readiness log
+ * cannot diagnose it. Emit only bounded, predetermined gate IDs; never log
+ * secret values, customer identities, wallet amounts, or provider URLs.
+ * This is a configuration diagnosis, NOT acceptance evidence or activation.
+ */
+if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
+ const privateCredit=assessPrivateProductionCreditVideo(process.env);
+ console.info("PRIVATE_CREDIT_VIDEO_CONFIGURATION",JSON.stringify({
+  ready:privateCredit.configurationReady,
+  blocked:privateCredit.checks.filter(check=>!check.ready).map(check=>check.id),
+  independentlyAccepted:false,
+  publicReleaseApproved:false,
+ }));
+}
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
