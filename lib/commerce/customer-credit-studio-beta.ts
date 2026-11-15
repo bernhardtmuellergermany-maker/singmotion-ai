@@ -20,7 +20,10 @@ export function customerCreditStudioBetaEnabled(env:Record<string,string|undefin
   /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"") &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
-  env.BYTEPLUS_STUDIO_ENABLED==="true" &&
+  // The account-owned, credit-funded pilot is independent of the private
+  // staff/Operator Studio switch. It still needs signed TEST payments, verified
+  // customer ownership, a live recovery worker and the finite customer USD ledger.
+  // Do not open unlimited staff submissions merely to test a customer video.
   env.BYTEPLUS_STUDIO_RECOVERY_ENABLED==="true" &&
   (env.BYTEPLUS_STUDIO_OPERATOR_SECRET?.length||0)>=32 &&
   env.CUSTOMER_R2_STORAGE_ENABLED==="true" &&
