@@ -57,8 +57,10 @@ export async function GET(req:NextRequest){
    JOIN stripe_checkout_sessions s ON s.order_id=o.id
    WHERE o.account_id=? AND o.status='paid'
    ORDER BY o.created DESC LIMIT 20`).all(accountId) as {id:string;created:number;session_id:string}[]:[];
-  const topups=store.db.prepare(`SELECT id,created,stripe_session_id AS session_id FROM credit_topup_purchases WHERE subject=? AND status='paid' AND stripe_session_id IS NOT NULL ORDER BY created DESC LIMIT 20`).all(subject) as {id:string;created:number;session_id:string}[];
-  const invoices:{id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null}[]=[];
+  // A refund never erases an issued invoice. Retain invoice downloads for
+  // refunded Credit purchases, while the ledger labels those purchases reversed.
+  const topups=store.db.prepare(`SELECT id,created,stripe_session_id AS session_id,status AS topup_status FROM credit_topup_purchases WHERE subject=? AND status IN ('paid','reversed') AND stripe_session_id IS NOT NULL ORDER BY created DESC LIMIT 20`).all(subject) as {id:string;created:number;session_id:string;topup_status:"paid"|"reversed"}[];
+  const invoices:{id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null;paymentStatus:"paid"|"refunded"}[]=[];
   for(const row of [...rows,...topups].slice(0,30)){
    const mode:StripePaymentMode|null=stripeSessionIdMatchesMode(row.session_id,"live")?"live":
     stripeSessionIdMatchesMode(row.session_id,"test")?"test":null;
@@ -74,7 +76,8 @@ export async function GET(req:NextRequest){
     const pdf=safeStripeDocument(invoice.invoice_pdf),hosted=safeStripeDocument(invoice.hosted_invoice_url);
     if(!pdf&&!hosted)continue;
     invoices.push({id:row.id,number:invoice.number||"Invoice",created:typeof invoice.created==="number"?invoice.created*1000:row.created,
-     amount:typeof invoice.total==="number"?invoice.total:0,currency:invoice.currency||"eur",pdf,hosted});
+     amount:typeof invoice.total==="number"?invoice.total:0,currency:invoice.currency||"eur",pdf,hosted,
+     paymentStatus:"topup_status" in row&&row.topup_status==="reversed"?"refunded":"paid"});
    }catch{/* An unavailable Stripe record never becomes a downloadable invoice. */}
   }
   return reply({invoices,message:invoices.length?"":"No downloadable Stripe invoices are currently attached to your paid orders."});
