@@ -922,6 +922,7 @@ export function StudioWizard({
                 <p><strong>Reference photo tip:</strong> For full-body actions such as walking or dancing, use a photo that shows the whole person, including the legs. A close-up may limit visible movement.</p>
                 <p><strong>Keep it focused:</strong> Prefer a few compatible instructions over conflicting actions. For example, do not ask the camera to stay fixed and follow the singer at the same time.</p>
                 <p><strong>Important:</strong> These are writing tips, not automatic instructions. SingMotion sends only the text you enter in the prompt box above. The AI model may still interpret or omit movements; a result is not guaranteed.</p>
+                <p><Link href="/help/camera-movements" className="sm-prompt-guide-library-link">Explore 22 camera moves, continuous-action tips & copy-ready examples</Link></p>
               </div>
             </details>
           </div>

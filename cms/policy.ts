@@ -21,6 +21,11 @@ export function safeLink(value: unknown): boolean {
     return false;
   }
 }
+/** Website CTAs and promotional links are deliberately internal-only.
+ * Checkout/receipts and authentication redirects are separate functional flows. */
+export function publicSiteLink(value:unknown):boolean{
+ return typeof value==="string"&&value.startsWith("/")&&safeLink(value);
+}
 export const pageSlugs = [
   "home",
   "pricing",
