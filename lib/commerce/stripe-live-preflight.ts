@@ -89,7 +89,6 @@ export async function readOnlyStripeLivePreflight(
   check("stripe-account-accepts-charges",false);
   check("credits-live-product-active-and-classified",false);
   check("verified-live-checkout-webhook",false);
-  check("verified-live-hobby-webhook",false);
  }
  const stripeConfigurationVerified=checks.every(c=>c.ok);
  // Even a fully configured Stripe account does NOT prove that customers can

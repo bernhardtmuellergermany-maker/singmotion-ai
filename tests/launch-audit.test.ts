@@ -132,5 +132,5 @@ test("missing regular customer accounts cannot be disguised as an admin-only pil
  env.BYTEPLUS_STUDIO_ALLOWED_STAFF_IDS="some-operator";
  const audit=auditSingMotionLaunch(env,"staging");
  assert.equal(audit.gates.find(g=>g.id==="all-customer-generation")?.ready,false);
- assert.ok(audit.gates.find(g=>g.id==="all-customer-generation")?.reason.includes("Free and Hobby"));
+ assert.ok(audit.gates.find(g=>g.id==="all-customer-generation")?.reason.includes("All paying customers and Super Admin"));
 });
