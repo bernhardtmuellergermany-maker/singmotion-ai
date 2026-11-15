@@ -212,6 +212,10 @@ test("Stripe refund identifiers accept the actual 2026 LIVE pyr_/py_ formats wit
  const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
  assert.ok(hook.includes("validStripeRefundId(object.id)"));
  assert.ok(hook.includes("validStripeChargeId(verified.charge)"));
+ // Guard against escaped newlines swallowing the executable integrity check.
+ assert.match(hook,/^ if\(\(verified\.livemode!==undefined&&verified\.livemode!==\(mode==="live"\)\)\|\|$/m);
+ assert.match(hook,/^   throw Error\("Reversal mismatch"\);$/m);
+ assert.match(hook,/console\.error\("STRIPE_LOOKUP_FAILED",\{resource:/);
  assert.match(hook,/verified\.status!=="succeeded"/);
  assert.match(hook,/wallet\.reverse\(\{sessionId:session\.id/);
 });
