@@ -4,6 +4,7 @@ import { CommerceStore } from "@/lib/commerce/store";
 import {SupportCases} from "@/lib/commerce/support-cases";
 import { CreditWallet, stripeCreditWebhookTestEnabled, stripeCreditTopupsLiveEnabled } from "@/lib/commerce/credit-wallet";
 import {ensurePaidCreditEmail} from "@/lib/commerce/credit-topup-email";
+import {validStripeRefundId,validStripeChargeId,validStripeDisputeId} from "@/lib/commerce/stripe-reversal-identifiers";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
@@ -84,14 +85,14 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
  const refund=event.type==="refund.created"||event.type==="refund.updated";
  const dispute=event.type==="charge.dispute.created";
  if(!refund&&!dispute)throw Error("Unsupported reversal");
- if(!new RegExp(refund?"^re_[A-Za-z0-9_]+$":"^dp_[A-Za-z0-9_]+$").test(object.id))
+ if(!(refund?validStripeRefundId(object.id):validStripeDisputeId(object.id)))
    throw Error("Invalid reversal ID");
  const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
  // Stripe Refund objects can omit livemode (including in the 2026 API).\n // Verify the signed event mode, same-key refund lookup, and the charge/session\n // livemode below; reject explicit conflicting modes, never require an absent field.\n if((verified.livemode!==undefined&&verified.livemode!==(mode==="live"))||\n    typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
  if(refund&&verified.status!=="succeeded")return; // No release on pending/failed refunds.
  if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status||""))
    return;
- if(typeof verified.charge!=="string"||!/^ch_[A-Za-z0-9_]+$/.test(verified.charge))
+ if(!validStripeChargeId(verified.charge))
    throw Error("Charge reference missing");
  const charge=await stripeGet("charges/"+encodeURIComponent(verified.charge),key,mode);
  if(charge.livemode!==(mode==="live")||charge.id!==verified.charge||
