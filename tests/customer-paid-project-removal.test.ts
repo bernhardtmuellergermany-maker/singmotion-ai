@@ -66,3 +66,23 @@ test("Rename Save PATCHes an owned account title, never hides a paid project",()
  assert.match(api,/customer_order_display_names/);
  assert.match(api,/name=excluded\.name/);
 });
+
+test("My Projects requests small private previews, not original full-resolution source images",()=>{
+ const gallery=read("components/my-projects-gallery.tsx");
+ const customerPreview=read("app/(site)/api/customer-generation-photo/route.ts");
+ const asset=read("app/(site)/api/[...path]/route.ts");
+ assert.match(gallery,/customer-generation-photo\?orderId=\$\{encodeURIComponent\(o\.orderId\)\}&thumbnail=1/);
+ assert.match(gallery,/\/api\/assets\/\$\{encodeURIComponent\(d\.selection\.imageId\)\}\?thumbnail=1/);
+ assert.match(gallery,/\/api\/assets\/\$\{encodeURIComponent\(p\.imageId\)\}\?thumbnail=1/);
+ assert.match(gallery,/loading="lazy" decoding="async"/);
+ assert.match(customerPreview,/store\.ownedOrder\(id,account,guest\)/);
+ assert.match(customerPreview,/createHash\("sha256"\)/);
+ assert.match(customerPreview,/req\.nextUrl\.searchParams\.get\("thumbnail"\)==="1"/);
+ assert.match(customerPreview,/\.resize\(\{width:520,height:520,fit:"inside",withoutEnlargement:true\}\)/);
+ assert.match(customerPreview,/\.webp\(\{quality:74,effort:3\}\)/);
+ assert.match(customerPreview,/"Cache-Control":"private, no-store"/);
+ assert.match(asset,/const a = asset\(id, owner\)/);
+ assert.match(asset,/const thumbnail=a\.kind==="image"&&req\.nextUrl\.searchParams\.get\("thumbnail"\)==="1"/);
+ assert.match(asset,/"Content-Type": thumbnail \? "image\/webp"/);
+ assert.match(asset,/"Cache-Control": "private, no-store"/);
+});
