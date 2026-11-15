@@ -193,7 +193,7 @@ export function ImmersiveHome(){
  };
  const portraitGrid=useRef<HTMLDivElement>(null);
  const canBrowsePortraits=portraitClips.length>4;
- const visiblePortraitClips=Array.from({length:4},(_,index)=>
+ const visiblePortraitClips:ShowcaseClip[]=Array.from({length:4},(_,index)=>
   index<portraitClips.length?portraitClips[(portraitOffset+index)%portraitClips.length]:{title:"Coming soon",url:""});
  const movePortraits=(direction:-1|1)=>{
   if(!canBrowsePortraits)return;
