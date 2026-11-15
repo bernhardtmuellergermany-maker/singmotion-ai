@@ -175,6 +175,7 @@ export function ImmersiveHome(){
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
  const [portraitOffset,setPortraitOffset]=useState(0);
+ const [portraitMotion,setPortraitMotion]=useState<-1|0|1>(0);
  const [portraitReady,setPortraitReady]=useState<Record<number,boolean>>({});
  const [visiblePortraits,setVisiblePortraits]=useState<Record<number,boolean>>({});
  const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
@@ -202,6 +203,7 @@ export function ImmersiveHome(){
   portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video").forEach(player=>{player.muted=true;});
   setVisiblePortraits({});
   setPortraitReady({});
+  setPortraitMotion(direction);
   setPortraitOffset(current=>(current+direction+portraitClips.length)%portraitClips.length);
  };
  useEffect(()=>{
@@ -577,9 +579,9 @@ export function ImmersiveHome(){
       }}>
      <button type="button" className="sm-desktop-portrait-nav sm-desktop-portrait-nav-prev"
        aria-label="Previous published videos" disabled={!canBrowsePortraits} onClick={()=>movePortraits(-1)}>
-       <ChevronLeft size={28} aria-hidden="true"/>
+       <ChevronLeft size={23} strokeWidth={1.85} aria-hidden="true"/>
      </button>
-     <div ref={portraitGrid} className="sm-desktop-portrait-grid" aria-label="Four visible published portrait videos">
+     <div ref={portraitGrid} className={"sm-desktop-portrait-grid"+(portraitMotion===1?" is-browsing-next":portraitMotion===-1?" is-browsing-previous":"")} aria-label="Four visible published portrait videos" onAnimationEnd={event=>{if(event.target===event.currentTarget)setPortraitMotion(0);}}>
       {visiblePortraitClips.map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}
        onClick={()=>item.url&&togglePortraitSound(i)}
        aria-label={item.url?"Video "+item.title+": Klick zum Ton ein- oder ausschalten":item.title}>
@@ -592,10 +594,9 @@ export function ImmersiveHome(){
      </div>
      <button type="button" className="sm-desktop-portrait-nav sm-desktop-portrait-nav-next"
        aria-label="Next published videos" disabled={!canBrowsePortraits} onClick={()=>movePortraits(1)}>
-       <ChevronRight size={28} aria-hidden="true"/>
+       <ChevronRight size={23} strokeWidth={1.85} aria-hidden="true"/>
      </button>
     </div>
-    {canBrowsePortraits&&<p className="sm-desktop-portrait-discovery">Explore all {portraitClips.length} published videos · Browse with the arrows</p>}
    </section>
    <section className="sm-immersive-final" aria-labelledby="sm-ready-title">
     <h2 id="sm-ready-title">Ready to create your<br/>next <span>music video?</span></h2>

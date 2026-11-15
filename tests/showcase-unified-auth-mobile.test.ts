@@ -22,6 +22,14 @@ test("Desktop Stunning Creations browses all randomly ordered, explicitly CMS-ap
  assert.match(home,/\.map\(\(item,i\)=>\<div key=\{item\.url\|\|i\}/);
  assert.match(css,/\.sm-desktop-portrait-nav/);
  assert.match(css,/\.sm-desktop-portrait-carousel/);
+ assert.doesNotMatch(home,/Explore all \{portraitClips\.length\} published videos/);
+ assert.match(home,/portraitMotion===1\?" is-browsing-next"/);
+ assert.match(home,/portraitMotion===-1\?" is-browsing-previous"/);
+ assert.match(home,/onAnimationEnd=\{event=>\{if\(event\.target===event\.currentTarget\)setPortraitMotion\(0\)/);
+ assert.match(css,/@keyframes sm-portrait-next/);
+ assert.match(css,/@keyframes sm-portrait-previous/);
+ assert.match(css,/border-radius:50%/);
+ assert.match(css,/prefers-reduced-motion:reduce/);
 });
 test("Mobile reels start with audio preference on, tap toggles mute without stopping playback",()=>{
  const home=read("components/immersive-home.tsx");
