@@ -131,7 +131,11 @@ export function studioRuntime(
   const base=studioConfig(env);
   const config=customerBeta?{
     ...base,
-    maxDurationSeconds:Math.min(base.maxDurationSeconds,CUSTOMER_STUDIO_BETA_MAX_SECONDS),
+    // Only an authenticated staging customer satisfying the dedicated
+    // beta admission may use this isolated worker-backed Studio. The
+    // operator Studio retains its own independent OFF switch.
+    enabled:true,
+    maxDurationSeconds:CUSTOMER_STUDIO_BETA_MAX_SECONDS,
     maxJobMicroUsd:CUSTOMER_STUDIO_BETA_DAILY_CAP,
     maxTotalMicroUsd:CUSTOMER_STUDIO_BETA_LIFETIME_CAP,
   }:base;
