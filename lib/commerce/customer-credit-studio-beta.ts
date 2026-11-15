@@ -1,14 +1,12 @@
-/** A deliberately bounded, authenticated customer credit video beta.
- * Staging only, Stripe TEST only, with the reviewed BytePlus price and a
- * persistent cap. Never treat a public Stripe product or a signed-in email
- * as authorization for a billable provider operation.
+/** Authenticated, prepaid customer Credit video test.
+ * Staging only and Stripe TEST only. Each accepted task must have its own
+ * verified prepaid wallet reservation and provider-specific priced plan.
+ * No separate daily, cumulative or customer-count spending quota is applied.
  */
-import {OWNER_CONFIRMED_BUDGET,OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS,ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
+import {OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS,ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {validateStudioPolicy} from "../live/studio-policy.ts";
 
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
-export const CUSTOMER_STUDIO_BETA_DAILY_CAP=OWNER_CONFIRMED_BUDGET.dailyCapMicroUsd;
-export const CUSTOMER_STUDIO_BETA_LIFETIME_CAP=OWNER_CONFIRMED_BUDGET.lifetimeCapMicroUsd;
 export const CUSTOMER_STUDIO_BETA_MAX_SECONDS=OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS;
 export function customerCreditStudioBetaEnabled(env:Record<string,string|undefined>):boolean{
  return env.RAILWAY_ENVIRONMENT_ID===STAGING &&
@@ -20,7 +18,9 @@ export function customerCreditStudioBetaEnabled(env:Record<string,string|undefin
   /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"") &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&
-  env.BYTEPLUS_STUDIO_ENABLED==="true" &&
+  // Customer video admission is separate from the staff/Operator Studio switch.
+  // Only a verified paid wallet, exact one-time approval and durable provider
+  // task ledger authorize a submission; no fabricated test credits are allowed.
   env.BYTEPLUS_STUDIO_RECOVERY_ENABLED==="true" &&
   (env.BYTEPLUS_STUDIO_OPERATOR_SECRET?.length||0)>=32 &&
   env.CUSTOMER_R2_STORAGE_ENABLED==="true" &&

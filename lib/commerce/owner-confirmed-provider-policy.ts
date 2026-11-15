@@ -9,6 +9,8 @@ import type {StudioPolicy} from "../live/studio-policy.ts";
 
 export const OWNER_CONFIRMED_BYTEPLUS_RATE_MICRO_USD = 70_000;
 export const OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS = 30;
+// Legacy paid-order worker contract fields. Prepaid Customer Studio no longer
+// uses these amounts for daily or lifetime admission.
 export const OWNER_CONFIRMED_BUDGET = Object.freeze({
  dailyCapMicroUsd: 2_500_000, // at most $2.50 of conservative reservations per rolling 24h
  lifetimeCapMicroUsd: 10_000_000, // staging-only total reserve, never resets on restart

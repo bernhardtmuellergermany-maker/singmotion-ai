@@ -12,7 +12,7 @@ import { StudioWorkflow } from "./studio.ts";
 import { loadStudioPolicy, studioConfig, StudioLiveError as PolicyError, validateStudioPolicy } from "./studio-policy.ts";
 import { superAdminRuntimeBootstrapPolicy } from "./super-admin-runtime-bootstrap.ts";
 import {ownerConfirmedBytePlusPolicy} from "../commerce/owner-confirmed-provider-policy.ts";
-import {CUSTOMER_STUDIO_BETA_DAILY_CAP,CUSTOMER_STUDIO_BETA_LIFETIME_CAP,CUSTOMER_STUDIO_BETA_MAX_SECONDS,customerCreditStudioBetaEnabled} from "../commerce/customer-credit-studio-beta.ts";
+import {CUSTOMER_STUDIO_BETA_MAX_SECONDS,customerCreditStudioBetaEnabled} from "../commerce/customer-credit-studio-beta.ts";
 import type { LiveTestStore } from "./store.ts";
 /** Retry only the read-only GetResult action for BytePlus's documented
  * transient internal 50500/50501 responses. The exact saved provider task ID
@@ -131,9 +131,15 @@ export function studioRuntime(
   const base=studioConfig(env);
   const config=customerBeta?{
     ...base,
-    maxDurationSeconds:Math.min(base.maxDurationSeconds,CUSTOMER_STUDIO_BETA_MAX_SECONDS),
-    maxJobMicroUsd:CUSTOMER_STUDIO_BETA_DAILY_CAP,
-    maxTotalMicroUsd:CUSTOMER_STUDIO_BETA_LIFETIME_CAP,
+    // Only an authenticated staging customer satisfying the dedicated
+    // beta admission may use this isolated worker-backed Studio. The
+    // operator Studio retains its own independent OFF switch.
+    enabled:true,
+    maxDurationSeconds:CUSTOMER_STUDIO_BETA_MAX_SECONDS,
+    // No global budget ceiling: the per-job immutable provider quote,
+    // authenticated wallet reservation and idempotency remain mandatory.
+    maxJobMicroUsd:Number.MAX_SAFE_INTEGER,
+    maxTotalMicroUsd:Number.MAX_SAFE_INTEGER,
   }:base;
   const service = new StudioWorkflow(store, root, config, {
     policy: () => loadRuntimeStudioPolicy(root, env, superAdmin, customerBeta),
