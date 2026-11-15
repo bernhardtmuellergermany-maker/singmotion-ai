@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronDown } from "lucide-react";
 import { SiteHeader } from "./site-header";
+import "./help-faq-highlight.css";
 
 export type FAQGroup = {heading:string;items:[string,string][]};
 export const defaultGroups:FAQGroup[] = [
