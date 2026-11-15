@@ -338,10 +338,12 @@ export default function Waveform({
             onPointerUp={() => {
               dragOrigin.current = null;
               setDragging(false);
+              setLockedView(null);
             }}
             onPointerCancel={() => {
               dragOrigin.current = null;
               setDragging(false);
+              setLockedView(null);
             }}
             onLostPointerCapture={() => {
               dragOrigin.current = null;
