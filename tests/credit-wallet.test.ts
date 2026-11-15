@@ -213,6 +213,8 @@ test("Stripe refund identifiers accept the actual 2026 LIVE pyr_/py_ formats wit
  const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
  assert.ok(hook.includes("validStripeRefundId(object.id)"));
  assert.ok(hook.includes("validStripeChargeId(verified.charge)"));
+ assert.ok(hook.includes('["pending","failed","canceled"].includes(String(object.status))'));
+
  // Guard against escaped newlines swallowing the executable integrity check.
  assert.match(hook,/^ if\(\(verified\.livemode!==undefined&&verified\.livemode!==\(mode==="live"\)\)\|\|$/m);
  assert.match(hook,/^   throw Error\("Reversal mismatch"\);$/m);
@@ -264,7 +266,7 @@ test("only signed succeeded FULL credit refunds with independently verified Chec
   ])assert.throws(()=>reconcileSignedFullCreditRefund(wallet,event,invalid,"live"));
   for(const invalid of [
    {...event,livemode:false},
-   {...event,type:"refund.created"},
+   {...event,type:"charge.succeeded"},
    {...event,data:{object:{...event.data.object,status:"pending"}}},
    {...event,data:{object:{...event.data.object,amount:250}}},
    {...event,data:{object:{...event.data.object,charge:"not-a-charge"}}},
@@ -272,6 +274,7 @@ test("only signed succeeded FULL credit refunds with independently verified Chec
   assert.equal(wallet.total("customer:signed-refund"),500);
   assert.equal(reconcileSignedFullCreditRefund(wallet,event,session,"live"),true);
   assert.equal(reconcileSignedFullCreditRefund(wallet,event,session,"live"),true);
+  assert.equal(reconcileSignedFullCreditRefund(wallet,{...event,type:"refund.created"},session,"live"),true);
   assert.equal(wallet.total("customer:signed-refund"),0);
   assert.equal(wallet.purchases("customer:signed-refund")[0]?.status,"reversed");
   assert.equal(wallet.entries("customer:signed-refund").filter(row=>row.type==="refund").length,1);
