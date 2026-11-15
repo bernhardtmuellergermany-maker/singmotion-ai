@@ -13,7 +13,10 @@ export async function GET(req:NextRequest){
  const clear=(response:NextResponse)=>{response.cookies.set("sm_google_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:0});return response;};
  let savedReturn:string|null=null;
  const go=(reason:string)=>{
-  const target=savedReturn||"/?card=login";
+  // Redirect directly to the login page. The legacy /?card=login route
+  // redirects to /login without preserving query parameters, which used to
+  // silently discard Google OAuth errors and leave customers with no feedback.
+  const target=savedReturn||"/login";
   const sep=target.includes("?")?"&":"?";
   return clear(NextResponse.redirect(trustedOrigin+target+sep+"google_error="+encodeURIComponent(reason)));
  };
@@ -47,5 +50,11 @@ export async function GET(req:NextRequest){
   response.cookies.set("sm_customer",account.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
   response.cookies.set("sm_session",media.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
   return response;
- }catch{return go("Google sign-in failed. Existing email accounts must use their password.");}
+ }catch(error){
+  // A verified Google email never silently inherits access to an existing
+  // password account. Explain this specific, safe recovery step to the user.
+  if(error instanceof Error&&error.message==="An account with this email already exists. Sign in with its password.")
+   return go("This email already has a password account. Sign in with your password instead.");
+  return go("Google sign-in could not be completed. Please try again.");
+ }
 }
