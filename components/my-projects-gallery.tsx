@@ -131,15 +131,16 @@ export function MyProjectsGallery(){
   try{
    if(item.kind==="customer"){
     const id=item.id.slice(6);
+    // Rename persists the owned account title. Never call the hide-only PUT route.
     const response=await fetch("/api/customer-orders",{
-     method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
-     body:JSON.stringify({orderId:id,hidden:true})
+     method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+     body:JSON.stringify({orderId:id,name:next})
     });
     if(!response.ok){
      const body=await response.json().catch(()=>null) as {error?:string}|null;
-     throw Error(body?.error||"Could not remove this project.");
+     throw Error(body?.error||"Unable to save this project name.");
     }
-    setOrders(previous=>previous.filter(o=>o.orderId!==id));
+    setOrders(previous=>previous.map(o=>o.orderId===id?{...o,displayName:next}:o));
    }else if(item.kind==="draft"){
     const id=item.id.slice(6);
     const existing=drafts.find(d=>d.id===id);
@@ -155,18 +156,6 @@ export function MyProjectsGallery(){
     const saved=await api<StudioProject>("studio-live",{method:"POST",
       body:JSON.stringify({action:"rename",id,name:next})});
     setLive(previous=>previous.map(p=>p.id===id?saved:p));
-   }else{
-    const id=item.id.slice(6);
-    const response=await fetch("/api/customer-orders",{
-      method:"PATCH",credentials:"same-origin",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({orderId:id,name:next})
-    });
-    if(!response.ok){
-      const message=await response.json().catch(()=>null) as {error?:string}|null;
-      throw Error(message?.error||"Unable to save this project name.");
-    }
-    setOrders(previous=>previous.map(o=>o.orderId===id?{...o,displayName:next}:o));
    }
    // Never shadow server names with a stale browser-local label.
    const updated={...labels};delete updated[item.id];
