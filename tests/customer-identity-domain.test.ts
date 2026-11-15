@@ -1,5 +1,6 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {customerIdentityOrigin,googleLoginReady,passwordResetReady,trustedIdentityHost} from "../lib/customer-identity-origin.ts";
 const stage="dfaeabed-03df-43ed-aa71-50f343a75041";
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -51,4 +52,17 @@ test("staging identity remains staging-bound and never accepts the production ca
  assert.equal(googleLoginReady(env),true);
  assert.equal(customerIdentityOrigin({...env,APP_ORIGIN:root}),null);
  assert.equal(customerIdentityOrigin({...env,RAILWAY_ENVIRONMENT_ID:production}),null);
+});
+
+test("Google callback failure returns to direct login with visible, one-time feedback",()=>{
+ const callback=readFileSync(new URL("../app/(site)/api/google-auth/callback/route.ts",import.meta.url),"utf8");
+ const account=readFileSync(new URL("../components/account-panel.tsx",import.meta.url),"utf8");
+ const login=readFileSync(new URL("../app/(site)/login/page.tsx",import.meta.url),"utf8");
+ assert.match(callback,/const target=savedReturn\|\|"\/login"/);
+ assert.match(callback,/google_error="\+encodeURIComponent\(reason\)/);
+ assert.match(callback,/This email already has a password account/);
+ assert.match(account,/search\.get\("google_error"\)/);
+ assert.match(account,/search\.delete\("google_error"\)/);
+ assert.match(account,/role="alert" aria-live="assertive"/);
+ assert.match(login,/<AccountPanel active=\{true\}\/>/);
 });

@@ -33,12 +33,16 @@ export function AccountPanel({active}:{active:boolean}){
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const search=new URLSearchParams(window.location.search);
   const reason=search.get("google_error");
-  if(reason)void Promise.resolve().then(()=>setError(reason));
-  if(search.has("auth_changed")){
-   search.delete("auth_changed");
+  if(reason)void Promise.resolve().then(()=>setError(reason.slice(0,240)));
+  // OAuth failure is a one-time notice. Remove it from the address bar after
+  // rendering so a refresh cannot present a stale error to the next customer.
+  if(reason)search.delete("google_error");
+  const changed=search.has("auth_changed");
+  if(changed)search.delete("auth_changed");
+  if(reason||changed)
    window.history.replaceState(null,"",window.location.pathname+(search.toString()?"?"+search.toString():"")+window.location.hash);
-   notifyAuthTransition();
-  }},[active]);
+  if(changed)notifyAuthTransition();
+ },[active]);
  useEffect(()=>{
   if(!active)return;
   let live=true;
@@ -93,6 +97,7 @@ export function AccountPanel({active}:{active:boolean}){
   {!account&&<p className="sm-account-intro">{mode==="register"
    ?"Build your private AI music-video workspace. Save drafts, create performances and keep every generation in one place."
    :"Sign in to bring your music to life with AI-generated videos. Your studio, projects and Credits are ready."}</p>}
+  {error&&<p className="sm-carousel-inline-error" role="alert" aria-live="assertive">{error}</p>}
   {account?<div className="sm-account-signed-in">
     <p className="sm-account-email">{account}</p>
     <AccountCreditSummary active={active} staff={staff} superAdmin={superAdmin}/>
@@ -128,6 +133,5 @@ export function AccountPanel({active}:{active:boolean}){
    {googleAvailable&&mode==="login"&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
   </form>}
-  {error&&<p className="sm-carousel-inline-error" role="alert">{error}</p>}
  </div>;
 }
