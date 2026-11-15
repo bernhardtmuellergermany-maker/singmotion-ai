@@ -29,7 +29,19 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
  const response=await fetch("https://api.stripe.com/v1/"+resource,{
    headers:{Authorization:"Bearer "+key},cache:"no-store",signal:AbortSignal.timeout(8000),
  });
- if(!response.ok)throw Error("Stripe verification request failed");
+ if(!response.ok){
+  // Record only a resource family, HTTP status and bounded Stripe error code.
+  // Never log credentials, response bodies, refund identifiers or customer data.
+  let code="unavailable";
+  try{
+   const body=await response.json() as {error?:{code?:unknown;type?:unknown}};
+   const raw=typeof body?.error?.code==="string"?body.error.code:
+     typeof body?.error?.type==="string"?body.error.type:"";
+   if(/^[a-z][a-z0-9_]{0,63}$/.test(raw))code=raw;
+  }catch{/* Stripe may return a non-JSON error response. */}
+  console.error("STRIPE_LOOKUP_FAILED",{resource:resource.split(/[/?]/,1)[0],httpStatus:response.status,code});
+  throw Error("Stripe verification request failed");
+ }
  return await response.json() as StripeLookup;
 }
 /** Verify the signed credit event against Stripe's own paid Checkout record. */
@@ -88,7 +100,11 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
  if(!(refund?validStripeRefundId(object.id):validStripeDisputeId(object.id)))
    throw Error("Invalid reversal ID");
  const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
- // Stripe Refund objects can omit livemode (including in the 2026 API).\n // Verify the signed event mode, same-key refund lookup, and the charge/session\n // livemode below; reject explicit conflicting modes, never require an absent field.\n if((verified.livemode!==undefined&&verified.livemode!==(mode==="live"))||\n    typeof verified.id!=="string"||verified.id!==object.id)throw Error("Reversal mismatch");
+ // Refund objects can omit livemode. The signed event establishes the mode;
+ // the exact refund ID and subsequent charge/session lookups must still match.
+ if((verified.livemode!==undefined&&verified.livemode!==(mode==="live"))||
+    typeof verified.id!=="string"||verified.id!==object.id)
+   throw Error("Reversal mismatch");
  if(refund&&verified.status!=="succeeded")return; // No release on pending/failed refunds.
  if(dispute&&!["needs_response","under_review","warning_needs_response","lost"].includes(verified.status||""))
    return;
