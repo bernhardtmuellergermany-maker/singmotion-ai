@@ -2562,3 +2562,27 @@
     white-space:normal;
   }
 }
+
+/* Credit generation status belongs in the scrollable review flow ABOVE the
+   fixed mobile Back/Generate actions; it may never paint across those buttons. */
+.product-theme.singmotion-flow .flow-main > .sm-review-starting-status{
+  box-sizing:border-box;
+  align-self:center;
+  width:min(100%,860px);
+  max-width:100%;
+  margin:14px auto calc(92px + env(safe-area-inset-bottom,0px))!important;
+  padding:11px 14px;
+  border:1px solid #71508c;
+  border-radius:12px;
+  background:#251b36;
+  color:#dfcfef;
+  text-align:center;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+@media(max-width:700px){
+  .product-theme.singmotion-flow .flow-main > .sm-review-starting-status{
+    font-size:12px;
+    margin-bottom:calc(115px + env(safe-area-inset-bottom,0px))!important;
+  }
+}
