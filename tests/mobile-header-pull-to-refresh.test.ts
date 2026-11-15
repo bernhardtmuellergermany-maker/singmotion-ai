@@ -36,8 +36,11 @@ test("all routes use the same viewport-anchored global header geometry as home",
 test("homepage, Studio and Output share one header layout authority",()=>{
  const carousel=readFileSync(new URL("../app/(site)/carousel.css",import.meta.url),"utf8");
  const immersive=readFileSync(new URL("../app/(site)/home-immersive.css",import.meta.url),"utf8");
+ const output=readFileSync(new URL("../components/studio-live-preview.css",import.meta.url),"utf8");
  assert.doesNotMatch(carousel,/\.sm-site-header\s*\{[^}]*\b(position|width|height|padding|left|right)\s*:/);
  assert.doesNotMatch(immersive,/\.sm-immersive-home \.sm-immersive-header\s*\{/);
+ assert.doesNotMatch(output,/\.sm-output-page>\.sm-site-header(?:-space)?\s*\{/);
+ assert.doesNotMatch(output,/\.sm-output-page>\.sm-site-header>\.sm-header-actions\s*\{/);
  assert.match(css,/\.sm-site-header\s*\{[^}]*width:auto!important/);
  assert.match(css,/\.sm-header-actions/);
 });
