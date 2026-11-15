@@ -139,6 +139,18 @@ try{
  // Super Admin live projects: the logo must be hit-testable on a mobile viewport
  // and navigating it must always reach the actual homepage.
  await page.setViewportSize({width:390,height:844});
+ const headerGeometry=async()=>page.locator("header.sm-site-header").evaluate(header=>{
+  const root=header.getBoundingClientRect();
+  const logo=header.querySelector(".sm-wordmark")?.getBoundingClientRect();
+  const menu=header.querySelector(".sm-global-menu summary")?.getBoundingClientRect();
+  const account=header.querySelector(".sm-account-menu summary")?.getBoundingClientRect();
+  if(!logo||!menu||!account)throw Error("Shared navigation elements missing");
+  return {left:logo.left,menuLeft:menu.left,accountRight:window.innerWidth-account.right,
+   gap:account.left-menu.right,headerRight:window.innerWidth-root.right};
+ });
+ const privateHeader=await headerGeometry();
+ assert.ok(privateHeader.accountRight>=10,
+  "Private Output account control must leave a right margin: "+JSON.stringify(privateHeader));
  const homeLogo=page.getByRole("link",{name:"SingMotion AI home"});
  await homeLogo.waitFor({state:"visible",timeout:15000});
  const hitTest=await homeLogo.evaluate(element=>{
@@ -150,6 +162,12 @@ try{
  await homeLogo.click({timeout:5000});
  await page.waitForURL(origin+"/",{timeout:10000});
  await page.getByRole("link",{name:"SingMotion AI home"}).waitFor({state:"visible",timeout:15000});
+ const homepageHeader=await headerGeometry();
+ for(const key of ["left","menuLeft","accountRight","gap","headerRight"] as const){
+  assert.ok(Math.abs(privateHeader[key]-homepageHeader[key])<=2,
+   "Output and homepage must share "+key+": "+JSON.stringify({privateHeader,homepageHeader}));
+ }
+ console.log("BROWSER_CHECKPOINT: private Output and Home header coordinates identical");
  console.log("BROWSER_CHECKPOINT: mobile private Output wordmark opens the homepage");
 
  // The My Projects library must list exactly the owner's paid order and
