@@ -25,3 +25,18 @@ test("Credits replace the legacy Hobby subscription in account settings",()=>{
  assert.match(s,/Prepaid Credits/); assert.doesNotMatch(s,/Existing Hobby subscription/);
  assert.match(s,/href="\/credits"/);assert.doesNotMatch(s,/Upgrade to Hobby|async function subscribe\(/);
 });
+
+test("Credit buyer enters amount only; Stripe collects billing details with server-side pilot tax policy",()=>{
+ const picker=read("components/credit-amount-picker.tsx");
+ const checkout=read("app/(site)/api/credit-checkout/route.ts");
+ const webhook=read("app/(site)/api/stripe-webhook/route.ts");
+ assert.doesNotMatch(picker,/Billing country and customer type|Billing country \(two-letter|I am buying as|setBillingCountry|setBuyerType/);
+ assert.doesNotMatch(picker,/billingCountry|buyerType/);
+ assert.match(picker,/body:JSON\.stringify\(\{credits:String\(credits\)/);
+ assert.match(checkout,/privateLiveCreditTestTaxDecision\(body\.billingCountry,body\.buyerType\)/);
+ assert.match(checkout,/form\.set\("billing_address_collection","required"\)/);
+ assert.match(checkout,/tax_id_collection\[enabled\]/);
+ assert.match(checkout,/decision\.mode==="private-live-verification"\?"false":"true"/);
+ assert.match(webhook,/details\?\.address\?\.country!==prior\.country/);
+ assert.match(webhook,/prior\.buyerType==="consumer"&&Array\.isArray\(details\?\.tax_ids\)/);
+});
