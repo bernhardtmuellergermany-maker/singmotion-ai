@@ -114,6 +114,9 @@ export default function Waveform({
   const viewStart = Math.max(0, Math.min(duration - viewSpan,
     lockedView?.start ?? ((start + end) / 2 - viewSpan / 2)));
   const viewPercent = (seconds: number) => ((seconds - viewStart) / viewSpan) * 100;
+  // Clamp only the visual timeline, never the persisted source-audio timestamps.
+  const visiblePercent = (seconds: number) => Math.max(0, Math.min(100, viewPercent(seconds)));
+  const visibleSelectionWidth = Math.max(0, visiblePercent(end) - visiblePercent(start));
   const lockViewport = () => {
     if(!lockedView)setLockedView({start:viewStart,span:viewSpan});
   };
@@ -363,15 +366,15 @@ export default function Waveform({
               touchAction: "none",
               background: "rgba(151,86,246,.13)",
               border: "0",
-              left: `${viewPercent(start)}%`,
-              width: `${((end - start) / viewSpan) * 100}%`,
+              left: `${visiblePercent(start)}%`,
+              width: `${visibleSelectionWidth}%`,
             }}
             >
               <span className="wave-selection-hit" aria-hidden="true" />
             </div>
           <div
             className="playhead"
-            style={{ left: `${viewPercent(position)}%`, display: position >= viewStart && position <= viewStart + viewSpan ? undefined : "none" }}
+            style={{ left: `${visiblePercent(position)}%`, display: position >= viewStart && position <= viewStart + viewSpan ? undefined : "none" }}
           />
           {(["start", "end"] as const).map((handle) => (
             <button
@@ -386,12 +389,12 @@ export default function Waveform({
               key={handle}
               className={`wave-handle wave-handle-${handle}`}
               style={{
-                left: `${viewPercent(handle === "start" ? start : end)}%`,
+                left: `${visiblePercent(handle === "start" ? start : end)}%`,
               }}
               onPointerDown={(e) => { e.stopPropagation(); drag(e, handle); }}
               onPointerMove={(e) => { e.stopPropagation(); move(e, handle); }}
-              onPointerUp={() => setDragging(false)}
-              onPointerCancel={() => setDragging(false)}
+              onPointerUp={() => {setDragging(false);setLockedView(null);}}
+              onPointerCancel={() => {setDragging(false);setLockedView(null);}}
               onLostPointerCapture={() => setDragging(false)}
               onKeyDown={(e) => {
                 if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
