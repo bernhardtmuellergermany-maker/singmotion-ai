@@ -4,7 +4,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {CreditWallet} from "@/lib/commerce/credit-wallet";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {configuredStripeReversalMode,customerStripeCredential} from "@/lib/commerce/stripe-payment-mode";
+import {customerStripeCredential,stripeSessionIdMatchesMode,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
 const reply=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store","Referrer-Policy":"no-referrer"}});
@@ -23,8 +23,19 @@ async function stripe(pathname:string,key:string):Promise<Record<string,unknown>
  * Stripe receipts without an invoice PDF are never represented as tax invoices. */
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- const mode=configuredStripeReversalMode(process.env);
- const key=mode?customerStripeCredential(process.env,mode):null;
+ // Read-only invoice lookup chooses credentials by the actual paid Checkout
+ // environment. The reversal classifier can prefer a historical Production
+ // sandbox when both sandbox and LIVE keys are configured.
+ const credentials=new Map<StripePaymentMode,string>();
+ if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
+  const live=customerStripeCredential(process.env,"live");
+  if(live)credentials.set("live",live);
+  const sandbox=customerStripeCredential(process.env,"test");
+  if(sandbox)credentials.set("test",sandbox);
+ }else if(process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"){
+  const test=customerStripeCredential(process.env,"test");
+  if(test)credentials.set("test",test);
+ }
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const accountId=store.session(req.cookies.get("sm_customer")?.value||"");
@@ -40,7 +51,7 @@ export async function GET(req:NextRequest){
    }catch{/* Auth errors must never bypass account ownership. */}
   }
   if(!subject)return reply({error:"Sign in to view your invoices."},401);
-  if(!mode||!key)return reply({invoices:[],message:"Stripe invoice lookup is not available in this environment."});
+  if(credentials.size===0)return reply({invoices:[],message:"Stripe invoice lookup is not available in this environment."});
   new CreditWallet(store.db);
   const rows=accountId?store.db.prepare(`SELECT o.id,o.created,s.session_id FROM customer_orders o
    JOIN stripe_checkout_sessions s ON s.order_id=o.id
@@ -49,7 +60,10 @@ export async function GET(req:NextRequest){
   const topups=store.db.prepare(`SELECT id,created,stripe_session_id AS session_id FROM credit_topup_purchases WHERE subject=? AND status='paid' AND stripe_session_id IS NOT NULL ORDER BY created DESC LIMIT 20`).all(subject) as {id:string;created:number;session_id:string}[];
   const invoices:{id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null}[]=[];
   for(const row of [...rows,...topups].slice(0,30)){
-   if(!/^cs_(?:test|live)_[A-Za-z0-9_]+$/.test(row.session_id))continue;
+   const mode:StripePaymentMode|null=stripeSessionIdMatchesMode(row.session_id,"live")?"live":
+    stripeSessionIdMatchesMode(row.session_id,"test")?"test":null;
+   const key=mode?credentials.get(mode):null;
+   if(!mode||!key)continue;
    try{
     const session=await stripe("checkout/sessions/"+encodeURIComponent(row.session_id),key) as StripeSession;
     if(session.id!==row.session_id||session.livemode!==(mode==="live")||session.payment_status!=="paid")continue;

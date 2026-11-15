@@ -1,8 +1,10 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
+import {readFileSync} from "node:fs";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {sendCustomerVerificationEmail} from "../lib/commerce/verification-email.ts";
+import {ensurePaidCreditEmail} from "../lib/commerce/credit-topup-email.ts";
 
 const password="Strong customer password 2026!";
 const preview={
@@ -83,4 +85,52 @@ test("verification mail uses exact trusted domain and never accepts unreviewed o
  assert.equal(await sendCustomerVerificationEmail("customer@example.test","synthetic-token",{...preview,APP_ORIGIN:"https://evil.test"},mock as typeof fetch),false);
  assert.equal(await sendCustomerVerificationEmail("customer@example.test","synthetic-token",{...preview,RESEND_API_KEY:""},mock as typeof fetch),false);
  assert.equal(sent.length,1,"rejects unsafe mail before network call");
+});
+
+test("LIVE credit receipt is sent once, only after paid wallet settlement and without inventing a tax invoice",async()=>{
+ const store=new CommerceStore(":memory:");
+ const emails:Array<{body:{to:string[];text:string};headers:HeadersInit|undefined}>=[];
+ const fake=async (_:RequestInfo|URL,init?:RequestInit):Promise<Response>=>{
+  emails.push({body:JSON.parse(String(init?.body)),headers:init?.headers});
+  return new Response(JSON.stringify({id:"synthetic-email"}),{status:200});
+ };
+ try{
+  store.db.exec("CREATE TABLE credit_topup_purchases(id TEXT PRIMARY KEY,email TEXT NOT NULL,credits INTEGER NOT NULL,cents INTEGER NOT NULL,status TEXT NOT NULL)");
+  const id="11111111-1111-4111-8111-111111111111";
+  store.db.prepare("INSERT INTO credit_topup_purchases VALUES(?,?,?,?,?)")
+   .run(id,"verified@example.test",500,500,"pending");
+  assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),false);
+  assert.equal(emails.length,0,"no email before Stripe settlement");
+  store.db.prepare("UPDATE credit_topup_purchases SET status='paid' WHERE id=?").run(id);
+  assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),true);
+  assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),true);
+  assert.equal(emails.length,1,"a webhook replay cannot resend the same receipt");
+  assert.deepEqual(emails[0].body.to,["verified@example.test"]);
+  assert.match(emails[0].body.text,/EUR 5\.00/);
+  assert.match(emails[0].body.text,/not a tax invoice/);
+  assert.match(emails[0].body.text,/account\/settings#invoices/);
+  assert.equal((emails[0].headers as Record<string,string>)["Idempotency-Key"],"singmotion-credit-payment/"+id);
+ }finally{store.close()}
+});
+test("failed email delivery leaves paid receipt pending for a signed webhook retry",async()=>{
+ const store=new CommerceStore(":memory:");
+ let count=0;
+ const fake=async ():Promise<Response>=>{count++;return new Response("failed",{status:503});};
+ try{
+  const id="22222222-2222-4222-8222-222222222222";
+  store.db.exec("CREATE TABLE credit_topup_purchases(id TEXT PRIMARY KEY,email TEXT NOT NULL,credits INTEGER NOT NULL,cents INTEGER NOT NULL,status TEXT NOT NULL)");
+  store.db.prepare("INSERT INTO credit_topup_purchases VALUES(?,?,?,?,?)").run(id,"customer@example.test",750,750,"paid");
+  assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),false);
+  assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),false);
+  assert.equal(count,2);
+  assert.equal((store.db.prepare("SELECT COUNT(*) AS n FROM credit_topup_email_notifications").get() as {n:number}).n,0);
+ }finally{store.close()}
+});
+test("invoice lookup binds each paid session to its LIVE or TEST key, never the reversal-mode default",()=>{
+ const route=readFileSync(new URL("../app/(site)/api/customer-invoices/route.ts",import.meta.url),"utf8");
+ assert.match(route,/stripeSessionIdMatchesMode\(row\.session_id,"live"\)/);
+ assert.match(route,/credentials\.get\(mode\)/);
+ assert.doesNotMatch(route,/configuredStripeReversalMode/);
+ const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
+ assert.match(hook,/ensurePaidCreditEmail\(store,purchaseId\)/);
 });
