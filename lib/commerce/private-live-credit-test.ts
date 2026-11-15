@@ -26,13 +26,18 @@ export function privateLiveCreditTestEnabled(env:Record<string,string|undefined>
 }
 
 /** Owner's initial real-money payment test: German private buyer only.
- * This intentionally makes NO claim about voucher tax-point classification
- * or VAT exemption. Stripe receives the actual product tax code and computes
- * tax using its configured registrations; a missing/invalid tax setup must
- * fail the external Checkout rather than silently assume a tax rate. */
+ * The owner-only server gate determines the permitted DE/consumer pilot
+ * classification; buyers no longer need redundant fields before Stripe.
+ * An explicitly conflicting value still fails closed. Stripe collects the
+ * billing address and optional tax IDs during Checkout, and the signed paid
+ * event must verify the actual country before granting Credits.
+ * This is NOT a global tax approval or a VAT exemption. */
 export function privateLiveCreditTestTaxDecision(country:unknown,buyer:unknown):
  {ready:boolean;reason:string;decision:CreditTaxDecision|null}{
- if(country!=="DE"||buyer!=="consumer")return {
+ // Only an omitted input is allowed in this tightly gated private live pilot.
+ // Never silently override an explicitly different country or buyer type.
+ if((country!==undefined&&country!=="DE")||
+    (buyer!==undefined&&buyer!=="consumer"))return {
   ready:false,reason:"PRIVATE_LIVE_TRIAL_DE_PRIVATE_CUSTOMER_ONLY",decision:null
  };
  return {ready:true,reason:"PRIVATE_LIVE_OWNER_VERIFICATION_NOT_PUBLIC_TAX_APPROVAL",
