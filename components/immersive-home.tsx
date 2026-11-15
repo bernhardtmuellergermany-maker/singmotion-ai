@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
-import {ArrowRight,Music2,ImagePlus,Sparkles,Play,Volume2,VolumeX,ChevronDown,RotateCw} from "lucide-react";
+import {ArrowRight,Music2,ImagePlus,Sparkles,Play,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight,RotateCw} from "lucide-react";
 import {SiteHeader} from "./site-header";
 import {showcase} from "@/lib/showcase";
 
@@ -10,8 +10,7 @@ import {showcase} from "@/lib/showcase";
  * The public API serves only per-channel, explicitly approved videos. */
 type ShowcaseClip = {title:string;url:string;posterUrl?:string|null};
 
-/** Every page load picks four distinct CMS-published portraits. A prior
- * visit's set is deprioritized when new approved videos are available. */
+/** Each visit shuffles ALL public CMS portraits, starting with clips not recently featured. */
 export function randomDesktopPortraits(pool:ShowcaseClip[],previous:string[]=[],random:()=>number=Math.random):ShowcaseClip[]{
  const unique=[...new Map(pool.filter(c=>c.url).map(c=>[c.url,c])).values()];
  const shuffle=(items:ShowcaseClip[])=>{
@@ -26,8 +25,8 @@ export function randomDesktopPortraits(pool:ShowcaseClip[],previous:string[]=[],
  const earlier=new Set(previous);
  const unseen=shuffle(unique.filter(c=>!earlier.has(c.url)));
  const already=shuffle(unique.filter(c=>earlier.has(c.url)));
- const result=[...unseen,...already].slice(0,4);
- // If all four are always shown, force a new order on reload.
+ const result=[...unseen,...already];
+ // If the entire small published playlist repeats, rotate it on reload.
  if(result.length>1&&result.map(c=>c.url).join("|")===previous.join("|")){
   result.push(result.shift()!);
  }
@@ -175,6 +174,7 @@ export function ImmersiveHome(){
  const appendPending=useRef(false);
  const [desktopClips,setDesktopClips]=useState<ShowcaseClip[]>([]);
  const [portraitClips,setPortraitClips]=useState<ShowcaseClip[]>([]);
+ const [portraitOffset,setPortraitOffset]=useState(0);
  const [portraitReady,setPortraitReady]=useState<Record<number,boolean>>({});
  const [visiblePortraits,setVisiblePortraits]=useState<Record<number,boolean>>({});
  const [audiblePortrait,setAudiblePortrait]=useState<number|null>(null);
@@ -192,10 +192,22 @@ export function ImmersiveHome(){
   }
  };
  const portraitGrid=useRef<HTMLDivElement>(null);
+ const canBrowsePortraits=portraitClips.length>4;
+ const visiblePortraitClips:ShowcaseClip[]=Array.from({length:4},(_,index)=>
+  index<portraitClips.length?portraitClips[(portraitOffset+index)%portraitClips.length]:{title:"Coming soon",url:""});
+ const movePortraits=(direction:-1|1)=>{
+  if(!canBrowsePortraits)return;
+  // Never carry audible playback to a newly displayed CMS clip.
+  setAudiblePortrait(null);
+  portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video").forEach(player=>{player.muted=true;});
+  setVisiblePortraits({});
+  setPortraitReady({});
+  setPortraitOffset(current=>(current+direction+portraitClips.length)%portraitClips.length);
+ };
  useEffect(()=>{
   // No desktop video may inherit audible playback from a previous render.
   portraitGrid.current?.querySelectorAll<HTMLVideoElement>("video").forEach(v=>{v.muted=true;v.defaultMuted=true;});
- },[portraitClips]);
+ },[portraitClips,portraitOffset]);
  useEffect(()=>{
   const root=portraitGrid.current;
   if(!root)return;
@@ -215,7 +227,7 @@ export function ImmersiveHome(){
   },{rootMargin:"1200px 0px",threshold:0.01});
   elements.forEach(element=>observer.observe(element));
   return()=>observer.disconnect();
- },[portraitClips]);
+ },[portraitClips,portraitOffset]);
  // Begin buffering well before the section enters view. Autoplay all four
  // muted previews as soon as they can decode; restart after tab restoration.
  useEffect(()=>{
@@ -236,7 +248,7 @@ export function ImmersiveHome(){
   start();
   document.addEventListener("visibilitychange",start);
   return()=>document.removeEventListener("visibilitychange",start);
- },[visiblePortraits,portraitClips,audiblePortrait]);
+ },[visiblePortraits,portraitClips,portraitOffset,audiblePortrait]);
  const [currentClip,setCurrentClip]=useState(0);
  const [muted,setMuted]=useState(false); // Prefer audible playback when the browser grants it; fall back to muted autoplay.
  const unlockSoundAfterGesture=useRef(false);
@@ -290,6 +302,9 @@ export function ImmersiveHome(){
       if(!active)return;
       const videos=Array.isArray(data?.videos)?data.videos:[];
       setPortraitReady({});
+      setVisiblePortraits({});
+      setAudiblePortrait(null);
+      setPortraitOffset(0);
       const publicPortraits=videos.flatMap((item:unknown)=>{
         if(!item||typeof item!=="object")return [];
         const v=item as {title?:unknown;videoUrl?:unknown;posterUrl?:unknown};
@@ -300,7 +315,7 @@ export function ImmersiveHome(){
       try{previous=JSON.parse(localStorage.getItem("sm-last-desktop-portraits")||"[]") as string[];
         if(!Array.isArray(previous))previous=[];}catch{}
       const selected=randomDesktopPortraits(publicPortraits,previous);
-      try{localStorage.setItem("sm-last-desktop-portraits",JSON.stringify(selected.map(c=>c.url)));}catch{}
+      try{localStorage.setItem("sm-last-desktop-portraits",JSON.stringify(selected.slice(0,4).map(c=>c.url)));}catch{}
       setPortraitClips(selected);
     }).catch(()=>{if(active)setPortraitClips([])});
   fetch("/api/showcase?channel=desktop",{cache:"no-store"})
@@ -552,8 +567,20 @@ export function ImmersiveHome(){
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
     <p>Real examples. Real emotion. Discover AI music videos that turn original songs into unforgettable performances.</p>
-    <div ref={portraitGrid} className="sm-desktop-portrait-grid" aria-label="Four featured portrait videos">
-      {Array.from({length:4},(_,i)=>portraitClips[i]??{title:"Coming soon",url:""}).map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}
+    <div className="sm-desktop-portrait-carousel" role="region" tabIndex={0}
+      aria-label="Browse all published Stunning Creations"
+      onKeyDown={event=>{
+       if(event.key==="ArrowLeft"||event.key==="ArrowRight"){
+        event.preventDefault();
+        movePortraits(event.key==="ArrowLeft"?-1:1);
+       }
+      }}>
+     <button type="button" className="sm-desktop-portrait-nav sm-desktop-portrait-nav-prev"
+       aria-label="Previous published videos" disabled={!canBrowsePortraits} onClick={()=>movePortraits(-1)}>
+       <ChevronLeft size={28} aria-hidden="true"/>
+     </button>
+     <div ref={portraitGrid} className="sm-desktop-portrait-grid" aria-label="Four visible published portrait videos">
+      {visiblePortraitClips.map((item,i)=><div key={item.url||i} className="sm-desktop-portrait-card" data-index={i}
        onClick={()=>item.url&&togglePortraitSound(i)}
        aria-label={item.url?"Video "+item.title+": Klick zum Ton ein- oder ausschalten":item.title}>
        {item.url?<><img className="sm-desktop-portrait-poster" src={item.posterUrl||showcase.posterUrl||"/artwork/singmotion-stage.webp"} alt="" loading="eager" decoding="async"/>
@@ -562,7 +589,13 @@ export function ImmersiveHome(){
           onClick={event=>{event.stopPropagation();togglePortraitSound(i)}}>{audiblePortrait===i?<Volume2 size={17}/>:<VolumeX size={17}/>}</button>
        </>:<div className="sm-desktop-portrait-fallback" aria-label="Video coming soon"><Play size={28}/></div>}
       </div>)}
+     </div>
+     <button type="button" className="sm-desktop-portrait-nav sm-desktop-portrait-nav-next"
+       aria-label="Next published videos" disabled={!canBrowsePortraits} onClick={()=>movePortraits(1)}>
+       <ChevronRight size={28} aria-hidden="true"/>
+     </button>
     </div>
+    {canBrowsePortraits&&<p className="sm-desktop-portrait-discovery">Explore all {portraitClips.length} published videos · Browse with the arrows</p>}
    </section>
    <section className="sm-immersive-final" aria-labelledby="sm-ready-title">
     <h2 id="sm-ready-title">Ready to create your<br/>next <span>music video?</span></h2>
