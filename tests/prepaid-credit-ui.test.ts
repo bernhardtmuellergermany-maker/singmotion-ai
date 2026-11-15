@@ -41,3 +41,22 @@ test("prepared operator project with insufficient wallet credits shows actionabl
  assert.match(status,/resumeHref/);
  assert.match(status,/creditTopupHref=\{creditsHref\}/);
 });
+
+
+test("audio trim stays within a selection-aware timeline at desktop and mobile widths",()=>{
+ const waveform=read("components/waveform.tsx");
+ const style=read("app/(site)/studio-refinement.css");
+ assert.match(waveform,/const selectionAwareStart = dragging \? preferredViewStart/);
+ assert.match(waveform,/Math\.max\(end - viewSpan, Math\.min\(start, preferredViewStart\)\)/);
+ assert.match(waveform,/Math\.max\(0, Math\.min\(maximumViewStart, selectionAwareStart\)\)/);
+ assert.match(style,/\.sm-new-wave-card \.wave-strip\{[\s\S]*?clip-path:inset\(-32px 0 -32px 0\)/);
+});
+test("mobile generation status never renders after the fixed action bar",()=>{
+ const wizard=read("components/studio-wizard.tsx");
+ const css=read("app/(site)/studio-refinement.css");
+ const status=wizard.indexOf('className="sm-review-payment-note sm-review-starting-status"');
+ const nav=wizard.indexOf('className="sm-studio-navigation sm-new-navigation"');
+ assert.ok(status>0&&nav>status,"Progress message must precede the fixed navigation");
+ assert.match(css,/\.flow-main > \.sm-review-starting-status/);
+ assert.match(css,/margin-bottom:calc\(115px \+ env\(safe-area-inset-bottom,0px\)\)!important/);
+});
