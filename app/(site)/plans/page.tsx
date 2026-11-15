@@ -21,7 +21,6 @@ export default function PlansPage() {
     <h1>Pricing<span className="sm-plans-accent">.</span></h1>
     <p>Create AI music performance videos with simple prepaid credits. Understand your costs before you create, choose a credit amount that suits your project, and skip monthly subscriptions.</p>
    </section>
-   <div className="sm-plans-preview-notice" role="status"><strong>Pricing preview.</strong> The credit rates below describe the planned model. Live credit purchasing is not available yet.</div>
    <section className="sm-plans-grid sm-plans-grid-single" aria-label="AI music video credit pricing">
     <article className="sm-plan-card sm-plan-featured sm-plan-single">
      <div className="sm-plan-top"><span className="sm-plan-icon"><Music2 size={24}/></span><span className="sm-plan-status sm-plan-soon">Pay as you go</span></div>
@@ -76,7 +75,7 @@ export default function PlansPage() {
      </article>
     </div>
    </section>
-   <section className="sm-plans-credit-custom" aria-label="Choose proposed credit amount"><CreditAmountPicker/></section>
+   <section className="sm-plans-credit-custom" aria-label="Choose proposed credit amount"><CreditAmountPicker discoverAvailability/></section>
    <section className="sm-plans-faq" aria-labelledby="sm-pricing-faq-title">
     <div className="sm-plans-section-heading"><span className="sm-plans-section-eyebrow">GOOD TO KNOW</span><h2 id="sm-pricing-faq-title">Pricing questions, answered</h2></div>
     <div className="sm-plans-faq-list">
