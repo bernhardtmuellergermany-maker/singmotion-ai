@@ -9,13 +9,24 @@ import type {StudioPolicy} from "../live/studio-policy.ts";
 
 export const OWNER_CONFIRMED_BYTEPLUS_RATE_MICRO_USD = 70_000;
 export const OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS = 30;
-export function ownerConfirmedBytePlusPolicy():StudioPolicy{
+// Legacy paid-order worker contract fields. Prepaid Customer Studio no longer
+// uses these amounts for daily or lifetime admission.
+export const OWNER_CONFIRMED_BUDGET = Object.freeze({
+ dailyCapMicroUsd: 2_500_000, // at most $2.50 of conservative reservations per rolling 24h
+ lifetimeCapMicroUsd: 10_000_000, // staging-only total reserve, never resets on restart
+});
+
+export function ownerConfirmedBytePlusPolicy():StudioPolicy&{
+ dailyCapMicroUsd:number;lifetimeCapMicroUsd:number
+}{
  return {
   reviewedBy:"SingMotion-owner-user-confirmation-2026-11-05",
   reviewedAt:"2026-11-05T00:00:00.000Z",
   expiresAt:"2026-12-04T23:59:59.000Z",
   billingEvidence:"SingMotion owner confirmed USD 0.07 per generated video second, no additional BytePlus fees, taxes or surcharges on 2026-11-05; operator-relayed support output-meter policy.",
   outputEvidence:"Existing task 2062100414 returned a valid MP4; owner confirmed successful private video delivery. Exact observed v16m-default.tiktokcdn.com output host only, with validated 720p normalization, AAC/H264 checks and limited 120-second private transfer.",
+  dailyCapMicroUsd:OWNER_CONFIRMED_BUDGET.dailyCapMicroUsd,
+  lifetimeCapMicroUsd:OWNER_CONFIRMED_BUDGET.lifetimeCapMicroUsd,
   contract:{
    revision:"owner-confirmed-2026-11-05-staging-v1",
    model:"OmniHuman 2.0",
