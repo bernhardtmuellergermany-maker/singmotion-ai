@@ -46,3 +46,23 @@ test("Customer Remove & Restore requires a customer account, CSRF, owned order a
  assert.doesNotMatch(ui,/Paid orders cannot be deleted here/);
  assert.match(ui,/Payment records are retained/);
 });
+
+test("Rename Save PATCHes an owned account title, never hides a paid project",()=>{
+ const ui=read("components/my-projects-gallery.tsx");
+ const api=read("app/(site)/api/customer-orders/route.ts");
+ const rename=ui.split("async function renameProject(item:ProjectItem){")[1]?.split("async function refreshTrash()")[0];
+ const removal=ui.split("async function deleteProject(item:ProjectItem){")[1]?.split(" // Refresh account-owned names")[0];
+ assert.ok(rename,"Rename event handler must exist");
+ assert.match(rename,/if\(item\.kind==="customer"\)/);
+ assert.match(rename,/method:"PATCH"/);
+ assert.match(rename,/JSON\.stringify\(\{orderId:id,name:next\}\)/);
+ assert.match(rename,/setOrders\(previous=>previous\.map\(o=>o\.orderId===id\?\{\.\.\.o,displayName:next\}:o\)\)/);
+ assert.doesNotMatch(rename,/method:"PUT"|hidden:true|filter\(o=>o\.orderId!==id\)/);
+ assert.ok(removal,"Separate Remove event handler must exist");
+ assert.match(removal,/method:"PUT"/);
+ assert.match(removal,/hidden:true/);
+ assert.match(api,/export async function PATCH\(req:NextRequest\)/);
+ assert.match(api,/ownedCustomerOrderStatuses\(store\.db,accountId/);
+ assert.match(api,/customer_order_display_names/);
+ assert.match(api,/name=excluded\.name/);
+});
