@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {LiveTestStore,confirmationPhrase} from "../lib/live/store.ts";
-import {loadRuntimeStudioPolicy} from "../lib/live/studio-runtime.ts";
+import {loadRuntimeStudioPolicy,studioRuntime} from "../lib/live/studio-runtime.ts";
 import {customerCreditStudioBetaEnabled,exactCustomerCreditSubject} from "../lib/commerce/customer-credit-studio-beta.ts";
 
 const root=new URL("../",import.meta.url);
@@ -28,6 +28,18 @@ test("Customer generation beta requires private Staging, Stripe TEST, pricing an
   ["GENERATIONS_ENABLED","true"]]){
   assert.equal(customerCreditStudioBetaEnabled({...good,[key]:value}),false,key);
  }
+});
+test("private signed TEST Credit videos work without opening unlimited staff Studio",()=>{
+ const isolated={...env(),BYTEPLUS_STUDIO_ENABLED:"false",BYTEPLUS_STUDIO_MAX_DURATION_SECONDS:"0"};
+ assert.equal(customerCreditStudioBetaEnabled(isolated),true);
+ const store=new LiveTestStore(":memory:");
+ const runtime=studioRuntime(store,"/unused-test-data",isolated,false,true);
+ try{
+  assert.equal(runtime.service.config.enabled,true);
+  assert.equal(runtime.service.config.maxDurationSeconds,30);
+  assert.equal(runtime.service.config.maxJobMicroUsd,2500000);
+  assert.equal(runtime.service.config.maxTotalMicroUsd,10000000);
+ }finally{runtime.close();}
 });
 test("Credit wallet identity must belong to the SAME logged-in customer media owner",()=>{
  const id="7135eadf-16e9-495a-a732-eaf996a3368e";
