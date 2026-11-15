@@ -210,8 +210,8 @@ test("Stripe refund identifiers accept the actual 2026 LIVE pyr_/py_ formats wit
  for(const invalid of ["pi_123","re_123","py_bad/../x","py_-bad","",null])
   assert.equal(validStripeChargeId(invalid),false,JSON.stringify(invalid));
  const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
- assert.match(hook,/validStripeRefundId\(object\.id\\)/);
- assert.match(hook,/validStripeChargeId\(verified\.charge\\)/);
+ assert.ok(hook.includes("validStripeRefundId(object.id)"));
+ assert.ok(hook.includes("validStripeChargeId(verified.charge)"));
  assert.match(hook,/verified\.status!=="succeeded"/);
  assert.match(hook,/wallet\.reverse\(\{sessionId:session\.id/);
 });
@@ -230,7 +230,7 @@ test("refund preserves Stripe invoice history and returns exact Credits in the w
   assert.equal(wallet.purchases(subject)[0]?.status,"reversed");
   assert.equal(wallet.entries(subject).filter(x=>x.type==="refund").length,1);
   const invoices=readFileSync(new URL("../app/(site)/api/customer-invoices/route.ts",import.meta.url),"utf8");
-  assert.match(invoices,/status IN \('paid','reversed'\\)/);
+ assert.ok(invoices.includes("status IN ('paid','reversed')"));
   assert.match(invoices,/paymentStatus:"topup_status" in row/);
   const account=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
   assert.match(account,/invoice\.paymentStatus==="refunded"/);
