@@ -9,6 +9,7 @@ import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
+import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -54,7 +55,7 @@ export async function GET(req:NextRequest){
   const rawBalance=purchased-reserved;
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
-    (privateCreditPilotApproved(process.env)||
+    (privateLiveCreditTestEnabled(process.env)||privateCreditPilotApproved(process.env)||
      (customerLaunchReadiness().readyForPaidOrders&&
       (auditSingMotionLaunch(process.env,"production").ready||
        protectedProductionLivePilotApproved(process.env))));
