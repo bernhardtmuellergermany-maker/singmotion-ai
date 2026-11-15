@@ -3,13 +3,25 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 function read(path:string){return readFileSync(new URL("../"+path,import.meta.url),"utf8")}
 
-test("Desktop Stunning Creations randomizes only explicitly published CMS portraits",()=>{
+test("Desktop Stunning Creations browses all randomly ordered, explicitly CMS-approved portraits",()=>{
  const home=read("components/immersive-home.tsx");
- assert.match(home,/randomDesktopPortraits\(publicPortraits,previous\)/);
- assert.match(home,/sm-last-desktop-portraits/);
- assert.match(home,/for\(let i=result\.length-1;i>0;i--\)/);
- assert.match(home,/\.slice\(0,4\)/);
+ const css=read("app/(site)/home-immersive.css");
  assert.match(home,/fetch\("\/api\/showcase\?channel=desktop_portrait"/);
+ assert.match(home,/randomDesktopPortraits\(publicPortraits,previous\)/);
+ assert.match(home,/const result=\[\.\.\.unseen,\.\.\.already\];/);
+ assert.doesNotMatch(home,/const result=\[\.\.\.unseen,\.\.\.already\]\.slice\(0,4\)/);
+ assert.match(home,/sm-last-desktop-portraits/);
+ assert.match(home,/selected\.slice\(0,4\)\.map\(c=>c\.url\)/);
+ assert.match(home,/const visiblePortraitClips=Array\.from\(\{length:4\}/);
+ assert.match(home,/portraitClips\[\(portraitOffset\+index\)%portraitClips\.length\]/);
+ assert.match(home,/onClick=\{\(\)=>movePortraits\(-1\)\}/);
+ assert.match(home,/onClick=\{\(\)=>movePortraits\(1\)\}/);
+ assert.match(home,/aria-label="Previous published videos"/);
+ assert.match(home,/aria-label="Next published videos"/);
+ assert.match(home,/setAudiblePortrait\(null\)/);
+ assert.match(home,/\.map\(\(item,i\)=>\<div key=\{item\.url\|\|i\}/);
+ assert.match(css,/\.sm-desktop-portrait-nav/);
+ assert.match(css,/\.sm-desktop-portrait-carousel/);
 });
 test("Mobile reels start with audio preference on, tap toggles mute without stopping playback",()=>{
  const home=read("components/immersive-home.tsx");
