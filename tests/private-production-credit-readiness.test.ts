@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
 import {
  assessPrivateProductionCreditVideo,PRODUCTION_CREDIT_VIDEO_ACCEPTANCE
 } from "../lib/commerce/private-production-credit-readiness.ts";
@@ -52,4 +53,30 @@ test("preflight does not infer real production billing or operational approvals"
  const output=assessPrivateProductionCreditVideo(makeEnv());
  assert.equal("publicReleaseApproved" in output,false);
  assert.equal("acceptanceVerified" in output,false);
+});
+
+test("private Production gate diagnostics reveal which switches differ, never their secret values",()=>{
+ const e=makeEnv();
+ const good=assessPrivateProductionCreditVideo(e);
+ assert.equal(good.configurationReady,true);
+ for(const [key,id] of [
+  ["PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED","PRIVATE_LIVE_CREDIT_TEST_SWITCH"],
+  ["CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED","CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_SWITCH"],
+  ["STAGING_PASSWORD","PRIVATE_BASIC_AUTH_CONFIGURED"],
+  ["APP_ORIGIN","CANONICAL_LIVE_ORIGINS"],
+  ["STRIPE_SECRET_KEY","LIVE_STRIPE_CREDENTIAL_FORMAT"],
+ ] as const){
+  const report=assessPrivateProductionCreditVideo({...e,[key]:"false"});
+  assert.ok(report.checks.some(check=>check.id===id&&!check.ready),key);
+ }
+ assert.ok(good.checks.every(c=>!JSON.stringify(c).includes(e.STAGING_PASSWORD)));
+ assert.ok(good.checks.every(c=>!JSON.stringify(c).includes(e.STRIPE_SECRET_KEY)));
+});
+test("Production worker reports independent credit Studio configuration without activating payment or dispatch",()=>{
+ const worker=readFileSync(new URL("../scripts/worker.ts",import.meta.url),"utf8");
+ assert.match(worker,/PRIVATE_CREDIT_VIDEO_CONFIGURATION/);
+ assert.match(worker,/assessPrivateProductionCreditVideo\(process\.env\)/);
+ assert.match(worker,/independentlyAccepted:false/);
+ assert.match(worker,/publicReleaseApproved:false/);
+ assert.match(worker,/\.filter\(check=>!check\.ready\)\.map\(check=>check\.id\)/);
 });
