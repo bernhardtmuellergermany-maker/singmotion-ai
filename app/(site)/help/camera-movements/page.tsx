@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,ShieldCheck,TriangleAlert,Lightbulb} from "lucide-react";
+import {ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,TriangleAlert} from "lucide-react";
 import {SiteHeader} from "@/components/site-header";
 import {PromptCopyButton} from "@/components/prompt-copy-button";
 import "./camera-movements.css";
