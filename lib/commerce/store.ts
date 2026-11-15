@@ -132,30 +132,6 @@ export class CommerceStore {
     this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
     return {id,token};
   }
-  /** Explicitly link a Google subject ONLY after password reauthentication and
-   * a fully verified Google OAuth callback. Never auto-link by email alone.
-   * Existing wallet, projects and account ID remain unchanged. */
-  linkGoogleIdentity(accountId:string,subject:string,email:string):void {
-    const normalized=email.trim().toLowerCase();
-    if(!/^[a-f0-9-]{36}$/.test(accountId)||!/^(?:\\d){8,32}$/.test(subject))
-      throw Error("Invalid Google account link");
-    this.tx(()=>{
-      this.db.exec("CREATE TABLE IF NOT EXISTS customer_google_identities(google_sub TEXT PRIMARY KEY,account_id TEXT UNIQUE NOT NULL)");
-      const account=this.db.prepare("SELECT email FROM customer_accounts WHERE id=?")
-        .get(accountId) as {email:string}|undefined;
-      if(!account||account.email!==normalized)
-        throw Error("Google email must match your existing SingMotion account.");
-      const bySub=this.db.prepare("SELECT account_id FROM customer_google_identities WHERE google_sub=?")
-        .get(subject) as {account_id:string}|undefined;
-      const byAccount=this.db.prepare("SELECT google_sub FROM customer_google_identities WHERE account_id=?")
-        .get(accountId) as {google_sub:string}|undefined;
-      if(bySub&&bySub.account_id!==accountId||byAccount&&byAccount.google_sub!==subject)
-        throw Error("This Google identity or SingMotion account is already linked elsewhere.");
-      if(!bySub)this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,accountId);
-      this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,?,0) ON CONFLICT(account_id) DO UPDATE SET verified_at=excluded.verified_at,token_hash=NULL,token_expires=NULL")
-        .run(accountId,Date.now());
-    });
-  }
   login(email: string, password: string) {
     if (password.length > 256) throw Error("Invalid credentials");
     const row = this.db
