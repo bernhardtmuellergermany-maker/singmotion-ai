@@ -38,7 +38,10 @@
   flex-flow:row nowrap!important;
   align-items:center!important;
   justify-content:space-between!important;
-  width:100%!important;
+  /* left + right determine the usable width including the scrollbar gutter.
+     width:100% overconstrains a fixed header and can ignore right:0. */
+  width:auto!important;
+  min-width:0!important;
   height:var(--sm-nav-height)!important;
   min-height:var(--sm-nav-height)!important;
   max-height:var(--sm-nav-height)!important;
