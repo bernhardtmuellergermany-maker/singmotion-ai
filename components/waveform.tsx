@@ -110,9 +110,15 @@ export default function Waveform({
   // rescale the waveform underneath the pointer. Persist the current viewport
   // after the first edit; only explicit +/- zoom chooses a fresh viewport.
   const calculatedSpan = Math.min(duration, Math.max(Math.min(duration, end - start + 8), duration / Math.pow(1.45, zoomLevel)));
-  const viewSpan = Math.max(0.001, Math.min(duration, lockedView?.span ?? calculatedSpan));
-  const viewStart = Math.max(0, Math.min(duration - viewSpan,
-    lockedView?.start ?? ((start + end) / 2 - viewSpan / 2)));
+  const viewSpan = Math.max(0.001, Math.min(duration, Math.max(end - start + 0.5, lockedView?.span ?? calculatedSpan)));
+  const preferredViewStart = lockedView?.start ?? ((start + end) / 2 - viewSpan / 2);
+  const maximumViewStart = Math.max(0, duration - viewSpan);
+  // Keep the zoomed timeline still under the pointer, but on release ensure
+  // that both trim boundaries are actually inside the viewport. Previously an
+  // older locked window could strand the whole selection at the right edge.
+  const selectionAwareStart = dragging ? preferredViewStart :
+    Math.max(end - viewSpan, Math.min(start, preferredViewStart));
+  const viewStart = Math.max(0, Math.min(maximumViewStart, selectionAwareStart));
   const viewPercent = (seconds: number) => ((seconds - viewStart) / viewSpan) * 100;
   // Clamp only the visual timeline, never the persisted source-audio timestamps.
   const visiblePercent = (seconds: number) => Math.max(0, Math.min(100, viewPercent(seconds)));
