@@ -50,9 +50,9 @@ export function auditSingMotionLaunch(
  add("all-customer-generation",customerRuntime.accountsEnabled&&
   customerRuntime.paymentsConnected&&customerRuntime.customerGenerationEnabled&&
   customerRuntime.fulfillmentConnected&&customerRuntime.deliveryConnected,
-  "Free and Hobby customer accounts need owner-scoped order authorization, validated payment or entitlement, provider cost caps, recovery and private completed-video delivery. An admin-only pilot is not customer access.");
+  "All paying customers and Super Admin must use their own scoped Credits, verified settlement, bounded provider dispatch, recovery and private video delivery. An operator-only pilot is not customer release.");
  add("zero-euro-promo",yes(env,"FREE_PROMO_FULFILLMENT_E2E_VERIFIED"),
-  "Three-video free entitlement must use audited zero-EUR authorization and capped provider spending.");
+  "If the existing promotional free-video entitlement is retained, zero-EUR authorization and provider spending must be audited. Do not treat promo as an active offer without review.");
  add("legal-and-support",yes(env,"LEGAL_REVIEW_APPROVED")&&has(env,"SUPPORT_CONTACT_VERIFIED"),
   "Human-reviewed Impressum, privacy, terms, consent, invoices/taxes and actual support/abuse contacts.");
  add("operational-recovery",yes(env,"BACKUP_RESTORE_EXERCISE_VERIFIED")&&
