@@ -2513,7 +2513,10 @@
   box-sizing:border-box;
   width:calc(100% - 28px);
   margin-inline:14px;
-  overflow:hidden;
+  /* Clip only the horizontal spill. Keep vertically protruding trim handles
+     visible and draggable instead of cutting them off at the timeline edge. */
+  overflow:visible;
+  clip-path:inset(-32px 0 -32px 0);
   isolation:isolate;
 }
 .product-theme.singmotion-flow .sm-new-wave-card .wave-selection{
