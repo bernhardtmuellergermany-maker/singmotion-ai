@@ -45,6 +45,8 @@ export function AdminAccountDashboard({overview,busy,error,refresh}:Props){
     <span><strong>Customer Support Console</strong><small>Find order IDs, refund Credits, check Stripe, resolve cases</small></span><ArrowUpRight size={17} aria-hidden="true"/></Link>
    <Link href="/promo-admin"><span className="sm-admin-dash-link-icon"><Gift size={19}/></span>
     <span><strong>Promotion Console</strong><small>Manage promotions and campaign codes</small></span><ArrowUpRight size={17} aria-hidden="true"/></Link>
+   <Link href="/release-readiness"><span className="sm-admin-dash-link-icon"><ShieldCheck size={19}/></span>
+    <span><strong>Customer launch readiness</strong><small>Server-verified payments, generation and release blockers · read only</small></span><ArrowUpRight size={17} aria-hidden="true"/></Link>
    <Link href="/admin"><span className="sm-admin-dash-link-icon"><ShieldCheck size={19}/></span>
     <span><strong>CMS &amp; staff admin</strong><small>Protected administrator dashboard</small></span><ArrowUpRight size={17} aria-hidden="true"/></Link>
    <a href="https://singmotion-ai-staging.up.railway.app/studio/output-preview" target="_blank" rel="noopener noreferrer">
