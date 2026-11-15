@@ -5,6 +5,7 @@ import {SupportCases} from "@/lib/commerce/support-cases";
 import { CreditWallet, stripeCreditWebhookTestEnabled, stripeCreditTopupsLiveEnabled } from "@/lib/commerce/credit-wallet";
 import {ensurePaidCreditEmail} from "@/lib/commerce/credit-topup-email";
 import {validStripeRefundId,validStripeChargeId,validStripeDisputeId} from "@/lib/commerce/stripe-reversal-identifiers";
+import {reconcileSignedFullCreditRefund} from "@/lib/commerce/stripe-signed-credit-refund";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
@@ -24,6 +25,10 @@ type StripeLookup = Record<string, unknown> & {
 };
 
 
+class StripeLookupHttpError extends Error {
+ constructor(readonly httpStatus:number){super("Stripe verification request failed");}
+}
+
 async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
  if(!stripeKeyMatchesMode(key,mode))throw Error("Matching Stripe environment key required");
  const response=await fetch("https://api.stripe.com/v1/"+resource,{
@@ -40,7 +45,7 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
    if(/^[a-z][a-z0-9_]{0,63}$/.test(raw))code=raw;
   }catch{/* Stripe may return a non-JSON error response. */}
   console.error("STRIPE_LOOKUP_FAILED",{resource:resource.split(/[/?]/,1)[0],httpStatus:response.status,code});
-  throw Error("Stripe verification request failed");
+  throw new StripeLookupHttpError(response.status);
  }
  return await response.json() as StripeLookup;
 }
@@ -99,7 +104,27 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
  if(!refund&&!dispute)throw Error("Unsupported reversal");
  if(!(refund?validStripeRefundId(object.id):validStripeDisputeId(object.id)))
    throw Error("Invalid reversal ID");
- const verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
+ let verified:StripeLookup;
+ try{
+  verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
+ }catch(error){
+  // A signed successful snapshot, not an unsigned client request, may recover
+  // an existing LIVE Credit purchase if a restricted key cannot read Refunds.
+  // Checkout is independently fetched from Stripe and the wallet is bound
+  // to that unique Session; legacy orders and disputes remain fail-closed.
+  if(refund&&event.type==="refund.updated"&&mode==="live"&&
+     error instanceof StripeLookupHttpError&&
+     [403,404].includes(error.httpStatus)&&
+     typeof object.payment_intent==="string"&&
+     /^pi_[A-Za-z0-9_]+$/.test(object.payment_intent)){
+   const sessions=await stripeGet("checkout/sessions?payment_intent="+
+     encodeURIComponent(object.payment_intent)+"&limit=2",key,mode);
+   if(Array.isArray(sessions.data)&&sessions.data.length===1&&
+      reconcileSignedFullCreditRefund(new CreditWallet(store.db),event,sessions.data[0],mode))
+    return;
+  }
+  throw error;
+ }
  // Refund objects can omit livemode. The signed event establishes the mode;
  // the exact refund ID and subsequent charge/session lookups must still match.
  if((verified.livemode!==undefined&&verified.livemode!==(mode==="live"))||
