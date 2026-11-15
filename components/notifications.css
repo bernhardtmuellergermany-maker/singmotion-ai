@@ -1,3 +1,6 @@
+/* Keep the transparent global header over the exact Notifications canvas.
+   The shared carousel background must not create a separate colored nav band. */
+.sm-carousel-page.sm-notifications-layout{background:#0b0b16}
 .sm-notifications-page{min-height:100vh;background:#0b0b16;color:#f7f2ff;padding:110px 24px 80px}
 .sm-notifications-container{max-width:900px;margin:0 auto}
 .sm-notifications-back{display:inline-flex;align-items:center;gap:8px;color:#cdb5e8;font-size:14px;text-decoration:none;margin-bottom:32px}
