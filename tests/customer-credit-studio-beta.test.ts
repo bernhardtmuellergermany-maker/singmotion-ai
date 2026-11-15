@@ -37,8 +37,8 @@ test("private signed TEST Credit videos work without opening unlimited staff Stu
  try{
   assert.equal(runtime.service.config.enabled,true);
   assert.equal(runtime.service.config.maxDurationSeconds,30);
-  assert.equal(runtime.service.config.maxJobMicroUsd,2500000);
-  assert.equal(runtime.service.config.maxTotalMicroUsd,10000000);
+  assert.equal(runtime.service.config.maxJobMicroUsd,Number.MAX_SAFE_INTEGER);
+  assert.equal(runtime.service.config.maxTotalMicroUsd,Number.MAX_SAFE_INTEGER);
  }finally{runtime.close();}
 });
 test("Credit wallet identity must belong to the SAME logged-in customer media owner",()=>{
@@ -63,10 +63,10 @@ test("Customer Studio route uses verified email, private media session, CSRF and
  assert.match(wizard,/access\.customerBeta/);
  assert.match(wizard,/Continue project · Step 4|Buy Credits and return to Step 4/);
 });
-test("Customer Beta provider job reserves global USD lifetime and daily ceilings",()=>{
+test("Customer Studio has no daily or lifetime quota; each task still gets its immutable reservation",()=>{
  const store=new LiveTestStore(":memory:");
  const config={demoMode:false,enabled:true,operatorSecret:"s".repeat(40),
-  maxDurationSeconds:30,maxJobMicroUsd:2500000,maxTotalMicroUsd:10000000};
+  maxDurationSeconds:30,maxJobMicroUsd:Number.MAX_SAFE_INTEGER,maxTotalMicroUsd:Number.MAX_SAFE_INTEGER};
  function add(owner:string,micro:number,createdAt:number,reserved:number){
   const id=crypto.randomUUID();
   const row={id,media:{sourceJobId:"studio-"+id,owner,durationSeconds:5},
@@ -84,8 +84,13 @@ test("Customer Beta provider job reserves global USD lifetime and daily ceilings
   const token=store.authorize(allowed.id,config,config.operatorSecret,confirmationPhrase(allowed as Parameters<typeof confirmationPhrase>[0]));
   assert.equal(typeof token,"string");
   add("customer-d8db2fa7-ec04-44db-a975-0b46b8e85ef4",2_000_000,Date.now(),2_000_000);
-  const daily=add(owner,400_000,Date.now(),0);
-  assert.throws(()=>store.authorize(daily.id,config,config.operatorSecret,confirmationPhrase(daily as Parameters<typeof confirmationPhrase>[0])),/daily provider cap reached/);
+  const next=add(owner,400_000,Date.now(),0);
+  const secondToken=store.authorize(next.id,config,config.operatorSecret,confirmationPhrase(next as Parameters<typeof confirmationPhrase>[0]));
+  assert.equal(typeof secondToken,"string");
+  const afterLifetime=add(owner,400_000,Date.now(),0);
+  const thirdToken=store.authorize(afterLifetime.id,config,config.operatorSecret,confirmationPhrase(afterLifetime as Parameters<typeof confirmationPhrase>[0]));
+  assert.equal(typeof thirdToken,"string");
+  assert.equal(store.db.prepare("SELECT COUNT(*) as n FROM live_attempts WHERE reserved_micro_usd=400000").get()?.n,3);
  }finally{store.close();}
 });
 test("Customer Beta production guard always stays closed",()=>{
@@ -93,8 +98,9 @@ test("Customer Beta production guard always stays closed",()=>{
  const data=read("lib/live/store.ts");
  assert.match(api,/STAGING="dfaeabed-03df-43ed-aa71-50f343a75041"/);
  assert.match(data,/attempt\.media\.owner\.startsWith\("customer-"\)/);
- assert.match(data,/daily\.total\+attempt\.upperBoundMicroUsd!>2500000/);
+ assert.doesNotMatch(data,/daily\.total\+attempt\.upperBoundMicroUsd!>2500000/);
  assert.match(data,/cumulativeCap!==Number\.MAX_SAFE_INTEGER/);
+ assert.match(data,/UPDATE live_attempts SET reserved_micro_usd=\?,token_hash=\?,expires_at=\?/);
 });
 
 test("Customer beta uses only its independently reviewed expiring contract; legacy operator policy remains blocked",async()=>{
