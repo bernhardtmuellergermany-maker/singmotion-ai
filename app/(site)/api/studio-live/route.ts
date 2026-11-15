@@ -178,7 +178,7 @@ async function handler(req: NextRequest) {
         return json(await service.withCurrentBudget(service.view(id, owner)));
       const blockers: string[] = [];
       try {
-        studioGate(studioConfig());
+        studioGate(service.config);
         await loadRuntimeStudioPolicy(dataDir, process.env, isSuperAdmin, customerBeta);
         await studioReadiness(dataDir);
       } catch (e) {
