@@ -104,7 +104,10 @@ export async function POST(req:NextRequest){
    if(liveMode&&tax?.decision){
     const decision=tax.decision;
     form.set("billing_address_collection","required");
-    form.set("tax_id_collection[enabled]","true");
+    // The protected private LIVE pilot admits private buyers only: do not
+    // offer a business tax-ID flow that its policy cannot legally fulfill.
+    // Other reviewed LIVE modes may collect tax IDs through Stripe Checkout.
+    form.set("tax_id_collection[enabled]",decision.mode==="private-live-verification"?"false":"true");
     form.set("line_items[0][price_data][tax_behavior]","inclusive");
     if(decision.mode==="stripe-managed-payments"){
      // Tax code belongs to the existing live Stripe Product in the catalog.
