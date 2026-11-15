@@ -104,6 +104,11 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
  if(!refund&&!dispute)throw Error("Unsupported reversal");
  if(!(refund?validStripeRefundId(object.id):validStripeDisputeId(object.id)))
    throw Error("Invalid reversal ID");
+ // An authenticated snapshot of a not-yet-successful refund must not debit
+ // Credits, and requires no charge/refund API permissions to acknowledge.
+ // A later succeeded update is reconciled independently and idempotently.
+ if(refund&&object.object==="refund"&&
+    ["pending","failed","canceled"].includes(String(object.status)))return;
  let verified:StripeLookup;
  try{
   verified=await stripeGet((refund?"refunds/":"disputes/")+encodeURIComponent(object.id),key,mode);
@@ -112,7 +117,7 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
   // an existing LIVE Credit purchase if a restricted key cannot read Refunds.
   // Checkout is independently fetched from Stripe and the wallet is bound
   // to that unique Session; legacy orders and disputes remain fail-closed.
-  if(refund&&event.type==="refund.updated"&&mode==="live"&&
+  if(refund&&mode==="live"&&
      error instanceof StripeLookupHttpError&&
      [403,404].includes(error.httpStatus)&&
      typeof object.payment_intent==="string"&&
