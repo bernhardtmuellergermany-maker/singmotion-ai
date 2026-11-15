@@ -47,9 +47,11 @@ export async function readOnlyStripeLivePreflight(
      result as Record<string,unknown>:null;
    }catch{return null}
   };
-  const [account,product,webhooks]=await Promise.all([
+  const [account,product,prices,taxSettings,webhooks]=await Promise.all([
    request("https://api.stripe.com/v1/account"),
    request("https://api.stripe.com/v1/products/prod_Vchw1yEak3Xa6k"),
+   request("https://api.stripe.com/v1/prices?product=prod_Vchw1yEak3Xa6k&active=true&limit=100"),
+   request("https://api.stripe.com/v1/tax/settings"),
    request("https://api.stripe.com/v1/webhook_endpoints?limit=100"),
   ]);
   check("stripe-account-accepts-charges",
@@ -66,6 +68,19 @@ export async function readOnlyStripeLivePreflight(
     product.active===true&&product.name==="SingMotion AI Credits"&&
     /prepaid credits/i.test(description)&&
     approvedCreditTaxCodes.has(String(product.tax_code||"")));
+  // Verify a real, active one-time EUR catalog price before accepting the
+  // product as configured. The checkout still calculates each order amount
+  // server-side; this read-only check never creates a payable Stripe object.
+  const activePrices=Array.isArray(prices?.data)?prices.data:[];
+  check("active-inclusive-eur-credit-price",activePrices.some(value=>{
+   if(!value||typeof value!=="object")return false;
+   const price=value as Record<string,unknown>;
+   return price.product===creditProductId&&price.active===true&&
+    price.livemode===true&&price.currency==="eur"&&
+    price.tax_behavior==="inclusive"&&price.recurring===null&&
+    Number.isSafeInteger(price.unit_amount)&&Number(price.unit_amount)>=500;
+  }));
+  check("stripe-tax-settings-active",taxSettings?.status==="active");
   const items=Array.isArray(webhooks?.data)?webhooks.data:[];
   // Credits purchases require the signed payment/refund/dispute endpoint.
   // Hobby is retired and its webhook cannot block a credits-only release.
@@ -88,6 +103,8 @@ export async function readOnlyStripeLivePreflight(
  }else{
   check("stripe-account-accepts-charges",false);
   check("credits-live-product-active-and-classified",false);
+  check("active-inclusive-eur-credit-price",false);
+  check("stripe-tax-settings-active",false);
   check("verified-live-checkout-webhook",false);
  }
  const stripeConfigurationVerified=checks.every(c=>c.ok);
