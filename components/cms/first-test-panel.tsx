@@ -607,9 +607,7 @@ export function FirstTestPanel() {
               {fx && (
                 <p>
                   Reference date {fx.asOf}: EUR 1 = USD {fx.usdPerEur}.{" "}
-                  <a href={fx.source} target="_blank" rel="noreferrer">
-                    Verify ECB source
-                  </a>
+                  <span>ECB reference (verified in the operator check)</span>
                   . This is not a settlement-rate or fee guarantee; no tax/fee
                   upper bound is inferred.
                 </p>
