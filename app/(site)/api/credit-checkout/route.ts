@@ -12,6 +12,7 @@ import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
+import {privateLiveCreditTestEnabled,privateLiveCreditTestTaxDecision} from "@/lib/commerce/private-live-credit-test";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 import {managedCreditMoRApproved,managedCreditTaxDecision} from "@/lib/commerce/managed-credit-payments";
 
@@ -23,8 +24,9 @@ const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{"C
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  const testMode=stripeCreditTopupsTestEnabled(process.env);
+ const privateLiveTest=privateLiveCreditTestEnabled(process.env);
  const liveMode=stripeCreditTopupsLiveEnabled(process.env)&&
-  (privateCreditPilotApproved(process.env)||
+  (privateLiveTest||privateCreditPilotApproved(process.env)||
    (customerLaunchReadiness().readyForPaidOrders&&
     (auditSingMotionLaunch(process.env,"production").ready||
      protectedProductionLivePilotApproved(process.env))));
@@ -51,8 +53,9 @@ export async function POST(req:NextRequest){
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
   const useMoR=liveMode&&managedCreditMoRApproved(process.env);
-  const tax=liveMode?(useMoR
-   ?managedCreditTaxDecision(process.env,body.billingCountry,body.buyerType)
+  const tax=liveMode?(privateLiveTest
+   ?privateLiveCreditTestTaxDecision(body.billingCountry,body.buyerType)
+   :useMoR?managedCreditTaxDecision(process.env,body.billingCountry,body.buyerType)
    :assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType)):null;
   if(liveMode&&!tax?.ready)
    return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
@@ -110,7 +113,13 @@ export async function POST(req:NextRequest){
     }
     // No invented zero-percent VAT line for an approved exemption.
     // Stripe Tax only when a reviewed issue-time taxable classification exists.
-    if(decision.mode==="stripe-tax"){
+    if(decision.mode==="private-live-verification"){
+     // Do not fabricate a VAT exemption or make SingMotion a verified
+     // Merchant of Record. For the owner-only live acceptance transaction,
+     // let Stripe apply its actually configured Tax registrations and fail
+     // Checkout if the calculation cannot be completed.
+     form.set("automatic_tax[enabled]","true");
+    }else if(decision.mode==="stripe-tax"){
      form.set("automatic_tax[enabled]","true");
      // Uses the live product catalog tax code; no inline product_data permitted.
     }else if(decision.mode!=="stripe-managed-payments"){
