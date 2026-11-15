@@ -27,5 +27,8 @@ test("all routes use the same viewport-anchored global header geometry as home",
  assert.ok(common);
  assert.match(common[1],/left:0!important/);
  assert.match(common[1],/right:0!important/);
+ assert.match(common[1],/width:auto!important/);
+ assert.doesNotMatch(common[1],/width:100%!important/);
+
  assert.doesNotMatch(common[1],/left:auto!important|right:auto!important/);
 });
