@@ -72,7 +72,7 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  assert.match(help,/Help & best practices/);
  assert.match(help,/FAQ/);
  assert.match(help,/Quick ideas/);
- assert.match(help,/5–10 seconds/);
+ assert.match(help,/5–10.second/);
  assert.match(help,/500 characters/);
  assert.doesNotMatch(help,/https:\/\/|github\.com|omnihumanai\.net|<video|<iframe/);
  assert.match(help,/const techniques=/);
@@ -81,7 +81,7 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  assert.match(help,/continuous-actions/);
  assert.match(help,/TikTok Shop/);
  assert.match(help,/ElevenLabs/);
- assert.match(help,/first.*then.*finally/i);
+ assert.match(help,/first → then → finally|first.*then.*finally/i);
  assert.match(help,/creative experiments|creative prompt|Creative guidance/i);
  const copy=read("components/prompt-copy-button.tsx");
  assert.match(copy,/navigator\.clipboard\.writeText\(text\)/);
