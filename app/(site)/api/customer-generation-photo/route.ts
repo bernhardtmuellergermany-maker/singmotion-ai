@@ -2,6 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {readFile} from "node:fs/promises";
 import {createHash} from "node:crypto";
+import sharp from "sharp";
 import {CommerceStore} from "@/lib/commerce/store";
 import {asset,dataDir} from "@/lib/db";
 import {reviewedVideoInputDigest} from "@/lib/commerce/reviewed-video";
@@ -47,7 +48,14 @@ export async function GET(req:NextRequest){
    const webp=bytes.length>12 && bytes.toString("ascii",0,4)==="RIFF" && bytes.toString("ascii",8,12)==="WEBP";
    const mime=png?"image/png":jpeg?"image/jpeg":webp?"image/webp":null;
    if(!mime)return missing();
-   return new Response(new Uint8Array(bytes),{status:200,headers:{...headers,"Content-Type":mime,"Content-Length":String(bytes.length)}});
+   // Gallery cards must not download original 30 MB source photos.
+   // Resize only AFTER owner/order verification and original SHA-256 validation.
+   const thumbnail=req.nextUrl.searchParams.get("thumbnail")==="1";
+   const output=thumbnail?await sharp(bytes,{limitInputPixels:4096*4096,failOn:"error"})
+     .rotate().resize({width:520,height:520,fit:"inside",withoutEnlargement:true})
+     .webp({quality:74,effort:3}).toBuffer():bytes;
+   return new Response(new Uint8Array(output),{status:200,headers:{...headers,
+     "Content-Type":thumbnail?"image/webp":mime,"Content-Length":String(output.length)}});
  }catch{return missing();}
  finally{store.close();}
 }
