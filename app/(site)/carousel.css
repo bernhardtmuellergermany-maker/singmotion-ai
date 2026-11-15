@@ -2053,66 +2053,11 @@ html::-webkit-scrollbar-thumb:hover{background:#7753aa}
 /* Account card buttons align with the primary full-width action. */
 .sm-carousel-login .sm-account-settings-link{width:100%;max-width:290px;min-height:46px;display:flex;align-items:center;justify-content:center;box-sizing:border-box}
 
-/* Shared site navigation on public, pricing, account and workspace pages. */
-.sm-site-header{position:sticky;top:0;z-index:100;background:rgba(9,13,22,.96);border-bottom:1px solid rgba(145,102,195,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);width:100%;flex-shrink:0}
-.sm-site-header .sm-header-actions{display:flex;align-items:center;gap:12px;min-width:0}
-.sm-site-header .sm-wordmark{text-decoration:none;white-space:nowrap}
-.sm-site-header .home-gallery-account{flex-shrink:0}
-@media(max-width:650px){.sm-site-header .sm-header-actions{gap:7px}}
-
-/* Original seamless SingMotion header: no horizontal rule on any shared-header route. */
-.sm-site-header{border:0!important;border-bottom:0!important;box-shadow:none!important}
-
-/* Homepage is the visual source of truth: header has no separate tinted layer. */
-.sm-carousel-page > .sm-site-header, .sm-plans-page > .sm-site-header, .home-gallery > .sm-site-header{
- background:transparent!important;
- backdrop-filter:none!important;
- -webkit-backdrop-filter:none!important;
- border:0!important;
- box-shadow:none!important;
-}
-
-/* Fixed site navigation everywhere SiteHeader is used.
-   Reserve exactly the header height so content never slides underneath. */
-.sm-site-header,
-.sm-carousel-page > .sm-site-header,
-.sm-plans-page > .sm-site-header,
-.home-gallery > .sm-site-header {
-  position:fixed!important;
-  top:0!important;
-  left:0!important;
-  right:0!important;
-  z-index:1000!important;
-  width:100%!important;
-  height:88px!important;
-  margin:0!important;
-  padding:0 clamp(22px,3vw,52px)!important;
-}
-/* Reserve header room in document flow on every route, including nested layouts.
-   The spacer follows SiteHeader so all pages scroll below the fixed navigation. */
-.sm-site-header-space{
-  display:block;
-  flex:0 0 88px;
-  width:100%;
-  height:88px;
-  min-height:88px;
-  pointer-events:none;
-}
+/* Shared header geometry belongs exclusively to site-navigation.css.
+   Keep only content spacing here, never the header's coordinates or controls. */
 .sm-carousel-page:has(> .sm-site-header),
 .home-gallery:has(> .sm-site-header),
-.product-theme:has(> .sm-site-header) {
-  padding-top:0;
-}
-@media(max-width:650px){
-  .sm-site-header,
-  .sm-carousel-page > .sm-site-header,
-  .sm-plans-page > .sm-site-header,
-  .home-gallery > .sm-site-header {height:72px!important}
-  .sm-site-header-space{height:72px;min-height:72px;flex-basis:72px}
-  .sm-carousel-page:has(> .sm-site-header),
-  .home-gallery:has(> .sm-site-header),
-  .product-theme:has(> .sm-site-header) {padding-top:0}
-}
+.product-theme:has(> .sm-site-header){padding-top:0}
 
 /* Visually center the entire landing carousel group in the viewport.
    Header remains fixed; the cards and their controls shift together.
