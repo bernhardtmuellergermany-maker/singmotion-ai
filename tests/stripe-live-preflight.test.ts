@@ -116,4 +116,6 @@ test("retired Hobby product and webhook are not required for live Credits prefli
  assert.equal(result.stripeConfigurationVerified,true);
  assert.equal(calls.some(url=>url.includes("hobby")||url.includes("/prices/")),false);
  assert.equal(result.checks.some(x=>x.name.includes("hobby")),false);
+ const unavailable=await readOnlyStripeLivePreflight({...env,STRIPE_SECRET_KEY:"missing"},async()=>{throw Error("No network expected")});
+ assert.equal(unavailable.checks.some(x=>x.name.includes("hobby")),false);
 });
