@@ -92,9 +92,9 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  assert.match(publicCms,/publicSiteLink\(b\.url\)/);
  const legalRefs=read("components/legal-policies.tsx");
  assert.doesNotMatch(legalRefs,/<a href="https:\/\//);
- assert.doesNotMatch(guide,/github\.com|https:\/\//);
  assert.doesNotMatch(help,/margin: "3rem auto"|BytePlus OmniHuman 1\.5/);
  const guide=read("components/help-faq.tsx");
+ assert.doesNotMatch(guide,/github\.com|https:\/\//);
  assert.match(guide,/up to 500 characters/);
  assert.doesNotMatch(guide,/1,500 characters/);
 });
