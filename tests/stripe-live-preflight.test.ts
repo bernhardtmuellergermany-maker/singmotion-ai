@@ -31,11 +31,16 @@ const product={id:"prod_Vchw1yEak3Xa6k",object:"product",livemode:true,active:tr
 const accountUrl="https://api.stripe.com/v1/account";
 const hooksUrl="https://api.stripe.com/v1/webhook_endpoints?limit=100";
 const productUrl="https://api.stripe.com/v1/products/prod_Vchw1yEak3Xa6k";
-const valid={ [accountUrl]:account,[hooksUrl]:endpoint,[productUrl]:product };
+const pricesUrl="https://api.stripe.com/v1/prices?product=prod_Vchw1yEak3Xa6k&active=true&limit=100";
+const taxUrl="https://api.stripe.com/v1/tax/settings";
+const creditPrice={id:"price_fixture",product:product.id,active:true,livemode:true,
+ currency:"eur",unit_amount:500,tax_behavior:"inclusive",recurring:null};
+const valid={ [accountUrl]:account,[hooksUrl]:endpoint,[productUrl]:product,
+ [pricesUrl]:{data:[creditPrice]},[taxUrl]:{status:"active"} };
 test("Stripe read-only live preflight calls only GET and does not approve unavailable paid delivery",async()=>{
  const calls:string[]=[];
  const result=await readOnlyStripeLivePreflight(env,mock(valid,calls));
- assert.deepEqual(calls.sort(),[accountUrl,hooksUrl,productUrl].sort());
+ assert.deepEqual(calls.sort(),[accountUrl,hooksUrl,productUrl,pricesUrl,taxUrl].sort());
  assert.equal(result.stripeConfigurationVerified,true);
  assert.equal(result.paidOrdersEnabled,false);
  assert.deepEqual(result.checks.filter(c=>!c.ok),[]);
@@ -118,4 +123,26 @@ test("retired Hobby product and webhook are not required for live Credits prefli
  assert.equal(result.checks.some(x=>x.name.includes("hobby")),false);
  const unavailable=await readOnlyStripeLivePreflight({...env,STRIPE_SECRET_KEY:"missing"},async()=>{throw Error("No network expected")});
  assert.equal(unavailable.checks.some(x=>x.name.includes("hobby")),false);
+});
+
+test("live credits preflight requires an active, tax-inclusive one-time EUR price and active tax settings",async()=>{
+ const invalid=[
+  {[pricesUrl]:{data:[]}},
+  {[pricesUrl]:{data:[{...creditPrice,active:false}]}},
+  {[pricesUrl]:{data:[{...creditPrice,livemode:false}]}},
+  {[pricesUrl]:{data:[{...creditPrice,currency:"usd"}]}},
+  {[pricesUrl]:{data:[{...creditPrice,tax_behavior:"unspecified"}]}},
+  {[pricesUrl]:{data:[{...creditPrice,recurring:{interval:"month"}}]}},
+  {[pricesUrl]:{data:[{...creditPrice,product:"prod_other"}]}},
+  {[pricesUrl]:{data:[{...creditPrice,unit_amount:0}]}},
+  {[taxUrl]:{status:"pending"}},
+ ];
+ for(const patch of invalid){
+  const result=await readOnlyStripeLivePreflight(env,mock({...valid,...patch},[]));
+  assert.equal(result.stripeConfigurationVerified,false);
+  assert.equal(result.paidOrdersEnabled,false);
+ }
+ const validResult=await readOnlyStripeLivePreflight(env,mock(valid,[]));
+ assert.equal(validResult.checks.find(x=>x.name==="active-inclusive-eur-credit-price")?.ok,true);
+ assert.equal(validResult.checks.find(x=>x.name==="stripe-tax-settings-active")?.ok,true);
 });
