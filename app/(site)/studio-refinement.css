@@ -2504,3 +2504,85 @@
   width:34px;height:34px;min-width:34px;
  }
 }
+
+
+/* Release UI polish: keep dragged audio selections inside the timeline on
+   desktop and touch devices. This does not change any audio source timestamps. */
+.product-theme.singmotion-flow .sm-new-wave-card .wave-strip{
+  position:relative;
+  box-sizing:border-box;
+  width:calc(100% - 28px);
+  margin-inline:14px;
+  /* Clip only the horizontal spill. Keep vertically protruding trim handles
+     visible and draggable instead of cutting them off at the timeline edge. */
+  overflow:visible;
+  clip-path:inset(-32px 0 -32px 0);
+  isolation:isolate;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-selection{
+  max-width:100%;
+  box-sizing:border-box;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle{
+  max-width:28px;
+}
+
+/* The Generate action is a two-column control on phones. Long loading
+   states must wrap inside their own column, not overlap Back or leave the UI. */
+.product-theme.singmotion-flow .sm-new-navigation{
+  min-width:0;
+}
+.product-theme.singmotion-flow .sm-new-navigation .sm-studio-next{
+  min-width:0;
+  max-width:100%;
+  box-sizing:border-box;
+  overflow:hidden;
+  gap:8px;
+}
+.product-theme.singmotion-flow .sm-new-navigation .sm-studio-next-label{
+  display:block;
+  min-width:0;
+  max-width:100%;
+  flex:0 1 auto;
+  overflow-wrap:anywhere;
+  text-align:center;
+  line-height:1.25;
+}
+.product-theme.singmotion-flow .sm-new-navigation .sm-studio-next svg{
+  flex:none;
+}
+@media(max-width:700px){
+  .product-theme.singmotion-flow .sm-new-navigation{
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;
+    min-width:0;
+  }
+  .product-theme.singmotion-flow .sm-new-navigation .sm-studio-next{
+    padding-inline:10px;
+    font-size:clamp(13px,3.7vw,16px);
+    white-space:normal;
+  }
+}
+
+/* Credit generation status belongs in the scrollable review flow ABOVE the
+   fixed mobile Back/Generate actions; it may never paint across those buttons. */
+.product-theme.singmotion-flow .flow-main > .sm-review-starting-status{
+  box-sizing:border-box;
+  align-self:center;
+  width:min(100%,860px);
+  max-width:100%;
+  margin:14px auto calc(92px + env(safe-area-inset-bottom,0px))!important;
+  padding:11px 14px;
+  border:1px solid #71508c;
+  border-radius:12px;
+  background:#251b36;
+  color:#dfcfef;
+  text-align:center;
+  line-height:1.5;
+  overflow-wrap:anywhere;
+}
+@media(max-width:700px){
+  .product-theme.singmotion-flow .flow-main > .sm-review-starting-status{
+    font-size:12px;
+    margin-bottom:calc(115px + env(safe-area-inset-bottom,0px))!important;
+  }
+}

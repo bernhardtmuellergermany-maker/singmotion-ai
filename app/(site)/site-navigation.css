@@ -23,8 +23,10 @@
   position:fixed!important;
   inset:0 0 auto!important;
   top:0!important;
-  left:auto!important;
-  right:auto!important;
+  /* Fixed header must be viewport-anchored on every route. Auto insets
+     previously let the static-position origin drift with inner-page layouts. */
+  left:0!important;
+  right:0!important;
   z-index:1000!important;
   isolation:isolate!important;
   box-sizing:border-box!important;
