@@ -10,6 +10,7 @@ import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEv
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
+import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
 export const runtime = "nodejs";
@@ -174,7 +175,7 @@ export async function POST(req: NextRequest) {
     // The independently gated STAGING wallet may settle authenticated TEST
     // purchases even while video fulfillment and public checkout stay blocked.
     if((mode==="test"&&stripeCreditWebhookTestEnabled(process.env)||
-        mode==="live"&&(settlementEnabled||privateCreditPilotApproved(process.env))&&stripeCreditTopupsLiveEnabled(process.env))&&
+        mode==="live"&&(settlementEnabled||privateCreditPilotApproved(process.env)||privateLiveCreditTestEnabled(process.env))&&stripeCreditTopupsLiveEnabled(process.env))&&
        ["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type||"") &&
        (event.data?.object?.metadata as Record<string,unknown>|undefined)?.flow==="singmotion_credit_topup"){
       await reconcileCreditPurchase(store,event,mode);
