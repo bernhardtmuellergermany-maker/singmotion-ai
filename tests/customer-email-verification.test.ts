@@ -105,9 +105,9 @@ test("LIVE credit receipt is sent once, only after paid wallet settlement and wi
   assert.equal(await ensurePaidCreditEmail(store,id,preview,fake as typeof fetch),true);
   assert.equal(emails.length,1,"a webhook replay cannot resend the same receipt");
   assert.deepEqual(emails[0].body.to,["verified@example.test"]);
-  assert.match(emails[0].body.text,/EUR 5\\.00/);
+  assert.match(emails[0].body.text,/EUR 5\.00/);
   assert.match(emails[0].body.text,/not a tax invoice/);
-  assert.match(emails[0].body.text,/account\\/settings#invoices/);
+  assert.match(emails[0].body.text,/account\/settings#invoices/);
   assert.equal((emails[0].headers as Record<string,string>)["Idempotency-Key"],"singmotion-credit-payment/"+id);
  }finally{store.close()}
 });
@@ -127,9 +127,9 @@ test("failed email delivery leaves paid receipt pending for a signed webhook ret
 });
 test("invoice lookup binds each paid session to its LIVE or TEST key, never the reversal-mode default",()=>{
  const route=readFileSync(new URL("../app/(site)/api/customer-invoices/route.ts",import.meta.url),"utf8");
- assert.match(route,/stripeSessionIdMatchesMode\\(row\\.session_id,"live"\\)/);
- assert.match(route,/credentials\\.get\\(mode\\)/);
+ assert.match(route,/stripeSessionIdMatchesMode\(row\.session_id,"live"\)/);
+ assert.match(route,/credentials\.get\(mode\)/);
  assert.doesNotMatch(route,/configuredStripeReversalMode/);
  const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
- assert.match(hook,/ensurePaidCreditEmail\\(store,purchaseId\\)/);
+ assert.match(hook,/ensurePaidCreditEmail\(store,purchaseId\)/);
 });
