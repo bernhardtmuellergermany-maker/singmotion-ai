@@ -3,6 +3,7 @@ import path from "node:path";
 import { CommerceStore } from "@/lib/commerce/store";
 import {SupportCases} from "@/lib/commerce/support-cases";
 import { CreditWallet, stripeCreditWebhookTestEnabled, stripeCreditTopupsLiveEnabled } from "@/lib/commerce/credit-wallet";
+import {ensurePaidCreditEmail} from "@/lib/commerce/credit-topup-email";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
@@ -179,6 +180,14 @@ export async function POST(req: NextRequest) {
        ["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type||"") &&
        (event.data?.object?.metadata as Record<string,unknown>|undefined)?.flow==="singmotion_credit_topup"){
       await reconcileCreditPurchase(store,event,mode);
+      // Never send before Stripe-paid settlement. If Resend is temporarily
+      // unavailable, leave the paid wallet intact and ask Stripe to retry
+      // the signed webhook. Durable outbox + Resend key avoid repeat emails.
+      if(mode==="live"){
+       const purchaseId=(event.data?.object?.metadata as Record<string,unknown>|undefined)?.creditTopupId;
+       if(typeof purchaseId==="string"&&!(await ensurePaidCreditEmail(store,purchaseId)))
+        return NextResponse.json({error:"Payment confirmation email pending."},{status:503});
+      }
       return NextResponse.json({received:true},{headers:{"Cache-Control":"no-store"}});
     }
     if(!stripeWebhookEventAdmitted(event.type,settlementEnabled))
