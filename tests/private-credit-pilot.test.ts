@@ -89,6 +89,10 @@ test("password-protected Production can accept live owner Credit testing without
  assert.equal(configuredStripePaymentMode(e),"live");
  assert.equal(protectedProductionLivePilotApproved(e),false);
  assert.equal(customerCreditStudioBetaEnabled(e),true);
+ const omitted=privateLiveCreditTestTaxDecision(undefined,undefined);
+ assert.equal(omitted.ready,true,"Private owner LIVE checkout works with Stripe-collected billing details");
+ assert.equal(omitted.decision?.country,"DE");
+ assert.equal(omitted.decision?.buyerType,"consumer");
  const d=privateLiveCreditTestTaxDecision("DE","consumer");
  assert.equal(d.ready,true);
  assert.equal(d.decision?.mode,"private-live-verification");
@@ -104,7 +108,7 @@ test("password-protected Production can accept live owner Credit testing without
  ]){
   assert.equal(privateLiveCreditTestEnabled({...e,[key]:value}),false,key);
  }
- for(const [country,buyer] of [["US","consumer"],["DE","business"],["","consumer"]]){
+ for(const [country,buyer] of [["US","consumer"],["DE","business"],["","consumer"],[null,"consumer"],["DE",null],["DE","unknown"]]){
   assert.equal(privateLiveCreditTestTaxDecision(country,buyer).ready,false);
  }
  assert.equal(customerCreditStudioBetaEnabled({...e,CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED:"false"}),false);
