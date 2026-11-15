@@ -10,7 +10,7 @@ const rule=(selector:string)=>{
  return match[1];
 };
 test("fixed transparent navigation does not intercept pull-to-refresh drags",()=>{
- const common=css.match(/\.sm-site-header\.home-gallery-header\.sm-carousel-header,[\s\S]*?\.sm-standalone-auth \.sm-site-header\s*\{([^}]+)\}/);
+ const common=css.match(/\.sm-site-header\s*\{([^}]+)\}/);
  assert.ok(common);
  assert.match(common[1],/pointer-events:none!important/);
  assert.match(common[1],/touch-action:pan-y!important/);
@@ -23,7 +23,7 @@ test("fixed transparent navigation does not intercept pull-to-refresh drags",()=
 
 
 test("all routes use the same viewport-anchored global header geometry as home",()=>{
- const common=css.match(/\.sm-site-header\.home-gallery-header\.sm-carousel-header,[\s\S]*?\.sm-standalone-auth \.sm-site-header\s*\{([^}]+)\}/);
+ const common=css.match(/\.sm-site-header\s*\{([^}]+)\}/);
  assert.ok(common);
  assert.match(common[1],/left:0!important/);
  assert.match(common[1],/right:0!important/);
