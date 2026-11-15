@@ -12,7 +12,7 @@ test("Desktop Stunning Creations browses all randomly ordered, explicitly CMS-ap
  assert.doesNotMatch(home,/const result=\[\.\.\.unseen,\.\.\.already\]\.slice\(0,4\)/);
  assert.match(home,/sm-last-desktop-portraits/);
  assert.match(home,/selected\.slice\(0,4\)\.map\(c=>c\.url\)/);
- assert.match(home,/const visiblePortraitClips=Array\.from\(\{length:4\}/);
+ assert.match(home,/const visiblePortraitClips:ShowcaseClip\[\]=Array\.from\(\{length:4\}/);
  assert.match(home,/portraitClips\[\(portraitOffset\+index\)%portraitClips\.length\]/);
  assert.match(home,/onClick=\{\(\)=>movePortraits\(-1\)\}/);
  assert.match(home,/onClick=\{\(\)=>movePortraits\(1\)\}/);
