@@ -6,6 +6,7 @@ import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled
 import {selectWalletPrincipal} from "../lib/commerce/credit-wallet-auth.ts";
 import {readFileSync} from "node:fs";
 import {validStripeRefundId,validStripeChargeId,validStripeDisputeId} from "../lib/commerce/stripe-reversal-identifiers.ts";
+import {reconcileSignedFullCreditRefund} from "../lib/commerce/stripe-signed-credit-refund.ts";
 
 const safeEnv={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
  STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"true",
@@ -239,4 +240,41 @@ test("refund preserves Stripe invoice history and returns exact Credits in the w
   const account=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
   assert.match(account,/invoice\.paymentStatus==="refunded"/);
  }finally{db.close()}
+});
+
+test("only signed succeeded FULL credit refunds with independently verified Checkout can recover",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db),requestId=randomUUID();
+  const purchase=wallet.pending({subject:"customer:signed-refund",email:"buyer@example.test",customerId:"signed-refund"},500,requestId);
+  const sessionId="cs_live_signedrefund123";
+  wallet.bind(purchase.id,sessionId,"https://checkout.stripe.com/c/pay/signed-refund");
+  wallet.settle({id:purchase.id,sessionId,amount:500,currency:"eur",paymentStatus:"paid",livemode:true});
+  const event={id:"evt_signedrefund123",type:"refund.updated",livemode:true,
+   data:{object:{id:"pyr_signedrefund123",object:"refund",status:"succeeded",
+    charge:"py_signedrefund123",payment_intent:"pi_signedrefund123",amount:500,currency:"eur"}}};
+  const session={id:sessionId,livemode:true,mode:"payment",payment_status:"paid",
+   amount_total:500,currency:"eur",payment_intent:"pi_signedrefund123",
+   metadata:{flow:"singmotion_credit_topup",creditTopupId:purchase.id}};
+  for(const invalid of [
+   {...session,amount_total:499},
+   {...session,livemode:false},
+   {...session,payment_intent:"pi_other"},
+   {...session,metadata:{...session.metadata,creditTopupId:randomUUID()}},
+  ])assert.throws(()=>reconcileSignedFullCreditRefund(wallet,event,invalid,"live"));
+  for(const invalid of [
+   {...event,livemode:false},
+   {...event,type:"refund.created"},
+   {...event,data:{object:{...event.data.object,status:"pending"}}},
+   {...event,data:{object:{...event.data.object,amount:250}}},
+   {...event,data:{object:{...event.data.object,charge:"not-a-charge"}}},
+  ])assert.throws(()=>reconcileSignedFullCreditRefund(wallet,invalid,session,"live"));
+  assert.equal(wallet.total("customer:signed-refund"),500);
+  assert.equal(reconcileSignedFullCreditRefund(wallet,event,session,"live"),true);
+  assert.equal(reconcileSignedFullCreditRefund(wallet,event,session,"live"),true);
+  assert.equal(wallet.total("customer:signed-refund"),0);
+  assert.equal(wallet.purchases("customer:signed-refund")[0]?.status,"reversed");
+  assert.equal(wallet.entries("customer:signed-refund").filter(row=>row.type==="refund").length,1);
+  assert.equal(reconcileSignedFullCreditRefund(wallet,event,{...session,id:"cs_live_foreign"},"live"),false);
+ }finally{db.close();}
 });
