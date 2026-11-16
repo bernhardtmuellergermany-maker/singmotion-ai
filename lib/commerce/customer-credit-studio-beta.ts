@@ -7,6 +7,7 @@
 import {OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS,ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {validateStudioPolicy} from "../live/studio-policy.ts";
 import {privateLiveCreditTestEnabled} from "./private-live-credit-test.ts";
+import {publicCreditReleaseApproved} from "./public-credit-release.ts";
 
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 export const CUSTOMER_STUDIO_BETA_MAX_SECONDS=OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS;
@@ -18,8 +19,9 @@ export function customerCreditStudioBetaEnabled(env:Record<string,string|undefin
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
  const privateLive=privateLiveCreditTestEnabled(env) &&
   env.CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED==="true";
- return (stage||privateLive) &&
-  env.STAGING_AUTH_ENABLED==="true" &&
+ const publicCredit=publicCreditReleaseApproved(env);
+ return (stage||privateLive||publicCredit) &&
+  (publicCredit||env.STAGING_AUTH_ENABLED==="true") &&
   env.DEMO_MODE==="true" && env.GENERATIONS_ENABLED==="false" &&
   env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
   env.CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING==="true" &&

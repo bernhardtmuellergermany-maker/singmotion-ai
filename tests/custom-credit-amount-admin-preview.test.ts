@@ -35,7 +35,7 @@ test("private DE buyer enters amount only; international tax inputs require sepa
  // the separate reviewed global Checkout pathway.
  assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
  assert.match(picker,/needsBillingCountry&&<div className="sm-credit-country-fields"/);
- assert.match(picker,/needsBillingCountry&&!billingCountry/);
+ assert.match(picker,/moRCountries\.includes\(billingCountry\)/);
  assert.match(read("app/(site)/api/credit-balance/route.ts"),/globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled/);
  assert.match(picker,/body:JSON\.stringify\(\{credits:String\(credits\)/);
  assert.match(checkout,/privateLiveCreditTestTaxDecision\(body\.billingCountry,body\.buyerType\)/);

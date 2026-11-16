@@ -1,5 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import {productionCustomerReleaseApproved,PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "./commerce/customer-live-config.ts";
+import {publicCreditReleaseApproved} from "./commerce/public-credit-release.ts";
 
 type Environment = Record<string, string | undefined>;
 /**
@@ -80,7 +81,7 @@ export function stagingEnabled(env: Environment = process.env) {
   if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID)
    return !(env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true" &&
      env.STAGING_AUTH_ENABLED!=="true" &&
-     productionCustomerReleaseApproved(env));
+     (productionCustomerReleaseApproved(env)||publicCreditReleaseApproved(env)));
   return (
     Boolean(env.RAILWAY_ENVIRONMENT_ID) ||
     env.STAGING_AUTH_ENABLED === "true" ||
