@@ -12,6 +12,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import {
   createPrivateReceiver,
   listenPrivate,
+  isPrivateNetworkAddress,
   fileCiphertextSink,
   privateWorkerSink,
 } from "../lib/ops/private-backup-worker.mjs";
@@ -62,7 +63,23 @@ async function main() {
   if (role === "receiver") {
     const domain = env.RAILWAY_PRIVATE_DOMAIN;
     assert.ok(domain?.endsWith(".railway.internal"));
-    const { address } = await lookup(domain, { family: 6 });
+    let address;
+    for (let i = 0; i < 90; i++) {
+      try {
+        const records = await lookup(domain, { all: true });
+        address = records.find((record) =>
+          isPrivateNetworkAddress(record.address),
+        )?.address;
+        if (address) break;
+      } catch {
+        /* Railway private DNS may not be ready at container startup. */
+      }
+      await delay(1000);
+    }
+    if (!address)
+      throw Object.assign(Error("PRIVATE_DNS_NOT_READY"), {
+        code: "PRIVATE_DNS_NOT_READY",
+      });
     const store = fileCiphertextSink(root, 1024 * 1024);
     let cleanupTimer;
     const server = createPrivateReceiver({
@@ -101,7 +118,8 @@ async function main() {
       "BACKUP_PRIVATE_RECEIVER_READY",
       JSON.stringify({
         serviceId: env.RAILWAY_SERVICE_ID,
-        privateIPv6: true,
+        privateAddress: true,
+        addressFamily: address.includes(":") ? 6 : 4,
         mtls: true,
       }),
     );
@@ -130,7 +148,7 @@ async function main() {
     assert.equal(connection.status, 404);
     assert.equal(connection.authorized, true);
     assert.equal(connection.protocol, "TLSv1.3");
-    assert.match(connection.peer, /^f[cd]/i);
+    assert.ok(isPrivateNetworkAddress(connection.peer));
     // Exercise certificate chain, SAN and exact client identity over the real network.
     await assert.rejects(probe(origin, { ca: writer.ca }));
     await assert.rejects(
@@ -206,7 +224,8 @@ async function main() {
         senderServiceId: env.RAILWAY_SERVICE_ID,
         receiverServiceId: env.BACKUP_TEST_RECEIVER_ID,
         tls: "TLSv1.3",
-        privateIPv6: true,
+        privateAddress: true,
+        addressFamily: connection.peer.includes(":") ? 6 : 4,
         missingCertificateDenied: true,
         wrongCADenied: true,
         wrongHostnameDenied: true,

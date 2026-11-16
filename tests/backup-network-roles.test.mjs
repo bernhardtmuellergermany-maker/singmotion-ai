@@ -9,10 +9,32 @@ import { createTestPKI } from "../scripts/backup-network-certificates.mjs";
 import {
   createPrivateReceiver,
   listenPrivate,
+  isPrivateNetworkAddress,
   fileCiphertextSink,
   privateWorkerSink,
 } from "../lib/ops/private-backup-worker.mjs";
 import { hashFile } from "../lib/ops/cloud-backup.mjs";
+test("only valid private unicast addresses are accepted for live binding", () => {
+  for (const address of [
+    "10.0.0.1",
+    "172.16.1.2",
+    "172.31.255.254",
+    "192.168.1.2",
+    "fd12:3456::1",
+  ])
+    assert.equal(isPrivateNetworkAddress(address), true);
+  for (const address of [
+    "0.0.0.0",
+    "::",
+    "127.0.0.1",
+    "172.32.0.1",
+    "8.8.8.8",
+    "10.999.0.1",
+    "fdxx::1",
+    "::ffff:8.8.8.8",
+  ])
+    assert.equal(isPrivateNetworkAddress(address), false);
+});
 test("separate read identity can only download committed ciphertext; writer cannot read", async () => {
   const pki = await createTestPKI("localhost");
   const tls = (role) => ({
