@@ -65,6 +65,8 @@ test("server collects country/type for reviewed global checkout and never change
  assert.match(checkout,/\.\.\.\(!useMoR\?\{"invoice_creation\[enabled\]":"true"\}:\{\}\)/);
  assert.match(checkout,/decision\.mode!=="stripe-managed-payments"/);
  assert.match(checkout,/session\.managed_payments\?\.enabled!==true/);
+ assert.match(read("app/(site)/api/stripe-webhook/route.ts"),/prior\.mode!=="stripe-managed-payments"/);
+ assert.match(read("app/(site)/api/stripe-webhook/route.ts"),/STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED/);
  assert.match(balance,/globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled/);
  assert.match(dashboard,/globalCountrySelection=\{balance\.globalCountrySelection===true\}/);
  assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
