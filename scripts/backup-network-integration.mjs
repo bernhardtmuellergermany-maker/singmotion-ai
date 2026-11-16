@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import https from "node:https";
 import { lookup } from "node:dns/promises";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, networkInterfaces } from "node:os";
 import path from "node:path";
 import { randomUUID, generateKeyPairSync } from "node:crypto";
 import { createWriteStream } from "node:fs";
@@ -67,9 +67,23 @@ async function main() {
     for (let i = 0; i < 90; i++) {
       try {
         const records = await lookup(domain, { all: true });
-        address = records.find((record) =>
+        // Railway DNS can point at a service VIP rather than an address assigned
+        // to this container. Verify private DNS, but bind an actual private NIC.
+        const privateRecords = records.filter((record) =>
           isPrivateNetworkAddress(record.address),
-        )?.address;
+        );
+        const local = Object.values(networkInterfaces())
+          .flat()
+          .filter(
+            (record) =>
+              record &&
+              !record.internal &&
+              isPrivateNetworkAddress(record.address),
+          );
+        if (privateRecords.length)
+          address =
+            local.find((record) => record.family === "IPv6")?.address ??
+            local[0]?.address;
         if (address) break;
       } catch {
         /* Railway private DNS may not be ready at container startup. */
