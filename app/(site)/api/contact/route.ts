@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { limit } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import {contactTurnstileAccepted} from "@/lib/contact-turnstile";
+import {readContactBody} from "@/lib/contact-body";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,8 +30,8 @@ export async function POST(req:NextRequest){
  const origin=req.headers.get("origin")||"";
  if(!allowed.includes(origin))return response({error:"Invalid request origin."},403);
  if(Number(req.headers.get("content-length"))>12000)return response({error:"Request too large."},413);
- const raw=await req.text();
- if(Buffer.byteLength(raw)>12000)return response({error:"Request too large."},413);
+ const raw=await readContactBody(req);
+ if(raw===null)return response({error:"Request too large."},413);
  let data:Record<string,unknown>;
  try{data=JSON.parse(raw);if(!data||typeof data!=="object"||Array.isArray(data))throw Error();}catch{return response({error:"Invalid request."},400)}
  const topic=clean(data.topic,30), name=clean(data.name,120), email=clean(data.email,254),
