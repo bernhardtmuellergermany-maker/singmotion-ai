@@ -73,8 +73,7 @@ export async function verifyIsolatedEncryptedSqliteArchive(
  let scratch:string|null=null;
  try{
   if(!path.isAbsolute(archiveDir)||!path.isAbsolute(scratchParent)||
-     typeof passphrase!=="string"||passphrase.length<32||
-     process.getuid?.()===0){
+     typeof passphrase!=="string"||passphrase.length<32){
    report.failed.push("ISOLATED_RESTORE_PARAMETERS_INVALID");
    return report;
   }
