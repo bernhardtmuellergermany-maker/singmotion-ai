@@ -8,6 +8,6 @@ export default function sitemap():MetadataRoute.Sitemap{
  return SEO_PUBLIC_PATHS.map(path=>({
   url:SITE_ORIGIN+path,
   changeFrequency:"monthly" as const,
-  priority:path==="/"?1:path==="/en"||path==="/de"?.8:.7
+  priority:path==="/"?1:(path==="/en"||path==="/de"?0.8:0.7)
  }));
 }
