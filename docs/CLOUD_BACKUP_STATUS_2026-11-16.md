@@ -59,23 +59,20 @@ was flagged. These existing lint failures were not mixed into this backup task.
 No full application build or deployed staging integration was run for this
 isolated diagnostic command. These tests do not access Production.
 
-## Concrete connection blocker
+## Updated access path — 16 November 2026
 
-The existing cloud workspace was refreshed to Production head `7ce50e3` in a
-separate worktree, preserving the original checkout's changes. Railway CLI
-5.74.1 was installed in the cloud environment. `railway whoami --json` reports
-unauthorized. `railway login --browserless` cannot create a login challenge:
+The refreshed Cloud environment now enforces both `backboard.railway.com` and
+`ssh.railway.com` HTTP host grants; HTTPS to Railway returns 200. Live proxy
+status reports TCP disabled. The previous missing-domain diagnosis is obsolete.
+No existing CLI session was present in this new environment. At the owner's
+request, SSH/CLI/network attempts have ended.
 
-`https://backboard.railway.com/oauth/device/auth`: CONNECT tunnel rejected (403).
-
-The current cloud network policy allows package-manager/GitHub destinations,
-but does not include `backboard.railway.com`. A read-only curl reproduced the
-same proxy denial. No credentials were requested in chat or copied from OAuth.
-The cloud environment connection offers inspection but no request-changes tool.
-The owner must allow this domain in the running cloud environment's network
-settings. Then the agent can retry login and provide the device authorization
-link, usable on a phone. A personal computer and a new HiDrive login are not
-required. Additional Railway SSH hosts will be checked only if actually needed.
+The authenticated Railway connector is the active control-plane path. It
+successfully reads the three services above, but exposes no runtime file/exec
+or snapshot action. Work now uses the application-context producer and private
+ciphertext worker in [PRIVATE_CLOUD_BACKUP_STAGING.md](PRIVATE_CLOUD_BACKUP_STAGING.md).
+The separate synthetic staging deployment uses the connector, no customer
+volumes, and no HiDrive reauthorization. Production activation remains disabled.
 
 ## Still required before activation
 

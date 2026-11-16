@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test --test-concurrency=2 tests/*.test.ts",
     "test:video:release": "node --experimental-strip-types --test --test-concurrency=1 tests/production-video-gate.test.ts tests/output-normalization.test.ts tests/output-orientation.test.ts tests/output-duration-shared.test.ts tests/tempo.test.ts tests/byteplus.test.ts tests/studio-editor.test.ts",
-    "test:release-parity": "node --experimental-strip-types --test tests/release-parity.test.mjs tests/backup-source-inventory.test.ts tests/privacy-media-disclosure.test.mjs tests/contact-body.test.ts tests/hidrive-backup-worker.test.mjs tests/offsite-r2-backup.test.mjs tests/offsite-postgres-age.test.mjs tests/private-production-credit-readiness.test.ts tests/credit-ledger-integrity.test.ts tests/sqlite-restore-drill.test.ts tests/encrypted-sqlite-export.test.ts tests/isolated-encrypted-sqlite.test.ts tests/seo-discovery.test.ts tests/international-credit-checkout.test.ts tests/public-credit-release.test.ts",
+    "test:release-parity": "node --experimental-strip-types --test tests/release-parity.test.mjs tests/backup-source-inventory.test.ts tests/privacy-media-disclosure.test.mjs tests/contact-body.test.ts tests/hidrive-backup-worker.test.mjs tests/offsite-r2-backup.test.mjs tests/offsite-postgres-age.test.mjs tests/private-production-credit-readiness.test.ts tests/credit-ledger-integrity.test.ts tests/sqlite-restore-drill.test.ts tests/encrypted-sqlite-export.test.ts tests/isolated-encrypted-sqlite.test.ts tests/seo-discovery.test.ts tests/international-credit-checkout.test.ts tests/public-credit-release.test.ts tests/cloud-backup.test.mjs",
     "restore:sqlite-drill": "node --experimental-strip-types scripts/sqlite-restore-drill.ts --confirm-ephemeral-private-copy",
     "backup:sqlite-encrypted": "node --experimental-strip-types scripts/export-encrypted-sqlite.ts --confirm-private-encrypted-export",
     "restore:sqlite-encrypted-offline": "node --experimental-strip-types scripts/verify-isolated-encrypted-sqlite.ts --confirm-isolated-offline-restore",
@@ -56,7 +56,8 @@
     "stripe:live-preflight": "node --experimental-strip-types scripts/stripe-live-preflight.ts",
     "stripe:video-live-preflight": "node --experimental-strip-types scripts/stripe-video-live-preflight.ts",
     "backup:inventory": "node --experimental-strip-types scripts/backup-source-inventory.ts --read-only-no-transfer",
-    "test:backup-inventory": "node --experimental-strip-types --test tests/backup-source-inventory.test.ts"
+    "test:backup-inventory": "node --experimental-strip-types --test tests/backup-source-inventory.test.ts",
+    "test:backup-cloud": "node --experimental-strip-types --test tests/cloud-backup.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",
