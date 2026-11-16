@@ -67,6 +67,10 @@ test("minimal Docker image never imports the live app or mounts its SQLite data"
  const worker=readFileSync(new URL("../scripts/hidrive-backup-worker.mjs",import.meta.url),"utf8");
  assert.match(docker,/node:24.22.1-bookworm-slim/);
  assert.match(docker,/COPY .*hidrive-backup-worker/);
+ assert.ok(docker.includes("COPY --chmod=0444 scripts/hidrive-backup-worker.mjs /usr/local/lib/hidrive-backup-worker.mjs"));
+ assert.ok(docker.includes("test -s /usr/local/lib/hidrive-backup-worker.mjs"));
+ assert.ok(entry.includes('await import("/usr/local/lib/hidrive-backup-worker.mjs")'));
+
  assert.doesNotMatch(docker,/npm ci|NEXT_PUBLIC|COPY \.|EXPOSE 3000|app\/\.data/);
  assert.match(entry,/process\.setuid\(uid\)/);
  assert.match(entry,/process\.setgroups\(\[\]\)/);
