@@ -66,8 +66,10 @@ export async function validateEncryptedBundle(dir,type){
   if(entries.size!==3)throw Error("INVALID_ENCRYPTED_ARCHIVE_MANIFEST");
   for(const name of SQLITE_NAMES){
    const entry=entries.get(name),file=name+".aes-256-gcm";
-   if(entry?.archive!==file||typeof entry.ciphertextSha256!=="string"||
-     !/^[a-f0-9]{64}$/.test(entry.ciphertextSha256))
+   const hex=(v,len)=>typeof v==="string"&&new RegExp("^[a-f0-9]{"+len+"}$").test(v);
+   if(entry?.archive!==file||!hex(entry.ciphertextSha256,64)||
+     !hex(entry.plaintextSha256,64)||!hex(entry.salt,32)||
+     !hex(entry.iv,24)||!hex(entry.authTag,32))
     throw Error("INVALID_ENCRYPTED_ARCHIVE_MANIFEST");
    const hash=await sha256(path.join(root,file));
    if(hash!==entry.ciphertextSha256)throw Error("ENCRYPTED_ARCHIVE_HASH_MISMATCH");
