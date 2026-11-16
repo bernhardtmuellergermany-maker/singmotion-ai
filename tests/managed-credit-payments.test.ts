@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {managedCreditMoRApproved,managedCreditBuyerSupported,managedCreditTaxDecision}
+import {managedCreditMoRApproved,managedCreditBuyerSupported,managedCreditMoRTaxCovered,managedCreditTaxDecision}
  from "../lib/commerce/managed-credit-payments.ts";
 import {stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 const approved=()=>({
@@ -11,15 +11,23 @@ const approved=()=>({
  STRIPE_MANAGED_PAYMENTS_LIVE_PRODUCT_REVIEWED:"true",
  STRIPE_CREDIT_TAX_CODE:"txcd_10105001",
 });
-test("supported countries have no merchant-managed tax whitelist, restricted destinations remain excluded",()=>{
+test("Stripe MoR Credit checkout admits only markets where Stripe actually handles indirect tax",()=>{
  const env=approved();
  assert.equal(managedCreditMoRApproved(env),true);
- for(const country of ["DE","FR","GB","US","CA","AU","JP","BR","ZA","IN","NZ","SG"]){
+ for(const country of ["DE","FR","GB","US","CA","AU","JP","ZA","IN","NZ","SG","MX","CM","TH"]){
   assert.equal(managedCreditTaxDecision(env,country,"consumer").ready,true,country);
  }
  for(const country of ["CN","CU","IR","XK","KP","RU","SY","AC","TA","DEU","de",undefined]){
   assert.equal(managedCreditBuyerSupported(country),false,String(country));
   assert.equal(managedCreditTaxDecision(env,country,"consumer").ready,false,String(country));
+ }
+ for(const country of ["BR","AR","CL","UY","RS","ME","PK","LK","BD"]){
+  assert.equal(managedCreditBuyerSupported(country),true,country);
+  assert.equal(managedCreditMoRTaxCovered(country),false,country);
+  const tax=managedCreditTaxDecision(env,country,"consumer");
+  assert.equal(tax.ready,false,country);
+  assert.equal(tax.reason,"STRIPE_MANAGED_PAYMENTS_TAX_COVERAGE_NOT_AVAILABLE",country);
+  assert.equal(tax.decision,null,country);
  }
  assert.equal(managedCreditTaxDecision(env,"US","unknown").ready,false);
 });
