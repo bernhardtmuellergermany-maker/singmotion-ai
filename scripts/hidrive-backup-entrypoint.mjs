@@ -4,7 +4,7 @@ import fs from "node:fs";
 const state="/state";
 const uid=1000,gid=1000;
 const allowed=new Set(["hidrive-oauth.v1.json.enc"]);
-const tempName=/^\\.oauth-[0-9a-f-]{36}\\.tmp$/;
+const tempName=/^\.oauth-[0-9a-f-]{36}\.tmp$/;
 function checkAndRepair(){
  const info=fs.lstatSync(state);
  if(!info.isDirectory()||info.isSymbolicLink())throw Error("Invalid private state mount");
