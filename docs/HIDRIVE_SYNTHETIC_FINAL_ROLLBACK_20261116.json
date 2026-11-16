@@ -1,0 +1,44 @@
+{
+  "scope": "deployment",
+  "deploymentId": "76de451e-465c-4f11-b205-a8a41d647150",
+  "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+  "environmentId": "36adc41d-7e54-4396-ad1a-fd432ba0441d",
+  "status": "SUCCESS",
+  "deploy": [
+    {
+      "timestamp": "2026-11-16T21:49:31.424385583Z",
+      "severity": "info",
+      "message": "Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/982bf484-3017-48a9-b233-a047a3e20eb5/vol_nfwnsdafemfrgwf5",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-16T21:49:31.816724324Z",
+      "severity": "info",
+      "message": "HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-11-16T21:49:32.449276207Z",
+      "severity": "info",
+      "message": "Starting Container",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    }
+  ],
+  "verifiedCommit": "d36acf6d8f5b268ffef907c53f0524c90d7b852f",
+  "reusedDeployment": "997727b4-ab05-4949-8ec7-63d10d3741c1"
+}

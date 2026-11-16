@@ -85,7 +85,40 @@
       }
     ]
   },
-  "rollback": {
+  "rollbackConfig": {
+    "source": {
+      "repo": "bernhardtmuellergermany-maker/singmotion-ai",
+      "branch": "release/production-promoted-20261114",
+      "commitSha": "d36acf6d8f5b268ffef907c53f0524c90d7b852f"
+    },
+    "build": {
+      "builder": "DOCKERFILE",
+      "buildEnvironment": "V3",
+      "dockerfilePath": "Dockerfile.backup"
+    },
+    "deploy": {
+      "restartPolicyType": "NEVER",
+      "useLegacyStacker": false,
+      "ipv6EgressEnabled": false,
+      "runtime": "V2",
+      "multiRegionConfig": {
+        "sfo": {
+          "numReplicas": 1
+        }
+      }
+    },
+    "volumeMounts": {
+      "00e52dae-7be6-45aa-9e2d-898404b2c17e": {
+        "mountPath": "/state"
+      }
+    }
+  },
+  "deletedServices": [
+    "28648f54-1d37-4383-aa15-6c5907238d02",
+    "6afa781d-a626-4b02-99e4-cbb7c413e2aa"
+  ],
+  "originalVolume": "00e52dae-7be6-45aa-9e2d-898404b2c17e",
+  "initialRollback": {
     "scope": "deployment",
     "deploymentId": "79371544-f8ed-4520-b5a8-0166cfb74f06",
     "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
@@ -127,37 +160,5 @@
       }
     ]
   },
-  "rollbackConfig": {
-    "source": {
-      "repo": "bernhardtmuellergermany-maker/singmotion-ai",
-      "branch": "release/production-promoted-20261114",
-      "commitSha": "d36acf6d8f5b268ffef907c53f0524c90d7b852f"
-    },
-    "build": {
-      "builder": "DOCKERFILE",
-      "buildEnvironment": "V3",
-      "dockerfilePath": "Dockerfile.backup"
-    },
-    "deploy": {
-      "restartPolicyType": "NEVER",
-      "useLegacyStacker": false,
-      "ipv6EgressEnabled": false,
-      "runtime": "V2",
-      "multiRegionConfig": {
-        "sfo": {
-          "numReplicas": 1
-        }
-      }
-    },
-    "volumeMounts": {
-      "00e52dae-7be6-45aa-9e2d-898404b2c17e": {
-        "mountPath": "/state"
-      }
-    }
-  },
-  "deletedServices": [
-    "28648f54-1d37-4383-aa15-6c5907238d02",
-    "6afa781d-a626-4b02-99e4-cbb7c413e2aa"
-  ],
-  "originalVolume": "00e52dae-7be6-45aa-9e2d-898404b2c17e"
+  "initialRollbackMetadataDiscrepancy": "Config pin d36acf6 but deployment meta commitHash 7ce50e3; superseded using original image redeploy."
 }

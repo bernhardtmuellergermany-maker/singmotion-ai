@@ -31,8 +31,14 @@ then review the storage adapter offline. Any further live run needs fresh approv
 
 ## Verified rollback
 
-- Rollback deployment `79371544-f8ed-4520-b5a8-0166cfb74f06` reached SUCCESS and logged
-  `HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER` at 21:47:04.723.
+- Initial rollback deployment `79371544-f8ed-4520-b5a8-0166cfb74f06` logged setup-only
+  readiness, but its deployment metadata unexpectedly named branch head `7ce50e3`
+  despite config commitSha `d36acf6`. Therefore its image was not accepted as exact rollback.
+- Redeployed the original deployment `997727b4-ab05-4949-8ec7-63d10d3741c1` build.
+  Final deployment `76de451e-465c-4f11-b205-a8a41d647150` reached SUCCESS, metadata
+  confirms exact commit `d36acf6d8f5b268ffef907c53f0524c90d7b852f`, and runtime logged
+  `HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER` at 21:49:31.816. The intermediate
+  rollback and test deployments are REMOVED. No synthetic test was repeated.
 - Config readback: commit `d36acf6d8f5b268ffef907c53f0524c90d7b852f`, branch
   `release/production-promoted-20261114`, `Dockerfile.backup`, restart NEVER.
   BACKUP_MODE was explicitly restored to SETUP_ONLY_NO_DATA_TRANSFER; setup marker
