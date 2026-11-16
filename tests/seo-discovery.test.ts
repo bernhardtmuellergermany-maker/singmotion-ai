@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {
  SEO_CONTENT,SEO_TOPICS,SEO_PUBLIC_PATHS,SEO_GUIDES_HUB,
- resolveSeoTopic,seoPagePath,seoPubliclyIndexable,SITE_ORIGIN
+ resolveSeoTopic,seoPagePath,seoPubliclyIndexable,seoPrelaunchMetadataRobots,SITE_ORIGIN
 } from "../lib/seo/search-pages.ts";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 
@@ -43,6 +43,26 @@ test("public crawler/indexing stays blocked in staging and approval-incomplete P
  assert.equal(seoPubliclyIndexable({RAILWAY_ENVIRONMENT_ID:production,STAGING_AUTH_ENABLED:"true"}),false);
  assert.equal(seoPubliclyIndexable({RAILWAY_ENVIRONMENT_ID:production,PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",PRODUCTION_PUBLIC_ACCESS_ENABLED:"true",STAGING_AUTH_ENABLED:"false"}),false);
  assert.equal(seoPubliclyIndexable({RAILWAY_ENVIRONMENT_ID:"unknown",NODE_ENV:"development"}),false);
+});
+
+test("protected prelaunch HTML explicitly sets noindex even in Production",()=>{
+ const staging="dfaeabed-03df-43ed-aa71-50f343a75041";
+ const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
+ const blocked={index:false,follow:false,noarchive:true};
+ assert.deepEqual(seoPrelaunchMetadataRobots({RAILWAY_ENVIRONMENT_ID:staging}),blocked);
+ assert.deepEqual(seoPrelaunchMetadataRobots({
+  RAILWAY_ENVIRONMENT_ID:production,STAGING_AUTH_ENABLED:"true"
+ }),blocked);
+ assert.deepEqual(seoPrelaunchMetadataRobots({
+  RAILWAY_ENVIRONMENT_ID:production,PRODUCTION_PUBLIC_ACCESS_ENABLED:"true",
+  STAGING_AUTH_ENABLED:"false",PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true"
+ }),blocked,"a marketing/public toggle alone never qualifies as launch approval");
+ assert.deepEqual(seoPrelaunchMetadataRobots({NODE_ENV:"development"}),blocked);
+ for(const filename of ["app/(site)/layout.tsx","app/(site)/page.tsx"]){
+  const source=read(filename);
+  assert.match(source,/robots: seoPrelaunchMetadataRobots\(\)/);
+  assert.doesNotMatch(source,/RAILWAY_ENVIRONMENT_ID === "dfaeabed-/);
+ }
 });
 
 test("robots, sitemap and proxy never leak private account or checkout URLs",()=>{
