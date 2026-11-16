@@ -2,7 +2,8 @@
 
 Tracking: #230. This is **not** a completed backup implementation or restore proof.
 No customer data was transferred, no Production code/configuration was changed,
-no new infrastructure was provisioned, and no release attestations were set.
+no release attestations were set. A separate synthetic-only staging test service
+was added and passed; see PRIVATE_CLOUD_BACKUP_STAGING.md for current evidence.
 
 ## Current platform evidence
 
@@ -56,8 +57,9 @@ regressions passed. The complete release-parity suite passed 75/75. TypeScript
 and ESLint on all three added code/test files passed. Repository-wide ESLint
 failed with 31 errors and 88 warnings in unchanged existing files; no new file
 was flagged. These existing lint failures were not mixed into this backup task.
-No full application build or deployed staging integration was run for this
-isolated diagnostic command. These tests do not access Production.
+No full application build or deployed staging integration was run for the initial
+isolated diagnostic command. The subsequent cloud-backup implementation has its
+own successful synthetic staging evidence in PRIVATE_CLOUD_BACKUP_STAGING.md. These tests do not access Production.
 
 ## Updated access path — 16 November 2026
 
@@ -83,7 +85,8 @@ volumes, and no HiDrive reauthorization. Production activation remains disabled.
 3. Native PostgreSQL export, complete encrypted R2/local-media coverage,
    authenticated manifests, independent decryption key escrow, safe retention,
    failure alert destination and automated restore checks.
-4. First synthetic staging integration and security review; then the owner's
+4. Extend the completed isolated synthetic staging test to separate-service
+   private networking and perform security review; then the owner's
    explicit approval of the actual customer-data transfer and any added costs.
 5. Real encrypted HiDrive backup and independent isolated cloud restore of
    SQLite ledger, CMS and owner-protected media/range requests, with measured
