@@ -29,13 +29,33 @@
 .sm-seo-related a:hover{border-color:#baa1ff}
 .sm-seo-note{font-size:.82rem;line-height:1.7;color:#b4abc5;max-width:850px;margin-top:20px}
 .sm-seo-footer{display:flex;justify-content:center;flex-wrap:wrap;gap:22px;padding:30px 16px 50px;border-top:1px solid #32283d;color:#cfc7df}
-.sm-immersive-seo-links{max-width:1140px;margin:0 auto;padding:52px 24px 64px;color:#f8f5ff}
-.sm-immersive-seo-links h2{font-size:clamp(1.6rem,3vw,2.5rem);font-weight:750;text-align:center;line-height:1.2}
-.sm-immersive-seo-links>p{text-align:center;max-width:710px;margin:12px auto 30px;color:#ddd4ec;line-height:1.6}
-.sm-immersive-seo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:13px}
-.sm-immersive-seo-grid a{padding:22px 17px;border:1px solid #574969;border-radius:16px;background:#1d1730;color:#f7f2ff;text-decoration:none;line-height:1.4;font-weight:650}
-.sm-immersive-seo-grid a:hover{background:#2b1c43;border-color:#ba9ef5}
-.sm-immersive-seo-languages{text-align:center;margin-top:20px}
-.sm-immersive-seo-languages a{color:#d6c6fd;text-decoration:underline}
-@media(max-width:850px){.sm-seo-grid{grid-template-columns:1fr 1fr}.sm-immersive-seo-grid{grid-template-columns:1fr 1fr}}
-@media(max-width:580px){.sm-seo-main{padding:28px 19px 74px}.sm-seo-breadcrumb{margin-bottom:18px}.sm-seo-hero{padding-bottom:24px}.sm-seo-section{margin-top:40px}.sm-seo-grid,.sm-seo-hub-grid,.sm-immersive-seo-grid{grid-template-columns:1fr}.sm-seo-panel{padding:21px}}
+
+/* Editorial discovery: a quiet, premium part of the existing English homepage. */
+.sm-immersive-seo-links{position:relative;isolation:isolate;width:100%;padding:clamp(48px,7vw,106px) clamp(16px,3.7vw,60px);overflow:hidden;color:#f7f4ff}
+.sm-immersive-seo-links:before{content:"";position:absolute;z-index:-1;inset:0;background:radial-gradient(ellipse 56% 65% at 50% 0%,rgba(99,54,159,.20),transparent 78%),linear-gradient(180deg,rgba(19,12,32,.08),rgba(12,8,23,.15));pointer-events:none}
+.sm-immersive-seo-shell{max-width:1310px;margin:0 auto}
+.sm-immersive-seo-heading{max-width:780px;margin:0 auto 40px;text-align:center}
+.sm-immersive-seo-eyebrow{display:inline-flex;align-items:center;justify-content:center;gap:10px;font-size:.7rem;font-weight:750;letter-spacing:.23em;color:#cdb8fa;text-transform:uppercase}
+.sm-immersive-seo-dot{width:7px;height:7px;border-radius:50%;background:#bc9bf2;box-shadow:0 0 12px rgba(182,141,247,.45)}
+.sm-immersive-seo-heading h2{font-size:clamp(2.05rem,4.45vw,4.2rem);line-height:1.09;letter-spacing:-.048em;font-weight:760;margin:20px 0 17px;text-wrap:balance}
+.sm-immersive-seo-heading h2 em{font-style:normal;color:#c8a9ff}
+.sm-immersive-seo-heading p{max-width:660px;margin:0 auto;color:#c6c0d4;line-height:1.72;font-size:clamp(.98rem,1.2vw,1.12rem)}
+.sm-immersive-seo-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.sm-immersive-seo-card{min-height:228px;display:flex;flex-direction:column;align-items:flex-start;gap:0;position:relative;border:1px solid rgba(186,155,231,.22);border-radius:21px;padding:26px 25px 22px;text-decoration:none;color:#faf8ff!important;background:linear-gradient(143deg,rgba(51,36,78,.60),rgba(25,19,42,.62) 70%);box-shadow:inset 0 1px rgba(255,255,255,.035),0 10px 32px rgba(5,3,15,.08);transition:transform .22s ease,border-color .22s ease,box-shadow .22s ease,background .22s ease}
+.sm-immersive-seo-card:hover{transform:translateY(-5px);border-color:rgba(200,169,255,.66);box-shadow:0 22px 42px rgba(8,4,23,.24),inset 0 1px rgba(255,255,255,.07);background:linear-gradient(143deg,rgba(70,47,107,.78),rgba(34,25,57,.83) 75%)}
+.sm-immersive-seo-card:focus-visible,.sm-immersive-seo-footer a:focus-visible{outline:2px solid #decafa;outline-offset:4px}
+.sm-immersive-seo-number{display:block;margin-bottom:20px;font-size:.7rem;color:#c8acfa;letter-spacing:.14em;font-weight:750}
+.sm-immersive-seo-number span{font-size:.64rem;letter-spacing:.15em;color:#847795}
+.sm-immersive-seo-card-title{font-weight:720;font-size:clamp(1.06rem,1.35vw,1.28rem);line-height:1.3;letter-spacing:-.026em;margin-bottom:11px}
+.sm-immersive-seo-card-description{font-size:.9rem;line-height:1.56;color:#bdb4cd;max-width:235px}
+.sm-immersive-seo-card-action{display:flex;align-items:center;gap:8px;margin-top:auto;padding-top:21px;font-size:.77rem;letter-spacing:.025em;font-weight:700;color:#cfb5fa;white-space:nowrap}
+.sm-immersive-seo-card-action svg,.sm-immersive-seo-footer a svg{transition:transform .2s ease}
+.sm-immersive-seo-card:hover .sm-immersive-seo-card-action svg,.sm-immersive-seo-footer a:hover svg{transform:translateX(4px)}
+.sm-immersive-seo-footer{margin:25px 3px 0;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap}
+.sm-immersive-seo-footer>span{font-size:.81rem;color:#8e879e;letter-spacing:.015em}
+.sm-immersive-seo-footer a{display:inline-flex;align-items:center;gap:9px;font-size:.87rem;color:#e5d6ff;text-decoration:none;font-weight:700}
+.sm-immersive-seo-footer a:hover{text-decoration:underline}
+@media(max-width:1030px){.sm-immersive-seo-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sm-immersive-seo-card{min-height:210px}}
+@media(max-width:850px){.sm-seo-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:580px){.sm-seo-main{padding:28px 19px 74px}.sm-seo-breadcrumb{margin-bottom:18px}.sm-seo-hero{padding-bottom:24px}.sm-seo-section{margin-top:40px}.sm-seo-grid,.sm-seo-hub-grid{grid-template-columns:1fr}.sm-seo-panel{padding:21px}.sm-immersive-seo-grid{grid-template-columns:1fr}.sm-immersive-seo-card{min-height:183px;padding:23px 22px}.sm-immersive-seo-heading{margin-bottom:29px}.sm-immersive-seo-footer{margin-top:24px;justify-content:center;text-align:center}.sm-immersive-seo-footer>span{display:none}}
+@media(prefers-reduced-motion:reduce){.sm-immersive-seo-card,.sm-immersive-seo-card-action svg,.sm-immersive-seo-footer a svg{transition:none}.sm-immersive-seo-card:hover{transform:none}}
