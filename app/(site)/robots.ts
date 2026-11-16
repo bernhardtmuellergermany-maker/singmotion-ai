@@ -12,8 +12,7 @@ export default function robots():MetadataRoute.Robots{
    "/api/","/admin/","/cms-preview/","/operator","/owner-setup",
    "/account/","/projects/","/notifications","/settings",
    "/credits","/checkout","/orders/","/studio","/login","/signin",
-   "/billing","/usage","/promo-admin","/support-admin","/plans",
-   "/_next/"
+   "/billing","/usage","/promo-admin","/support-admin","/plans"
   ]}],
   sitemap:SITE_ORIGIN+"/sitemap.xml",
   host:SITE_ORIGIN
