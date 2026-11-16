@@ -45,8 +45,12 @@ test("private HiDrive target never accepts public folders or path traversal",()=
   assert.throws(()=>privatePath("safe.user-03",f));
  assert.equal(scopeAllowed("rw,user"),true);
  assert.equal(scopeAllowed("user,rw"),true);
- for(const s of ["user,ro","admin,ro","rw","ro",""])
-  assert.equal(scopeAllowed(s),false);
+ // A user may authorize a different scope than requested; reject escalation.
+ for(const s of [
+  "user,ro","admin,ro","admin,rw","rw,admin","owner,rw",
+  "rw,owner","user,admin,rw","user,rw,owner","user,rw,ro",
+  "user,rw,extra","user,user,rw","user,rw,rw","rw","ro",""
+ ])assert.equal(scopeAllowed(s),false,"Unexpected elevated/invalid grant: "+s);
 });
 
 test("setup mode cannot contact HiDrive or source customer data",async()=>{
