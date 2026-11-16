@@ -49,6 +49,18 @@ export function scopeAllowed(scope){
  return parts.length===2&&new Set(parts).size===2&&parts.includes("user")&&parts.includes("rw");
 }
 
+// Return a fixed error category only. Never log raw OAuth responses or scope strings.
+export function scopeFailureReason(scope){
+ if(scopeAllowed(scope))return null;
+ if(typeof scope!=="string"||!scope.trim())return "MISSING";
+ const parts=scope.split(",").map(x=>x.trim().toLowerCase());
+ if(parts.includes("admin")||parts.includes("owner"))return "ELEVATED_ROLE";
+ if(parts.includes("ro"))return "READ_ONLY";
+ if(parts.includes("user")&&parts.includes("rw"))return "EXTRA_OR_DUPLICATE";
+ if(parts.includes("rw"))return "UNEXPECTED_ROLE";
+ return "UNEXPECTED";
+}
+
 export function seal(payload,clientSecret,context="oauth"){
  if(typeof clientSecret!=="string"||clientSecret.length<8)
   throw new SafeError("MISSING_CLIENT_SECRET");
@@ -112,16 +124,27 @@ export function parseGrant(grant,previous={}){
   throw new SafeError("OAUTH_GRANT_ACCESS_TOKEN_INVALID");
  if(typeof grant.refresh_token!=="string"||grant.refresh_token.length<10)
   throw new SafeError("OAUTH_GRANT_REFRESH_TOKEN_INVALID");
- if(!scopeAllowed(grant.scope??previous.scope))
-  throw new SafeError("OAUTH_GRANT_SCOPE_NOT_USER_RW");
+ const scopeProblem=scopeFailureReason(grant.scope??previous.scope);
+ if(scopeProblem)throw new SafeError("OAUTH_GRANT_SCOPE_"+scopeProblem);
  return {access_token:grant.access_token,refresh_token:grant.refresh_token,
   scope:grant.scope??previous.scope,alias:grant.alias??previous.alias??null,
   acquiredAt:new Date().toISOString()};
 }
 async function tokenInfo(accessToken){
+ if(typeof accessToken!=="string"||accessToken.length<10)
+  throw new SafeError("OAUTH_GRANT_ACCESS_TOKEN_INVALID");
  const info=await postForm(TOKENINFO_URL,{access_token:accessToken});
- if(!scopeAllowed(info.scope))throw new SafeError("OAUTH_SCOPE_NOT_READWRITE");
+ const scopeProblem=scopeFailureReason(info?.scope);
+ if(scopeProblem)throw new SafeError("OAUTH_TOKENINFO_SCOPE_"+scopeProblem);
  return info;
+}
+
+// An independently verified tokeninfo grant may supply a scope missing from /token.
+// An explicit, conflicting /token scope is never silently overridden.
+export function parseOAuthCodeGrant(grant,verifiedInfo){
+ const confirmedProblem=scopeFailureReason(verifiedInfo?.scope);
+ if(confirmedProblem)throw new SafeError("OAUTH_TOKENINFO_SCOPE_"+confirmedProblem);
+ return parseGrant(grant,{scope:verifiedInfo.scope});
 }
 async function ensureStateDir(){
  const info=await lstat("/state").catch(()=>null);
@@ -217,16 +240,20 @@ export async function main(env=process.env){
   const exists=await lstat(STATE_PATH).then(()=>true).catch(()=>false);
   if(exists&&env.HIDRIVE_REAUTHORIZE_APPROVED!=="YES")
    throw new SafeError("OAUTH_ALREADY_INITIALIZED");
-  const grant=parseGrant(await postForm(TOKEN_URL,{
-   client_id:clientId,client_secret:secret,grant_type:"authorization_code",code}));
-  // Save the refresh token persistently before validating network access.
-  // Repeated calls with a used code must fail rather than replace the saved state.
+  const rawGrant=await postForm(TOKEN_URL,{
+   client_id:clientId,client_secret:secret,grant_type:"authorization_code",code});
+  // Verify the token fields before tokeninfo: no malformed credentials are transmitted.
+  if(!rawGrant||typeof rawGrant.access_token!=="string"||rawGrant.access_token.length<10)
+   throw new SafeError("OAUTH_GRANT_ACCESS_TOKEN_INVALID");
+  if(typeof rawGrant.refresh_token!=="string"||rawGrant.refresh_token.length<10)
+   throw new SafeError("OAUTH_GRANT_REFRESH_TOKEN_INVALID");
+  // STRATO tokeninfo independently confirms role and read/write privileges.
+  // Do not store a refresh token until both grant claims are validated.
+  const info=await tokenInfo(rawGrant.access_token);
+  const grant=parseOAuthCodeGrant(rawGrant,info);
+  if(info.alias&&info.alias!==grant.alias)grant.alias=info.alias;
   await saveState(grant,secret);
-  const info=await tokenInfo(grant.access_token);
-  if(info.alias&&info.alias!==grant.alias){
-   grant.alias=info.alias;
-   await saveState(grant,secret);
-  }
+  // Repeated calls with a used code must fail rather than replace the saved state.
   console.log("HIDRIVE_OAUTH_AUTHORIZED_ENCRYPTED_STATE_SAVED");
   return;
  }
