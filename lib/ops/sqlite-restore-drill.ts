@@ -80,9 +80,8 @@ export async function rehearseSqliteRestore(
     try{sourceDB?.close();}catch{}
    }
   }
-  return {ok:failed.length===0,checked,failed};
  }catch{
-  return {ok:false,checked,failed:["RESTORE_DRILL_UNAVAILABLE"]};
+  failed.push("RESTORE_DRILL_UNAVAILABLE");
  }finally{
   if(scratch){
    try{await rm(scratch,{recursive:true,force:true});}
@@ -93,4 +92,5 @@ export async function rehearseSqliteRestore(
    }
   }
  }
+ return {ok:failed.length===0,checked,failed};
 }
