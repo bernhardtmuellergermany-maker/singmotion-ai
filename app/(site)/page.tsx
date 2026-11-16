@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import {redirect} from "next/navigation";
+import {seoPrelaunchMetadataRobots} from "@/lib/seo/search-pages";
 import { ImmersiveHome } from "@/components/immersive-home";
 import { CarouselExperience } from "@/components/carousel-experience";
 import "./home-immersive.css";
@@ -16,9 +17,7 @@ export const metadata: Metadata = {
     images: [{ url: "/artwork/singmotion-stage.webp", alt: "SingMotion AI music performance" }],
   },
   twitter: { card: "summary_large_image" },
-  robots: process.env.RAILWAY_ENVIRONMENT_ID === "dfaeabed-03df-43ed-aa71-50f343a75041"
-    ? { index: false, follow: false }
-    : undefined,
+  robots: seoPrelaunchMetadataRobots(),
 };
 export default async function Home({searchParams}:{searchParams:Promise<{card?:string}>}) {
   const params=await searchParams;
