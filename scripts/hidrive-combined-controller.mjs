@@ -212,7 +212,10 @@ export async function runCombinedTest({
       .filter((x) => x.message.startsWith("HIDRIVE_RESIDUAL_RESULT "))
       .map((x) =>
         JSON.parse(x.message.slice("HIDRIVE_RESIDUAL_RESULT ".length)),
-      );
+      )
+      // Railway log delivery is not guaranteed to preserve emission order.
+      // The existing ordinal check still fails closed on missing/duplicate rows.
+      .sort((a, b) => a.ordinal - b.ordinal);
     if (
       residuals.length !== 3 ||
       residuals.some(
