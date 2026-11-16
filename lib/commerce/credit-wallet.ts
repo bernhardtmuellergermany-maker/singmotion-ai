@@ -1,5 +1,6 @@
 import {worldwideTaxPolicyAvailable} from "./worldwide-credit-tax.ts";
 import {managedCreditMoRApproved} from "./managed-credit-payments.ts";
+import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./public-credit-release.ts";
 import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 import {privateCreditPilotApproved} from "./private-credit-pilot.ts";
@@ -35,7 +36,7 @@ export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined
   (privateLiveCreditTestEnabled(env) || publicCreditReleaseApproved(env) || (
     env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true" &&
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true" &&
-    (env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="true"||protectedProductionLivePilotApproved(env)||privateCreditPilotApproved(env)) &&
+    (productionCustomerReleaseApproved(env)||protectedProductionLivePilotApproved(env)||privateCreditPilotApproved(env)) &&
     env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true" &&
     (worldwideTaxPolicyAvailable(env)||managedCreditMoRApproved(env))
   )) &&
