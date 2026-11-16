@@ -49,7 +49,7 @@ function validManifest(m:unknown):m is ArchiveManifest{
  if(a.format!=="singmotion-sqlite-aes256gcm-v1"||a.kdf?.algorithm!=="scrypt"||
     a.kdf.N!==32768||a.kdf.r!==8||a.kdf.p!==1||
     !Array.isArray(a.files)||a.files.length!==CRITICAL_SQLITE_NAMES.length)return false;
- const entries=new Map(a.files.map(x=>[x?.database,x]));
+ const entries=new Map<string,ArchiveEntry>(a.files.map(x=>[x?.database,x] as [string,ArchiveEntry]));
  if(entries.size!==CRITICAL_SQLITE_NAMES.length)return false;
  for(const name of CRITICAL_SQLITE_NAMES){
   const x=entries.get(name);
