@@ -81,7 +81,9 @@ test("search guides live only under Help; no German pages or added navigation en
  assert.match(hub,/canonical:SEO_GUIDES_HUB/);
  assert.match(help,/href="\/help\/ai-video-guides">AI video guides/);
  assert.doesNotMatch(menu,/AI video guides|KI Video erstellen|href: "\/de"|href: "\/en"/);
- assert.doesNotMatch(home,/sm-immersive-seo-links|\/de|KI-Videos entdecken/);
+ assert.match(home,/sm-immersive-seo-links/,"keep the refined homepage guides section");
+ assert.match(home,/href="\/help\/ai-video-guides"/);
+ assert.doesNotMatch(home,/href="\/de"|KI-Videos entdecken/);
  assert.doesNotMatch(component,/Deutsche Version|Deutsch|german|locale==="de"/i);
  assert.doesNotMatch(read("lib/seo/search-pages.ts"),/SeoLocale|seoAlternates|slug:"ki-video-erstellen"/);
 });
