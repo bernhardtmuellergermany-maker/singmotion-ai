@@ -32,3 +32,26 @@ export function managedCreditTaxDecision(
   taxAtIssue:false,taxCode:env.STRIPE_CREDIT_TAX_CODE!,
  }};
 }
+
+/** Managed Payments owns invoicing, tax and dynamic payment method selection.
+ * Before any Stripe POST, fail closed if an incompatible parameter slipped into
+ * the request. Stripe docs: /payments/managed-payments/update-checkout.
+ * This never enables Merchant-of-Record mode by itself.
+ */
+export function assertManagedCreditCheckoutParams(form:URLSearchParams):void{
+ const forbidden=[
+  /^invoice_creation(?:\[|$)/,
+  /^automatic_tax(?:\[|$)/,
+  /^tax_id_collection(?:\[|$)/,
+  /^adaptive_pricing(?:\[|$)/,
+  /^payment_method_types(?:\[|$)/,
+  /^excluded_payment_method_types(?:\[|$)/,
+  /^payment_method_configuration(?:\[|$)/,
+  /^customer_update(?:\[|$)/,
+  /^shipping_(?:address_collection|options)(?:\[|$)/,
+  /^payment_intent_data\[(?:application_fee_amount|on_behalf_of|transfer_data|transfer_group|shipping|statement_descriptor|statement_descriptor_suffix|receipt_email)\]/,
+ ];
+ if(form.get("managed_payments[enabled]")!=="true"||
+    [...form.keys()].some(key=>forbidden.some(re=>re.test(key))))
+  throw Error("Managed Payments incompatible checkout parameters");
+}
