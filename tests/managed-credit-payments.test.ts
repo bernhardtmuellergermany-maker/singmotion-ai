@@ -46,7 +46,7 @@ test("managed global credits remain production-only and preserve verification of
   STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",
   STRIPE_SECRET_KEY:"sk_live_fixture",STRIPE_WEBHOOK_SECRET:"whsec_fixture",
  };
- assert.equal(stripeCreditTopupsLiveEnabled(env),true);
+ assert.equal(stripeCreditTopupsLiveEnabled(env),false,"MoR flags and public flag alone must never bypass release proofs");
  assert.equal(stripeCreditTopupsLiveEnabled({...env,STRIPE_MANAGED_PAYMENTS_PREPAID_CREDITS_APPROVED:"false"}),false);
  assert.equal(stripeCreditTopupsLiveEnabled({...env,RAILWAY_ENVIRONMENT_ID:"staging"}),false);
  const root=new URL("../",import.meta.url);
