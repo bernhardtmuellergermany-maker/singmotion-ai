@@ -4,11 +4,23 @@ import fs from "node:fs";
 const state="/state";
 const uid=1000,gid=1000;
 const allowed=new Set(["hidrive-oauth.v1.json.enc"]);
-const tempName=/^\\.oauth-[0-9a-f-]{36}\\.tmp$/;
+const tempName=/^\.oauth-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
 function checkAndRepair(){
  const info=fs.lstatSync(state);
  if(!info.isDirectory()||info.isSymbolicLink())throw Error("Invalid private state mount");
  for(const name of fs.readdirSync(state)){
+  // Railway can mount a fresh ext4 volume with a system-owned lost+found.
+  // Ignore it ONLY while empty. Never traverse/chown/delete recovered files.
+  if(name==="lost+found"){
+   const fd=fs.openSync(state+"/lost+found",
+    fs.constants.O_RDONLY|fs.constants.O_DIRECTORY|fs.constants.O_NOFOLLOW);
+   try{
+    if(!fs.fstatSync(fd).isDirectory()||
+       fs.readdirSync("/proc/self/fd/"+fd).length!==0)
+     throw Error("Non-empty filesystem recovery directory; manual review required");
+   }finally{fs.closeSync(fd);}
+   continue;
+  }
   if(!allowed.has(name)&&!tempName.test(name))throw Error("Unexpected file in private token volume");
   const file=state+"/"+name;
   const st=fs.lstatSync(file);
