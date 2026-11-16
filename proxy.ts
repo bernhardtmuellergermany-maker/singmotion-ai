@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stagingAccess, stagingDenial, stagingEnabled, PRIVATE_GATE_COOKIE, PRIVATE_GATE_TTL_SECONDS, issuePrivateGateTicket, validPrivateGateTicket, privateGateMutationOriginAllowed } from "./lib/staging";
+import {seoIndexablePath} from "./lib/seo/search-pages";
 
 // No matcher exclusions: APIs, public media, Next assets and RSC requests are private.
 export function proxy(request: NextRequest) {
@@ -63,6 +64,11 @@ export function proxy(request: NextRequest) {
   if (stagingEnabled()) {
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
+  // Index only exact public editorial routes once the independent public launch is live.
+  // Never let robots disallow hide a customer URL without a noindex header.
+  if (!stagingEnabled() && !seoIndexablePath(pathname)) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   return response;
 }
