@@ -20,6 +20,9 @@ const STRIPE_MANAGED_TAX_COVERED_COUNTRIES=new Set(
  "AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK "+
  "BB BM KY MX VG CA US").split(" ")
 );
+export function approvedMoRTaxCountries():string[]{
+ return [...STRIPE_MANAGED_TAX_COVERED_COUNTRIES].filter(country=>managedCreditBuyerSupported(country)).sort();
+}
 export function managedCreditMoRTaxCovered(country:unknown):boolean {
  return managedCreditBuyerSupported(country) &&
   STRIPE_MANAGED_TAX_COVERED_COUNTRIES.has(country as string);

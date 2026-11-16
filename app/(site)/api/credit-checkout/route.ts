@@ -15,6 +15,7 @@ import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {privateLiveCreditTestEnabled,privateLiveCreditTestTaxDecision} from "@/lib/commerce/private-live-credit-test";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 import {managedCreditMoRApproved,managedCreditTaxDecision,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
+import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -26,7 +27,7 @@ export async function POST(req:NextRequest){
  const testMode=stripeCreditTopupsTestEnabled(process.env);
  const privateLiveTest=privateLiveCreditTestEnabled(process.env);
  const liveMode=stripeCreditTopupsLiveEnabled(process.env)&&
-  (privateLiveTest||privateCreditPilotApproved(process.env)||
+  (privateLiveTest||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
    (customerLaunchReadiness().readyForPaidOrders&&
     (auditSingMotionLaunch(process.env,"production").ready||
      protectedProductionLivePilotApproved(process.env))));
