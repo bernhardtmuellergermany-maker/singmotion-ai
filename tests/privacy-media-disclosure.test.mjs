@@ -25,7 +25,7 @@ test("media storage disclosure distinguishes signed URL expiry, soft delete and 
  const trash=source("lib/project-trash.ts");
  const cleanup=source("lib/project-trash-cleanup.ts");
  const r2=source("lib/live/r2.ts");
- assert.match(policy,/13-hour link lifetime/);
+ assert.match(policy,/implemented link lifetime is 13 hours/);
  assert.match(policy,/Link expiry does not erase/);
  assert.match(policy,/30 days/);
  assert.match(policy,/currently disabled in Production/);
@@ -50,7 +50,7 @@ test("privacy promise remains truthful about unresolved processor terms and dele
  const account=source("app/(site)/account/settings/page.tsx");
  assert.match(policy,/contract.*review|contracts still need review/i);
  assert.match(policy,/complete production deletion and backup-expiry rehearsal is still pending/i);
- assert.match(retention,/R2 bucket public-access and lifecycle settings/i);
+ assert.match(retention,/bucket public-access setting, object lifecycle rules/i);
  assert.match(retention,/STRATO HiDrive/);
  assert.match(retention,/backup.*restore/i);
  assert.match(account,/mailto:support@singmotion\.ai/);
