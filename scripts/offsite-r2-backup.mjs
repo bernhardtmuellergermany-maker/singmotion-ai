@@ -11,7 +11,8 @@ import {pathToFileURL} from "node:url";
  *
  * This program requires a trusted owner-controlled Rclone config with:
  * - a source read-only Cloudflare R2 S3 remote; and
- * - a crypt remote wrapping a DIFFERENT storage provider and bucket.
+ * - a crypt remote wrapping a DIFFERENT storage provider (S3/B2 or
+ *   STRATO HiDrive) with independent credentials.
  */
 export function readConfigSections(text){
  const sections=new Map();
@@ -39,9 +40,16 @@ export function validateOffsiteRemotes(config,sourceRemote,destinationCryptRemot
  if(!backingMatch||!backingMatch[2]||backingMatch[1]===sourceRemote)
   throw Error("INDEPENDENT_DESTINATION_NOT_VERIFIED");
  const backing=sections.get(backingMatch[1]);
- if(!backing||!["s3","b2"].includes(backing.type)||
+ if(!backing||!["s3","b2","hidrive"].includes(backing.type)||
     (/\.r2\.cloudflarestorage\.com/i.test(backing.endpoint||""))||
     (/railway/i.test(backing.endpoint||"")))throw Error("INDEPENDENT_DESTINATION_NOT_VERIFIED");
+ // HiDrive is supported through its official OAuth backend; no FTP or
+ // public webspace is involved. Custom endpoints must stay at STRATO.
+ if(backing.type==="hidrive"&&(
+    (backing.endpoint&&!/^https:\/\/api\.hidrive\.strato\.com\/2\.1\/?$/.test(backing.endpoint))||
+    !backing.token||
+    /(^|\/)public(\/|$)/i.test(backingMatch[2])))
+    throw Error("STRATO_HIDRIVE_OAUTH_NOT_VERIFIED");
  // Note: endpoint checks are a guard, not proof of separate legal ownership,
  // deletion protection, geographical residency or object-lock retention.
  return {sourceRemote,destinationCryptRemote,backingType:backing.type};

@@ -12,7 +12,15 @@ snapshot. Do not mark either Production restore evidence flag true yet.
 
 ## Storage provider selection and custody
 
-Suggested provider for the independent archive: a **private Backblaze B2
+**Operator preference:** STRATO HiDrive can be used as the independent encrypted
+backup destination instead of Backblaze B2, without changing the domain or
+Production services. See `docs/OFFSITE_STRATO_HIDRIVE_SETUP_2026-11-16.md`.
+The offline copy script now accepts a `hidrive` OAuth remote under `crypt`.
+A domain-only STRATO plan does not supply HiDrive cloud storage; verify
+whether the operator already has a separate HiDrive product. No paid plan
+or external data transfer has been initiated here.
+
+Alternative provider for the independent archive: a **private Backblaze B2
 bucket** in an operator-controlled account, physically and administratively
 separate from the Production Railway account and Cloudflare R2 media bucket.
 An independent private AWS S3 bucket is also acceptable. Do not reuse the
