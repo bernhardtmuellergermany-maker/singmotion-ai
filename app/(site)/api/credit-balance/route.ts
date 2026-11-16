@@ -10,6 +10,8 @@ import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
+import {managedCreditMoRApproved} from "@/lib/commerce/managed-credit-payments";
+import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -70,6 +72,10 @@ export async function GET(req:NextRequest){
    purchaseEnabled:(testCheckout||liveCheckout)&&
     (!identity.customerId||store.emailVerified(identity.customerId)),
    testMode:testCheckout,
+   // Buyers provide country/type only when a reviewed public jurisdiction route
+   // exists. The private DE owner pilot remains unchanged.
+   globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled(process.env)&&
+     (managedCreditMoRApproved(process.env)||worldwideTaxPolicyAvailable(process.env)),
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
