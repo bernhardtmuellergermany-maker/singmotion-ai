@@ -59,6 +59,12 @@ export function assessPublicCreditRelease(env:Record<string,string|undefined>){
    env.CUSTOMER_R2_STORAGE_ENABLED==="true"&&
    env.CMS_ENABLED==="true"&&
    (env.PAYLOAD_SECRET?.length||0)>=32},
+  {id:"LIVE_BYTEPLUS_CREDENTIALS_PRESENT",ready:
+   (env.BYTEPLUS_ACCESS_KEY_ID?.length||0)>=8&&
+   (env.BYTEPLUS_SECRET_ACCESS_KEY?.length||0)>=16},
+  {id:"PRIVATE_R2_CREDENTIALS_PRESENT",ready:
+   !!env.R2_ACCOUNT_ID&&!!env.R2_BUCKET&&
+   !!env.R2_ACCESS_KEY_ID&&!!env.R2_SECRET_ACCESS_KEY},
   {id:"CREDIT_VIDEO_ISOLATION",ready:
    env.DEMO_MODE==="true"&&env.GENERATIONS_ENABLED==="false"&&env.ADMIN_DEMO_ENABLED==="false"},
   {id:"SUPPORT_AND_DATABASE_CONNECTED",ready:
