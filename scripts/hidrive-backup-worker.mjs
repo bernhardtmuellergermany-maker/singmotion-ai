@@ -43,8 +43,10 @@ export function privatePath(alias,folder="SingMotion-DR"){
 }
 
 export function scopeAllowed(scope){
+ // HiDrive may grant a different scope from the one requested in the OAuth URL.
+ // Fail closed unless the grant is exactly the least-privileged user,rw pair.
  const parts=(typeof scope==="string"?scope:"").split(",").map(x=>x.trim().toLowerCase());
- return parts.includes("rw")&&(parts.includes("user")||parts.includes("admin")||parts.includes("owner"));
+ return parts.length===2&&new Set(parts).size===2&&parts.includes("user")&&parts.includes("rw");
 }
 
 export function seal(payload,clientSecret,context="oauth"){
