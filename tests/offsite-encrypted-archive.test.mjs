@@ -23,7 +23,9 @@ function populateSqlite(f){
   const archive=database+".aes-256-gcm";
   const data=Buffer.from("synthetic-ciphertext-fixture-"+i);
   f.write(archive,data);
-  return {database,archive,ciphertextSha256:sha(data)};
+  return {database,archive,ciphertextSha256:sha(data),
+   plaintextSha256:sha(Buffer.from("synthetic-plaintext-"+i)),
+   salt:"1".repeat(32),iv:"2".repeat(24),authTag:"3".repeat(32)};
  });
  f.write("manifest.json",JSON.stringify({
   format:"singmotion-sqlite-aes256gcm-v1",
