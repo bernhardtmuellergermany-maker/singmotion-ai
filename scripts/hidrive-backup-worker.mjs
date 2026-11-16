@@ -29,7 +29,7 @@ export function authorizationURL(clientId){
  url.searchParams.set("client_id",clientId);
  url.searchParams.set("response_type","code");
  url.searchParams.set("scope","user,rw");
- url.searchParams.set("redirect_uri","oob");
+ // STRATO uses the registered default OOB redirect; an explicit oob parameter can be rejected.
  url.searchParams.set("lang","de");
  return url.toString();
 }
@@ -43,8 +43,10 @@ export function privatePath(alias,folder="SingMotion-DR"){
 }
 
 export function scopeAllowed(scope){
+ // HiDrive may grant a different scope from the one requested in the OAuth URL.
+ // Fail closed unless the grant is exactly the least-privileged user,rw pair.
  const parts=(typeof scope==="string"?scope:"").split(",").map(x=>x.trim().toLowerCase());
- return parts.includes("rw")&&(parts.includes("user")||parts.includes("admin")||parts.includes("owner"));
+ return parts.length===2&&new Set(parts).size===2&&parts.includes("user")&&parts.includes("rw");
 }
 
 export function seal(payload,clientSecret,context="oauth"){
@@ -103,11 +105,15 @@ async function postForm(url,form){
  }catch{throw new SafeError("OAUTH_RESPONSE_INVALID");}
  return json;
 }
-function parseGrant(grant,previous={}){
- if(!grant||typeof grant.access_token!=="string"||grant.access_token.length<10||
-   typeof grant.refresh_token!=="string"||grant.refresh_token.length<10||
-   !scopeAllowed(grant.scope??previous.scope))
-  throw new SafeError("OAUTH_GRANT_INVALID_OR_READONLY");
+export function parseGrant(grant,previous={}){
+ // Diagnose failures using fixed codes only. Never include grant values or HTTP bodies in logs.
+ if(!grant||typeof grant!=="object"||typeof grant.access_token!=="string"||
+    grant.access_token.length<10)
+  throw new SafeError("OAUTH_GRANT_ACCESS_TOKEN_INVALID");
+ if(typeof grant.refresh_token!=="string"||grant.refresh_token.length<10)
+  throw new SafeError("OAUTH_GRANT_REFRESH_TOKEN_INVALID");
+ if(!scopeAllowed(grant.scope??previous.scope))
+  throw new SafeError("OAUTH_GRANT_SCOPE_NOT_USER_RW");
  return {access_token:grant.access_token,refresh_token:grant.refresh_token,
   scope:grant.scope??previous.scope,alias:grant.alias??previous.alias??null,
   acquiredAt:new Date().toISOString()};
