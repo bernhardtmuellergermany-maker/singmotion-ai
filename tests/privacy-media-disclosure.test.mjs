@@ -50,7 +50,7 @@ test("privacy promise remains truthful about unresolved processor terms and dele
  const account=source("app/(site)/account/settings/page.tsx");
  assert.match(policy,/contract.*review|contracts still need review/i);
  assert.match(policy,/complete production deletion and backup-expiry rehearsal is still pending/i);
- assert.match(retention,/Cloudflare R2 bucket public-access and lifecycle settings/i);
+ assert.match(retention,/R2 bucket public-access and lifecycle settings/i);
  assert.match(retention,/STRATO HiDrive/);
  assert.match(retention,/backup.*restore/i);
  assert.match(account,/mailto:support@singmotion\.ai/);
