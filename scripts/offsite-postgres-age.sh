@@ -40,7 +40,7 @@ cleanup() {
 trap cleanup EXIT
 # pg_dump custom archive to stdout -> authenticated age encryption.
 # Do not echo command lines with credentials. Export reads only, no writes.
-if ! pg_dump --format=custom --no-owner --no-acl | \
+if ! pg_dump --format=custom --no-owner --no-acl 2>/dev/null | \
      age -r "$AGE_RECIPIENT" -o "$run_dir/cms.dump.age" >/dev/null 2>&1; then
   fail
 fi
