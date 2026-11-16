@@ -94,9 +94,10 @@ commit. Only the synthetic harness has the recovery private key.
 - Current receiver limit is 64 MiB per artifact / 10,000 artifacts; exceeding it
   fails, never truncates. Real source sizing, streaming/chunking, resource limits,
   retry/resume and long-run OAuth refresh need review before real large backups.
-- Staging TLS transport is between producer/receiver on loopback in one isolated
-  container. Cross-service private DNS, IPv6 binding, certificate/key provisioning
-  and rotation still require a separate staging integration.
+- The original 8/8 staging transport test used loopback. The subsequent actual
+  two-service private DNS/IPv6/mTLS integration passed; see
+  `BACKUP_PRIVATE_NETWORK_INTEGRATION.md`. Production certificate renewal,
+  revocation and durable recovery-key custody remain outstanding.
 - No production entrypoint is wired, no customer data transfer approved, no
   production secret/volume changed. The existing HiDrive entrypoint still runs
   its prior modes. Private receiver integration and its separate ciphertext spool
