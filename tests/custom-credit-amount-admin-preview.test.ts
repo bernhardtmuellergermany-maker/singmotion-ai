@@ -26,12 +26,17 @@ test("Credits replace the legacy Hobby subscription in account settings",()=>{
  assert.match(s,/href="\/credits"/);assert.doesNotMatch(s,/Upgrade to Hobby|async function subscribe\(/);
 });
 
-test("Credit buyer enters amount only; Stripe collects billing details with server-side pilot tax policy",()=>{
+test("private DE buyer enters amount only; international tax inputs require separate reviewed global admission",()=>{
  const picker=read("components/credit-amount-picker.tsx");
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
  const webhook=read("app/(site)/api/stripe-webhook/route.ts");
- assert.doesNotMatch(picker,/Billing country and customer type|Billing country \(two-letter|I am buying as|setBillingCountry|setBuyerType/);
- assert.doesNotMatch(picker,/billingCountry|buyerType/);
+ // Production's existing private DE pilot still sends no buyer country/type.
+ // The international form is rendered and sent ONLY when the server approves
+ // the separate reviewed global Checkout pathway.
+ assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
+ assert.match(picker,/needsBillingCountry&&<div className="sm-credit-country-fields"/);
+ assert.match(picker,/needsBillingCountry&&!billingCountry/);
+ assert.match(read("app/(site)/api/credit-balance/route.ts"),/globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled/);
  assert.match(picker,/body:JSON\.stringify\(\{credits:String\(credits\)/);
  assert.match(checkout,/privateLiveCreditTestTaxDecision\(body\.billingCountry,body\.buyerType\)/);
  assert.match(checkout,/form\.set\("billing_address_collection","required"\)/);
