@@ -12,7 +12,7 @@ type Order={id:string;projectId:string;credits:number;euros:number;created:numbe
 type Purchase={id:string;credits:number;cents:number;status:string;created:number};
 type VideoReservation={projectId:string;credits:number;state:"reserved"|"review";created:number};
 type Balance={videoReservations?:VideoReservation[];availableCredits:number;reservedCredits:number;outstandingCredits:number;
- purchaseEnabled:boolean;testMode:boolean;emailVerification?:"pending"|"verified"|"legacy"|null;entries:Ledger[];legacyOrders:Order[];purchases:Purchase[]};
+ purchaseEnabled:boolean;testMode:boolean;globalCountrySelection?:boolean;emailVerification?:"pending"|"verified"|"legacy"|null;entries:Ledger[];legacyOrders:Order[];purchases:Purchase[]};
 type View="loading"|"signed-out"|"unavailable"|"ready";
 type CreditResume={draftId:string;requiredCredits:number;created:number};
 const RESUME_KEY="sm-credit-checkout-resume";
@@ -126,7 +126,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
      <p>Your account is free and your Studio project is saved. Please confirm your email address first. Credit Checkout cannot open until the account is verified.</p>
      <Link href="/account/verify-email?from=studio" className="sm-plan-action sm-plan-action-outline">Verify email · Continue to Credits</Link>
     </section>}
-   {mode==="buy"&&balance.emailVerification!=="pending"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode}/></section>}
+   {mode==="buy"&&balance.emailVerification!=="pending"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode} globalCountrySelection={balance.globalCountrySelection===true}/></section>}
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
     <p className="sm-credits-muted">View your recorded credit transactions and previously paid video orders. Past euro payments are shown as a credit equivalent only; they have not been deducted from your balance again.</p>
