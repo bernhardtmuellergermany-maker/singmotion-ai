@@ -40,7 +40,7 @@ if(process.getuid()===0){
 if(process.getuid()!==uid||process.getgid()!==gid||
  process.getgroups().some(group=>group!==gid))throw Error("Refusing privileged worker runtime");
 process.umask(0o077);
-const {main,SafeError}=await import("/app/scripts/hidrive-backup-worker.mjs");
+const {main,SafeError}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{await main();}
 catch(e){
  console.error("HIDRIVE_BACKUP_FAILED",e instanceof SafeError?e.message:"UNEXPECTED_ERROR");
