@@ -67,7 +67,9 @@ export function proxy(request: NextRequest) {
   }
   // Index only exact public editorial routes once the independent public launch is live.
   // Never let robots disallow hide a customer URL without a noindex header.
-  if (!stagingEnabled() && !seoIndexablePath(pathname)) {
+  if (!stagingEnabled() && request.method === "GET" &&
+      (request.headers.get("accept") || "").includes("text/html") &&
+      !seoIndexablePath(pathname)) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
   return response;
