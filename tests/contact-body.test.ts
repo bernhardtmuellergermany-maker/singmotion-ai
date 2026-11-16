@@ -18,7 +18,7 @@ test("contact body streaming guard rejects oversized content before full bufferi
 });
 test("streamed bodies without Content-Length cannot bypass byte-size limit",async()=>{
  let requested=0, cancelled=false;
- const stream=new ReadableStream<Uint8Array>({
+ const stream=new ReadableStream<Uint8Array<ArrayBuffer>>({
   pull(controller){
    requested++;
    controller.enqueue(Buffer.alloc(6000,97));
@@ -30,7 +30,7 @@ test("streamed bodies without Content-Length cannot bypass byte-size limit",asyn
  assert.equal(cancelled,true);
 });
 test("read failure denies processing and does not expose request content",async()=>{
- const body=new ReadableStream<Uint8Array>({
+ const body=new ReadableStream<Uint8Array<ArrayBuffer>>({
   pull(controller){controller.error(new Error("synthetic private message secret"));}
  });
  assert.equal(await readContactBody({body}),null);
