@@ -96,6 +96,7 @@ test("destination requires a private encrypted STRATO HiDrive backend",()=>{
  for(const config of [
   rcloneConfig.replace("filename_encryption = standard","filename_encryption = off"),
   rcloneConfig.replace("remote = hidrive_private:SingMotion-DR","remote = hidrive_private:public"),
+  rcloneConfig.replace("remote = hidrive_private:SingMotion-DR","remote = hidrive_private:unrelated-folder"),
   rcloneConfig.replace("type = hidrive","type = local"),
   rcloneConfig.replace("endpoint = https://api.hidrive.strato.com/2.1","endpoint = https://example.invalid"),
   rcloneConfig.replace('token = {"access_token":"synthetic-not-a-real-access-token"}',"")
