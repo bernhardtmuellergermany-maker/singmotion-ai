@@ -105,7 +105,7 @@ test("missing wallet schema fails closed; audit performs no schema creation",()=
  const db=new DatabaseSync(":memory:");
  try{
   assert.deepEqual(auditCreditLedger(db),{ok:false,failed:["CREDIT_SCHEMA_MISSING"]});
-  assert.equal(db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'credit_%'").get().n,0);
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE name LIKE 'credit_%'").get() as {n:number}).n,0);
  }finally{db.close();}
 });
 test("worker and CLI audit only wallet local database; no remote payments or provider calls",()=>{
