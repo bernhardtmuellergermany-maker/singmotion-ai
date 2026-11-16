@@ -1,11 +1,19 @@
 import Link from "next/link";
 import {SiteHeader} from "@/components/site-header";
-import {SEO_CONTENT,SEO_TOPICS,seoPagePath,type SeoTopic,type SeoLocale} from "@/lib/seo/search-pages";
+import {SEO_CONTENT,SEO_TOPICS,seoPagePath,SITE_ORIGIN,type SeoTopic,type SeoLocale} from "@/lib/seo/search-pages";
 
 export function SearchLanding({locale,topic}:{locale:SeoLocale;topic:SeoTopic}){
  const page=SEO_CONTENT[topic][locale];
  const german=locale==="de";
+ const breadcrumbJson=JSON.stringify({
+  "@context":"https://schema.org","@type":"BreadcrumbList",itemListElement:[
+   {"@type":"ListItem",position:1,name:german?"Startseite":"Home",item:SITE_ORIGIN},
+   {"@type":"ListItem",position:2,name:german?"KI-Videos entdecken":"Explore AI video",item:SITE_ORIGIN+"/"+locale},
+   {"@type":"ListItem",position:3,name:page.heading,item:SITE_ORIGIN+seoPagePath(topic,locale)}
+  ]
+ }).replace(/</g,"\\u003c");
  return <div className="sm-seo-page">
+  <script type="application/ld+json" dangerouslySetInnerHTML={{__html:breadcrumbJson}}/>
   <SiteHeader/>
   <main id="content" className="sm-seo-main" lang={locale}>
    <nav className="sm-seo-breadcrumb" aria-label={german?"Brotkrumennavigation":"Breadcrumb"}>
@@ -67,7 +75,15 @@ export function SearchLanding({locale,topic}:{locale:SeoLocale;topic:SeoTopic}){
 
 export function SearchHub({locale}:{locale:SeoLocale}){
  const de=locale==="de";
+ const webApplicationJson=JSON.stringify({
+  "@context":"https://schema.org","@type":"WebApplication",
+  "@id":SITE_ORIGIN+"/#application",name:"SingMotion AI",url:SITE_ORIGIN,
+  operatingSystem:"Web",applicationCategory:"MultimediaApplication",
+  inLanguage:locale,
+  description:de?"Musikvideo-Studio für animierte KI-Performances mit Foto und eigenem Song.":"AI music performance studio using your own photo and song."
+ }).replace(/</g,"\\u003c");
  return <div className="sm-seo-page">
+  <script type="application/ld+json" dangerouslySetInnerHTML={{__html:webApplicationJson}}/>
   <SiteHeader/>
   <main id="content" className="sm-seo-main" lang={locale}>
    <header className="sm-seo-hero">
