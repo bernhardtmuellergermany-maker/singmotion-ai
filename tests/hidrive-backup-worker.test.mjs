@@ -70,9 +70,10 @@ test("minimal Docker image never imports the live app or mounts its SQLite data"
  assert.doesNotMatch(docker,/npm ci|NEXT_PUBLIC|COPY \.|EXPOSE 3000|app\/\.data/);
  assert.match(entry,/process\.setuid\(uid\)/);
  assert.match(entry,/process\.setgroups\(\[\]\)/);
- assert.match(entry,/name==="lost\\+found"/);
- assert.match(entry,/st\\.isDirectory\\(\\)/);
+ assert.ok(entry.includes('name==="lost+found"'));
+ assert.ok(entry.includes('st.isDirectory()'));
  assert.match(entry,/continue;/);
+ assert.ok(entry.includes('const tempName=/^\\.oauth-'));
 
  assert.match(entry,/await main\(\)/);
  assert.doesNotMatch(worker,/new CommerceStore|connect\(.*postgres|process\.env\.DATABASE_URL|R2_SECRET_ACCESS_KEY/);
