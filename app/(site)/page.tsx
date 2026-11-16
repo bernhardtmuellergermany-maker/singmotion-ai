@@ -6,8 +6,16 @@ import "./home-immersive.css";
 // The public carousel shell contains no server-personalized data;
 // allow Next.js to cache it while private projects load client-side.
 export const metadata: Metadata = {
-  title: "SingMotion AI — Your music. Your performance.",
-  description: "Create a singing performance video using your own music and photo in your private SingMotion AI studio.",
+  title: { absolute: "AI Music Video Maker – Turn Your Song into Video | SingMotion AI" },
+  description: "Create AI singing and music performance videos from your own song and photo. Explore artist videos, vertical Reels, Shorts and TikTok concepts with SingMotion AI.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website", siteName: "SingMotion AI", locale: "en_US", url: "/",
+    title: "AI Music Video Maker | SingMotion AI",
+    description: "Turn your own song and photo into a singing-performance AI music video.",
+    images: [{ url: "/artwork/singmotion-stage.webp", alt: "SingMotion AI music performance" }],
+  },
+  twitter: { card: "summary_large_image" },
   robots: process.env.RAILWAY_ENVIRONMENT_ID === "dfaeabed-03df-43ed-aa71-50f343a75041"
     ? { index: false, follow: false }
     : undefined,
