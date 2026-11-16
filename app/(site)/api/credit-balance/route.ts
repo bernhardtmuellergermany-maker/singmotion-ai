@@ -11,6 +11,7 @@ import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-pro
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
 import {managedCreditMoRApproved} from "@/lib/commerce/managed-credit-payments";
+import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
 
 export const runtime="nodejs";
@@ -57,7 +58,7 @@ export async function GET(req:NextRequest){
   const rawBalance=purchased-reserved;
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
-    (privateLiveCreditTestEnabled(process.env)||privateCreditPilotApproved(process.env)||
+    (privateLiveCreditTestEnabled(process.env)||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
      (customerLaunchReadiness().readyForPaidOrders&&
       (auditSingMotionLaunch(process.env,"production").ready||
        protectedProductionLivePilotApproved(process.env))));
