@@ -1,0 +1,10 @@
+# Dedicated minimal Railway HiDrive worker. Not the SingMotion web/worker image.
+# No app database, Stripe/BytePlus, Cloudflare R2 keys or network listener.
+FROM node:24.22.1-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --chmod=0444 scripts/hidrive-backup-worker.mjs /app/scripts/hidrive-backup-worker.mjs
+COPY --chmod=0444 scripts/hidrive-backup-entrypoint.mjs /usr/local/lib/hidrive-backup-entrypoint.mjs
+RUN mkdir -p /state && chown 1000:1000 /state && chmod 0700 /state
+USER root
+ENTRYPOINT ["node", "/usr/local/lib/hidrive-backup-entrypoint.mjs"]
