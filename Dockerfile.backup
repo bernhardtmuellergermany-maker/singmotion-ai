@@ -3,8 +3,9 @@
 FROM node:24.22.1-bookworm-slim
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --chmod=0444 scripts/hidrive-backup-worker.mjs /app/scripts/hidrive-backup-worker.mjs
+COPY --chmod=0444 scripts/hidrive-backup-worker.mjs /usr/local/lib/hidrive-backup-worker.mjs
 COPY --chmod=0444 scripts/hidrive-backup-entrypoint.mjs /usr/local/lib/hidrive-backup-entrypoint.mjs
 RUN mkdir -p /state && chown 1000:1000 /state && chmod 0700 /state
+RUN test -s /usr/local/lib/hidrive-backup-worker.mjs && test -s /usr/local/lib/hidrive-backup-entrypoint.mjs
 USER root
 ENTRYPOINT ["node", "/usr/local/lib/hidrive-backup-entrypoint.mjs"]
