@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {randomBytes} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {
- authorizationURL,privatePath,scopeAllowed,parseGrant,seal,unseal,main
+ authorizationURL,privatePath,scopeAllowed,scopeFailureReason,parseGrant,parseOAuthCodeGrant,seal,unseal,main
 } from "../scripts/hidrive-backup-worker.mjs";
 
 test("Native HiDrive OAuth URL uses registered default OOB redirect and user,rw",()=>{
@@ -27,12 +27,43 @@ test("safe OAuth grant diagnostics identify wrong scope vs missing token fields"
  };
  assert.equal(parseGrant(grant).scope,"rw,user");
  assert.equal(parseGrant({...grant,scope:"user,rw"}).scope,"user,rw");
- for(const scope of ["user,ro","ro,user","rw,admin","owner,rw","user,rw,owner",""]){
-  assert.throws(()=>parseGrant({...grant,scope}),{message:"OAUTH_GRANT_SCOPE_NOT_USER_RW"});
+ for(const [scope,reason] of [
+  ["user,ro","READ_ONLY"],["ro,user","READ_ONLY"],
+  ["rw,admin","ELEVATED_ROLE"],["owner,rw","ELEVATED_ROLE"],
+  ["user,rw,owner","ELEVATED_ROLE"],["","MISSING"]
+ ]){
+  assert.equal(scopeFailureReason(scope),reason);
+  assert.throws(()=>parseGrant({...grant,scope}),{message:"OAUTH_GRANT_SCOPE_"+reason});
  }
  assert.throws(()=>parseGrant({...grant,access_token:"bad"}),{message:"OAUTH_GRANT_ACCESS_TOKEN_INVALID"});
  assert.throws(()=>parseGrant({...grant,refresh_token:"bad"}),{message:"OAUTH_GRANT_REFRESH_TOKEN_INVALID"});
  assert.throws(()=>parseGrant(null),{message:"OAUTH_GRANT_ACCESS_TOKEN_INVALID"});
+});
+
+test("authorization code scope is independently verified using sanitized tokeninfo claims",()=>{
+ const tokenResponse={access_token:"synthetic-access-token-123456",refresh_token:"synthetic-refresh-token-123456"};
+ const info={scope:"rw,user",alias:"synthetic-user"};
+ const accepted=parseOAuthCodeGrant(tokenResponse,info);
+ assert.equal(accepted.scope,"rw,user","missing /token scope must come from tokeninfo");
+ assert.equal(parseOAuthCodeGrant({...tokenResponse,scope:"user,rw"},info).scope,"user,rw");
+ assert.throws(()=>parseOAuthCodeGrant({...tokenResponse,scope:"user,ro"},info),{
+  message:"OAUTH_GRANT_SCOPE_READ_ONLY"
+ });
+ assert.throws(()=>parseOAuthCodeGrant({...tokenResponse,scope:"rw,owner"},info),{
+  message:"OAUTH_GRANT_SCOPE_ELEVATED_ROLE"
+ });
+ for(const [scope,reason] of [
+  ["user,ro","READ_ONLY"],["admin,rw","ELEVATED_ROLE"],
+  ["user,rw,extra","EXTRA_OR_DUPLICATE"],[null,"MISSING"]
+ ]){
+  assert.throws(()=>parseOAuthCodeGrant(tokenResponse,{scope}),{
+   message:"OAUTH_TOKENINFO_SCOPE_"+reason
+  });
+ }
+ assert.equal(scopeFailureReason("user,rw"),null);
+ assert.equal(scopeFailureReason("rw,user"),null);
+ assert.equal(scopeFailureReason("rw,unknown"),"UNEXPECTED_ROLE");
+ assert.equal(scopeFailureReason("surprise"),"UNEXPECTED");
 });
 
 test("independent secret-derived AES-256-GCM state and synthetic object encryption",()=>{
