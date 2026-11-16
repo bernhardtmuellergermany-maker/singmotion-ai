@@ -231,3 +231,8 @@ export function seoPubliclyIndexable(env:Record<string,string|undefined>=process
 export function seoAlternates(topic:SeoTopic){
  return {de:seoPagePath(topic,"de"),en:seoPagePath(topic,"en"),"x-default":seoPagePath(topic,"en")};
 }
+
+/** Exact canonical path allowlist; keeps customer and private URLs out of indexing. */
+export function seoIndexablePath(pathname:string,env:Record<string,string|undefined>=process.env){
+ return seoPubliclyIndexable(env)&&SEO_PUBLIC_PATHS.includes(pathname);
+}
