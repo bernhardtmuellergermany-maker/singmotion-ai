@@ -7,6 +7,7 @@ import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-c
 import {stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 import {customerCreditStudioBetaEnabled} from "../lib/commerce/customer-credit-studio-beta.ts";
 import {stagingAccess,stagingEnabled} from "../lib/staging.ts";
+import {customerIdentityOrigin,googleLoginReady,passwordResetReady} from "../lib/customer-identity-origin.ts";
 
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 function approved():Record<string,string>{
@@ -50,6 +51,25 @@ test("reviewed public Credit-only release works WITHOUT legacy video checkout or
  assert.equal(stagingAccess(null,env),200);
  assert.equal(stripeCreditTopupsLiveEnabled(env),true,"signed live prepaid Credits admitted");
  assert.equal(customerCreditStudioBetaEnabled(env),true,"account-scoped prepaid Studio admitted");
+});
+
+test("public prepaid Credit customers can register and use verified canonical identity without legacy worker",()=>{
+ const env=approved();
+ env.GOOGLE_OAUTH_CLIENT_ID="synthetic-google-id";
+ env.GOOGLE_OAUTH_CLIENT_SECRET="synthetic-google-secret";
+ env.RESEND_API_KEY="synthetic-resend-key";
+ env.ACCOUNT_EMAIL_FROM="SingMotion AI <no-reply@singmotion.ai>";
+ assert.equal(productionCustomerReleaseApproved(env),false);
+ assert.equal(customerIdentityOrigin(env),"https://www.singmotion.ai");
+ assert.equal(googleLoginReady(env),true);
+ assert.equal(passwordResetReady(env),true);
+ const auth=readFileSync(new URL("../app/(site)/api/customer-auth/route.ts",import.meta.url),"utf8");
+ const origin=readFileSync(new URL("../lib/customer-identity-origin.ts",import.meta.url),"utf8");
+ assert.match(auth,/publicCreditReleaseApproved\(process\.env\)/);
+ assert.match(origin,/publicCreditReleaseApproved\(env\)/);
+ assert.equal(customerIdentityOrigin({...env,LEGAL_REVIEW_APPROVED:"false"}),null);
+ assert.equal(customerIdentityOrigin({...env,APP_ORIGIN:"https://evil.test"}),null);
+ assert.equal(customerIdentityOrigin({...env,RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",APP_ORIGIN:"https://www.singmotion.ai"}),null);
 });
 
 test("public Credit release fails CLOSED independently for every reviewed operator proof",()=>{
