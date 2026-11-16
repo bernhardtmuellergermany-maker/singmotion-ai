@@ -3,20 +3,36 @@ import assert from "node:assert/strict";
 import {randomBytes} from "node:crypto";
 import {readFileSync} from "node:fs";
 import {
- authorizationURL,privatePath,scopeAllowed,seal,unseal,main
+ authorizationURL,privatePath,scopeAllowed,parseGrant,seal,unseal,main
 } from "../scripts/hidrive-backup-worker.mjs";
 
-test("Native HiDrive OAuth URL uses OOB user,rw without admin or embedded secret",()=>{
+test("Native HiDrive OAuth URL uses registered default OOB redirect and user,rw",()=>{
  const u=new URL(authorizationURL("fake-client-id"));
  assert.equal(u.origin,"https://my.hidrive.com");
  assert.equal(u.pathname,"/client/authorize");
  assert.equal(u.searchParams.get("client_id"),"fake-client-id");
- assert.equal(u.searchParams.get("redirect_uri"),"oob");
+ assert.equal(u.searchParams.has("redirect_uri"),false,"explicit oob caused invalid redirect_uri (format)");
  assert.equal(u.searchParams.get("response_type"),"code");
  assert.equal(u.searchParams.get("scope"),"user,rw");
  assert.equal(u.searchParams.has("client_secret"),false);
  for(const x of ["bad id","a&admin=true","","?".repeat(12)])
   assert.throws(()=>authorizationURL(x));
+});
+
+test("safe OAuth grant diagnostics identify wrong scope vs missing token fields",()=>{
+ const grant={
+  access_token:"synthetic-access-token-123",
+  refresh_token:"synthetic-refresh-token-123",
+  scope:"rw,user",alias:"unit-account"
+ };
+ assert.equal(parseGrant(grant).scope,"rw,user");
+ assert.equal(parseGrant({...grant,scope:"user,rw"}).scope,"user,rw");
+ for(const scope of ["user,ro","ro,user","rw,admin","owner,rw","user,rw,owner",""]){
+  assert.throws(()=>parseGrant({...grant,scope}),{message:"OAUTH_GRANT_SCOPE_NOT_USER_RW"});
+ }
+ assert.throws(()=>parseGrant({...grant,access_token:"bad"}),{message:"OAUTH_GRANT_ACCESS_TOKEN_INVALID"});
+ assert.throws(()=>parseGrant({...grant,refresh_token:"bad"}),{message:"OAUTH_GRANT_REFRESH_TOKEN_INVALID"});
+ assert.throws(()=>parseGrant(null),{message:"OAUTH_GRANT_ACCESS_TOKEN_INVALID"});
 });
 
 test("independent secret-derived AES-256-GCM state and synthetic object encryption",()=>{
