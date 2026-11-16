@@ -50,8 +50,10 @@ test("WAL-safe snapshot restores all three SQLite databases and cleans up every 
 test("a changed Credit debit is detected in the restored copy, without reporting customer identity",async()=>{
  const f=setup();
  try{
+  const row=f.commerce.prepare("SELECT project_id AS id FROM credit_video_reservations LIMIT 1").get() as {id:string}|undefined;
+  assert.ok(row);
   f.commerce.prepare("UPDATE credit_wallet_ledger SET delta=-124 WHERE reference=?")
-   .run("video-charge:"+String(f.commerce.prepare("SELECT project_id AS id FROM credit_video_reservations LIMIT 1").get()?.id));
+   .run("video-charge:"+row.id);
   const result=await rehearseSqliteRestore(f.source,f.scratch);
   assert.equal(result.ok,false);
   assert.ok(result.failed.includes("CREDIT_VIDEO_LEDGER_MISMATCH"));
