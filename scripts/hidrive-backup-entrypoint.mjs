@@ -42,7 +42,7 @@ if(process.getuid()!==uid||process.getgid()!==gid||
 process.umask(0o077);
 const {main,SafeError}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{
- if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V1:")){
+ if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
   const {runHiDriveIntegration,receiverEnvironment}=await import("/app/scripts/hidrive-private-integration.mjs");
   await runHiDriveIntegration(receiverEnvironment(process.env));
  }else await main();

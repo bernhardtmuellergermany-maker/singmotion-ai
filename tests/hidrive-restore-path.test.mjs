@@ -1,4 +1,5 @@
 import test from "node:test";
+import { keyId } from "../lib/ops/backup-key-policy.mjs";
 import assert from "node:assert/strict";
 import { randomUUID, generateKeyPairSync, sign } from "node:crypto";
 import { mkdtemp, writeFile, readFile, rm } from "node:fs/promises";
@@ -16,6 +17,7 @@ import {
 test("temporary receiver mode is reversible and cannot replace OAuth credentials", () => {
   const config = {
     approved: true,
+    BACKUP_TEST_EXPIRES_AT: new Date(Date.now() + 900000).toISOString(),
     BACKUP_RUN_ID: randomUUID(),
     BACKUP_ARTIFACT_ID: randomUUID(),
     BACKUP_MANIFEST_ID: randomUUID(),
@@ -31,7 +33,7 @@ test("temporary receiver mode is reversible and cannot replace OAuth credentials
     HIDRIVE_CLIENT_SECRET: "existing-unchanged",
   };
   const mode = (value) =>
-    "PRIVATE_SYNTHETIC_V1:" +
+    "PRIVATE_SYNTHETIC_V2:" +
     Buffer.from(JSON.stringify(value)).toString("base64");
   const env = { ...base, BACKUP_MODE: mode(config) },
     result = receiverEnvironment(env);
@@ -155,6 +157,8 @@ test("restore verifies signed manifest, AEAD, ciphertext/plaintext hashes and ex
     const payload = JSON.stringify({
       run,
       synthetic: true,
+      recoveryKeyId: keyId(recovery.publicKey),
+      signingKeyId: keyId(signer.publicKey),
       files: [{ id, ...sealed, plaintextSha256: await hashFile(plain) }],
     });
     const signed = path.join(root, "signed");

@@ -2,6 +2,8 @@
  * Provisioning/activation is deliberately separate from this implementation.
  */
 import assert from "node:assert/strict";
+import { inspectResiduals } from "../lib/ops/hidrive-residual-check.mjs";
+import { keyId, validateRuntimeKeys } from "../lib/ops/backup-key-policy.mjs";
 import { phase } from "../lib/ops/backup-errors.mjs";
 const report = (code) => console.error(code);
 import https from "node:https";
@@ -34,7 +36,7 @@ const uuid =
 // Restoring BACKUP_MODE removes it completely; no new Production secret variables
 // or copies of OAuth credentials are needed for the proposed test.
 export function receiverEnvironment(env) {
-  const prefix = "PRIVATE_SYNTHETIC_V1:";
+  const prefix = "PRIVATE_SYNTHETIC_V2:";
   if (
     env.RAILWAY_SERVICE_NAME !== "singmotion-backup" ||
     !env.BACKUP_MODE?.startsWith(prefix) ||
@@ -47,6 +49,7 @@ export function receiverEnvironment(env) {
     ),
   );
   const keys = [
+    "BACKUP_TEST_EXPIRES_AT",
     "BACKUP_RUN_ID",
     "BACKUP_ARTIFACT_ID",
     "BACKUP_MANIFEST_ID",
@@ -159,6 +162,7 @@ async function download(origin, route, config, target) {
 }
 export async function runHiDriveIntegration(env = process.env) {
   validateIntegration(env);
+  validateRuntimeKeys(env);
   const role = env.BACKUP_INTEGRATION_ROLE,
     run = env.BACKUP_RUN_ID,
     id = env.BACKUP_ARTIFACT_ID,
@@ -170,7 +174,10 @@ export async function runHiDriveIntegration(env = process.env) {
       console.error("HIDRIVE_SYNTHETIC_DEADLINE_EXCEEDED");
       process.exit(1);
     },
-    15 * 60 * 1000,
+    Math.min(
+      15 * 60 * 1000,
+      Date.parse(env.BACKUP_TEST_EXPIRES_AT) - Date.now(),
+    ),
   );
   try {
     if (role === "receiver") {
@@ -179,6 +186,15 @@ export async function runHiDriveIntegration(env = process.env) {
         () => existingHiDriveSession(env),
         report,
       );
+      await phase(
+        "READ",
+        () =>
+          inspectResiduals(session, (result) =>
+            console.log("HIDRIVE_RESIDUAL_RESULT", JSON.stringify(result)),
+          ),
+        report,
+      );
+      console.log("HIDRIVE_RESIDUAL_CHECK_COMPLETED");
       const storage = hidriveCiphertextSink({
         session,
         report,
@@ -279,6 +295,8 @@ export async function runHiDriveIntegration(env = process.env) {
         version: 1,
         run,
         synthetic: true,
+        recoveryKeyId: keyId(decode(env, "BACKUP_RECOVERY_PUBLIC_KEY_B64")),
+        signingKeyId: keyId(decode(env, "BACKUP_SIGNING_PRIVATE_KEY_B64")),
         files: [
           {
             id,
@@ -333,21 +351,17 @@ export async function runHiDriveIntegration(env = process.env) {
       return;
     }
     const manifestArchive = path.join(root, "manifest.enc");
-    for (let i = 0; i < 120; i++) {
-      try {
-        await download(
+    await phase(
+      "READ",
+      () =>
+        download(
           origin,
           `/v1/${run}/${manifestId}`,
           tls(env, "READER"),
           manifestArchive,
-        );
-        break;
-      } catch (error) {
-        await rm(manifestArchive, { force: true });
-        if (i === 119 || error.code === "DOWNLOAD_REFUSED") throw error;
-        await delay(2000);
-      }
-    }
+        ),
+      report,
+    );
     const archive = path.join(root, "archive"),
       restored = path.join(root, "restored");
     await download(origin, `/v1/${run}/${id}`, tls(env, "READER"), archive);
@@ -402,6 +416,8 @@ export async function verifySyntheticRecovery({
     );
     assert.equal(manifest.run, run);
     assert.equal(manifest.synthetic, true);
+    assert.equal(manifest.recoveryKeyId, keyId(privateKey));
+    assert.equal(manifest.signingKeyId, keyId(signingPublicKey));
     assert.equal(manifest.files.length, 1);
     assert.equal(manifest.files[0].id, id);
     assert.equal(await hashFile(archive), manifest.files[0].sha256);
