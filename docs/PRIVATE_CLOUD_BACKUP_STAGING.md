@@ -1,5 +1,23 @@
 # Private cloud backup implementation — #230 / #278
 
+## Executed evidence, 16 November 2026
+
+- Tested code: `68fde07715f191b9a02f6b4b54a661fc740da36d` on PR #278.
+- Railway project `96ab3402-f974-4cdf-b9a3-408443b17025`, staging environment
+  `dfaeabed-03df-43ed-aa71-50f343a75041`, test service
+  `91dd0814-bcae-4812-9582-135123704219` (`backup-230-synthetic`).
+- Deployment `f9cfd4bf-ab32-4ce6-9102-d90c19978c6e`: SUCCESS.
+- Runtime test output: **8 passed, 0 failed, 0 skipped**, 30.714 seconds for the
+  whole suite; the full native export/private transfer/restore test took 26.844
+  seconds. These fixture durations are not a production RTO.
+- `SYNTHETIC_CLOUD_BACKUP_RESTORE_VERIFIED` reports SQLite 4, PostgreSQL 1,
+  local media 1, R2 fixture objects 1001, `productionData:false`,
+  `hidriveContacted:false`, `crossServiceNetworkTested:false`.
+- Local release-parity: 82 passed, 0 failed, 1 native integration skipped
+  (executed without skipping in the Railway image). Targeted ESLint passed.
+- Original application checkout edits were preserved. No production deployment,
+  customer-data transfer, new HiDrive grant or release-attestation change.
+
 ## Scope and activation boundary
 
 This PR now contains an application-context producer and a ciphertext-only
