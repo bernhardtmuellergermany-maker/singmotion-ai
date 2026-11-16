@@ -58,7 +58,8 @@
     "backup:inventory": "node --experimental-strip-types scripts/backup-source-inventory.ts --read-only-no-transfer",
     "test:backup-inventory": "node --experimental-strip-types --test tests/backup-source-inventory.test.ts",
     "test:backup-cloud": "node --experimental-strip-types --test tests/cloud-backup.test.mjs",
-    "test:backup-network": "node --experimental-strip-types --test tests/backup-network-roles.test.mjs"
+    "test:backup-network": "node --experimental-strip-types --test tests/backup-network-roles.test.mjs",
+    "test:hidrive-restore-path": "node --experimental-strip-types --test tests/hidrive-restore-path.test.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",

@@ -1,0 +1,8 @@
+# Separate sender OR restore service, no persistent volume, no HiDrive secrets.
+FROM node:24.22.1-bookworm-slim
+WORKDIR /app
+COPY lib/ops/cloud-backup.mjs lib/ops/private-backup-worker.mjs lib/ops/hidrive-ciphertext-sink.mjs lib/ops/
+COPY lib/commerce/credit-ledger-integrity.ts lib/commerce/
+COPY scripts/hidrive-private-integration.mjs scripts/hidrive-backup-worker.mjs scripts/hidrive-integration-main.mjs scripts/
+USER node
+ENTRYPOINT ["node", "--experimental-strip-types", "scripts/hidrive-integration-main.mjs"]
