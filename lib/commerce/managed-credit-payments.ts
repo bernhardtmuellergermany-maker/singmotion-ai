@@ -14,11 +14,11 @@ const AI_TAX_CODES=new Set(["txcd_10105001","txcd_10105002","txcd_10105003","txc
 // https://docs.stripe.com/payments/managed-payments/tax-compliance#cross-border-sales
 // RS excluded until seller's Serbia VAT-registration exception is reviewed.
 const STRIPE_MANAGED_TAX_COVERED_COUNTRIES=new Set(
- "CM EG GH KE NG UG ZA ZM ZW "+
+ ("CM EG GH KE NG UG ZA ZM ZW "+
  "AM AU AZ BN GE HK ID IL IN JP KG KR KW KZ LA MO MY NP NZ PH QA SA SG TH TJ TR TW VN "+
  "AL BY CH GB GI IS LI MD NO UA "+
  "AT BE BG CY CZ DE DK EE ES FI FR GR HR HU IE IT LT LU LV MT NL PL PT RO SE SI SK "+
- "BB BM KY MX VG CA US".split(" ")
+ "BB BM KY MX VG CA US").split(" ")
 );
 export function managedCreditMoRTaxCovered(country:unknown):boolean {
  return managedCreditBuyerSupported(country) &&
