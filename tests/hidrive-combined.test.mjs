@@ -105,7 +105,7 @@ test("fresh role-separated bundle, expiring activation, key identity and invalid
   );
 });
 
-function fixture(failAt = null) {
+function fixture(failAt = null, residualOrder = [1, 2, 3]) {
   const original = "d36acf6d8f5b268ffef907c53f0524c90d7b852f",
     commit = "a".repeat(40),
     clock = Date.now();
@@ -248,7 +248,7 @@ function fixture(failAt = null) {
           data = {
             deploy: [
               { message },
-              ...[1, 2, 3].map((ordinal) => ({
+              ...residualOrder.map((ordinal) => ({
                 message:
                   "HIDRIVE_RESIDUAL_RESULT " +
                   JSON.stringify({ ordinal, state: "absent" }),
@@ -287,6 +287,29 @@ test("controller sequences inspection/upload/restore and always reuses original 
   assert.equal(f.calls.filter((x) => x.name === "create_service").length, 2);
   assert.equal(f.calls.filter((x) => x.name === "redeploy").length, 1);
 });
+test("controller accepts out-of-order Railway residual logs and rejects duplicate/missing ordinals", async () => {
+  const reordered = fixture(null, [3, 1, 2]);
+  const result = await runCombinedTest(reordered);
+  const inspected = result.events.find((e) => e.event === "RESIDUAL_CHECK_COMPLETED");
+  assert.deepEqual(inspected.results.map((x) => x.ordinal), [1, 2, 3]);
+  assert.equal(result.events.at(-1).event, "ROLLBACK_VERIFIED");
+  assert.equal(reordered.services.size, 3);
+  for (const invalidOrder of [[3, 1, 1], [3, 1]]) {
+    const invalid = fixture(null, invalidOrder);
+    await assert.rejects(
+      runCombinedTest(invalid),
+      /COMBINED_TEST_FAILED_ROLLBACK_VERIFIED/,
+    );
+    assert.equal(invalid.services.size, 3);
+    assert.ok(
+      !invalid.calls.some(
+        (x) => x.name === "connect_service_source" &&
+          x.serviceId === "backup230-hidrive-sender",
+      ),
+    );
+  }
+});
+
 test("controller rolls back activation failure and cleans up partial provisioning without replay", async () => {
   for (const failure of ["set_variables", "accept_deploy"]) {
     const f = fixture(failure);
