@@ -100,6 +100,7 @@ export function validatePrivateHidriveCrypt(config,cryptName){
   throw Error("UNVERIFIED_CRYPT_REMOTE");
  const m=crypt.remote.match(/^([A-Za-z][\w-]{0,63}):([A-Za-z0-9][A-Za-z0-9._/-]*)$/);
  if(!m||m[1]===cryptName||m[2].includes("..")||m[2].includes("//")||
+    !/^SingMotion-DR(?:\/[A-Za-z0-9._/-]+)?$/.test(m[2])||
     m[2].toLowerCase().split("/").includes("public"))
   throw Error("UNSAFE_HIDRIVE_BACKING_FOLDER");
  const hidrive=remotes.get(m[1]);
@@ -155,6 +156,7 @@ export async function executeEncryptedArchiveCopy(bundle,plan,cfg,runner=execRcl
 function operatorConfig(file){
  if(typeof file!=="string"||!path.isAbsolute(file))throw Error("PRIVATE_CONFIG_REQUIRED");
  privateFile(file,65536);
+ privateDir(path.dirname(file));
  if(realpathSync(file)!==path.resolve(file))throw Error("PRIVATE_CONFIG_REQUIRED");
  return readFileSync(file,"utf8");
 }
