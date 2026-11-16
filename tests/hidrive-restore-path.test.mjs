@@ -69,7 +69,8 @@ function fakeRemote() {
           assert.equal(params.overwrite, "false");
           if (files.has(params.name)) return { ok: false };
           const chunks = [];
-          for await (const chunk of body) chunks.push(chunk);
+          if (Buffer.isBuffer(body)) chunks.push(body);
+          else for await (const chunk of body) chunks.push(chunk);
           files.set(params.name, Buffer.concat(chunks));
           return { ok: true };
         }
@@ -116,7 +117,10 @@ test("HiDrive read path serves fresh verified remote ciphertext only after compl
     await assert.rejects(sink.readStream(randomUUID(), id), /UNCOMMITTED/);
     await assert.rejects(sink.readStream(run, "../../state"), /UNCOMMITTED/);
     remote.setCorrupt();
-    await assert.rejects(sink.readStream(run, id), /HASH_MISMATCH/);
+    await assert.rejects(
+      sink.readStream(run, id),
+      (error) => error.backupCode === "INTEGRITY",
+    );
     assert.ok(
       remote.calls.every(
         (c) => c.endpoint === "/file" && ["GET", "PUT"].includes(c.method),

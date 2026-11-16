@@ -175,14 +175,15 @@ async function saveState(data,secret){
  }finally{await fh.close();}
  await rename(tmp,STATE_PATH);
 }
-async function hidriveRequest(accessToken,method,endpoint,params,body){
+export async function hidriveRequest(accessToken,method,endpoint,params,body,fetchImpl=fetch){
  const url=new URL(HIDRIVE_API+endpoint);
  for(const [key,value] of Object.entries(params))url.searchParams.set(key,value);
  let response;
  try{
-  response=await fetch(url,{method,redirect:"error",headers:{
+  response=await fetchImpl(url,{method,redirect:"error",headers:{
    Authorization:"Bearer "+accessToken,
-   ...(body?{"Content-Type":"application/octet-stream","Cache-Control":"no-store"}:{})
+   ...(body?{"Content-Type":"application/octet-stream","Cache-Control":"no-store"}:{}),
+   ...(Buffer.isBuffer(body)?{"Content-Length":String(body.length)}:{})
   },body:body??undefined,...(body&&typeof body.pipe==="function"?{duplex:"half"}:{}),signal:AbortSignal.timeout(30000)});
  }catch{throw new SafeError("HIDRIVE_API_UNREACHABLE");}
  return response;

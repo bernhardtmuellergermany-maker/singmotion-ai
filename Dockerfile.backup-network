@@ -1,6 +1,6 @@
 FROM node:24.22.1-bookworm-slim
 WORKDIR /app
-COPY lib/ops/cloud-backup.mjs lib/ops/private-backup-worker.mjs lib/ops/
+COPY lib/ops/backup-errors.mjs lib/ops/cloud-backup.mjs lib/ops/private-backup-worker.mjs lib/ops/
 COPY lib/commerce/credit-ledger-integrity.ts lib/commerce/
 COPY scripts/backup-network-integration.mjs scripts/
 USER node

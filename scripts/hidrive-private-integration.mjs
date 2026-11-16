@@ -2,6 +2,8 @@
  * Provisioning/activation is deliberately separate from this implementation.
  */
 import assert from "node:assert/strict";
+import { phase } from "../lib/ops/backup-errors.mjs";
+const report = (code) => console.error(code);
 import https from "node:https";
 import { lookup } from "node:dns/promises";
 import { networkInterfaces, tmpdir } from "node:os";
@@ -172,9 +174,14 @@ export async function runHiDriveIntegration(env = process.env) {
   );
   try {
     if (role === "receiver") {
-      const session = await existingHiDriveSession(env);
+      const session = await phase(
+        "SESSION",
+        () => existingHiDriveSession(env),
+        report,
+      );
       const storage = hidriveCiphertextSink({
         session,
+        report,
         spool: root,
         maxBytes: 1024 * 1024,
       });
@@ -183,6 +190,7 @@ export async function runHiDriveIntegration(env = process.env) {
           throw Error("SYNTHETIC_SCOPE_ONLY");
       };
       const server = createPrivateReceiver({
+        report,
         tls: tls(env, "SERVER"),
         clientFingerprint: env.BACKUP_TEST_WRITER_FP,
         readerFingerprint: env.BACKUP_TEST_READER_FP,
@@ -227,7 +235,7 @@ export async function runHiDriveIntegration(env = process.env) {
         await delay(1000);
       }
       if (!address) throw Error("PRIVATE_ADDRESS_UNAVAILABLE");
-      await listenPrivate(server, address, 8443);
+      await phase("LISTEN", () => listenPrivate(server, address, 8443), report);
       console.log("HIDRIVE_SYNTHETIC_PRIVATE_RECEIVER_READY");
       const deadline = setTimeout(
         () => {
@@ -302,12 +310,25 @@ export async function runHiDriveIntegration(env = process.env) {
           `${run}/${manifestId}`,
         );
       const sink = privateWorkerSink({ origin, tls: tls(env, "WRITER") });
-      await sink.put(run, id, archive, meta);
-      await sink.put(run, manifestId, manifestArchive, sealed);
-      await sink.commit(run, manifestId, [
-        { id, ...meta },
-        { id: manifestId, ...sealed },
-      ]);
+      await phase(
+        "ARTIFACT_UPLOAD",
+        () => sink.put(run, id, archive, meta),
+        report,
+      );
+      await phase(
+        "MANIFEST_UPLOAD",
+        () => sink.put(run, manifestId, manifestArchive, sealed),
+        report,
+      );
+      await phase(
+        "COMMIT",
+        () =>
+          sink.commit(run, manifestId, [
+            { id, ...meta },
+            { id: manifestId, ...sealed },
+          ]),
+        report,
+      );
       console.log("HIDRIVE_SYNTHETIC_SENDER_COMPLETED");
       return;
     }
