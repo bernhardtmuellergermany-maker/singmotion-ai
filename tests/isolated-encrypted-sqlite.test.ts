@@ -19,7 +19,7 @@ function isolatedFixture(){
  dbs.push(commerce);
  commerce.exec("PRAGMA journal_mode=WAL");
  const wallet=new CreditWallet(commerce);
- const owner="synthetic:isolated-backup";
+ const owner="customer:synthetic-isolated-backup";
  const purchase=wallet.pending({
   subject:owner,email:"synthetic-restore@example.invalid",customerId:"synthetic-restore"
  },500,randomUUID());
