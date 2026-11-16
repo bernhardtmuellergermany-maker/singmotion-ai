@@ -71,6 +71,9 @@ test("server collects country/type for reviewed global checkout and never change
  assert.match(dashboard,/globalCountrySelection=\{balance\.globalCountrySelection===true\}/);
  assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
  assert.match(picker,/Select your billing country/);
- assert.match(picker,/needsBillingCountry&&!billingCountry/);
+ assert.match(picker,/moRCountries\.includes\(billingCountry\)/);
  assert.match(picker,/requestKey\.current=null/);
+ assert.match(balance,/approvedBillingCountries:liveCheckout/);
+ assert.match(dashboard,/approvedBillingCountries=\{balance\.approvedBillingCountries\}/);
+ assert.match(picker,/selectableCountries\.map\(item/);
 });

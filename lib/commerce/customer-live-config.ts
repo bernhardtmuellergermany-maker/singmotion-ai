@@ -5,6 +5,7 @@
 import {configuredStripePaymentMode} from "./stripe-payment-mode.ts";
 import {assessProductionSandboxPilot} from "./customer-sandbox-pilot-policy.ts";
 import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
+import {publicCreditReleaseApproved} from "./public-credit-release.ts";
 
 export const PRODUCTION_RAILWAY_ENVIRONMENT_ID="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 
@@ -75,6 +76,6 @@ export function productionPrivateCustomerPreviewEnabled(env:Record<string,string
 export function customerAccountSettingsAccessible(env:Record<string,string|undefined>):boolean{
  return env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
   (env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" ||
-   productionCustomerReleaseApproved(env) || productionPrivateCustomerPreviewEnabled(env) ||
+   productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || productionPrivateCustomerPreviewEnabled(env) ||
    assessProductionSandboxPilot(env).ready || protectedProductionLivePilotApproved(env));
 }

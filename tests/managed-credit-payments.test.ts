@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {managedCreditMoRApproved,managedCreditBuyerSupported,managedCreditMoRTaxCovered,managedCreditTaxDecision}
+import {managedCreditMoRApproved,managedCreditBuyerSupported,managedCreditMoRTaxCovered,approvedMoRTaxCountries,managedCreditTaxDecision}
  from "../lib/commerce/managed-credit-payments.ts";
 import {stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 const approved=()=>({
@@ -31,6 +31,19 @@ test("Stripe MoR Credit checkout admits only markets where Stripe actually handl
  }
  assert.equal(managedCreditTaxDecision(env,"US","unknown").ready,false);
 });
+test("published MoR country selector includes only Stripe tax-covered destinations",()=>{
+ const eligible=approvedMoRTaxCountries();
+ assert.ok(eligible.length>=75);
+ assert.ok(eligible.length<=95);
+ assert.equal(new Set(eligible).size,eligible.length);
+ for(const country of eligible)assert.equal(managedCreditMoRTaxCovered(country),true);
+ for(const country of ["DE","FR","GB","US","CA","MX","AU","JP","IN"]){
+  assert.ok(eligible.includes(country),country);
+ }
+ for(const country of ["CN","RU","IR","BR","AR","RS","ME","CU"]){
+  assert.equal(eligible.includes(country),false,country);
+ }
+});
 test("never declare Stripe MoR eligible without real account AND prepaid product approval",()=>{
  const env=approved();
  for(const key of Object.keys(env)){
@@ -46,7 +59,7 @@ test("managed global credits remain production-only and preserve verification of
   STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true",
   STRIPE_SECRET_KEY:"sk_live_fixture",STRIPE_WEBHOOK_SECRET:"whsec_fixture",
  };
- assert.equal(stripeCreditTopupsLiveEnabled(env),true);
+ assert.equal(stripeCreditTopupsLiveEnabled(env),false,"MoR flags and public flag alone must never bypass release proofs");
  assert.equal(stripeCreditTopupsLiveEnabled({...env,STRIPE_MANAGED_PAYMENTS_PREPAID_CREDITS_APPROVED:"false"}),false);
  assert.equal(stripeCreditTopupsLiveEnabled({...env,RAILWAY_ENVIRONMENT_ID:"staging"}),false);
  const root=new URL("../",import.meta.url);

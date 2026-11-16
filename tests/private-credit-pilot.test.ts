@@ -61,7 +61,7 @@ test("existing video worker and public launch never inherit credit-only approval
  const webhook=readFileSync(new URL("app/(site)/api/stripe-webhook/route.ts",root),"utf8");
  assert.match(checkout,/privateCreditPilotApproved/);
  assert.match(balance,/privateCreditPilotApproved/);
- assert.match(webhook,/settlementEnabled\|\|privateCreditPilotApproved/);
+ assert.match(webhook,/settlementEnabled\|\|publicCreditReleaseApproved\(process\.env\)\|\|privateCreditPilotApproved/);
  assert.match(webhook,/verifyStripePaymentEvent/);
 });
 

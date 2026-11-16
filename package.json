@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test --test-concurrency=2 tests/*.test.ts",
     "test:video:release": "node --experimental-strip-types --test --test-concurrency=1 tests/production-video-gate.test.ts tests/output-normalization.test.ts tests/output-orientation.test.ts tests/output-duration-shared.test.ts tests/tempo.test.ts tests/byteplus.test.ts tests/studio-editor.test.ts",
-    "test:release-parity": "node --experimental-strip-types --test tests/release-parity.test.mjs tests/private-production-credit-readiness.test.ts tests/credit-ledger-integrity.test.ts tests/sqlite-restore-drill.test.ts tests/international-credit-checkout.test.ts",
+    "test:release-parity": "node --experimental-strip-types --test tests/release-parity.test.mjs tests/private-production-credit-readiness.test.ts tests/credit-ledger-integrity.test.ts tests/sqlite-restore-drill.test.ts tests/international-credit-checkout.test.ts tests/public-credit-release.test.ts",
     "restore:sqlite-drill": "node --experimental-strip-types scripts/sqlite-restore-drill.ts --confirm-ephemeral-private-copy",
     "credit-ledger:audit": "node --experimental-strip-types scripts/audit-credit-ledger.ts",
     "credit-video:preflight": "node --experimental-strip-types scripts/credit-video-production-preflight.ts --private-production",
