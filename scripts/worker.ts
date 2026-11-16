@@ -2,6 +2,7 @@ import { pollStudioProjects } from "../lib/live/studio-worker.ts";
 import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-config.ts";
 import {customerLaunchReadiness} from "../lib/commerce/readiness.ts";
 import {assessPrivateProductionCreditVideo} from "../lib/commerce/private-production-credit-readiness.ts";
+import {auditCreditLedgerFile} from "./audit-credit-ledger.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 import {retryVideoReadyNotifications,retryStudioCreditVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
 import {retrySupportCaseEmails,queueFailedOutputSupportEmails} from "../lib/commerce/support-notifications.ts";
@@ -64,6 +65,19 @@ if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
   independentlyAccepted:false,
   publicReleaseApproved:false,
  }));
+}
+/** Verify Production Credit ledger invariants without changing financial data.
+ * This is diagnostics only; it never triggers charges, provider calls or
+ * automatic cleanup. Only fixed failure codes are emitted.
+ */
+if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
+ try{
+  console.info("CREDIT_LEDGER_INTEGRITY",JSON.stringify(auditCreditLedgerFile(dataDir)));
+ }catch{
+  console.warn("CREDIT_LEDGER_INTEGRITY",JSON.stringify({
+   ok:false,failed:["READONLY_AUDIT_UNAVAILABLE"]
+  }));
+ }
 }
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
