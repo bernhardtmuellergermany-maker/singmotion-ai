@@ -113,7 +113,7 @@ test("nonbillable provider prefilter rejection releases Credits, uncertain failu
  }finally{db.close();}
 });
 
-test("live credit purchases require independent reviewed billing, tax and launch switches",()=>{
+test("a public launch boolean and tax policy alone never authorize new Credit purchases",()=>{
  const approved={
   RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
   STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",STRIPE_LIVE_CHECKOUT_ENABLED:"true",
@@ -125,7 +125,7 @@ test("live credit purchases require independent reviewed billing, tax and launch
   }]}),
   STRIPE_SECRET_KEY:"sk_live_mock",STRIPE_WEBHOOK_SECRET:"whsec_mock"
  };
- assert.equal(stripeCreditTopupsLiveEnabled(approved),true);
+ assert.equal(stripeCreditTopupsLiveEnabled(approved),false,"missing public Credit release evidence must block sales");
  for(const change of [
   {RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"},
   {STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"false"},
