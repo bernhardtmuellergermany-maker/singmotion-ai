@@ -14,7 +14,7 @@ import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-pro
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {privateLiveCreditTestEnabled,privateLiveCreditTestTaxDecision} from "@/lib/commerce/private-live-credit-test";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
-import {managedCreditMoRApproved,managedCreditTaxDecision} from "@/lib/commerce/managed-credit-payments";
+import {managedCreditMoRApproved,managedCreditTaxDecision,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -76,7 +76,7 @@ export async function POST(req:NextRequest){
    // after a timeout returns the same Stripe object via Idempotency-Key.
    const form=new URLSearchParams({
     mode:"payment",
-    "invoice_creation[enabled]":"true",
+    ...(!useMoR?{"invoice_creation[enabled]":"true"}:{}),
     // Managed Payments is the merchant of record only when the account and this
     // exact prepaid AI-video credit product have confirmed eligibility.
     "managed_payments[enabled]":useMoR?"true":"false",
@@ -107,7 +107,8 @@ export async function POST(req:NextRequest){
     // The protected private LIVE pilot admits private buyers only: do not
     // offer a business tax-ID flow that its policy cannot legally fulfill.
     // Other reviewed LIVE modes may collect tax IDs through Stripe Checkout.
-    form.set("tax_id_collection[enabled]",decision.mode==="private-live-verification"?"false":"true");
+    if(decision.mode!=="stripe-managed-payments")
+     form.set("tax_id_collection[enabled]",decision.mode==="private-live-verification"?"false":"true");
     form.set("line_items[0][price_data][tax_behavior]","inclusive");
     if(decision.mode==="stripe-managed-payments"){
      // Tax code belongs to the existing live Stripe Product in the catalog.
@@ -131,6 +132,7 @@ export async function POST(req:NextRequest){
       form.set("invoice_creation[invoice_data][footer]","Gemäß § 19 UStG gilt die Steuerbefreiung für Kleinunternehmer. Es wird keine Umsatzsteuer ausgewiesen.");
     }
    }
+   if(useMoR)assertManagedCreditCheckoutParams(form);
    const response=await fetch("https://api.stripe.com/v1/checkout/sessions",{
     method:"POST",
     headers:{Authorization:"Bearer "+process.env.STRIPE_SECRET_KEY,
