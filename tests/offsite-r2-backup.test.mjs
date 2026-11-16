@@ -113,3 +113,27 @@ test("manual CLI refuses Railway, root, and missing explicit cost/privacy confir
  assert.match(run.stderr,/TRUSTED_OPERATOR_OFFSITE_CONFIGURATION_REQUIRED/);
  assert.doesNotMatch(run.stderr,/access_key|secret_access_key|private-media/);
 });
+
+
+test("STRATO HiDrive OAuth backend can independently store client-side-encrypted R2 backups",()=>{
+ const stratoConfig=config.replace(
+  /\[b2_private\][\s\S]*?(?=\[encrypted_offsite\])/,
+  "[hidrive_private]\ntype = hidrive\ntoken = {\"access_token\":\"synthetic-test-only\"}\nendpoint = https://api.hidrive.strato.com/2.1\n\n"
+ ).replace("remote = b2_private:singmotion-disaster-recovery",
+           "remote = hidrive_private:SingMotion-DR");
+ const accepted=validateOffsiteRemotes(stratoConfig,"r2_source","encrypted_offsite");
+ assert.deepEqual(accepted,{sourceRemote:"r2_source",destinationCryptRemote:"encrypted_offsite",backingType:"hidrive"});
+ assert.throws(()=>validateOffsiteRemotes(
+  stratoConfig.replace("https://api.hidrive.strato.com/2.1","https://attacker.invalid"),
+  "r2_source","encrypted_offsite"
+ ),/STRATO_HIDRIVE_OAUTH_NOT_VERIFIED/);
+ assert.throws(()=>validateOffsiteRemotes(
+  stratoConfig.replace('token = {"access_token":"synthetic-test-only"}',''),
+  "r2_source","encrypted_offsite"
+ ),/STRATO_HIDRIVE_OAUTH_NOT_VERIFIED/);
+ assert.throws(()=>validateOffsiteRemotes(
+  stratoConfig.replace("remote = hidrive_private:SingMotion-DR",
+                       "remote = hidrive_private:public"),
+  "r2_source","encrypted_offsite"
+ ),/STRATO_HIDRIVE_OAUTH_NOT_VERIFIED/);
+});
