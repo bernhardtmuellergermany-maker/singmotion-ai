@@ -2,6 +2,8 @@
  * on import. tools is the authenticated Railway connector surface. journal persists
  * non-secret progress in the cloud workspace. Never run without explicit approval.
  */
+import { parseResidualEvidence } from "../lib/ops/hidrive-residual-evidence.mjs";
+
 export const scope = Object.freeze({
   projectId: "96ab3402-f974-4cdf-b9a3-408443b17025",
   environmentId: "36adc41d-7e54-4396-ad1a-fd432ba0441d",
@@ -202,28 +204,34 @@ export async function runCombinedTest({
       commit,
       "HIDRIVE_SYNTHETIC_PRIVATE_RECEIVER_READY",
     );
-    if (
-      !ready.logs.deploy.some(
-        (x) => x.message === "HIDRIVE_RESIDUAL_CHECK_COMPLETED",
-      )
-    )
-      throw Error("RESIDUAL_CHECK_MISSING");
-    const residuals = ready.logs.deploy
-      .filter((x) => x.message.startsWith("HIDRIVE_RESIDUAL_RESULT "))
-      .map((x) =>
-        JSON.parse(x.message.slice("HIDRIVE_RESIDUAL_RESULT ".length)),
-      )
-      // Railway log delivery is not guaranteed to preserve emission order.
-      // The existing ordinal check still fails closed on missing/duplicate rows.
-      .sort((a, b) => a.ordinal - b.ordinal);
-    if (
-      residuals.length !== 3 ||
-      residuals.some(
-        (x, i) =>
-          x.ordinal !== i + 1 || !["absent", "present"].includes(x.state),
-      )
-    )
-      throw Error("RESIDUAL_EVIDENCE_INVALID");
+    // Railway may deliver logs out of order or index a subset after READY.
+    // Bounded read-only polling never retries a sender or a HiDrive operation.
+    let residuals;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      deadline();
+      const logs =
+        attempt === 0
+          ? ready.logs
+          : await call("get_logs", {
+              projectId: scope.projectId,
+              deploymentId: ready.d.id,
+              types: ["deploy"],
+              limit: 200,
+            });
+      const messages = (logs.deploy ?? []).map((x) => x.message);
+      if (messages.some((x) => /FAILED|DEADLINE_EXCEEDED|^BACKUP_/.test(x)))
+        throw Error("RUNTIME_FAILED");
+      const count = messages.filter(
+        (x) => typeof x === "string" && x.startsWith("HIDRIVE_RESIDUAL_RESULT "),
+      ).length;
+      if (count > 3) throw Error("RESIDUAL_EVIDENCE_INVALID");
+      if (messages.includes("HIDRIVE_RESIDUAL_CHECK_COMPLETED") && count === 3) {
+        residuals = parseResidualEvidence(messages);
+        break;
+      }
+      if (attempt < 11) await pause(1000);
+    }
+    if (!residuals) throw Error("RESIDUAL_EVIDENCE_TIMEOUT");
     await save("RESIDUAL_CHECK_COMPLETED", {
       results: residuals.map((x) => ({
         ordinal: x.ordinal,
