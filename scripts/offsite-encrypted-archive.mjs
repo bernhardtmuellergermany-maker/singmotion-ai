@@ -9,6 +9,7 @@
  */
 import {createHash,randomBytes} from "node:crypto";
 import {createReadStream,readFileSync,lstatSync,readdirSync,realpathSync} from "node:fs";
+import {open} from "node:fs/promises";
 import {spawnSync} from "node:child_process";
 import path from "node:path";
 import {pathToFileURL} from "node:url";
@@ -77,7 +78,10 @@ export async function validateEncryptedBundle(dir,type){
   const checksum=readFileSync(path.join(root,"cms.dump.age.sha256"),"utf8");
   const match=checksum.match(/^([0-9a-f]{64})  cms\.dump\.age\n?$/);
   if(!match)throw Error("INVALID_AGE_ARCHIVE_CHECKSUM");
-  const head=readFileSync(path.join(root,"cms.dump.age"),{encoding:null,flag:"r"}).subarray(0,22).toString("utf8");
+  const fh=await open(path.join(root,"cms.dump.age"),"r");
+  const header=Buffer.alloc(22);
+  try{await fh.read(header,0,22,0);}finally{await fh.close();}
+  const head=header.toString("utf8");
   if(!head.startsWith("age-encryption.org/v1"))throw Error("NOT_AN_AGE_ARCHIVE");
   const hash=await sha256(path.join(root,"cms.dump.age"));
   if(hash!==match[1])throw Error("ENCRYPTED_ARCHIVE_HASH_MISMATCH");
