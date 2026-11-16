@@ -122,6 +122,14 @@ export const SEO_PUBLIC_PATHS=[
 export function seoPubliclyIndexable(env:Record<string,string|undefined>=process.env){
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID&&!stagingEnabled(env);
 }
+/** A second, HTML-level fail-closed defense alongside robots.txt and X-Robots-Tag.
+ * Do not regard a non-staging Production environment as public without the
+ * independent paid-release approvals.
+ */
+export function seoPrelaunchMetadataRobots(env:Record<string,string|undefined>=process.env){
+ return seoPubliclyIndexable(env)?undefined:
+  {index:false,follow:false,noarchive:true};
+}
 /** Exact canonical path allowlist; wallets, user media and checkouts are never indexed. */
 export function seoIndexablePath(pathname:string,env:Record<string,string|undefined>=process.env){
  return seoPubliclyIndexable(env)&&SEO_PUBLIC_PATHS.includes(pathname);
