@@ -9,7 +9,9 @@ import "./studio-refinement.css";
 import "./login-brand.css";
 import "./carousel.css";
 import "./site-navigation.css";
+import "./seo-discovery.css";
 export const metadata: Metadata = {
+  metadataBase: new URL("https://www.singmotion.ai"),
   title: {
     default: "SingMotion AI — Your music. Your performance.",
     template: "%s · SingMotion AI",

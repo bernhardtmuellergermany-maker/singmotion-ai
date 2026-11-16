@@ -565,6 +565,17 @@ export function ImmersiveHome(){
      <li><Play aria-hidden="true"/><strong>4. Generate the video</strong><span>Review your creative setup and credit cost, then let SingMotion AI bring the elements together. Once your generated performance is ready, find it in My Projects.</span><small>YOUR MUSIC, NOW ON SCREEN</small></li>
     </ol>
    </section>
+   <section className="sm-immersive-seo-links" aria-labelledby="sm-discover-title">
+    <h2 id="sm-discover-title">Explore AI music video creation</h2>
+    <p>Turn your own music and photo into an AI performance. Discover focused workflows for singing portraits, artist videos and vertical social clips.</p>
+    <nav className="sm-immersive-seo-grid" aria-label="AI music video guides">
+     <Link href="/en/ai-video-generator">AI video from a photo</Link>
+     <Link href="/en/ai-music-video-maker">AI music video maker</Link>
+     <Link href="/en/tiktok-reels-shorts">TikTok, Reels &amp; Shorts</Link>
+     <Link href="/en/omnihuman-ai-video">OmniHuman performance videos</Link>
+    </nav>
+    <p className="sm-immersive-seo-languages"><Link href="/de">KI-Videos entdecken auf Deutsch</Link> · <Link href="/en">All guides in English</Link></p>
+   </section>
    <div className="sm-immersive-featured-backdrop">
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
     <h2 id="sm-creation-title">Stunning <span>Creations</span></h2>
