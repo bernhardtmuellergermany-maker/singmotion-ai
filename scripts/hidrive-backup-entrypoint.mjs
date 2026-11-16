@@ -9,9 +9,15 @@ function checkAndRepair(){
  const info=fs.lstatSync(state);
  if(!info.isDirectory()||info.isSymbolicLink())throw Error("Invalid private state mount");
  for(const name of fs.readdirSync(state)){
-  if(!allowed.has(name)&&!tempName.test(name))throw Error("Unexpected file in private token volume");
   const file=state+"/"+name;
   const st=fs.lstatSync(file);
+  // Railway creates the filesystem's root-owned lost+found directory on a
+  // freshly formatted volume. Ignore it; never traverse, chown or delete it.
+  if(name==="lost+found"){
+   if(!st.isDirectory()||st.isSymbolicLink())throw Error("Invalid filesystem metadata");
+   continue;
+  }
+  if(!allowed.has(name)&&!tempName.test(name))throw Error("Unexpected file in private token volume");
   if(!st.isFile()||st.isSymbolicLink()||st.nlink!==1)
    throw Error("Invalid private token state file");
   if(process.getuid()===0){
