@@ -48,7 +48,7 @@ test("public crawler/indexing stays blocked in staging and approval-incomplete P
 test("robots/sitemap require actual public release and do not list wallets or private projects",()=>{
  const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
  const sitemap=read("app/(site)/sitemap.ts");
- const robots=read("app/(site)/robots.ts");
+ const robots=read("app/robots.ts");
  const proxy=read("proxy.ts");
  assert.match(sitemap,/seoPubliclyIndexable\(\)/);
  assert.match(sitemap,/return \[\]/);
