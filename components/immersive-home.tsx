@@ -566,15 +566,30 @@ export function ImmersiveHome(){
     </ol>
    </section>
    <section className="sm-immersive-seo-links" aria-labelledby="sm-discover-title">
-    <h2 id="sm-discover-title">Explore AI music video creation</h2>
-    <p>Turn your own music and photo into an AI performance. Discover focused workflows for singing portraits, artist videos and vertical social clips.</p>
-    <nav className="sm-immersive-seo-grid" aria-label="AI music video guides">
-     <Link href="/en/ai-video-generator">AI video from a photo</Link>
-     <Link href="/en/ai-music-video-maker">AI music video maker</Link>
-     <Link href="/en/tiktok-reels-shorts">TikTok, Reels &amp; Shorts</Link>
-     <Link href="/en/omnihuman-ai-video">OmniHuman performance videos</Link>
-    </nav>
-    <p className="sm-immersive-seo-languages"><Link href="/de">KI-Videos entdecken auf Deutsch</Link> · <Link href="/en">All guides in English</Link></p>
+    <div className="sm-immersive-seo-shell">
+     <header className="sm-immersive-seo-heading">
+      <span className="sm-immersive-seo-eyebrow"><span className="sm-immersive-seo-dot" aria-hidden="true"/>THE CREATOR'S GUIDE</span>
+      <h2 id="sm-discover-title">Make your music <em>move.</em></h2>
+      <p>From a single photo to a cinematic performance. Explore practical guides for AI music videos and short-form content.</p>
+     </header>
+     <nav className="sm-immersive-seo-grid" aria-label="AI music video guides">
+      {([
+       {href:"/help/ai-video-generator",number:"01",title:"AI video from a photo",description:"Bring a portrait to life with your own audio."},
+       {href:"/help/ai-music-video-maker",number:"02",title:"AI music video maker",description:"Turn a song into a visual performance."},
+       {href:"/help/tiktok-reels-shorts",number:"03",title:"TikTok, Reels & Shorts",description:"Create music clips for vertical storytelling."},
+       {href:"/help/omnihuman-ai-video",number:"04",title:"OmniHuman videos",description:"Explore photo-and-audio AI performances."}
+      ] as const).map(guide=><Link key={guide.href} href={guide.href} className="sm-immersive-seo-card">
+       <span className="sm-immersive-seo-number">{guide.number}<span aria-hidden="true"> / GUIDE</span></span>
+       <strong className="sm-immersive-seo-card-title">{guide.title}</strong>
+       <span className="sm-immersive-seo-card-description">{guide.description}</span>
+       <span className="sm-immersive-seo-card-action" aria-hidden="true">Explore guide <ArrowRight size={17}/></span>
+      </Link>)}
+     </nav>
+     <div className="sm-immersive-seo-footer">
+      <span>Creative tools. Real stories. Your sound.</span>
+      <Link href="/help/ai-video-guides">Browse all guides <ArrowRight size={16}/></Link>
+     </div>
+    </div>
    </section>
    <div className="sm-immersive-featured-backdrop">
    <section className="sm-immersive-creations" aria-labelledby="sm-creation-title">
