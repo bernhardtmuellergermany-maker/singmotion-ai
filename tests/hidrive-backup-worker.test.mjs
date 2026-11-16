@@ -77,3 +77,23 @@ test("minimal Docker image never imports the live app or mounts its SQLite data"
  assert.match(worker,/privatePath\(alias,folder\)/);
  assert.match(worker,/saveState\(fresh,secret\)/);
 });
+
+
+test("fresh Railway ext4 volume accepts only an empty lost+found and preserves token isolation",()=>{
+ const entry=readFileSync(new URL("../scripts/hidrive-backup-entrypoint.mjs",import.meta.url),"utf8");
+ assert.match(entry,/name==="lost\+found"/);
+ assert.match(entry,/O_NOFOLLOW/);
+ assert.match(entry,/O_DIRECTORY/);
+ assert.match(entry,/readdirSync\("\/proc\/self\/fd\/"\+fd\)\.length!==0/);
+ assert.match(entry,/Non-empty filesystem recovery directory; manual review required/);
+ assert.match(entry,/Unexpected file in private token volume/);
+ assert.match(entry,/fs\.closeSync\(fd\)/);
+ assert.doesNotMatch(entry,/rmSync|rmdirSync/);
+ const declaration=entry.match(/^const tempName=(\/.+\/);$/m);
+ assert.ok(declaration, "OAuth state temp names require a precise allowlist");
+ const regex= new RegExp(declaration[1].slice(1,-1));
+ const temp=".oauth-123e4567-e89b-42d3-a456-426614174000.tmp";
+ assert.ok(regex.test(temp));
+ for(const unexpected of ["../../foo", ".oauth-bad.tmp", "lost+found", "hidrive-oauth.v1.json.enc", "some-foreign-file"])
+  assert.equal(regex.test(unexpected),false);
+});
