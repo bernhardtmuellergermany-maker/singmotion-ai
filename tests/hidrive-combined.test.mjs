@@ -105,7 +105,7 @@ test("fresh role-separated bundle, expiring activation, key identity and invalid
   );
 });
 
-function fixture(failAt = null, residualOrder = [1, 2, 3]) {
+function fixture(failAt = null, residualOrder = [1, 2, 3], partialFirst = false) {
   const original = "d36acf6d8f5b268ffef907c53f0524c90d7b852f",
     commit = "a".repeat(40),
     clock = Date.now();
@@ -138,7 +138,8 @@ function fixture(failAt = null, residualOrder = [1, 2, 3]) {
     deploys = new Map(),
     markers = new Map();
   let sequence = 0,
-    failed = false;
+    failed = false,
+    receiverLogReads = 0;
   const putDeployment = (id, sha, marker) => {
     const d = {
       id: "deploy-" + ++sequence,
@@ -245,15 +246,24 @@ function fixture(failAt = null, residualOrder = [1, 2, 3]) {
                 aead: true,
                 plaintextSha256: true,
               });
+          // READY may appear before the collector indexes all residual logs.
+          const pending =
+            partialFirst &&
+            message === "HIDRIVE_SYNTHETIC_PRIVATE_RECEIVER_READY" &&
+            receiverLogReads++ === 0;
           data = {
             deploy: [
               { message },
-              ...residualOrder.map((ordinal) => ({
-                message:
-                  "HIDRIVE_RESIDUAL_RESULT " +
-                  JSON.stringify({ ordinal, state: "absent" }),
-              })),
-              { message: "HIDRIVE_RESIDUAL_CHECK_COMPLETED" },
+              ...(pending ? residualOrder.slice(0, 1) : residualOrder).map(
+                (ordinal) => ({
+                  message:
+                    "HIDRIVE_RESIDUAL_RESULT " +
+                    JSON.stringify({ ordinal, state: "absent" }),
+                }),
+              ),
+              ...(!pending
+                ? [{ message: "HIDRIVE_RESIDUAL_CHECK_COMPLETED" }]
+                : []),
               { message: "HIDRIVE_SYNTHETIC_REMOTE_COMMIT_VERIFIED" },
             ],
           };
@@ -269,6 +279,7 @@ function fixture(failAt = null, residualOrder = [1, 2, 3]) {
     bundle: { sender: { BACKUP_RUN_ID: "run" }, restore: {}, receiver: {} },
     journal: async (x) => events.push(structuredClone(x)),
     now: () => clock,
+    pause: async () => {},
     calls,
     services,
     config,
@@ -308,6 +319,16 @@ test("controller accepts out-of-order Railway residual logs and rejects duplicat
       ),
     );
   }
+});
+
+test("controller waits for delayed Railway evidence rather than aborting or replaying", async () => {
+  const f = fixture(null, [3, 1, 2], true);
+  const result = await runCombinedTest(f);
+  const inspected = result.events.find((e) => e.event === "RESIDUAL_CHECK_COMPLETED");
+  assert.deepEqual(inspected.results.map((x) => x.ordinal), [1, 2, 3]);
+  assert.equal(result.events.at(-1).event, "ROLLBACK_VERIFIED");
+  assert.equal(f.calls.filter((x) => x.name === "create_service").length, 2);
+  assert.equal(f.services.size, 3);
 });
 
 test("controller rolls back activation failure and cleans up partial provisioning without replay", async () => {
