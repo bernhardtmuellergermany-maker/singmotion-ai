@@ -87,8 +87,8 @@ function fakeHiDrive() {
     async request(method,endpoint,params,body) {
       assert.equal(endpoint,"/file");
       calls.push({method,endpoint,params});
-      if(method==="PUT"){
-        assert.equal(params.overwrite,"false");
+      if(method==="POST"){
+        assert.equal(Object.hasOwn(params,"overwrite"),false);
         if(remote.has(params.name)) return {ok:false,status:409};
         assert.ok(Buffer.isBuffer(body));
         remote.set(params.name,Buffer.from(body));
