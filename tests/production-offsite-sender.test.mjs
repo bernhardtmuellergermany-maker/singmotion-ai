@@ -99,6 +99,8 @@ test("operator-approved one-shot sender forwards only encrypted sink, pinned TLS
       }});
       assert.equal(cfg.recoveryPublicKey.asymmetricKeyType,"rsa");
       assert.equal(cfg.signingPrivateKey.asymmetricKeyType,"ed25519");
+      cfg.onPhase("POSTGRES_DONE");
+      cfg.onPhase("DO_NOT_LOG_SECRET");
       return {
         run:cfg.runId,manifestId:randomUUID(),
         manifestMeta:{bytes:250,sha256:"a".repeat(64)},
@@ -109,7 +111,9 @@ test("operator-approved one-shot sender forwards only encrypted sink, pinned TLS
     },
   });
   assert.equal(output.status,"committed");
-  assert.equal(events[0][0],"PRODUCTION_OFFSITE_BACKUP_COMMITTED");
+  assert.deepEqual(events.map(x=>x[0]),["PRODUCTION_OFFSITE_BACKUP_STAGE",
+    "PRODUCTION_OFFSITE_BACKUP_COMMITTED"]);
+  assert.equal(events[0][1],"POSTGRES_DONE");
   assert.equal(warnings.length,0);
   assert.equal(calls.find(x=>x.type==="producer").config.pg.PGSSLMODE,"verify-full");
   assert.equal(calls.find(x=>x.type==="producer").config.pg.PGHOSTADDR,"fd12:3456::1");
