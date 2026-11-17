@@ -5,6 +5,13 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --chmod=0444 scripts/hidrive-backup-worker.mjs /usr/local/lib/hidrive-backup-worker.mjs
 COPY --chmod=0444 scripts/hidrive-backup-entrypoint.mjs /usr/local/lib/hidrive-backup-entrypoint.mjs
+# Dormant, ciphertext-only Production receiver. It imports no app/DB/R2
+# modules and receives no recovery private key. Setup mode remains the default.
+COPY --chmod=0444 scripts/hidrive-production-receiver.mjs /app/scripts/hidrive-production-receiver.mjs
+COPY --chmod=0444 lib/ops/private-backup-worker.mjs /app/lib/ops/private-backup-worker.mjs
+COPY --chmod=0444 lib/ops/backup-errors.mjs /app/lib/ops/backup-errors.mjs
+COPY --chmod=0444 lib/ops/hidrive-ciphertext-sink.mjs /app/lib/ops/hidrive-ciphertext-sink.mjs
+COPY --chmod=0444 lib/ops/backup-segmented-archive.mjs /app/lib/ops/backup-segmented-archive.mjs
 RUN mkdir -p /state && chown 1000:1000 /state && chmod 0700 /state
 RUN test -s /usr/local/lib/hidrive-backup-worker.mjs && test -s /usr/local/lib/hidrive-backup-entrypoint.mjs
 USER root
