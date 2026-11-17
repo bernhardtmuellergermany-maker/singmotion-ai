@@ -40,6 +40,8 @@ jobs:
         run: node --test tests/backup-segmented-archive.test.mjs
       - name: Recover encrypted HiDrive archive via durable receipt after worker restart
         run: node --test tests/hidrive-committed-reader.test.mjs
+      - name: Single committed encrypted SQLite Postgres and paginated R2 full restore
+        run: node --experimental-strip-types --test tests/multistore-segmented-backup.test.mjs
       - name: Verify encrypted backup network and restore (no external credentials)
         run: |
           npm run test:backup-inventory
