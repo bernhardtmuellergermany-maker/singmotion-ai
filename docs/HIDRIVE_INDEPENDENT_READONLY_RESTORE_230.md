@@ -1,0 +1,105 @@
+# Issue #230 — independent HiDrive READ-ONLY recovery gate (2026-11-17)
+
+**NO real recovery verified.** These are operator-run tools only; this branch
+must not be merged or automatically deployed as a Production source activation.
+
+## Verified inputs (Production sender logs, NOT independent remote GET)
+
+- Run: `267e5c70-7bdd-4157-ba40-5a757bdc07d9`
+- Encrypted signed manifest ID: `a05306b2-6e93-4d41-bc32-82c175caa422`
+- Sender-reported manifest: 381,510 bytes, SHA-256
+  `78e4ca1d7f445116329c919c74240f74f17c6ecab1f769f541b820a5809d379e`
+- 689 encrypted segments + 1 encrypted manifest = **690 receipt-listed objects**,
+  533 source files (3 SQLite, 1 PostgreSQL, 398 R2, 131 local).
+- Original source bytes: 1,298,458,814. The encrypted readback byte total is
+  different because it includes per-segment encryption envelopes.
+- `remoteReceiptCommitted:true`, `independentRestoreVerified:false`.
+
+## Proposed independent encrypted-object verification — NO private RSA key
+
+1. Keep Production and Staging completely untouched. The new private Railway
+   project `277416f6-c5bc-4f93-95cf-040fe551875b` (`restore-only`) has
+   **staged-only**, not deployed, independent PostgreSQL, 8 GiB recovery
+   scratch and a private media bucket. The pending patch must not be accepted
+   until cost control and secure OAuth access are confirmed.
+2. On an **operator-controlled separate cloud runner**, obtain a fresh HiDrive
+   OAuth grant restricted to **user,ro**. Do **not** copy Production worker's
+   `/state` OAuth volume, token, credentials, or the Production `user,rw`
+   grant. STRATO supports access level `ro`; rclone's HiDrive backend uses
+   `--hidrive-scope-access ro` and `--hidrive-scope-role user`.
+   Check the actual granted scope directly against HiDrive's tokeninfo/consent
+   in that trusted operator session. Passing `ro` to rclone after an existing
+   `rw` grant does NOT downgrade an already granted token.
+3. Configure rclone directly in that trusted runner, using its own private
+   mode-0600 configuration file. No OAuth token, client secret, config file or
+   recovery key may be pasted into chat, issues, GitHub or CI.
+   The runner must be nonroot, nonpublic, short-lived, free of Source Stripe,
+   Credits, provider jobs and R2 credentials, and should have restricted
+   egress. No public admin console or HTTP recovery endpoint.
+4. With the **separately authenticated** HiDrive remote exposing the
+   `SingMotion-DR` directory, configure only the following non-secret local
+   variables in that operator-run shell (not in the repository):
+
+   ```sh
+   export RESTORE_HIDRIVE_RO_RCLONE_CONFIG=/private/rclone.conf
+   export RESTORE_HIDRIVE_RO_REMOTE=hidrive-ro:SingMotion-DR
+   node scripts/hidrive-readonly-commit-preflight.mjs --manifest-only
+   ```
+
+   The path and remote string are examples; they must point to a private
+   operator-created read-only grant. `--manifest-only` checks the exact
+   remote `sm-<run>-COMMITTED.enc` receipt, enforces 690 authorized entries,
+   pins the manifest ID, length and SHA-256, and **GETs only** the encrypted
+   manifest. It performs no upload, deletion, data restore or decryption.
+5. After the manifest-only gate passes, enable the separate, time-bounded
+   full ciphertext readback and budget review:
+
+   ```sh
+   export RESTORE_FULL_READ_APPROVED=YES
+   node scripts/hidrive-readonly-commit-preflight.mjs --all-ciphertext
+   ```
+
+   This GETs and SHA-256 checks **all 690** receipt-listed objects with a
+   bounded streaming buffer. The CLI prints only aggregate results and never
+   the confidential object names or OAuth tokens. It does **not** persist the
+   downloaded ciphertext; a separate isolated restore/download procedure is
+   still required.
+
+## RSA private key custody — NEVER upload it here
+
+- The real archive uses RSA-3072 OAEP-SHA256 to wrap per-segment AES-256-GCM
+  keys. The owner holds the only private recovery key.
+- **Neither this script nor the Railway project receives any RSA key.** The
+  owner's key must not be a GitHub secret, Railway variable, public endpoint
+  upload or ChatGPT attachment.
+- The later decrypt/restore step requires a separately audited,
+  operator-controlled secret-use facility (e.g. hardware-/vault-backed RSA
+  unwrap initiated directly by owner, or ephemeral trusted runner key access
+  not surfaced to ChatGPT). Secure key usage and key-to-public-key pairing
+  must be proved before any real decrypt. Merely using a synthetic key is
+  not evidence.
+- The repository already has `restoreMultiStoreArchive`, which checks the
+  Ed25519-signed manifest, GCM authentication and source hashes. It does not
+  by itself validate restored SQLite/CMS/media/credit semantics.
+
+## Billing and acceptance
+
+- The operator's **EUR 10 is a project-specific spending authorization, not
+  a Railway-enforced spending cap**. Railway compute usage hard limits are
+  workspace-wide and must **never** be set for this purpose because they may
+  take the existing Production offline.
+- Keep the staged restore patch unapplied until approved private session,
+  nonroot runner, independent key custody, cost/cleanup procedure and
+  bounded resource availability can be verified.
+- First gate: independent HiDrive receipt + pinned manifest GET PASS.
+- Second gate: independent full ciphertext 690/690 remote hash PASS.
+- Final gate: actual 533-file restore, full SQLite credit audit, empty
+  isolated PostgreSQL CMS import/schema/migrations, recovered private R2/MP4
+  full+Range and cross-customer denial using synthetic identities; record
+  independently measured RPO/RTO and operator rollback/retention.
+- **Keep #230 OPEN and verification flags false until final gate passes.**
+
+References:
+- https://developer.hidrive.com/oauth2-endpoints/
+- https://rclone.org/hidrive/
+- https://docs.railway.com/pricing/cost-control
