@@ -328,8 +328,8 @@ test("HiDrive adapter uses ciphertext readback and final receipt without OAuth o
       dir: "root/users/fixture/SingMotion-DR",
       async request(method, endpoint, params, body) {
         calls.push({ method, endpoint, params });
-        if (method === "PUT") {
-          assert.equal(params.overwrite, "false");
+        if (method === "POST") {
+          assert.equal(Object.hasOwn(params, "overwrite"), false);
           assert.ok(!stored.has(params.name));
           // The real HiDrive adapter sends a known-length Buffer. Iterating a
           // Buffer yields byte numbers, unlike iterating a Readable stream.
@@ -339,7 +339,7 @@ test("HiDrive adapter uses ciphertext readback and final receipt without OAuth o
             for await (const chunk of body) chunks.push(chunk);
             stored.set(params.name, Buffer.concat(chunks));
           }
-          return { ok: true };
+          return { ok: true, status: 201 };
         }
         assert.equal(method, "GET");
         return {

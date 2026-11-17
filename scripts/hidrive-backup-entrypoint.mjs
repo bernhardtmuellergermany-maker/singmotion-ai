@@ -43,9 +43,12 @@ process.umask(0o077);
 const {main,SafeError,existingHiDriveSession}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{
  if(process.env.BACKUP_MODE==="PRODUCTION_CIPHERTEXT_ONLY_RECEIVER"){
-  const {runProductionCiphertextReceiver}=await import("/app/scripts/hidrive-production-receiver.mjs");
+  fs.writeSync(2,"HIDRIVE_RECEIVER_MODE_SELECTED\n");
+  const {runProductionCiphertextReceiver}=await import("/usr/local/lib/singmotion-backup/scripts/hidrive-production-receiver.mjs");
+  fs.writeSync(2,"HIDRIVE_RECEIVER_MODULE_LOADED\n");
   await runProductionCiphertextReceiver(process.env,{
    sessionFactory:existingHiDriveSession,
+   onPhase:(marker)=>fs.writeSync(2,marker+"\n"),
    onReady:(marker)=>console.info(marker),
   });
  }else if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
@@ -54,6 +57,26 @@ try{
  }else await main();
 }
 catch(e){
- console.error("HIDRIVE_BACKUP_FAILED",e instanceof SafeError?e.message:"UNEXPECTED_ERROR");
+ // Never print dynamic exceptions, stack traces, env values or remote URLs.
+ // Receiver errors below are audited hard-coded strings only.
+ const known=new Set([
+  "RECEIVER_PRODUCTION_ACTIVATION_REFUSED",
+  "RECEIVER_SOURCE_OR_RECOVERY_SECRET_REFUSED",
+  "RECEIVER_EXPIRY_INVALID",
+  "RECEIVER_CLIENT_IDENTITY_INVALID",
+  "RECEIVER_MTLS_CONFIG_INVALID",
+  "RECEIVER_MTLS_CERTIFICATE_INVALID",
+  "RECEIVER_OAUTH_FACTORY_MISSING",
+  "RECEIVER_PRIVATE_ADDRESS_UNAVAILABLE",
+  "APPROVED_RUN_ID_INVALID",
+  "PRIVATE_BIND_REQUIRED",
+ ]);
+ const code=e instanceof SafeError?e.message:
+   known.has(e?.message)?e.message:
+   e?.code==="ERR_MODULE_NOT_FOUND"?"RECEIVER_MISSING_DEPENDENCY":
+   e?.code==="ERR_UNKNOWN_FILE_EXTENSION"?"RECEIVER_IMPORT_EXTENSION_REFUSED":
+   e instanceof SyntaxError?"RECEIVER_SYNTAX_ERROR":
+   e instanceof TypeError?"RECEIVER_RUNTIME_TYPE_ERROR":"UNEXPECTED_ERROR";
+ console.error("HIDRIVE_BACKUP_FAILED",code);
  process.exitCode=1;
 }

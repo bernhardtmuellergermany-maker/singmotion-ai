@@ -87,12 +87,12 @@ function fakeHiDrive() {
     async request(method,endpoint,params,body) {
       assert.equal(endpoint,"/file");
       calls.push({method,endpoint,params});
-      if(method==="PUT"){
-        assert.equal(params.overwrite,"false");
+      if(method==="POST"){
+        assert.equal(Object.hasOwn(params,"overwrite"),false);
         if(remote.has(params.name)) return {ok:false,status:409};
         assert.ok(Buffer.isBuffer(body));
         remote.set(params.name,Buffer.from(body));
-        return {ok:true,status:200};
+        return {ok:true,status:201};
       }
       assert.equal(method,"GET");
       const value=remote.get(params.path.split("/").at(-1));
@@ -107,6 +107,7 @@ async function run(root,{objects=1001,changed=false}={}) {
   const drive=fakeHiDrive();
   const writer=hidriveCiphertextSink({session:drive.session,spool:fixture.spool});
   const r2=fakeR2(objects,changed);
+  const phases=[];
   const result=await produceMultiStoreArchive({
     sourceDir:fixture.dir,scratchParent:fixture.scratch,
     pgEnv:{SYNTHETIC_PG:true},
@@ -117,8 +118,9 @@ async function run(root,{objects=1001,changed=false}={}) {
     },
     r2,sink:writer,recoveryPublicKey:rsa.publicKey,
     signingPrivateKey:signer.privateKey,segmentBytes:1024*1024,
+    onPhase:phase=>phases.push(phase),
   });
-  return {fixture,drive,r2,result};
+  return {fixture,drive,r2,result,phases};
 }
 test("one ciphertext-only remote transaction covers SQLite WAL, local media, native PG stage and 1001 paginated R2 objects; independent restore",async()=>{
   const root=await temp();
@@ -127,6 +129,8 @@ test("one ciphertext-only remote transaction covers SQLite WAL, local media, nat
     const data=await run(root);
     runData=data;
     const {fixture,drive,result}=data;
+    assert.deepEqual(data.phases,["LOCAL_START","LOCAL_DONE","POSTGRES_DONE",
+      "R2_LIST_DONE","R2_DONE","MANIFEST_UPLOADED","REMOTE_COMMITTED"]);
     assert.ok(result.remoteReceiptCommitted);
     assert.equal(result.independentRestoreVerified,false);
     assert.equal(result.stores.sqlite,3);

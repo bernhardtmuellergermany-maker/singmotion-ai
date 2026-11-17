@@ -67,14 +67,14 @@ function fakeRemote() {
       dir: "root/users/fixture/SingMotion-DR",
       async request(method, endpoint, params, body) {
         calls.push({ method, endpoint, params });
-        if (method === "PUT") {
-          assert.equal(params.overwrite, "false");
+        if (method === "POST") {
+          assert.equal(Object.hasOwn(params, "overwrite"), false);
           if (files.has(params.name)) return { ok: false };
           const chunks = [];
           if (Buffer.isBuffer(body)) chunks.push(body);
           else for await (const chunk of body) chunks.push(chunk);
           files.set(params.name, Buffer.concat(chunks));
-          return { ok: true };
+          return { ok: true, status: 201 };
         }
         assert.equal(method, "GET");
         let data = files.get(params.path.split("/").at(-1));
@@ -125,7 +125,7 @@ test("HiDrive read path serves fresh verified remote ciphertext only after compl
     );
     assert.ok(
       remote.calls.every(
-        (c) => c.endpoint === "/file" && ["GET", "PUT"].includes(c.method),
+        (c) => c.endpoint === "/file" && ["GET", "POST"].includes(c.method),
       ),
     );
   } finally {
