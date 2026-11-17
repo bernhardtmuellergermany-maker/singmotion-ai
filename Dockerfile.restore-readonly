@@ -13,6 +13,8 @@ COPY --chown=10001:10001 lib/ops/backup-segmented-archive.mjs lib/ops/backup-seg
 COPY --chown=10001:10001 lib/ops/hidrive-committed-reader.mjs lib/ops/hidrive-committed-reader.mjs
 COPY --chown=10001:10001 lib/ops/hidrive-readonly-commit-preflight.mjs lib/ops/hidrive-readonly-commit-preflight.mjs
 COPY --chown=10001:10001 lib/ops/hidrive-ro-grant-attestation.mjs lib/ops/hidrive-ro-grant-attestation.mjs
+COPY --chown=10001:10001 lib/ops/hidrive-local-receipt-verifier.mjs lib/ops/hidrive-local-receipt-verifier.mjs
+COPY --chown=10001:10001 scripts/hidrive-local-receipt-preflight.mjs scripts/hidrive-local-receipt-preflight.mjs
 COPY --chown=10001:10001 scripts/hidrive-readonly-commit-preflight.mjs scripts/hidrive-readonly-commit-preflight.mjs
 USER 10001:10001
 ENV HOME=/tmp \
