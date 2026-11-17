@@ -129,8 +129,9 @@ test("one ciphertext-only remote transaction covers SQLite WAL, local media, nat
     const data=await run(root);
     runData=data;
     const {fixture,drive,result}=data;
-    assert.deepEqual(data.phases,["LOCAL_START","LOCAL_DONE","POSTGRES_DONE",
-      "R2_LIST_DONE","R2_DONE","MANIFEST_UPLOADED","REMOTE_COMMITTED"]);
+    assert.deepEqual(data.phases,["POSTGRES_START","POSTGRES_DONE",
+      "LOCAL_START","LOCAL_DONE","R2_LIST_DONE","R2_DONE",
+      "MANIFEST_UPLOADED","REMOTE_COMMITTED"]);
     assert.ok(result.remoteReceiptCommitted);
     assert.equal(result.independentRestoreVerified,false);
     assert.equal(result.stores.sqlite,3);

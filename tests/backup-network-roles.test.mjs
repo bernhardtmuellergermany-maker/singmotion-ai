@@ -209,3 +209,35 @@ test("complete encrypted SQLite/Postgres/R2 archive crosses mutually-authenticat
     await rm(root,{recursive:true,force:true});
   }
 });
+
+test("failing PostgreSQL precondition prevents local/R2/HiDrive uploads", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "sm-pg-first-"));
+  const source = path.join(root, "source"), scratch = path.join(root, "scratch");
+  await mkdir(source,{mode:0o700});
+  await mkdir(scratch,{mode:0o700});
+  const phases = [];
+  let uploads = 0;
+  try {
+    await assert.rejects(
+      produceMultiStoreArchive({
+        sourceDir:source,scratchParent:scratch,
+        pgEnv:{test:true},
+        pgDump:async () => {throw new Error("PG_AUTH_FAILED");},
+        r2:{list:async()=>{throw new Error("R2_NOT_EXPECTED");},
+          get:async()=>{throw new Error("R2_NOT_EXPECTED");}},
+        sink:{
+          putStream:async()=>{uploads++;},
+          commit:async()=>{throw new Error("COMMIT_NOT_EXPECTED");},
+        },
+        recoveryPublicKey:generateKeyPairSync("rsa",{modulusLength:3072}).publicKey,
+        signingPrivateKey:generateKeyPairSync("ed25519").privateKey,
+        onPhase:phase=>phases.push(phase),
+      }),
+      /PG_AUTH_FAILED/,
+    );
+    assert.deepEqual(phases,["POSTGRES_START"]);
+    assert.equal(uploads,0);
+  } finally {
+    await rm(root,{recursive:true,force:true});
+  }
+});

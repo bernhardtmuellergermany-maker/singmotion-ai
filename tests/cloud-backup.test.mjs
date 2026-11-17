@@ -31,6 +31,7 @@ import {
   syntheticOnly,
   verifyManifest,
   nativePostgresDump,
+  classifyPgDumpFailure,
   r2Source,
 } from "../lib/ops/cloud-backup.mjs";
 import {
@@ -633,3 +634,22 @@ test(
     }
   },
 );
+
+test("Postgres failures are classified using fixed secret-free error codes", () => {
+  const cases = [
+    ["pg_dump: error: server version: 18.2; pg_dump version: 17.1", "PG_VERSION_MISMATCH"],
+    ["certificate verify failed for production-host.internal", "PG_TLS_VERIFICATION_FAILED"],
+    ['FATAL: password authentication failed for user "private_user"', "PG_AUTH_FAILED"],
+    ['FATAL: no pg_hba.conf entry for host "10.0.0.8"', "PG_HBA_REJECTED"],
+    ["pg_dump: error: permission denied for table billing", "PG_PRIVILEGE_FAILED"],
+    ["FATAL: unrecognized configuration parameter \"foo\"", "PG_OPTIONS_REJECTED"],
+    ["connection refused on 10.0.0.3", "PG_CONNECT_FAILED"],
+    ["arbitrary private data and credentials should not escape", "PG_DUMP_FAILED"],
+  ];
+  for (const [raw, expected] of cases) {
+    const code = classifyPgDumpFailure(raw);
+    assert.equal(code, expected);
+    assert.match(code, /^PG_[A-Z_]+$/);
+    assert.ok(!code.includes("private") && !code.includes("10.0.0."));
+  }
+});
