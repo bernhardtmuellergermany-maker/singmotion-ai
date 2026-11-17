@@ -71,6 +71,13 @@ jobs:
           npm run test:hidrive-restore-path
           npm run test:hidrive-combined
           node --experimental-strip-types --test tests/hidrive-residual-evidence.test.mjs tests/hidrive-failure-diagnostics.test.mjs
+      - name: Isolated native PostgreSQL, WAL SQLite and paginated R2 restore fixture
+        run: |
+          docker build -f Dockerfile.backup-staging -t singmotion-backup-fixture:ci .
+          docker run --rm --network none \
+            -e RAILWAY_ENVIRONMENT_NAME=staging \
+            -e BACKUP_DATA_CLASS=SYNTHETIC_ONLY \
+            singmotion-backup-fixture:ci
       - name: Promotion unit and redemption regression tests
         run: node --experimental-strip-types --test tests/promotions.test.ts
       - name: TypeScript checks
