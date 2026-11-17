@@ -157,3 +157,52 @@ test("private PG DNS cannot resolve to public or loopback address, no cloud requ
   assert.deepEqual(warnings,["PRODUCTION_OFFSITE_BACKUP_FAILED"]);
   assert.equal(events.length,0);
 });
+
+test("explicit PostgreSQL-only preflight never accesses R2, receiver, or HiDrive",async(t)=>{
+  if(process.getuid?.()===0)return t.skip("nonroot app runtime is required");
+  const env={...await fixture(),PRODUCTION_OFFSITE_BACKUP_PG_ONLY:"YES"};
+  const actions=[],logs=[],warnings=[];
+  const out=await runProductionOffsiteOnce(env,{
+    now:()=>testNow,
+    resolveHost:async()=>({address:"10.0.0.41"}),
+    createR2:()=>{throw Error("MUST_NOT_CONTACT_R2");},
+    createSink:()=>{throw Error("MUST_NOT_CONTACT_RECEIVER");},
+    producer:async()=>{throw Error("MUST_NOT_PRODUCE_ARCHIVE");},
+    pgDump:async(path,pg)=>{
+      assert.ok(path.endsWith("pg-preflight.dump"));
+      assert.equal(pg.PGSSLMODE,"verify-full");
+      assert.equal(pg.PGHOST,"localhost");
+      assert.equal(pg.PGHOSTADDR,"10.0.0.41");
+      actions.push("private-local-readonly-dump");
+    },
+    log:(...args)=>logs.push(args),warn:x=>warnings.push(x),
+  });
+  assert.deepEqual(actions,["private-local-readonly-dump"]);
+  assert.equal(out.status,"pg-preflight-verified");
+  assert.deepEqual(logs,[
+    ["PRODUCTION_OFFSITE_BACKUP_STAGE","POSTGRES_START"],
+    ["PRODUCTION_OFFSITE_BACKUP_PG_PREFLIGHT","VERIFIED_READONLY_DUMP"],
+  ]);
+  assert.deepEqual(warnings,[]);
+});
+
+test("PostgreSQL-only preflight failures reveal fixed code but never private stderr",async(t)=>{
+  if(process.getuid?.()===0)return t.skip("nonroot app runtime is required");
+  const env={...await fixture(),PRODUCTION_OFFSITE_BACKUP_PG_ONLY:"YES"};
+  const logs=[],warnings=[];
+  const out=await runProductionOffsiteOnce(env,{
+    now:()=>testNow,
+    resolveHost:async()=>({address:"10.0.0.41"}),
+    createR2:()=>{throw Error("MUST_NOT_CONTACT_R2");},
+    createSink:()=>{throw Error("MUST_NOT_CONTACT_RECEIVER");},
+    pgDump:async()=>{throw Error("PG_TLS_VERIFICATION_FAILED");},
+    log:(...args)=>logs.push(args),warn:x=>warnings.push(x),
+  });
+  assert.equal(out.status,"failed");
+  assert.deepEqual(logs,[
+    ["PRODUCTION_OFFSITE_BACKUP_STAGE","POSTGRES_START"],
+    ["PRODUCTION_OFFSITE_BACKUP_PG_DIAGNOSTIC","PG_TLS_VERIFICATION_FAILED"],
+  ]);
+  assert.deepEqual(warnings,["PRODUCTION_OFFSITE_BACKUP_FAILED"]);
+  assert.equal(JSON.stringify(logs).includes("s3cure@fixture"),false);
+});
