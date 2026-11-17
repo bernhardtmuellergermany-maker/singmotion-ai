@@ -10,7 +10,7 @@ async function fixture(){
   const pki=await createTestPKI("singmotion-backup.railway.internal");
   const rsa=generateKeyPairSync("rsa",{modulusLength:3072});
   const signing=generateKeyPairSync("ed25519");
-  const b64=(key)=>key.export({format:"pem",type:key.type==="private"?"pkcs8":"spki"}).toString("base64");
+  const b64=(key)=>Buffer.from(key.export({format:"pem",type:key.type==="private"?"pkcs8":"spki"})).toString("base64");
   return {
     RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
     RAILWAY_SERVICE_NAME:"singmotion-ai",
@@ -66,7 +66,7 @@ test("refuse unbounded, wrong environment, weak key, missing private TLS, public
     {BACKUP_MTLS_WRITER_KEY_B64:"invalid"},
     {BACKUP_RECOVERY_PRIVATE_KEY_B64:"must-not-be-on-railway"},
     {HIDRIVE_CLIENT_SECRET:"must-not-be-on-app"},
-    {BACKUP_RECOVERY_PUBLIC_KEY_B64:weak.publicKey.export({format:"pem",type:"spki"}).toString("base64")},
+    {BACKUP_RECOVERY_PUBLIC_KEY_B64:Buffer.from(weak.publicKey.export({format:"pem",type:"spki"})).toString("base64")},
     {CMS_DATABASE_URL:"postgresql://u:p@public.example.net:5432/cms"},
     {CMS_DATABASE_URL:"postgresql://u:p@postgres.railway.internal:5432/"},
     {R2_ACCOUNT_ID:"wrong"},
