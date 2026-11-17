@@ -23,7 +23,7 @@ async function caFixture(){
   const key=path.join(dir,"root.key"),pemFile=path.join(dir,"root.crt");
   try{
     execFileSync("openssl",["req","-new","-x509","-nodes","-days","91",
-      "-newkey","rsa:3072","-subj","/CN=synthetic-public-root",
+      "-newkey","rsa:3072","-text","-subj","/CN=synthetic-public-root",
       "-keyout",key,"-out",pemFile],{stdio:["ignore","ignore","ignore"],timeout:20000});
     return {pem:await readFile(pemFile,"utf8")};
   }finally{await rm(dir,{recursive:true,force:true})}
@@ -47,7 +47,8 @@ test("strictly validates a self-signed public CA from the known PG volume path",
   const {pem}=await caFixture();
   const out=validatePublicPostgresRootCa({cert_path:fixed,cert_pem:pem},now);
   assert.equal(out.publicOnly,true);
-  assert.equal(Buffer.from(out.rootCaB64,"base64").toString("utf8"),pem.trim()+"\n");
+  assert.ok(pem.startsWith("Certificate:\\n".replace("\\\\n","\\n")) || pem.startsWith("Certificate:\n"));
+  assert.equal(Buffer.from(out.rootCaB64,"base64").toString("utf8"),pem.slice(pem.indexOf("-----BEGIN CERTIFICATE-----")).trim()+"\n");
   assert.match(out.derSha256,/^[0-9a-f]{64}$/);
   assert.ok(Date.parse(out.validUntil)>now+30*24*60*60*1000);
   for(const row of [
@@ -84,7 +85,7 @@ test("one fixed read-only SQL query returns only the public CA and its fingerpri
   assert.equal(events[0][0],"PRODUCTION_PUBLIC_PG_ROOT_CA");
   const info=JSON.parse(events[0][1]);
   assert.equal(info.publicOnly,true);
-  assert.equal(Buffer.from(info.rootCaB64,"base64").toString("utf8"),pem.trim()+"\n");
+  assert.equal(Buffer.from(info.rootCaB64,"base64").toString("utf8"),pem.slice(pem.indexOf("-----BEGIN CERTIFICATE-----")).trim()+"\n");
   assert.ok(!JSON.stringify(events).includes("fake_password"));
   assert.deepEqual([calls[0],calls.at(-1)],["connect","end"]);
 });
