@@ -43,12 +43,12 @@ process.umask(0o077);
 const {main,SafeError,existingHiDriveSession}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{
  if(process.env.BACKUP_MODE==="PRODUCTION_CIPHERTEXT_ONLY_RECEIVER"){
-  console.error("HIDRIVE_RECEIVER_MODE_SELECTED");
+  fs.writeSync(2,"HIDRIVE_RECEIVER_MODE_SELECTED\n");
   const {runProductionCiphertextReceiver}=await import("/app/scripts/hidrive-production-receiver.mjs");
-  console.error("HIDRIVE_RECEIVER_MODULE_LOADED");
+  fs.writeSync(2,"HIDRIVE_RECEIVER_MODULE_LOADED\n");
   await runProductionCiphertextReceiver(process.env,{
    sessionFactory:existingHiDriveSession,
-   onPhase:(marker)=>console.error(marker),
+   onPhase:(marker)=>fs.writeSync(2,marker+"\n"),
    onReady:(marker)=>console.info(marker),
   });
  }else if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
@@ -72,7 +72,11 @@ catch(e){
   "PRIVATE_BIND_REQUIRED",
  ]);
  const code=e instanceof SafeError?e.message:
-   known.has(e?.message)?e.message:"UNEXPECTED_ERROR";
+   known.has(e?.message)?e.message:
+   e?.code==="ERR_MODULE_NOT_FOUND"?"RECEIVER_MISSING_DEPENDENCY":
+   e?.code==="ERR_UNKNOWN_FILE_EXTENSION"?"RECEIVER_IMPORT_EXTENSION_REFUSED":
+   e instanceof SyntaxError?"RECEIVER_SYNTAX_ERROR":
+   e instanceof TypeError?"RECEIVER_RUNTIME_TYPE_ERROR":"UNEXPECTED_ERROR";
  console.error("HIDRIVE_BACKUP_FAILED",code);
  process.exitCode=1;
 }
