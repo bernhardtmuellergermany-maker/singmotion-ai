@@ -102,6 +102,17 @@ if(process.env.PRODUCTION_BACKUP_INVENTORY_EXPIRES_AT){
     }))
     .catch(()=>console.warn("PRODUCTION_BACKUP_INVENTORY_FAILED"));
 }
+// Single opt-in, private, time-bounded encrypted offsite upload. This never
+// changes live SQLite/Postgres/R2, never handles the recovery private key,
+// and cannot expose a public endpoint. Missing/invalid approval fails closed.
+if (process.env.PRODUCTION_OFFSITE_BACKUP_EXPIRES_AT) {
+  void import("../lib/ops/production-offsite-backup-sender.mjs")
+    .then(({runProductionOffsiteOnce})=>runProductionOffsiteOnce(process.env,{
+      log:(marker:string,summary:string)=>console.info(marker,summary),
+      warn:(marker:string)=>console.warn(marker),
+    }))
+    .catch(()=>console.warn("PRODUCTION_OFFSITE_BACKUP_FAILED"));
+}
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
