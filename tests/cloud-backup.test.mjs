@@ -32,6 +32,7 @@ import {
   verifyManifest,
   nativePostgresDump,
   classifyPgDumpFailure,
+  postgresDumpChildEnv,
   r2Source,
 } from "../lib/ops/cloud-backup.mjs";
 import {
@@ -652,4 +653,23 @@ test("Postgres failures are classified using fixed secret-free error codes", () 
     assert.match(code, /^PG_[A-Z_]+$/);
     assert.ok(!code.includes("private") && !code.includes("10.0.0."));
   }
+});
+
+test("native PostgreSQL18 child retains only pinned libpq runtime loader", () => {
+  const env=postgresDumpChildEnv({
+    PGSSLMODE:"verify-full",
+    PGHOST:"localhost",
+    PGHOSTADDR:"10.0.0.41",
+    LD_LIBRARY_PATH:"/untrusted/path",
+  });
+  assert.equal(env.LD_LIBRARY_PATH,"/usr/local/lib");
+  assert.equal(env.PGSSLMODE,"verify-full");
+  assert.equal(env.PGHOSTADDR,"10.0.0.41");
+  assert.match(env.PGOPTIONS,/default_transaction_read_only=on/);
+  assert.deepEqual(Object.keys(env).sort(),[
+    "LD_LIBRARY_PATH","PATH","PGHOST","PGHOSTADDR","PGOPTIONS","PGSSLMODE",
+  ].sort());
+  assert.equal(classifyPgDumpFailure(
+    "pg_dump: error while loading shared libraries: libpq.so.5: cannot open shared object file: No such file or directory"
+  ),"PG_LOADER_FAILED");
 });
