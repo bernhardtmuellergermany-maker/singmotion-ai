@@ -1,6 +1,18 @@
 # Global prepaid Credits / Stripe Managed Payments – guarded public release
 Date: 2026-11-16 · Parent release tracker: #176 · Stripe approval tracker: #238 · Backups: #230
 
+## 2026-11-17 — Betreiber meldet Stripe-Bestätigung der Prepaid Credits
+
+Der Betreiber hat am 17. November 2026 erklärt: **„ok ist von stripe jetzt bestätigt, mach weiter“**. Dies wird als **Betreiber-Auskunft über erfolgte Stripe-Bestätigung** des SingMotion-Prepaid-Credit-Geschäftsmodells dokumentiert. Die Grundsatzfrage soll nicht erneut beim Betreiber aufgerollt werden.
+
+**Beleggrenze:** Ein Originalschreiben oder eine direkt einsehbare Stripe-Supportfallnummer liegt im verbundenen Projekt noch nicht vor. Daher ist die genaue schriftliche Aussage zu Steuercode für das vorausbezahlte Guthaben, Einzweck-/Mehrzweckgutschein-Klassifikation, Steuerzeitpunkt bei Kauf/Einlösung, ungenutztem Guthaben, Vertragsbedingungen und geographischer Steuerverantwortung derzeit nicht separat attestiert. Der existierende AIaaS-Code `txcd_10105003` bleibt unverändert, bis seine Verwendung für die **verkaufte Credit-Einheit** anhand tatsächlicher Stripe-Aussage oder Steuerprüfung feststeht.
+
+**Operative Konsequenz:** Die Produktzulässigkeit wird **nicht** als neue Konzeptblockade behandelt, die unabhängigen Zahlungs-, Länder- und öffentlichen Release-Checks bleiben bestehen:
+- Die vorhandene konservative Liste von 81 steuerlich abgedeckten Käuferländern (Serbien ausgenommen) nicht auf 195+ ausweiten.
+- Die zwei bisher angelegten Managed-Payments-LIVE-Checkouts waren offen/unbezahlt. Die bisherigen drei bezahlten deutschen Credit-Checkouts liefen nicht über Managed Payments. Ein begrenzter, tatsächlich bezahlter internationaler MoR-E2E mit verifiziertem Wallet, MP4, Steuerbeleg und Refund ist weiterhin gesondert nachzuweisen und bedarf der Kosten-/Transaktionsfreigabe.
+- Vor jedem öffentlichen Verkauf verbleiben die isolierte vollständige Backup-Rücksicherung (#230), Datenschutz/Verbraucherrecht/Support (#90/#91) und die übrigen verifizierten Produktionsabnahmen (#176) als eigene Freigabegates.
+- Keine `STRIPE_MANAGED_PAYMENTS_*_APPROVED`- oder Public-Gate-Werte allein aufgrund einer Checkbox oder einer unbezahlten Checkout-Session setzen. Technische Release-Freigabe ist nicht mit dem Betreiberbericht über Stripe zu verwechseln.
+
 ## Current verified facts
 - The owner has personally completed the **private** German LIVE Credit purchase,
   wallet reservation, AI video generation, private MP4 download, final Credit
