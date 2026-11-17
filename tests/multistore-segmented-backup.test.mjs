@@ -92,7 +92,7 @@ function fakeHiDrive() {
         if(remote.has(params.name)) return {ok:false,status:409};
         assert.ok(Buffer.isBuffer(body));
         remote.set(params.name,Buffer.from(body));
-        return {ok:true,status:200};
+        return {ok:true,status:201};
       }
       assert.equal(method,"GET");
       const value=remote.get(params.path.split("/").at(-1));
