@@ -51,6 +51,12 @@ try{
    onPhase:(marker)=>fs.writeSync(2,marker+"\n"),
    onReady:(marker)=>console.info(marker),
   });
+ }else if(process.env.BACKUP_MODE==="PRODUCTION_COMMIT_AUDIT_V1"){
+  const {runProductionCommitAudit}=await import("/usr/local/lib/singmotion-backup/scripts/hidrive-production-commit-audit.mjs");
+  await runProductionCommitAudit(process.env,{
+    sessionFactory:existingHiDriveSession,
+    onVerified:(marker,summary)=>console.info(marker,summary),
+  });
  }else if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
   const {runHiDriveIntegration,receiverEnvironment}=await import("/app/scripts/hidrive-private-integration.mjs");
   await runHiDriveIntegration(receiverEnvironment(process.env));
@@ -70,6 +76,16 @@ catch(e){
   "RECEIVER_PRIVATE_ADDRESS_UNAVAILABLE",
   "APPROVED_RUN_ID_INVALID",
   "PRIVATE_BIND_REQUIRED",
+  "COMMIT_AUDIT_ACTIVATION_REFUSED",
+  "COMMIT_AUDIT_EXPIRY_INVALID",
+  "COMMIT_AUDIT_SOURCE_SECRET_REFUSED",
+  "COMMIT_AUDIT_OAUTH_FACTORY_MISSING",
+  "COMMITTED_RECEIPT_INVALID",
+  "COMMITTED_REMOTE_READ_REFUSED",
+  "COMMITTED_CIPHERTEXT_MISMATCH",
+  "COMMITTED_CIPHERTEXT_OVERSIZE",
+  "COMMITTED_AUDIT_DEADLINE",
+  "COMMITTED_AUDIT_DEADLINE_INVALID",
  ]);
  const code=e instanceof SafeError?e.message:
    known.has(e?.message)?e.message:
