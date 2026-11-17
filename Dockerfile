@@ -28,7 +28,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=pgclient --chmod=0555 /opt/singmotion-pg-client/pg_dump /usr/local/bin/pg_dump
 COPY --from=pgclient --chmod=0444 /opt/singmotion-pg-client/libpq.so.5 /usr/local/lib/libpq.so.5
 ENV LD_LIBRARY_PATH=/usr/local/lib
-RUN set -eu; pg_dump --version | grep -F 'pg_dump (PostgreSQL) 18.'; \
+# Mirror the sanitized child environment used by the real backup runner.
+RUN set -eu; env -i PATH=/usr/local/bin:/usr/bin:/bin LD_LIBRARY_PATH=/usr/local/lib \
+    pg_dump --version | grep -F 'pg_dump (PostgreSQL) 18.'; \
     if ldd /usr/local/bin/pg_dump | grep -q 'not found'; then exit 1; fi
 
 FROM runtime-base AS runtime
