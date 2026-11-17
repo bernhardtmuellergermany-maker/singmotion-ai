@@ -1,0 +1,54 @@
+name: Verify encrypted backup framework and offline restore
+
+on:
+  push:
+    branches:
+      - feat/cloud-backup-230
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  encrypted-backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.1"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify encrypted backup network and restore (no external credentials)
+        run: |
+          npm run test:backup-inventory
+          npm run test:backup-cloud
+          npm run test:backup-network
+          npm run test:hidrive-restore-path
+          npm run test:hidrive-combined
+          node --experimental-strip-types --test tests/hidrive-residual-evidence.test.mjs tests/hidrive-failure-diagnostics.test.mjs
+      - name: Verify native PostgreSQL SQLite and paginated R2 full synthetic recovery
+        run: |
+          docker build -f Dockerfile.backup-staging -t singmotion-backup-fixture:ci .
+          docker run --rm --network none -e RAILWAY_ENVIRONMENT_NAME=staging -e BACKUP_DATA_CLASS=SYNTHETIC_ONLY singmotion-backup-fixture:ci
+      - name: Typecheck production application
+        run: npm run typecheck
+      - name: Install offline FFmpeg fixtures for release build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Production build and embedded safety regressions
+        run: npm run build
