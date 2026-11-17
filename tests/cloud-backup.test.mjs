@@ -331,9 +331,14 @@ test("HiDrive adapter uses ciphertext readback and final receipt without OAuth o
         if (method === "PUT") {
           assert.equal(params.overwrite, "false");
           assert.ok(!stored.has(params.name));
-          const chunks = [];
-          for await (const chunk of body) chunks.push(chunk);
-          stored.set(params.name, Buffer.concat(chunks));
+          // The real HiDrive adapter sends a known-length Buffer. Iterating a
+          // Buffer yields byte numbers, unlike iterating a Readable stream.
+          if (Buffer.isBuffer(body)) stored.set(params.name, Buffer.from(body));
+          else {
+            const chunks = [];
+            for await (const chunk of body) chunks.push(chunk);
+            stored.set(params.name, Buffer.concat(chunks));
+          }
           return { ok: true };
         }
         assert.equal(method, "GET");
@@ -398,7 +403,14 @@ test("private worker enforces mTLS, immutable upload, hash/length and manifest c
       file = path.join(root, "ciphertext");
     await writeFile(file, "x".repeat(64));
     const meta = { bytes: 64, sha256: await hashFile(file) };
-    await assert.rejects(other.put(run, id, file, meta), /REFUSED/);
+    // Network refusals intentionally expose only a fixed error message, with
+    // machine-readable AUTH_REFUSED metadata for safe diagnostics.
+    await assert.rejects(
+      other.put(run, id, file, meta),
+      (error) =>
+        error?.message === "BACKUP_OPERATION_FAILED" &&
+        error?.backupCode === "AUTH_REFUSED",
+    );
     await assert.rejects(
       sink.put(run, id, file, { ...meta, sha256: "0".repeat(64) }),
     );
