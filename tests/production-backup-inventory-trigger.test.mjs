@@ -120,6 +120,26 @@ test("bad, partial and sensitive output fails closed without logging source line
     });
     assert.equal(result.status, "failed");
     assert.equal(logs.length, 0);
-    assert.deepEqual(warns, [["PRODUCTION_BACKUP_INVENTORY_FAILED"]]);
+    assert.deepEqual(warns, [["PRODUCTION_BACKUP_INVENTORY_FAILED", "SOURCE_DISCOVERY_FAILED"]]);
   }
+});
+
+test("private failure reason is allowlisted, never copied from raw diagnostic output", async (t) => {
+  if (process.getuid?.() === 0) return t.skip("runner is root; guard requires non-root");
+  const warnings = [];
+  const fail = JSON.stringify({
+    ok: false,
+    code: "CRITICAL_SQLITE_MISSING",
+    restoreVerified: false,
+    customer: "never-log-private-row",
+  });
+  const result = await runProductionInventoryOnce(fixture(), {
+    now: () => now,
+    spawn: () => fakeChild("BACKUP_SOURCE_INVENTORY " + fail + "\n", 1),
+    warn: (...args) => warnings.push(args),
+  });
+  assert.equal(result.status, "failed");
+  assert.equal(result.reason, "CRITICAL_SQLITE_MISSING");
+  assert.deepEqual(warnings, [["PRODUCTION_BACKUP_INVENTORY_FAILED", "CRITICAL_SQLITE_MISSING"]]);
+  assert.ok(!JSON.stringify(warnings).includes("never-log-private-row"));
 });
