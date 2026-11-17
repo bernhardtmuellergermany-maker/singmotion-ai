@@ -18,7 +18,10 @@ USER 10001:10001
 ENV HOME=/tmp \
     TMPDIR=/tmp \
     NODE_ENV=production
-# No web listener/port. Missing private OAuth config => fail before any network call.
-# This entrypoint is never activated by a Production or Staging deployment.
-ENTRYPOINT ["node", "/opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs"]
-CMD ["--manifest-only"]
+# No web listener/port. A short, network-idle window permits the owner to
+# open Railway's service Console and authorize a NEW read-only HiDrive grant.
+# The actual GET-only preflight NEVER runs on startup. After 30 minutes the
+# process exits and restart policy NEVER keeps the service stopped.
+# Operator command (after confidential config is present):
+# node /opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs --manifest-only
+CMD ["sh", "-c", "umask 077; exec sleep 1800"]
