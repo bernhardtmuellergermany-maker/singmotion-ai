@@ -36,6 +36,8 @@ jobs:
         run: node --test tests/railway-production-native-snapshots.test.mjs
       - name: Validate private runtime inventory trigger without source credentials
         run: node --test tests/production-backup-inventory-trigger.test.mjs
+      - name: Test bounded segmented encryption and independent offline restore
+        run: node --test tests/backup-segmented-archive.test.mjs
       - name: Verify encrypted backup network and restore (no external credentials)
         run: |
           npm run test:backup-inventory
