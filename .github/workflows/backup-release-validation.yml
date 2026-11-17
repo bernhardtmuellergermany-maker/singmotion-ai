@@ -32,6 +32,8 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci
+      - name: Verify Railway native snapshot API safety (offline mocks)
+        run: node --test tests/railway-production-native-snapshots.test.mjs
       - name: Verify encrypted backup network and restore (no external credentials)
         run: |
           npm run test:backup-inventory
