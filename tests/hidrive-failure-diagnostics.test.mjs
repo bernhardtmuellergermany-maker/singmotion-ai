@@ -27,24 +27,23 @@ test("real adapter HTTP construction: PUT, encoded query, bearer, fixed byte len
   let called = false;
   await hidriveRequest(
     "fake-token",
-    "PUT",
+    "POST",
     "/file",
     {
       dir: "/users/artificial/private folder",
       name: "fixture.enc",
-      overwrite: "false",
     },
     bytes,
     async (url, options) => {
       called = true;
       assert.equal(url.origin, "https://api.hidrive.strato.com");
       assert.equal(url.pathname, "/2.1/file");
-      assert.equal(url.searchParams.get("overwrite"), "false");
+      assert.equal(url.searchParams.has("overwrite"), false);
       assert.equal(
         url.searchParams.get("dir"),
         "/users/artificial/private folder",
       );
-      assert.equal(options.method, "PUT");
+      assert.equal(options.method, "POST");
       assert.equal(options.headers.Authorization, "Bearer fake-token");
       assert.equal(options.headers["Content-Length"], String(bytes.length));
       assert.equal(options.headers["Content-Type"], "application/octet-stream");
@@ -70,7 +69,7 @@ test("upload denial and readback denial have separate safe phases; no commit or 
           dir: "/private",
           request: async (method, endpoint, query, body) => {
             calls.push(method);
-            if (method === "PUT") {
+            if (method === "POST") {
               assert.ok(Buffer.isBuffer(body));
               assert.deepEqual(body, bytes);
               return new Response("", {
@@ -86,10 +85,10 @@ test("upload denial and readback denial have separate safe phases; no commit or 
       await assert.rejects(sink.putStream(run, id, Readable.from(bytes), meta));
       assert.deepEqual(logs, [
         deniedStage === "put"
-          ? "BACKUP_HIDRIVE_PUT_HTTP_411"
+          ? "BACKUP_HIDRIVE_CREATE_HTTP_411"
           : "BACKUP_HIDRIVE_READBACK_HTTP_403",
       ]);
-      assert.deepEqual(calls, deniedStage === "put" ? ["PUT"] : ["PUT", "GET"]);
+      assert.deepEqual(calls, deniedStage === "put" ? ["POST"] : ["POST", "GET"]);
       await assert.rejects(sink.readStream(run, id));
       await assert.rejects(sink.commit(run, id, [{ id, ...meta }]));
     } finally {
@@ -201,7 +200,7 @@ test("corrupt or oversized readback never commits; failed transport never reads 
         session: {
           dir: "/private",
           request: async (method) => {
-            if (method === "PUT") {
+            if (method === "POST") {
               if (mode === "transport") throw Error("HIDRIVE_API_UNREACHABLE");
               return new Response("", { status: 201 });
             }
