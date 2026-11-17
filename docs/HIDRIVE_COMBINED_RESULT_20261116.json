@@ -1,0 +1,244 @@
+{
+  "outcome": "COMBINED_TEST_FAILED_ROLLBACK_VERIFIED",
+  "controller": {
+    "commit": "57c6c51384b99fad5614a18f8d20496b1e059140",
+    "run": "4201c975-ca06-4422-a8b5-dd24650e01ec",
+    "events": [
+      {
+        "event": "BASELINE",
+        "services": [
+          {
+            "id": "2c6bca77-61e6-4ab5-9447-fa23767622aa",
+            "deploymentId": "caab895b-6bc2-4ad1-b096-711fbb305f3f"
+          },
+          {
+            "id": "10a10398-e2b8-45bf-a8f5-298999904358",
+            "deploymentId": "3e489cc9-aab9-45a2-a6f3-4dd5c3f1f06f"
+          },
+          {
+            "id": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+            "deploymentId": "76de451e-465c-4f11-b205-a8a41d647150"
+          }
+        ]
+      },
+      {
+        "event": "CREATE_INTENT",
+        "role": "sender",
+        "name": "backup230-hidrive-sender"
+      },
+      {
+        "event": "CREATED",
+        "role": "sender",
+        "serviceId": "c8ec5b3b-7961-49ca-a8cd-a26d7922a8f8"
+      },
+      {
+        "event": "CREATE_INTENT",
+        "role": "restore",
+        "name": "backup230-hidrive-restore"
+      },
+      {
+        "event": "CREATED",
+        "role": "restore",
+        "serviceId": "f0a0e85f-d5fe-4859-b9c5-98992a61c127"
+      },
+      {
+        "event": "RECEIVER_ACTIVATION_INTENT"
+      },
+      {
+        "event": "VERIFIED",
+        "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+        "deploymentId": "d041de2c-3e37-46a5-903e-78b6ef2be51b",
+        "marker": "HIDRIVE_SYNTHETIC_PRIVATE_RECEIVER_READY"
+      },
+      {
+        "event": "TEST_FAILED"
+      },
+      {
+        "event": "VERIFIED",
+        "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+        "deploymentId": "638c6a73-dc97-4971-b1de-5cb97f6b28c5",
+        "marker": "HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER"
+      },
+      {
+        "event": "VERIFIED",
+        "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+        "deploymentId": "508c9c41-f634-4d8d-8c22-84633eefec42",
+        "marker": "HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER"
+      },
+      {
+        "event": "ROLLBACK_VERIFIED"
+      }
+    ]
+  },
+  "logs": [
+    {
+      "deploymentId": "d041de2c-3e37-46a5-903e-78b6ef2be51b",
+      "status": "SUCCESS",
+      "lines": [
+        {
+          "timestamp": "2026-11-16T22:13:12.193952202Z",
+          "message": "Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/3f21b1cb-0278-4b16-9794-56ef76c7e538/vol_nfwnsdafemfrgwf5"
+        },
+        {
+          "timestamp": "2026-11-16T22:13:12.194003679Z",
+          "message": "Starting Container"
+        },
+        {
+          "timestamp": "2026-11-16T22:13:15.515575972Z",
+          "message": "HIDRIVE_RESIDUAL_RESULT {\"ordinal\":3,\"state\":\"absent\"}"
+        },
+        {
+          "timestamp": "2026-11-16T22:13:15.515587461Z",
+          "message": "HIDRIVE_RESIDUAL_CHECK_COMPLETED"
+        },
+        {
+          "timestamp": "2026-11-16T22:13:15.515592681Z",
+          "message": "HIDRIVE_SYNTHETIC_PRIVATE_RECEIVER_READY"
+        },
+        {
+          "timestamp": "2026-11-16T22:13:15.515612581Z",
+          "message": "HIDRIVE_RESIDUAL_RESULT {\"ordinal\":1,\"state\":\"absent\"}"
+        },
+        {
+          "timestamp": "2026-11-16T22:13:15.515616721Z",
+          "message": "HIDRIVE_RESIDUAL_RESULT {\"ordinal\":2,\"state\":\"absent\"}"
+        }
+      ]
+    },
+    {
+      "deploymentId": "638c6a73-dc97-4971-b1de-5cb97f6b28c5",
+      "status": "SUCCESS",
+      "lines": [
+        {
+          "timestamp": "2026-11-16T22:14:51.144263333Z",
+          "message": "HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER"
+        },
+        {
+          "timestamp": "2026-11-16T22:14:51.242228895Z",
+          "message": "Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/b760f772-04c4-41c1-86cc-d77a7eee88e4/vol_nfwnsdafemfrgwf5"
+        },
+        {
+          "timestamp": "2026-11-16T22:14:51.242234674Z",
+          "message": "Starting Container"
+        }
+      ]
+    },
+    {
+      "deploymentId": "508c9c41-f634-4d8d-8c22-84633eefec42",
+      "status": "SUCCESS",
+      "lines": [
+        {
+          "timestamp": "2026-11-16T22:15:21.894862037Z",
+          "message": "Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/3c775c74-aeab-4d73-82a7-981ea9f33d53/vol_nfwnsdafemfrgwf5"
+        },
+        {
+          "timestamp": "2026-11-16T22:15:21.895178932Z",
+          "message": "Starting Container"
+        },
+        {
+          "timestamp": "2026-11-16T22:15:22.304876361Z",
+          "message": "HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER"
+        }
+      ]
+    }
+  ],
+  "final": {
+    "services": [
+      {
+        "id": "2c6bca77-61e6-4ab5-9447-fa23767622aa",
+        "name": "singmotion-ai",
+        "latestDeployment": {
+          "id": "caab895b-6bc2-4ad1-b096-711fbb305f3f",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-16T18:54:02.511Z",
+          "url": null
+        },
+        "cronSchedule": null
+      },
+      {
+        "id": "10a10398-e2b8-45bf-a8f5-298999904358",
+        "name": "Postgres",
+        "latestDeployment": {
+          "id": "3e489cc9-aab9-45a2-a6f3-4dd5c3f1f06f",
+          "status": "SUCCESS",
+          "createdAt": "2026-10-29T19:08:05.365Z",
+          "url": null
+        },
+        "cronSchedule": null
+      },
+      {
+        "id": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+        "name": "singmotion-backup",
+        "latestDeployment": {
+          "id": "508c9c41-f634-4d8d-8c22-84633eefec42",
+          "status": "SUCCESS",
+          "createdAt": "2026-11-16T22:15:05.533Z",
+          "url": null
+        },
+        "cronSchedule": null
+      }
+    ],
+    "staged": null,
+    "workerConfig": {
+      "source": {
+        "repo": "bernhardtmuellergermany-maker/singmotion-ai",
+        "branch": "release/production-promoted-20261114",
+        "commitSha": "d36acf6d8f5b268ffef907c53f0524c90d7b852f"
+      },
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildEnvironment": "V3",
+        "dockerfilePath": "Dockerfile.backup"
+      },
+      "deploy": {
+        "restartPolicyType": "NEVER",
+        "useLegacyStacker": false,
+        "ipv6EgressEnabled": false,
+        "runtime": "V2",
+        "multiRegionConfig": {
+          "sfo": {
+            "numReplicas": 1
+          }
+        }
+      },
+      "volumeMounts": {
+        "00e52dae-7be6-45aa-9e2d-898404b2c17e": {
+          "mountPath": "/state"
+        }
+      }
+    },
+    "domains": {
+      "serviceDomains": [],
+      "customDomains": []
+    },
+    "tcpProxies": [],
+    "volumes": [
+      {
+        "id": "00e52dae-7be6-45aa-9e2d-898404b2c17e",
+        "name": "singmotion-hidrive-oauth-state",
+        "mountPath": "/state",
+        "sizeMB": 128,
+        "region": "sfo",
+        "state": "live"
+      }
+    ],
+    "deployments": [
+      {
+        "id": "508c9c41-f634-4d8d-8c22-84633eefec42",
+        "status": "SUCCESS",
+        "commit": "d36acf6d8f5b268ffef907c53f0524c90d7b852f"
+      },
+      {
+        "id": "638c6a73-dc97-4971-b1de-5cb97f6b28c5",
+        "status": "REMOVED",
+        "commit": "7ce50e3786abf3ad6281fc426a086091a7f12800"
+      },
+      {
+        "id": "d041de2c-3e37-46a5-903e-78b6ef2be51b",
+        "status": "REMOVED",
+        "commit": "57c6c51384b99fad5614a18f8d20496b1e059140"
+      }
+    ]
+  },
+  "finding": "Residual result log order 3,1,2 failed controller's ordinal==index+1 condition. Sender and restore source never attached; no new upload or restore started."
+}

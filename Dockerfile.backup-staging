@@ -1,0 +1,11 @@
+# Disposable synthetic-only integration, no app startup or customer volumes.
+FROM node:24.22.1-bookworm-slim AS node
+FROM postgres:18-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+COPY --from=node /usr/local/bin/node /usr/local/bin/node
+WORKDIR /test
+COPY lib/ lib/
+COPY tests/cloud-backup.test.mjs tests/cloud-backup.test.mjs
+COPY scripts/cloud-backup-staging.sh /test/run.sh
+USER postgres
+ENTRYPOINT ["bash", "/test/run.sh"]

@@ -1,0 +1,11 @@
+# Explicit temporary synthetic receiver image. No production app/source mounts.
+FROM node:24.22.1-bookworm-slim
+WORKDIR /app
+COPY lib/ops/hidrive-residual-check.mjs lib/ops/backup-key-policy.mjs lib/ops/backup-errors.mjs lib/ops/cloud-backup.mjs lib/ops/private-backup-worker.mjs lib/ops/hidrive-ciphertext-sink.mjs lib/ops/
+COPY lib/commerce/credit-ledger-integrity.ts lib/commerce/
+COPY scripts/hidrive-private-integration.mjs scripts/hidrive-backup-worker.mjs scripts/
+COPY --chmod=0444 scripts/hidrive-backup-worker.mjs /usr/local/lib/hidrive-backup-worker.mjs
+COPY --chmod=0444 scripts/hidrive-backup-entrypoint.mjs /usr/local/lib/hidrive-backup-entrypoint.mjs
+RUN mkdir -p /state && chown 1000:1000 /state && chmod 0700 /state
+USER root
+ENTRYPOINT ["node", "--experimental-strip-types", "/usr/local/lib/hidrive-backup-entrypoint.mjs"]

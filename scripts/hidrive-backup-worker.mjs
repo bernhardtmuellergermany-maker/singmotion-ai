@@ -175,15 +175,16 @@ async function saveState(data,secret){
  }finally{await fh.close();}
  await rename(tmp,STATE_PATH);
 }
-async function hidriveRequest(accessToken,method,endpoint,params,body){
+export async function hidriveRequest(accessToken,method,endpoint,params,body,fetchImpl=fetch){
  const url=new URL(HIDRIVE_API+endpoint);
  for(const [key,value] of Object.entries(params))url.searchParams.set(key,value);
  let response;
  try{
-  response=await fetch(url,{method,redirect:"error",headers:{
+  response=await fetchImpl(url,{method,redirect:"error",headers:{
    Authorization:"Bearer "+accessToken,
-   ...(body?{"Content-Type":"application/octet-stream","Cache-Control":"no-store"}:{})
-  },body:body??undefined,signal:AbortSignal.timeout(30000)});
+   ...(body?{"Content-Type":"application/octet-stream","Cache-Control":"no-store"}:{}),
+   ...(Buffer.isBuffer(body)?{"Content-Length":String(body.length)}:{})
+  },body:body??undefined,...(body&&typeof body.pipe==="function"?{duplex:"half"}:{}),signal:AbortSignal.timeout(30000)});
  }catch{throw new SafeError("HIDRIVE_API_UNREACHABLE");}
  return response;
 }
@@ -220,6 +221,26 @@ async function syntheticProbe(accessToken,secret,dir){
  if(response.status!==404)throw new SafeError("SYNTHETIC_DELETE_UNVERIFIED");
  console.log("HIDRIVE_SYNTHETIC_ENCRYPTED_ROUNDTRIP_VERIFIED");
 }
+// Future private receiver adapter only. No authorization-code exchange, probe,
+// startup activation or new grant. Caller must provide an approved transfer mode.
+export async function existingHiDriveSession(env=process.env){
+ if(env.RAILWAY_SERVICE_NAME!=="singmotion-backup"||
+    env.BACKUP_MODE!=="PRIVATE_CIPHERTEXT_RECEIVER"||
+    env.BACKUP_TRANSFER_APPROVED!=="YES"||env.HIDRIVE_AUTH_CODE)
+  throw new SafeError("PRIVATE_TRANSFER_APPROVAL_REQUIRED");
+ await ensureStateDir();
+ const secret=need(env.HIDRIVE_CLIENT_SECRET,"MISSING_CLIENT_SECRET");
+ const clientId=need(env.HIDRIVE_CLIENT_ID,"MISSING_CLIENT_ID");
+ const previous=await loadState(secret);
+ const fresh=parseGrant(await postForm(TOKEN_URL,{
+  client_id:clientId,client_secret:secret,grant_type:"refresh_token",refresh_token:previous.refresh_token}),previous);
+ await saveState(fresh,secret);
+ const info=await tokenInfo(fresh.access_token);
+ const alias=need(info.alias??fresh.alias,"HIDRIVE_ALIAS_UNAVAILABLE");
+ const dir=await verifyPrivateFolder(fresh.access_token,alias,need(env.HIDRIVE_BACKUP_FOLDER,"MISSING_FOLDER"));
+ return {dir,request:(method,endpoint,params,body)=>hidriveRequest(fresh.access_token,method,endpoint,params,body)};
+}
+
 export async function main(env=process.env){
  const mode=env.BACKUP_MODE??"SETUP_ONLY_NO_DATA_TRANSFER";
  if(!MODES.has(mode))throw new SafeError("BACKUP_MODE_UNSUPPORTED");

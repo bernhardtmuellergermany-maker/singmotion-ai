@@ -1,0 +1,164 @@
+{
+  "run": "be7fc257-d46d-49d9-92cd-f9cfd85da03e",
+  "artifactId": "eaf749d6-2f2a-4bc6-b1dc-1d3189d6013b",
+  "manifestId": "d9925209-943f-445b-92d5-05f916669408",
+  "testCommit": "0b91aa98e5c6d3077f38d77badb0fe58ea4c0f0d",
+  "result": "ABORTED_ON_SENDER_FAILURE_NO_RETRY",
+  "sender": {
+    "scope": "service",
+    "deploymentId": "f5d247a7-983c-42a8-81b9-26427d43aeda",
+    "serviceId": "28648f54-1d37-4383-aa15-6c5907238d02",
+    "environmentId": "36adc41d-7e54-4396-ad1a-fd432ba0441d",
+    "status": "SUCCESS",
+    "deploy": [
+      {
+        "timestamp": "2026-11-16T21:45:02.683012149Z",
+        "severity": "info",
+        "message": "Starting Container",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      },
+      {
+        "timestamp": "2026-11-16T21:45:04.427864640Z",
+        "severity": "error",
+        "message": "HIDRIVE_SYNTHETIC_INTEGRATION_FAILED",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"error\""
+          }
+        ]
+      }
+    ]
+  },
+  "restoreAtAbort": {
+    "scope": "service",
+    "deploymentId": "d9d7ac76-9730-4887-959c-40d4c8ba054a",
+    "serviceId": "6afa781d-a626-4b02-99e4-cbb7c413e2aa",
+    "environmentId": "36adc41d-7e54-4396-ad1a-fd432ba0441d",
+    "status": "DEPLOYING",
+    "deploy": []
+  },
+  "receiver": {
+    "scope": "service",
+    "deploymentId": "e3605322-e8d1-4b03-bc8d-15e94ab58bd0",
+    "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+    "environmentId": "36adc41d-7e54-4396-ad1a-fd432ba0441d",
+    "status": "SUCCESS",
+    "deploy": [
+      {
+        "timestamp": "2026-11-16T21:43:48.844627941Z",
+        "severity": "info",
+        "message": "Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/ed519ed6-fe5c-4765-b3d0-b3a46dd6789b/vol_nfwnsdafemfrgwf5",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      },
+      {
+        "timestamp": "2026-11-16T21:43:48.844715773Z",
+        "severity": "info",
+        "message": "Starting Container",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      },
+      {
+        "timestamp": "2026-11-16T21:43:51.532048748Z",
+        "severity": "info",
+        "message": "HIDRIVE_SYNTHETIC_PRIVATE_RECEIVER_READY",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      }
+    ]
+  },
+  "rollbackConfig": {
+    "source": {
+      "repo": "bernhardtmuellergermany-maker/singmotion-ai",
+      "branch": "release/production-promoted-20261114",
+      "commitSha": "d36acf6d8f5b268ffef907c53f0524c90d7b852f"
+    },
+    "build": {
+      "builder": "DOCKERFILE",
+      "buildEnvironment": "V3",
+      "dockerfilePath": "Dockerfile.backup"
+    },
+    "deploy": {
+      "restartPolicyType": "NEVER",
+      "useLegacyStacker": false,
+      "ipv6EgressEnabled": false,
+      "runtime": "V2",
+      "multiRegionConfig": {
+        "sfo": {
+          "numReplicas": 1
+        }
+      }
+    },
+    "volumeMounts": {
+      "00e52dae-7be6-45aa-9e2d-898404b2c17e": {
+        "mountPath": "/state"
+      }
+    }
+  },
+  "deletedServices": [
+    "28648f54-1d37-4383-aa15-6c5907238d02",
+    "6afa781d-a626-4b02-99e4-cbb7c413e2aa"
+  ],
+  "originalVolume": "00e52dae-7be6-45aa-9e2d-898404b2c17e",
+  "initialRollback": {
+    "scope": "deployment",
+    "deploymentId": "79371544-f8ed-4520-b5a8-0166cfb74f06",
+    "serviceId": "4dfb0406-e0a0-48b1-aa6b-0e36cd89190a",
+    "environmentId": "36adc41d-7e54-4396-ad1a-fd432ba0441d",
+    "status": "SUCCESS",
+    "deploy": [
+      {
+        "timestamp": "2026-11-16T21:47:03.991760321Z",
+        "severity": "info",
+        "message": "Mounting volume on: /var/lib/containers/railwayapp/bind-mounts/23ad3328-2f37-47ca-b57d-616818c2f461/vol_nfwnsdafemfrgwf5",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      },
+      {
+        "timestamp": "2026-11-16T21:47:03.991891147Z",
+        "severity": "info",
+        "message": "Starting Container",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      },
+      {
+        "timestamp": "2026-11-16T21:47:04.723877867Z",
+        "severity": "info",
+        "message": "HIDRIVE_WORKER_SETUP_READY_NO_DATA_TRANSFER",
+        "attributes": [
+          {
+            "key": "level",
+            "value": "\"info\""
+          }
+        ]
+      }
+    ]
+  },
+  "initialRollbackMetadataDiscrepancy": "Config pin d36acf6 but deployment meta commitHash 7ce50e3; superseded using original image redeploy."
+}
