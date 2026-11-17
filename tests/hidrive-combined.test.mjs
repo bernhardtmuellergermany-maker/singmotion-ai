@@ -105,6 +105,13 @@ test("fresh role-separated bundle, expiring activation, key identity and invalid
   );
 });
 
+test("bundle stays valid if certificate issuance crosses the initial wall-clock second", async () => {
+  const startedBeforeCertificate = Date.now() - 2000;
+  const bundle = await createCombinedBundle(startedBeforeCertificate);
+  validateRuntimeKeys(bundle.sender);
+  validateRuntimeKeys(bundle.restore);
+});
+
 function fixture(failAt = null, residualOrder = [1, 2, 3], partialFirst = false) {
   const original = "d36acf6d8f5b268ffef907c53f0524c90d7b852f",
     commit = "a".repeat(40),
