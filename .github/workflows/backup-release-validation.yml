@@ -44,6 +44,8 @@ jobs:
         run: node --test tests/hidrive-readonly-commit-preflight.test.mjs
       - name: Reject old HiDrive RW OAuth grants via tokeninfo (fixtures only)
         run: node --test tests/hidrive-ro-grant-attestation.test.mjs
+      - name: Refuse unsafe independent HiDrive CLI startup without any network contact
+        run: node --test tests/hidrive-readonly-cli-safety.test.mjs
       - name: Single committed encrypted SQLite Postgres and paginated R2 full restore
         run: node --experimental-strip-types --test tests/multistore-segmented-backup.test.mjs
       - name: Verify encrypted backup network and restore (no external credentials)
