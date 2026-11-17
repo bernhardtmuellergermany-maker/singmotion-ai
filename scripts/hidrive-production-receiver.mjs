@@ -125,6 +125,7 @@ export async function runProductionCiphertextReceiver(env,{
   try {
     const sink=hidriveCiphertextSink({
       session,spool:scratch,maxBytes:MAX_SEGMENT_BYTES+8192+20,
+      report:onPhase,
     });
     server=createPrivateReceiver({
       tls:config.tls,clientFingerprint:config.clientFingerprint,
@@ -132,6 +133,7 @@ export async function runProductionCiphertextReceiver(env,{
       allowedRun:config.run,
       sink,maxBytes:MAX_SEGMENT_BYTES+8192+20,
       maxFiles:MAX_SEGMENTS+1,
+      report:onPhase,
     });
     await listenPrivate(server,host,8443);
     onReady("HIDRIVE_PRIVATE_PRODUCTION_RECEIVER_READY");
