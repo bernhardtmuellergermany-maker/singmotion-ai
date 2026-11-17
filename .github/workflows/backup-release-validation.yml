@@ -46,6 +46,8 @@ jobs:
         run: node --test tests/hidrive-ro-grant-attestation.test.mjs
       - name: Refuse unsafe independent HiDrive CLI startup without any network contact
         run: node --test tests/hidrive-readonly-cli-safety.test.mjs
+      - name: Verify encrypted HiDrive receipt and manifest downloaded in owner browser (fixtures only)
+        run: node --test tests/hidrive-local-receipt-preflight.test.mjs
       - name: Single committed encrypted SQLite Postgres and paginated R2 full restore
         run: node --experimental-strip-types --test tests/multistore-segmented-backup.test.mjs
       - name: Verify encrypted backup network and restore (no external credentials)
