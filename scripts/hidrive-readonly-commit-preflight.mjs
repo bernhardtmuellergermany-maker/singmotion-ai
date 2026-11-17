@@ -14,7 +14,8 @@
  * and MUST be separately enabled by RESTORE_FULL_READ_APPROVED=YES.
  */
 import { spawn } from "node:child_process";
-import { lstat } from "node:fs/promises";
+import { lstat, readFile } from "node:fs/promises";
+import { attestHiDriveReadOnlyGrant } from "../lib/ops/hidrive-ro-grant-attestation.mjs";
 import path from "node:path";
 import {
   PRODUCTION_RECEIPT_PIN_230,
@@ -97,6 +98,29 @@ async function main() {
     fail("FULL_READ_APPROVAL_REQUIRED");
   await assertPrivateConfig(config);
   strictRemote(remote);
+  if (Object.keys(process.env).some(name =>
+      /^(STRIPE_|BYTEPLUS_|R2_|PGPASSWORD|CMS_DATABASE_URL|DATABASE_URL|BACKUP_RECOVERY_PRIVATE|BACKUP_SIGNING_PRIVATE|HIDRIVE_CLIENT_SECRET|HIDRIVE_AUTH_CODE)/.test(name)))
+    fail("SOURCE_SECRETS_FORBIDDEN");
+  const remoteName = remote.slice(0,remote.indexOf(":"));
+  // Read the token only in the owner-controlled process, never send it to
+  // ChatGPT/GitHub/Railway variables or print it. Verify *granted* scope.
+  const roReport = await attestHiDriveReadOnlyGrant({
+    configText:await readFile(config,"utf8"),
+    remoteName,
+    async tokeninfo(token) {
+      const response = await fetch("https://my.hidrive.com/oauth2/tokeninfo", {
+        method:"POST", redirect:"error",
+        headers:{"Content-Type":"application/x-www-form-urlencoded","Cache-Control":"no-store"},
+        body:new URLSearchParams({access_token:token}),
+        signal:AbortSignal.timeout(15000),
+      });
+      if (!response.ok) fail("TOKENINFO_UNAVAILABLE");
+      const body = await response.text();
+      if (body.length > 4096) fail("TOKENINFO_INVALID");
+      try { return JSON.parse(body); }
+      catch { fail("TOKENINFO_INVALID"); }
+    },
+  });
   const prefix = remote + "/sm-" + PRODUCTION_RECEIPT_PIN_230.run + "-";
   const session = {
     dir: remote,
@@ -115,7 +139,7 @@ async function main() {
   const report = await verifyRemoteCommittedCiphertext230({
     session, verifyAll:selectedMode[0] === "--all-ciphertext",
   });
-  process.stdout.write(JSON.stringify(report) + "\n");
+  process.stdout.write(JSON.stringify({...roReport,...report}) + "\n");
 }
 
 main().catch((error) => {
