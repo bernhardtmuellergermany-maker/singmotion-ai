@@ -27,9 +27,10 @@ must not be merged or automatically deployed as a Production source activation.
    `/state` OAuth volume, token, credentials, or the Production `user,rw`
    grant. STRATO supports access level `ro`; rclone's HiDrive backend uses
    `--hidrive-scope-access ro` and `--hidrive-scope-role user`.
-   Check the actual granted scope directly against HiDrive's tokeninfo/consent
-   in that trusted operator session. Passing `ro` to rclone after an existing
-   `rw` grant does NOT downgrade an already granted token.
+   The CLI verifies the *actual granted scope* with HiDrive's tokeninfo endpoint
+   directly from the trusted runtime and refuses anything other than exactly
+   `user,ro`. It returns no token or alias. Passing `ro` to rclone after an
+   existing `rw` grant does NOT downgrade an already granted token.
 3. Configure rclone directly in that trusted runner, using its own private
    mode-0600 configuration file. No OAuth token, client secret, config file or
    recovery key may be pasted into chat, issues, GitHub or CI.
@@ -47,7 +48,11 @@ must not be merged or automatically deployed as a Production source activation.
    ```
 
    The path and remote string are examples; they must point to a private
-   operator-created read-only grant. `--manifest-only` checks the exact
+   operator-created read-only grant. The rclone `[hidrive-ro]` section must
+   explicitly set `type = hidrive`, `scope_access = ro`, `scope_role = user`
+   and contain a freshly authorized OAuth token; an RW token fails closed.
+   Configure an appropriate private `root_prefix` for the existing HiDrive
+   backup folder without exposing the user alias in logs or GitHub. `--manifest-only` checks the exact
    remote `sm-<run>-COMMITTED.enc` receipt, enforces 690 authorized entries,
    pins the manifest ID, length and SHA-256, and **GETs only** the encrypted
    manifest. It performs no upload, deletion, data restore or decryption.
