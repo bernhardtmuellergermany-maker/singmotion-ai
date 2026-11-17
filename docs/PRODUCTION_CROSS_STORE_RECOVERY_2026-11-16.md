@@ -17,6 +17,33 @@ Railway Production environment ID:
 
 The working private German Credit studio and wallet must remain available.
 
+## 2026-11-17 evidence — native backup schedules already present
+
+The owner inspected Railway Production Backups tabs directly and shared
+screenshots. **Both volumes already have automatic daily backup schedules.**
+
+- `singmotion-ai-volume`: a visible latest `Daily Schedule` backup of
+  **774 MB**, shown as ~10 hours old; next backup ~13 hours later; two
+  earlier entries visible, including a dated backup. Backup data was not
+  downloaded or restored.
+- `postgres-volume`: a visible latest `Daily Schedule` backup of
+  **116 MB**, shown as ~8 hours old; next backup ~15 hours later; another
+  earlier entry visible. PostgreSQL PITR is explicitly **off**. Do not enable
+  PITR as part of this work: it causes a database redeployment.
+
+The connected Railway OAuth integration independently confirmed the exact
+Production mounts and healthy deployments. It cannot retrieve the native
+backup IDs, historical restore contents or Railway volume backup bytes.
+**These snapshots are a useful Railway-local recovery layer, not an
+independent encrypted offsite or tested restore.** Do not create duplicate
+on-demand snapshots merely to satisfy a schedule checkbox, and never restore
+onto the live Production service.
+
+The app's existing `scripts/backup-source-inventory.ts` still requires an
+app-container execution context. PR #284 adds a normally disabled short-lived
+internal trigger with no public route or real-data upload. It is a precursor
+to actual encrypted offsite backup, not a substitute for one.
+
 ## A. Railway snapshots (recovery layer, not offsite)
 
 Railway supports manual/scheduled daily/weekly/monthly Backups in each
@@ -128,7 +155,7 @@ https://developers.cloudflare.com/r2/api/s3/api/
 
 ## E. Evidence and approval — all still OPEN
 
-- [ ] Two actual Railway manual volume backups recorded, schedules set
+- [x] Both Railway native daily **schedules and recent entries visually verified** (2026-11-17 screenshots). Backup IDs, restorability and independent recovery **remain unverified**.
 - [ ] Real Production encrypted SQLite archive stored independently offsite
 - [ ] Independent offline SQLite restore from that real copy PASS 3/3
 - [ ] Encrypted Postgres logical dump offsite, isolated restore and CMS checks PASS

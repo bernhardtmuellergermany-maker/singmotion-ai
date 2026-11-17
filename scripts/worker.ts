@@ -91,6 +91,17 @@ if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
   }));
  }
 }
+// A short-lived operator activation can run the existing read-only, privacy-safe
+// inventory from the actual volume-owning app process. This never enables a
+// backup transfer or public endpoint. An invalid activation fails closed.
+if(process.env.PRODUCTION_BACKUP_INVENTORY_EXPIRES_AT){
+  void import("../lib/ops/production-backup-inventory-trigger.mjs")
+    .then(({runProductionInventoryOnce})=>runProductionInventoryOnce(process.env,{
+      log: (marker:string, evidence:string)=>console.info(marker,evidence),
+      warn: (marker:string)=>console.warn(marker),
+    }))
+    .catch(()=>console.warn("PRODUCTION_BACKUP_INVENTORY_FAILED"));
+}
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
