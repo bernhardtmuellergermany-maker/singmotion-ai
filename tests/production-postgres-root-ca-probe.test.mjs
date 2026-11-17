@@ -47,7 +47,7 @@ test("strictly validates a self-signed public CA from the known PG volume path",
   const {pem}=await caFixture();
   const out=validatePublicPostgresRootCa({cert_path:fixed,cert_pem:pem},now);
   assert.equal(out.publicOnly,true);
-  assert.ok(pem.startsWith("Certificate:\\n".replace("\\\\n","\\n")) || pem.startsWith("Certificate:\n"));
+  assert.ok(pem.startsWith("Certificate:\n"));
   assert.equal(Buffer.from(out.rootCaB64,"base64").toString("utf8"),pem.slice(pem.indexOf("-----BEGIN CERTIFICATE-----")).trim()+"\n");
   assert.match(out.derSha256,/^[0-9a-f]{64}$/);
   assert.ok(Date.parse(out.validUntil)>now+30*24*60*60*1000);
