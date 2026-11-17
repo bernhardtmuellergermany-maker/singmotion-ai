@@ -21,8 +21,8 @@ function drive() {
     async request(method, endpoint, params, body) {
       calls.push({method,endpoint,params});
       assert.equal(endpoint, "/file");
-      if (method === "PUT") {
-        assert.equal(params.overwrite, "false");
+      if (method === "POST") {
+        assert.equal(Object.hasOwn(params, "overwrite"), false);
         assert.ok(Buffer.isBuffer(body));
         if (store.has(params.name)) return {ok:false,status:409};
         store.set(params.name, Buffer.from(body));
