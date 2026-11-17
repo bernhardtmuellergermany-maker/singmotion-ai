@@ -67,7 +67,8 @@ jobs:
       - name: Build isolated nonroot HiDrive GET-only preflight image
         run: |
           DOCKER_BUILDKIT=1 docker build -f Dockerfile.restore-readonly -t singmotion-hidrive-restore-readonly:ci .
-          if docker run --rm --network none -e RAILWAY_PROJECT_ID=277416f6-c5bc-4f93-95cf-040fe551875b singmotion-hidrive-restore-readonly:ci > /tmp/hidrive-restore-out 2> /tmp/hidrive-restore-errors; then
+          test "$(docker run --rm --network none --entrypoint id singmotion-hidrive-restore-readonly:ci -u)" = "10001"
+          if docker run --rm --network none --entrypoint node -e RAILWAY_PROJECT_ID=277416f6-c5bc-4f93-95cf-040fe551875b singmotion-hidrive-restore-readonly:ci /opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs --manifest-only > /tmp/hidrive-restore-out 2> /tmp/hidrive-restore-errors; then
             echo "Expected missing-config fail-closed exit"
             exit 1
           fi
