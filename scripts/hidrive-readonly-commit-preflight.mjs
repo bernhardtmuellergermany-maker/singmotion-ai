@@ -34,7 +34,7 @@ const remote = process.env.RESTORE_HIDRIVE_RO_REMOTE;
 
 function strictRemote(value) {
   if (typeof value !== "string" ||
-      !/^[a-zA-Z0-9_-]{1,64}:(?:[a-zA-Z0-9_-]{1,80}\/)*SingMotion-DR$/.test(value))
+      !/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}:(?:[a-zA-Z0-9_-]{1,80}\/)*SingMotion-DR$/.test(value))
     fail("RESTORE_REMOTE_INVALID");
   return value;
 }
