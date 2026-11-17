@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID, generateKeyPairSync } from "node:crypto";
+import { execFileSync } from "node:child_process";
+import { nativePostgresDump } from "../lib/ops/cloud-backup.mjs";
 import {
   mkdtemp, mkdir, writeFile, readFile, rm, stat, readdir,
 } from "node:fs/promises";
@@ -213,6 +215,77 @@ test("remote source change fails closed before COMMITTED receipt",async()=>{
     assert.ok(![...remote.remote.keys()].some(k=>k.endsWith("-COMMITTED.enc")));
     assert.equal((await readdir(fixture.scratch)).length,0);
   } finally {
+    if(fixture?.commerce?.isOpen) fixture.commerce.close();
+    await rm(root,{recursive:true,force:true});
+  }
+});
+
+test("one archive restores real native PostgreSQL pg_dump into isolated synthetic DB alongside WAL SQLite and R2",{
+  skip: process.env.BACKUP_NATIVE_PG_TEST !== "YES", timeout:240000,
+},async()=>{
+  const root=await temp();
+  let fixture,restoreDb;
+  try {
+    fixture=await sources(root);
+    const remote=fakeHiDrive();
+    const sink=hidriveCiphertextSink({session:remote.session,spool:fixture.spool});
+    const result=await produceMultiStoreArchive({
+      sourceDir:fixture.dir,scratchParent:fixture.scratch,
+      pgEnv:{
+        PGHOST:"/tmp",PGUSER:"fixture",PGDATABASE:"backup_fixture",
+        PGSSLMODE:"disable",BACKUP_SYNTHETIC_PG:"YES",
+      },
+      pgDump:nativePostgresDump,
+      r2:fakeR2(3),sink,
+      recoveryPublicKey:rsa.publicKey,signingPrivateKey:signer.privateKey,
+      segmentBytes:1024*1024,
+    });
+    fixture.commerce.close();
+    const reader=await openHiDriveCommittedReader({
+      session:remote.session,run:result.run,
+    });
+    const recovered=path.join(fixture.recovery,"native-pg");
+    const restore=await restoreMultiStoreArchive({
+      sink:reader,run:result.run,
+      manifestId:reader.manifestId,manifestMeta:reader.manifestMeta,
+      recoveryPrivateKey:rsa.privateKey,signingPublicKey:signer.publicKey,
+      targetDir:recovered,
+    });
+    assert.equal(restore.stores.sqlite,3);
+    assert.equal(restore.stores.postgres,1);
+    assert.equal(restore.stores.r2,3);
+    const pgArchive=path.join(recovered,"postgres","cms.dump");
+    assert.ok((await stat(pgArchive)).size>100);
+    restoreDb="sm_fixture_"+randomBytes(6).toString("hex");
+    const opts={stdio:["ignore","pipe","pipe"],timeout:30000,env:{
+      PATH:process.env.PATH,PGHOST:"/tmp",PGUSER:"fixture",
+    }};
+    execFileSync("createdb",["-h","/tmp","-U","fixture",restoreDb],opts);
+    execFileSync("pg_restore",[
+      "-h","/tmp","-U","fixture","--exit-on-error","--no-owner",
+      "--no-acl","--dbname",restoreDb,pgArchive,
+    ],opts);
+    const count=execFileSync("psql",[
+      "-h","/tmp","-U","fixture","-d",restoreDb,
+      "-Atqc","SELECT count(*) FROM fixture_content",
+    ],opts).toString().trim();
+    assert.equal(count,"3");
+    const commerce=new DatabaseSync(path.join(recovered,"sqlite","commerce.sqlite"),{readOnly:true});
+    try {
+      assert.equal(commerce.prepare("PRAGMA quick_check").get()?.quick_check,"ok");
+      assert.equal(auditCreditLedger(commerce).ok,true);
+    } finally {commerce.close();}
+    assert.equal((await readFile(path.join(recovered,"r2","private-media","000002.mp4"))).length,28);
+  } finally {
+    if(restoreDb) {
+      try{
+        execFileSync("dropdb",["-h","/tmp","-U","fixture",restoreDb],{
+          stdio:"ignore",timeout:30000,env:{
+            PATH:process.env.PATH,PGHOST:"/tmp",PGUSER:"fixture",
+          },
+        });
+      } catch { /* fixture PG is destroyed after this test anyway */ }
+    }
     if(fixture?.commerce?.isOpen) fixture.commerce.close();
     await rm(root,{recursive:true,force:true});
   }
