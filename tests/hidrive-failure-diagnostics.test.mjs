@@ -23,7 +23,7 @@ const meta = {
   sha256: createHash("sha256").update(bytes).digest("hex"),
 };
 
-test("real adapter HTTP construction: PUT, encoded query, bearer, fixed byte length, redirects refused", async () => {
+test("real adapter HTTP construction: create-only POST, encoded query, bearer, fixed byte length, redirects refused", async () => {
   let called = false;
   await hidriveRequest(
     "fake-token",
