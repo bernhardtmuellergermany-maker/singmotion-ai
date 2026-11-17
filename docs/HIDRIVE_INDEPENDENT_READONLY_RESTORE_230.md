@@ -126,7 +126,11 @@ has deployed.
   It has **no automatic HiDrive GET** and no public API. A brief activation
   window can provide the owner a private browser Console to do the HiDrive
   authorization independently, without using a personal computer.
-- An empty `/recovery/rclone.conf` does not exist yet. The owner needs to
+- The staged reader's rclone config path is now `/tmp/rclone.conf`, **inside
+  the disposable nonroot container filesystem**. No persistent OAuth secret
+  file is put on the 8 GiB `/recovery` volume. The private config does not
+  exist yet; it must be created in a trusted owner-controlled session (mode
+  0600, UID 10001). The owner needs to
   authorize a fresh read-only HiDrive grant in an owner-controlled **trusted
   browser/cloud environment** and place a 0600 config directly on that
   private host/volume. Do not send any OAuth token, config or code to this
