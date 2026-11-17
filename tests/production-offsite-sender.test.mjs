@@ -41,7 +41,8 @@ test("exact live environment private hostname, RSA-3072, signed mTLS identity an
   const env=await fixture();
   const config=productionOffsiteSenderConfig(env,testNow);
   assert.equal(config.run,env.PRODUCTION_OFFSITE_BACKUP_RUN_ID);
-  assert.equal(config.pg.PGHOST,"postgres.railway.internal");
+  assert.equal(config.pg.targetHost,"postgres.railway.internal");
+  assert.equal(config.pg.PGHOST,"localhost");
   assert.equal(config.pg.PGSSLMODE,"verify-full");
   assert.equal(config.pg.PGUSER,"backup+fixture");
   assert.equal(config.pg.PGPASSWORD,"s3cure@fixture");
@@ -79,6 +80,7 @@ test("operator-approved one-shot sender forwards only encrypted sink, pinned TLS
   const events=[],warnings=[],calls=[];
   const output=await runProductionOffsiteOnce(env,{
     now:()=>testNow,
+    resolveHost:async(host)=>{assert.equal(host,"postgres.railway.internal");return {address:"fd12:3456::1"};},
     log:(...args)=>events.push(args),warn:(...args)=>warnings.push(args),
     createR2:(cfg)=>{
       calls.push({type:"r2",config:cfg});
@@ -110,6 +112,7 @@ test("operator-approved one-shot sender forwards only encrypted sink, pinned TLS
   assert.equal(events[0][0],"PRODUCTION_OFFSITE_BACKUP_COMMITTED");
   assert.equal(warnings.length,0);
   assert.equal(calls.find(x=>x.type==="producer").config.pg.PGSSLMODE,"verify-full");
+  assert.equal(calls.find(x=>x.type==="producer").config.pg.PGHOSTADDR,"fd12:3456::1");
   assert.equal(calls.find(x=>x.type==="producer").config.runId,env.PRODUCTION_OFFSITE_BACKUP_RUN_ID);
   assert.equal(calls.find(x=>x.type==="sink").config.origin,env.BACKUP_RECEIVER_ORIGIN);
   assert.ok(calls.find(x=>x.type==="close"));
@@ -122,7 +125,7 @@ test("a remote receipt with unexpected run ID cannot falsely report completion",
   const env=await fixture();
   const logs=[],warnings=[];
   const out=await runProductionOffsiteOnce(env,{
-    now:()=>testNow,log:(...args)=>logs.push(args),
+    now:()=>testNow,resolveHost:async()=>({address:"10.0.0.42"}),log:(...args)=>logs.push(args),
     warn:(...args)=>warnings.push(args),
     createR2:()=>({close:()=>{}}),
     createSink:()=>({}),
@@ -134,4 +137,19 @@ test("a remote receipt with unexpected run ID cannot falsely report completion",
   assert.equal(out.status,"failed");
   assert.deepEqual(warnings,[["PRODUCTION_OFFSITE_BACKUP_FAILED"]]);
   assert.equal(logs.length,0);
+});
+
+test("private PG DNS cannot resolve to public or loopback address, no cloud requests are made",async(t)=>{
+  if(process.getuid?.()===0)return t.skip("nonroot app runtime is required");
+  const env=await fixture();
+  const events=[],warnings=[];
+  const out=await runProductionOffsiteOnce(env,{
+    now:()=>testNow,resolveHost:async()=>({address:"8.8.8.8"}),
+    createR2:()=>{throw Error("SHOULD_NOT_CONTACT_R2");},
+    createSink:()=>{throw Error("SHOULD_NOT_CONTACT_RECEIVER");},
+    warn:marker=>warnings.push(marker),log:marker=>events.push(marker),
+  });
+  assert.equal(out.status,"failed");
+  assert.deepEqual(warnings,["PRODUCTION_OFFSITE_BACKUP_FAILED"]);
+  assert.equal(events.length,0);
 });
