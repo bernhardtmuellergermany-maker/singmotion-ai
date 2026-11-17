@@ -12,3 +12,4 @@ pg_ctl -D "$fixture_pg" -o "-c listen_addresses='' -k /tmp" -l "$fixture_pg/serv
 createdb -h /tmp -U fixture backup_fixture
 psql -h /tmp -U fixture -d backup_fixture -v ON_ERROR_STOP=1 -c "CREATE TABLE fixture_content(id integer PRIMARY KEY, title text); INSERT INTO fixture_content VALUES (1,'synthetic-one'),(2,'synthetic-two'),(3,'synthetic-three');" >/dev/null
 node --experimental-strip-types --test tests/cloud-backup.test.mjs
+node --experimental-strip-types --test tests/multistore-segmented-backup.test.mjs
