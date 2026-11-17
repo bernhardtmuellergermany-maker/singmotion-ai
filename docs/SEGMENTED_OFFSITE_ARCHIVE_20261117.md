@@ -75,3 +75,28 @@ cryptographic archive primitive, not a complete operational backup.
 The native daily Railway snapshots documented in
 `docs/PRODUCTION_CROSS_STORE_RECOVERY_2026-11-16.md` remain in place but do not
 prove independent offsite recovery.
+
+## Follow-up: recover HiDrive commit receipt after worker restart
+
+The one-use synthetic HiDrive receiver previously kept its committed run index
+only in process memory. `lib/ops/hidrive-committed-reader.mjs` now provides a
+**read-only** discovery path from the exact immutable
+`sm-<run>-COMMITTED.enc` receipt already written by the existing HiDrive sink.
+The receipt contains random IDs and ciphertext hashes, not plaintext names.
+It is size- and schema-bounded, rejects duplicate/unknown IDs, and authorizes
+GET of receipt-listed ciphertext only. A newly instantiated reader needs no
+sender/receiver in-memory map, no directory listing and never issues PUT/DELETE.
+Every downloaded ciphertext file is checked against the remote receipt's
+recorded size and SHA-256 before the independent recovery function accepts it.
+
+**Trust boundary:** A HiDrive receipt by itself is not an authenticated backup.
+The existing separate recovery step MUST verify the encrypted Ed25519-signed
+manifest, segment AES-GCM tags and full plaintext integrity. The receipt-reader
+uses the worker's existing private OAuth session; it must be hosted behind the
+private mTLS reader boundary. **Do not distribute OAuth secrets to the recovery
+host.** Tests prove this API against a fake HiDrive store, not actual outage
+recovery or remote provider durability. The Production worker remains setup-only.
+
+Still open: integrate the rehydrated index into the permanent private receiver;
+operational certificate/key retention, expiry and rotation; actual multi-source
+encrypted upload and independent real-data restore. No acceptance flag changes.
