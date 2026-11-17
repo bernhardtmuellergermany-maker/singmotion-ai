@@ -50,6 +50,10 @@ jobs:
           npm run test:hidrive-restore-path
           npm run test:hidrive-combined
           node --experimental-strip-types --test tests/hidrive-residual-evidence.test.mjs tests/hidrive-failure-diagnostics.test.mjs
+      - name: Refuse unsafe Production HiDrive receiver activation and secret inheritance
+        run: node --test tests/hidrive-production-receiver.test.mjs
+      - name: Build minimal private HiDrive worker image without app data access
+        run: DOCKER_BUILDKIT=1 docker build -f Dockerfile.backup -t singmotion-hidrive-private-receiver:ci .
       - name: Verify packaged PostgreSQL 18 native dump client and dependencies
         run: DOCKER_BUILDKIT=1 docker build --target runtime-base -f Dockerfile -t singmotion-pg18-client:ci .
       - name: Verify native PostgreSQL SQLite and paginated R2 full synthetic recovery
