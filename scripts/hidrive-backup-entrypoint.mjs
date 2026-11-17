@@ -44,7 +44,7 @@ const {main,SafeError,existingHiDriveSession}=await import("/usr/local/lib/hidri
 try{
  if(process.env.BACKUP_MODE==="PRODUCTION_CIPHERTEXT_ONLY_RECEIVER"){
   fs.writeSync(2,"HIDRIVE_RECEIVER_MODE_SELECTED\n");
-  const {runProductionCiphertextReceiver}=await import("/app/scripts/hidrive-production-receiver.mjs");
+  const {runProductionCiphertextReceiver}=await import("/usr/local/lib/singmotion-backup/scripts/hidrive-production-receiver.mjs");
   fs.writeSync(2,"HIDRIVE_RECEIVER_MODULE_LOADED\n");
   await runProductionCiphertextReceiver(process.env,{
    sessionFactory:existingHiDriveSession,
