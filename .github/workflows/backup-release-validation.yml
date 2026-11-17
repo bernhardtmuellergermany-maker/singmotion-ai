@@ -64,6 +64,15 @@ jobs:
         run: node --test tests/hidrive-production-receiver.test.mjs
       - name: Build minimal private HiDrive worker image without app data access
         run: DOCKER_BUILDKIT=1 docker build -f Dockerfile.backup -t singmotion-hidrive-private-receiver:ci .
+      - name: Build isolated nonroot HiDrive GET-only preflight image
+        run: |
+          DOCKER_BUILDKIT=1 docker build -f Dockerfile.restore-readonly -t singmotion-hidrive-restore-readonly:ci .
+          if docker run --rm --network none -e RAILWAY_PROJECT_ID=277416f6-c5bc-4f93-95cf-040fe551875b singmotion-hidrive-restore-readonly:ci > /tmp/hidrive-restore-out 2> /tmp/hidrive-restore-errors; then
+            echo "Expected missing-config fail-closed exit"
+            exit 1
+          fi
+          grep -q PRIVATE_CONFIG_PATH_REQUIRED /tmp/hidrive-restore-errors
+          test ! -s /tmp/hidrive-restore-out
       - name: Verify packaged PostgreSQL 18 native dump client and dependencies
         run: DOCKER_BUILDKIT=1 docker build --target runtime-base -f Dockerfile -t singmotion-pg18-client:ci .
       - name: Verify native PostgreSQL SQLite and paginated R2 full synthetic recovery
