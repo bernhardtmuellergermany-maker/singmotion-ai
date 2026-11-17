@@ -104,18 +104,22 @@ export async function runProductionCiphertextReceiver(env,{
   sessionFactory,
   interfaces = networkInterfaces,
   onReady = () => {},
+  onPhase = () => {},
 }={}) {
   const config=productionReceiverConfig(env,now());
+  onPhase("HIDRIVE_RECEIVER_CONFIG_VALIDATED");
   if (typeof sessionFactory !== "function")
     refused("RECEIVER_OAUTH_FACTORY_MISSING");
   const host=privateAddress(interfaces());
   if (!host) refused("RECEIVER_PRIVATE_ADDRESS_UNAVAILABLE");
+  onPhase("HIDRIVE_RECEIVER_PRIVATE_NETWORK_READY");
   // Only the exact, approved worker passes a synthesized internal transfer mode
   // to the already-validated OAuth refresh helper. It never updates Railway vars.
   const session=await sessionFactory({
     ...env,BACKUP_MODE:"PRIVATE_CIPHERTEXT_RECEIVER",
     BACKUP_TRANSFER_APPROVED:"YES",
   });
+  onPhase("HIDRIVE_RECEIVER_OAUTH_SESSION_READY");
   const scratch=await mkdtemp(path.join(tmpdir(),"sm-private-ciphertext-"));
   let server;
   try {
