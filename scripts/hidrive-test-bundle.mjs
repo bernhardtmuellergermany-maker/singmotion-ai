@@ -62,8 +62,12 @@ export async function createCombinedBundle(now = Date.now()) {
       ].map((k) => [k, pki[k]]),
     ),
   };
-  validateRuntimeKeys(sender, now);
-  validateRuntimeKeys(restore, now);
+  // OpenSSL issues certificates after bundle creation begins. Compare their
+  // notBefore against the actual post-generation clock rather than the
+  // pre-generation timestamp, which can cross a whole-second boundary.
+  const validationTime = Date.now();
+  validateRuntimeKeys(sender, validationTime);
+  validateRuntimeKeys(restore, validationTime);
   return {
     sender,
     restore,
