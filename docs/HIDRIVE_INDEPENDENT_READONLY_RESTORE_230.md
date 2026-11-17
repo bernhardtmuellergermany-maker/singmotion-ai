@@ -157,3 +157,56 @@ has deployed.
   service, in its mounted volume, its variables or logs. The later RSA
   decrypt/import procedure remains a separate, independently approved
   operation under owner key custody.
+
+
+## Faster browser-only first proof, no new OAuth client (owner action)
+
+Before spending any money, the account owner can open the official **HiDrive
+web UI** at `https://my.hidrive.com/` in an owner-controlled cloud browser
+or on a mobile browser. **Do not supply login credentials to ChatGPT, GitHub,
+Railway environment variables or a public file-sharing link.**
+
+Inside their existing private `SingMotion-DR` folder, download exactly these
+two **encrypted** objects into a private workspace, keeping their names:
+
+1. `sm-267e5c70-7bdd-4157-ba40-5a757bdc07d9-COMMITTED.enc`
+2. `sm-267e5c70-7bdd-4157-ba40-5a757bdc07d9-a05306b2-6e93-4d41-bc32-82c175caa422.enc`
+
+The second file must be **381,510 encrypted bytes** and match the pinned
+SHA-256. The first file is a small, plaintext *ciphertext-only* receipt.
+Do not download unrelated files, restore plaintext, retrieve private RSA keys,
+or create a new backup.
+
+A new `scripts/hidrive-local-receipt-preflight.mjs` runs entirely **offline**
+on the operator's private Linux workspace, as nonroot, with Node 24. It can
+also run inside the dedicated nonpublic Railway Console once an appropriately
+time-bounded single worker is active. The two files must be stored in mode
+0600 (or at least not group/other writable) under the same user. Invoke:
+
+```sh
+node /opt/singmotion/scripts/hidrive-local-receipt-preflight.mjs /tmp/COMMITTED.enc /tmp/MANIFEST.enc
+```
+
+Pass exact private paths used when uploading the two encrypted downloads.
+It checks receipt schema, run/manifest pin, **690 remote object IDs** in the
+receipt and local manifest bytes + SHA-256. Its report intentionally says
+`independentlyAuthenticatedHiDriveGetVerified:false` because an operator-
+provided local file cannot prove its own download provenance.
+This is a preliminary **local ciphertext consistency** gate only, not an
+authenticated remote API GET, Ed25519 signature check, decryption or real
+restore. Record the owner-controlled HiDrive download source and date
+separately if evidence is needed.
+
+**Do not accept the old staged Railway patch solely to use the Console.**
+At this point it still contains unused draft storage/database/bucket resources,
+and the Railway connector cannot remove all staged-only objects via its
+regular delete APIs. An isolated minimal single worker / trusted cloud workspace
+must be used for the initial two-file check instead. Avoid uncontrolled
+activation or costs.
+
+The later complete independent HiDrive readback still needs a genuine
+separately authenticated read-only API/session with correct OAuth callback
+(e.g. a trusted cloud browser co-located with rclone), or a demonstrably
+read-only equivalent. Railway's browser Console by itself does **not**
+complete a default rclone localhost redirect (`127.0.0.1:53682`) from
+the owner's separate browser.
