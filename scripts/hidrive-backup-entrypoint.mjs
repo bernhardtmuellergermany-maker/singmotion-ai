@@ -40,9 +40,15 @@ if(process.getuid()===0){
 if(process.getuid()!==uid||process.getgid()!==gid||
  process.getgroups().some(group=>group!==gid))throw Error("Refusing privileged worker runtime");
 process.umask(0o077);
-const {main,SafeError}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
+const {main,SafeError,existingHiDriveSession}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{
- if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
+ if(process.env.BACKUP_MODE==="PRODUCTION_CIPHERTEXT_ONLY_RECEIVER"){
+  const {runProductionCiphertextReceiver}=await import("/app/scripts/hidrive-production-receiver.mjs");
+  await runProductionCiphertextReceiver(process.env,{
+   sessionFactory:existingHiDriveSession,
+   onReady:(marker)=>console.info(marker),
+  });
+ }else if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
   const {runHiDriveIntegration,receiverEnvironment}=await import("/app/scripts/hidrive-private-integration.mjs");
   await runHiDriveIntegration(receiverEnvironment(process.env));
  }else await main();
