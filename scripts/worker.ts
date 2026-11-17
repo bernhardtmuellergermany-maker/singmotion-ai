@@ -113,6 +113,16 @@ if (process.env.PRODUCTION_OFFSITE_BACKUP_EXPIRES_AT) {
     }))
     .catch(()=>console.warn("PRODUCTION_OFFSITE_BACKUP_FAILED"));
 }
+// Read-only, opt-in discovery of the PostgreSQL *public* CA certificate.
+// One fixed SELECT against the existing private DB; no key or source export.
+if (process.env.PRODUCTION_POSTGRES_ROOT_CA_PROBE_EXPIRES_AT) {
+  void import("../lib/ops/production-postgres-root-ca-probe.mjs")
+    .then(({probePublicPostgresRootCaOnce})=>probePublicPostgresRootCaOnce(process.env,{
+      log:(marker:string,summary:string)=>console.info(marker,summary),
+      warn:(marker:string)=>console.warn(marker),
+    }))
+    .catch(()=>console.warn("PUBLIC_PG_CA_PROBE_FAILED"));
+}
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
