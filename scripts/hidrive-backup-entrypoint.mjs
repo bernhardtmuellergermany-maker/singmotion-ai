@@ -43,12 +43,12 @@ process.umask(0o077);
 const {main,SafeError,existingHiDriveSession}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{
  if(process.env.BACKUP_MODE==="PRODUCTION_CIPHERTEXT_ONLY_RECEIVER"){
-  console.info("HIDRIVE_RECEIVER_MODE_SELECTED");
+  console.error("HIDRIVE_RECEIVER_MODE_SELECTED");
   const {runProductionCiphertextReceiver}=await import("/app/scripts/hidrive-production-receiver.mjs");
-  console.info("HIDRIVE_RECEIVER_MODULE_LOADED");
+  console.error("HIDRIVE_RECEIVER_MODULE_LOADED");
   await runProductionCiphertextReceiver(process.env,{
    sessionFactory:existingHiDriveSession,
-   onPhase:(marker)=>console.info(marker),
+   onPhase:(marker)=>console.error(marker),
    onReady:(marker)=>console.info(marker),
   });
  }else if(process.env.BACKUP_MODE?.startsWith("PRIVATE_SYNTHETIC_V2:")){
