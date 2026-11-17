@@ -74,7 +74,7 @@ function fakeRemote() {
           if (Buffer.isBuffer(body)) chunks.push(body);
           else for await (const chunk of body) chunks.push(chunk);
           files.set(params.name, Buffer.concat(chunks));
-          return { ok: true };
+          return { ok: true, status: 201 };
         }
         assert.equal(method, "GET");
         let data = files.get(params.path.split("/").at(-1));
