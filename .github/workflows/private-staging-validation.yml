@@ -3,6 +3,7 @@ name: Validate private staging without paid services
 on:
   pull_request:
     branches:
+      - release/production-promoted-20261114
       - fix/tempo-distinguish-provider-errors-20261028
       - feat/super-admin-promo-codes-20261103
       - feat/automatic-customer-video-worker-20261105
@@ -16,6 +17,7 @@ on:
       - feat/super-admin-stripe-free-private-studio-20261105
   push:
     branches:
+      - feat/cloud-backup-230
       - fix/mobile-private-gate-cookie-20261105
       - fix/tempo-distinguish-provider-errors-20261028
       - feat/super-admin-promo-codes-20261103
@@ -61,6 +63,14 @@ jobs:
           ffprobe -version
       - name: Install locked dependencies
         run: npm ci
+      - name: Offline backup and HiDrive restore evidence tests (no external credentials)
+        run: |
+          npm run test:backup-inventory
+          npm run test:backup-cloud
+          npm run test:backup-network
+          npm run test:hidrive-restore-path
+          npm run test:hidrive-combined
+          node --experimental-strip-types --test tests/hidrive-residual-evidence.test.mjs tests/hidrive-failure-diagnostics.test.mjs
       - name: Promotion unit and redemption regression tests
         run: node --experimental-strip-types --test tests/promotions.test.ts
       - name: TypeScript checks
