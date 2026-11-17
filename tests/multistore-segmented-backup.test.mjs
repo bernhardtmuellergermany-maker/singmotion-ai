@@ -190,7 +190,7 @@ test("missing or truncated committed ciphertext prevents restore and removes onl
       manifestMeta:reader.manifestMeta,
       recoveryPrivateKey:rsa.privateKey,
       signingPublicKey:signer.publicKey,targetDir:output,
-    }),/CIPHERTEXT_TRUNCATED/);
+    }),/COMMITTED_CIPHERTEXT_MISMATCH/);
     await assert.rejects(stat(output),{code:"ENOENT"});
   } finally {
     if(fixture?.commerce?.isOpen) fixture.commerce.close();
