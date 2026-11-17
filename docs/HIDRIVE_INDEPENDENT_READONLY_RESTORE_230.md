@@ -108,3 +108,48 @@ References:
 - https://developer.hidrive.com/oauth2-endpoints/
 - https://rclone.org/hidrive/
 - https://docs.railway.com/pricing/cost-control
+
+
+## Browser-only Railway operator console (no local PC)
+
+Railway announced a browser-based `Console` tab for running service instances:
+https://railway.com/changelog/2026-05-29-cli-volumes . Availability for the
+specific account must be checked by the operator; it is not exposed through
+this ChatGPT Railway connector. Do not assume shell access before a service
+has deployed.
+
+- The **separate** `restore-worker-private` service is prepared as
+  STAGED ONLY in `singmotion-restore-230-isolated`, with nonroot UID 10001,
+  no public hostname, an EU recovery scratch volume and one pinned source
+  revision using `Dockerfile.restore-readonly`.
+- Its default command is only `sleep 1800` (30 minutes, restart NEVER).
+  It has **no automatic HiDrive GET** and no public API. A brief activation
+  window can provide the owner a private browser Console to do the HiDrive
+  authorization independently, without using a personal computer.
+- An empty `/recovery/rclone.conf` does not exist yet. The owner needs to
+  authorize a fresh read-only HiDrive grant in an owner-controlled **trusted
+  browser/cloud environment** and place a 0600 config directly on that
+  private host/volume. Do not send any OAuth token, config or code to this
+  chat or GitHub. The default rclone localhost OAuth callback may not work
+  from a remote browser Console; use an approved owner-controlled cloud
+  browser with correct OAuth redirection, rather than exposing a public
+  callback or quietly using the Production token.
+- Only after a real `user,ro` tokeninfo proof, run explicitly in the
+  private Console (not automatically on startup):
+
+  ```sh
+  node /opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs --manifest-only
+  ```
+
+- This worker is **NOT DEPLOYED**. The existing staged patch also includes
+  PostgreSQL, a database volume and a recovery object bucket. Committing it
+  starts additional resources and could create recurring costs. Do not
+  commit the patch simply to obtain a Console: schedule a supervised,
+  time-bounded operator activation after OAuth/key handling and budget
+  controls are ready. The EUR 10 target is not automatically enforced by
+  the Railway connector.
+- The temporary browser Console host is a *ciphertext readback host only*.
+  **NEVER** place the owner's RSA recovery private key on this Railway
+  service, in its mounted volume, its variables or logs. The later RSA
+  decrypt/import procedure remains a separate, independently approved
+  operation under owner key custody.
