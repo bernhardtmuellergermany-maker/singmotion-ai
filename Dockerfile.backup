@@ -12,6 +12,8 @@ COPY --chmod=0444 lib/ops/private-backup-worker.mjs /usr/local/lib/singmotion-ba
 COPY --chmod=0444 lib/ops/backup-errors.mjs /usr/local/lib/singmotion-backup/lib/ops/backup-errors.mjs
 COPY --chmod=0444 lib/ops/hidrive-ciphertext-sink.mjs /usr/local/lib/singmotion-backup/lib/ops/hidrive-ciphertext-sink.mjs
 COPY --chmod=0444 lib/ops/backup-segmented-archive.mjs /usr/local/lib/singmotion-backup/lib/ops/backup-segmented-archive.mjs
+COPY --chmod=0444 lib/ops/hidrive-committed-reader.mjs /usr/local/lib/singmotion-backup/lib/ops/hidrive-committed-reader.mjs
+COPY --chmod=0444 scripts/hidrive-production-commit-audit.mjs /usr/local/lib/singmotion-backup/scripts/hidrive-production-commit-audit.mjs
 RUN mkdir -p /state && chown 1000:1000 /state && chmod 0700 /state
 RUN test -s /usr/local/lib/hidrive-backup-worker.mjs && test -s /usr/local/lib/hidrive-backup-entrypoint.mjs
 # Crucial: the legacy setup-only mode never imports these modules. Resolve all
@@ -20,7 +22,7 @@ RUN test -s /usr/local/lib/hidrive-backup-worker.mjs && test -s /usr/local/lib/h
 # unprivileged importer and all parent-directory search permissions at build.
 RUN chmod 0755 /usr/local/lib/singmotion-backup /usr/local/lib/singmotion-backup/scripts /usr/local/lib/singmotion-backup/lib /usr/local/lib/singmotion-backup/lib/ops
 USER node
-RUN node --input-type=module -e "await import('/usr/local/lib/singmotion-backup/scripts/hidrive-production-receiver.mjs'); console.log('HIDRIVE_RECEIVER_NONROOT_IMPORTS_VERIFIED')"
+RUN node --input-type=module -e "await import('/usr/local/lib/singmotion-backup/scripts/hidrive-production-receiver.mjs'); await import('/usr/local/lib/singmotion-backup/scripts/hidrive-production-commit-audit.mjs'); console.log('HIDRIVE_RECEIVER_NONROOT_IMPORTS_VERIFIED')"
 USER root
 
 USER root
