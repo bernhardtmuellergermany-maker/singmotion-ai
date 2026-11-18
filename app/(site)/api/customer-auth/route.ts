@@ -7,10 +7,11 @@ import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnable
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {assessProductionSandboxPilot} from "@/lib/commerce/customer-sandbox-pilot-policy";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
+import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 import {applicationOrigin} from "@/lib/request-origin";
 import {sendCustomerVerificationEmail} from "@/lib/commerce/verification-email";
 export const runtime="nodejs";export const dynamic="force-dynamic";
-const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env) || publicCreditReleaseApproved(process.env) || productionPrivateCustomerPreviewEnabled(process.env) || assessProductionSandboxPilot(process.env).ready || protectedProductionLivePilotApproved(process.env);
+const accountsEnvironment=()=>process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env) || publicCreditReleaseApproved(process.env) || productionPrivateCustomerPreviewEnabled(process.env) || assessProductionSandboxPilot(process.env).ready || protectedProductionLivePilotApproved(process.env) || privateInternationalCreditBetaEnabled(process.env);
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;

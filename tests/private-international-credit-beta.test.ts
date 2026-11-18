@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {assessPrivateInternationalCreditBeta,privateInternationalCreditBetaEnabled} from "../lib/commerce/private-international-credit-beta.ts";
+import {customerIdentityOrigin,googleLoginReady,passwordResetReady} from "../lib/customer-identity-origin.ts";
+import {customerAccountSettingsAccessible} from "../lib/commerce/customer-live-config.ts";
 import {managedCreditTaxDecision,approvedMoRBuyerCountries} from "../lib/commerce/managed-credit-payments.ts";
 import {stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 import {customerCreditStudioBetaEnabled} from "../lib/commerce/customer-credit-studio-beta.ts";
@@ -181,4 +183,21 @@ test("signed LIVE reconciliation remains possible for already bound old-DE or gl
  assert.match(webhook,/existingBoundLiveCreditReceipt/);
  assert.match(webhook,/verifyStripePaymentEvent\(raw,signature,secret,mode\)/);
  assert.match(webhook,/stripeGet\("checkout\/sessions\/"/);
+});
+
+test("approved private international beta enables customer sign-in, Google and password recovery without changing payment approvals",()=>{
+ const p=env();
+ assert.equal(customerIdentityOrigin(p),"https://www.singmotion.ai");
+ assert.equal(customerAccountSettingsAccessible(p),true);
+ assert.equal(googleLoginReady({...p,GOOGLE_OAUTH_CLIENT_ID:"test-id",GOOGLE_OAUTH_CLIENT_SECRET:"test-secret"}),true);
+ assert.equal(passwordResetReady({...p,RESEND_API_KEY:"re_test",ACCOUNT_EMAIL_FROM:"SingMotion AI <no-reply@singmotion.ai>"}),true);
+ assert.equal(customerIdentityOrigin({...p,PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED:"false"}),null);
+ assert.equal(customerIdentityOrigin({...p,APP_ORIGIN:"https://not-singmotion.example"}),null);
+ assert.equal(customerIdentityOrigin({...p,STAGING_AUTH_ENABLED:"false"}),null);
+ const accountRoute=read("app/(site)/api/customer-auth/route.ts");
+ const accountPanel=read("components/account-panel.tsx");
+ assert.match(accountRoute,/privateInternationalCreditBetaEnabled\(process\.env\)/);
+ assert.match(accountPanel,/\{mode==="login"&&<Link className="sm-account-recovery-link" href="\/account\/reset-password">Forgot password\?<\/Link>\}/);
+ assert.doesNotMatch(accountPanel,/recoveryAvailable/);
+ assert.match(accountPanel,/placeholder=\{mode==="register"\?"At least 8 characters":"Your password"\}/);
 });
