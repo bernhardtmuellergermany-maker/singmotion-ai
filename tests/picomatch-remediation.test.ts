@@ -43,16 +43,16 @@ test("patched parsers preserve normal path glob matching",()=>{
 test("CVE-2026-112366 ReDoS payloads cannot monopolize the Node event loop",()=>{
  const targets=[appRequire.resolve("picomatch"),tinyglobbyRequire.resolve("picomatch")];
  for(const modulePath of targets){
-  const code=`
+  for(const pattern of ["+(*a)","*(*a)","+(a|*a)"]){
+   const code=`
 const assert=require("node:assert/strict");
 const pm=require(${JSON.stringify(modulePath)});
-for(const pattern of ["+(*a)","*(*a)","+(a|*a)"]){
-  const haystack="a".repeat(44)+"!";
-  assert.equal(pm.isMatch(haystack,pattern),false,pattern);
-}
+const pattern=${JSON.stringify(pattern)};
+assert.equal(pm.isMatch("a".repeat(44)+"!",pattern),false,pattern);
 `;
-  assert.doesNotThrow(()=>execFileSync(process.execPath,["-e",code],{
-    timeout:2000,windowsHide:true,stdio:["ignore","pipe","pipe"]
-  }),"CVE must not cause runaway backtracking for "+modulePath);
+   assert.doesNotThrow(()=>execFileSync(process.execPath,["-e",code],{
+     timeout:1000,windowsHide:true,stdio:["ignore","pipe","pipe"]
+   }),"Unsafe extglob "+JSON.stringify(pattern)+" at "+modulePath);
+  }
  }
 });
