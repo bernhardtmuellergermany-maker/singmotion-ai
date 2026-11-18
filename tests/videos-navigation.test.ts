@@ -18,7 +18,7 @@ test("video navigation has one public-facing name and canonical route",()=>{
 
 test("historical overview and video-detail links permanently redirect",()=>{
  assert.match(read("app/(site)/projects/page.tsx"),/permanentRedirect\("\/videos"\)/);
- assert.match(read("app/(site)/projects/\[id\]/page.tsx"),/permanentRedirect\("\/videos\/"\+encodeURIComponent\(id\)\)/);
+ assert.match(read("app/(site)/projects/[id]/page.tsx"),/permanentRedirect\("\/videos\/"\+encodeURIComponent\(id\)\)/);
  const video=read("app/(site)/videos/[id]/page.tsx");
  assert.match(video,/<Shell hideWorkspaceNav projectId=\{id\}>/);
  assert.match(video,/<Project id=\{id\} \/>/);
