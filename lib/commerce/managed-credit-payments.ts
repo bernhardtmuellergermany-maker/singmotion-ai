@@ -5,6 +5,11 @@
  * The code never makes an undocumented tax exemption or overrides sanctions.
  */
 const RESTRICTED=new Set(["CN","CU","IR","XK","KP","RU","SY","AC","TA"]);
+// The buyer-country list is broader than Stripe's tax-liability coverage.
+// It is NOT a claim that Stripe must accept every buyer or transaction.
+const BUYER_COUNTRIES=new Set(
+ "AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ")
+);
 const AI_TAX_CODES=new Set(["txcd_10105001","txcd_10105002","txcd_10105003","txcd_10105004"]);
 // Stripe Managed Payments tax coverage for a German seller's CROSS-BORDER
 // digital sales, according to Stripe's published tax-compliance jurisdiction
@@ -36,8 +41,18 @@ export function managedCreditMoRApproved(env:Record<string,string|undefined>):bo
   AI_TAX_CODES.has(env.STRIPE_CREDIT_TAX_CODE||"");
 }
 export function managedCreditBuyerSupported(country:unknown):boolean{
- return typeof country==="string"&&/^[A-Z]{2}$/.test(country)&&
+ return typeof country==="string"&&BUYER_COUNTRIES.has(country)&&
   !RESTRICTED.has(country);
+}
+/** Broadly supported Managed Payments buyer countries, not just tax-covered.
+ * RS is conditional on the seller being NOT registered for Serbian VAT.
+ * Keep this independent evidence requirement rather than guessing.
+ */
+export function approvedMoRBuyerCountries(env:Record<string,string|undefined>={}):string[]{
+ return [...BUYER_COUNTRIES].filter(country=>
+   managedCreditBuyerSupported(country)&&
+   (country!=="RS"||env.STRIPE_MANAGED_PAYMENTS_SERBIA_NO_VAT_REGISTRATION_CONFIRMED==="true")
+ ).sort();
 }
 export function managedCreditTaxDecision(
  env:Record<string,string|undefined>,country:unknown,buyerType:unknown
@@ -48,11 +63,18 @@ export function managedCreditTaxDecision(
   return {ready:false,reason:"STRIPE_MANAGED_PAYMENTS_COUNTRY_RESTRICTED",decision:null};
  if(buyerType!=="consumer"&&buyerType!=="business")
   return {ready:false,reason:"CUSTOMER_TYPE_REQUIRED",decision:null};
- if(!managedCreditMoRTaxCovered(country))
-  return {ready:false,reason:"STRIPE_MANAGED_PAYMENTS_TAX_COVERAGE_NOT_AVAILABLE",decision:null};
- return {ready:true,reason:"STRIPE_MERCHANT_OF_RECORD",decision:{
+ // Stripe permits Serbia only where the seller is not registered for
+ // Serbian VAT; a general tax-responsibility decision cannot prove this.
+ if(country==="RS"&&env.STRIPE_MANAGED_PAYMENTS_SERBIA_NO_VAT_REGISTRATION_CONFIRMED!=="true")
+  return {ready:false,reason:"STRIPE_SERBIA_VAT_CONDITION_UNVERIFIED",decision:null};
+ const stripeHandlesTax=managedCreditMoRTaxCovered(country);
+ // Managed Payments remains the MoR for payments, while the seller is
+ // responsible for indirect tax in tax-unsupported destinations. Stripe Tax
+ // is configured in the Dashboard; do not send forbidden automatic_tax params.
+ return {ready:true,reason:stripeHandlesTax?"STRIPE_MERCHANT_OF_RECORD":"SELLER_TAX_RESPONSIBILITY",decision:{
   country:country as string,buyerType:buyerType as "consumer"|"business",voucherKind:"merchant-of-record-determined" as const,
-  mode:"stripe-managed-payments" as const,revision:"stripe-mor-v1",
+  mode:"stripe-managed-payments" as const,
+  revision:stripeHandlesTax?"stripe-mor-v1":"stripe-mor-seller-tax-v1",
   taxAtIssue:false,taxCode:env.STRIPE_CREDIT_TAX_CODE!,
  }};
 }
