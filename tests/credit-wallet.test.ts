@@ -281,3 +281,21 @@ test("only signed succeeded FULL credit refunds with independently verified Chec
   assert.equal(reconcileSignedFullCreditRefund(wallet,event,{...session,id:"cs_live_foreign"},"live"),false);
  }finally{db.close();}
 });
+
+test("Stripe verified billing-country context is bound only to the matching checkout",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db);
+  const item=wallet.pending({subject:"customer:stripe-country",email:"customer@example.test",customerId:"stripe-country"},2000,randomUUID());
+  const approved={country:"DE",buyerType:"consumer",voucherKind:"merchant-of-record-determined",mode:"stripe-managed-payments",revision:"stripe-mor-v1",taxAtIssue:false,taxCode:"txcd_10105003"} as const;
+  wallet.bind(item.id,"cs_live_countryVerified","https://checkout.stripe.com/c/pay/country");
+  assert.throws(()=>wallet.bindTaxContext(item.id,approved),/Tax decision/);
+  assert.throws(()=>wallet.bindTaxContext(item.id,approved,"cs_live_wrong"),/Tax decision/);
+  wallet.bindTaxContext(item.id,approved,"cs_live_countryVerified");
+  assert.equal(wallet.taxContext(item.id)?.country,"DE");
+  wallet.bindTaxContext(item.id,approved,"cs_live_countryVerified");
+  assert.throws(()=>wallet.bindTaxContext(item.id,{...approved,country:"FR"}),/idempotency conflict/);
+  wallet.settle({id:item.id,sessionId:"cs_live_countryVerified",amount:item.cents,currency:"eur",paymentStatus:"paid",livemode:true});
+  assert.equal(wallet.available("customer:stripe-country"),2000);
+ }finally{db.close()}
+});

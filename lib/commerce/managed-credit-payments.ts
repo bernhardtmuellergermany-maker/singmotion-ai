@@ -79,6 +79,18 @@ export function managedCreditTaxDecision(
  }};
 }
 
+/** Decide the legal destination from a separately verified paid Stripe
+ * Checkout session, never from a customer-entered browser parameter.
+ * Tax-ID presence is only internal classification; Stripe handles MoR tax.
+ */
+export function managedCreditTaxDecisionFromVerifiedStripe(
+ env:Record<string,string|undefined>,
+ details:{address?:{country?:string}|null;tax_ids?:Array<{type?:string;value?:string}>|null}|null|undefined,
+){
+ const buyerType=Array.isArray(details?.tax_ids)&&details.tax_ids.length>0?"business":"consumer";
+ return managedCreditTaxDecision(env,details?.address?.country,buyerType);
+}
+
 /** Managed Payments owns invoicing, tax and dynamic payment method selection.
  * Before any Stripe POST, fail closed if an incompatible parameter slipped into
  * the request. Stripe docs: /payments/managed-payments/update-checkout.

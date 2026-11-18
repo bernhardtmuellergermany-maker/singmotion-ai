@@ -9,7 +9,7 @@ import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
-import {managedCreditMoRApproved,managedCreditTaxDecision,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
+import {managedCreditMoRApproved,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 
@@ -48,9 +48,10 @@ export async function POST(req:NextRequest){
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
   const useMoR=liveMode&&managedCreditMoRApproved(process.env);
-  const tax=liveMode?(useMoR?managedCreditTaxDecision(process.env,body.billingCountry,body.buyerType)
-   :assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType)):null;
-  if(liveMode&&!tax?.ready)
+  // Stripe MoR collects billing country only on its hosted Checkout.
+  // The signed webhook verifies the actual Stripe country before Credits accrue.
+  const tax=liveMode&&!useMoR?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
+  if(liveMode&&!useMoR&&!tax?.ready)
    return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
   try{
@@ -84,6 +85,7 @@ export async function POST(req:NextRequest){
     customer_email:identity.email,
     "metadata[creditTopupId]":purchase.id,
     "metadata[flow]":"singmotion_credit_topup",
+    ...(useMoR?{"metadata[creditTaxFlow]":"stripe-collected"}:{}),
     ...(liveMode&&tax?.decision?{
       "metadata[creditTaxCountry]":tax.decision.country,
       "metadata[creditTaxBuyerType]":tax.decision.buyerType,
@@ -94,14 +96,17 @@ export async function POST(req:NextRequest){
     success_url:`${origin}/credits?checkout=success${resume}`,
     cancel_url:`${origin}/credits?checkout=cancelled${resume}`,
    });
+   if(liveMode){
+    // Collect country once at Stripe, not in the SingMotion form.
+    form.set("billing_address_collection","required");
+    form.set("line_items[0][price_data][tax_behavior]","inclusive");
+   }
    if(liveMode&&tax?.decision){
     const decision=tax.decision;
-    form.set("billing_address_collection","required");
     // Managed Payments forbids the tax-ID option; other reviewed LIVE modes
     // use the explicitly approved tax-ID flow.
     if(decision.mode!=="stripe-managed-payments")
      form.set("tax_id_collection[enabled]","true");
-    form.set("line_items[0][price_data][tax_behavior]","inclusive");
     if(decision.mode==="stripe-managed-payments"){
      // Tax code belongs to the existing live Stripe Product in the catalog.
      // Stripe/Link, not this merchant, collects/remits supported-country tax.

@@ -14,6 +14,7 @@ import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {existingBoundLiveCreditReceipt} from "@/lib/commerce/legacy-private-credit-settlement";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
+import {managedCreditTaxDecisionFromVerifiedStripe} from "@/lib/commerce/managed-credit-payments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,31 +72,45 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
   // An asynchronous payment may still be unpaid. It does not grant credits.
   return;
  }
+ const wallet=new CreditWallet(store.db);
  if(mode==="live"){
-  const prior=new CreditWallet(store.db).taxContext(id);
-  if(prior?.mode==="stripe-managed-payments"&&
-     (session.managed_payments as {enabled?:boolean}|undefined)?.enabled!==true)
-   throw Error("STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED");
+  let prior=wallet.taxContext(id);
   const details=session.customer_details as {
    address?:{country?:string};tax_ids?:Array<{type?:string;value?:string}>
   }|undefined;
-  if(!prior||prior.country!==verifiedMetadata.creditTaxCountry||
-     prior.buyerType!==verifiedMetadata.creditTaxBuyerType||
-     prior.voucherKind!==verifiedMetadata.creditVoucherKind||
-     prior.mode!==verifiedMetadata.creditTaxMode||
-     prior.revision!==verifiedMetadata.creditTaxRevision||
+  const stripeCollected=verifiedMetadata.creditTaxFlow==="stripe-collected";
+  if(stripeCollected){
+   // Country and MoR proof come only from the paid session fetched from Stripe,
+   // never from request metadata or browser input.
+   if((session.managed_payments as {enabled?:boolean}|undefined)?.enabled!==true)
+    throw Error("STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED");
+   const checked=managedCreditTaxDecisionFromVerifiedStripe(process.env,details);
+   if(!checked.ready||!checked.decision)
+    throw Error("CREDIT_STRIPE_BILLING_COUNTRY_NOT_APPROVED");
+   wallet.bindTaxContext(id,checked.decision,session.id);
+   prior=wallet.taxContext(id);
+   if(!prior||prior.country!==checked.decision.country||
+      prior.buyerType!==checked.decision.buyerType||
+      prior.voucherKind!==checked.decision.voucherKind||
+      prior.mode!==checked.decision.mode||prior.revision!==checked.decision.revision)
+    throw Error("CREDIT_STRIPE_TAX_DECISION_MISMATCH");
+  }
+  if(prior?.mode==="stripe-managed-payments"&&
+     (session.managed_payments as {enabled?:boolean}|undefined)?.enabled!==true)
+   throw Error("STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED");
+  if(!prior||(!stripeCollected&&(
+       prior.country!==verifiedMetadata.creditTaxCountry||
+       prior.buyerType!==verifiedMetadata.creditTaxBuyerType||
+       prior.voucherKind!==verifiedMetadata.creditVoucherKind||
+       prior.mode!==verifiedMetadata.creditTaxMode||
+       prior.revision!==verifiedMetadata.creditTaxRevision))||
      details?.address?.country!==prior.country||
-     // Managed Payments owns tax-ID capture and buyer tax classification; its
-     // Checkout forbids tax_id_collection entirely. Keep signed session,
-     // metadata, actual billing-country and MoR verification mandatory.
      (prior.mode!=="stripe-managed-payments"&&(
-       (prior.buyerType==="business"&&(!Array.isArray(details.tax_ids)||details.tax_ids.length===0))||
+       (prior.buyerType==="business"&&(!Array.isArray(details?.tax_ids)||details.tax_ids.length===0))||
        (prior.buyerType==="consumer"&&Array.isArray(details?.tax_ids)&&details.tax_ids.length>0))))
    throw Error("CREDIT_TAX_LOCATION_OR_BUSINESS_PROOF_MISMATCH");
-  // Country or business proof disagreement never grants spendable credits.
-  // Preserve the verified paid event for a manually reviewed refund.
+  // Unsupported or unverifiable purchases remain uncredited, for manual refund.
  }
- const wallet=new CreditWallet(store.db);
  wallet.settle({id,sessionId:obj.id,amount:Number(session.amount_total),
   currency:String(session.currency||""),paymentStatus:String(session.payment_status),livemode:mode==="live"});
 }

@@ -113,10 +113,11 @@ export class CreditWallet {
   });
  }
  /**
-  * Capture exact legal jurisdiction decision before contacting Stripe.
-  * Retries cannot silently change a country's tax treatment or buyer type.
+  * Own-merchant tax review precedes Checkout. For Stripe Managed Payments
+  * a signed webhook may instead bind a verified paid Stripe Session by its
+  * already persisted exact session ID.
   */
- bindTaxContext(id:string,decision:CreditTaxDecision):void {
+ bindTaxContext(id:string,decision:CreditTaxDecision,verifiedSessionId?:string):void {
   this.tx(()=>{
    const existing=this.taxContext(id);
    if(existing){
@@ -127,8 +128,9 @@ export class CreditWallet {
     return;
    }
    const purchase=this.findById(id);
-   if(!purchase||purchase.status!=="pending"||purchase.sessionId)
-    throw Error("Tax decision must precede Checkout session");
+   if(!purchase||purchase.status!=="pending"||
+      (verifiedSessionId?purchase.sessionId!==verifiedSessionId:purchase.sessionId!==null))
+    throw Error("Tax decision must precede Checkout or match a verified Stripe session");
    this.db.prepare(`INSERT INTO credit_purchase_tax_context
      (purchase_id,country,buyer_type,voucher_kind,tax_mode,policy_revision,created)
      VALUES(?,?,?,?,?,?,?)`).run(id,decision.country,decision.buyerType,

@@ -5,7 +5,7 @@ import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled
 import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {managedCreditMoRApproved,approvedMoRBuyerCountries} from "@/lib/commerce/managed-credit-payments";
+import {managedCreditMoRApproved} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
@@ -66,13 +66,11 @@ export async function GET(req:NextRequest){
    purchaseEnabled:(testCheckout||liveCheckout)&&
     (!identity.customerId||store.emailVerified(identity.customerId)),
    testMode:testCheckout,
-   // Every LIVE buyer chooses a verified billing country and buyer type.
-   globalCountrySelection:liveCheckout&&
-     (managedCreditMoRApproved(process.env)||worldwideTaxPolicyAvailable(process.env)),
-   // Offer eligible Stripe buyer destinations, not only MoR-tax-covered ones.
-   // Non-covered destinations use seller-managed Stripe Tax responsibility.
-   approvedBillingCountries:liveCheckout&&
-     managedCreditMoRApproved(process.env)?approvedMoRBuyerCountries(process.env):null,
+   // Managed Payments collects the billing address inside Stripe Checkout.
+   // Own-merchant flows still need a reviewed upfront country/tax decision.
+   globalCountrySelection:liveCheckout&&!managedCreditMoRApproved(process.env)&&
+     worldwideTaxPolicyAvailable(process.env),
+   approvedBillingCountries:null,
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
