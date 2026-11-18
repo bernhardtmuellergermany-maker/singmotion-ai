@@ -31,7 +31,7 @@ export function creditedVideoProject(
      typeof attempt.outputPath!=="string"||!attempt.outputPath)return null;
   const name=[row.display_name,row.project_name,row.artist_name]
    .map(v=>typeof v==="string"?v.trim():"").find(v=>v.length>0&&v.length<=80) || "Untitled video";
-  return {name,href:"/projects/live_"+projectId};
+  return {name,href:"/videos/live_"+projectId};
  }catch{
   // A legacy/temporarily unavailable project database never changes the
   // immutable wallet event or falsely suggests that a video is accessible.
