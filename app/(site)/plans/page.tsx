@@ -69,9 +69,9 @@ export default function PlansPage() {
       <span className="sm-plans-step-icon"><Film size={20}/></span>
       <span className="sm-plans-step-number">STEP 03</span>
       <h3>Enjoy your finished performance video.</h3>
-      <p>When your AI-generated performance is complete and the result passes validation, you can open the finished video from your projects and enjoy seeing your music take shape on screen.</p>
+      <p>When your AI-generated performance is complete and the result passes validation, you can open the finished video in Videos and enjoy seeing your music take shape on screen.</p>
       <p>Credits are reserved while the video is being processed and used only after validated delivery. If a confirmed nonbillable generation failure occurs, the reserved credits are released.</p>
-      <div className="sm-plans-step-highlight"><Check size={16}/> Your work stays organized in My Projects</div>
+      <div className="sm-plans-step-highlight"><Check size={16}/> Your work stays organized in Videos</div>
      </article>
     </div>
    </section>
