@@ -467,6 +467,14 @@ export default buildConfig({
     components: {
       beforeDashboard: ["/components/cms/operations.tsx#Operations"],
       beforeNavLinks: ["/components/cms/dashboard-nav.tsx#DashboardNav"],
+      views: {
+        customerInsights: {
+          Component: "/components/cms/customer-insights-view.tsx#CustomerInsightsView",
+          path: "/customer-insights",
+          exact: true,
+          meta: {title: "Customer Insights · SingMotion AI"},
+        },
+      },
     },
   },
   collections,
