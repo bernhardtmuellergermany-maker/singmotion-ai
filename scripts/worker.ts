@@ -3,6 +3,7 @@ import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-c
 import {customerLaunchReadiness} from "../lib/commerce/readiness.ts";
 import {assessPrivateProductionCreditVideo} from "../lib/commerce/private-production-credit-readiness.ts";
 import {assessPublicCreditRelease} from "../lib/commerce/public-credit-release.ts";
+import {assessPrivateInternationalCreditBeta} from "../lib/commerce/private-international-credit-beta.ts";
 import {auditCreditLedgerFile} from "./audit-credit-ledger.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 import {retryVideoReadyNotifications,retryStudioCreditVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
@@ -65,6 +66,16 @@ if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
   blocked:privateCredit.checks.filter(check=>!check.ready).map(check=>check.id),
   independentlyAccepted:false,
   publicReleaseApproved:false,
+ }));
+}
+/** The private international beta is independent of public launch and never
+ * opens the site or marks external Stripe eligibility as independently verified.
+ */
+if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"){
+ const beta=assessPrivateInternationalCreditBeta(process.env);
+ console.info("PRIVATE_INTERNATIONAL_CREDIT_BETA_READINESS",JSON.stringify({
+  ready:beta.ready,
+  blocked:beta.checks.filter(check=>!check.ready).map(check=>check.id),
  }));
 }
 /** This is the independent CREDITS-ONLY public launch; the legacy Checkout
