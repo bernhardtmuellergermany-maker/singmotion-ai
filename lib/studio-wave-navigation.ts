@@ -27,3 +27,12 @@ export function pinchWaveViewport(
  const midpoint=Math.max(0,Math.min(1,midpointFraction));
  return boundWaveViewport(anchorSeconds-midpoint*span,span,duration);
 }
+
+/** Touching a wide grip preserves its initial time until the finger moves. */
+export function dragWaveHandleTime(
+ originalTime:number,deltaX:number,stripWidth:number,viewSpan:number,duration:number
+):number{
+ if(!Number.isFinite(stripWidth)||stripWidth<=0||!Number.isFinite(deltaX))
+  return originalTime;
+ return Math.round(Math.max(0,Math.min(duration,originalTime+deltaX/stripWidth*viewSpan))*100)/100;
+}
