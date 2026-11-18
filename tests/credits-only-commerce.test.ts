@@ -36,7 +36,7 @@ test("historical customer transactions are visible but cannot become spendable w
  assert.match(source,/const entries=wallet\.entries\(identity\.subject\)/);
  assert.match(source,/legacyOrders:oldOrders/);
  assert.doesNotMatch(source,/entries=\[\.\.\.wallet\.entries\(identity\.subject\),\.\.\.oldEntries\]/);
- assert.match(source,/protectedProductionLivePilotApproved\(process\.env\)/);
+ assert.match(source,/privateInternationalCreditBetaEnabled\(process\.env\)/);
 });
 test("only Credit Checkout can create new Stripe purchases, and own paid MP4 history stays accessible",()=>{
  const credit=read("app/(site)/api/credit-checkout/route.ts");
