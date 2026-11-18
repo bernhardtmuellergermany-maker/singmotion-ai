@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { stagingAccess, stagingDenial, stagingEnabled, PRIVATE_GATE_COOKIE, PRIVATE_GATE_TTL_SECONDS, issuePrivateGateTicket, validPrivateGateTicket, privateGateMutationOriginAllowed } from "./lib/staging";
+import { stagingAccess, stagingDenial, stagingEnabled, PRIVATE_GATE_COOKIE, PRIVATE_GATE_TTL_SECONDS, issuePrivateGateTicket, validPrivateGateTicket, privateGateMutationOriginAllowed, privateGateCredentialKind } from "./lib/staging";
 import {seoIndexablePath} from "./lib/seo/search-pages";
 
 // No matcher exclusions: APIs, public media, Next assets and RSC requests are private.
@@ -56,7 +56,8 @@ export function proxy(request: NextRequest) {
   if (!signedStripeWebhook && stagingEnabled() && !cookieAuthorized &&
       originalAuthorization?.startsWith("Basic ") &&
       stagingAccess(originalAuthorization) === 200) {
-    response.cookies.set(PRIVATE_GATE_COOKIE, issuePrivateGateTicket(), {
+    const kind=privateGateCredentialKind(originalAuthorization);
+    if(kind)response.cookies.set(PRIVATE_GATE_COOKIE, issuePrivateGateTicket(process.env,Date.now(),kind), {
       httpOnly: true, secure: true, sameSite: "lax", path: "/",
       maxAge: PRIVATE_GATE_TTL_SECONDS,
     });
