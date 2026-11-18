@@ -44,7 +44,8 @@ export default function Waveform({
     handleDragId = useRef<number|null>(null),
     handleGrab = useRef<{pointerId:number;x:number;time:number}|null>(null),
     viewportFrame = useRef<number | null>(null),
-    queuedViewport = useRef<{start:number;span:number;freePan:boolean} | null>(null);
+    queuedViewport = useRef<{start:number;span:number;freePan:boolean} | null>(null),
+    queuedZoomLevel = useRef<number | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let context: AudioContext | undefined;
@@ -89,6 +90,7 @@ export default function Waveform({
     if (viewportFrame.current !== null) cancelAnimationFrame(viewportFrame.current);
     viewportFrame.current = null;
     queuedViewport.current = null;
+    queuedZoomLevel.current = null;
   }, []);
   // Match the neon bar density to the available track width. This keeps
   // individual bars legible on narrow phones without changing clip timing.
@@ -167,14 +169,18 @@ export default function Waveform({
   const zoomOut=()=>zoomBy(1/1.45);
   // Touch events may arrive faster than a phone can paint. Combine all pan and
   // pinch updates into one React commit per animation frame; no audio refetch.
-  function scheduleViewport(next:{start:number;span:number}) {
+  function scheduleViewport(next:{start:number;span:number},zoom?:number) {
     queuedViewport.current={...next,freePan:true};
+    if(zoom!==undefined)queuedZoomLevel.current=zoom;
     if(viewportFrame.current!==null)return;
     viewportFrame.current=requestAnimationFrame(()=>{
       viewportFrame.current=null;
       const current=queuedViewport.current;
+      const nextZoom=queuedZoomLevel.current;
       queuedViewport.current=null;
+      queuedZoomLevel.current=null;
       if(current)setLockedView(current);
+      if(nextZoom!==null)setZoomLevel(nextZoom);
     });
   }
   function flushViewport(){
@@ -183,8 +189,11 @@ export default function Waveform({
       viewportFrame.current=null;
     }
     const current=queuedViewport.current;
+    const nextZoom=queuedZoomLevel.current;
     queuedViewport.current=null;
+    queuedZoomLevel.current=null;
     if(current)setLockedView(current);
+    if(nextZoom!==null)setZoomLevel(nextZoom);
   }
   // Panning never invokes onChange and leaves the absolute trim timestamps intact.
   function startPan(e:React.PointerEvent<HTMLDivElement>){
@@ -244,8 +253,7 @@ export default function Waveform({
     const next=pinchWaveViewport({start:origin.start,span:origin.span},
       origin.distance,distance,origin.anchorSeconds,
       (midpoint-rect.left)/rect.width,minViewSpan,duration);
-    scheduleViewport(next);
-    setZoomLevel(Math.max(0,Math.min(12,Math.log(Math.max(1,duration/next.span))/Math.log(1.45))));
+    scheduleViewport(next,Math.max(0,Math.min(12,Math.log(Math.max(1,duration/next.span))/Math.log(1.45))));
   }
   function finishPinch(e:React.TouchEvent<HTMLDivElement>){
     if(e.touches.length<2&&pinchOrigin.current){pinchOrigin.current=null;flushViewport();setDragging(false);}
