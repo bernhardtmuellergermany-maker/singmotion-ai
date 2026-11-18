@@ -11,7 +11,8 @@ export async function AdvancedCmsView({initPageResult,params,searchParams,user}:
  if(!hasRole(initPageResult.req.user,["super-admin"]))
   return <p role="alert">CMS-Zugriff erforderlich.</p>;
  const logs=await initPageResult.req.payload.find({
-  collection:"audit-events",limit:15,depth:0,sort:"-createdAt",overrideAccess:false,
+  collection:"audit-events",limit:15,depth:0,sort:"-createdAt",
+  overrideAccess:false,req:initPageResult.req,
  }).catch(()=>null);
  return <DefaultTemplate
   i18n={initPageResult.req.i18n}
