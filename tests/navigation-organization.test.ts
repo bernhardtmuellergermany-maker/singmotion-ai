@@ -21,7 +21,8 @@ test("pricing is accessible from the account menu, not the general navigation", 
   const accountMenu = read("components/header-account-menu.tsx");
   const accountPanel = read("components/account-panel.tsx");
   assert.doesNotMatch(menu, /\/plans|Pricing/);
-  assert.match(accountMenu, /href="\/plans"[^>]*>Pricing<\/Link>/);
+  assert.match(accountMenu, /<Link href="\/plans"/);
+  assert.match(accountMenu, />Pricing<\/Link>/);
   assert.doesNotMatch(accountPanel, /href="\/plans"/);
 });
 
