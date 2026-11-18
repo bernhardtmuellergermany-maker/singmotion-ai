@@ -38,7 +38,7 @@ jobs:
             for(const key of ["payload","@payloadcms/next","@payloadcms/db-postgres"])
               pkg.dependencies[key]="3.94.0";
             pkg.dependencies.next="16.4.6";
-            fs.writeFileSync(file,JSON.stringify(pkg,null,2)+"\\n");
+            fs.writeFileSync(file,JSON.stringify(pkg,null,2)+String.fromCharCode(10));
           '
           npm install --package-lock-only --ignore-scripts --audit=false
           npm audit fix --package-lock-only --ignore-scripts --audit=false || true
