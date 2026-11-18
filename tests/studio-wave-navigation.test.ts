@@ -53,8 +53,8 @@ test("desktop can drag the selected audio without dragging the viewport; grips a
  const wave=read("components/waveform.tsx"),css=read("app/(site)/studio-refinement.css");
  assert.match(wave,/if\(e\.pointerType==="mouse"&&e\.button!==0\)return/);
  assert.match(wave,/target\.closest\("\.wave-handle"\)/);
- assert.match(wave,/if\\(pinchBlocked\\.current\\|\\|panMode\\)return/);
- assert.match(wave,/if\\(target\\.closest\\("\\.wave-handle"\\)\\|\\|\\(!panMode&&target\\.closest\\("\\.wave-selection"\\)\\)\\)return/);
+ assert.match(wave,/if\(pinchBlocked\.current\|\|panMode\)return/);
+ assert.match(wave,/if\(target\.closest\("\.wave-handle"\)\|\|\(!panMode&&target\.closest\("\.wave-selection"\)\)\)return/);
  assert.match(wave,/setLockedView\(\{start:viewStart,span:viewSpan,freePan:false\}\)/);
  assert.match(wave,/setLockedView\(previous=>previous\?\{\.\.\.previous,freePan:false\}:null\)/);
  assert.match(wave,/handle==="start"\?<ChevronLeft/);
