@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
-import { Play, Pause, RotateCcw, Minus, Plus, Trash2 } from "lucide-react";
+import { Play, Pause, RotateCcw, Minus, Plus, Trash2, Hand } from "lucide-react";
+import {panWaveViewport,pinchWaveViewport} from "@/lib/studio-wave-navigation";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -29,13 +30,18 @@ export default function Waveform({
     [timeDraft, setTimeDraft] = useState(""),
     [timeInputError, setTimeInputError] = useState(""),
     [zoomLevel, setZoomLevel] = useState(0),
+    [panMode, setPanMode] = useState(false),
     // Keep the visible timeline fixed while trimming or moving the selection.
     // The window changes only on an explicit zoom action, never on onChange.
-    [lockedView, setLockedView] = useState<{start:number;span:number}|null>(null);
+    [lockedView, setLockedView] = useState<{start:number;span:number;freePan?:boolean}|null>(null);
   const audio = useRef<HTMLAudioElement>(null),
     strip = useRef<HTMLDivElement>(null),
     segment = useRef(false),
-    dragOrigin = useRef<{ x: number; start: number; end: number } | null>(null);
+    dragOrigin = useRef<{ x: number; start: number; end: number } | null>(null),
+    panOrigin = useRef<{pointerId:number;x:number;start:number;span:number}|null>(null),
+    pinchOrigin = useRef<{distance:number;start:number;span:number;anchorSeconds:number}|null>(null),
+    pinchBlocked = useRef(false),
+    handleDragId = useRef<number|null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let context: AudioContext | undefined;
@@ -116,7 +122,7 @@ export default function Waveform({
   // Keep the zoomed timeline still under the pointer, but on release ensure
   // that both trim boundaries are actually inside the viewport. Previously an
   // older locked window could strand the whole selection at the right edge.
-  const selectionAwareStart = dragging ? preferredViewStart :
+  const selectionAwareStart = dragging ? preferredViewStart : lockedView?.freePan ? preferredViewStart :
     Math.max(end - viewSpan, Math.min(start, preferredViewStart));
   const viewStart = Math.max(0, Math.min(maximumViewStart, selectionAwareStart));
   const viewPercent = (seconds: number) => ((seconds - viewStart) / viewSpan) * 100;
@@ -126,15 +132,83 @@ export default function Waveform({
   const lockViewport = () => {
     if(!lockedView)setLockedView({start:viewStart,span:viewSpan});
   };
-  const zoomIn = () => {setLockedView(null);setZoomLevel(level => Math.min(12, level + 1));};
-  const zoomOut = () => {setLockedView(null);setZoomLevel(level => Math.max(0, level - 1));};
+  const minViewSpan = Math.min(duration,Math.max(0.001,end-start+0.5));
+  const zoomBy=(factor:number)=>{
+    const next=pinchWaveViewport({start:viewStart,span:viewSpan},1,factor,
+      viewStart+viewSpan/2,0.5,minViewSpan,duration);
+    setLockedView({...next,freePan:true});
+    setZoomLevel(Math.max(0,Math.min(12,Math.log(Math.max(1,duration/next.span))/Math.log(1.45))));
+  };
+  const zoomIn=()=>zoomBy(1.45);
+  const zoomOut=()=>zoomBy(1/1.45);
+  // Panning never invokes onChange and leaves the absolute trim timestamps intact.
+  function startPan(e:React.PointerEvent<HTMLDivElement>){
+    if(pinchBlocked.current||viewSpan>=duration-0.001)return;
+    if(!panMode&&(e.target as HTMLElement).closest(".wave-selection,.wave-handle"))return;
+    audio.current?.pause();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    panOrigin.current={pointerId:e.pointerId,x:e.clientX,start:viewStart,span:viewSpan};
+    setDragging(true);
+    setLockedView({start:viewStart,span:viewSpan,freePan:true});
+  }
+  function continuePan(e:React.PointerEvent<HTMLDivElement>){
+    const origin=panOrigin.current,rect=strip.current?.getBoundingClientRect();
+    if(!origin||!rect||origin.pointerId!==e.pointerId||
+       !e.currentTarget.hasPointerCapture(e.pointerId))return;
+    const next=panWaveViewport({start:origin.start,span:origin.span},
+      e.clientX-origin.x,rect.width,duration);
+    setLockedView({...next,freePan:true});
+  }
+  function finishPan(e:React.PointerEvent<HTMLDivElement>){
+    if(panOrigin.current?.pointerId!==e.pointerId)return;
+    panOrigin.current=null;
+    setDragging(false);
+    if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
+  }
+  // Two-finger gestures interrupt a one-finger trim; resume only after both lift.
+  function startPinch(e:React.TouchEvent<HTMLDivElement>){
+    if(e.touches.length!==2)return;
+    const rect=strip.current?.getBoundingClientRect();
+    if(!rect||rect.width<=0)return;
+    const a=e.touches[0],b=e.touches[1];
+    const midpoint=(a.clientX+b.clientX)/2;
+    const distance=Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
+    pinchOrigin.current={distance:Math.max(1,distance),start:viewStart,span:viewSpan,
+      anchorSeconds:viewStart+((midpoint-rect.left)/rect.width)*viewSpan};
+    pinchBlocked.current=true;
+    handleDragId.current=null;
+    dragOrigin.current=null;
+    panOrigin.current=null;
+    audio.current?.pause();
+    setDragging(true);
+    setLockedView({start:viewStart,span:viewSpan,freePan:true});
+  }
+  function continuePinch(e:React.TouchEvent<HTMLDivElement>){
+    const origin=pinchOrigin.current,rect=strip.current?.getBoundingClientRect();
+    if(!origin||e.touches.length<2||!rect||rect.width<=0)return;
+    e.preventDefault();
+    const a=e.touches[0],b=e.touches[1];
+    const distance=Math.max(1,Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY));
+    const midpoint=(a.clientX+b.clientX)/2;
+    const next=pinchWaveViewport({start:origin.start,span:origin.span},
+      origin.distance,distance,origin.anchorSeconds,
+      (midpoint-rect.left)/rect.width,minViewSpan,duration);
+    setLockedView({...next,freePan:true});
+    setZoomLevel(Math.max(0,Math.min(12,Math.log(Math.max(1,duration/next.span))/Math.log(1.45))));
+  }
+  function finishPinch(e:React.TouchEvent<HTMLDivElement>){
+    if(e.touches.length<2&&pinchOrigin.current){pinchOrigin.current=null;setDragging(false);}
+    if(e.touches.length===0)pinchBlocked.current=false;
+  }
   function drag(
     e: React.PointerEvent<HTMLButtonElement>,
     handle: "start" | "end",
   ) {
+    if(pinchBlocked.current)return;
     audio.current?.pause();
     lockViewport();
     setDragging(true);
+    handleDragId.current=e.pointerId;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     move(e, handle);
@@ -143,7 +217,7 @@ export default function Waveform({
     e: React.PointerEvent<HTMLButtonElement>,
     handle: "start" | "end",
   ) {
-    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    if (pinchBlocked.current||handleDragId.current!==e.pointerId||!e.currentTarget.hasPointerCapture(e.pointerId)) return;
     const rect = strip.current?.getBoundingClientRect();
     if (!rect) return;
     const val =
@@ -302,6 +376,16 @@ export default function Waveform({
         <div
           className={`wave-strip ${dragging ? "is-dragging" : ""}`}
           ref={strip}
+          aria-label="Audio track: drag to pan, or pinch with two fingers to zoom"
+          onPointerDown={startPan}
+          onPointerMove={continuePan}
+          onPointerUp={finishPan}
+          onPointerCancel={finishPan}
+          onLostPointerCapture={e=>{if(panOrigin.current?.pointerId===e.pointerId){panOrigin.current=null;setDragging(false);}}}
+          onTouchStart={startPinch}
+          onTouchMove={continuePinch}
+          onTouchEnd={finishPinch}
+          onTouchCancel={finishPinch}
         >
           <div className="wave-bars" aria-hidden="true">
             {bars}
@@ -309,13 +393,14 @@ export default function Waveform({
           <div
             className="wave-selection"
             role="slider"
-            tabIndex={0}
+            tabIndex={visibleSelectionWidth>0?0:-1}
             aria-label="Move selected audio segment"
             aria-valuemin={0}
             aria-valuemax={Math.max(0, duration - (end - start))}
             aria-valuenow={start}
             aria-valuetext={`${start.toFixed(3)} to ${end.toFixed(3)} seconds`}
             onPointerDown={(e) => {
+              if(pinchBlocked.current||panMode)return;
               e.stopPropagation();
               audio.current?.pause();
               lockViewport();
@@ -324,6 +409,7 @@ export default function Waveform({
               dragOrigin.current = { x: e.clientX, start, end };
             }}
             onPointerMove={(e) => {
+              if(pinchBlocked.current||panMode)return;
               const origin = dragOrigin.current;
               const rect = strip.current?.getBoundingClientRect();
               if (
@@ -342,18 +428,20 @@ export default function Waveform({
               );
             }}
             onPointerUp={() => {
+              if(pinchBlocked.current||panMode||!dragOrigin.current)return;
               dragOrigin.current = null;
               setDragging(false);
               setLockedView(null);
             }}
             onPointerCancel={() => {
+              if(pinchBlocked.current||panMode||!dragOrigin.current)return;
               dragOrigin.current = null;
               setDragging(false);
               setLockedView(null);
             }}
             onLostPointerCapture={() => {
               dragOrigin.current = null;
-              setDragging(false);
+              if(!pinchBlocked.current)setDragging(false);
             }}
             onKeyDown={(e) => {
               if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -371,6 +459,7 @@ export default function Waveform({
             }}
             style={{
               cursor: "grab",
+              pointerEvents:visibleSelectionWidth>0?undefined:"none",
               touchAction: "none",
               background: "rgba(151,86,246,.13)",
               border: "0",
@@ -398,12 +487,14 @@ export default function Waveform({
               className={`wave-handle wave-handle-${handle}`}
               style={{
                 left: `${visiblePercent(handle === "start" ? start : end)}%`,
+                visibility:(handle==="start"?start:end)<viewStart-0.001||
+                  (handle==="start"?start:end)>viewStart+viewSpan+0.001?"hidden":undefined,
               }}
               onPointerDown={(e) => { e.stopPropagation(); drag(e, handle); }}
               onPointerMove={(e) => { e.stopPropagation(); move(e, handle); }}
-              onPointerUp={() => {setDragging(false);setLockedView(null);}}
-              onPointerCancel={() => {setDragging(false);setLockedView(null);}}
-              onLostPointerCapture={() => setDragging(false)}
+              onPointerUp={e=>{if(handleDragId.current!==e.pointerId)return;handleDragId.current=null;if(!pinchBlocked.current){setDragging(false);setLockedView(null);}}}
+              onPointerCancel={e=>{if(handleDragId.current!==e.pointerId)return;handleDragId.current=null;if(!pinchBlocked.current){setDragging(false);setLockedView(null);}}}
+              onLostPointerCapture={e=>{if(handleDragId.current===e.pointerId){handleDragId.current=null;if(!pinchBlocked.current)setDragging(false);}}}
               onKeyDown={(e) => {
                 if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
                 e.preventDefault();
@@ -425,7 +516,7 @@ export default function Waveform({
                     ),
                   );
               }}
-            />
+            ><span className="wave-grip-mark" aria-hidden="true"><span/></span></button>
           ))}
         </div>
         <div
@@ -439,8 +530,10 @@ export default function Waveform({
         </div>
         <div className="studio-wave-zoom-controls" role="group" aria-label="Waveform zoom controls">
           <span className="studio-wave-zoom-label">Zoom</span>
-          <button type="button" aria-label="Zoom out waveform" title="Zoom out" onClick={zoomOut} disabled={zoomLevel === 0}><Minus size={15}/></button>
-          <button type="button" aria-label="Zoom in waveform around selection" title="Zoom in around selection" onClick={zoomIn} disabled={viewSpan <= Math.min(duration, end - start + 8) + 0.001 || zoomLevel >= 12}><Plus size={15}/></button>
+          <button type="button" aria-label="Zoom out waveform" title="Zoom out" onClick={zoomOut} disabled={viewSpan>=duration-0.001}><Minus size={15}/></button>
+          <button type="button" aria-label="Zoom in waveform" title="Zoom in" onClick={zoomIn} disabled={viewSpan<=minViewSpan+0.001}><Plus size={15}/></button>
+          <button type="button" aria-label="Pan audio waveform" aria-pressed={panMode} title="Move the audio without changing the selected clip" disabled={viewSpan>=duration-0.001} onClick={()=>setPanMode(value=>!value)}><Hand size={16}/></button>
+          <span className="studio-wave-gesture-hint">Drag waveform to pan · pinch with two fingers to zoom</span>
         </div>
         {editingTime && <div className="studio-wave-time-editor" role="group" aria-label={`Edit ${editingTime} time`}>
           <span className="studio-wave-editor-label">{editingTime === "start" ? "Start" : "End"}</span>

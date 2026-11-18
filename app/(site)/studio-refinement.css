@@ -2607,3 +2607,80 @@
 .product-theme.singmotion-flow .sm-prompt-guide-library-link:focus-visible{
  outline:2px solid #dfacff;outline-offset:3px;border-radius:3px
 }
+
+/* Large finger-friendly trim grips; waveform panning never changes the cut. */
+.product-theme.singmotion-flow .sm-new-wave-card .wave-strip{
+ touch-action:none;
+ cursor:grab;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-bars{pointer-events:none}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle{
+ box-sizing:border-box;
+ width:48px!important;
+ height:72px!important;
+ max-width:48px!important;
+ top:50%!important;
+ bottom:auto!important;
+ transform:translate(-50%,-50%)!important;
+ display:flex!important;
+ justify-content:center;
+ align-items:center;
+ padding:0!important;
+ border:0!important;
+ border-radius:15px!important;
+ background:transparent!important;
+ box-shadow:none!important;
+ cursor:ew-resize;
+ touch-action:none;
+ z-index:12;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle::before{
+ display:none!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle .wave-grip-mark{
+ box-sizing:border-box;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ width:19px;
+ height:52px;
+ border:1.5px solid #eed2ff;
+ border-radius:9px;
+ background:linear-gradient(110deg,#ba71ec,#7337c3);
+ box-shadow:0 3px 13px #06011099,0 0 0 2px #6c38a155;
+ pointer-events:none;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle .wave-grip-mark>span{
+ display:block;
+ height:20px;
+ width:7px;
+ border-left:2px solid #f8eeff;
+ border-right:2px solid #f8eeff;
+ opacity:.95;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle:focus-visible .wave-grip-mark,
+.product-theme.singmotion-flow .sm-new-wave-card .wave-handle:active .wave-grip-mark{
+ background:linear-gradient(110deg,#e0a5ff,#9654ed);
+ box-shadow:0 0 0 3px #e4c2ff88,0 3px 16px #02000899;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-zoom-controls{flex-wrap:wrap}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-zoom-controls button[aria-pressed="true"]{
+ background:#7540bd;color:#fff;border-color:#ddb8ff;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-wave-gesture-hint{
+ color:#b6a6d0;font-size:11px;line-height:1.4;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-new-wave-card .wave-handle{
+  width:48px!important;height:76px!important;max-width:48px!important;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .wave-handle .wave-grip-mark{
+  width:21px;height:55px;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-wave-zoom-controls button{
+  min-height:44px!important;min-width:44px!important;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-wave-gesture-hint{
+  flex:1 0 100%;
+ }
+}
