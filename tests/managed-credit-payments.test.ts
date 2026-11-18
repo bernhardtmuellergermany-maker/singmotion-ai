@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {managedCreditMoRApproved,managedCreditBuyerSupported,managedCreditMoRTaxCovered,approvedMoRTaxCountries,managedCreditTaxDecision}
+import {managedCreditMoRApproved,managedCreditBuyerSupported,managedCreditMoRTaxCovered,approvedMoRTaxCountries,approvedMoRBuyerCountries,managedCreditTaxDecision}
  from "../lib/commerce/managed-credit-payments.ts";
 import {stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 const approved=()=>({
@@ -11,24 +11,28 @@ const approved=()=>({
  STRIPE_MANAGED_PAYMENTS_LIVE_PRODUCT_REVIEWED:"true",
  STRIPE_CREDIT_TAX_CODE:"txcd_10105001",
 });
-test("Stripe MoR Credit checkout admits only markets where Stripe actually handles indirect tax",()=>{
+test("Stripe MoR admits seller-managed Stripe Tax in non-covered supported countries",()=>{
  const env=approved();
  assert.equal(managedCreditMoRApproved(env),true);
  for(const country of ["DE","FR","GB","US","CA","AU","JP","ZA","IN","NZ","SG","MX","CM","TH"]){
   assert.equal(managedCreditTaxDecision(env,country,"consumer").ready,true,country);
  }
- for(const country of ["CN","CU","IR","XK","KP","RU","SY","AC","TA","DEU","de",undefined]){
+ for(const country of ["CN","CU","IR","XK","KP","RU","SY","AC","TA","DEU","de","ZZ",undefined]){
   assert.equal(managedCreditBuyerSupported(country),false,String(country));
   assert.equal(managedCreditTaxDecision(env,country,"consumer").ready,false,String(country));
  }
- for(const country of ["BR","AR","CL","UY","RS","ME","PK","LK","BD"]){
+ for(const country of ["BR","AR","CL","UY","ME","PK","LK","BD"]){
   assert.equal(managedCreditBuyerSupported(country),true,country);
   assert.equal(managedCreditMoRTaxCovered(country),false,country);
   const tax=managedCreditTaxDecision(env,country,"consumer");
-  assert.equal(tax.ready,false,country);
-  assert.equal(tax.reason,"STRIPE_MANAGED_PAYMENTS_TAX_COVERAGE_NOT_AVAILABLE",country);
-  assert.equal(tax.decision,null,country);
+  assert.equal(tax.ready,true,country);
+  assert.equal(tax.reason,"SELLER_TAX_RESPONSIBILITY",country);
+  assert.equal(tax.decision?.revision,"stripe-mor-seller-tax-v1",country);
+  assert.equal(tax.decision?.mode,"stripe-managed-payments",country);
  }
+ assert.equal(managedCreditTaxDecision(env,"FR","consumer").decision?.revision,"stripe-mor-v1");
+ assert.equal(managedCreditTaxDecision(env,"RS","consumer").reason,"STRIPE_SERBIA_VAT_CONDITION_UNVERIFIED");
+ assert.equal(managedCreditTaxDecision({...env,STRIPE_MANAGED_PAYMENTS_SERBIA_NO_VAT_REGISTRATION_CONFIRMED:"true"},"RS","consumer").ready,true);
  assert.equal(managedCreditTaxDecision(env,"US","unknown").ready,false);
 });
 test("published MoR country selector includes only Stripe tax-covered destinations",()=>{
@@ -43,6 +47,14 @@ test("published MoR country selector includes only Stripe tax-covered destinatio
  for(const country of ["CN","RU","IR","BR","AR","RS","ME","CU"]){
   assert.equal(eligible.includes(country),false,country);
  }
+});
+test("Stripe buyer picker includes non-tax-covered markets but excludes restrictions",()=>{
+ const eligible=approvedMoRBuyerCountries();
+ assert.ok(eligible.length>195);
+ assert.equal(new Set(eligible).size,eligible.length);
+ for(const country of ["FR","US","BR","AR","CL","UY","ME","PK","LK","BD"])assert.ok(eligible.includes(country),country);
+ for(const country of ["CN","CU","IR","XK","KP","RU","SY","AC","TA","RS","ZZ"])assert.equal(eligible.includes(country),false,country);
+ assert.ok(approvedMoRBuyerCountries({STRIPE_MANAGED_PAYMENTS_SERBIA_NO_VAT_REGISTRATION_CONFIRMED:"true"}).includes("RS"));
 });
 test("never declare Stripe MoR eligible without real account AND prepaid product approval",()=>{
  const env=approved();
