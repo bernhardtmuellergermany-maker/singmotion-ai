@@ -333,6 +333,7 @@ const collections: CollectionConfig[] = [
     labels: {singular:"Aktivitätsereignis",plural:"Aktivitätsprotokoll"},
     admin: {
       group: "Administration",
+      hidden: true,
       description:
         "Append-only application audit metadata; no credentials, URLs, content or private media.",
     },
@@ -350,7 +351,7 @@ const globals: GlobalConfig[] = [
     slug: "studio-settings",
     label:"Studio-Inhalte",
     admin: {
-      group: "Kunden & Betrieb",
+      group: "Website & Inhalte",
       description:
         "Studio copy and optional prompt suggestions only. Authorization, costs and provider policy cannot be changed here.",
     },
@@ -391,6 +392,7 @@ const globals: GlobalConfig[] = [
     label:"E-Mail-Vorlagen",
     admin: {
       group: "Kunden & Betrieb",
+      hidden: true,
       description:
         "Draft copy only. No email delivery or automated notifications are connected.",
     },
@@ -465,9 +467,23 @@ export default buildConfig({
     user: "staff",
     importMap: { baseDir: path.resolve(".") },
     components: {
-      beforeDashboard: ["/components/cms/operations.tsx#Operations"],
       beforeNavLinks: ["/components/cms/dashboard-nav.tsx#DashboardNav"],
       views: {
+        dashboard: {
+          Component: "/components/cms/dashboard-view.tsx#CleanDashboardView",
+        },
+        showcase: {
+          Component: "/components/cms/showcase-view.tsx#ShowcaseCmsView",
+          path: "/showcase",
+          exact: true,
+          meta: {title:"Showcase-Videos · SingMotion AI"},
+        },
+        advanced: {
+          Component: "/components/cms/advanced-view.tsx#AdvancedCmsView",
+          path: "/advanced",
+          exact: true,
+          meta: {title:"Technische Werkzeuge · SingMotion AI"},
+        },
         customerInsights: {
           Component: "/components/cms/customer-insights-view.tsx#CustomerInsightsView",
           path: "/customer-insights",

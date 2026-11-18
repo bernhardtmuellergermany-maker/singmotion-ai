@@ -1,24 +1,24 @@
 import Link from "next/link";
-import { LayoutDashboard, AudioLines, UsersRound } from "lucide-react";
+import { LayoutDashboard, AudioLines, UsersRound, LifeBuoy } from "lucide-react";
 import type {AdminViewServerProps} from "payload";
 import {hasRole} from "../../cms/policy";
 
-/** This appears inside the *actual* Payload sidebar on every CMS page,
- * not only on the custom dashboard. Native collection links retain RBAC.
- */
-export function DashboardNav({user}:Pick<AdminViewServerProps,"user">) {
+/** Compact navigation shortcuts. Remaining native links retain CMS RBAC. */
+export function DashboardNav({user}:Pick<AdminViewServerProps,"user">){
+ const superAdmin=hasRole(user,["super-admin"]);
+ const support=hasRole(user,["super-admin","support"]);
  return <div className="sm-cms-sidebar-intro" aria-label="SingMotion CMS Navigation">
-   <div className="sm-cms-sidebar-brand"><AudioLines size={19} strokeWidth={2}/>
-    <span>SingMotion <strong>AI</strong></span><span className="sm-cms-sidebar-tag">CMS</span></div>
-   <Link href="/admin" className="sm-cms-sidebar-dashboard">
-     <LayoutDashboard size={18} strokeWidth={1.9}/>
-     <span>Dashboard</span>
-     <span className="sm-cms-sidebar-arrow" aria-hidden="true">↗</span>
-   </Link>
-   {hasRole(user,["super-admin"])&&<Link href="/admin/customer-insights" className="sm-cms-sidebar-dashboard">
-     <UsersRound size={18} strokeWidth={1.9}/>
-     <span>Customer Insights</span>
-     <span className="sm-cms-sidebar-arrow" aria-hidden="true">↗</span>
-   </Link>}
-  </div>;
+  <div className="sm-cms-sidebar-brand"><AudioLines size={19} strokeWidth={2}/>
+   <span>SingMotion <strong>AI</strong></span><span className="sm-cms-sidebar-tag">CMS</span>
+  </div>
+  <Link href="/admin" className="sm-cms-sidebar-dashboard">
+   <LayoutDashboard size={18} strokeWidth={1.8}/><span>Übersicht</span>
+  </Link>
+  {superAdmin&&<Link href="/admin/customer-insights" className="sm-cms-sidebar-dashboard">
+   <UsersRound size={18} strokeWidth={1.8}/><span>Kunden & Credits</span>
+  </Link>}
+  {support&&<Link href={superAdmin?"/support-admin":"/admin/collections/support-cases"} className="sm-cms-sidebar-dashboard">
+   <LifeBuoy size={18} strokeWidth={1.8}/><span>Support</span>
+  </Link>}
+ </div>;
 }
