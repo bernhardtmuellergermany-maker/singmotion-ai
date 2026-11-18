@@ -2,7 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {boundWaveViewport,panWaveViewport,pinchWaveViewport} from "../lib/studio-wave-navigation.ts";
+import {boundWaveViewport,panWaveViewport,pinchWaveViewport,dragWaveHandleTime} from "../lib/studio-wave-navigation.ts";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 
 test("one-finger drag pans only the audio viewport and respects bounds",()=>{
@@ -36,4 +36,15 @@ test("audio navigation is separate from existing selection drag/keyboard control
  }
  assert.ok(css.includes("width:48px!important"));
  assert.ok(css.includes("touch-action:none"));
+});
+
+test("large touch grips never jump on initial contact and keep precise finger offset",()=>{
+ assert.equal(dragWaveHandleTime(30,0,240,120,180),30);
+ assert.equal(dragWaveHandleTime(30,24,240,120,180),42);
+ assert.equal(dragWaveHandleTime(30,-24,240,120,180),18);
+ assert.equal(dragWaveHandleTime(30,-500,240,120,180),0);
+ assert.equal(dragWaveHandleTime(150,500,240,120,180),180);
+ const source=read("components/waveform.tsx");
+ assert.ok(source.includes("handleGrab.current={pointerId:e.pointerId,x:e.clientX"));
+ assert.ok(source.includes("dragWaveHandleTime(grab.time,e.clientX-grab.x"));
 });

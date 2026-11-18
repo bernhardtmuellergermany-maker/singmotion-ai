@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Play, Pause, RotateCcw, Minus, Plus, Trash2, Hand } from "lucide-react";
-import {panWaveViewport,pinchWaveViewport} from "@/lib/studio-wave-navigation";
+import {panWaveViewport,pinchWaveViewport,dragWaveHandleTime} from "@/lib/studio-wave-navigation";
 import { moveSelection } from "@/lib/studio-editor";
 export default function Waveform({
   url,
@@ -41,7 +41,8 @@ export default function Waveform({
     panOrigin = useRef<{pointerId:number;x:number;start:number;span:number}|null>(null),
     pinchOrigin = useRef<{distance:number;start:number;span:number;anchorSeconds:number}|null>(null),
     pinchBlocked = useRef(false),
-    handleDragId = useRef<number|null>(null);
+    handleDragId = useRef<number|null>(null),
+    handleGrab = useRef<{pointerId:number;x:number;time:number}|null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let context: AudioContext | undefined;
@@ -177,6 +178,7 @@ export default function Waveform({
       anchorSeconds:viewStart+((midpoint-rect.left)/rect.width)*viewSpan};
     pinchBlocked.current=true;
     handleDragId.current=null;
+    handleGrab.current=null;
     dragOrigin.current=null;
     panOrigin.current=null;
     audio.current?.pause();
@@ -209,6 +211,8 @@ export default function Waveform({
     lockViewport();
     setDragging(true);
     handleDragId.current=e.pointerId;
+    // Wide touch grips must not jump the boundary when first touched.
+    handleGrab.current={pointerId:e.pointerId,x:e.clientX,time:handle==="start"?start:end};
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     move(e, handle);
@@ -220,13 +224,9 @@ export default function Waveform({
     if (pinchBlocked.current||handleDragId.current!==e.pointerId||!e.currentTarget.hasPointerCapture(e.pointerId)) return;
     const rect = strip.current?.getBoundingClientRect();
     if (!rect) return;
-    const val =
-      Math.round(
-        Math.max(
-          0,
-          Math.min(duration, viewStart + ((e.clientX - rect.left) / rect.width) * viewSpan),
-        ) * 100,
-      ) / 100;
+    const grab=handleGrab.current;
+    if(!grab||grab.pointerId!==e.pointerId)return;
+    const val=dragWaveHandleTime(grab.time,e.clientX-grab.x,rect.width,viewSpan,duration);
     if (handle === "start")
       onChange(Math.max(0, end - 300, Math.min(val, end - 5)), end);
     else
@@ -492,9 +492,9 @@ export default function Waveform({
               }}
               onPointerDown={(e) => { e.stopPropagation(); drag(e, handle); }}
               onPointerMove={(e) => { e.stopPropagation(); move(e, handle); }}
-              onPointerUp={e=>{if(handleDragId.current!==e.pointerId)return;handleDragId.current=null;if(!pinchBlocked.current){setDragging(false);setLockedView(null);}}}
-              onPointerCancel={e=>{if(handleDragId.current!==e.pointerId)return;handleDragId.current=null;if(!pinchBlocked.current){setDragging(false);setLockedView(null);}}}
-              onLostPointerCapture={e=>{if(handleDragId.current===e.pointerId){handleDragId.current=null;if(!pinchBlocked.current)setDragging(false);}}}
+              onPointerUp={e=>{if(handleDragId.current!==e.pointerId)return;handleDragId.current=null;handleGrab.current=null;if(!pinchBlocked.current){setDragging(false);setLockedView(null);}}}
+              onPointerCancel={e=>{if(handleDragId.current!==e.pointerId)return;handleDragId.current=null;handleGrab.current=null;if(!pinchBlocked.current){setDragging(false);setLockedView(null);}}}
+              onLostPointerCapture={e=>{if(handleDragId.current===e.pointerId){handleDragId.current=null;handleGrab.current=null;if(!pinchBlocked.current)setDragging(false);}}}
               onKeyDown={(e) => {
                 if (!["ArrowLeft", "ArrowRight"].includes(e.key)) return;
                 e.preventDefault();
