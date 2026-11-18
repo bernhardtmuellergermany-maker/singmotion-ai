@@ -323,7 +323,7 @@ export function GenerationDialog({
               confirmation: `CONFIRM PAID STUDIO ${prepared.id} ${prepared.digest} ${prepared.ceilingMicroUsd}${prepared.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
             }),
           });
-          router.push(`/projects/live_${prepared.id}`);
+          router.push(`/videos/live_${prepared.id}`);
         }
         return;
       }
@@ -348,7 +348,7 @@ export function GenerationDialog({
           confirmation: `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}${plan.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
         }),
       });
-      router.push(`/projects/live_${plan.id}`);
+      router.push(`/videos/live_${plan.id}`);
     } catch (e) {
       setError((e as Error).message);
       // Retain the exact saved plan on an uncertain HTTP result. Retrying this

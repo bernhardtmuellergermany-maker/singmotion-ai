@@ -40,7 +40,7 @@ test("Customer Remove & Restore requires a customer account, CSRF, owned order a
  assert.match(api,/ownedCustomerOrderStatuses\(store\.db,accountId,customerOrderStatusFilter\(orderId,null\)\)/);
  assert.match(api,/INSERT INTO customer_hidden_paid_orders\(account_id,order_id,hidden_at\)/);
  assert.match(api,/DELETE FROM customer_hidden_paid_orders WHERE account_id=\? AND order_id=\?/);
- assert.match(ui,/Remove from My Projects/);
+ assert.match(ui,/Remove from Videos/);
  assert.match(ui,/hidden:true/);
  assert.match(ui,/hidden:false/);
  assert.doesNotMatch(ui,/Paid orders cannot be deleted here/);
@@ -67,7 +67,7 @@ test("Rename Save PATCHes an owned account title, never hides a paid project",()
  assert.match(api,/name=excluded\.name/);
 });
 
-test("My Projects requests small private previews, not original full-resolution source images",()=>{
+test("Videos requests small private previews, not original full-resolution source images",()=>{
  const gallery=read("components/my-projects-gallery.tsx");
  const customerPreview=read("app/(site)/api/customer-generation-photo/route.ts");
  const asset=read("app/(site)/api/[...path]/route.ts");

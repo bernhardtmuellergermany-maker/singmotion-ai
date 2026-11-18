@@ -51,21 +51,21 @@ export function HomeCollection() {
           ...deliveredOrders.map(o => ({
             id:"paid_"+o.orderId,
             name:cleanTitle(draftsById.get(o.projectId)?.projectName||draftsById.get(o.projectId)?.artistName||"Your music video"),
-            href:"/projects/paid_"+encodeURIComponent(o.orderId),
+            href:"/videos/paid_"+encodeURIComponent(o.orderId),
             imageId:draftsById.get(o.projectId)?.selection.imageId,
             seconds:Math.max(0,(draftsById.get(o.projectId)?.selection.end||0)-(draftsById.get(o.projectId)?.selection.start||0)),
             created:o.created||Date.now(),state:"completed",videoUrl:o.videoUrl!,
           })),
           ...live.map(p => ({
             id: "live_" + p.id, name: cleanTitle(p.artistName || ""),
-            href: "/projects/live_" + encodeURIComponent(p.id),
+            href: "/videos/live_" + encodeURIComponent(p.id),
             imageId: p.imageId, seconds: p.durationSeconds,
             created: p.createdAt, state: p.state,
             videoUrl: p.outputReady ? `/api/studio-live?id=${encodeURIComponent(p.id)}&video=1` : undefined,
           })),
           ...jobs.map(j => ({
             id: "job_" + j.id, name: cleanTitle(j.artistName || ""),
-            href: "/projects/" + encodeURIComponent(j.id),
+            href: "/videos/" + encodeURIComponent(j.id),
             imageId: j.imageId, seconds: j.end - j.start,
             created: j.created, state: j.status,
             videoUrl: j.status === "completed" && j.outputId ? `/api/assets/${encodeURIComponent(j.outputId)}` : undefined,
@@ -93,7 +93,7 @@ export function HomeCollection() {
       <SiteHeader accountHref="/login" />
       <main id="content" className={loading || !tiles.length ? "home-gallery-empty" : "home-gallery-content"}>
         {error && <p className="home-gallery-error" role="alert">{error}</p>}
-        {loading ? <p className="home-gallery-loading">Loading your projects…</p> : tiles.length ? (
+        {loading ? <p className="home-gallery-loading">Loading your videos…</p> : tiles.length ? (
           <div className="home-gallery-grid">
             <CreateTile />
             {tiles.map(tile => <GalleryTile key={tile.id} tile={{...tile,name:renames[tile.id] || tile.name}} deleting={deleting === tile.id} onRename={() => rename(tile)} onDelete={async () => {

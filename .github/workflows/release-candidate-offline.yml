@@ -1,0 +1,57 @@
+name: Review combined release candidate offline
+
+on:
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+    paths:
+      - .github/workflows/release-candidate-offline.yml
+      - package.json
+      - package-lock.json
+      - components/**
+      - lib/commerce/**
+      - app/(site)/videos/**
+      - tests/**
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.3
+          cache: npm
+      - name: Install locked dependencies on the supported Node LTS
+        run: npm ci
+      - name: TypeScript
+        run: npm run typecheck
+      - name: Unified offline Stripe, Videos, guest and ownership safety tests
+        run: |
+          node --experimental-strip-types --test \
+            tests/videos-navigation.test.ts \
+            tests/navigation-organization.test.ts \
+            tests/managed-credit-payments.test.ts \
+            tests/international-credit-checkout.test.ts \
+            tests/public-credit-release.test.ts \
+            tests/notification-video-links.test.ts \
+            tests/customer-paid-project-removal.test.ts \
+            tests/studio-direct-generation-ui.test.ts \
+            tests/cross-device-project-name-sync.test.ts \
+            tests/video-ready-email-preferences.test.ts
+      - name: Offline CMS config and compatibility safety tests
+        run: node --test tests/cms-compatibility.test.mjs tests/cms-database-guard.test.mjs
+      - name: Report remaining published production advisories without suppressing build gate
+        run: |
+          npm audit --json --omit=dev > /tmp/production-audit.json || true
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const a=JSON.parse(fs.readFileSync("/tmp/production-audit.json","utf8"));
+            console.log("RELEASE_CANDIDATE_PRODUCTION_AUDIT",JSON.stringify(a.metadata?.vulnerabilities||{}));
+          '

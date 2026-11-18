@@ -50,6 +50,8 @@ test("Managed Payments requires separate account, prepaid-credit product and tax
   assert.equal(managedCreditMoRApproved({...approved,[key]:"false"}),false,key);
  }
  assert.equal(managedCreditTaxDecision(approved,"FR","consumer").ready,true);
+ assert.equal(managedCreditTaxDecision(approved,"BR","consumer").ready,true);
+ assert.equal(managedCreditTaxDecision(approved,"BR","consumer").decision?.revision,"stripe-mor-seller-tax-v1");
  assert.equal(managedCreditTaxDecision(approved,"CN","consumer").ready,false);
  assert.equal(managedCreditTaxDecision(approved,"FR",null).ready,false);
 });
@@ -74,6 +76,7 @@ test("server collects country/type for reviewed global checkout and never change
  assert.match(picker,/moRCountries\.includes\(billingCountry\)/);
  assert.match(picker,/requestKey\.current=null/);
  assert.match(balance,/approvedBillingCountries:liveCheckout/);
+ assert.match(balance,/approvedMoRBuyerCountries\(process\.env\)/);
  assert.match(dashboard,/approvedBillingCountries=\{balance\.approvedBillingCountries\}/);
  assert.match(picker,/selectableCountries\.map\(item/);
 });

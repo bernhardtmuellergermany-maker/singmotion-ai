@@ -1,0 +1,38 @@
+name: Verify production dependency CVE remediation
+
+on:
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+    paths:
+      - .github/workflows/security-dependency-remediation.yml
+      - package.json
+      - package-lock.json
+      - tests/picomatch-remediation.test.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-security-patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.3
+          cache: npm
+      - name: Verify exact lockfile installation
+        run: npm ci
+      - name: Test real dependency provenance, glob compatibility, and bounded CVE execution
+        run: node --experimental-strip-types --test tests/picomatch-remediation.test.ts
+      - name: Fail closed if a published production advisory remains
+        run: npm audit --omit=dev --audit-level=high
+      - name: Install MP4 test prerequisites
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Complete production build and checkout/credit/backup safety regressions
+        run: npm run build

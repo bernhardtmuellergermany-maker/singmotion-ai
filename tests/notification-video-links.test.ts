@@ -34,7 +34,7 @@ test("spent Credits notification identifies the verified private video and links
   const notice=new NotificationInbox(commerce,live).list(subject).notifications[0];
   assert.equal(notice.title,"Video credits used");
   assert.equal(notice.message,"275 credits used for “Minecraft”.");
-  assert.equal(notice.href,"/projects/live_"+videoId);
+  assert.equal(notice.href,"/videos/live_"+videoId);
   live.prepare("UPDATE live_studio_projects SET display_name=? WHERE attempt_id=?")
    .run("My new title",videoId);
   assert.match(new NotificationInbox(commerce,live).list(subject).notifications[0].message,/My new title/);
@@ -71,7 +71,7 @@ test("the same verified link works for a staff-owned paid video, without exposin
   live.prepare("UPDATE live_studio_projects SET owner=? WHERE attempt_id=?").run(staffOwner,videoId);
   live.prepare("UPDATE live_attempts SET data=? WHERE id=?").run(JSON.stringify({state:"completed",media:{owner:staffOwner},outputPath:"/private/video.mp4"}),videoId);
   const staff=new NotificationInbox(commerce,live).list(staffSubject).notifications[0];
-  assert.equal(staff.href,"/projects/live_"+videoId);
+  assert.equal(staff.href,"/videos/live_"+videoId);
   assert.equal(new NotificationInbox(commerce,live).list(subject).notifications.length,0);
  }finally{commerce.close();live.close()}
 });

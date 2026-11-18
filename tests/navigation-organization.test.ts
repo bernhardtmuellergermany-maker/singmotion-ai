@@ -9,20 +9,21 @@ test("global menu contains exactly the four clear destinations", () => {
   const links = [...source.matchAll(/\{ href: "(\/[^"]+)", label: "([^"]+)" \}/g)]
     .map((match) => [match[1], match[2]]);
   assert.deepEqual(links, [
-    ["/projects", "My Projects"],
+    ["/videos", "Videos"],
     ["/help", "Help"],
     ["/legal", "Legals"],
     ["/contact", "Contact"],
   ]);
 });
 
-test("pricing is available from login, not the general menu", () => {
+test("pricing is accessible from the account menu, not the general navigation", () => {
   const menu = read("components/global-menu.tsx");
   const accountMenu = read("components/header-account-menu.tsx");
   const accountPanel = read("components/account-panel.tsx");
   assert.doesNotMatch(menu, /\/plans|Pricing/);
-  assert.match(accountMenu, /href="\/plans"[^>]*>Plans & Pricing<\/Link>/);
-  assert.match(accountPanel, /href="\/plans">Plans & Pricing<\/Link>/);
+  assert.match(accountMenu, /<Link href="\/plans"/);
+  assert.match(accountMenu, />Pricing<\/Link>/);
+  assert.doesNotMatch(accountPanel, /href="\/plans"/);
 });
 
 test("legal topics retain privacy, consumer and AI policies", () => {
