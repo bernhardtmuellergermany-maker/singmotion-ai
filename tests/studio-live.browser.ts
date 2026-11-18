@@ -62,7 +62,7 @@ try {
     };
     await page.route("**/*", async (route) => {
       const url = new URL(route.request().url());
-      if (url.pathname === "/" || url.pathname === "/projects/live_plan")
+      if (url.pathname === "/" || url.pathname === "/videos/live_plan")
         return route.fulfill({
           contentType: "text/html",
           body: '<div id="root"></div><script src="/bundle.js"></script>',
@@ -210,7 +210,7 @@ try {
     // Leave the component entirely, then return: server reload of the same
     // project must retain unchanged explicit approval without another prepare.
     await page.getByRole("link", { name: "Saved private project" }).click();
-    await page.waitForURL("**/projects/live_plan");
+    await page.waitForURL("**/videos/live_plan");
     await page.goBack();
     await submit.waitFor();
     await page.waitForFunction(() =>
@@ -299,7 +299,7 @@ try {
         .count(),
       0,
     );
-    assert.equal(await recovery.getAttribute("href"), "/projects/live_blocked");
+    assert.equal(await recovery.getAttribute("href"), "/videos/live_blocked");
     assert.equal(posts.filter((p) => p.action === "submit").length, 1);
     await page.route("**/api/studio-live", async (route) => {
       const body = route.request().postDataJSON();
