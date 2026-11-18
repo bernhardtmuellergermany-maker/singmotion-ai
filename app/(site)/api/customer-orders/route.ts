@@ -135,7 +135,7 @@ export async function PATCH(req:NextRequest){
   }finally{store.close();}
 }
 
-/** Hide or restore an owned paid order in My Projects.
+/** Hide or restore an owned paid order in Videos.
  * Not a payment cancellation, media deletion or provider job cancellation.
  * The existing order endpoint and customer purchases remain accessible.
  */
