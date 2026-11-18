@@ -13,7 +13,7 @@ test("Step 4 starts authorized operator generation directly without opening a di
  assert.match(wizard,/availableCredits<creditQuote\.credits/);
  assert.match(wizard,/action:"prepare",requestKey:projectKey,selection/);
  assert.match(wizard,/action:"submit",id:prepared\.id,digest:prepared\.digest/);
- assert.match(wizard,/window\.location\.assign\("\/projects\/live_"/);
+ assert.match(wizard,/window\.location\.assign\("\/videos\/live_"/);
 });
 
 test("generation is idempotently guarded and failures keep project recovery visible",()=>{
