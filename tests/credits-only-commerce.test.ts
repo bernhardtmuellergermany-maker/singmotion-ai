@@ -63,7 +63,7 @@ test("only Credit Checkout can create new Stripe purchases, and own paid MP4 his
 test("unauthorised customer generation remains blocked until a reviewed credit-to-video pipeline exists",()=>{
  const dialog=read("components/generation-dialog.tsx");
  const route=read("app/(site)/api/customer-orders/route.ts");
- assert.match(dialog,/Customer credit-paid generation is not yet enabled/);
- assert.match(dialog,/Customer video generation with Credits is not yet enabled/);
+ assert.match(dialog,/No Credits are charged at this step/);
+ assert.match(dialog,/Use your account Credits to generate videos from Studio/);
  assert.match(route,/checkoutEnabled: !legacyCustomerPurchaseRetired\(\)/);
 });
