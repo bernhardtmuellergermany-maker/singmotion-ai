@@ -7,6 +7,7 @@
 import {assessProductionSandboxPilot} from "./customer-sandbox-pilot-policy.ts";
 import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 import {privateLiveCreditTestEnabled} from "./private-live-credit-test.ts";
+import {privateInternationalCreditBetaEnabled} from "./private-international-credit-beta.ts";
 export type StripePaymentMode="test"|"live";
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
@@ -19,7 +20,8 @@ export function configuredStripePaymentMode(env:Record<string,string|undefined>)
  if(env.RAILWAY_ENVIRONMENT_ID===STAGING&&
     env.STRIPE_CHECKOUT_ENABLED==="true"&&/^sk_test_[A-Za-z0-9_]+$/.test(key))
    return "test";
- if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&privateLiveCreditTestEnabled(env))
+ if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
+    (privateLiveCreditTestEnabled(env)||privateInternationalCreditBetaEnabled(env)))
    return "live";
  if(env.RAILWAY_ENVIRONMENT_ID===PRODUCTION&&
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true"&&
