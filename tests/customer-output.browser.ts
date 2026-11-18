@@ -197,11 +197,45 @@ try{
  assert.equal(await options.locator("summary").evaluate(el=>document.activeElement===el),true,
    "Escape returns keyboard focus to the options trigger");
  await options.locator("summary").click();
+ // The video card can sit at the extreme left on a narrow phone. Both the
+ // 3-dot action menu and Rename editor must remain inside the visible screen.
+ const assertWithinViewport=async(selector:string,width:number)=>{
+   const box=await page.locator(selector).first().evaluate(element=>{
+     const rect=element.getBoundingClientRect();
+     const card=element.closest(".sm-projects-card")?.getBoundingClientRect();
+     return {left:rect.left,right:rect.right,cardLeft:card?.left,
+       cardRight:card?.right,viewport:window.innerWidth};
+   });
+   assert.ok(box.left>=6 && box.right<=box.viewport-6,
+     selector+" must fit "+width+"px screen: "+JSON.stringify(box));
+ };
+ for(const width of [320,360,390,430]){
+   await page.setViewportSize({width,height:640});
+   await assertWithinViewport(".sm-projects-options-menu",width);
+ }
+ await page.setViewportSize({width:390,height:844});
  await options.getByRole("button",{name:"Rename"}).click();
- await page.locator(".sm-projects-rename-form").waitFor({timeout:5000});
+ const renameForm=page.locator(".sm-projects-rename-form");
+ await renameForm.waitFor({timeout:5000});
  assert.equal(await options.count(),0,
    "Choosing Rename replaces the options menu with the editing form");
- await page.locator(".sm-projects-rename-form").getByRole("button",{name:"Cancel"}).click();
+ for(const width of [320,360,390,430]){
+   await page.setViewportSize({width,height:640});
+   await assertWithinViewport(".sm-projects-rename-form",width);
+   const cardGeometry=await renameForm.evaluate(el=>{
+     const editor=el.getBoundingClientRect(),card=el.closest(".sm-projects-card")!.getBoundingClientRect();
+     return {editorLeft:editor.left,editorRight:editor.right,cardLeft:card.left,cardRight:card.right};
+   });
+   assert.ok(cardGeometry.editorLeft>=cardGeometry.cardLeft-1 &&
+     cardGeometry.editorRight<=cardGeometry.cardRight+1,
+     "Rename editor must remain inside its card: "+JSON.stringify(cardGeometry));
+   await renameForm.getByRole("textbox",{name:"New video name"}).focus();
+   await page.setViewportSize({width,height:420}); // mobile keyboard shrinks viewport
+   await assertWithinViewport(".sm-projects-rename-form",width);
+ }
+ await page.setViewportSize({width:390,height:844});
+ await renameForm.getByRole("button",{name:"Cancel"}).click();
+ console.log("BROWSER_CHECKPOINT: Video options and rename form fit 320–430px mobile screens");
  console.log("BROWSER_CHECKPOINT: Videos action menu outside-click, Escape, rename verified");
  assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
  // One click must copy the full support reference, not the eight-character
