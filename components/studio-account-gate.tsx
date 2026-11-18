@@ -68,16 +68,16 @@ export function StudioAccountGate({draftId,requiredCredits,onClose}:{
    <button type="button" className="product-secondary" aria-pressed={mode==="login"}
     disabled={busy} onClick={()=>{setMode("login");setError("");}}>Sign in</button>
   </div>
-  {accountEnabled===false&&<p role="alert" className="sm-confirm-notice">Account registration is not yet enabled on this environment. Your draft remains saved. No payment will be taken.</p>}
+  {accountEnabled===false&&<p role="alert" className="sm-confirm-notice">Account creation is temporarily unavailable. Your draft remains saved. No payment will be taken.</p>}
   <form onSubmit={e=>void submit(e)} style={{display:"grid",gap:12}}>
    <label>Email address<input type="email" autoComplete="email" required maxLength={254}
     value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
    <label>Password<input type="password" autoComplete={mode==="register"?"new-password":"current-password"}
-    required minLength={mode==="register"?20:1} maxLength={256} value={password}
+    required minLength={mode==="register"?8:1} maxLength={256} value={password}
     onChange={e=>setPassword(e.target.value)}
-    placeholder={mode==="register"?"At least 20 characters":"Your password"}/></label>
+    placeholder={mode==="register"?"At least 8 characters":"Your password"}/></label>
    {mode==="register"&&<label>Confirm password<input type="password" autoComplete="new-password"
-    required minLength={20} maxLength={256} value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>}
+    required minLength={8} maxLength={256} value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>}
    <label className="sm-review-rights" style={{display:"flex",alignItems:"flex-start",gap:10}}>
     <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
     <span>Transfer the guest projects and uploads saved in this browser to my account. Only this browser's verified guest workspace can be transferred.</span>

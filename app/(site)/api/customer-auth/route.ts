@@ -137,6 +137,6 @@ export async function POST(req:NextRequest){
    response.cookies.set(name,value,{httpOnly:true,secure:true,sameSite:name==="sm_customer"?"lax":"strict",path:"/",maxAge:86400});
   }
   return response;
- }catch{return json({error:input.action==="register"?"Registration failed. Check email, password length (20–256), or existing account.":"Invalid credentials"},input.action==="login"?401:400)}
+ }catch{return json({error:input.action==="register"?"Registration failed. Check email, password length (8–256), or existing account.":"Invalid credentials"},input.action==="login"?401:400)}
  finally{store.close()}
 }

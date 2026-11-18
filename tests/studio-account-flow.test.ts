@@ -38,7 +38,7 @@ test("Guest Step 4 never opens an operator dialog or starts paid work before log
  assert.match(wizard,/<StudioAccountGate draftId=\{projectKey\} requiredCredits=\{creditQuote\.credits\}/);
  assert.match(gate,/Account creation is <strong>free<\/strong>/);
  assert.match(gate,/action:mode,email,password/);
- assert.match(gate,/mode==="register"\?20:1/);
+ assert.match(gate,/mode==="register"\?8:1/);
  assert.match(gate,/Continue with Google/);
  assert.match(gate,/sm-studio-account-resume|STUDIO_ACCOUNT_RESUME_KEY/);
  assert.doesNotMatch(gate,/api\/cms\/staff\/login/);
