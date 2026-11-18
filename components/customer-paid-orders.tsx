@@ -18,7 +18,7 @@ export function CustomerPaidOrders(){
  return <section aria-label="Your customer videos">
   <h2>Customer videos</h2>
   <div className="project-grid">{orders.map(o=>
-   <Link className="project-card" key={o.orderId} href={`/projects/paid_${o.orderId}`}>
+   <Link className="project-card" key={o.orderId} href={`/videos/paid_${o.orderId}`}>
     <div className="project-info">
      <h3>{o.projectId||"SingMotion video"}</h3>
      <p>{o.videoReady===1?"Video ready · Open output":
