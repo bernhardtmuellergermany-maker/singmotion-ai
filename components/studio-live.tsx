@@ -267,7 +267,7 @@ export function StudioLiveControl({
             confirmation: `CONFIRM PAID STUDIO ${result.id} ${result.digest} ${result.ceilingMicroUsd}${result.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
           }),
         });
-        router.push(`/projects/live_${result.id}`);
+        router.push(`/videos/live_${result.id}`);
       }
     } catch (e) {
       setError((e as Error).message);
@@ -293,7 +293,7 @@ export function StudioLiveControl({
           confirmation: `CONFIRM PAID STUDIO ${plan.id} ${plan.digest} ${plan.ceilingMicroUsd}${plan.experimental ? " ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA" : ""}`,
         }),
       });
-      router.push(`/projects/live_${plan.id}`);
+      router.push(`/videos/live_${plan.id}`);
     } catch (e) {
       setConfirmed(null);
       if (plan) saveReceipt(plan, null);
@@ -453,7 +453,7 @@ export function StudioLiveControl({
               : usd(plan.ceilingMicroUsd)}
             . No automatic refund or retry.
           </p>
-          <Link href={`/projects/live_${plan.id}`}>Saved private project</Link>
+          <Link href={`/videos/live_${plan.id}`}>Saved private project</Link>
           {plan.state === "prepared" && (
             <>
               {!superAdmin && <label className="consent">
@@ -558,7 +558,7 @@ export function LiveProject({ id }: { id: string }) {
         body: JSON.stringify({ action, id, ...extra }),
       });
       setProject(updated);
-      if (action === "hide") router.push("/projects");
+      if (action === "hide") router.push("/videos");
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -701,7 +701,7 @@ export function LiveProjects() {
       {error && <p role="alert">{error}</p>}
       {projects.map((p) => (
         <div key={p.id}>
-          <Link href={`/projects/live_${p.id}`} className="project-card">
+          <Link href={`/videos/live_${p.id}`} className="project-card">
             <div className="project-cover">
               <img
                 src={`/api/assets/${p.imageId}`}
@@ -730,7 +730,7 @@ export function LiveProjects() {
             onClick={async () => {
               if (
                 !window.confirm(
-                  "Hide project from My Videos? Task history, files, reservations and unresolved locks are retained.",
+                  "Hide project from Videos? Task history, files, reservations and unresolved locks are retained.",
                 )
               )
                 return;
