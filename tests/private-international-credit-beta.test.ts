@@ -97,7 +97,8 @@ test("DE-only legacy flag cannot authorize any new LIVE credit purchases or vide
   assert.doesNotMatch(s,/privateLiveCreditTestEnabled|privateLiveCreditTestTaxDecision|privateCreditPilotApproved/,file);
  }
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
- assert.match(checkout,/managedCreditTaxDecision\(process\.env,body\.billingCountry,body\.buyerType\)/);
+ assert.match(checkout,/metadata\[creditTaxFlow\]/);
+ assert.match(checkout,/form\.set\("billing_address_collection","required"\)/);
  assert.doesNotMatch(checkout,/PRIVATE_LIVE_TRIAL_DE_PRIVATE_CUSTOMER_ONLY/);
 });
 
