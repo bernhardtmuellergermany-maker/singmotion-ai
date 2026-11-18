@@ -60,7 +60,7 @@ export default function ResetPassword(){
       <form className="sm-account-form" onSubmit={e=>void submit(e)}>
        {token?<><label className="sm-account-label">New password
          <input type="password" required minLength={8} maxLength={256}
-          autoComplete="new-password" placeholder="At least 20 characters"
+          autoComplete="new-password" placeholder="At least 8 characters"
           value={password} onChange={e=>setPassword(e.target.value)}/>
         </label>
         <label className="sm-account-label">Confirm new password

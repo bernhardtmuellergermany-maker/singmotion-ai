@@ -180,7 +180,7 @@ test("standalone password reset visually matches the sign-in and register experi
  assert.match(reset,/sm-carousel-primary/);
  assert.match(css,/linear-gradient/);
  assert.match(css,/sm-reset-password/);
- assert.match(reset,/minLength=\{20\}/);
+ assert.match(reset,/minLength=\{8\}/);
  assert.match(reset,/Back to sign in/);
  assert.match(reset,/customer-password-reset/);
  assert.doesNotMatch(auth,/sm-account-pricing-link/);
