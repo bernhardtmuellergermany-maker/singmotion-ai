@@ -243,7 +243,7 @@ export function Studio() {
         }),
       });
       window.dispatchEvent(new Event("credits-changed"));
-      router.push(`/projects/${j.id}`);
+      router.push(`/videos/${j.id}`);
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
