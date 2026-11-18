@@ -403,42 +403,41 @@ try {
   );
   await page.getByRole("button", { name: "Login", exact: true }).click();
   assert.equal((await loginResponse).status(), 200);
-  // The *native Payload sidebar* must show the rebranded dashboard
-  // and German collection/global navigation on every admin view.
+  // The CMS home is a dedicated, compact Payload dashboard, not stacked
+  // beforeDashboard cards followed by duplicated built-in CollectionCards.
   const sidebar=page.getByRole("navigation").filter({has:page.locator(".sm-cms-sidebar-intro")});
-  await sidebar.getByRole("link",{name:"Dashboard"}).waitFor();
-  assert.equal(await sidebar.getByRole("link",{name:"Dashboard"}).getAttribute("href"),"/admin");
-  for(const label of ["Team & Zugriffsrechte","Aktivitätsprotokoll",
-    "Seiten bearbeiten","Medienbibliothek","Navigation & Footer",
-    "Kundenservice","Studio-Inhalte","E-Mail-Vorlagen"]){
+  await sidebar.getByRole("link",{name:"Übersicht"}).waitFor();
+  assert.equal(await sidebar.getByRole("link",{name:"Übersicht"}).getAttribute("href"),"/admin");
+  for(const label of ["Team & Zugriffsrechte","Seiten bearbeiten","Medienbibliothek",
+    "Navigation & Footer","Kundenservice","Studio-Inhalte"]){
     await sidebar.getByText(label,{exact:true}).first().waitFor();
   }
-  assert.ok(await sidebar.getByText("Website & Inhalte",{exact:true}).count());
-  assert.ok(await sidebar.getByText("Kunden & Betrieb",{exact:true}).count());
-    await page.getByRole("heading", { name: "Create & manage" }).waitFor();
-  // Modern CMS control center is real Payload dashboard content, not demo console.
-  const controlCenter = page.locator(".sm-cms");
-  assert.equal(await controlCenter.count(), 1);
-  await page.getByRole("link", { name: /Manage website/ }).waitFor();
-  await page.getByRole("link", { name: /Media library/ }).waitFor();
-  await page.getByRole("heading", { name: "Customer operations" }).waitFor();
-  await page.getByRole("heading", { name: "Workspace activity" }).waitFor();
-  const inventory=page.locator(".sm-cms-page-inventory");
-  await inventory.getByRole("heading",{name:/Welche Seiten sind tatsächlich veröffentlicht/}).waitFor();
-  await inventory.getByText("Nie veröffentlicht",{exact:true}).first().waitFor();
-  await inventory.getByText("Veröffentlicht",{exact:true}).first().waitFor();
-  assert.ok((await inventory.textContent())?.includes("/about"));
-  assert.ok((await inventory.textContent())?.includes("/"));
-
-  const heroBg = await page.locator(".sm-cms-hero").evaluate(
-    (el) => getComputedStyle(el).backgroundImage,
-  );
-  assert.match(heroBg,/gradient/);
+  assert.equal(await sidebar.getByText("E-Mail-Vorlagen",{exact:true}).count(),0);
+  assert.equal(await sidebar.getByText("Aktivitätsprotokoll",{exact:true}).count(),0);
+  const clean=page.locator(".sm-cms-clean");
+  await clean.getByRole("heading",{name:"Übersicht"}).waitFor();
+  assert.equal(await clean.count(),1);
+  await clean.getByRole("link",{name:/Kunden & Credits/}).waitFor();
+  await clean.getByRole("link",{name:/Kundensupport/}).waitFor();
+  await clean.getByRole("link",{name:/Seiten & Texte/}).waitFor();
+  await clean.getByRole("link",{name:/Bilder & Medien/}).waitFor();
+  await clean.getByRole("link",{name:/Showcase-Videos/}).waitFor();
+  assert.equal(await page.locator(".sm-cms-stat").count(),0,"Demo KPI cards are removed");
+  assert.equal(await page.locator(".sm-cms-page-inventory").count(),0,"Diagnostics are not on the dashboard");
+  assert.equal(await page.getByText("E-Mail-Vorlagen",{exact:true}).count(),0);
   await page.setViewportSize({width:390,height:844});
-  assert.equal(await page.locator(".sm-cms-actions-grid").evaluate(
-    (el) => getComputedStyle(el).gridTemplateColumns.split(" ").length,
-  ),1);
+  await page.screenshot({path:"test-results/cms-clean-mobile.png",fullPage:true});
+  assert.equal(await page.locator(".sm-cms-quick-grid").first().evaluate(
+    el=>getComputedStyle(el).gridTemplateColumns.split(" ").length),1);
+  assert.ok(await clean.evaluate(el=>el.getBoundingClientRect().right<=innerWidth+2),
+    "Mobile CMS must not overflow the viewport");
   await page.setViewportSize({width:1280,height:900});
+  await page.goto(origin+"/admin/showcase");
+  await page.getByRole("heading",{name:"Showcase-Videos"}).waitFor();
+  await page.locator(".sm-showcase-cms-manager").waitFor();
+  await page.goto(origin+"/admin/advanced");
+  await page.getByRole("heading",{name:"Technische Werkzeuge"}).waitFor();
+  await page.getByText("Historische Pilotdiagnose",{exact:true}).click();
   // Admin-only first-test browser flow stays entirely offline with gates disabled.
   const adminTest = origin + "/api/admin/first-test";
   assert.equal((await fetch(adminTest)).status, 401);
@@ -455,9 +454,6 @@ try {
     ).status(),
     403,
   );
-  await page
-    .getByText("Legacy pilot diagnostics", { exact: false })
-    .click();
   const panel = page.getByRole("region", { name: "OmniHuman first test" });
   await panel.waitFor();
   const testAudio = path.join(directory, "admin-test.mp3");
@@ -578,7 +574,7 @@ try {
   });
 
   await page.goto(origin + `/admin/collections/pages/${draft.id}`);
-  await page.locator(".sm-cms-sidebar-intro").getByRole("link",{name:"Dashboard"}).waitFor();
+  await page.locator(".sm-cms-sidebar-intro").getByRole("link",{name:"Übersicht"}).waitFor();
   await page.locator('input[name="title"]').fill("Published browser test");
   await page.getByRole("button", { name: /publish changes/i }).click();
   await page
