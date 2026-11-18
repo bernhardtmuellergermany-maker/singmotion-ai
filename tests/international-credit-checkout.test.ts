@@ -56,12 +56,15 @@ test("Managed Payments requires separate account, prepaid-credit product and tax
  assert.equal(managedCreditTaxDecision(approved,"FR",null).ready,false);
 });
 
-test("server collects country/type for reviewed global checkout and never changes private-DE pilot",()=>{
+test("all new LIVE credit purchases use worldwide country and buyer-type selection",()=>{
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
  const balance=read("app/(site)/api/credit-balance/route.ts");
  const picker=read("components/credit-amount-picker.tsx");
  const dashboard=read("components/credits-dashboard.tsx");
- assert.match(checkout,/privateLiveTest\s*\?privateLiveCreditTestTaxDecision/);
+ assert.doesNotMatch(checkout,/privateLiveCreditTestTaxDecision|privateLiveTest/);
+ assert.doesNotMatch(checkout,/privateCreditPilotApproved/);
+ assert.match(checkout,/privateInternationalCreditBetaEnabled\(process\.env\)/);
+ assert.match(checkout,/managedCreditTaxDecision\(process\.env,body\.billingCountry,body\.buyerType\)/);
  assert.match(checkout,/assessWorldwideCreditTax\(process\.env,body\.billingCountry,body\.buyerType\)/);
  assert.match(checkout,/assertManagedCreditCheckoutParams\(form\)/);
  assert.match(checkout,/\.\.\.\(!useMoR\?\{"invoice_creation\[enabled\]":"true"\}:\{\}\)/);
@@ -69,7 +72,8 @@ test("server collects country/type for reviewed global checkout and never change
  assert.match(checkout,/session\.managed_payments\?\.enabled!==true/);
  assert.match(read("app/(site)/api/stripe-webhook/route.ts"),/prior\.mode!=="stripe-managed-payments"/);
  assert.match(read("app/(site)/api/stripe-webhook/route.ts"),/STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED/);
- assert.match(balance,/globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled/);
+ assert.match(balance,/globalCountrySelection:liveCheckout&&/);
+ assert.doesNotMatch(balance,/privateLiveCreditTestEnabled|privateCreditPilotApproved/);
  assert.match(dashboard,/globalCountrySelection=\{balance\.globalCountrySelection===true\}/);
  assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
  assert.match(picker,/Select your billing country/);

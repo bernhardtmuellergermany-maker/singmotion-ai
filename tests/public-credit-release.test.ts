@@ -127,7 +127,7 @@ test("separately reject unsupported Stripe MoR, disabled Customer Studio, secret
  }
 });
 
-test("existing private Production owner path stays independent of public credit release",()=>{
+test("legacy private DE owner flag no longer admits NEW Credit Checkout or generation",()=>{
  const env=approved();
  env.STAGING_AUTH_ENABLED="true";
  env.PUBLIC_CUSTOMER_LAUNCH_APPROVED="false";
@@ -137,9 +137,9 @@ test("existing private Production owner path stays independent of public credit 
  env.STAGING_PASSWORD="s".repeat(40);
  env.PRODUCTION_SANDBOX_PILOT_ENABLED="false";
  assert.equal(publicCreditReleaseApproved(env),false);
- assert.equal(privateLiveCreditTestEnabled(env),true);
- assert.equal(stripeCreditTopupsLiveEnabled(env),true);
- assert.equal(customerCreditStudioBetaEnabled(env),true);
+ assert.equal(privateLiveCreditTestEnabled(env),true,"old flag remains identifiable for historic paid receipts");
+ assert.equal(stripeCreditTopupsLiveEnabled(env),false,"old DE flag never authorizes new LIVE purchases");
+ assert.equal(customerCreditStudioBetaEnabled(env),false,"old DE flag never authorizes new generations");
  assert.equal(stagingEnabled(env),true);
  assert.equal(stagingAccess(null,env),401);
 });
@@ -160,13 +160,17 @@ test("new public Credit admission wired into Checkout, balance, webhook and live
  for(const path of [
   "app/(site)/api/credit-checkout/route.ts",
   "app/(site)/api/credit-balance/route.ts",
-  "app/(site)/api/stripe-webhook/route.ts",
   "lib/commerce/credit-wallet.ts",
   "lib/commerce/customer-credit-studio-beta.ts",
   "lib/staging.ts",
  ]){
   assert.match(read(path),/publicCreditReleaseApproved/,path);
  }
+ // Webhook acceptance follows the centralized, reviewed LIVE credit gate;
+ // already-bound paid receipts remain independently reconcilable after a stop.
+ const hook=read("app/(site)/api/stripe-webhook/route.ts");
+ assert.match(hook,/stripeCreditTopupsLiveEnabled/);
+ assert.match(hook,/existingBoundLiveCreditReceipt/);
  const videoRoute=read("app/(site)/api/studio-live/route.ts");
  assert.match(videoRoute,/customerCreditStudioBetaEnabled\(process\.env\)/);
  assert.match(videoRoute,/owner!=="customer-"\+customerId/);

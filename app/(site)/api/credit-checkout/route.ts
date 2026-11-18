@@ -8,14 +8,10 @@ import {parseCreditTopup} from "@/lib/commerce/credit-topup-quote";
 import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
-import {customerLaunchReadiness} from "@/lib/commerce/readiness";
-import {auditSingMotionLaunch} from "@/lib/launch-audit";
-import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
-import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
-import {privateLiveCreditTestEnabled,privateLiveCreditTestTaxDecision} from "@/lib/commerce/private-live-credit-test";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 import {managedCreditMoRApproved,managedCreditTaxDecision,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
+import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -25,12 +21,10 @@ const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{"C
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  const testMode=stripeCreditTopupsTestEnabled(process.env);
- const privateLiveTest=privateLiveCreditTestEnabled(process.env);
+ // There is NO legacy DE-only new-money Checkout. Every private LIVE beta
+ // purchase uses the reviewed international buyer-country tax decision.
  const liveMode=stripeCreditTopupsLiveEnabled(process.env)&&
-  (privateLiveTest||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
-   (customerLaunchReadiness().readyForPaidOrders&&
-    (auditSingMotionLaunch(process.env,"production").ready||
-     protectedProductionLivePilotApproved(process.env))));
+  (privateInternationalCreditBetaEnabled(process.env)||publicCreditReleaseApproved(process.env));
  if(!testMode&&!liveMode)
   return json({error:"Credit Checkout is not enabled on this environment."},503);
  const origin=applicationOrigin(req.url,req.headers.get("host"));
@@ -54,9 +48,7 @@ export async function POST(req:NextRequest){
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
   const useMoR=liveMode&&managedCreditMoRApproved(process.env);
-  const tax=liveMode?(privateLiveTest
-   ?privateLiveCreditTestTaxDecision(body.billingCountry,body.buyerType)
-   :useMoR?managedCreditTaxDecision(process.env,body.billingCountry,body.buyerType)
+  const tax=liveMode?(useMoR?managedCreditTaxDecision(process.env,body.billingCountry,body.buyerType)
    :assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType)):null;
   if(liveMode&&!tax?.ready)
    return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
@@ -105,11 +97,10 @@ export async function POST(req:NextRequest){
    if(liveMode&&tax?.decision){
     const decision=tax.decision;
     form.set("billing_address_collection","required");
-    // The protected private LIVE pilot admits private buyers only: do not
-    // offer a business tax-ID flow that its policy cannot legally fulfill.
-    // Other reviewed LIVE modes may collect tax IDs through Stripe Checkout.
+    // Managed Payments forbids the tax-ID option; other reviewed LIVE modes
+    // use the explicitly approved tax-ID flow.
     if(decision.mode!=="stripe-managed-payments")
-     form.set("tax_id_collection[enabled]",decision.mode==="private-live-verification"?"false":"true");
+     form.set("tax_id_collection[enabled]","true");
     form.set("line_items[0][price_data][tax_behavior]","inclusive");
     if(decision.mode==="stripe-managed-payments"){
      // Tax code belongs to the existing live Stripe Product in the catalog.
@@ -118,13 +109,7 @@ export async function POST(req:NextRequest){
     }
     // No invented zero-percent VAT line for an approved exemption.
     // Stripe Tax only when a reviewed issue-time taxable classification exists.
-    if(decision.mode==="private-live-verification"){
-     // Do not fabricate a VAT exemption or make SingMotion a verified
-     // Merchant of Record. For the owner-only live acceptance transaction,
-     // let Stripe apply its actually configured Tax registrations and fail
-     // Checkout if the calculation cannot be completed.
-     form.set("automatic_tax[enabled]","true");
-    }else if(decision.mode==="stripe-tax"){
+    if(decision.mode==="stripe-tax"){
      form.set("automatic_tax[enabled]","true");
      // Uses the live product catalog tax code; no inline product_data permitted.
     }else if(decision.mode!=="stripe-managed-payments"){

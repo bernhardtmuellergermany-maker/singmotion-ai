@@ -1,10 +1,5 @@
-import {worldwideTaxPolicyAvailable} from "./worldwide-credit-tax.ts";
-import {managedCreditMoRApproved} from "./managed-credit-payments.ts";
-import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./public-credit-release.ts";
-import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
-import {privateCreditPilotApproved} from "./private-credit-pilot.ts";
-import {privateLiveCreditTestEnabled} from "./private-live-credit-test.ts";
+import {privateInternationalCreditBetaEnabled} from "./private-international-credit-beta.ts";
 import {randomUUID} from "node:crypto";
 import type {DatabaseSync} from "node:sqlite";
 import type {CreditTaxDecision,BuyerType} from "./worldwide-credit-tax.ts";
@@ -33,13 +28,7 @@ const PRODUCTION_ID="36adc41d-7e54-4396-ad1a-fd432ba0441d";
  * Never infer user consent or enable recurring charges from this flag. */
 export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined>):boolean {
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_ID &&
-  (privateLiveCreditTestEnabled(env) || publicCreditReleaseApproved(env) || (
-    env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true" &&
-    env.STRIPE_LIVE_CHECKOUT_ENABLED==="true" &&
-    (productionCustomerReleaseApproved(env)||protectedProductionLivePilotApproved(env)||privateCreditPilotApproved(env)) &&
-    env.STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED==="true" &&
-    (worldwideTaxPolicyAvailable(env)||managedCreditMoRApproved(env))
-  )) &&
+  (privateInternationalCreditBetaEnabled(env) || publicCreditReleaseApproved(env)) &&
   /^(?:sk|rk)_live_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
 }

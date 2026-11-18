@@ -12,9 +12,7 @@ import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmati
 import {configuredStripePaymentMode,configuredStripeReversalMode,stripeWebhookEventAdmitted,stripeSessionIdMatchesMode,stripeKeyMatchesMode,customerStripeCredential,customerStripeWebhookSecret,privateProductionSandboxSettlementAllowed,type StripePaymentMode} from "@/lib/commerce/stripe-payment-mode";
 import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
-import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
-import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
-import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
+import {existingBoundLiveCreditReceipt} from "@/lib/commerce/legacy-private-credit-settlement";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
 
 export const runtime = "nodejs";
@@ -52,11 +50,12 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
 }
 /** Verify the signed credit event against Stripe's own paid Checkout record. */
 async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent,mode:StripePaymentMode){
- if(mode==="test"&&!stripeCreditWebhookTestEnabled(process.env)||
-    mode==="live"&&!stripeCreditTopupsLiveEnabled(process.env))
-  throw Error("Credit webhook settlement unavailable");
  const obj=event.data?.object;
  const metadata=obj?.metadata as Record<string,unknown>|undefined;
+ if(mode==="test"&&!stripeCreditWebhookTestEnabled(process.env)||
+    mode==="live"&&!stripeCreditTopupsLiveEnabled(process.env)&&
+     !existingBoundLiveCreditReceipt(store.db,metadata?.creditTopupId,obj?.id))
+  throw Error("Credit webhook settlement unavailable");
  const id=typeof metadata?.creditTopupId==="string"?metadata.creditTopupId:"";
  if(metadata?.flow!=="singmotion_credit_topup"||!/^[0-9a-f-]{36}$/i.test(id)||
     typeof obj?.id!=="string"||!stripeSessionIdMatchesMode(obj.id,mode))
@@ -228,8 +227,13 @@ export async function POST(req: NextRequest) {
     const event=verifyStripePaymentEvent(raw,signature,secret,mode);
     // The independently gated STAGING wallet may settle authenticated TEST
     // purchases even while video fulfillment and public checkout stay blocked.
+    // Previously bound signed LIVE receipts remain reconcilable after a pause.
+    // New LIVE purchases only use worldwide buyer-country verification.
+    const eventCreditMetadata=event.data?.object?.metadata as Record<string,unknown>|undefined;
+    const existingLiveReceipt=mode==="live"&&existingBoundLiveCreditReceipt(
+      store.db,eventCreditMetadata?.creditTopupId,event.data?.object?.id);
     if((mode==="test"&&stripeCreditWebhookTestEnabled(process.env)||
-        mode==="live"&&(settlementEnabled||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||privateLiveCreditTestEnabled(process.env))&&stripeCreditTopupsLiveEnabled(process.env))&&
+        mode==="live"&&(stripeCreditTopupsLiveEnabled(process.env)||existingLiveReceipt))&&
        ["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type||"") &&
        (event.data?.object?.metadata as Record<string,unknown>|undefined)?.flow==="singmotion_credit_topup"){
       await reconcileCreditPurchase(store,event,mode);

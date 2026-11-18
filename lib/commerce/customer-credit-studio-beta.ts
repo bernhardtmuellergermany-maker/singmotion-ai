@@ -6,8 +6,8 @@
  */
 import {OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS,ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
 import {validateStudioPolicy} from "../live/studio-policy.ts";
-import {privateLiveCreditTestEnabled} from "./private-live-credit-test.ts";
 import {publicCreditReleaseApproved} from "./public-credit-release.ts";
+import {privateInternationalCreditBetaEnabled} from "./private-international-credit-beta.ts";
 
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 export const CUSTOMER_STUDIO_BETA_MAX_SECONDS=OWNER_CONFIRMED_SINGLE_JOB_MAX_INPUT_SECONDS;
@@ -17,10 +17,9 @@ export function customerCreditStudioBetaEnabled(env:Record<string,string|undefin
   env.STRIPE_CREDIT_TOPUPS_TEST_ENABLED==="true" &&
   /^sk_test_[A-Za-z0-9_]+$/.test(env.STRIPE_SECRET_KEY||"") &&
   /^whsec_[A-Za-z0-9_]+$/.test(env.STRIPE_WEBHOOK_SECRET||"");
- const privateLive=privateLiveCreditTestEnabled(env) &&
-  env.CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED==="true";
+ const privateInternational=privateInternationalCreditBetaEnabled(env);
  const publicCredit=publicCreditReleaseApproved(env);
- return (stage||privateLive||publicCredit) &&
+ return (stage||privateInternational||publicCredit) &&
   (publicCredit||env.STAGING_AUTH_ENABLED==="true") &&
   env.DEMO_MODE==="true" && env.GENERATIONS_ENABLED==="false" &&
   env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&

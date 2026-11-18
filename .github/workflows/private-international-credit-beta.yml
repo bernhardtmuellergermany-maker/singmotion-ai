@@ -1,0 +1,53 @@
+name: Verify password-protected worldwide LIVE Credits beta
+
+on:
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+    paths:
+      - 'lib/commerce/private-international-credit-beta.ts'
+      - 'lib/staging.ts'
+      - 'proxy.ts'
+      - 'app/(site)/api/credit-*/**'
+      - 'app/(site)/api/stripe-webhook/**'
+      - 'lib/commerce/credit-wallet.ts'
+      - 'lib/commerce/customer-credit-studio-beta.ts'
+      - 'lib/commerce/stripe-payment-mode.ts'
+      - 'tests/private-international-credit-beta.test.ts'
+      - '.github/workflows/private-international-credit-beta.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  global-private-beta:
+    runs-on: ubuntu-latest
+    timeout-minutes: 24
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.3
+          cache: npm
+      - run: npm ci
+      - name: Worldwide LIVE-only credit acceptance, cohort passwords, safe legacy settlement
+        run: |
+          node --experimental-strip-types --test \
+            tests/private-international-credit-beta.test.ts \
+            tests/private-production-credit-readiness.test.ts \
+            tests/staging.test.ts \
+            tests/international-credit-checkout.test.ts \
+            tests/managed-credit-payments.test.ts \
+            tests/credit-wallet.test.ts \
+            tests/public-credit-release.test.ts
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Security audit (must have no high/critical findings)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Install private MP4 runtime test dependency
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Full production application build with private release gates
+        run: npm run build

@@ -7,7 +7,17 @@ import {
 
 const makeEnv=():Record<string,string>=>({
  RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
- PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED:"true",
+ PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED:"false",
+ PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED:"true",
+ PRIVATE_BETA_PASSWORD:"beta-test-password-".repeat(4),
+ CREDIT_GLOBAL_MERCHANT_OF_RECORD:"stripe-managed",
+ STRIPE_MANAGED_PAYMENTS_ACCOUNT_APPROVED:"true",
+ STRIPE_MANAGED_PAYMENTS_PREPAID_CREDITS_APPROVED:"true",
+ STRIPE_MANAGED_PAYMENTS_LIVE_PRODUCT_REVIEWED:"true",
+ STRIPE_CREDIT_TAX_CODE:"txcd_10105003",
+ STRIPE_ACCOUNT_LIVE_REVIEW_APPROVED:"true",
+ STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",
+ STRIPE_LIVE_CHECKOUT_ENABLED:"true",
  CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED:"true",
  STAGING_AUTH_ENABLED:"true",STAGING_PASSWORD:"test-password-".repeat(4),
  PRODUCTION_PUBLIC_ACCESS_ENABLED:"false",PUBLIC_CUSTOMER_LAUNCH_APPROVED:"false",
@@ -28,13 +38,15 @@ test("private production Credit video configuration is checked without imposing 
  const result=assessPrivateProductionCreditVideo(makeEnv());
  assert.equal(result.configurationReady,true);
  assert.ok(result.checks.every(c=>c.ready));
+ assert.ok(!result.checks.some(c=>c.id==="PRIVATE_LIVE_CREDIT_TEST_SWITCH"));
+ assert.ok(result.checks.some(c=>c.id==="BETA_OPERATOR_APPROVED"&&c.ready));
  assert.ok(PRODUCTION_CREDIT_VIDEO_ACCEPTANCE.length>=6);
 });
 test("every critical dependency fails closed, including public access and staging keys",()=>{
  const env=makeEnv();
  for(const [key,value] of [
   ["RAILWAY_ENVIRONMENT_ID","dfaeabed-03df-43ed-aa71-50f343a75041"],
-  ["PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED","false"],
+  ["PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED","false"],
   ["CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED","false"],
   ["STRIPE_SECRET_KEY","sk_test_synthetic"],
   ["STRIPE_WEBHOOK_SECRET",""],
@@ -60,11 +72,11 @@ test("private Production gate diagnostics reveal which switches differ, never th
  const good=assessPrivateProductionCreditVideo(e);
  assert.equal(good.configurationReady,true);
  for(const [key,id] of [
-  ["PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED","PRIVATE_LIVE_CREDIT_TEST_SWITCH"],
-  ["CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED","CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_SWITCH"],
-  ["STAGING_PASSWORD","PRIVATE_BASIC_AUTH_CONFIGURED"],
-  ["APP_ORIGIN","CANONICAL_LIVE_ORIGINS"],
-  ["STRIPE_SECRET_KEY","LIVE_STRIPE_CREDENTIAL_FORMAT"],
+  ["PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED","BETA_OPERATOR_APPROVED"],
+  ["CUSTOMER_PRIVATE_LIVE_CREDIT_VIDEO_ENABLED","ACCOUNT_OWNED_CUSTOMER_STUDIO"],
+  ["STAGING_PASSWORD","PASSWORD_GATE_REMAINS_ENABLED"],
+  ["APP_ORIGIN","CANONICAL_LIVE_DOMAIN"],
+  ["STRIPE_SECRET_KEY","LIVE_CREDIT_CHECKOUT_AND_WEBHOOK"],
  ] as const){
   const report=assessPrivateProductionCreditVideo({...e,[key]:"false"});
   assert.ok(report.checks.some(check=>check.id===id&&!check.ready),key);

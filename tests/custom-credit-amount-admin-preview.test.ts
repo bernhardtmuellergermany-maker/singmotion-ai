@@ -26,22 +26,22 @@ test("Credits replace the legacy Hobby subscription in account settings",()=>{
  assert.match(s,/href="\/credits"/);assert.doesNotMatch(s,/Upgrade to Hobby|async function subscribe\(/);
 });
 
-test("private DE buyer enters amount only; international tax inputs require separate reviewed global admission",()=>{
+test("all private LIVE buyers select a reviewed billing country and buyer type worldwide",()=>{
  const picker=read("components/credit-amount-picker.tsx");
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
  const webhook=read("app/(site)/api/stripe-webhook/route.ts");
- // Production's existing private DE pilot still sends no buyer country/type.
- // The international form is rendered and sent ONLY when the server approves
- // the separate reviewed global Checkout pathway.
+ // No German special-case remains in new LIVE Credit purchases.
+ // Every buyer follows the same reviewed country/type eligibility gate.
  assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
  assert.match(picker,/needsBillingCountry&&<div className="sm-credit-country-fields"/);
  assert.match(picker,/moRCountries\.includes\(billingCountry\)/);
- assert.match(read("app/(site)/api/credit-balance/route.ts"),/globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled/);
+ assert.match(read("app/(site)/api/credit-balance/route.ts"),/globalCountrySelection:liveCheckout&&/);
  assert.match(picker,/body:JSON\.stringify\(\{credits:String\(credits\)/);
- assert.match(checkout,/privateLiveCreditTestTaxDecision\(body\.billingCountry,body\.buyerType\)/);
+ assert.doesNotMatch(checkout,/privateLiveCreditTestTaxDecision/);
+ assert.match(checkout,/managedCreditTaxDecision\(process\.env,body\.billingCountry,body\.buyerType\)/);
  assert.match(checkout,/form\.set\("billing_address_collection","required"\)/);
  assert.match(checkout,/tax_id_collection\[enabled\]/);
- assert.match(checkout,/decision\.mode==="private-live-verification"\?"false":"true"/);
+ assert.match(checkout,/decision\.mode!=="stripe-managed-payments"/);
  assert.match(webhook,/details\?\.address\?\.country!==prior\.country/);
  assert.match(webhook,/prior\.buyerType==="consumer"&&Array\.isArray\(details\?\.tax_ids\)/);
 });
