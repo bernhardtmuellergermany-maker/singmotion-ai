@@ -112,7 +112,7 @@ try{
  // Regression: a delivered order must be reached from its project card,
  // not sent back to an editable draft or an order review.
  await page.goto(origin+"/?card=paid_"+id);
- const finishedCard=page.locator(".sm-carousel-card").filter({has:page.locator('a[href="/projects/paid_'+id+'"]')});
+ const finishedCard=page.locator(".sm-carousel-card").filter({has:page.locator('a[href="/videos/paid_'+id+'"]')});
  await finishedCard.waitFor({timeout:15000});
  // Ubuntu Chromium (snap) may not decode the isolated H.264 fixture even when
  // private HTTP range + the actual Output page play/download correctly. Wait for
@@ -132,7 +132,7 @@ try{
  // reads, the prepared fallback is permitted; the full private MP4 HTTP,
  // Output player and account-only download were already verified above.
  await finishedCard.getByRole("link",{name:/Open project/}).click();
- await page.waitForURL(origin+"/projects/paid_"+id);
+ await page.waitForURL(origin+"/videos/paid_"+id);
  await page.getByRole("region",{name:"Video generation status"}).locator("video[controls]").waitFor({timeout:15000});
  console.log("BROWSER_CHECKPOINT: completed project card opens private video, not order review");
  // Regression for the shared private Output/Completed shell used by paid and
@@ -170,22 +170,24 @@ try{
  console.log("BROWSER_CHECKPOINT: private Output and Home header coordinates identical");
  console.log("BROWSER_CHECKPOINT: mobile private Output wordmark opens the homepage");
 
- // The My Projects library must list exactly the owner's paid order and
+ // The Videos library must list exactly the owner's paid order and
  // navigate to its existing private status, never initiate a new checkout.
+ // Legacy bookmarks are kept as safe, permanent redirects to the new library.
  await page.goto(origin+"/projects");
- await page.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ await page.waitForURL(origin+"/videos");
+ await page.getByRole("heading",{name:"Videos"}).waitFor({timeout:15000});
  assert.equal(await page.getByRole("link",{name:/New video/}).count(),1);
  assert.equal(await page.getByRole("link",{name:/New video/}).getAttribute("href"),"/studio?new=1","New video must allocate a fresh draft instead of reusing the previous project");
  const libraryCard=page.getByRole("link",{name:/Open Music video .* Ready/});
  await libraryCard.waitFor({timeout:15000});
- // My Projects action menu: close on any outside mouse/touch pointer or
+ // Videos action menu: close on any outside mouse/touch pointer or
  // keyboard Escape; regular Edit/Rename/Delete actions remain accessible.
  const options=page.locator("details.sm-projects-options").first();
  await options.locator("summary").click();
  assert.equal(await options.evaluate(el=>(el as HTMLDetailsElement).open),true,
    "Project action dropdown opens on its own summary");
  assert.equal(await options.getByRole("button",{name:"Rename"}).isVisible(),true);
- await page.getByRole("heading",{name:"My Projects"}).click();
+ await page.getByRole("heading",{name:"Videos"}).click();
  assert.equal(await options.evaluate(el=>(el as HTMLDetailsElement).open),false,
    "Clicking anywhere outside dismisses the dropdown without navigation");
  await options.locator("summary").click();
@@ -200,7 +202,7 @@ try{
  assert.equal(await options.count(),0,
    "Choosing Rename replaces the options menu with the editing form");
  await page.locator(".sm-projects-rename-form").getByRole("button",{name:"Cancel"}).click();
- console.log("BROWSER_CHECKPOINT: My Projects action menu outside-click, Escape, rename verified");
+ console.log("BROWSER_CHECKPOINT: Videos action menu outside-click, Escape, rename verified");
  assert.ok((await page.locator(".sm-projects-support").innerText()).includes(id.slice(0,8)));
  // One click must copy the full support reference, not the eight-character
  // preview displayed on the project card.
@@ -263,8 +265,8 @@ try{
      artistName:"No upload",projectName:"Must not persist",step:0}
  });
  assert.equal(rejectEmpty.status(),400,"direct empty draft must be rejected");
- await guestPage.goto(origin+"/projects");
- await guestPage.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ await guestPage.goto(origin+"/videos");
+ await guestPage.getByRole("heading",{name:"Videos"}).waitFor({timeout:15000});
  await guestPage.getByRole("link",{name:/New video/}).click();
  await guestPage.waitForURL(origin+"/studio");
  await guestPage.getByRole("heading",{name:/Upload your audio/}).waitFor({timeout:15000});
@@ -281,8 +283,8 @@ try{
   "new uploaded draft has a distinct ID and saved audio");
  const preserved=afterNew.find(d=>d.id===old.id);
  assert.equal(preserved?.selection.customPrompt,note,"first guest project remains unchanged");
- await guestPage.goto(origin+"/projects");
- await guestPage.getByRole("heading",{name:"My Projects"}).waitFor({timeout:15000});
+ await guestPage.goto(origin+"/videos");
+ await guestPage.getByRole("heading",{name:"Videos"}).waitFor({timeout:15000});
  const draftMenus=guestPage.locator("details.sm-projects-options");
  await draftMenus.nth(1).waitFor({timeout:5000});
  await draftMenus.nth(0).locator("summary").click();
@@ -291,7 +293,7 @@ try{
  assert.equal(await draftMenus.nth(0).evaluate(el=>(el as HTMLDetailsElement).open),false,
    "Opening another project menu automatically closes the previously opened menu");
  assert.equal(await draftMenus.nth(1).evaluate(el=>(el as HTMLDetailsElement).open),true);
- await guestPage.getByRole("searchbox",{name:"Search projects and support IDs"}).focus();
+ await guestPage.getByRole("searchbox",{name:"Search videos and support IDs"}).focus();
  assert.equal(await draftMenus.nth(1).evaluate(el=>(el as HTMLDetailsElement).open),false,
    "Moving keyboard focus outside also closes a project menu");
  await guestPage.getByRole("link",{name:/Open Old Guest Project, Draft/}).click();
