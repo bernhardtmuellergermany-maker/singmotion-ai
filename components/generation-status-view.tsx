@@ -78,7 +78,7 @@ export function GenerationStatusView({
       :generationFeedback(progress,creditCharge,availableCredits,editHref));
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
-    {title:admin?"Video credit authorization":paymentRefunded?"Payment refunded":paymentDisputed?"Payment disputed":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"No wallet charge":"Credit reservation checked before provider submission":paymentRefunded?"Stripe refund recorded for this order":paymentDisputed?"Payment is in dispute": "Secure payment verified by Stripe",state:paymentConfirmed||paymentRefunded||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
+    {title:admin?"Video credit authorization":paymentRefunded?"Payment refunded":paymentDisputed?"Payment disputed":"Payment confirmed",description:admin?creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Credit reservation checked before provider submission":paymentRefunded?"Stripe refund recorded for this order":paymentDisputed?"Payment is in dispute": "Secure payment verified by Stripe",state:paymentConfirmed||paymentRefunded||admin&&creditCharge?.status==="legacy"?"done" as const:admin?"pending" as const:"active" as const},
     {title:"Video generation",description:"Singing, expressions and camera direction",state:ready?"done" as const:working?"active" as const:"pending" as const},
     {title:"Final render & verification",description:"Private output retrieval and technical validation",state:ready?"done" as const:"pending" as const},
     {title:"Ready to download",description:"Your private MP4 is ready",state:ready?"done" as const:"pending" as const},
@@ -113,7 +113,7 @@ export function GenerationStatusView({
     <CustomerFeedback notice={customerNotice} context="generation"/>
     <div className="sm-gen-payment" role="status">
       <span className={"sm-gen-payment-mark "+(paymentConfirmed?"is-done":"")}><ShieldCheck size={18}/></span>
-      <span>{progress==="credits-needed"?"Insufficient Credits · nothing reserved or charged":admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Credits released · no final charge":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"No wallet charge":"Video credit estimate · no charge yet"):paymentRefunded?"Payment refunded · Stripe":paymentDisputed?"Payment under dispute":paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
+      <span>{progress==="credits-needed"?"Insufficient Credits · nothing reserved or charged":admin?(creditCharge?.status==="settled"?"Video completed · Credits charged":creditCharge?.status==="released"?"Credits released · no final charge":creditCharge?.status==="review"?"Provider billing under review":creditCharge?.status==="reserved"?"Video queued · Credits reserved":creditCharge?.status==="legacy"?"Historical operator test · no wallet charge":"Video credit estimate · no charge yet"):paymentRefunded?"Payment refunded · Stripe":paymentDisputed?"Payment under dispute":paymentConfirmed?"Payment confirmed · Stripe":"Verifying your payment…"}</span>
       {admin?<strong title="Customer-facing credit charge, excluding internal BytePlus costs">{creditCharge?new Intl.NumberFormat("en-GB").format(creditCharge.credits)+" Credits"+(creditCharge.status==="settled"?" charged":creditCharge.status==="reserved"?" reserved":creditCharge.status==="review"?" held for review":creditCharge.status==="released"?" released":" estimated"):"Credit charge unavailable"}</strong>:
        formattedAmount&&(paymentConfirmed||paymentRefunded)&&<strong>{formattedAmount} {paymentRefunded?"refunded":"paid"}</strong>}
     </div>
@@ -129,12 +129,12 @@ export function GenerationStatusView({
             <div className="sm-gen-preview-placeholder">
               {photoUrl&&<img src={photoUrl} alt="Your uploaded artist reference" className="sm-gen-photo" onLoad={event=>setImagePortrait(event.currentTarget.naturalHeight>event.currentTarget.naturalWidth)}/>}
               <div className="sm-gen-glow" aria-hidden="true"/>
-              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?GENERATION_WAIT_MESSAGES[waitMessageIndex]:progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Preparing your video":progress==="queued"?"Waiting for generation":admin?"Checking account access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
+              <div className="sm-gen-preview-center"><span className="sm-gen-visual-icon"><Clapperboard size={31}/></span><strong>{label}</strong><p>{working?GENERATION_WAIT_MESSAGES[waitMessageIndex]:progress==="credits-needed"?"Add Credits before starting generation":progress==="prepared"?"Awaiting private operator approval":progress==="queued"?"Waiting for generation":admin?"Checking account access and project status":paymentConfirmed?"Checking your private video":"Waiting for payment verification"}</p></div>
               {!ready&&!review&&!failed&&progress!=="prepared"&&progress!=="credits-needed"&&<div className="sm-gen-indeterminate" role="progressbar" aria-label="Video preparation in progress" aria-valuetext="Processing; no percentage available"><span/></div>}
             </div>}
           <span className="sm-gen-watermark">SingMotion <b>AI</b></span>
         </div>
-        <p className="sm-gen-preview-caption">{ready?"Private video · verified delivery":review||failed?"Video saved · status available":"Private preview · video not yet available"}</p>
+        <p className="sm-gen-preview-caption">{ready?"Private video · verified delivery":review||failed?"Saved project · provider status recorded":"Private preview · video not yet available"}</p>
       </div>
       <div className="sm-gen-status-column">
         {note&&!failed&&!review&&!/network|failed to fetch|connection interrupted|timed out/i.test(note)&&<p className="sm-gen-status-message" role="status">{note}</p>}

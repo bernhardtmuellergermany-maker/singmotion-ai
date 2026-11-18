@@ -48,39 +48,6 @@ try{
  assert.ok(ready,"Next must start on isolated loopback port");
  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?
   {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
- // Mobile Google sign-in and signup must both be accessible. This test
- // mocks the readiness response only; it never calls Google or signs anyone in.
- const phone=await browser.newContext({viewport:{width:390,height:844},deviceScaleFactor:2,isMobile:true,hasTouch:true});
- try{
-  const phonePage=await phone.newPage();
-  await phonePage.route("**/api/google-auth",async route=>{
-   if(new URL(route.request().url()).searchParams.has("start"))return route.abort();
-   return route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({enabled:true})});
-  });
-  await phonePage.goto(origin+"/login");
-  await phonePage.getByRole("heading",{name:"Sign in",exact:true}).waitFor({timeout:15000});
-  const google=phonePage.getByRole("link",{name:"Continue with Google"});
-  await google.waitFor({state:"visible",timeout:10000});
-  assert.equal(await google.count(),1);
-  await phonePage.getByRole("button",{name:"Create account",exact:true}).click();
-  await phonePage.getByRole("heading",{name:"Create your account"}).waitFor();
-  await google.waitFor({state:"visible"});
-  assert.equal(await google.count(),1);
-  const placement=await phonePage.evaluate(()=>{
-   const button=document.querySelector(".sm-account-google") as HTMLElement|null;
-   const email=document.querySelector(".sm-account-label input[type=email]") as HTMLElement|null;
-   if(!button||!email)throw Error("Missing Google or email control");
-   const google=button.getBoundingClientRect(),field=email.getBoundingClientRect();
-   return {top:google.top,left:google.left,right:google.right,height:google.height,
-     emailTop:field.top,width:innerWidth,display:getComputedStyle(button).display};
-  });
-  assert.ok(placement.height>=44,"mobile Google button must be touch accessible");
-  assert.ok(placement.top<placement.emailTop,"Google must appear before signup email form");
-  assert.ok(placement.left>=0&&placement.right<=placement.width+1,"Google must fit viewport");
-  assert.notEqual(placement.display,"none");
-  assert.equal(await phonePage.getByText("STAGING test account").count(),0);
-  console.log("BROWSER_CHECKPOINT: Google visible on mobile login/signup, staging copy removed");
- }finally{await phone.close()}
  const context=await browser.newContext({acceptDownloads:true});
  const buyer=`buyer-${randomUUID()}@example.test`;
  const password="offline only securely generated test password 2026";

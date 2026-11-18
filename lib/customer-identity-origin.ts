@@ -2,7 +2,7 @@ import { applicationOrigin } from "./request-origin.ts";
 import {assessProductionSandboxPilot} from "./commerce/customer-sandbox-pilot-policy.ts";
 import { productionCustomerReleaseApproved, productionPrivateCustomerPreviewEnabled, PRODUCTION_RAILWAY_ENVIRONMENT_ID } from "./commerce/customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./commerce/public-credit-release.ts";
-import {privateBetaPasswordEnabled} from "./staging.ts";
+import {privateInternationalCreditBetaEnabled} from "./commerce/private-international-credit-beta.ts";
 
 type Env = Record<string, string | undefined>;
 const STAGING = "dfaeabed-03df-43ed-aa71-50f343a75041";
@@ -18,7 +18,7 @@ export function customerIdentityOrigin(env: Env): string | null {
   if (env.CUSTOMER_ACCOUNTS_ENABLED !== "true") return null;
   const candidate = id === STAGING ? STAGING_ORIGIN :
     id === PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
-    (productionPrivateCustomerPreviewEnabled(env) || privateBetaPasswordEnabled(env) || productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || assessProductionSandboxPilot(env).ready) ?
+    (productionPrivateCustomerPreviewEnabled(env) || productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || assessProductionSandboxPilot(env).ready || privateInternationalCreditBetaEnabled(env)) ?
       PRODUCTION_ORIGIN : null;
   if (!candidate || env.APP_ORIGIN !== candidate) return null;
   return applicationOrigin(candidate + "/api/customer-auth", new URL(candidate).host, env) === candidate ? candidate : null;

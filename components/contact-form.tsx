@@ -58,7 +58,7 @@ export function ContactForm(){
      <section className="sm-legal-panel">
        <h2>Send us a message</h2>
        <p>Never include passwords, payment card details, private video URLs or sensitive documents. For order questions, an order reference helps us identify the issue.</p>
-       {!config.available&&<p role="status">The contact form is currently unavailable. You can email us at <a href="mailto:support@singmotion.ai">support@singmotion.ai</a>. For guidance, visit <Link href="/help">Help</Link>.</p>}
+       {!config.available&&<p role="status">Secure contact delivery is not available yet. The operator must finish verified mail routing and human verification before messages can be accepted. For guidance, visit <Link href="/help">Help</Link>.</p>}
        <form onSubmit={submit} className="sm-contact-form">
          <label>Topic <select required value={topic} onChange={e=>setTopic(e.target.value)}>{topics.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}</select></label>
          <label>Name <input value={name} maxLength={120} onChange={e=>setName(e.target.value)} autoComplete="name" required/></label>

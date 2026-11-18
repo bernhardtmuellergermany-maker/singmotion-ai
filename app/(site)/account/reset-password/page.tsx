@@ -59,16 +59,16 @@ export default function ResetPassword(){
       !ready?<p className="sm-reset-notice" role="status">Email password recovery isn't available right now. Contact support to regain access to your account.</p>:
       <form className="sm-account-form" onSubmit={e=>void submit(e)}>
        {token?<><label className="sm-account-label">New password
-         <input type="password" required minLength={20} maxLength={256}
-          autoComplete="new-password" placeholder="At least 20 characters"
+         <input type="password" required minLength={8} maxLength={256}
+          autoComplete="new-password" placeholder="At least 8 characters"
           value={password} onChange={e=>setPassword(e.target.value)}/>
         </label>
         <label className="sm-account-label">Confirm new password
-         <input type="password" required minLength={20} maxLength={256}
+         <input type="password" required minLength={8} maxLength={256}
           autoComplete="new-password" placeholder="Repeat your new password"
           value={confirm} onChange={e=>setConfirm(e.target.value)}/>
         </label>
-        <p className="sm-reset-hint">Use a unique password with at least 20 characters.</p></>:
+        <p className="sm-reset-hint">Use a unique password with at least 8 characters.</p></>:
         <label className="sm-account-label">Email address
          <input type="email" required maxLength={254} autoComplete="email"
           placeholder="you@example.com" value={email} onChange={e=>setEmail(e.target.value)}/>

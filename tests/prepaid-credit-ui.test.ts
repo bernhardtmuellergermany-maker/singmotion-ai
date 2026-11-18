@@ -83,3 +83,24 @@ test("Studio credit warning matches the 860px review width without desktop overf
  assert.match(css,/\.flow-main > \.sm-customer-feedback\{[\s\S]*?width:min\(100%,860px\);[\s\S]*?max-width:860px;[\s\S]*?align-self:center;[\s\S]*?margin:12px auto 18px;/);
  assert.match(css,/\.sm-review-checkout\{\s*width:min\(100%,860px\);/);
 });
+
+test("credit estimator reuses Studio's credit tariff and does not show duplicate signed-out copy",()=>{
+ const picker=read("components/credit-amount-picker.tsx");
+ const css=read("components/credit-amount-picker.css");
+ const plans=read("app/(site)/plans/plans.css");
+ assert.match(picker,/VIDEO_CREDITS_PER_STARTED_SECOND/);
+ assert.match(picker,/Math\.floor\(credits\/VIDEO_CREDITS_PER_STARTED_SECOND\)/);
+ assert.match(picker,/Estimated AI Video Seconds/);
+ assert.match(picker,/Individual video limits apply/);
+ assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+ assert.doesNotMatch(picker,/Sign in to check if Credit checkout is available for your account/);
+ assert.match(picker,/!\(discoverAvailability&&checkoutAccess\.state==="signed-out"\)/);
+ assert.match(plans,/\.sm-plan-single \.sm-plan-action\{max-width:none;width:100%;min-height:65px/);
+});
+test("abandoned Stripe checkouts remain persisted but are absent from customer purchase history",()=>{
+ const wallet=read("lib/commerce/credit-wallet.ts");
+ const dashboard=read("components/credits-dashboard.tsx");
+ assert.match(wallet,/credit_topup_purchases WHERE subject=\? AND status IN \('paid','reversed'\)/);
+ assert.match(dashboard,/settledPurchases=balance\?\.purchases\.filter\(p=>p\.status==="paid"\|\|p\.status==="reversed"\)/);
+ assert.doesNotMatch(dashboard,/Payment pending/);
+});

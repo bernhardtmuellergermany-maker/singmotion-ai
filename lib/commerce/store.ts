@@ -96,10 +96,10 @@ export class CommerceStore {
     email = email.trim().toLowerCase();
     if (
       !/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(email) ||
-      password.length < 20 ||
+      password.length < 8 ||
       password.length > 256
     )
-      throw Error("Valid email and a password of 20–256 characters required");
+      throw Error("Valid email and a password of 8–256 characters required");
     const salt = randomBytes(16).toString("hex"),
       id = randomUUID(),
       digest = scryptSync(password, salt, 64).toString("hex");
@@ -166,7 +166,7 @@ export class CommerceStore {
     return !!row&&valid;
   }
   changePassword(accountId: string, currentPassword: string, newPassword: string) {
-    if (newPassword.length < 20 || newPassword.length > 256 || currentPassword.length > 256)
+    if (newPassword.length < 8 || newPassword.length > 256 || currentPassword.length > 256)
       throw Error("Invalid password");
     const row=this.db.prepare("SELECT password_hash FROM customer_accounts WHERE id=?").get(accountId) as {password_hash:string}|undefined;
     if(!row)throw Error("Invalid credentials");
@@ -244,7 +244,7 @@ export class CommerceStore {
     this.db.prepare("DELETE FROM customer_password_resets WHERE token_hash=?").run(hash(token));
   }
   finishPasswordReset(token:string,newPassword:string){
-    if(typeof token!=="string"||token.length>256||typeof newPassword!=="string"||newPassword.length<20||newPassword.length>256)throw Error("Invalid reset request");
+    if(typeof token!=="string"||token.length>256||typeof newPassword!=="string"||newPassword.length<8||newPassword.length>256)throw Error("Invalid reset request");
     this.db.exec("CREATE TABLE IF NOT EXISTS customer_password_resets(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL)");
     const row=this.db.prepare("SELECT account_id FROM customer_password_resets WHERE token_hash=? AND expires>?").get(hash(token),Date.now()) as {account_id:string}|undefined;
     if(!row)throw Error("Reset link expired or invalid");

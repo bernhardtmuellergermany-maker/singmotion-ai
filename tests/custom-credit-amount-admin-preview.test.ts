@@ -26,22 +26,19 @@ test("Credits replace the legacy Hobby subscription in account settings",()=>{
  assert.match(s,/href="\/credits"/);assert.doesNotMatch(s,/Upgrade to Hobby|async function subscribe\(/);
 });
 
-test("all private LIVE buyers select a reviewed billing country and buyer type worldwide",()=>{
+test("managed buyers choose country inside Stripe; no pre-checkout double entry",()=>{
  const picker=read("components/credit-amount-picker.tsx");
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
- const webhook=read("app/(site)/api/stripe-webhook/route.ts");
- // No German special-case remains in new LIVE Credit purchases.
- // Every buyer follows the same reviewed country/type eligibility gate.
+ const hook=read("app/(site)/api/stripe-webhook/route.ts");
+ const balance=read("app/(site)/api/credit-balance/route.ts");
  assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
- assert.match(picker,/needsBillingCountry&&<div className="sm-credit-country-fields"/);
- assert.match(picker,/moRCountries\.includes\(billingCountry\)/);
- assert.match(read("app/(site)/api/credit-balance/route.ts"),/globalCountrySelection:liveCheckout&&/);
+ assert.match(balance,/globalCountrySelection:liveCheckout&&!managedCreditMoRApproved\(process\.env\)/);
  assert.match(picker,/body:JSON\.stringify\(\{credits:String\(credits\)/);
- assert.doesNotMatch(checkout,/privateLiveCreditTestTaxDecision/);
- assert.match(checkout,/managedCreditTaxDecision\(process\.env,body\.billingCountry,body\.buyerType\)/);
+ assert.match(checkout,/metadata\[creditTaxFlow\]/);
  assert.match(checkout,/form\.set\("billing_address_collection","required"\)/);
  assert.match(checkout,/tax_id_collection\[enabled\]/);
  assert.match(checkout,/decision\.mode!=="stripe-managed-payments"/);
- assert.match(webhook,/details\?\.address\?\.country!==prior\.country/);
- assert.match(webhook,/prior\.buyerType==="consumer"&&Array\.isArray\(details\?\.tax_ids\)/);
+ assert.match(hook,/managedCreditTaxDecisionFromVerifiedStripe\(process\.env,details\)/);
+ assert.match(hook,/details\?\.address\?\.country!==prior\.country/);
+ assert.match(hook,/prior\.buyerType==="consumer"&&Array\.isArray\(details\?\.tax_ids\)/);
 });

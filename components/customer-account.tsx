@@ -131,7 +131,7 @@ export function CustomerAccount() {
             <input
               type="password"
               required
-              minLength={mode === "register" ? 20 : 1}
+              minLength={mode === "register" ? 8 : 1}
               maxLength={256}
               autoComplete={
                 mode === "register" ? "new-password" : "current-password"
@@ -141,7 +141,7 @@ export function CustomerAccount() {
             />
           </label>
           <p>
-            New passwords require at least 20 characters. A confirmation email is sent to newly registered customer accounts.
+            Use a unique password of at least 8 characters.
           </p>
           <button className="product-primary" disabled={busy}>
             {mode === "register" ? "Create account" : "Log in"}
@@ -157,7 +157,6 @@ export function CustomerAccount() {
       )}
       {notice&&<p role="status">{notice}</p>}
       {error && <p role="alert">{error}</p>}
-      <Link href="/admin/login">Private operator login</Link>
       <Link href="/studio">Back to Studio</Link>
     </section>
   );

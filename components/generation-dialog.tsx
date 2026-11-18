@@ -406,12 +406,12 @@ export function GenerationDialog({
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
-      {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"No Credits are charged at this step.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
-      <p className="sm-confirm-notice">{customerFlow?"Use your account Credits to generate videos from Studio.":<>Your own wallet must contain enough available Credits. <Link href={creditsHref}>Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
+      {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"Customer credit-paid generation is not yet enabled, so this preview does not deduct Credits.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
+      <p className="sm-confirm-notice">{customerFlow?"Customer video generation with Credits is not yet enabled.":<>Your own wallet must contain enough available Credits. <Link href={creditsHref}>Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot !== true && !customerFlow && (
         <form onSubmit={signInOperator} className="sm-confirm-notice" aria-label="Optional Super Admin sign-in">
-          <p>Sign in with an authorized account to continue. Your uploaded audio and image are saved in your draft.</p>
+          <p>Customer and guest video generation are not yet available. This separate operator login enables only authorised private testing; it does not enable customer credit billing. Your image and audio stay in the draft.</p>
           <label>Email <input type="email" name="email" autoComplete="username" required disabled={loginBusy}/></label>
           <label>Password <input type="password" name="password" autoComplete="current-password" required disabled={loginBusy}/></label>
           <button type="submit" className="product-secondary" disabled={loginBusy}>
@@ -420,9 +420,9 @@ export function GenerationDialog({
         </form>
       )}
       {pilot === null && <p role="status" className="sm-confirm-notice">Checking availability…</p>}
-      {pilot === false && !customerFlow && <p role="alert" className="sm-confirm-notice">Video generation is unavailable for this account. Nothing has been charged.</p>}
-      {customerFlow && <p role={customerCheckoutEnabled ? "status" : "alert"} className="sm-confirm-notice">{customerCheckoutEnabled ? "Videos are paid with account Credits. Open Studio to continue." : (checkoutUnavailableReason || "Credit-based video generation is not enabled here. Nothing is charged.")}</p>}
-      {!customerFlow && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{superAdmin?blockers.join(" "):"Video generation is currently unavailable. Your draft is saved."}</p>}
+      {pilot === false && !customerFlow && <p role="alert" className="sm-confirm-notice">Guest and customer video generation are not yet enabled here. The credit cost is an estimate; nothing is charged.</p>}
+      {customerFlow && <p role={customerCheckoutEnabled ? "status" : "alert"} className="sm-confirm-notice">{customerCheckoutEnabled ? "The legacy per-video checkout is retired. Credit-based generation is not yet released." : (checkoutUnavailableReason || "Credit-based video generation is not enabled here. Nothing is charged.")}</p>}
+      {!customerFlow && blockers.length > 0 && <p role="alert" className="sm-confirm-notice">{blockers.join(" ")}</p>}
       {plan?.budgetBlocker && <p role="alert" className="sm-confirm-notice">{plan.budgetBlocker}</p>}
       {error && <p className="sm-confirm-notice">Your original project remains saved. Check its status before trying another paid request.</p>}
       {insufficient&&<p className="sm-confirm-notice" role="status">Your video is saved. <Link href={creditsHref}>Buy Credits and return to Step 4</Link> to continue without losing your selection.</p>}

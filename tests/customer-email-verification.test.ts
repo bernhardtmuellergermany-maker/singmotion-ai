@@ -134,3 +134,19 @@ test("invoice lookup binds each paid session to its LIVE or TEST key, never the 
  const hook=readFileSync(new URL("../app/(site)/api/stripe-webhook/route.ts",import.meta.url),"utf8");
  assert.match(hook,/ensurePaidCreditEmail\(store,purchaseId\)/);
 });
+
+test("customer password minimum is eight characters for registration, change and reset",()=>{
+ const store=new CommerceStore(":memory:");
+ try{
+  assert.throws(()=>store.register("short@example.test","1234567"),/8–256/);
+  const id=store.register("eight@example.test","12345678");
+  assert.equal(store.session(store.login("eight@example.test","12345678")),id);
+  assert.throws(()=>store.changePassword(id,"12345678","1234567"),/Invalid password/);
+  store.changePassword(id,"12345678","abcdefgh");
+  const reset=store.createPasswordReset("eight@example.test");
+  assert.ok(reset);
+  assert.throws(()=>store.finishPasswordReset(reset!,"1234567"),/Invalid reset request/);
+  store.finishPasswordReset(reset!,"12345678");
+  assert.equal(store.session(store.login("eight@example.test","12345678")),id);
+ }finally{store.close();}
+});

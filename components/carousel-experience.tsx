@@ -236,7 +236,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
       setTiles([]);
       navigate("home");
       setError("");
-    }catch(e){setError((e as Error).message||"Could not disconnect this browser session.");}
+    }catch(e){setError((e as Error).message||"Could not disconnect this browser's demo session.");}
   }
   function continueToStudio(){
     if(!audio)return;
@@ -402,7 +402,7 @@ function ShowcaseCard({active,visible,onCreate,published,onPublish}:{active:bool
     <span className="sm-showcase-label">Lip-Synced with SingMotion AI</span>
     <div className="sm-carousel-project-footer">
       <strong>{published?.title || showcase.title}</strong>
-      {showcaseAccessMessage&&<p className="sm-showcase-access-message" role="status">{showcaseAccessMessage}</p>}{adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}>{showcaseInventory&&<small role="status">{showcaseInventory.completedSuperAdmin} completed Super Admin videos available{showcaseInventory.completedSuperAdmin===0?" in your video library.": "."}</small>}<select aria-label="Choose Super Admin showcase video" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose Super Admin video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><button type="button" className="sm-showcase-publish-two" onClick={()=>void publishTwo()} disabled={selecting||adminProjects.length<2}>{selecting?"Publishing…":"Publish 2 more Super Admin videos"}</button>{publishNotice&&<small role="status">{publishNotice}</small>}{selectionError&&<small role="alert">{selectionError}</small>}</div>}
+      {showcaseAccessMessage&&<p className="sm-showcase-access-message" role="status">{showcaseAccessMessage}</p>}{adminProjects&&<div className="sm-showcase-admin" onClick={e=>e.stopPropagation()}>{showcaseInventory&&<small role="status">{showcaseInventory.completedSuperAdmin} completed Super Admin videos available{showcaseInventory.completedSuperAdmin===0?" on this Staging environment.": "."}</small>}<select aria-label="Choose Super Admin showcase video" value={adminProjects.find(p=>p.selected)?.id||""} disabled={selecting} onChange={e=>{if(e.target.value)void chooseShowcase(e.target.value);}}><option value="">Choose Super Admin video…</option>{adminProjects.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><button type="button" className="sm-showcase-publish-two" onClick={()=>void publishTwo()} disabled={selecting||adminProjects.length<2}>{selecting?"Publishing…":"Publish 2 more Super Admin videos"}</button>{publishNotice&&<small role="status">{publishNotice}</small>}{selectionError&&<small role="alert">{selectionError}</small>}</div>}
       <button className="sm-carousel-open" type="button" onClick={e=>{e.stopPropagation();onCreate();}}>Create your own <ArrowRight size={16}/></button>
     </div>
   </div>;

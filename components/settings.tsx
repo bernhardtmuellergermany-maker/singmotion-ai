@@ -170,7 +170,7 @@ export function Settings() {
         <div>
           <span className="eyebrow">MAKE YOURSELF AT HOME</span>
           <h1>Your settings</h1>
-          <p>Preferences for this browser’s private demonstration workspace.</p>
+          <p>Manage preferences for this workspace.</p>
         </div>
       </div>
       <StorageCleanup />
@@ -211,16 +211,14 @@ export function Settings() {
         </p>
       )}
       <div className="content-card">
-        <h2>Your demo account</h2>
+        <h2>Your workspace</h2>
         <p>
-          This version uses an anonymous, private session cookie valid for 30
-          days. It is not a production account. Supabase email sign-in, account
-          recovery, and account management require secure backend activation.
-          Keep this browser session to revisit your projects.
+          This workspace uses a private browser session. Keep using this
+          browser to access projects saved here.
         </p>
       </div>
       <div className="content-card">
-        <h2>Delete your demo data</h2>
+        <h2>Delete workspace data</h2>
         <p>
           Remove your uploaded music, reference images, artist profiles,
           generated sample copies, and projects. Active jobs must finish first.
@@ -231,7 +229,7 @@ export function Settings() {
           className="button outline danger"
           onClick={() => void remove()}
         >
-          {busy ? "Deleting…" : "Delete all my demo data"}
+          {busy ? "Deleting…" : "Delete all workspace data"}
         </button>
       </div>
     </div>

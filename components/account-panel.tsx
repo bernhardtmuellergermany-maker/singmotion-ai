@@ -17,8 +17,6 @@ export function AccountPanel({active}:{active:boolean}){
   }catch(err){setPasswordMessage((err as Error).message)}finally{setBusy(false)}
  }
  const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false);
- const [recoveryAvailable,setRecoveryAvailable]=useState(false);
- useEffect(()=>{if(!active)return;fetch("/api/customer-password-reset",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setRecoveryAvailable(d?.enabled===true)).catch(()=>{});},[active]);
  const [googleAvailable,setGoogleAvailable]=useState(false);
 
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
@@ -87,7 +85,7 @@ export function AccountPanel({active}:{active:boolean}){
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
   {!account&&<p className="sm-account-intro">{mode==="register"
    ?"Build your private AI music-video workspace. Save drafts, create performances and keep every generation in one place."
-   :"Sign in to bring your music to life with AI-generated videos. Your studio, videos and Credits are ready."}</p>}
+   :"Sign in to bring your music to life with AI-generated videos. Your studio, projects and Credits are ready."}</p>}
   {error&&<p className="sm-carousel-inline-error" role="alert" aria-live="assertive">{error}</p>}
   {account?<div className="sm-account-signed-in">
     <p className="sm-account-email">{account}</p>
@@ -104,7 +102,7 @@ export function AccountPanel({active}:{active:boolean}){
         <button type="button" disabled={busy} onClick={()=>setPasswordOpen(!passwordOpen)}>Change password</button>
         {passwordOpen&&<form onSubmit={e=>void changePassword(e)} style={{display:"grid",gap:8}}>
           <input type="password" aria-label="Current password" required autoComplete="current-password" placeholder="Current password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/>
-          <input type="password" aria-label="New password" required minLength={20} maxLength={256} autoComplete="new-password" placeholder="New password (20+ characters)" value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>
+          <input type="password" aria-label="New password" required minLength={8} maxLength={256} autoComplete="new-password" placeholder="New password (8+ characters)" value={newPassword} onChange={e=>setNewPassword(e.target.value)}/>
           <button disabled={busy} type="submit">Save new password</button>
         </form>}
         {passwordMessage&&<p role="status">{passwordMessage}</p>}
@@ -113,12 +111,12 @@ export function AccountPanel({active}:{active:boolean}){
     </details>}
   </div>:
   <form onSubmit={e=>{e.preventDefault();void act(mode)}} className="sm-account-form">
-   {googleAvailable&&<><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link><div className="sm-account-divider"><span>or use email</span></div></>}
    <label className="sm-account-label">Email address<input aria-label="Email" type="email" required autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" maxLength={254}/></label>
-   <label className="sm-account-label">Password<span className="sm-account-password-wrap"><input aria-label="Password" type={showPassword?"text":"password"} required minLength={mode==="register"?20:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"At least 20 characters":"Your password"} maxLength={256}/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label>
-   {mode==="register"&&<><label className="sm-account-label">Confirm password<span className="sm-account-password-wrap"><input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={20} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label><p className="sm-account-hint">Use at least 20 characters. Your videos and drafts stay private to your account.</p></>}
-   {mode==="login"&&(recoveryAvailable?<Link className="sm-account-recovery-link" href="/account/reset-password">Forgot password?</Link>:<p className="sm-account-hint">Contact support if you cannot access your account.</p>)}
+   <label className="sm-account-label">Password<span className="sm-account-password-wrap"><input aria-label="Password" type={showPassword?"text":"password"} required minLength={mode==="register"?8:1} autoComplete={mode==="register"?"new-password":"current-password"} value={password} onChange={e=>setPassword(e.target.value)} placeholder={mode==="register"?"At least 8 characters":"Your password"} maxLength={256}/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label>
+   {mode==="register"&&<><label className="sm-account-label">Confirm password<span className="sm-account-password-wrap"><input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={8} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label><p className="sm-account-hint">Use at least 8 characters. Your projects remain private to your account.</p></>}
+   {mode==="login"&&<Link className="sm-account-recovery-link" href="/account/reset-password">Forgot password?</Link>}
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
+   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href="/api/google-auth?start=1"><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
   </form>}
  </div>;

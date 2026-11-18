@@ -7,7 +7,7 @@ const source=(file:string)=>readFileSync(new URL(file,import.meta.url),"utf8");
 test("P0 disabled customer checkout cannot be presented as a mandatory Super Admin login",()=>{
  const dialog=source("../components/generation-dialog.tsx");
  assert.match(dialog,/Optional Super Admin sign-in/);
- assert.match(dialog,/Sign in with an authorized account to continue/);
+ assert.match(dialog,/Customer and guest video generation are not yet available/);
  assert.match(dialog,/checkoutUnavailableReason/);
  assert.doesNotMatch(dialog,/Customer generation is not available yet/);
  assert.match(dialog,/!customerCheckoutEnabled/);

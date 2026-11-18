@@ -113,10 +113,11 @@ export class CreditWallet {
   });
  }
  /**
-  * Capture exact legal jurisdiction decision before contacting Stripe.
-  * Retries cannot silently change a country's tax treatment or buyer type.
+  * Own-merchant tax review precedes Checkout. For Stripe Managed Payments
+  * a signed webhook may instead bind a verified paid Stripe Session by its
+  * already persisted exact session ID.
   */
- bindTaxContext(id:string,decision:CreditTaxDecision):void {
+ bindTaxContext(id:string,decision:CreditTaxDecision,verifiedSessionId?:string):void {
   this.tx(()=>{
    const existing=this.taxContext(id);
    if(existing){
@@ -127,8 +128,9 @@ export class CreditWallet {
     return;
    }
    const purchase=this.findById(id);
-   if(!purchase||purchase.status!=="pending"||purchase.sessionId)
-    throw Error("Tax decision must precede Checkout session");
+   if(!purchase||purchase.status!=="pending"||
+      (verifiedSessionId?purchase.sessionId!==verifiedSessionId:purchase.sessionId!==null))
+    throw Error("Tax decision must precede Checkout or match a verified Stripe session");
    this.db.prepare(`INSERT INTO credit_purchase_tax_context
      (purchase_id,country,buyer_type,voucher_kind,tax_mode,policy_revision,created)
      VALUES(?,?,?,?,?,?,?)`).run(id,decision.country,decision.buyerType,
@@ -295,7 +297,9 @@ export class CreditWallet {
    .map(v=>({id:v.id,credits:v.delta,type:v.kind,reference:v.reference,created:v.created}));
  }
  purchases(subject:string){
-  return this.db.prepare("SELECT id,credits,cents,status,created FROM credit_topup_purchases WHERE subject=? ORDER BY created DESC LIMIT 50")
+  // Unpaid/abandoned Stripe Checkout attempts remain in the durable ledger
+  // for idempotency and reconciliation but do not belong in customer history.
+  return this.db.prepare("SELECT id,credits,cents,status,created FROM credit_topup_purchases WHERE subject=? AND status IN ('paid','reversed') ORDER BY created DESC LIMIT 50")
    .all(subject) as Array<{id:string;credits:number;cents:number;status:string;created:number}>;
  }
 }

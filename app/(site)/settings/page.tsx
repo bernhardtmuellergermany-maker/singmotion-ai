@@ -1,4 +1,9 @@
-import {redirect} from "next/navigation";
-// Legacy demonstration settings are not a customer account page.
-// Preserve the URL but take customers to their real account settings.
-export default function Page(){redirect("/account/settings");}
+import { Shell } from "@/components/shell";
+import { Settings } from "@/components/settings";
+export default function Page() {
+  return (
+    <Shell>
+      <Settings />
+    </Shell>
+  );
+}

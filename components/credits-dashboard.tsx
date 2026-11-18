@@ -94,6 +94,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   return()=>{active=false;if(timer!==null)window.clearInterval(timer);if(returnTimer!==null)window.clearTimeout(returnTimer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
  const tone=creditTone(view==="ready"?balance?.availableCredits??null:null);
+ const settledPurchases=balance?.purchases.filter(p=>p.status==="paid"||p.status==="reversed")??[];
  return <div className="sm-credits-layout">
   <CustomerFeedback notice={checkoutNotice} context="payment"/>
   {view==="loading"&&<p role="status" className="sm-credits-message">Checking your credit balance…</p>}
@@ -159,9 +160,9 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
        <strong>≈ {num(order.credits)} Credits <small className="sm-credits-history-equivalent">Equivalent only</small></strong>
       </li>)}</ul>}
     </div>
-    {balance.purchases.length>0&&<div className="sm-credits-history-section">
+    {settledPurchases.length>0&&<div className="sm-credits-history-section">
      <h3>Credit purchases</h3>
-     <ul>{balance.purchases.map(p=><li key={p.id}><span><strong>{num(p.credits)} Credits</strong><small>{date(p.created)} · {p.status==="paid"?"Paid":p.status==="reversed"?"Reversed":"Payment pending"}</small></span><strong>{eur(p.cents)}</strong></li>)}</ul>
+     <ul>{settledPurchases.map(p=><li key={p.id}><span><strong>{num(p.credits)} Credits</strong><small>{date(p.created)} · {p.status==="paid"?"Paid":"Refunded / reversed"}</small></span><strong>{eur(p.cents)}</strong></li>)}</ul>
     </div>}
    </section>
   </>}
