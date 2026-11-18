@@ -68,7 +68,7 @@ export function StudioAccountGate({draftId,requiredCredits,onClose}:{
    <button type="button" className="product-secondary" aria-pressed={mode==="login"}
     disabled={busy} onClick={()=>{setMode("login");setError("");}}>Sign in</button>
   </div>
-  {accountEnabled===false&&<p role="alert" className="sm-confirm-notice">Account registration is not yet enabled on this environment. Your draft remains saved. No payment will be taken.</p>}
+  {accountEnabled===false&&<p role="alert" className="sm-confirm-notice">Account creation is temporarily unavailable. Your draft is saved and no payment has been taken.</p>}
   <form onSubmit={e=>void submit(e)} style={{display:"grid",gap:12}}>
    <label>Email address<input type="email" autoComplete="email" required maxLength={254}
     value={email} onChange={e=>setEmail(e.target.value)} placeholder="you@example.com"/></label>
