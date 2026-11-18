@@ -191,7 +191,7 @@ export async function retryStudioCreditVideoReadyNotifications(
     subject:"SingMotion AI – Dein Musikvideo ist fertig",
     text:["Dein SingMotion AI Musikvideo ist fertig!","",
       "Öffne deinen persönlichen Projektbereich, um dein Video anzusehen oder herunterzuladen:",
-      origin+"/projects/live_"+entry.attempt_id,"",
+      origin+"/videos/live_"+entry.attempt_id,"",
       "Melde dich dazu mit deinem SingMotion AI Kundenkonto an.",
       "Du kannst diese E-Mails unter Account Settings → Email notifications deaktivieren.",
       "Bei Fragen: support@singmotion.ai"].join("\n")
