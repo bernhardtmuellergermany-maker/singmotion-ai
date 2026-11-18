@@ -297,7 +297,9 @@ export class CreditWallet {
    .map(v=>({id:v.id,credits:v.delta,type:v.kind,reference:v.reference,created:v.created}));
  }
  purchases(subject:string){
-  return this.db.prepare("SELECT id,credits,cents,status,created FROM credit_topup_purchases WHERE subject=? ORDER BY created DESC LIMIT 50")
+  // Unpaid/abandoned Stripe Checkout attempts remain in the durable ledger
+  // for idempotency and reconciliation but do not belong in customer history.
+  return this.db.prepare("SELECT id,credits,cents,status,created FROM credit_topup_purchases WHERE subject=? AND status IN ('paid','reversed') ORDER BY created DESC LIMIT 50")
    .all(subject) as Array<{id:string;credits:number;cents:number;status:string;created:number}>;
  }
 }

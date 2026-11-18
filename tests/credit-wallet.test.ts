@@ -299,3 +299,22 @@ test("Stripe verified billing-country context is bound only to the matching chec
   assert.equal(wallet.available("customer:stripe-country"),2000);
  }finally{db.close()}
 });
+
+test("customer purchase history hides aborted checkouts without deleting reconciliation records",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db);
+  const identity={subject:"customer:abandoned",email:"abandoned@example.test",customerId:"abandoned"};
+  const abandoned=wallet.pending(identity,2000,randomUUID());
+  wallet.bind(abandoned.id,"cs_live_abandoned","https://checkout.stripe.com/c/pay/abandoned");
+  const paid=wallet.pending(identity,1000,randomUUID());
+  wallet.bind(paid.id,"cs_live_successful","https://checkout.stripe.com/c/pay/paid");
+  wallet.settle({id:paid.id,sessionId:"cs_live_successful",amount:paid.cents,currency:"eur",paymentStatus:"paid",livemode:true});
+  assert.deepEqual(wallet.purchases(identity.subject).map(p=>p.id),[paid.id]);
+  assert.equal(wallet.findById(abandoned.id)?.status,"pending");
+  assert.equal(wallet.available(identity.subject),1000);
+  wallet.reverse({sessionId:"cs_live_successful",amount:paid.cents,currency:"eur",livemode:true,kind:"refund"});
+  assert.deepEqual(wallet.purchases(identity.subject).map(p=>p.status),["reversed"]);
+  assert.equal(wallet.available(identity.subject),0);
+ }finally{db.close()}
+});

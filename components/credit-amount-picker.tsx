@@ -5,6 +5,7 @@ import Link from "next/link";
 import {CustomerFeedback} from "@/components/customer-feedback";
 import {requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,parseCreditTopup,proposedTopupCents} from "@/lib/commerce/credit-topup-quote";
+import {VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
 import "./credit-amount-picker.css";
 const presets=[2000,4000,10000] as const;
 const countryDisplay=new Intl.DisplayNames(["en"],{type:"region"});
@@ -66,6 +67,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  const [status,setStatus]=useState<CustomerNotice|null>(null);
  const inputId=useId();
  const credits=parseCreditTopup(raw),cents=credits===null?null:proposedTopupCents(credits);
+ const estimatedVideoSeconds=credits===null?null:Math.floor(credits/VIDEO_CREDITS_PER_STARTED_SECOND);
  const begin=async()=>{
   if(!canPurchase||credits===null||busy||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry)))))return;
   setBusy(true);setError("");setStatus(null);
@@ -145,6 +147,8 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
   <div className="sm-credit-amount-total" aria-live="polite">
    <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
    <div><span>Estimated payment (tax determined at checkout)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
+   <div><span>Estimated AI Video Seconds</span><strong>{estimatedVideoSeconds===null?"—":num(estimatedVideoSeconds)+" s"}</strong></div>
+   <p className="sm-credit-amount-seconds-note">Total source-audio time at {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second. Individual video limits apply.</p>
   </div>
   {canPurchase?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry))))} onClick={()=>void begin()}>
    {busy?"Opening Stripe…":checkoutTestMode?"Test purchase with Stripe":"Buy securely with Stripe"}
@@ -155,13 +159,12 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
      "Credit purchases are not yet available for this account"}</div>}
   <CustomerFeedback notice={status??(busy?{key:"checkout-opening",kind:"info",title:"Opening secure checkout",message:"Please keep this page open. Credits are added only after verified payment."}:null)} context="payment"/>
   {error&&/Stripe support reference: (req_[A-Za-z0-9]+)/.test(error)&&<p className="sm-credit-amount-error">Stripe support reference: {error.match(/Stripe support reference: (req_[A-Za-z0-9]+)/)?.[1]}</p>}
-  <p className="sm-credit-amount-footer">{canPurchase
+  {!(discoverAvailability&&checkoutAccess.state==="signed-out")&&<p className="sm-credit-amount-footer">{canPurchase
    ?checkoutTestMode?"Stripe Test Mode only: use test card details. No real money is charged. Credits are added only after Stripe confirms payment.":"One-time payment through Stripe. Credits are issued only after verified payment and billing-country checks. Credit voucher treatment and local taxes vary by jurisdiction. There are no automatic top-ups or recurring charges."
-   :discoverAvailability&&checkoutAccess.state==="signed-out"?"Sign in to check if Credit checkout is available for your account. No payment has been started."
    :discoverAvailability&&checkoutAccess.state==="ready"&&checkoutAccess.emailVerification==="pending"?"Verify your email before buying Credits. No payment has been started."
    :discoverAvailability&&checkoutAccess.state==="checking"?"Checking account eligibility with the secure Credit service."
    :discoverAvailability&&checkoutAccess.state==="unavailable"?"Credit purchase availability could not be checked. No payment has been started."
    :discoverAvailability?"Credit Checkout is not yet approved for this account. No payment has been started."
-   :"These prices are for information only. Live payments are not enabled. No automatic payments will be taken."}</p>
+   :"These prices are for information only. Live payments are not enabled. No automatic payments will be taken."}</p>}
  </div>;
 }
