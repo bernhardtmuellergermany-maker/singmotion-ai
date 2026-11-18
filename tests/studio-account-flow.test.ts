@@ -30,7 +30,8 @@ test("guest Studio return is same-origin and bounded to an exact draft, never a 
 test("Guest Step 4 never opens an operator dialog or starts paid work before login",()=>{
  const wizard=read("components/studio-wizard.tsx");
  const gate=read("components/studio-account-gate.tsx");
- assert.match(wizard,/Login to generate video/);
+ assert.match(wizard,/Login to generate/);
+ assert.doesNotMatch(wizard,/Login to generate video/);
  assert.match(wizard,/!creditStudio\?void openGuestAccount\(\):reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
  assert.match(wizard,/await saveQueue\.current/);
  assert.match(wizard,/await api\("studio-drafts"/);
@@ -124,7 +125,7 @@ test("guest sign-in and Stripe wallet settlement preserve same Step 4 without au
  const gate=read("components/studio-account-gate.tsx");
  const resume=read("components/studio-account-resume.tsx");
  const credits=read("components/credits-dashboard.tsx");
- assert.match(wizard,/!creditStudio\?"Login to generate video"/);
+ assert.match(wizard,/!creditStudio\?"Login to generate"/);
  assert.match(gate,/Create your free account/);
  assert.match(gate,/Continue with Google/);
  assert.match(gate,/Email address/);

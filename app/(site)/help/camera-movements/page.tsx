@@ -3,6 +3,7 @@ import {ArrowRight,Camera,CheckCircle2,Clapperboard,Music2,TriangleAlert} from "
 import {SiteHeader} from "@/components/site-header";
 import {PromptCopyButton} from "@/components/prompt-copy-button";
 import "./camera-movements.css";
+import {cameraMovements} from "@/lib/studio-camera-movements";
 
 export const metadata={
  title:"Camera Movements & Prompt Guide · SingMotion AI",
@@ -11,184 +12,8 @@ export const metadata={
 
 /** Studio presets are distinguished from exploratory language instructions.
  * Prompts are creative guidance: model adherence, trajectory and timing are not guaranteed. */
-const techniques=[
-  {
-    "name": "Static / locked shot",
-    "level": "Studio preset",
-    "where": "Easy starting point",
-    "text": "No camera travel. Good for announcements, facial consistency and lip sync.",
-    "example": "Static medium shot. The performer speaks calmly to the camera, maintains natural eye contact, and makes one small open-hand gesture.",
-    "risk": "Even a static prompt cannot guarantee zero background or facial movement."
-  },
-  {
-    "name": "Slow push-in",
-    "level": "Quick idea / custom prompt",
-    "where": "Emotion, choruses, strong openings",
-    "text": "Camera physically moves closer as the shot becomes tighter.",
-    "example": "Slowly push the camera from a medium shot toward a medium close-up. The singer performs warmly, briefly closes their eyes, then looks into the lens.",
-    "risk": "Keep the mouth visible; too tight a crop may change facial details."
-  },
-  {
-    "name": "Slow pull-out / dolly out",
-    "level": "Studio preset",
-    "where": "Reveal the environment",
-    "text": "Camera travels backward, gradually showing more of the frame.",
-    "example": "The camera slowly pulls back from a medium close-up to a medium shot while the singer continues singing and opens both hands.",
-    "risk": "The model may invent background details outside the original photo."
-  },
-  {
-    "name": "Orbit left",
-    "level": "Studio preset",
-    "where": "Music performance energy",
-    "text": "Camera moves along a gentle curved path to the performer's left.",
-    "example": "Gently orbit left from a front view to a slight three-quarter view. The singer smiles while singing and keeps their face visible.",
-    "risk": "Large orbits can expose unseen facial details and distort identity."
-  },
-  {
-    "name": "Orbit right",
-    "level": "Custom prompt",
-    "where": "A second view of the performer",
-    "text": "Camera makes a small rightward arc around the subject.",
-    "example": "Slowly orbit right from a front medium shot to a subtle three-quarter view. The performer sings and turns their eyes toward the camera.",
-    "risk": "Treat this as a creative prompt, not an additional Studio control."
-  },
-  {
-    "name": "Tilt up",
-    "level": "Studio preset",
-    "where": "Reveal from hands to face",
-    "text": "Camera pivots upward without changing its physical location.",
-    "example": "Begin on the singer's hands and gently tilt up to an eye-level medium shot of the face as the singing begins.",
-    "risk": "Needs room in the source image; large tilts may invent detail."
-  },
-  {
-    "name": "Tilt down",
-    "level": "Studio preset",
-    "where": "Hands, instruments or products",
-    "text": "Camera pivots downward to a lower part of the scene.",
-    "example": "Start with the presenter at eye level, then slowly tilt down toward the product held at chest height while they continue speaking.",
-    "risk": "Avoid a final frame where the face disappears during lip sync."
-  },
-  {
-    "name": "Gentle handheld",
-    "level": "Studio preset",
-    "where": "UGC and natural energy",
-    "text": "Very small handheld-style drift; no hard shake.",
-    "example": "Soft handheld camera feel with subtle natural movement. The creator speaks confidently to the camera and nods once.",
-    "risk": "Too much shake can reduce visual clarity."
-  },
-  {
-    "name": "Follow backwards",
-    "level": "Studio preset",
-    "where": "Walking and singing",
-    "text": "Camera tracks backward while the singer moves toward it.",
-    "example": "The singer walks forward with short visible steps while singing. The camera smoothly tracks backward to keep them in a medium shot.",
-    "risk": "Use a full-body or wide-enough source; feet and backgrounds may become unstable."
-  },
-  {
-    "name": "Pan left",
-    "level": "Custom prompt",
-    "where": "Reveal a person or object",
-    "text": "Camera rotates horizontally left from one composition to another.",
-    "example": "The camera slowly pans left and settles on the presenter in a centered medium shot. The presenter begins speaking with a welcoming smile.",
-    "risk": "A sweeping pan is less predictable when the source has little side detail."
-  },
-  {
-    "name": "Pan right",
-    "level": "Custom prompt",
-    "where": "Show a staged reveal",
-    "text": "Camera rotates horizontally right.",
-    "example": "Gently pan right, then settle on a front-facing medium shot of the singer as they continue the chorus.",
-    "risk": "Specify where the camera should stop for better clarity."
-  },
-  {
-    "name": "Zoom in",
-    "level": "Custom prompt",
-    "where": "Emphasize a line",
-    "text": "Image framing tightens; unlike a push-in, the virtual position need not change.",
-    "example": "Begin with a steady medium shot, then slowly zoom in to a close-up of the presenter's face on the final sentence.",
-    "risk": "May crop lips or produce artificial facial texture."
-  },
-  {
-    "name": "Zoom out",
-    "level": "Custom prompt",
-    "where": "Provide more context",
-    "text": "Framing widens without requiring a camera move backward.",
-    "example": "Begin on a close view of the speaker, then slowly zoom out to a comfortable medium shot while they finish speaking.",
-    "risk": "Background outside the source portrait may be inconsistent."
-  },
-  {
-    "name": "Side tracking / truck",
-    "level": "Custom prompt · advanced",
-    "where": "Dynamic profile reveal",
-    "text": "Camera travels horizontally, trying to maintain similar distance.",
-    "example": "Track the camera gently from left to right while keeping the performer in a medium shot. The performer continues singing without turning away.",
-    "risk": "More likely to distort background geometry than a stationary shot."
-  },
-  {
-    "name": "Forward tracking",
-    "level": "Custom prompt · advanced",
-    "where": "Walk-through or approach",
-    "text": "Camera moves forward with a walking subject.",
-    "example": "The camera smoothly follows behind the presenter for two steps, then settles at a slight side angle as they speak.",
-    "risk": "Difficult if the source image does not show the subject's body or surroundings."
-  },
-  {
-    "name": "Crane up",
-    "level": "Custom prompt · advanced",
-    "where": "Elevated ending",
-    "text": "Camera travels upward toward a higher viewpoint.",
-    "example": "Start at eye level, then slowly rise to a slightly elevated angle while the performer finishes the last phrase.",
-    "risk": "High angles may alter face geometry and scene continuity."
-  },
-  {
-    "name": "Crane down",
-    "level": "Custom prompt · advanced",
-    "where": "Introduce a speaker",
-    "text": "Camera lowers from a higher vantage point.",
-    "example": "Slowly lower the camera from a gentle high angle to eye level, ending with a clear medium close-up of the speaker.",
-    "risk": "Keep the change small; dramatic overhead moves are less reliable."
-  },
-  {
-    "name": "Pedestal up / down",
-    "level": "Custom prompt · advanced",
-    "where": "Small vertical reframing",
-    "text": "Camera moves vertically while its direction stays approximately level.",
-    "example": "Raise the camera slightly while keeping it level, finishing at eye height as the host speaks.",
-    "risk": "Do not combine with a large tilt in the same short clip."
-  },
-  {
-    "name": "Low angle → eye level",
-    "level": "Custom prompt · advanced",
-    "where": "Confident introduction",
-    "text": "The apparent viewpoint transitions from slightly below to eye level.",
-    "example": "Start at a subtle low angle and move gently to eye level, ending on the presenter's front face as they say the final line.",
-    "risk": "Strong perspective shifts can deform the face."
-  },
-  {
-    "name": "Rack focus",
-    "level": "Custom prompt · experimental",
-    "where": "Attention shift",
-    "text": "Focus moves between visible foreground and speaker.",
-    "example": "Start with the product in focus, then smoothly shift focus to the presenter, who smiles and begins speaking.",
-    "risk": "Not a dependable focus control; both subjects must be present in the image."
-  },
-  {
-    "name": "Whip pan",
-    "level": "Custom prompt · experimental",
-    "where": "Fast transitions",
-    "text": "Very fast horizontal movement meant to imply a cut.",
-    "example": "A brief, fast pan right leads into a steady frontal medium shot, where the performer starts singing.",
-    "risk": "Often produces blur and scene drift. Prefer separate clips for this edit."
-  },
-  {
-    "name": "Dolly zoom",
-    "level": "Custom prompt · experimental",
-    "where": "Stylized perspective",
-    "text": "Camera moves while zooming in the opposite direction.",
-    "example": "Gently pull the camera back while slowly zooming in so the singer stays roughly the same size.",
-    "risk": "Complex opposing actions frequently fail in image-driven generation."
-  }
-];
+// The same 22 reviewed movements power the Studio camera chips.
+const techniques=cameraMovements;
 const useCases=[
   {
     "name": "Original songs & music videos",
@@ -309,7 +134,7 @@ export default function CameraMovementsHelp(){
    <section className="sm-legal-panel">
     <span className="sm-legal-num">01 / HOW TO WRITE A PROMPT</span>
     <h2>One scene. One camera move. A clear sequence.</h2>
-    <p>In <Link href="/studio">Studio</Link>, choose your own music or spoken audio and a reference image. Then use the <strong>Performance prompt</strong> field. The <strong>Quick ideas</strong> buttons insert editable phrases, and the Advanced camera menu offers presets. For the most reliable interpretation, spell out the movement in your prompt rather than relying only on a preset label.</p>
+    <p>In <Link href="/studio">Studio</Link>, choose your own music or spoken audio and a reference image. Then use the <strong>Performance prompt</strong> field. The <strong>Camera Movements</strong> buttons insert editable camera directions, and the Advanced camera menu offers presets. For the most reliable interpretation, spell out the movement in your prompt rather than relying only on a preset label.</p>
     <p>Write who is performing and whether they are <strong>singing, rapping or speaking</strong>. Describe a couple of visible actions using <strong>first → then → finally</strong>. Specify how fast the camera moves and where it stops. Avoid contradicting the source image or asking for several unrelated scenes at once.</p>
     <div className="sm-camera-copy-example"><div><strong>Complete example to copy</strong><p>{readyToCopy}</p></div><PromptCopyButton text={readyToCopy} label="Copy complete performance example"/></div>
     <p className="sm-camera-fineprint">The Studio field currently accepts up to <strong>500 characters</strong>. The voice track determines the words; camera and gesture prompts direct the visual performance. They do not generate a new spoken script.</p>

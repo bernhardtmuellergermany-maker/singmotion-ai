@@ -71,7 +71,7 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  assert.doesNotMatch(help,/Back to Studio/);
  assert.match(help,/Help & best practices/);
  assert.match(help,/FAQ/);
- assert.match(help,/Quick ideas/);
+ assert.match(help,/Camera Movements/);
  assert.match(help,/5–10.second/);
  assert.match(help,/500 characters/);
  assert.doesNotMatch(help,/https:\/\/|github\.com|omnihumanai\.net|<video|<iframe/);

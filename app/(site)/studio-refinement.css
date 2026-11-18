@@ -2927,3 +2927,133 @@
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i.neon-wave-bar.is-selected{
   box-shadow:0 0 3px rgba(247,69,226,.44)!important;
 }
+
+/* Absolute-time bar grid: panning moves a stable waveform texture via GPU
+   translation instead of changing bar heights every few pixels. Clip only the
+   artwork; keep selection and oversized trim handles outside the clip. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars-window{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+  z-index:1;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars.wave-bars-anchored{
+  position:absolute!important;
+  top:0!important;
+  left:0!important;
+  right:auto!important;
+  bottom:auto!important;
+  box-sizing:border-box!important;
+  height:100%!important;
+  width:var(--sm-wave-track-width)!important;
+  min-width:0!important;
+  max-width:none!important;
+  overflow:visible!important;
+  justify-content:flex-start!important;
+  transform:translate3d(var(--sm-wave-translate-x),0,0);
+  will-change:transform;
+  pointer-events:none;
+  transition:none!important;
+}
+
+
+/* Studio microcopy, shared Help camera moves and review links (2026-11-18).
+   Camera chips are optional prompt suggestions, not guaranteed AI controls. */
+.product-theme.singmotion-flow .sm-performance-ideas{
+  align-items:stretch;
+}
+.product-theme.singmotion-flow .sm-performance-ideas h2{
+  font-weight:730;
+}
+.product-theme.singmotion-flow .sm-camera-extra-movements{
+  padding-top:4px;
+}
+.product-theme.singmotion-flow .sm-camera-extra-movements[hidden]{
+  display:none!important;
+}
+.product-theme.singmotion-flow .sm-camera-show-more{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  align-self:center;
+  gap:7px;
+  min-height:40px;
+  margin:4px auto 0;
+  padding:8px 16px;
+  border:1px solid rgba(199,136,246,.58);
+  border-radius:999px;
+  color:#ebc7ff;
+  background:rgba(112,56,155,.17);
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+}
+.product-theme.singmotion-flow .sm-camera-show-more:hover{
+  background:rgba(146,69,195,.29);
+}
+.product-theme.singmotion-flow .sm-camera-show-more:focus-visible,
+.product-theme.singmotion-flow .sm-review-legal-links a:focus-visible{
+  outline:2px solid #e1baff;
+  outline-offset:3px;
+}
+.product-theme.singmotion-flow .sm-camera-show-more .is-expanded{
+  transform:rotate(180deg);
+}
+.product-theme.singmotion-flow .sm-review-ai-notice,
+.product-theme.singmotion-flow .sm-review-payment-note{
+  display:block!important;
+  width:100%;
+  max-width:780px;
+  margin-left:auto!important;
+  margin-right:auto!important;
+  text-align:center!important;
+  text-wrap:pretty;
+}
+.product-theme.singmotion-flow .sm-review-legal-links{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  gap:9px 18px;
+  width:100%;
+  margin:8px auto 12px;
+  text-align:center;
+}
+.product-theme.singmotion-flow .sm-review-legal-links a{
+  display:inline-block;
+  color:#ecc9ff;
+  font-size:12px;
+  font-weight:620;
+  line-height:1.5;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.product-theme.singmotion-flow .sm-new-navigation .sm-studio-next.is-login-action{
+  gap:5px!important;
+  padding-inline:9px!important;
+}
+.product-theme.singmotion-flow .sm-new-navigation .sm-studio-next.is-login-action .sm-studio-next-label{
+  white-space:nowrap!important;
+  font-size:clamp(11px,3.3vw,15px)!important;
+  letter-spacing:-.015em;
+  overflow:visible;
+  text-overflow:clip;
+}
+.product-theme.singmotion-flow .sm-new-navigation .sm-studio-next.is-login-action svg{
+  width:16px;
+  height:16px;
+  flex:0 0 16px;
+}
+@media(max-width:380px){
+  .product-theme.singmotion-flow .sm-new-navigation .sm-studio-next.is-login-action{
+    padding-inline:6px!important;
+    gap:3px!important;
+  }
+  .product-theme.singmotion-flow .sm-new-navigation .sm-studio-next.is-login-action .sm-studio-next-label{
+    font-size:11px!important;
+  }
+  .product-theme.singmotion-flow .sm-review-legal-links{
+    gap:8px 12px;
+  }
+}
