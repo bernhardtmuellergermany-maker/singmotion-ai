@@ -92,9 +92,10 @@ test("phone waveform paints at most once per frame and uses lightweight Neon Wav
  assert.match(wave,/requestAnimationFrame\(\(\)=>\{/);
  assert.match(wave,/function scheduleViewport\(/);
  assert.match(wave,/function flushViewport\(/);
- assert.match(wave,/const targetBars = Math\.max\(44, Math\.min\(170/);
- assert.match(wave,/for \(let k = from; k < to; k\+\+\)/);
- assert.doesNotMatch(wave,/Math\.max\(\.\.\.peaks\.slice\(/);
+ const sampler=read("lib/studio-wave-bars.ts");
+ assert.match(sampler,/const columns = Math\.max\(44, Math\.min\(170/);
+ assert.match(sampler,/for \(let k=from; k<to; k\+\+\)/);
+ assert.doesNotMatch(sampler,/Math\.max\(\.\.\.peaks\.slice\(/);
  assert.match(css,/Fast mobile navigation: one gentle halo/);
  assert.match(css,/box-shadow:0 0 3px rgba\(247,69,226,\.44\)!important/);
 });
