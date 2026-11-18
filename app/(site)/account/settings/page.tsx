@@ -131,7 +131,7 @@ export default function AccountSettings(){
       :data.emailVerification==="legacy"?<span className="sm-settings-muted">Existing account: email confirmation not required</span>
       :<span className="sm-settings-muted">Email verification status unavailable</span>}
     </div>}
-    <p className="sm-settings-muted">Member since {new Date(data.profile.created).toLocaleDateString("en-GB")}. Email changes will require verification and are not enabled yet.</p></section>
+    <p className="sm-settings-muted">Member since {new Date(data.profile.created).toLocaleDateString("en-GB")}. Contact support if you need to change your email address.</p></section>
     {data.staffPreview&&<section id="security" className="sm-settings-section sm-security-section">
       <div className="sm-security-heading"><h2>Security</h2><p className="sm-settings-muted">Super Admin accounts use Payload CMS authentication. Do not enter your administrator password into the customer password form.</p></div>
       <div className="sm-security-panel">
@@ -200,7 +200,7 @@ export default function AccountSettings(){
       <p className="sm-settings-muted">Need a receipt or invoice correction? <a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Contact billing support</a>. </p>
     </section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2>
-      <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Your personal information</strong><p className="sm-settings-muted">Account details and payments are restricted to authenticated access. Payment card details are handled by Stripe, not stored on this page.</p><Link href="/privacy">Read privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Videos & uploads</strong><p className="sm-settings-muted">Review your saved projects and uploads. Project files and payment records follow different retention requirements.</p><Link href="/projects">Open my projects <ExternalLink size={13}/></Link></div></div>
+      <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Your personal information</strong><p className="sm-settings-muted">Account details and payments are restricted to authenticated access. Payment card details are handled by Stripe, not stored on this page.</p><Link href="/privacy">Read privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Videos & uploads</strong><p className="sm-settings-muted">Review your saved projects and uploads. Project files and payment records follow different retention requirements.</p><Link href="/videos">Open my videos <ExternalLink size={13}/></Link></div></div>
       <p className="sm-settings-muted">You can request deletion of your account and personal data. Existing orders and legally required payment records may need to be retained.</p>
       <button className="sm-settings-danger" type="button" onClick={()=>{
        const kind=data.staffPreview?"Super Admin / staff":"customer";
