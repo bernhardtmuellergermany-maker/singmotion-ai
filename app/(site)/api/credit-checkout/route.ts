@@ -16,6 +16,7 @@ import {privateLiveCreditTestEnabled,privateLiveCreditTestTaxDecision} from "@/l
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 import {managedCreditMoRApproved,managedCreditTaxDecision,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
+import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -25,9 +26,12 @@ const json=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{"C
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  const testMode=stripeCreditTopupsTestEnabled(process.env);
- const privateLiveTest=privateLiveCreditTestEnabled(process.env);
+ // A reviewed international cohort takes precedence over the legacy DE-only
+ // owner acceptance test. The protected website stays behind Basic Auth.
+ const privateInternationalBeta=privateInternationalCreditBetaEnabled(process.env);
+ const privateLiveTest=privateLiveCreditTestEnabled(process.env)&&!privateInternationalBeta;
  const liveMode=stripeCreditTopupsLiveEnabled(process.env)&&
-  (privateLiveTest||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
+  (privateInternationalBeta||privateLiveTest||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
    (customerLaunchReadiness().readyForPaidOrders&&
     (auditSingMotionLaunch(process.env,"production").ready||
      protectedProductionLivePilotApproved(process.env))));
