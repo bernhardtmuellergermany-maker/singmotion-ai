@@ -2688,8 +2688,8 @@
 /* Reference-style cut edges: all trim hit area lies OUTSIDE the selected audio.
    Keep gutters for track endpoints, and preserve the mobile pinch controls. */
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-strip{
- width:calc(100% - 84px)!important;
- margin-inline:42px!important;
+ width:calc(100% - 48px)!important;
+ margin-inline:24px!important;
  clip-path:inset(-34px -46px -34px -46px)!important;
  touch-action:none!important;
 }
@@ -2776,9 +2776,9 @@
 }
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-time{
  box-sizing:border-box;
- width:calc(100% - 84px)!important;
- margin-left:42px!important;
- margin-right:42px!important;
+ width:calc(100% - 48px)!important;
+ margin-left:24px!important;
+ margin-right:24px!important;
  padding-inline:0!important;
 }
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars{
@@ -2824,8 +2824,8 @@
 
 /* Fix long-standing content-box + min-width conflict:
    .wave-viewport inherited horizontal padding and width:100%, and
-   .wave-viewport .wave-strip inherited min-width:100%. With the 42px edge
-   gutters this made the actual track 84px too wide and shifted it right.
+   .wave-viewport .wave-strip inherited min-width:100%. With the 24px edge
+   gutters this made the track overflow the container and shifted it right.
    One border-box coordinate space is shared by bars, trim, pointer math,
    ruler and the two outer handles. */
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-viewport{
@@ -2839,14 +2839,14 @@
 }
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-strip{
  box-sizing:border-box!important;
- width:calc(100% - 84px)!important;
- max-width:calc(100% - 84px)!important;
+ width:calc(100% - 48px)!important;
+ max-width:calc(100% - 48px)!important;
  min-width:0!important;
- margin-inline:42px!important;
+ margin-inline:24px!important;
 }
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-time{
  min-width:0!important;
- max-width:calc(100% - 84px)!important;
+ max-width:calc(100% - 48px)!important;
 }
 /* Keyboard focus is shown around the small visible arrow only, not the
    intentionally broad (42px) invisible touch hit area. */

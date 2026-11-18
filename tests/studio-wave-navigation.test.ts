@@ -30,7 +30,6 @@ test("audio navigation is separate from existing selection drag/keyboard control
  const css=read("app/(site)/studio-refinement.css");
  for(const part of ["onTouchStart={startPinch}","onTouchMove={continuePinch}",
    "pinchBlocked.current","onPointerDown={startPan}","onPointerMove={continuePan}",
-   "aria-label=\"Pan audio waveform\"","aria-pressed={panMode}",
    "aria-label=\"Move selected audio segment\"","wave-grip-mark"]){
   assert.ok(wave.includes(part),"Missing "+part);
  }
@@ -52,9 +51,9 @@ test("large touch grips never jump on initial contact and keep precise finger of
 test("desktop can drag the selected audio without dragging the viewport; grips are outside the cut",()=>{
  const wave=read("components/waveform.tsx"),css=read("app/(site)/studio-refinement.css");
  assert.match(wave,/if\(e\.pointerType==="mouse"&&e\.button!==0\)return/);
- assert.match(wave,/target\.closest\("\.wave-handle"\)/);
- assert.match(wave,/if\(pinchBlocked\.current\|\|panMode\)return/);
- assert.match(wave,/if\(target\.closest\("\.wave-handle"\)\|\|\(!panMode&&target\.closest\("\.wave-selection"\)\)\)return/);
+ assert.match(wave,/target\.closest\("\.wave-handle,\.wave-selection"\)/);
+ assert.doesNotMatch(wave,/panMode/);
+ assert.match(wave,/if\(target\.closest\("\.wave-handle,\.wave-selection"\)\)return/);
  assert.match(wave,/setLockedView\(\{start:viewStart,span:viewSpan,freePan:false\}\)/);
  assert.match(wave,/setLockedView\(previous=>previous\?\{\.\.\.previous,freePan:false\}:null\)/);
  assert.match(wave,/handle==="start"\?<ChevronLeft/);
@@ -64,24 +63,24 @@ test("desktop can drag the selected audio without dragging the viewport; grips a
  assert.match(css,/\.wave-selection-hit\{pointer-events:none!important/);
 });
 
-test("mouse and touch can pan the track, Hand mode pans within selection, and smaller grips stay touch-friendly",()=>{
+test("mouse and touch pan unselected audio without an extra Hand control",()=>{
  const wave=read("components/waveform.tsx"),css=read("app/(site)/studio-refinement.css");
  assert.doesNotMatch(wave,/e.pointerType==="mouse"&&!panMode/);
- assert.match(wave,/if\(pinchBlocked\.current\|\|panMode\)return;\s*e\.stopPropagation\(\)/);
- assert.match(wave,/Hand moves audio under selection/);
+ assert.doesNotMatch(wave,/panMode|setPanMode|<Hand\b|studio-wave-gesture-hint/);
+ assert.match(wave,/aria-label="Audio track: drag unselected audio to pan, pinch with two fingers to zoom"/);
  assert.match(css,/\.wave-grip-mark\{\s*flex:0 0 12px!important;\s*width:12px!important/);
  assert.match(css,/flex:0 0 13px!important;\s*width:13px!important/);
- assert.match(css,/\.wave-time\{[\s\S]*?width:calc\(100% - 84px\)!important;\s*margin-left:42px!important/);
+ assert.match(css,/\.wave-time\{[\s\S]*?width:calc\(100% - 48px\)!important;\s*margin-left:24px!important/);
  assert.match(css,/\.wave-bars i\{\s*flex:1 1 0!important;[\s\S]*?min-width:0!important/);
  assert.match(css,/\.wave-handle::after\{\s*content:none!important;\s*display:none!important/);
  assert.match(css,/\.wave-strip\{\s*clip-path:none!important/);
 });
 
-test("waveform track is precisely centered, not forced 84px too wide by old min-width rule",()=>{
+test("wider waveform stays centered without the old intrinsic minimum-width overflow",()=>{
  const css=read("app/(site)/studio-refinement.css");
  assert.match(css,/\.studio-modern-wave \.wave-viewport\{[\s\S]*?box-sizing:border-box!important;[\s\S]*?padding-inline:0!important/);
- assert.match(css,/\.studio-modern-wave \.wave-strip\{[\s\S]*?width:calc\(100% - 84px\)!important;[\s\S]*?min-width:0!important;[\s\S]*?margin-inline:42px!important/);
- assert.match(css,/\.studio-modern-wave \.wave-time\{\s*min-width:0!important;\s*max-width:calc\(100% - 84px\)!important/);
+ assert.match(css,/\.studio-modern-wave \.wave-strip\{[\s\S]*?width:calc\(100% - 48px\)!important;[\s\S]*?min-width:0!important;[\s\S]*?margin-inline:24px!important/);
+ assert.match(css,/\.studio-modern-wave \.wave-time\{\s*min-width:0!important;\s*max-width:calc\(100% - 48px\)!important/);
  assert.match(css,/\.wave-handle:focus-visible\{\s*outline:none!important/);
  assert.match(css,/\.wave-handle:focus-visible \.wave-grip-mark\{\s*outline:2px solid #d88aff!important/);
 });
