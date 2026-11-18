@@ -13,7 +13,7 @@ test("published security fork is pinned, integrity-checked, and installed throug
  assert.equal(pkg.overrides.picomatch,"npm:@ryotsu/picomatch@4.0.7-a");
  const parsed=readFileSync(new URL("../node_modules/picomatch/lib/parse.js",import.meta.url),"utf8");
  assert.match(parsed,/SINGMOTION-CVE-2026-112366-MULTIBRANCH/);
- assert.match(parsed,/branches\\.some\\(branch => analyzeStarBranch\\(branch\\)\\.star\\)/);
+ assert.ok(parsed.includes("branches.some(branch => analyzeStarBranch(branch).star)"));
  const installs=Object.entries(lock.packages).filter(([path])=>path.endsWith("/node_modules/picomatch")||path==="node_modules/picomatch");
  assert.ok(installs.length>=1);
  for(const [path,entry] of installs){
