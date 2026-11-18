@@ -138,7 +138,7 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
           typeof o.videoUrl==="string"&&o.videoUrl.startsWith("/api/customer-video?orderId=")
         ).map(o=>({
           id:"paid_"+o.orderId,name:cleanTitle(draftById.get(o.projectId)?.projectName||draftById.get(o.projectId)?.artistName||"Your music video"),
-          href:"/projects/paid_"+encodeURIComponent(o.orderId),
+          href:"/videos/paid_"+encodeURIComponent(o.orderId),
           state:"completed",created:o.created||Date.now(),
           seconds:Math.max(0,(draftById.get(o.projectId)?.selection.end||0)-(draftById.get(o.projectId)?.selection.start||0)),
           imageId:draftById.get(o.projectId)?.selection.imageId,
@@ -161,8 +161,8 @@ export function CarouselExperience({homeCopy}:{homeCopy?:{heading:string;body:st
         ));
         const cards:Tile[]=[
           ...paidCards,
-          ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.projectName||p.artistName||""),href:"/projects/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
-          ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/projects/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
+          ...live.map(p=>({id:"live_"+p.id,name:cleanTitle(p.projectName||p.artistName||""),href:"/videos/live_"+encodeURIComponent(p.id),imageId:p.imageId,seconds:p.durationSeconds,created:p.createdAt,state:p.state,videoUrl:p.outputReady?"/api/studio-live?id="+encodeURIComponent(p.id)+"&video=1":undefined})),
+          ...jobs.map(j=>({id:"job_"+j.id,name:cleanTitle(j.projectName||j.artistName||""),href:"/videos/"+encodeURIComponent(j.id),imageId:j.imageId,seconds:j.end-j.start,created:j.created,state:j.status,videoUrl:j.status==="completed"&&j.outputId?"/api/assets/"+encodeURIComponent(j.outputId):undefined})),
           ...(workspace.owner?.startsWith("customer-")||workspace.owner?.startsWith("cms-staff-") ? visibleDrafts : visibleDrafts.slice(0,3)).map(d=>({id:"draft_"+d.id,name:cleanTitle(d.projectName||d.artistName||""),href:"/studio?draft="+encodeURIComponent(d.id),imageId:d.selection.imageId||undefined,seconds:d.selection.end-d.selection.start,created:d.updated||0,state:"draft"}))
         ].sort((a,b)=>b.created-a.created);
         // Display names edited on the output page stay in sync with the home carousel.
