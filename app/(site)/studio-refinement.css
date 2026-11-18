@@ -2919,3 +2919,11 @@
     grid-template-columns:32px 32px minmax(0,1fr) minmax(0,1fr) minmax(66px,1.12fr)!important;
   }
 }
+
+/* Fast mobile navigation: one gentle halo, not two blurred shadows per bar. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i.neon-wave-bar{
+  box-shadow:0 0 2px rgba(152,91,255,.32)!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i.neon-wave-bar.is-selected{
+  box-shadow:0 0 3px rgba(247,69,226,.44)!important;
+}
