@@ -1,7 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import {productionCustomerReleaseApproved,PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "./commerce/customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./commerce/public-credit-release.ts";
-import {privateInternationalCreditBetaEnabled} from "./commerce/private-international-credit-beta.ts";
 
 type Environment = Record<string, string | undefined>;
 /**
@@ -118,7 +117,16 @@ export function validateStaging(env: Environment = process.env) {
  * Operator and cohort tickets have independent signing keys.
  */
 export function privateBetaPasswordEnabled(env:Environment=process.env):boolean{
- return privateInternationalCreditBetaEnabled(env);
+ // Entry to the password-protected beta and authorisation to take LIVE
+ // money are separate decisions. Customers may reach the login page while
+ // a Merchant-of-Record approval or provider preflight is still pending.
+ return env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"&&
+  env.PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED==="true"&&
+  env.STAGING_AUTH_ENABLED==="true"&&(env.STAGING_PASSWORD?.length||0)>=32&&
+  (env.PRIVATE_BETA_PASSWORD?.length||0)>=32&&
+  env.PRIVATE_BETA_PASSWORD!==env.STAGING_PASSWORD&&
+  env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="false"&&
+  env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="false";
 }
 export function privateGateCredentialKind(
  authorization:string|null,
