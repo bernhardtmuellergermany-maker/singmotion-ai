@@ -50,12 +50,12 @@ async function stripeGet(resource:string,key:string,mode:StripePaymentMode){
 }
 /** Verify the signed credit event against Stripe's own paid Checkout record. */
 async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent,mode:StripePaymentMode){
- if(mode==="test"&&!stripeCreditWebhookTestEnabled(process.env)||
-    mode==="live"&&!stripeCreditTopupsLiveEnabled(process.env)&&
-     !existingBoundLiveCreditReceipt(store.db,event.data?.object?.metadata?.creditTopupId,event.data?.object?.id))
-  throw Error("Credit webhook settlement unavailable");
  const obj=event.data?.object;
  const metadata=obj?.metadata as Record<string,unknown>|undefined;
+ if(mode==="test"&&!stripeCreditWebhookTestEnabled(process.env)||
+    mode==="live"&&!stripeCreditTopupsLiveEnabled(process.env)&&
+     !existingBoundLiveCreditReceipt(store.db,metadata?.creditTopupId,obj?.id))
+  throw Error("Credit webhook settlement unavailable");
  const id=typeof metadata?.creditTopupId==="string"?metadata.creditTopupId:"";
  if(metadata?.flow!=="singmotion_credit_topup"||!/^[0-9a-f-]{36}$/i.test(id)||
     typeof obj?.id!=="string"||!stripeSessionIdMatchesMode(obj.id,mode))
@@ -229,8 +229,9 @@ export async function POST(req: NextRequest) {
     // purchases even while video fulfillment and public checkout stay blocked.
     // Previously bound signed LIVE receipts remain reconcilable after a pause.
     // New LIVE purchases only use worldwide buyer-country verification.
+    const eventCreditMetadata=event.data?.object?.metadata as Record<string,unknown>|undefined;
     const existingLiveReceipt=mode==="live"&&existingBoundLiveCreditReceipt(
-      store.db,event.data?.object?.metadata?.creditTopupId,event.data?.object?.id);
+      store.db,eventCreditMetadata?.creditTopupId,event.data?.object?.id);
     if((mode==="test"&&stripeCreditWebhookTestEnabled(process.env)||
         mode==="live"&&(stripeCreditTopupsLiveEnabled(process.env)||existingLiveReceipt))&&
        ["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type||"") &&
