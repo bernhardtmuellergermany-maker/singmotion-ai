@@ -10,18 +10,20 @@ const pkg=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"ut
 const lock=JSON.parse(readFileSync(new URL("../package-lock.json",import.meta.url),"utf8"));
 
 test("actual security-patched picomatch packages are installed for BOTH major dependency paths",()=>{
- assert.equal(pkg.overrides.picomatch,"npm:@rootio/picomatch@2.3.2-root.io.1");
- assert.equal(pkg.overrides.tinyglobby.picomatch,"npm:@rootio/picomatch@4.0.7-root.io.1");
+ assert.equal(pkg.overrides.picomatch,"github:sxnistxr/picomatch#f03bec2c02e46f063fbfdc161aae1d0f854b2565");
+ assert.equal(pkg.overrides.tinyglobby.picomatch,"npm:@ryotsu/picomatch@4.0.7-a");
  const two=lock.packages["node_modules/picomatch"];
  const four=lock.packages["node_modules/tinyglobby/node_modules/picomatch"];
- for(const [node,major,revision] of [[two,"2.3.2","2.3.2-root.io.1"],[four,"4.0.7","4.0.7-root.io.1"]] as const){
-  assert.ok(node,"patched picomatch must be present for "+major);
-  assert.equal(node.version,revision);
-  assert.match(node.resolved,/registry\.npmjs\.org\/@rootio\/picomatch\/.*\.tgz/);
-  assert.ok(node.integrity?.startsWith("sha512-"),"must retain registry integrity");
- }
- assert.equal(appRequire("picomatch/package.json").name,"@rootio/picomatch");
- assert.equal(tinyglobbyRequire("picomatch/package.json").name,"@rootio/picomatch");
+ assert.ok(two,"patched v2 picomatch must be installed");
+ assert.equal(two.version,"2.3.2");
+ assert.match(two.resolved,/github\.com\/sxnistxr\/picomatch/);
+ assert.match(two.resolved,/f03bec2c02e46f063fbfdc161aae1d0f854b2565/);
+ assert.ok(four,"patched v4 picomatch must be installed");
+ assert.equal(four.version,"4.0.7-a");
+ assert.match(four.resolved,/registry\.npmjs\.org\/@ryotsu\/picomatch/);
+ assert.ok(four.integrity?.startsWith("sha512-"));
+ assert.equal(appRequire("picomatch/package.json").version,"2.3.2");
+ assert.equal(tinyglobbyRequire("picomatch/package.json").name,"@ryotsu/picomatch");
 });
 
 test("patched parsers preserve normal path glob matching",()=>{
