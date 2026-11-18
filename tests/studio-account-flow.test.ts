@@ -125,7 +125,7 @@ test("guest sign-in and Stripe wallet settlement preserve same Step 4 without au
  const gate=read("components/studio-account-gate.tsx");
  const resume=read("components/studio-account-resume.tsx");
  const credits=read("components/credits-dashboard.tsx");
- assert.match(wizard,/!creditStudio\?"Login to generate video"/);
+ assert.match(wizard,/!creditStudio\?"Login to generate"/);
  assert.match(gate,/Create your free account/);
  assert.match(gate,/Continue with Google/);
  assert.match(gate,/Email address/);
