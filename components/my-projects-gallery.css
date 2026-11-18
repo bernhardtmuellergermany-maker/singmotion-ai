@@ -220,7 +220,7 @@
  .sm-projects-card-content{padding-bottom:7px!important}
  .sm-projects-card-details .sm-projects-meta{font-size:9px}
  .sm-projects-card-footer .sm-projects-options-menu{
-   width:min(158px,calc((100vw - 52px)/2));min-width:0;
+   width:min(158px,calc((100vw - 72px)/2));min-width:0;
  }
  .sm-projects-rename-form{
    width:calc(100% - 16px);max-width:calc(100% - 16px);
