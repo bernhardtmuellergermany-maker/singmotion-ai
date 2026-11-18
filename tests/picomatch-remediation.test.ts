@@ -16,7 +16,7 @@ test("published security fork is pinned, integrity-checked, and installed throug
  for(const [path,entry] of installs){
   const item=entry as {version:string;resolved:string;integrity:string};
   assert.equal(item.version,"4.0.7-a",path);
-  assert.match(item.resolved,/registry\\.npmjs\\.org\\/@ryotsu\\/picomatch/,path);
+  assert.ok(item.resolved.startsWith("https://registry.npmjs.org/@ryotsu/picomatch/-/picomatch-4.0.7-a.tgz"),path);
   assert.match(item.integrity,/^sha512-/,path);
  }
  assert.equal(appRequire("picomatch/package.json").name,"@ryotsu/picomatch");
