@@ -46,3 +46,7 @@ jobs:
         run: npm run typecheck
       - name: Security audit (must have no high/critical findings)
         run: npm audit --omit=dev --audit-level=high
+      - name: Install private MP4 runtime test dependency
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Full production application build with private release gates
+        run: npm run build
