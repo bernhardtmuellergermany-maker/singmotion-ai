@@ -143,3 +143,38 @@ test("launch remains fail-closed for incomplete product, payment, password or me
   assert.equal(stripeCreditTopupsLiveEnabled(next),false,JSON.stringify(patch));
  }
 });
+
+test("signed LIVE reconciliation remains possible for already bound old-DE or global sessions after beta switch-off",async()=>{
+ const {DatabaseSync}=await import("node:sqlite");
+ const {randomUUID}=await import("node:crypto");
+ const {CreditWallet}=await import("../lib/commerce/credit-wallet.ts");
+ const {existingBoundLiveCreditReceipt}=await import("../lib/commerce/legacy-private-credit-settlement.ts");
+ const db=new DatabaseSync(":memory:");
+ try{
+  const wallet=new CreditWallet(db);
+  const subject={subject:"customer:test-international",customerId:"test-international",email:"pilot@example.test"};
+  for(const [country,mode] of [["DE","private-live-verification"],["BR","stripe-managed-payments"]] as const){
+   const pending=wallet.pending(subject,500,randomUUID());
+   wallet.bindTaxContext(pending.id,{
+    country,buyerType:"consumer",
+    voucherKind:mode==="private-live-verification"?"private-test-unclassified":"merchant-of-record-determined",
+    mode,revision:mode==="private-live-verification"?"private-owner-checkout-v1":"stripe-mor-seller-tax-v1",
+    taxAtIssue:false,taxCode:mode==="stripe-managed-payments"?"txcd_10105003":null
+   });
+   const session="cs_live_"+randomUUID().replaceAll("-","");
+   wallet.bind(pending.id,session,"https://checkout.stripe.com/c/pay/"+country);
+   assert.equal(existingBoundLiveCreditReceipt(db,pending.id,session),true);
+   assert.equal(existingBoundLiveCreditReceipt(db,pending.id,"cs_live_other"),false);
+   assert.equal(existingBoundLiveCreditReceipt(db,randomUUID(),session),false);
+   wallet.settle({id:pending.id,sessionId:session,amount:500,currency:"eur",paymentStatus:"paid",livemode:true});
+   assert.equal(existingBoundLiveCreditReceipt(db,pending.id,session),true,"idempotent paid webhook retry");
+   wallet.reverse({sessionId:session,amount:500,currency:"eur",livemode:true,kind:"refund"});
+   assert.equal(existingBoundLiveCreditReceipt(db,pending.id,session),false,"reversed receipt is terminal");
+  }
+  assert.equal(existingBoundLiveCreditReceipt(db,randomUUID(),"cs_live_unbound"),false);
+ }finally{db.close();}
+ const webhook=read("app/(site)/api/stripe-webhook/route.ts");
+ assert.match(webhook,/existingBoundLiveCreditReceipt/);
+ assert.match(webhook,/verifyStripePaymentEvent\(raw,signature,secret,mode\)/);
+ assert.match(webhook,/stripeGet\("checkout\/sessions\/"/);
+});
