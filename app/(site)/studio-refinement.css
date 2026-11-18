@@ -2857,3 +2857,65 @@
  outline:2px solid #d88aff!important;
  outline-offset:2px!important;
 }
+
+/* Neon Wave: bright violet and hot-pink audio amplitudes, with breathable
+   controls. Only the new Studio audio editor is affected. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars{
+  gap:1.4px!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i.neon-wave-bar{
+  border-radius:999px!important;
+  background:linear-gradient(180deg,#c18dff 0%,#7d55f8 48%,#b763ff 100%)!important;
+  box-shadow:0 0 5px rgba(157,87,255,.62),0 0 11px rgba(134,57,255,.24)!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i.neon-wave-bar.is-selected{
+  background:linear-gradient(180deg,#ffa3f2 0%,#ff44de 47%,#c72cff 100%)!important;
+  box-shadow:0 0 6px rgba(255,57,221,.9),0 0 14px rgba(211,48,255,.58)!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-selection{
+  background:linear-gradient(90deg,rgba(151,67,250,.13),rgba(246,51,210,.15))!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .studio-wave-zoom-controls{
+  box-sizing:border-box!important;
+  width:100%!important;
+  padding-inline:16px!important;
+}
+@media(max-width:700px){
+  /* Keep Play/Replay clear of the left edge and Duration clear of the right. */
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .studio-wave-meta.studio-unified-toolbar{
+    box-sizing:border-box!important;
+    width:100%!important;
+    padding-inline:clamp(12px,3.5vw,17px)!important;
+  }
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .studio-wave-actions.studio-unified-actions{
+    width:100%!important;
+    min-width:0!important;
+    grid-template-columns:34px 34px minmax(0,1fr) minmax(0,1fr) minmax(70px,1.12fr)!important;
+    column-gap:clamp(3px,.9vw,6px)!important;
+  }
+  /* 16px gutters preserve room for trim grips while widening the audio track. */
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-strip{
+    width:calc(100% - 32px)!important;
+    max-width:calc(100% - 32px)!important;
+    margin-inline:16px!important;
+  }
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-time{
+    width:calc(100% - 32px)!important;
+    max-width:calc(100% - 32px)!important;
+    margin-inline:16px!important;
+  }
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .studio-wave-zoom-controls{
+    padding-inline:14px!important;
+  }
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars{
+    gap:1.25px!important;
+  }
+}
+@media(max-width:340px){
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .studio-wave-meta.studio-unified-toolbar{
+    padding-inline:10px!important;
+  }
+  .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .studio-wave-actions.studio-unified-actions{
+    grid-template-columns:32px 32px minmax(0,1fr) minmax(0,1fr) minmax(66px,1.12fr)!important;
+  }
+}

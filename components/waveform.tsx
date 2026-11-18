@@ -30,6 +30,7 @@ export default function Waveform({
     [timeDraft, setTimeDraft] = useState(""),
     [timeInputError, setTimeInputError] = useState(""),
     [zoomLevel, setZoomLevel] = useState(0),
+    [stripWidth, setStripWidth] = useState(0),
     // Keep the visible timeline fixed while trimming or moving the selection.
     // The window changes only on an explicit zoom action, never on onChange.
     [lockedView, setLockedView] = useState<{start:number;span:number;freePan?:boolean}|null>(null);
@@ -81,6 +82,21 @@ export default function Waveform({
       controller.abort();
     };
   }, [url]);
+  // Match the neon bar density to the available track width. This keeps
+  // individual bars legible on narrow phones without changing clip timing.
+  useEffect(() => {
+    const element = strip.current;
+    if (!element) return;
+    if (typeof ResizeObserver === "undefined") {
+      setStripWidth(element.clientWidth);
+      return;
+    }
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setStripWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     if (!playing) return;
     let frame: number;
@@ -333,27 +349,25 @@ export default function Waveform({
     setTimeInputError("");
   }
   const bars = useMemo(() => {
-    const count = Math.min(peaks.length || 220, 220);
+    const targetBars = Math.max(48, Math.min(220, Math.round((stripWidth || 360) / 4.3)));
+    const count = Math.min(peaks.length || targetBars, targetBars);
     const values = Array.from({ length: count }, (_, i) => {
       if (!peaks.length) return 0.08;
       const from = Math.max(0, Math.min(peaks.length - 1, Math.floor(((viewStart + (i / count) * viewSpan) / duration) * peaks.length))),
         to = Math.max(from + 1, Math.min(peaks.length, Math.ceil(((viewStart + ((i + 1) / count) * viewSpan) / duration) * peaks.length)));
       return Math.max(...peaks.slice(from, to));
     });
-    return values.map((p, i) => (
-      <i
-        key={i}
-        style={{
-          height: `${Math.max(5, p * 92)}%`,
-          background:
-            viewStart + (i / values.length) * viewSpan >= start &&
-            viewStart + (i / values.length) * viewSpan <= end
-              ? "#9c54ff"
-              : "#58627b",
-        }}
-      />
-    ));
-  }, [peaks, duration, start, end, viewStart, viewSpan]);
+    return values.map((p, i) => {
+      const barTime = viewStart + ((i + 0.5) / values.length) * viewSpan;
+      return (
+        <i
+          key={i}
+          className={barTime >= start && barTime <= end ? "neon-wave-bar is-selected" : "neon-wave-bar"}
+          style={{ height: `${Math.max(5, p * 92)}%` }}
+        />
+      );
+    });
+  }, [peaks, duration, start, end, viewStart, viewSpan, stripWidth]);
   return (
     <div className="wave-editor studio-modern-wave">
       <div
