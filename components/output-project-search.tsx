@@ -13,6 +13,6 @@ export function OutputProjectSearch(){
  return <div ref={host} className={"sm-inline-search sm-output-search-wrap"+(open?" is-open":"")}>
  <button className="sm-inline-search-icon" type="button" aria-label="Search projects" aria-expanded={open} onClick={()=>setOpen(v=>!v)}><Search size={19}/></button>
  <input ref={input} type="search" tabIndex={open?0:-1} aria-label="Search projects" placeholder="Search cards, projects, dates..." value={query} onChange={e=>setQuery(e.target.value)}/><button type="button" className="sm-inline-search-close" aria-label="Close search" tabIndex={open?0:-1} onClick={()=>{setOpen(false);setQuery("")}}><X size={16}/></button>
- {open&&query.trim()&&<div className="sm-output-search-panel"><div className="sm-output-search-results">{matches.length?matches.map(p=><Link href={"/projects/live_"+encodeURIComponent(p.id)} key={p.id} onClick={()=>setOpen(false)}>{p.projectName||p.artistName||"Untitled Project"}</Link>):<span>No matching projects</span>}</div></div>}
+ {open&&query.trim()&&<div className="sm-output-search-panel"><div className="sm-output-search-results">{matches.length?matches.map(p=><Link href={"/videos/live_"+encodeURIComponent(p.id)} key={p.id} onClick={()=>setOpen(false)}>{p.projectName||p.artistName||"Untitled Project"}</Link>):<span>No matching projects</span>}</div></div>}
  </div>;
 }
