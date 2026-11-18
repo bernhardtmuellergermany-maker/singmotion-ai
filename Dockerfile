@@ -5,7 +5,7 @@ RUN mkdir -p /opt/singmotion-pg-client && \
     install -m 0755 /usr/lib/postgresql/18/bin/pg_dump /opt/singmotion-pg-client/pg_dump && \
     install -m 0644 /usr/lib/x86_64-linux-gnu/libpq.so.5 /opt/singmotion-pg-client/libpq.so.5
 
-FROM node:24.22.1-bookworm-slim AS builder
+FROM node:24.22.3-bookworm-slim AS builder
 # End-to-end MP4 validation tests require ffmpeg/ffprobe during build.
 RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg ca-certificates chromium && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium npm run test:customer:
 
 # CI builds this exact stage separately; a missing PG18 runtime dependency
 # makes the image build fail before any Production deployment can start.
-FROM node:24.22.1-bookworm-slim AS runtime-base
+FROM node:24.22.3-bookworm-slim AS runtime-base
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg ca-certificates libldap-2.5-0 libgssapi-krb5-2 liblz4-1 libzstd1 \
     && rm -rf /var/lib/apt/lists/*
