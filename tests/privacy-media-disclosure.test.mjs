@@ -10,8 +10,9 @@ test("privacy notice describes real private Production Credit purchases without 
  assert.doesNotMatch(policy,/Production does not accept new real-money credit purchases/);
  assert.match(policy,/password-protected Production/);
  assert.match(policy,/owner-tested/);
- assert.match(policy,/unrestricted public or worldwide/i);
- assert.match(overview,/Updated November 16, 2026/);
+ assert.match(policy,/limited to invited users behind password-protected access/i);
+ assert.match(policy,/eligible billing countries are checked before payment/i);
+ assert.match(overview,/Information about your rights, privacy and responsible use/);
  assert.match(publicGate,/STAGING_AUTH_ENABLED==="false"/);
  assert.match(publicGate,/PRODUCTION_PUBLIC_ACCESS_ENABLED==="true"/);
 });
