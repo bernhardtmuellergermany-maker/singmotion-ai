@@ -453,7 +453,7 @@ export function StudioLiveControl({
               : usd(plan.ceilingMicroUsd)}
             . No automatic refund or retry.
           </p>
-          <Link href={`/videos/live_${plan.id}`}>Saved private project</Link>
+          <Link href={`/videos/live_${plan.id}`}>Saved private video</Link>
           {plan.state === "prepared" && (
             <>
               {!superAdmin && <label className="consent">
