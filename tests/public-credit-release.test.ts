@@ -127,7 +127,7 @@ test("separately reject unsupported Stripe MoR, disabled Customer Studio, secret
  }
 });
 
-test("existing private Production owner path stays independent of public credit release",()=>{
+test("legacy private DE owner flag no longer admits NEW Credit Checkout or generation",()=>{
  const env=approved();
  env.STAGING_AUTH_ENABLED="true";
  env.PUBLIC_CUSTOMER_LAUNCH_APPROVED="false";
@@ -137,9 +137,9 @@ test("existing private Production owner path stays independent of public credit 
  env.STAGING_PASSWORD="s".repeat(40);
  env.PRODUCTION_SANDBOX_PILOT_ENABLED="false";
  assert.equal(publicCreditReleaseApproved(env),false);
- assert.equal(privateLiveCreditTestEnabled(env),true);
- assert.equal(stripeCreditTopupsLiveEnabled(env),true);
- assert.equal(customerCreditStudioBetaEnabled(env),true);
+ assert.equal(privateLiveCreditTestEnabled(env),true,"old flag remains identifiable for historic paid receipts");
+ assert.equal(stripeCreditTopupsLiveEnabled(env),false,"old DE flag never authorizes new LIVE purchases");
+ assert.equal(customerCreditStudioBetaEnabled(env),false,"old DE flag never authorizes new generations");
  assert.equal(stagingEnabled(env),true);
  assert.equal(stagingAccess(null,env),401);
 });
