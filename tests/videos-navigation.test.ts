@@ -54,3 +54,17 @@ test("notification link validation preserves safety while canonicalizing legacy 
  assert.match(source,/item\.href\.replace\(/);
  assert.match(source,/sm-notice-video-link/);
 });
+
+test("guest import is hidden in Account options without altering account security actions",()=>{
+ const account=read("components/account-panel.tsx");
+ for(const invisible of [
+  "Check guest projects for import","Import my guest projects",
+  "Guest workspace:","/api/customer-guest-import",
+ ])assert.equal(account.includes(invisible),false,invisible);
+ for(const retained of [
+  "More account options","Change password","Sign out on all devices",
+ ])assert.ok(account.includes(retained),retained);
+ // Only the account UI is hidden: the server import route and saved data remain.
+ const importRoute=read("app/(site)/api/customer-guest-import/route.ts");
+ assert.match(importRoute,/mode==="preview"/);
+});
