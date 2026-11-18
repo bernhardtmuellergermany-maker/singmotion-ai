@@ -27,7 +27,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '24.22.1'
+          node-version: '24.22.3'
           cache: npm
       - run: npm ci
       - name: Assert Stripe buyer-country policy and existing release guards without paid transactions
