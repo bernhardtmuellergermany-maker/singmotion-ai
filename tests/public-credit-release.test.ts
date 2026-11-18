@@ -160,13 +160,17 @@ test("new public Credit admission wired into Checkout, balance, webhook and live
  for(const path of [
   "app/(site)/api/credit-checkout/route.ts",
   "app/(site)/api/credit-balance/route.ts",
-  "app/(site)/api/stripe-webhook/route.ts",
   "lib/commerce/credit-wallet.ts",
   "lib/commerce/customer-credit-studio-beta.ts",
   "lib/staging.ts",
  ]){
   assert.match(read(path),/publicCreditReleaseApproved/,path);
  }
+ // Webhook acceptance follows the centralized, reviewed LIVE credit gate;
+ // already-bound paid receipts remain independently reconcilable after a stop.
+ const hook=read("app/(site)/api/stripe-webhook/route.ts");
+ assert.match(hook,/stripeCreditTopupsLiveEnabled/);
+ assert.match(hook,/existingBoundLiveCreditReceipt/);
  const videoRoute=read("app/(site)/api/studio-live/route.ts");
  assert.match(videoRoute,/customerCreditStudioBetaEnabled\(process\.env\)/);
  assert.match(videoRoute,/owner!=="customer-"\+customerId/);
