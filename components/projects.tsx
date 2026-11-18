@@ -33,7 +33,7 @@ export function Projects() {
       <div className="page-heading">
         <div>
           <span className="eyebrow">YOUR COLLECTION</span>
-          <h1>My videos</h1>
+          <h1>Videos</h1>
           <p>Every song has a story. Keep yours close.</p>
         </div>
         <Link href="/studio?new=1" className="button primary">
@@ -49,13 +49,13 @@ export function Projects() {
       <LiveProjects />
       <CustomerPaidOrders />
       {loading ? (
-        <p className="quiet">Loading your projects…</p>
+        <p className="quiet">Loading your videos…</p>
       ) : jobs.length ? (
         <div className="project-grid">
           {jobs.map((j) => (
             <Link
               className="project-card"
-              href={`/projects/${j.id}`}
+              href={`/videos/${j.id}`}
               key={j.id}
             >
               <div className="project-cover">
@@ -214,7 +214,7 @@ function DemoProject({ id }: { id: string }) {
                     onClick={() => void action({ saved: true })}
                   >
                     <Bookmark size={16} />
-                    {job.saved ? "Saved to projects" : "Save to projects"}
+                    {job.saved ? "Saved to videos" : "Save to videos"}
                   </button>
                 </div>
               </>
@@ -255,7 +255,7 @@ function DemoProject({ id }: { id: string }) {
                   </p>
                 </div>
                 <small className="quiet">
-                  You can close this page and return to My Projects.
+                  You can close this page and return to Videos.
                 </small>
                 {job.status === "queued" && (
                   <div>
