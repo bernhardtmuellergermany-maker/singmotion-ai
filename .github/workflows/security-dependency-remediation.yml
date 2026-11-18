@@ -34,8 +34,8 @@ jobs:
           # A direct npm install against a locked 3.92 peer tree ERESOLVES.
           # Root.io publishes security-patched picomatch 2.x and 4.x builds.
           # Verified patch record: https://osv.dev/vulnerability/ROOT-APP-NPM-CVE-2026-112366
-          # Verified public npm publication for 4.x; 2.x is pinned to a reviewed
-          # upstream pull request commit until an official patch is released.
+          # Evaluate the same patched picomatch implementation for all consumers.
+          # Major 2.x compatibility MUST be covered by micromatch/Payload tests.
           npm view @ryotsu/picomatch@4.0.7-a version
           node --input-type=module -e '
             import fs from "node:fs";
@@ -48,10 +48,8 @@ jobs:
             // Keep semver-major paths separate. This replaces vulnerable
             // glob parsers with independently patched versions, not a renamed
             // copy of the original vulnerable package.
-            pkg.overrides.picomatch="github:sxnistxr/picomatch#f03bec2c02e46f063fbfdc161aae1d0f854b2565";
-            pkg.overrides.tinyglobby={
-              picomatch:"npm:@ryotsu/picomatch@4.0.7-a"
-            };
+            pkg.overrides.picomatch="npm:@ryotsu/picomatch@4.0.7-a";
+            delete pkg.overrides.tinyglobby;
             fs.writeFileSync(file,JSON.stringify(pkg,null,2)+String.fromCharCode(10));
           '
           # Discard the obsolete 3.92 peer-resolution graph; regenerating lock
