@@ -1,6 +1,7 @@
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 import {productionCustomerReleaseApproved,PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "./commerce/customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./commerce/public-credit-release.ts";
+import {privateInternationalCreditBetaEnabled} from "./commerce/private-international-credit-beta.ts";
 
 type Environment = Record<string, string | undefined>;
 /**
@@ -44,15 +45,20 @@ export function privateGateMutationOriginAllowed(
 export const PRIVATE_GATE_COOKIE = "sm_private_gate";
 export const PRIVATE_GATE_TTL_SECONDS = 12 * 60 * 60;
 const PRIVATE_GATE_VERSION = "v1";
+const PRIVATE_BETA_GATE_VERSION = "v2";
+type PrivateGateKind="operator"|"beta";
 export function issuePrivateGateTicket(
   env: Environment = process.env,
   now = Date.now(),
+  kind:PrivateGateKind = "operator",
 ): string {
   validateStaging(env);
   if (!stagingEnabled(env)) throw new Error("Private gate disabled");
+  if(kind==="beta"&&!privateBetaPasswordEnabled(env))
+    throw new Error("Private beta gate not approved");
   const issued = Math.floor(now / 1000);
-  const payload = `${PRIVATE_GATE_VERSION}.${issued}`;
-  const signature = createHmac("sha256", env.STAGING_PASSWORD!)
+  const payload = `${kind==="beta"?PRIVATE_BETA_GATE_VERSION:PRIVATE_GATE_VERSION}.${issued}`;
+  const signature = createHmac("sha256", kind==="beta"?env.PRIVATE_BETA_PASSWORD!:env.STAGING_PASSWORD!)
     .update("SingMotion private gate\n" + (env.RAILWAY_ENVIRONMENT_ID || "none") + "\n" + payload)
     .digest("hex");
   return payload + "." + signature;
@@ -64,13 +70,13 @@ export function validPrivateGateTicket(
 ): boolean {
   if (!token || token.length > 160 || !stagingEnabled(env)) return false;
   try { validateStaging(env); } catch { return false; }
-  const match = /^(v1)\.([1-9][0-9]{8,12})\.([a-f0-9]{64})$/.exec(token);
+  const match = /^(v1|v2)\.([1-9][0-9]{8,12})\.([a-f0-9]{64})$/.exec(token);
   if (!match) return false;
   const issued = Number(match[2]);
   const current = Math.floor(now / 1000);
   if (!Number.isSafeInteger(issued) || issued > current + 60 ||
       current - issued > PRIVATE_GATE_TTL_SECONDS) return false;
-  const expected = issuePrivateGateTicket(env, issued * 1000);
+  const expected = issuePrivateGateTicket(env, issued * 1000, match[1]==="v2"?"beta":"operator");
   return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
 }
 
@@ -104,6 +110,30 @@ export function validateStaging(env: Environment = process.env) {
       "Staging requires DEMO_MODE=true, GENERATIONS_ENABLED=false, ADMIN_DEMO_ENABLED=false and BYTEPLUS_LIVE_TEST_ENABLED=false.",
     );
 }
+/** Separate cohort Basic Auth does not grant CMS/staff privileges.
+ * It is available only when the entire private international LIVE gate
+ * (Stripe/credit/BytePlus/password/private web) is independently ready.
+ * Operator and cohort tickets have independent signing keys.
+ */
+export function privateBetaPasswordEnabled(env:Environment=process.env):boolean{
+ return privateInternationalCreditBetaEnabled(env);
+}
+export function privateGateCredentialKind(
+ authorization:string|null,
+ env:Environment=process.env,
+):PrivateGateKind|null{
+ if(!stagingEnabled(env)||!authorization||authorization.length>4096||
+  !/^Basic [A-Za-z0-9+/]+=*$/i.test(authorization))return null;
+ const received=Buffer.from(authorization.slice(6),"base64").toString("utf8");
+ const digest=(value:string)=>createHash("sha256").update(value).digest();
+ if(timingSafeEqual(digest(received),digest(`staging:${env.STAGING_PASSWORD}`)))
+  return "operator";
+ if(privateBetaPasswordEnabled(env)&&
+  timingSafeEqual(digest(received),digest(`beta:${env.PRIVATE_BETA_PASSWORD}`)))
+  return "beta";
+ return null;
+}
+
 export function stagingAccess(
   authorization: string | null,
   env: Environment = process.env,
@@ -116,22 +146,7 @@ export function stagingAccess(
   }
   if (authorization?.startsWith("SingMotionSession "))
     return validPrivateGateTicket(authorization.slice("SingMotionSession ".length), env) ? 200 : 401;
-  if (
-    !authorization ||
-    authorization.length > 4096 ||
-    !/^Basic [A-Za-z0-9+/]+=*$/i.test(authorization)
-  )
-    return 401;
-  const received = Buffer.from(authorization.slice(6), "base64").toString(
-    "utf8",
-  );
-  const digest = (value: string) => createHash("sha256").update(value).digest();
-  return timingSafeEqual(
-    digest(received),
-    digest(`staging:${env.STAGING_PASSWORD}`),
-  )
-    ? 200
-    : 401;
+  return privateGateCredentialKind(authorization,env)!==null?200:401;
 }
 export function stagingDenial(
   authorization: string | null,
