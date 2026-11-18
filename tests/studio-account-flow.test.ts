@@ -30,7 +30,8 @@ test("guest Studio return is same-origin and bounded to an exact draft, never a 
 test("Guest Step 4 never opens an operator dialog or starts paid work before login",()=>{
  const wizard=read("components/studio-wizard.tsx");
  const gate=read("components/studio-account-gate.tsx");
- assert.match(wizard,/Login to generate video/);
+ assert.match(wizard,/Login to generate/);
+ assert.doesNotMatch(wizard,/Login to generate video/);
  assert.match(wizard,/!creditStudio\?void openGuestAccount\(\):reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
  assert.match(wizard,/await saveQueue\.current/);
  assert.match(wizard,/await api\("studio-drafts"/);
