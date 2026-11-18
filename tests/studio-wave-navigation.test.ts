@@ -48,3 +48,17 @@ test("large touch grips never jump on initial contact and keep precise finger of
  assert.ok(source.includes("handleGrab.current={pointerId:e.pointerId,x:e.clientX"));
  assert.ok(source.includes("dragWaveHandleTime(grab.time,e.clientX-grab.x"));
 });
+
+test("desktop can drag the selected audio without dragging the viewport; grips are outside the cut",()=>{
+ const wave=read("components/waveform.tsx"),css=read("app/(site)/studio-refinement.css");
+ assert.match(wave,/if\(e\.pointerType==="mouse"&&!panMode\)return/);
+ assert.match(wave,/closest\("\.wave-selection,\.wave-handle"\)/);
+ assert.doesNotMatch(wave,/if\(pinchBlocked\.current\|\|panMode\)return/);
+ assert.match(wave,/setLockedView\(\{start:viewStart,span:viewSpan,freePan:false\}\)/);
+ assert.match(wave,/setLockedView\(previous=>previous\?\{\.\.\.previous,freePan:false\}:null\)/);
+ assert.match(wave,/handle==="start"\?<ChevronLeft/);
+ assert.match(wave,/:<ChevronRight/);
+ assert.match(css,/\.wave-handle-start\{\s*transform:translate\(-100%,-50%\)!important/);
+ assert.match(css,/\.wave-handle-end\{\s*transform:translate\(0,-50%\)!important/);
+ assert.match(css,/\.wave-selection-hit\{pointer-events:none!important/);
+});

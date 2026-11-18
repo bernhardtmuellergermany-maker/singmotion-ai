@@ -2684,3 +2684,87 @@
   flex:1 0 100%;
  }
 }
+
+/* Reference-style cut edges: all trim hit area lies OUTSIDE the selected audio.
+   Keep gutters for track endpoints, and preserve the mobile pinch controls. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-strip{
+ width:calc(100% - 84px)!important;
+ margin-inline:42px!important;
+ clip-path:inset(-34px -46px -34px -46px)!important;
+ touch-action:none!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-selection{
+ position:absolute;
+ z-index:9!important;
+ pointer-events:auto!important;
+ cursor:grab!important;
+ touch-action:none!important;
+ box-sizing:border-box;
+ border-left:2px solid #dcb8ff!important;
+ border-right:2px solid #dcb8ff!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-selection:active{cursor:grabbing!important}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-selection-hit{pointer-events:none!important}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle{
+ position:absolute;
+ box-sizing:border-box;
+ z-index:12!important;
+ display:flex!important;
+ align-items:center;
+ padding:0!important;
+ width:42px!important;
+ min-width:42px!important;
+ max-width:42px!important;
+ height:72px!important;
+ border:0!important;
+ background:transparent!important;
+ margin:0!important;
+ top:50%!important;
+ bottom:auto!important;
+ touch-action:none!important;
+ user-select:none;
+ -webkit-user-select:none;
+ cursor:ew-resize!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle-start{
+ transform:translate(-100%,-50%)!important;
+ justify-content:flex-end!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle-end{
+ transform:translate(0,-50%)!important;
+ justify-content:flex-start!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle .wave-grip-mark{
+ display:grid;
+ place-items:center;
+ flex:0 0 24px;
+ box-sizing:border-box;
+ width:24px;
+ height:43px;
+ margin:0!important;
+ color:#5c4d71;
+ background:#fbf9ff!important;
+ border:1px solid #d9caed;
+ box-shadow:0 2px 8px #13082b88;
+ pointer-events:none;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle-start .wave-grip-mark{
+ border-radius:9px 3px 3px 9px;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle-end .wave-grip-mark{
+ border-radius:3px 9px 9px 3px;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle .wave-grip-mark svg{
+ display:block;width:17px;height:17px;color:#5c4d71;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle:focus-visible .wave-grip-mark{
+ outline:2px solid #d88aff;outline-offset:2px;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle{
+  width:44px!important;min-width:44px!important;max-width:44px!important;height:76px!important;
+ }
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle .wave-grip-mark{
+  width:26px;flex-basis:26px;height:46px;
+ }
+}
