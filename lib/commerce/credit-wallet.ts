@@ -2,6 +2,7 @@ import {worldwideTaxPolicyAvailable} from "./worldwide-credit-tax.ts";
 import {managedCreditMoRApproved} from "./managed-credit-payments.ts";
 import {productionCustomerReleaseApproved} from "./customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./public-credit-release.ts";
+import {privateInternationalCreditBetaEnabled} from "./private-international-credit-beta.ts";
 import {protectedProductionLivePilotApproved} from "./protected-production-live-pilot.ts";
 import {privateCreditPilotApproved} from "./private-credit-pilot.ts";
 import {privateLiveCreditTestEnabled} from "./private-live-credit-test.ts";
@@ -33,7 +34,7 @@ const PRODUCTION_ID="36adc41d-7e54-4396-ad1a-fd432ba0441d";
  * Never infer user consent or enable recurring charges from this flag. */
 export function stripeCreditTopupsLiveEnabled(env:Record<string,string|undefined>):boolean {
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_ID &&
-  (privateLiveCreditTestEnabled(env) || publicCreditReleaseApproved(env) || (
+  (privateLiveCreditTestEnabled(env) || privateInternationalCreditBetaEnabled(env) || publicCreditReleaseApproved(env) || (
     env.STRIPE_CREDIT_TOPUPS_LIVE_ENABLED==="true" &&
     env.STRIPE_LIVE_CHECKOUT_ENABLED==="true" &&
     (productionCustomerReleaseApproved(env)||protectedProductionLivePilotApproved(env)||privateCreditPilotApproved(env)) &&
