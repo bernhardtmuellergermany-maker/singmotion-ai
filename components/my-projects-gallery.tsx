@@ -125,7 +125,7 @@ export function MyProjectsGallery(){
  },[openOptionsId]);
  async function renameProject(item:ProjectItem){
   const next=renameText.trim();
-  if(!next||next.length>80){setError("Enter a project name of up to 80 characters.");return;}
+  if(!next||next.length>80){setError("Enter a video name of up to 80 characters.");return;}
   if(busyId)return;
   setBusyId(item.id);setError("");
   try{
@@ -138,7 +138,7 @@ export function MyProjectsGallery(){
     });
     if(!response.ok){
      const body=await response.json().catch(()=>null) as {error?:string}|null;
-     throw Error(body?.error||"Unable to save this project name.");
+     throw Error(body?.error||"Unable to save this video name.");
     }
     setOrders(previous=>previous.map(o=>o.orderId===id?{...o,displayName:next}:o));
    }else if(item.kind==="draft"){
@@ -165,7 +165,7 @@ export function MyProjectsGallery(){
    }catch{}
    setLabels(updated);setRenaming(null);
    window.dispatchEvent(new CustomEvent("sm-project-name-updated",{detail:{id:item.id,name:next}}));
-  }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename project.");}
+  }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename video.");}
   finally{setBusyId(null);}
  }
  async function refreshTrash(){
@@ -194,7 +194,7 @@ export function MyProjectsGallery(){
      method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
      body:JSON.stringify({orderId:item.id,hidden:false})
     });
-    if(!response.ok)throw Error("Could not restore this paid project.");
+    if(!response.ok)throw Error("Could not restore this paid video.");
    }else if(item.kind==="draft")
     await api("studio-drafts/"+encodeURIComponent(item.id)+"/restore",{method:"POST"});
    else await api("studio-live",{method:"POST",body:JSON.stringify({
@@ -202,7 +202,7 @@ export function MyProjectsGallery(){
    })});
    // Reload fresh server-authoritative selections; no cached project objects.
    window.location.reload();
-  }catch(e){setTrashError(e instanceof Error?e.message:"Could not restore project.");}
+  }catch(e){setTrashError(e instanceof Error?e.message:"Could not restore video.");}
   finally{setBusyId(null)}
  }
  async function deleteProject(item:ProjectItem){
@@ -214,7 +214,7 @@ export function MyProjectsGallery(){
    :item.kind==="draft"
    ?"Move '"+item.name+"' to Recently deleted? You can restore it for 30 days. After that, unshared media becomes eligible for cleanup."
    :active
-    ?"Move this active project to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
+    ?"Move this active video to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
     :"Move '"+item.name+"' to Recently deleted? Its MP4 is retained for 30 days, then eligible for cleanup. Payment and audit records remain.";
   if(!window.confirm(warning))return;
   setBusyId(item.id);setError("");
@@ -227,7 +227,7 @@ export function MyProjectsGallery(){
     });
     const result=await response.json().catch(()=>null) as {hidden?:boolean;error?:string}|null;
     if(!response.ok||result?.hidden!==true)
-      throw Error(result?.error||"Could not remove this paid project.");
+      throw Error(result?.error||"Could not remove this paid video.");
     setOrders(previous=>previous.filter(o=>o.orderId!==id));
    }else if(item.kind==="draft"){
     const id=item.id.slice(6);
@@ -251,7 +251,7 @@ export function MyProjectsGallery(){
    const updated={...labels};delete updated[item.id];
    localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));setLabels(updated);
    await refreshTrash();
-  }catch(cause){setError(cause instanceof Error?cause.message:"Could not delete this project.");}
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not remove this video.");}
   finally{setBusyId(null);}
  }
  // Refresh account-owned names when returning from another device or tab.
@@ -276,7 +276,7 @@ export function MyProjectsGallery(){
       isCustomer
         ?fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
           .then(async r=>{
-            if(!r.ok)throw Error("Customer projects unavailable");
+            if(!r.ok)throw Error("Customer videos unavailable");
             return (await r.json() as {orders:CustomerOrder[]}).orders;
           })
         :Promise.resolve([] as CustomerOrder[]),
@@ -288,7 +288,7 @@ export function MyProjectsGallery(){
     if(o.status==="fulfilled"&&Array.isArray(o.value))setOrders(o.value);
     if(l.status==="fulfilled"&&Array.isArray(l.value))setLive(l.value);
     setError(d.status==="rejected"||o.status==="rejected"||l.status==="rejected"
-      ?"Some account projects could not be synchronized. Confirm that you are signed into the same account on desktop and mobile, then tap Sync names."
+      ?"Some account videos could not be synchronized. Confirm that you are signed into the same account on desktop and mobile, then tap Sync names."
       :"");
     await refreshTrash().catch(()=>{});
    }catch{
@@ -341,7 +341,7 @@ export function MyProjectsGallery(){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({orderId:id,name})
        });
-       if(!response.ok)throw Error("Legacy project name could not be synced.");
+       if(!response.ok)throw Error("Legacy video name could not be synced.");
        if(!cancelled)setOrders(old=>old.map(x=>x.orderId===id?{...x,displayName:name}:x));
       }
      }
@@ -373,7 +373,7 @@ export function MyProjectsGallery(){
      if(linked.has(d.id))continue;
      if(!/^[a-zA-Z0-9-]{1,80}$/.test(d.id))continue;
      combined.push({
-      id:"draft_"+d.id,kind:"draft",name:d.projectName?.trim()||d.artistName||"Untitled project",
+      id:"draft_"+d.id,kind:"draft",name:d.projectName?.trim()||d.artistName||"Untitled video",
       status:"draft",date:Number(d.updated)||0,
       duration:Math.max(0,(d.selection?.end||0)-(d.selection?.start||0)),
       format:validFormat(d.selection?.outputFormat),
@@ -417,7 +417,7 @@ export function MyProjectsGallery(){
    processing:projects.filter(p=>p.status==="processing"||p.status==="awaiting-payment"||p.status==="review").length,
    completed:projects.filter(p=>p.status==="completed").length
  };
- const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||p.name||labels[p.id]?.trim()||"Untitled project"})).filter(p=>
+ const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||p.name||labels[p.id]?.trim()||"Untitled video"})).filter(p=>
    (tab==="all"||tab==="draft"&&p.status==="draft"||
     tab==="processing"&&["processing","awaiting-payment","review"].includes(p.status)||
     tab==="completed"&&p.status==="completed")&&
@@ -435,8 +435,8 @@ export function MyProjectsGallery(){
      <label className="sm-projects-search"><Search size={19}/><input type="search" value={search} onChange={e=>setSearch(e.target.value)}
        placeholder="Search videos…" aria-label="Search videos and support IDs"/></label>
      <label className="sm-projects-filter-select">
-       <span className="sr-only">Filter by project status</span>
-       <select aria-label="Filter projects by status" value={tab} onChange={e=>setTab(e.target.value as Tab)}>
+       <span className="sr-only">Filter by video status</span>
+       <select aria-label="Filter videos by status" value={tab} onChange={e=>setTab(e.target.value as Tab)}>
          <option value="all">All videos ({counts.all})</option>
          <option value="draft">Drafts ({counts.draft})</option>
          <option value="processing">Processing ({counts.processing})</option>
@@ -485,7 +485,7 @@ export function MyProjectsGallery(){
             <div className="sm-projects-options-menu">
               <Link href={item.href} onClick={()=>setOpenOptionsId(null)}><SquarePen size={15}/> Edit</Link>
               <button type="button" onClick={()=>{setOpenOptionsId(null);setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
-              <button type="button" className="sm-projects-delete" disabled={busyId===item.id} title={item.kind==="customer"?"Remove from Videos without deleting payment records":"Delete project"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Removing…":item.kind==="customer"?"Remove":"Delete"}</button>
+              <button type="button" className="sm-projects-delete" disabled={busyId===item.id} title={item.kind==="customer"?"Remove from Videos without deleting payment records":"Delete video"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Removing…":item.kind==="customer"?"Remove":"Delete"}</button>
               {item.kind==="customer"&&<small>Payment records are retained.</small>}
             </div>
           </details>}
@@ -514,7 +514,7 @@ export function MyProjectsGallery(){
       <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Drafts: 30-day recovery · Paid orders: restorable</span></summary>
       <p className="sm-projects-trash-explain">Drafts and eligible private videos can be recovered for 30 days before retention-based cleanup. Removed paid orders are only hidden from Videos and can be restored here; payment, provider and delivery records are retained.</p>
       {trashError&&<p className="sm-projects-error" role="alert">{trashError}</p>}
-      {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted projects.</p>:
+      {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted videos.</p>:
        <ul>{trash.map(item=><li key={item.kind+"_"+item.id}>
          <div><strong>{item.name}</strong><small>{item.kind==="customer"?"Removed from Videos · payment record kept":`Eligible for cleanup from: ${safeDate(item.purgeAfter||0)}`}</small></div>
          {item.restorable===false?<small>Preparation canceled; restore the original saved draft instead.</small>:
