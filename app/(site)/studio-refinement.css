@@ -2768,3 +2768,56 @@
   width:26px;flex-basis:26px;height:46px;
  }
 }
+
+/* Stable timeline geometry. The old negative clipping and fixed minimum bar
+   widths made the timeline appear shifted and overflow narrow screens. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-strip{
+ clip-path:none!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-time{
+ box-sizing:border-box;
+ width:calc(100% - 84px)!important;
+ margin-left:42px!important;
+ margin-right:42px!important;
+ padding-inline:0!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars{
+ display:flex!important;
+ box-sizing:border-box;
+ width:100%!important;
+ max-width:100%!important;
+ min-width:0!important;
+ gap:0!important;
+ overflow:hidden!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i{
+ flex:1 1 0!important;
+ box-sizing:border-box;
+ width:0!important;
+ min-width:0!important;
+ max-width:none!important;
+}
+/* Keep the finger-friendly invisible target, but halve the visible arrow grip
+   from 24 to 12px (13px on small screens). */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle .wave-grip-mark{
+ flex:0 0 12px!important;
+ width:12px!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle .wave-grip-mark svg{
+ width:11px!important;
+ height:11px!important;
+}
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle .wave-grip-mark{
+  flex:0 0 13px!important;
+  width:13px!important;
+ }
+}
+/* Remove the second, short white line drawn by the legacy pseudo-element. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle::before,
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle::after{
+ content:none!important;
+ display:none!important;
+ width:0!important;
+ height:0!important;
+}
