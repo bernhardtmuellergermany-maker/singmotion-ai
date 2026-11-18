@@ -9,21 +9,25 @@ const tinyglobbyRequire=createRequire(new URL("../node_modules/tinyglobby/packag
 const pkg=JSON.parse(readFileSync(new URL("../package.json",import.meta.url),"utf8"));
 const lock=JSON.parse(readFileSync(new URL("../package-lock.json",import.meta.url),"utf8"));
 
-test("actual security-patched picomatch packages are installed for BOTH major dependency paths",()=>{
- assert.equal(pkg.overrides.picomatch,"github:sxnistxr/picomatch#f03bec2c02e46f063fbfdc161aae1d0f854b2565");
- assert.equal(pkg.overrides.tinyglobby.picomatch,"npm:@ryotsu/picomatch@4.0.7-a");
- const two=lock.packages["node_modules/picomatch"];
- const four=lock.packages["node_modules/tinyglobby/node_modules/picomatch"];
- assert.ok(two,"patched v2 picomatch must be installed");
- assert.equal(two.version,"2.3.2");
- assert.match(two.resolved,/github\.com\/sxnistxr\/picomatch/);
- assert.match(two.resolved,/f03bec2c02e46f063fbfdc161aae1d0f854b2565/);
- assert.ok(four,"patched v4 picomatch must be installed");
- assert.equal(four.version,"4.0.7-a");
- assert.match(four.resolved,/registry\.npmjs\.org\/@ryotsu\/picomatch/);
- assert.ok(four.integrity?.startsWith("sha512-"));
- assert.equal(appRequire("picomatch/package.json").version,"2.3.2");
+test("published security fork is pinned, integrity-checked, and installed throughout dependency graph",()=>{
+ assert.equal(pkg.overrides.picomatch,"npm:@ryotsu/picomatch@4.0.7-a");
+ const installs=Object.entries(lock.packages).filter(([path])=>path.endsWith("/node_modules/picomatch")||path==="node_modules/picomatch");
+ assert.ok(installs.length>=1);
+ for(const [path,entry] of installs){
+  const item=entry as {version:string;resolved:string;integrity:string};
+  assert.equal(item.version,"4.0.7-a",path);
+  assert.match(item.resolved,/registry\\.npmjs\\.org\\/@ryotsu\\/picomatch/,path);
+  assert.match(item.integrity,/^sha512-/,path);
+ }
+ assert.equal(appRequire("picomatch/package.json").name,"@ryotsu/picomatch");
  assert.equal(tinyglobbyRequire("picomatch/package.json").name,"@ryotsu/picomatch");
+});
+
+test("micromatch 4 remains compatible with the patched matcher",()=>{
+ const micromatch=appRequire("micromatch");
+ assert.deepEqual(micromatch(["src/a.ts","src/b.ts","test/a.ts"],["src/**/*.ts"]),["src/a.ts","src/b.ts"]);
+ assert.equal(micromatch.isMatch("a/bar.js","**/*.js"),true);
+ assert.equal(micromatch.isMatch("a/bar.ts","**/*.js"),false);
 });
 
 test("patched parsers preserve normal path glob matching",()=>{
