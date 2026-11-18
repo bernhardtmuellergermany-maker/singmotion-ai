@@ -97,6 +97,7 @@
     "@esbuild-kit/core-utils": {
       "esbuild": "0.25.12"
     },
-    "deepmerge": "$deepmerge"
+    "deepmerge": "$deepmerge",
+    "sass": "1.108.2"
   }
 }
