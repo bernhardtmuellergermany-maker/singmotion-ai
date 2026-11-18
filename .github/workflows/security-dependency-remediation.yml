@@ -30,8 +30,17 @@ jobs:
       - name: Resolve patched direct dependencies and safe transitive updates
         run: |
           set -eu
-          npm install --package-lock-only --ignore-scripts --audit=false --save-exact \
-            payload@3.94.0 @payloadcms/next@3.94.0 @payloadcms/db-postgres@3.94.0 next@16.4.6
+          # Update the complete Payload peer set atomically BEFORE npm resolves.
+          # A direct npm install against a locked 3.92 peer tree ERESOLVES.
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const file="package.json",pkg=JSON.parse(fs.readFileSync(file,"utf8"));
+            for(const key of ["payload","@payloadcms/next","@payloadcms/db-postgres"])
+              pkg.dependencies[key]="3.94.0";
+            pkg.dependencies.next="16.4.6";
+            fs.writeFileSync(file,JSON.stringify(pkg,null,2)+"\\n");
+          '
+          npm install --package-lock-only --ignore-scripts --audit=false
           npm audit fix --package-lock-only --ignore-scripts --audit=false || true
       - name: Print machine-readable production advisory summary (without secret data)
         run: |
