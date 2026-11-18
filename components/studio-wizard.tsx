@@ -54,6 +54,9 @@ import {
 import { photoFormat, uploadedPhotoFraming } from "@/lib/studio-editor";
 import { defaultStudioContent, type StudioContent } from "@/lib/studio-content";
 import { productCopy } from "@/lib/product-copy";
+import {
+  featuredCameraMovements, additionalCameraMovements, type CameraMovement,
+} from "@/lib/studio-camera-movements";
 import {hasFirstStudioUpload, type StudioDraftExport} from "@/lib/studio-draft";
 import {quoteVideoCredits,VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
 const Waveform = dynamic(() => import("./waveform"), {
@@ -131,6 +134,7 @@ export function StudioWizard({
     [cropScale,setCropScale] = useState(1),
     [lockRatio,setLockRatio] = useState(true),
     [imageReady,setImageReady] = useState(false);
+  const [cameraMovesExpanded,setCameraMovesExpanded] = useState(false);
   const cropDrag=useRef<{x:number;y:number;startX:number;startY:number}|null>(null);
   const handleDrag=useRef<{id:number;x:number;y:number;scale:number;corner:string;width:number;height:number;ratio:number}|null>(null);
   // BytePlus receives the saved reference image; fit the whole photo by default.
@@ -470,6 +474,20 @@ export function StudioWizard({
     setError("");
     setSaved(false);
   }
+  function addCameraMovement(move:CameraMovement) {
+    const lines=draft.customPrompt.split("\n").map(line=>line.trim()).filter(Boolean);
+    // Keep existing performance instructions; selecting another camera option
+    // replaces only the previous "Camera:" direction, never appends conflicts.
+    const kept=lines.filter(line=>!/^Camera:\s*/i.test(line));
+    kept.push(move.direction);
+    const next=kept.join("\n");
+    if(next.length>500){
+      setError("Your prompt can contain up to 500 characters.");
+      return;
+    }
+    update({customPrompt:next,performance:"Custom"});
+    performanceInput.current?.focus();
+  }
   async function add(file: File | undefined, kind: "audio" | "image") {
     if (!file || busy || !ready) return;
     setBusy(true);
@@ -802,7 +820,6 @@ export function StudioWizard({
               </div>
             </>
           )}
-          <p className="sm-new-private">Your audio stays private in your workspace.</p>
         </div>}
         {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
           <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"
@@ -821,7 +838,7 @@ export function StudioWizard({
                   <span style={{width:photoUploadProgress===null?"100%":photoUploadProgress+"%"}} className={photoUploadProgress===null||photoUploadPhase==="processing"?"is-indeterminate":""}/>
                 </div>
                 <span>{photoUploadPhase==="processing"?"Upload complete. Checking photo…":photoUploadProgress===null?"Sending file…":photoUploadProgress+"% uploaded"}</span>
-              </div>:<span>JPG, PNG · up to 30 MB · clear front-facing portrait recommended</span>}
+              </div>:<span>JPG, PNG · up to 30 MB</span>}
             </button>
           ) : (
             <>
@@ -891,7 +908,6 @@ export function StudioWizard({
             <button type="button" className="sm-photo-reset" disabled={busy} onClick={()=>{cropReset();if(customMode){setCustomWidth(draft.outputFormat==="9:16"?720:1280);setCustomHeight(draft.outputFormat==="9:16"?1280:720);}setCropPending(true);}}>Reset</button>
           </div>}
           </div>
-          <p className="sm-photo-step-tip">Choose 16:9 or 9:16 to frame the reference photo sent to the video generation model. The generated video keeps the dimensions returned by the AI model; SingMotion does not crop or convert its aspect ratio afterward.</p>
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
@@ -922,40 +938,38 @@ export function StudioWizard({
                 <p><strong>Reference photo tip:</strong> For full-body actions such as walking or dancing, use a photo that shows the whole person, including the legs. A close-up may limit visible movement.</p>
                 <p><strong>Keep it focused:</strong> Prefer a few compatible instructions over conflicting actions. For example, do not ask the camera to stay fixed and follow the singer at the same time.</p>
                 <p><strong>Important:</strong> These are writing tips, not automatic instructions. SingMotion sends only the text you enter in the prompt box above. The AI model may still interpret or omit movements; a result is not guaranteed.</p>
-                <p><Link href="/help/camera-movements" className="sm-prompt-guide-library-link">Explore 22 camera moves, continuous-action tips & copy-ready examples</Link></p>
+                <p><Link href="/help/camera-movements" target="_blank" rel="noopener noreferrer" className="sm-prompt-guide-library-link">Explore 22 camera moves, continuous-action tips & copy-ready examples</Link></p>
               </div>
             </details>
           </div>
           <div className="sm-performance-ideas">
-            <h2>Quick ideas</h2>
-            <div className="sm-performance-chips" role="group" aria-label="Add performance ideas">
-              {([
-                {label:"Orbit left",type:"camera",prompt:"Camera: Slowly orbit left around the singer, keeping the face clearly visible.",icon:RotateCw},
-                {label:"Push in",type:"camera",prompt:"Camera: Slowly push in towards the singer for a closer view.",icon:Camera},
-                {label:"Static",type:"camera",prompt:"Camera: Remain stationary while the singer performs naturally.",icon:Video},
-                {label:"Follow singer",type:"camera",prompt:"Camera: Smoothly follow the singer's movements, keeping the face clearly framed.",icon:Camera},
-                {label:"Tilt",type:"camera",prompt:"Camera: Slowly tilt upward while keeping the singer's face visible.",icon:Camera},
-                {label:"Energetic",type:"performance",prompt:"Sing energetically with expressive, natural rhythmic movements.",icon:Sparkles},
-                {label:"Emotional",type:"performance",prompt:"Sing with heartfelt emotion, expressive eyes and gentle natural gestures.",icon:Heart},
-              ] as const).map(idea=><button type="button" key={idea.label}
-                aria-label={`Add ${idea.label} direction to prompt`}
-                onClick={()=>{
-                  const lines=draft.customPrompt.split("\n").map(line=>line.trim()).filter(Boolean);
-                  // Only one camera direction at a time; keep any user-written
-                  // performance instructions and other emotions untouched.
-                  const retained=idea.type==="camera"
-                    ? lines.filter(line=>!/^Camera:\s*/i.test(line))
-                    : lines;
-                  if(!retained.includes(idea.prompt))retained.push(idea.prompt);
-                  const result=retained.join("\n");
-                  if(result.length>500){setError("Your prompt can contain up to 500 characters.");return;}
-                  setError("");
-                  update({customPrompt:result,performance:"Custom"});
-                  performanceInput.current?.focus();
-                }}>
-                  <idea.icon size={19}/><span>{idea.label}</span>
-                </button>)}
+            <h2>Camera Movements</h2>
+            <div className="sm-performance-chips" role="group" aria-label="Add camera movement to prompt">
+              {featuredCameraMovements.map(move=><button type="button" key={move.name}
+                aria-label={`Add ${move.name} camera movement to prompt`}
+                title={move.text}
+                onClick={()=>addCameraMovement(move)}>
+                {move.name==="Static / locked shot"?<Video size={19} aria-hidden="true"/>:
+                 move.name.startsWith("Orbit")?<RotateCw size={19} aria-hidden="true"/>:<Camera size={19} aria-hidden="true"/>}
+                <span>{move.name}</span>
+              </button>)}
             </div>
+            <div id="sm-more-camera-movements" className="sm-performance-chips sm-camera-extra-movements"
+              role="group" aria-label="More camera movements" hidden={!cameraMovesExpanded}>
+              {additionalCameraMovements.map(move=><button type="button" key={move.name}
+                aria-label={`Add ${move.name} camera movement to prompt`}
+                title={move.level.includes("experimental")?`${move.text} Experimental: result may vary.`:move.text}
+                onClick={()=>addCameraMovement(move)}>
+                {move.name.startsWith("Orbit")?<RotateCw size={19} aria-hidden="true"/>:<Camera size={19} aria-hidden="true"/>}
+                <span>{move.name}</span>
+              </button>)}
+            </div>
+            <button type="button" className="sm-camera-show-more"
+              aria-expanded={cameraMovesExpanded} aria-controls="sm-more-camera-movements"
+              onClick={()=>setCameraMovesExpanded(value=>!value)}>
+              {cameraMovesExpanded?"Show less":"Show more"}
+              <ChevronDown size={17} aria-hidden="true" className={cameraMovesExpanded?"is-expanded":""}/>
+            </button>
           </div>
           {advancedPerformanceToolsEnabled && <details className="sm-performance-advanced">
             <summary><ChevronDown size={16}/> Advanced: timeline and camera movements</summary>
@@ -976,7 +990,6 @@ export function StudioWizard({
               </div>
             </div>
           </details>}
-          <p className="sm-performance-tip">Describe natural movements, facial expressions and camera motion. Your uploaded photo defines the visual scene.</p>
         </section>}
         {step===3&&<section className="sm-review-checkout" aria-label="Review your video before payment">
           <div className="sm-review-list">
@@ -1037,13 +1050,19 @@ export function StudioWizard({
             You need {new Intl.NumberFormat("en-GB").format(creditQuote.credits)} Credits to generate this video.
             <a className="sm-gen-reuse" href={`/credits?resumeDraft=${encodeURIComponent(projectKey)}&requiredCredits=${creditQuote.credits}#buy-credits`}>Buy Credits and return to Step 4</a>
           </p>}
+          <nav className="sm-review-legal-links" aria-label="Important information before using AI">
+            <Link href="/rights" target="_blank" rel="noopener noreferrer">Media rights</Link>
+            <Link href="/ai-transparency" target="_blank" rel="noopener noreferrer">AI use &amp; transparency</Link>
+            <Link href="/terms" target="_blank" rel="noopener noreferrer">Terms</Link>
+            <Link href="/privacy" target="_blank" rel="noopener noreferrer">Privacy</Link>
+          </nav>
           <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Next: create your free account or sign in. Your saved audio and photo will move into your personal workspace. Buy Credits when available, then return to Step 4. Creating an account costs nothing."}</p>
         </section>}
         {step===3&&generating&&<p className="sm-review-payment-note sm-review-starting-status" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
           <button className="sm-studio-back" type="button" onClick={()=>step===0?window.location.assign("/"):setStep(x=>Math.max(0,x-1))}><ArrowLeft size={19}/> Back</button>
           {step<3&&<button type="button" className="sm-studio-next" disabled={busy||(step===0&&!audioValid)||(step===1&&(!draft.imageId||!frameValid||!imageReady))} onClick={()=>step===1?void continueFromPhoto():setStep(x=>Math.min(3,x+1))}>{busy&&step===1?"Saving photo…":"Continue"} <ArrowRight size={19}/></button>}
-          {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||(reviewShortage&&operatorStudio)||busy||generating||!!generationProjectId} onClick={()=>!creditStudio?void openGuestAccount():reviewShortage?void continueToCreditPurchase():void startCreditGeneration()}>{<span className="sm-studio-next-label">{generating?"Starting video…":busy?"Saving project…":!creditStudio?"Login to generate video":reviewShortage&&!operatorStudio?"Buy Credits to generate":"Generate Video"}</span>}{!generating&&<ArrowRight size={19} aria-hidden="true"/>}</button>}
+          {step===3&&<button type="button" className={`sm-studio-next${!creditStudio?" is-login-action":""}`} disabled={!available||!reviewRights||!creditQuote||(reviewShortage&&operatorStudio)||busy||generating||!!generationProjectId} onClick={()=>!creditStudio?void openGuestAccount():reviewShortage?void continueToCreditPurchase():void startCreditGeneration()}>{<span className="sm-studio-next-label">{generating?"Starting video…":busy?"Saving project…":!creditStudio?"Login to generate":reviewShortage&&!operatorStudio?"Buy Credits to generate":"Generate Video"}</span>}{!generating&&<ArrowRight size={19} aria-hidden="true"/>}</button>}
         </nav>
         
         {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/videos/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
