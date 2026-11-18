@@ -112,3 +112,25 @@
  .sm-cms-quick-link{transition:none}
  .sm-cms-quick-link:hover{transform:none}
 }
+
+
+/* Self-contained contrast: Payload mobile shells can be light even when the
+   custom CMS panels use the dark SingMotion theme. */
+.sm-cms-clean{
+ background:#100d1b;
+ border:1px solid rgba(177,143,225,.13);
+ border-radius:20px;
+ padding:clamp(16px,2.4vw,28px);
+}
+.sm-cms-tool-view{
+ background:#100d1b;
+ border:1px solid rgba(177,143,225,.13);
+ border-radius:19px;
+ padding:clamp(16px,2.4vw,28px);
+}
+@media(max-width:640px){
+ .sm-cms-clean,.sm-cms-tool-view{
+  padding:12px 11px 24px;
+  border-radius:13px;
+ }
+}
