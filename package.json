@@ -98,6 +98,10 @@
       "esbuild": "0.25.12"
     },
     "deepmerge": "$deepmerge",
-    "sass": "1.108.2"
+    "sass": "1.108.2",
+    "picomatch": "github:sxnistxr/picomatch#f03bec2c02e46f063fbfdc161aae1d0f854b2565",
+    "tinyglobby": {
+      "picomatch": "npm:@ryotsu/picomatch@4.0.7-a"
+    }
   }
 }
