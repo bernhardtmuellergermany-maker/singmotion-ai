@@ -166,7 +166,7 @@
 .sm-projects-card-footer .sm-projects-options-menu{
   position:absolute!important;
   inset:auto 0 calc(100% + 6px) auto!important;
-  width:175px;min-width:175px;padding:6px;margin:0;
+  width:min(175px,calc(100vw - 32px));min-width:0;padding:6px;margin:0;
   border:1px solid #7d53a2;border-radius:12px;
   background:#281b37;box-shadow:0 15px 35px #000b;
   display:grid;gap:3px;z-index:45;
@@ -192,18 +192,20 @@
 .sm-projects-card-footer .sm-projects-options-menu small{
   font-size:10px;color:#d9b2c0;padding:3px 9px;
 }
+/* Rename stays in the card's normal flow, never in a popup anchored to
+   a 32px button. On narrow screens that old overlay escaped to negative X. */
 .sm-projects-rename-form{
-  position:absolute;right:0;bottom:calc(100% + 7px);
-  width:min(215px,calc(100vw - 38px));box-sizing:border-box;
+  position:relative;inset:auto;
+  width:calc(100% - 24px);max-width:calc(100% - 24px);box-sizing:border-box;
+  min-width:0;margin:0 12px 12px;
   display:flex;flex-wrap:wrap;gap:6px;padding:9px;
   border:1px solid #8d62b4;border-radius:12px;
-  background:#281b39;box-shadow:0 12px 30px #000c;
-  z-index:35;
+  background:#281b39;box-shadow:0 6px 16px #0006;
 }
 .sm-projects-rename-form input{
   width:100%;min-width:0;padding:9px 10px;
   border:1px solid #9865c1;border-radius:8px;
-  background:#1a1427;color:white;font:inherit;font-size:12px;
+  background:#1a1427;color:white;font:inherit;font-size:16px;
 }
 .sm-projects-rename-form button{
   flex:1;min-height:33px;border:1px solid #8158a0;
@@ -217,7 +219,14 @@
  .sm-projects-card-details{padding:0 9px 10px;grid-template-columns:minmax(0,1fr) 32px}
  .sm-projects-card-content{padding-bottom:7px!important}
  .sm-projects-card-details .sm-projects-meta{font-size:9px}
- .sm-projects-card-footer .sm-projects-options-menu{width:158px;min-width:158px}
+ .sm-projects-card-footer .sm-projects-options-menu{
+   width:min(158px,calc((100vw - 72px)/2));min-width:0;
+ }
+ .sm-projects-rename-form{
+   width:calc(100% - 16px);max-width:calc(100% - 16px);
+   margin:0 8px 10px;padding:8px;
+ }
+ .sm-projects-rename-form button{min-height:38px;}
 }
 
 /* One-tap clipboard action for the full (not truncated) support reference. */
