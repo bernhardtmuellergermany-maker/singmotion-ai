@@ -61,7 +61,8 @@
     "test:backup-network": "node --experimental-strip-types --test tests/backup-network-roles.test.mjs",
     "test:hidrive-restore-path": "node --experimental-strip-types --test tests/hidrive-restore-path.test.mjs",
     "test:hidrive-combined": "node --experimental-strip-types --test tests/hidrive-combined.test.mjs",
-    "postinstall": "node scripts/patch-picomatch.mjs"
+    "postinstall": "node scripts/patch-picomatch.mjs",
+    "test:ui-copy": "node --experimental-strip-types --test tests/customer-copy-and-google-mobile.test.ts tests/customer-identity-domain.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1156.0",
