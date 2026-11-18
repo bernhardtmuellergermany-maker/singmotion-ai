@@ -11,7 +11,7 @@ test("CMS dashboard replaces built-in collection grid instead of stacking duplic
  const map=read("app/(payload)/admin/importMap.js");
  assert.match(config,/dashboard:\s*\{\s*Component:\s*"\/components\/cms\/dashboard-view\.tsx#CleanDashboardView"/);
  assert.doesNotMatch(config,/beforeDashboard:/);
- assert.match(dashboard,/DefaultTemplate/);
+ assert.doesNotMatch(dashboard,/<DefaultTemplate/);
  assert.match(dashboard,/initPageResult\.req\.user/);
  assert.match(map,/customer-insights-view\.tsx#CustomerInsightsView/);
  assert.match(map,/dashboard-view\.tsx#CleanDashboardView/);
@@ -59,4 +59,22 @@ test("Mobile CSS uses dense links, single column and dark native menu",()=>{
  assert.match(theme,/@media\(max-width:820px\)/);
  assert.match(theme,/\.nav\{background:#141020!important/);
  assert.match(theme,/\.nav a,.nav button\{/);
+});
+
+test("every custom CMS root view uses the existing Payload shell exactly once",()=>{
+ const views=[
+  "components/cms/dashboard-view.tsx",
+  "components/cms/showcase-view.tsx",
+  "components/cms/advanced-view.tsx",
+  "components/cms/customer-insights-view.tsx",
+ ];
+ for(const name of views){
+  const source=read(name);
+  assert.doesNotMatch(source,/import\s*\{DefaultTemplate\}/,name);
+  assert.doesNotMatch(source,/<DefaultTemplate/,name);
+  assert.match(source,/<Gutter>/,name);
+  assert.match(source,/hasRole\(initPageResult\.req\.user/,name);
+ }
+ const root=read("app/(payload)/admin/[[...segments]]/page.tsx");
+ assert.match(root,/return RootPage\(\{ config, importMap, \.\.\.args \}\)/);
 });

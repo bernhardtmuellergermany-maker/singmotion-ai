@@ -416,6 +416,12 @@ try {
   assert.equal(await sidebar.getByText("Aktivitätsprotokoll",{exact:true}).count(),0);
   const clean=page.locator(".sm-cms-clean");
   await clean.getByRole("heading",{name:"Übersicht"}).waitFor();
+  // There must be one CMS shell, not the nested DefaultTemplate toolbar
+  // seen in the mobile screenshot (two menu/profile rows).
+  assert.equal(await page.locator(".template-default .template-default").count(),0,
+    "Nested Payload DefaultTemplate renders a duplicate mobile header");
+  assert.equal(await page.locator(".nav").count(),1,
+    "Payload should render exactly one navigation container");
   assert.equal(await clean.count(),1);
   await clean.getByRole("link",{name:/Kunden & Credits/}).waitFor();
   await clean.getByRole("link",{name:/Kundensupport/}).waitFor();
