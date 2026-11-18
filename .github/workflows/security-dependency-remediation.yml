@@ -40,6 +40,9 @@ jobs:
             pkg.dependencies.next="16.4.6";
             fs.writeFileSync(file,JSON.stringify(pkg,null,2)+String.fromCharCode(10));
           '
+          # Discard the obsolete 3.92 peer-resolution graph; regenerating lock
+          # from the exact, internally consistent 3.94 manifest avoids ERESOLVE.
+          rm package-lock.json
           npm install --package-lock-only --ignore-scripts --audit=false
           npm audit fix --package-lock-only --ignore-scripts --audit=false || true
       - name: Print machine-readable production advisory summary (without secret data)
