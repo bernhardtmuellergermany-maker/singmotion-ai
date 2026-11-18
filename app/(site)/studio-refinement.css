@@ -2927,3 +2927,32 @@
 .product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars i.neon-wave-bar.is-selected{
   box-shadow:0 0 3px rgba(247,69,226,.44)!important;
 }
+
+/* Absolute-time bar grid: panning moves a stable waveform texture via GPU
+   translation instead of changing bar heights every few pixels. Clip only the
+   artwork; keep selection and oversized trim handles outside the clip. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars-window{
+  position:absolute;
+  inset:0;
+  overflow:hidden;
+  pointer-events:none;
+  z-index:1;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-bars.wave-bars-anchored{
+  position:absolute!important;
+  top:0!important;
+  left:0!important;
+  right:auto!important;
+  bottom:auto!important;
+  box-sizing:border-box!important;
+  height:100%!important;
+  width:var(--sm-wave-track-width)!important;
+  min-width:0!important;
+  max-width:none!important;
+  overflow:visible!important;
+  justify-content:flex-start!important;
+  transform:translate3d(var(--sm-wave-translate-x),0,0);
+  will-change:transform;
+  pointer-events:none;
+  transition:none!important;
+}

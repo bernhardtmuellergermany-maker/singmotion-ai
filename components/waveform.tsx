@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, type CSSProperties } from "react";
 import { Play, Pause, RotateCcw, Minus, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import {panWaveViewport,pinchWaveViewport,dragWaveHandleTime} from "@/lib/studio-wave-navigation";
 import { moveSelection } from "@/lib/studio-editor";
+import { anchoredWaveBars } from "@/lib/studio-wave-bars";
 export default function Waveform({
   url,
   duration,
@@ -386,29 +387,19 @@ export default function Waveform({
     setTimeDraft(formatHundredths(Math.max(lower, Math.min(upper, Math.round((current + amount) * 1000) / 1000))));
     setTimeInputError("");
   }
-  const bars = useMemo(() => {
-    const targetBars = Math.max(44, Math.min(170, Math.round((stripWidth || 360) / 5.6)));
-    const count = Math.min(peaks.length || targetBars, targetBars);
-    const values = Array.from({ length: count }, (_, i) => {
-      if (!peaks.length) return 0.08;
-      const from = Math.max(0, Math.min(peaks.length - 1, Math.floor(((viewStart + (i / count) * viewSpan) / duration) * peaks.length))),
-        to = Math.max(from + 1, Math.min(peaks.length, Math.ceil(((viewStart + ((i + 1) / count) * viewSpan) / duration) * peaks.length)));
-      let maximum = 0;
-      // Avoid allocating a fresh array for every bar on every gesture frame.
-      for (let k = from; k < to; k++) maximum = Math.max(maximum, peaks[k]);
-      return maximum;
-    });
-    return values.map((p, i) => {
-      const barTime = viewStart + ((i + 0.5) / values.length) * viewSpan;
-      return (
-        <i
-          key={i}
-          className={barTime >= start && barTime <= end ? "neon-wave-bar is-selected" : "neon-wave-bar"}
-          style={{ height: `${Math.max(5, p * 92)}%` }}
-        />
-      );
-    });
-  }, [peaks, duration, start, end, viewStart, viewSpan, stripWidth]);
+  // Every bar has a fixed absolute audio-time index. During a pan we translate
+  // the whole row by fractional pixels; its amplitudes never re-sample/jitter.
+  const waveRender = useMemo(
+    () => anchoredWaveBars(peaks,duration,viewStart,viewSpan,stripWidth,start,end),
+    [peaks,duration,viewStart,viewSpan,stripWidth,start,end],
+  );
+  const bars = waveRender.bars.map(bar => (
+    <i
+      key={bar.index}
+      className={bar.selected ? "neon-wave-bar is-selected" : "neon-wave-bar"}
+      style={{height:`${bar.height}%`}}
+    />
+  ));
   return (
     <div className="wave-editor studio-modern-wave">
       <div
@@ -445,8 +436,16 @@ export default function Waveform({
           onTouchEnd={finishPinch}
           onTouchCancel={finishPinch}
         >
-          <div className="wave-bars" aria-hidden="true">
-            {bars}
+          <div className="wave-bars-window" aria-hidden="true">
+            <div
+              className="wave-bars wave-bars-anchored"
+              style={{
+                "--sm-wave-track-width": `${waveRender.trackWidth}px`,
+                "--sm-wave-translate-x": `${waveRender.translateX}px`,
+              } as CSSProperties}
+            >
+              {bars}
+            </div>
           </div>
           <div
             className="wave-selection"
