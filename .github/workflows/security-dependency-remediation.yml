@@ -6,6 +6,8 @@ on:
       - release/production-promoted-20261114
     paths:
       - .github/workflows/security-dependency-remediation.yml
+      - package.json
+      - tests/picomatch-remediation.test.ts
 
 permissions:
   contents: write
@@ -30,6 +32,10 @@ jobs:
           set -eu
           # Update the complete Payload peer set atomically BEFORE npm resolves.
           # A direct npm install against a locked 3.92 peer tree ERESOLVES.
+          # Root.io publishes security-patched picomatch 2.x and 4.x builds.
+          # Verified patch record: https://osv.dev/vulnerability/ROOT-APP-NPM-CVE-2026-112366
+          npm view @rootio/picomatch@2.3.2-root.io.1 version
+          npm view @rootio/picomatch@4.0.7-root.io.1 version
           node --input-type=module -e '
             import fs from "node:fs";
             const file="package.json",pkg=JSON.parse(fs.readFileSync(file,"utf8"));
@@ -38,6 +44,13 @@ jobs:
             pkg.dependencies.next="16.4.6";
             // Payload pins an old Sass watcher tree; use a compatible fixed Sass.
             pkg.overrides.sass="1.108.2";
+            // Keep semver-major paths separate. This replaces vulnerable
+            // glob parsers with independently patched versions, not a renamed
+            // copy of the original vulnerable package.
+            pkg.overrides.picomatch="npm:@rootio/picomatch@2.3.2-root.io.1";
+            pkg.overrides.tinyglobby={
+              picomatch:"npm:@rootio/picomatch@4.0.7-root.io.1"
+            };
             fs.writeFileSync(file,JSON.stringify(pkg,null,2)+String.fromCharCode(10));
           '
           # Discard the obsolete 3.92 peer-resolution graph; regenerating lock
@@ -70,5 +83,9 @@ jobs:
             git commit -m "fix(deps): update Payload Next and lockfile for security audit"
             git push origin HEAD:fix/security-dependency-audit-20261118
           fi
+      - name: Install and independently test real patched parser behavior
+        run: |
+          npm ci
+          node --experimental-strip-types --test tests/picomatch-remediation.test.ts
       - name: Verify production audit gate
         run: npm audit --omit=dev --audit-level=high
