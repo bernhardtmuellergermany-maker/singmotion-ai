@@ -8,7 +8,7 @@ export const defaultFooterLinks = [
 ];
 export function SiteFooter({
   links = defaultFooterLinks,
-  copyright = "SingMotion AI · Development preview",
+  copyright = "© SingMotion AI",
 }: {
   links?: { label: string; url: string }[];
   copyright?: string;
