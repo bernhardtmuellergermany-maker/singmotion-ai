@@ -115,6 +115,10 @@ test("global cohort password is separate from operator password and revoked with
  assert.equal(validPrivateGateTicket(v2,{...p,PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED:"false"},stamp),false);
  assert.equal(stagingAccess(basic("beta",p.PRIVATE_BETA_PASSWORD),{...p,PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED:"false"}),401);
  assert.equal(privateBetaPasswordEnabled({...p,PRIVATE_BETA_PASSWORD:"too-short"}),false);
+ const pendingStripeProductReview={...p,STRIPE_MANAGED_PAYMENTS_PREPAID_CREDITS_APPROVED:"false"};
+ assert.equal(privateBetaPasswordEnabled(pendingStripeProductReview),true,"group login is independent of payment readiness");
+ assert.equal(stagingAccess(basic("beta",p.PRIVATE_BETA_PASSWORD),pendingStripeProductReview),200);
+ assert.equal(stripeCreditTopupsLiveEnabled(pendingStripeProductReview),false,"group password must never bypass payment approval");
 });
 
 test("launch remains fail-closed for incomplete product, payment, password or media proof",()=>{
