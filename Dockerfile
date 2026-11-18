@@ -12,6 +12,8 @@ WORKDIR /app
 COPY package*.json ./
 # The pinned local security patch must exist before npm resolves dependencies.
 COPY vendor/deepmerge ./vendor/deepmerge
+# The security backport is audited and applied at npm's postinstall phase.
+COPY scripts/patch-picomatch.mjs ./scripts/patch-picomatch.mjs
 RUN npm ci
 COPY . .
 RUN npm run build
