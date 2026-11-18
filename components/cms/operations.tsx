@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   ArrowUpRight, FileText, Image as ImageIcon, Menu, Settings2,
   Activity, ShieldCheck, ClipboardList, LifeBuoy, MonitorPlay,
-  ShieldAlert, Clock3, Layers3, Sparkles, ExternalLink,
+  ShieldAlert, Clock3, Layers3, Sparkles, ExternalLink, UsersRound,
 } from "lucide-react";
 import type {AdminViewServerProps} from "payload";
 import {hasRole} from "../../cms/policy";
@@ -74,6 +74,7 @@ export async function Operations({user}:Pick<AdminViewServerProps,"user">){
     <div className="sm-cms-hero-actions">
      {canEditContent?<Link href="/admin/collections/pages" className="sm-cms-primary-link">Manage website <ArrowUpRight size={17}/></Link>:<Link href="/admin/collections/support-cases" className="sm-cms-primary-link">Review support <ArrowUpRight size={17}/></Link>}
      {canEditContent&&<Link href="/cms-preview/home" className="sm-cms-secondary-link">Preview CMS home <ExternalLink size={16}/></Link>}
+     {superAdmin&&<Link href="/admin/customer-insights" className="sm-cms-secondary-link">Customer Insights <UsersRound size={16}/></Link>}
     </div>
    </div>
    <div className="sm-cms-hero-art" aria-hidden="true">
