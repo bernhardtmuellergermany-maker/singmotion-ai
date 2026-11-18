@@ -72,7 +72,7 @@ test("Completed paid credit Studio video sends only verified private link and re
   result=await retryStudioCreditVideoReadyNotifications(f.root,env,sender as typeof fetch);
   assert.equal(result.sent,2);
   assert.equal(emails.length,2);
-  assert.ok(emails.some(m=>m.text.includes("/projects/live_"+next)));
+  assert.ok(emails.some(m=>m.text.includes("/videos/live_"+next)));
   assert.ok(emails.every(m=>!m.text.includes("BytePlus")&&!m.text.includes("R2")&&!m.text.includes("secret")));
   result=await retryStudioCreditVideoReadyNotifications(f.root,env,sender as typeof fetch);
   assert.equal(result.sent,0,"Resend dispatch is idempotent per video");
