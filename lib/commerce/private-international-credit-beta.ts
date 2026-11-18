@@ -17,6 +17,8 @@ export function assessPrivateInternationalCreditBeta(env:Record<string,string|un
   {id:"BETA_OPERATOR_APPROVED",ready:env.PRODUCTION_PRIVATE_INTERNATIONAL_CREDIT_BETA_ENABLED==="true"},
   {id:"PASSWORD_GATE_REMAINS_ENABLED",ready:env.STAGING_AUTH_ENABLED==="true"&&
     (env.STAGING_PASSWORD?.length||0)>=32},
+  {id:"SEPARATE_BETA_GROUP_PASSWORD",ready:(env.PRIVATE_BETA_PASSWORD?.length||0)>=32&&
+    env.PRIVATE_BETA_PASSWORD!==env.STAGING_PASSWORD},
   {id:"PUBLIC_LAUNCH_STAYS_DISABLED",ready:env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="false"&&
     env.PUBLIC_CUSTOMER_LAUNCH_APPROVED==="false"},
   {id:"REVIEWED_MANAGED_PAYMENTS_ACCOUNT_AND_CREDITS",ready:managedCreditMoRApproved(env)&&
