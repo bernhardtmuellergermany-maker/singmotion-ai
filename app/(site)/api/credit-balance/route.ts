@@ -12,6 +12,7 @@ import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
 import {managedCreditMoRApproved,approvedMoRBuyerCountries} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
+import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
 
 export const runtime="nodejs";
@@ -57,8 +58,10 @@ export async function GET(req:NextRequest){
   const entries=wallet.entries(identity.subject);
   const rawBalance=purchased-reserved;
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
+  const privateInternationalBeta=privateInternationalCreditBetaEnabled(process.env);
+  const deOnlyPrivateTest=privateLiveCreditTestEnabled(process.env)&&!privateInternationalBeta;
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
-    (privateLiveCreditTestEnabled(process.env)||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
+    (privateInternationalBeta||privateLiveCreditTestEnabled(process.env)||publicCreditReleaseApproved(process.env)||privateCreditPilotApproved(process.env)||
      (customerLaunchReadiness().readyForPaidOrders&&
       (auditSingMotionLaunch(process.env,"production").ready||
        protectedProductionLivePilotApproved(process.env))));
@@ -75,11 +78,11 @@ export async function GET(req:NextRequest){
    testMode:testCheckout,
    // Buyers provide country/type only when a reviewed public jurisdiction route
    // exists. The private DE owner pilot remains unchanged.
-   globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled(process.env)&&
+   globalCountrySelection:liveCheckout&&!deOnlyPrivateTest&&
      (managedCreditMoRApproved(process.env)||worldwideTaxPolicyAvailable(process.env)),
    // Offer eligible Stripe buyer destinations, not only MoR-tax-covered ones.
    // Non-covered destinations use seller-managed Stripe Tax responsibility.
-   approvedBillingCountries:liveCheckout&&!privateLiveCreditTestEnabled(process.env)&&
+   approvedBillingCountries:liveCheckout&&!deOnlyPrivateTest&&
      managedCreditMoRApproved(process.env)?approvedMoRBuyerCountries(process.env):null,
    entries,
    legacyOrders:oldOrders,
