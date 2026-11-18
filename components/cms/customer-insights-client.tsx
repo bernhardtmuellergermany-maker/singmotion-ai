@@ -127,7 +127,7 @@ export function CustomerInsightsClient(){
    <Stat label="Ältere bezahlte Aufträge" value={money(metrics.legacyGrossCents)}
     detail={money(metrics.knownRefundCents)+" bekannte Rückerstattungen separat"}/>
    <Stat label="Credit-Guthaben" value={number(metrics.creditsRemaining)}
-    detail={number(metrics.creditsReserved)+" Credits zusätzlich reserviert; keine Geldforderung"/>
+    detail={number(metrics.creditsReserved)+" Credits zusätzlich reserviert; keine Geldforderung"}/>
    <Stat label="Offene Aufladungen" value={number(metrics.checkoutPending)}
     detail="Pending ist nicht automatisch ein Abbruch"/>
    <Stat label="Videos mit offener Prüfung" value={number(metrics.creditVideoReviews)}
