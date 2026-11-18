@@ -1,4 +1,6 @@
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
+import { CreditWallet } from "./credit-wallet.ts";
+import { betaWelcomeCreditsEnabled, grantBetaWelcomeCredits } from "./beta-welcome-credits.ts";
 import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
@@ -32,7 +34,9 @@ export interface PaymentAdapter {
 }
 export class CommerceStore {
   readonly db: DatabaseSync;
-  constructor(file: string) {
+  private readonly runtimeEnv: Record<string,string|undefined>;
+  constructor(file: string, runtimeEnv: Record<string,string|undefined> = process.env) {
+    this.runtimeEnv = runtimeEnv;
     this.db = new DatabaseSync(file);
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
  CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created INTEGER NOT NULL);
@@ -92,6 +96,16 @@ export class CommerceStore {
       )
       .run(actor, action, record, Date.now());
   }
+  /** The free Beta gift is a real, immutable wallet entry. It can be issued
+   * only inside the same transaction that first creates a customer account.
+   * Returning customers, normal login and staff accounts are never re-granted.
+   */
+  private awardBetaWelcomeOnAccountCreation(id:string){
+    if(!betaWelcomeCreditsEnabled(this.runtimeEnv))return;
+    // Idempotent schema setup; the wallet and paid Checkout share this ledger.
+    new CreditWallet(this.db);
+    grantBetaWelcomeCredits(this.db,id);
+  }
   register(email: string, password: string) {
     email = email.trim().toLowerCase();
     if (
@@ -109,28 +123,32 @@ export class CommerceStore {
       // New password accounts must confirm ownership before future paid orders.
       // Missing rows belong to existing pre-migration accounts and retain access.
       this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,NULL,0)").run(id);
+      this.awardBetaWelcomeOnAccountCreation(id);
     });
     return id;
   }
   googleLogin(subject:string,email:string){
     email=email.trim().toLowerCase();
     if(!/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(email)||!/^\d{8,32}$/.test(subject))throw Error("Invalid Google account");
-    this.db.exec("CREATE TABLE IF NOT EXISTS customer_google_identities(google_sub TEXT PRIMARY KEY,account_id TEXT UNIQUE NOT NULL)");
-    const existing=this.db.prepare("SELECT account_id FROM customer_google_identities WHERE google_sub=?").get(subject) as {account_id:string}|undefined;
-    let id=existing?.account_id;
-    if(!id){
-      if(this.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email))throw Error("An account with this email already exists. Sign in with its password.");
-      id=randomUUID();
-      this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());
-      this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,id);
-    }
-    // Google email_verified was validated by the OAuth callback, including
-    // audience, issuer, subject and nonce. Never infer it from an email alone.
-    this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,?,0) ON CONFLICT(account_id) DO UPDATE SET verified_at=excluded.verified_at,token_hash=NULL,token_expires=NULL")
-      .run(id,Date.now());
-    const token=randomBytes(32).toString("base64url");
-    this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
-    return {id,token};
+    return this.tx(()=>{
+      this.db.exec("CREATE TABLE IF NOT EXISTS customer_google_identities(google_sub TEXT PRIMARY KEY,account_id TEXT UNIQUE NOT NULL)");
+      const existing=this.db.prepare("SELECT account_id FROM customer_google_identities WHERE google_sub=?").get(subject) as {account_id:string}|undefined;
+      let id=existing?.account_id;
+      if(!id){
+        if(this.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email))throw Error("An account with this email already exists. Sign in with its password.");
+        id=randomUUID();
+        this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());
+        this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,id);
+        this.awardBetaWelcomeOnAccountCreation(id);
+      }
+      // Google email_verified was validated by the OAuth callback, including
+      // audience, issuer, subject and nonce. Never infer it from an email alone.
+      this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,?,0) ON CONFLICT(account_id) DO UPDATE SET verified_at=excluded.verified_at,token_hash=NULL,token_expires=NULL")
+        .run(id,Date.now());
+      const token=randomBytes(32).toString("base64url");
+      this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
+      return {id,token};
+    });
   }
   login(email: string, password: string) {
     if (password.length > 256) throw Error("Invalid credentials");

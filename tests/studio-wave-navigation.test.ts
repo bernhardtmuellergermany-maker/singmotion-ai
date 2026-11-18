@@ -84,3 +84,16 @@ test("wider waveform stays centered without the old intrinsic minimum-width over
  assert.match(css,/\.wave-handle:focus-visible\{\s*outline:none!important/);
  assert.match(css,/\.wave-handle:focus-visible \.wave-grip-mark\{\s*outline:2px solid #d88aff!important/);
 });
+
+test("phone waveform paints at most once per frame and uses lightweight Neon Wave bars",()=>{
+ const wave=read("components/waveform.tsx");
+ const css=read("app/(site)/studio-refinement.css");
+ assert.match(wave,/requestAnimationFrame\(\(\)=>\{/);
+ assert.match(wave,/function scheduleViewport\(/);
+ assert.match(wave,/function flushViewport\(/);
+ assert.match(wave,/const targetBars = Math\.max\(44, Math\.min\(170/);
+ assert.match(wave,/for \(let k = from; k < to; k\+\+\)/);
+ assert.doesNotMatch(wave,/Math\.max\(\.\.\.peaks\.slice\(/);
+ assert.match(css,/Fast mobile navigation: one gentle halo/);
+ assert.match(css,/box-shadow:0 0 3px rgba\(247,69,226,\.44\)!important/);
+});

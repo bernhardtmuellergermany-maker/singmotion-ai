@@ -42,7 +42,10 @@ export default function Waveform({
     pinchOrigin = useRef<{distance:number;start:number;span:number;anchorSeconds:number}|null>(null),
     pinchBlocked = useRef(false),
     handleDragId = useRef<number|null>(null),
-    handleGrab = useRef<{pointerId:number;x:number;time:number}|null>(null);
+    handleGrab = useRef<{pointerId:number;x:number;time:number}|null>(null),
+    viewportFrame = useRef<number | null>(null),
+    queuedViewport = useRef<{start:number;span:number;freePan:boolean} | null>(null),
+    queuedZoomLevel = useRef<number | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     let context: AudioContext | undefined;
@@ -82,6 +85,13 @@ export default function Waveform({
       controller.abort();
     };
   }, [url]);
+  // Cancel pending viewport paints when the audio editor unmounts.
+  useEffect(() => () => {
+    if (viewportFrame.current !== null) cancelAnimationFrame(viewportFrame.current);
+    viewportFrame.current = null;
+    queuedViewport.current = null;
+    queuedZoomLevel.current = null;
+  }, []);
   // Match the neon bar density to the available track width. This keeps
   // individual bars legible on narrow phones without changing clip timing.
   useEffect(() => {
@@ -157,6 +167,34 @@ export default function Waveform({
   };
   const zoomIn=()=>zoomBy(1.45);
   const zoomOut=()=>zoomBy(1/1.45);
+  // Touch events may arrive faster than a phone can paint. Combine all pan and
+  // pinch updates into one React commit per animation frame; no audio refetch.
+  function scheduleViewport(next:{start:number;span:number},zoom?:number) {
+    queuedViewport.current={...next,freePan:true};
+    if(zoom!==undefined)queuedZoomLevel.current=zoom;
+    if(viewportFrame.current!==null)return;
+    viewportFrame.current=requestAnimationFrame(()=>{
+      viewportFrame.current=null;
+      const current=queuedViewport.current;
+      const nextZoom=queuedZoomLevel.current;
+      queuedViewport.current=null;
+      queuedZoomLevel.current=null;
+      if(current)setLockedView(current);
+      if(nextZoom!==null)setZoomLevel(nextZoom);
+    });
+  }
+  function flushViewport(){
+    if(viewportFrame.current!==null){
+      cancelAnimationFrame(viewportFrame.current);
+      viewportFrame.current=null;
+    }
+    const current=queuedViewport.current;
+    const nextZoom=queuedZoomLevel.current;
+    queuedViewport.current=null;
+    queuedZoomLevel.current=null;
+    if(current)setLockedView(current);
+    if(nextZoom!==null)setZoomLevel(nextZoom);
+  }
   // Panning never invokes onChange and leaves the absolute trim timestamps intact.
   function startPan(e:React.PointerEvent<HTMLDivElement>){
     if(pinchBlocked.current||viewSpan>=duration-0.001)return;
@@ -177,11 +215,12 @@ export default function Waveform({
        !e.currentTarget.hasPointerCapture(e.pointerId))return;
     const next=panWaveViewport({start:origin.start,span:origin.span},
       e.clientX-origin.x,rect.width,duration);
-    setLockedView({...next,freePan:true});
+    scheduleViewport(next);
   }
   function finishPan(e:React.PointerEvent<HTMLDivElement>){
     if(panOrigin.current?.pointerId!==e.pointerId)return;
     panOrigin.current=null;
+    flushViewport();
     setDragging(false);
     if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
   }
@@ -214,11 +253,10 @@ export default function Waveform({
     const next=pinchWaveViewport({start:origin.start,span:origin.span},
       origin.distance,distance,origin.anchorSeconds,
       (midpoint-rect.left)/rect.width,minViewSpan,duration);
-    setLockedView({...next,freePan:true});
-    setZoomLevel(Math.max(0,Math.min(12,Math.log(Math.max(1,duration/next.span))/Math.log(1.45))));
+    scheduleViewport(next,Math.max(0,Math.min(12,Math.log(Math.max(1,duration/next.span))/Math.log(1.45))));
   }
   function finishPinch(e:React.TouchEvent<HTMLDivElement>){
-    if(e.touches.length<2&&pinchOrigin.current){pinchOrigin.current=null;setDragging(false);}
+    if(e.touches.length<2&&pinchOrigin.current){pinchOrigin.current=null;flushViewport();setDragging(false);}
     if(e.touches.length===0)pinchBlocked.current=false;
   }
   function drag(
@@ -349,13 +387,16 @@ export default function Waveform({
     setTimeInputError("");
   }
   const bars = useMemo(() => {
-    const targetBars = Math.max(48, Math.min(220, Math.round((stripWidth || 360) / 4.3)));
+    const targetBars = Math.max(44, Math.min(170, Math.round((stripWidth || 360) / 5.6)));
     const count = Math.min(peaks.length || targetBars, targetBars);
     const values = Array.from({ length: count }, (_, i) => {
       if (!peaks.length) return 0.08;
       const from = Math.max(0, Math.min(peaks.length - 1, Math.floor(((viewStart + (i / count) * viewSpan) / duration) * peaks.length))),
         to = Math.max(from + 1, Math.min(peaks.length, Math.ceil(((viewStart + ((i + 1) / count) * viewSpan) / duration) * peaks.length)));
-      return Math.max(...peaks.slice(from, to));
+      let maximum = 0;
+      // Avoid allocating a fresh array for every bar on every gesture frame.
+      for (let k = from; k < to; k++) maximum = Math.max(maximum, peaks[k]);
+      return maximum;
     });
     return values.map((p, i) => {
       const barTime = viewStart + ((i + 0.5) / values.length) * viewSpan;
