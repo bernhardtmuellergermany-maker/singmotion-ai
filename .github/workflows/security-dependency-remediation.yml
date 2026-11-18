@@ -32,5 +32,7 @@ jobs:
         run: node --experimental-strip-types --test tests/picomatch-remediation.test.ts
       - name: Fail closed if a published production advisory remains
         run: npm audit --omit=dev --audit-level=high
+      - name: Install MP4 test prerequisites
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - name: Complete production build and checkout/credit/backup safety regressions
         run: npm run build
