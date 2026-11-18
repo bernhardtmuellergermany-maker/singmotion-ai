@@ -2821,3 +2821,39 @@
  width:0!important;
  height:0!important;
 }
+
+/* Fix long-standing content-box + min-width conflict:
+   .wave-viewport inherited horizontal padding and width:100%, and
+   .wave-viewport .wave-strip inherited min-width:100%. With the 42px edge
+   gutters this made the actual track 84px too wide and shifted it right.
+   One border-box coordinate space is shared by bars, trim, pointer math,
+   ruler and the two outer handles. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-viewport{
+ display:block;
+ box-sizing:border-box!important;
+ width:100%!important;
+ max-width:100%!important;
+ min-width:0!important;
+ padding-inline:0!important;
+ overflow:visible!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-strip{
+ box-sizing:border-box!important;
+ width:calc(100% - 84px)!important;
+ max-width:calc(100% - 84px)!important;
+ min-width:0!important;
+ margin-inline:42px!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-time{
+ min-width:0!important;
+ max-width:calc(100% - 84px)!important;
+}
+/* Keyboard focus is shown around the small visible arrow only, not the
+   intentionally broad (42px) invisible touch hit area. */
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle:focus-visible{
+ outline:none!important;
+}
+.product-theme.singmotion-flow .sm-new-wave-card .studio-modern-wave .wave-handle:focus-visible .wave-grip-mark{
+ outline:2px solid #d88aff!important;
+ outline-offset:2px!important;
+}

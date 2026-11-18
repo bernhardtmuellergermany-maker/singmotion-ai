@@ -76,3 +76,12 @@ test("mouse and touch can pan the track, Hand mode pans within selection, and sm
  assert.match(css,/\.wave-handle::after\{\s*content:none!important;\s*display:none!important/);
  assert.match(css,/\.wave-strip\{\s*clip-path:none!important/);
 });
+
+test("waveform track is precisely centered, not forced 84px too wide by old min-width rule",()=>{
+ const css=read("app/(site)/studio-refinement.css");
+ assert.match(css,/\.studio-modern-wave \.wave-viewport\{[\s\S]*?box-sizing:border-box!important;[\s\S]*?padding-inline:0!important/);
+ assert.match(css,/\.studio-modern-wave \.wave-strip\{[\s\S]*?width:calc\(100% - 84px\)!important;[\s\S]*?min-width:0!important;[\s\S]*?margin-inline:42px!important/);
+ assert.match(css,/\.studio-modern-wave \.wave-time\{\s*min-width:0!important;\s*max-width:calc\(100% - 84px\)!important/);
+ assert.match(css,/\.wave-handle:focus-visible\{\s*outline:none!important/);
+ assert.match(css,/\.wave-handle:focus-visible \.wave-grip-mark\{\s*outline:2px solid #d88aff!important/);
+});
