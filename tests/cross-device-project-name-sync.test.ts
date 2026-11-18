@@ -11,7 +11,7 @@ test("account project titles take precedence over browser-local labels on every 
  assert.match(gallery,/api<\{projects:StudioProject\[\]\}>\("studio-live",\{cache:"no-store"\}\)/);
  assert.match(gallery,/api<SavedDraft\[\]>\("studio-drafts",\{cache:"no-store"\}\)/);
  assert.match(gallery,/setSyncNonce\(n=>n\+1\)/);
- assert.match(gallery,/Sync project names from account/);
+ assert.match(gallery,/Sync video names from account/);
  assert.match(gallery,/same account on desktop and mobile/);
 });
 
