@@ -1023,7 +1023,7 @@ export function StudioWizard({
                   <p><strong>Rate:</strong> {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second</p>
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
                   <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
-                  <p className="sm-review-credit-disclaimer">{creditStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
+                  <p className="sm-review-credit-disclaimer">{creditStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Video generation is currently unavailable for this account. No Credits are reserved or charged."}</p>
                 </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>
             </details>
