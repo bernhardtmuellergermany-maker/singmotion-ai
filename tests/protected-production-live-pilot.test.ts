@@ -129,7 +129,7 @@ test("provider cost cap is finite and never creates a video-count limit",()=>{
  assert.equal(policy.lifetimeCapMicroUsd,80_000_000);
  assert.equal(boundPrivatePilotPolicy(policy,{...e,PRODUCTION_PRIVATE_LIVE_PILOT_ENABLED:"false"}),policy);
 });
-test("LIVE credit purchases remain separately controlled by VAT review and owner switch",()=>{
+test("legacy private live-video policy cannot activate new Credit sales without worldwide product review",()=>{
  const e=approved();
  assert.equal(stripeCreditTopupsLiveEnabled(e),false);
  const taxReviewed={...e,STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",
@@ -138,7 +138,7 @@ test("LIVE credit purchases remain separately controlled by VAT review and owner
    country:"DE",buyerType:"consumer",voucherKind:"single-purpose",mode:"de-small-business",
    evidence:"Synthetic domestic voucher review with accountant, for tests only"
   }]}),};
- assert.equal(stripeCreditTopupsLiveEnabled(taxReviewed),true);
+ assert.equal(stripeCreditTopupsLiveEnabled(taxReviewed),false,"legacy protected-live policy cannot enable country-restricted Credit sales");
  assert.equal(stripeCreditTopupsLiveEnabled({...taxReviewed,CREDIT_TAX_WORLDWIDE_REVIEW_APPROVED:"false"}),false);
  assert.equal(stripeCreditTopupsLiveEnabled({...taxReviewed,PRODUCTION_PRIVATE_LIVE_PILOT_ENABLED:"false"}),false);
 });
@@ -146,13 +146,16 @@ test("real customer checkout, refund webhook and R2 have distinct protected-live
  const read=(name:string)=>readFileSync(new URL("../"+name,import.meta.url),"utf8");
  for(const filename of [
   "app/(site)/api/stripe-checkout/route.ts",
-  "app/(site)/api/stripe-webhook/route.ts",
-  "app/(site)/api/credit-checkout/route.ts",
   "lib/commerce/customer-byteplus-dispatch.ts",
   "lib/commerce/customer-r2-inputs.ts",
  ]){
   assert.match(read(filename),/protectedProductionLivePilotApproved/,filename);
  }
+ const creditCheckout=read("app/(site)/api/credit-checkout/route.ts");
+ assert.match(creditCheckout,/privateInternationalCreditBetaEnabled/);
+ assert.doesNotMatch(creditCheckout,/protectedProductionLivePilotApproved/);
+ const signedWebhook=read("app/(site)/api/stripe-webhook/route.ts");
+ assert.match(signedWebhook,/existingBoundLiveCreditReceipt/);
  assert.match(read("app/(site)/api/stripe-checkout/route.ts"),/owner.kind!=="account"/);
  assert.match(read("lib/staging.ts"),/stagingAccess/);
  assert.match(read("app/(site)/api/stripe-webhook/route.ts"),/verifyStripePaymentEvent/);
