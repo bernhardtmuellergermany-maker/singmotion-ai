@@ -28,10 +28,10 @@ const approved=():Record<string,string>=>({
  ]}),
  STRIPE_SECRET_KEY:"sk_live_synthetic",STRIPE_WEBHOOK_SECRET:"whsec_synthetic"
 });
-test("private credit gate is independent of public video or provider dispatch approval",()=>{
+test("retired private national credit pilot never admits new LIVE payments",()=>{
  const env=approved();
  assert.deepEqual(assessPrivateCreditPilot(env),{ready:true,blockers:[]});
- assert.equal(stripeCreditTopupsLiveEnabled(env),true);
+ assert.equal(stripeCreditTopupsLiveEnabled(env),false);
  assert.equal(protectedProductionLivePilotApproved(env),false);
  assert.equal(configuredStripePaymentMode(env),null,"Legacy per-video checkout must remain disabled");
  assert.equal(configuredStripeReversalMode(env),"live","Verified live credit webhook can still settle and reverse");
@@ -59,15 +59,16 @@ test("existing video worker and public launch never inherit credit-only approval
  const checkout=readFileSync(new URL("app/(site)/api/credit-checkout/route.ts",root),"utf8");
  const balance=readFileSync(new URL("app/(site)/api/credit-balance/route.ts",root),"utf8");
  const webhook=readFileSync(new URL("app/(site)/api/stripe-webhook/route.ts",root),"utf8");
- assert.match(checkout,/privateCreditPilotApproved/);
- assert.match(balance,/privateCreditPilotApproved/);
- assert.match(webhook,/settlementEnabled\|\|publicCreditReleaseApproved\(process\.env\)\|\|privateCreditPilotApproved/);
+ assert.doesNotMatch(checkout,/privateCreditPilotApproved|privateLiveCreditTestTaxDecision/);
+ assert.doesNotMatch(balance,/privateCreditPilotApproved|privateLiveCreditTestEnabled/);
+ assert.match(checkout,/privateInternationalCreditBetaEnabled/);
+ assert.match(webhook,/existingBoundLiveCreditReceipt/);
  assert.match(webhook,/verifyStripePaymentEvent/);
 });
 
 // Private owner-operated real-money acceptance is not a public release,
 // legacy video checkout, or a claim of general jurisdiction tax approval.
-test("password-protected Production can accept live owner Credit testing without public approval",()=>{
+test("retired private DE owner path cannot initiate new LIVE checkout or generation",()=>{
  const e:Record<string,string>={
   RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
   PRODUCTION_PRIVATE_CREDIT_TEST_ENABLED:"true",
@@ -85,10 +86,10 @@ test("password-protected Production can accept live owner Credit testing without
   CUSTOMER_R2_STORAGE_ENABLED:"true",
  };
  assert.equal(privateLiveCreditTestEnabled(e),true);
- assert.equal(stripeCreditTopupsLiveEnabled(e),true);
- assert.equal(configuredStripePaymentMode(e),"live");
+ assert.equal(stripeCreditTopupsLiveEnabled(e),false);
+ assert.equal(configuredStripePaymentMode(e),null);
  assert.equal(protectedProductionLivePilotApproved(e),false);
- assert.equal(customerCreditStudioBetaEnabled(e),true);
+ assert.equal(customerCreditStudioBetaEnabled(e),false);
  const omitted=privateLiveCreditTestTaxDecision(undefined,undefined);
  assert.equal(omitted.ready,true,"Private owner LIVE checkout works with Stripe-collected billing details");
  assert.equal(omitted.decision?.country,"DE");
