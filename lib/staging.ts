@@ -76,8 +76,10 @@ export function validPrivateGateTicket(
   const current = Math.floor(now / 1000);
   if (!Number.isSafeInteger(issued) || issued > current + 60 ||
       current - issued > PRIVATE_GATE_TTL_SECONDS) return false;
-  const expected = issuePrivateGateTicket(env, issued * 1000, match[1]==="v2"?"beta":"operator");
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+  try {
+    const expected = issuePrivateGateTicket(env, issued * 1000, match[1]==="v2"?"beta":"operator");
+    return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+  } catch { return false; }
 }
 
 export function stagingEnabled(env: Environment = process.env) {
