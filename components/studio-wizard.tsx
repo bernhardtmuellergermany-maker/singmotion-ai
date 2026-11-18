@@ -266,7 +266,7 @@ export function StudioWizard({
             return;
           }catch(e){
             if(!current)return;
-            setError(e instanceof Error?e.message:"Unable to reuse the previous setup. Open My Projects or upload your files.");
+            setError(e instanceof Error?e.message:"Unable to reuse the previous setup. Open Videos or upload your files.");
             // Fail safely: show a new empty draft, never restore unrelated media.
             setDraft({...initial});
             setStep(0);
@@ -712,7 +712,7 @@ export function StudioWizard({
       preparedId=prepared.id;setGenerationProjectId(prepared.id);
       if(prepared.state!=="prepared"){
         // Never create another provider task if this key is already in use.
-        window.location.assign("/projects/live_"+encodeURIComponent(prepared.id));
+        window.location.assign("/videos/live_"+encodeURIComponent(prepared.id));
         return;
       }
       if(!prepared.digest||!prepared.ceilingMicroUsd||prepared.budgetBlocker||prepared.providerJobId)
@@ -725,7 +725,7 @@ export function StudioWizard({
           confirmation:`CONFIRM PAID STUDIO ${prepared.id} ${prepared.digest} ${prepared.ceilingMicroUsd}${prepared.experimental?" ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA":""}`,
         }),
       });
-      window.location.assign("/projects/live_"+encodeURIComponent(prepared.id));
+      window.location.assign("/videos/live_"+encodeURIComponent(prepared.id));
     }catch(cause){
       setError(cause instanceof Error?cause.message:"Video request could not be verified.");
       // A failed/uncertain submission must be inspected using its original ID,
@@ -1046,7 +1046,7 @@ export function StudioWizard({
           {step===3&&<button type="button" className="sm-studio-next" disabled={!available||!reviewRights||!creditQuote||(reviewShortage&&operatorStudio)||busy||generating||!!generationProjectId} onClick={()=>!creditStudio?void openGuestAccount():reviewShortage?void continueToCreditPurchase():void startCreditGeneration()}>{<span className="sm-studio-next-label">{generating?"Starting video…":busy?"Saving project…":!creditStudio?"Login to generate video":reviewShortage&&!operatorStudio?"Buy Credits to generate":"Generate Video"}</span>}{!generating&&<ArrowRight size={19} aria-hidden="true"/>}</button>}
         </nav>
         
-        {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/projects/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
+        {step===3&&generationProjectId&&<p className="sm-review-payment-note" role="status">This request has a saved project ID. <a href={"/videos/live_"+encodeURIComponent(generationProjectId)}>Open the saved video status</a> before trying again. No duplicate task will be submitted.</p>}
         {/* Errors stay beside the current step heading; no off-screen footer alert. */}
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>

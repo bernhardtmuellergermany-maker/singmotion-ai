@@ -1,0 +1,38 @@
+name: Verify canonical Videos navigation and private links
+
+on:
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+    paths:
+      - 'app/(site)/videos/**'
+      - 'app/(site)/projects/**'
+      - 'components/**'
+      - 'lib/commerce/notifications.ts'
+      - 'lib/commerce/video-ready-notifications.ts'
+      - 'tests/videos-navigation.test.ts'
+      - '.github/workflows/videos-navigation-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-videos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - name: Validate Videos labels, old-link redirects, account-guest-import hiding and ownership regressions
+        run: node --experimental-strip-types --test tests/videos-navigation.test.ts tests/notification-video-links.test.ts tests/customer-paid-project-removal.test.ts tests/studio-direct-generation-ui.test.ts tests/cross-device-project-name-sync.test.ts tests/video-ready-email-preferences.test.ts
+      - name: TypeScript validation
+        run: npm run typecheck

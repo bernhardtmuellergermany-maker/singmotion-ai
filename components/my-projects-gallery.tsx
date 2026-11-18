@@ -125,7 +125,7 @@ export function MyProjectsGallery(){
  },[openOptionsId]);
  async function renameProject(item:ProjectItem){
   const next=renameText.trim();
-  if(!next||next.length>80){setError("Enter a project name of up to 80 characters.");return;}
+  if(!next||next.length>80){setError("Enter a video name of up to 80 characters.");return;}
   if(busyId)return;
   setBusyId(item.id);setError("");
   try{
@@ -138,13 +138,13 @@ export function MyProjectsGallery(){
     });
     if(!response.ok){
      const body=await response.json().catch(()=>null) as {error?:string}|null;
-     throw Error(body?.error||"Unable to save this project name.");
+     throw Error(body?.error||"Unable to save this video name.");
     }
     setOrders(previous=>previous.map(o=>o.orderId===id?{...o,displayName:next}:o));
    }else if(item.kind==="draft"){
     const id=item.id.slice(6);
     const existing=drafts.find(d=>d.id===id);
-    if(!existing)throw Error("Saved draft unavailable. Refresh My Projects.");
+    if(!existing)throw Error("Saved draft unavailable. Refresh Videos.");
     await api("studio-drafts",{method:"POST",body:JSON.stringify({
       id,selection:existing.selection,artistName:existing.artistName,
       step:existing.step,projectName:next
@@ -165,7 +165,7 @@ export function MyProjectsGallery(){
    }catch{}
    setLabels(updated);setRenaming(null);
    window.dispatchEvent(new CustomEvent("sm-project-name-updated",{detail:{id:item.id,name:next}}));
-  }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename project.");}
+  }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename video.");}
   finally{setBusyId(null);}
  }
  async function refreshTrash(){
@@ -194,7 +194,7 @@ export function MyProjectsGallery(){
      method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
      body:JSON.stringify({orderId:item.id,hidden:false})
     });
-    if(!response.ok)throw Error("Could not restore this paid project.");
+    if(!response.ok)throw Error("Could not restore this paid video.");
    }else if(item.kind==="draft")
     await api("studio-drafts/"+encodeURIComponent(item.id)+"/restore",{method:"POST"});
    else await api("studio-live",{method:"POST",body:JSON.stringify({
@@ -202,7 +202,7 @@ export function MyProjectsGallery(){
    })});
    // Reload fresh server-authoritative selections; no cached project objects.
    window.location.reload();
-  }catch(e){setTrashError(e instanceof Error?e.message:"Could not restore project.");}
+  }catch(e){setTrashError(e instanceof Error?e.message:"Could not restore video.");}
   finally{setBusyId(null)}
  }
  async function deleteProject(item:ProjectItem){
@@ -210,11 +210,11 @@ export function MyProjectsGallery(){
   const adminState=item.kind==="admin"?live.find(p=>p.id===item.id.slice(5))?.state:null;
   const active=item.kind==="admin" && !["prepared","completed","failed"].includes(adminState||"");
   const warning=item.kind==="customer"
-   ?"Remove '"+item.name+"' from My Projects? You can restore it under Recently deleted. Any active generation continues; payment, refunds and video delivery records are kept."
+   ?"Remove '"+item.name+"' from Videos? You can restore it under Recently deleted. Any active generation continues; payment, refunds and video delivery records are kept."
    :item.kind==="draft"
    ?"Move '"+item.name+"' to Recently deleted? You can restore it for 30 days. After that, unshared media becomes eligible for cleanup."
    :active
-    ?"Move this active project to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
+    ?"Move this active video to Recently deleted? Provider and payment reconciliation will continue safely. Files will not be purged while the provider status is uncertain."
     :"Move '"+item.name+"' to Recently deleted? Its MP4 is retained for 30 days, then eligible for cleanup. Payment and audit records remain.";
   if(!window.confirm(warning))return;
   setBusyId(item.id);setError("");
@@ -227,7 +227,7 @@ export function MyProjectsGallery(){
     });
     const result=await response.json().catch(()=>null) as {hidden?:boolean;error?:string}|null;
     if(!response.ok||result?.hidden!==true)
-      throw Error(result?.error||"Could not remove this paid project.");
+      throw Error(result?.error||"Could not remove this paid video.");
     setOrders(previous=>previous.filter(o=>o.orderId!==id));
    }else if(item.kind==="draft"){
     const id=item.id.slice(6);
@@ -251,7 +251,7 @@ export function MyProjectsGallery(){
    const updated={...labels};delete updated[item.id];
    localStorage.setItem("sm-gallery-labels",JSON.stringify(updated));setLabels(updated);
    await refreshTrash();
-  }catch(cause){setError(cause instanceof Error?cause.message:"Could not delete this project.");}
+  }catch(cause){setError(cause instanceof Error?cause.message:"Could not remove this video.");}
   finally{setBusyId(null);}
  }
  // Refresh account-owned names when returning from another device or tab.
@@ -276,7 +276,7 @@ export function MyProjectsGallery(){
       isCustomer
         ?fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
           .then(async r=>{
-            if(!r.ok)throw Error("Customer projects unavailable");
+            if(!r.ok)throw Error("Customer videos unavailable");
             return (await r.json() as {orders:CustomerOrder[]}).orders;
           })
         :Promise.resolve([] as CustomerOrder[]),
@@ -288,11 +288,11 @@ export function MyProjectsGallery(){
     if(o.status==="fulfilled"&&Array.isArray(o.value))setOrders(o.value);
     if(l.status==="fulfilled"&&Array.isArray(l.value))setLive(l.value);
     setError(d.status==="rejected"||o.status==="rejected"||l.status==="rejected"
-      ?"Some account projects could not be synchronized. Confirm that you are signed into the same account on desktop and mobile, then tap Sync names."
+      ?"Some account videos could not be synchronized. Confirm that you are signed into the same account on desktop and mobile, then tap Sync names."
       :"");
     await refreshTrash().catch(()=>{});
    }catch{
-    if(active)setError("Your projects could not be refreshed. Check your account and connection.");
+    if(active)setError("Your videos could not be refreshed. Check your account and connection.");
    }finally{inFlight=false;if(active){setLoading(false);setSyncing(false);}}
   }
   const onVisibility=()=>{if(!document.hidden)void refresh();};
@@ -341,7 +341,7 @@ export function MyProjectsGallery(){
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({orderId:id,name})
        });
-       if(!response.ok)throw Error("Legacy project name could not be synced.");
+       if(!response.ok)throw Error("Legacy video name could not be synced.");
        if(!cancelled)setOrders(old=>old.map(x=>x.orderId===id?{...x,displayName:name}:x));
       }
      }
@@ -373,7 +373,7 @@ export function MyProjectsGallery(){
      if(linked.has(d.id))continue;
      if(!/^[a-zA-Z0-9-]{1,80}$/.test(d.id))continue;
      combined.push({
-      id:"draft_"+d.id,kind:"draft",name:d.projectName?.trim()||d.artistName||"Untitled project",
+      id:"draft_"+d.id,kind:"draft",name:d.projectName?.trim()||d.artistName||"Untitled video",
       status:"draft",date:Number(d.updated)||0,
       duration:Math.max(0,(d.selection?.end||0)-(d.selection?.start||0)),
       format:validFormat(d.selection?.outputFormat),
@@ -405,7 +405,7 @@ export function MyProjectsGallery(){
        status:adminStatus(p),date:Number(p.createdAt)||0,
        duration:p.durationSeconds||0,format:validFormat(p.selection?.outputFormat),
        image:p.imageId?`/api/assets/${encodeURIComponent(p.imageId)}?thumbnail=1`:null,
-       href:`/projects/live_${encodeURIComponent(p.id)}`,
+       href:`/videos/live_${encodeURIComponent(p.id)}`,
        supportId:p.providerJobId?p.id:null,providerId:p.providerJobId||null
      });
    }
@@ -417,7 +417,7 @@ export function MyProjectsGallery(){
    processing:projects.filter(p=>p.status==="processing"||p.status==="awaiting-payment"||p.status==="review").length,
    completed:projects.filter(p=>p.status==="completed").length
  };
- const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||p.name||labels[p.id]?.trim()||"Untitled project"})).filter(p=>
+ const filtered=projects.map(p=>({...p,name:(p.kind==="admin"&&live.find(x=>"live_"+x.id===p.id)?.displayName)||(p.kind==="customer"&&orders.find(x=>"order_"+x.orderId===p.id)?.displayName)||p.name||labels[p.id]?.trim()||"Untitled video"})).filter(p=>
    (tab==="all"||tab==="draft"&&p.status==="draft"||
     tab==="processing"&&["processing","awaiting-payment","review"].includes(p.status)||
     tab==="completed"&&p.status==="completed")&&
@@ -427,24 +427,24 @@ export function MyProjectsGallery(){
    <div className="sm-projects-heading">
      <div className="sm-projects-heading-title">
        <Clapperboard aria-hidden="true" size={41} strokeWidth={1.7}/>
-       <div><h1>My Projects</h1><p>Your videos, all in one place.</p></div>
+       <div><h1>Videos</h1><p>Your videos, all in one place.</p></div>
      </div>
      <Link className="sm-projects-new" href="/studio?new=1"><Plus size={21}/> New video</Link>
    </div>
    <div className="sm-projects-toolbar">
      <label className="sm-projects-search"><Search size={19}/><input type="search" value={search} onChange={e=>setSearch(e.target.value)}
-       placeholder="Search your projects…" aria-label="Search projects and support IDs"/></label>
+       placeholder="Search videos…" aria-label="Search videos and support IDs"/></label>
      <label className="sm-projects-filter-select">
-       <span className="sr-only">Filter by project status</span>
-       <select aria-label="Filter projects by status" value={tab} onChange={e=>setTab(e.target.value as Tab)}>
-         <option value="all">All projects ({counts.all})</option>
+       <span className="sr-only">Filter by video status</span>
+       <select aria-label="Filter videos by status" value={tab} onChange={e=>setTab(e.target.value as Tab)}>
+         <option value="all">All videos ({counts.all})</option>
          <option value="draft">Drafts ({counts.draft})</option>
          <option value="processing">Processing ({counts.processing})</option>
          <option value="completed">Completed ({counts.completed})</option>
        </select>
        <ChevronDown size={15} aria-hidden="true"/>
      </label>
-     <button type="button" className="sm-projects-sort" disabled={syncing} onClick={()=>setSyncNonce(n=>n+1)} aria-label="Sync project names from account" title="Sync account project names">
+     <button type="button" className="sm-projects-sort" disabled={syncing} onClick={()=>setSyncNonce(n=>n+1)} aria-label="Sync video names from account" title="Sync account video names">
        <RefreshCw size={15}/><span className="sr-only">{syncing?"Syncing names…":"Sync names"}</span>
      </button>
      <button type="button" className="sm-projects-sort" onClick={()=>setNewest(v=>!v)} aria-label={newest?"Sort oldest first":"Sort newest first"} title={newest?"Newest first":"Oldest first"}>
@@ -452,7 +452,7 @@ export function MyProjectsGallery(){
      </button>
    </div>
    {error&&<p className="sm-projects-error" role="alert">{error}</p>}
-   {loading?<div className="sm-projects-empty" role="status">Loading your projects…</div>:
+   {loading?<div className="sm-projects-empty" role="status">Loading your videos…</div>:
     filtered.length?<div className="sm-projects-grid">
       {filtered.map(item=><article className="sm-projects-card" key={item.id}>
         <Link className="sm-projects-card-main" href={item.href} aria-label={`Open ${item.name}, ${statusText(item.status)}`}>
@@ -475,17 +475,17 @@ export function MyProjectsGallery(){
             <span><CalendarDays size={13}/>{safeDate(item.date)}</span></div>
           <div className="sm-projects-card-footer">
           {renaming===item.id?<form className="sm-projects-rename-form" onSubmit={event=>{event.preventDefault();void renameProject(item)}}>
-            <input aria-label="New project name" autoFocus maxLength={80} value={renameText} disabled={busyId===item.id} onChange={event=>setRenameText(event.target.value)} onKeyDown={event=>{if(event.key==="Escape")setRenaming(null)}}/>
+            <input aria-label="New video name" autoFocus maxLength={80} value={renameText} disabled={busyId===item.id} onChange={event=>setRenameText(event.target.value)} onKeyDown={event=>{if(event.key==="Escape")setRenaming(null)}}/>
             <button type="submit" disabled={busyId===item.id||!renameText.trim()}>Save</button>
             <button type="button" onClick={()=>setRenaming(null)}>Cancel</button>
           </form>:
           <details className="sm-projects-options" open={openOptionsId===item.id}>
-            <summary aria-label={"More options for "+item.name} title="Project options" aria-expanded={openOptionsId===item.id}
+            <summary aria-label={"More options for "+item.name} title="Video options" aria-expanded={openOptionsId===item.id}
               onClick={event=>{event.preventDefault();setOpenOptionsId(current=>current===item.id?null:item.id);}}><MoreHorizontal size={18}/></summary>
             <div className="sm-projects-options-menu">
               <Link href={item.href} onClick={()=>setOpenOptionsId(null)}><SquarePen size={15}/> Edit</Link>
               <button type="button" onClick={()=>{setOpenOptionsId(null);setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
-              <button type="button" className="sm-projects-delete" disabled={busyId===item.id} title={item.kind==="customer"?"Remove from My Projects without deleting payment records":"Delete project"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Removing…":item.kind==="customer"?"Remove":"Delete"}</button>
+              <button type="button" className="sm-projects-delete" disabled={busyId===item.id} title={item.kind==="customer"?"Remove from Videos without deleting payment records":"Delete video"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Removing…":item.kind==="customer"?"Remove":"Delete"}</button>
               {item.kind==="customer"&&<small>Payment records are retained.</small>}
             </div>
           </details>}
@@ -505,18 +505,18 @@ export function MyProjectsGallery(){
       </article>)}
     </div>:
     <div className="sm-projects-empty">
-      <FolderOpen size={34}/><h2>{projects.length?"No matching projects":"Your first video starts here."}</h2>
-      <p>{projects.length?"Try another search or status filter.":"Upload your music and artist photo to create your first project."}</p>
+      <FolderOpen size={34}/><h2>{projects.length?"No matching videos":"Your first video starts here."}</h2>
+      <p>{projects.length?"Try another search or status filter.":"Upload your music and artist photo to create your first video."}</p>
       {!projects.length&&<Link href="/studio?new=1">Create a video</Link>}
     </div>}
-   <section className="sm-projects-trash" aria-label="Recently deleted projects">
+   <section className="sm-projects-trash" aria-label="Recently deleted videos">
     <details>
       <summary><Trash2 size={17} aria-hidden="true"/> Recently deleted ({trash.length}) <span>Drafts: 30-day recovery · Paid orders: restorable</span></summary>
-      <p className="sm-projects-trash-explain">Drafts and eligible private videos can be recovered for 30 days before retention-based cleanup. Removed paid orders are only hidden from My Projects and can be restored here; payment, provider and delivery records are retained.</p>
+      <p className="sm-projects-trash-explain">Drafts and eligible private videos can be recovered for 30 days before retention-based cleanup. Removed paid orders are only hidden from Videos and can be restored here; payment, provider and delivery records are retained.</p>
       {trashError&&<p className="sm-projects-error" role="alert">{trashError}</p>}
-      {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted projects.</p>:
+      {trash.length===0?<p className="sm-projects-trash-empty">No recoverable deleted videos.</p>:
        <ul>{trash.map(item=><li key={item.kind+"_"+item.id}>
-         <div><strong>{item.name}</strong><small>{item.kind==="customer"?"Removed from My Projects · payment record kept":`Eligible for cleanup from: ${safeDate(item.purgeAfter||0)}`}</small></div>
+         <div><strong>{item.name}</strong><small>{item.kind==="customer"?"Removed from Videos · payment record kept":`Eligible for cleanup from: ${safeDate(item.purgeAfter||0)}`}</small></div>
          {item.restorable===false?<small>Preparation canceled; restore the original saved draft instead.</small>:
           <button type="button" disabled={busyId!==null}
             onClick={()=>void restoreTrash(item)}>

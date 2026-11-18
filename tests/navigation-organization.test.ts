@@ -9,7 +9,7 @@ test("global menu contains exactly the four clear destinations", () => {
   const links = [...source.matchAll(/\{ href: "(\/[^"]+)", label: "([^"]+)" \}/g)]
     .map((match) => [match[1], match[2]]);
   assert.deepEqual(links, [
-    ["/projects", "My Projects"],
+    ["/videos", "Videos"],
     ["/help", "Help"],
     ["/legal", "Legals"],
     ["/contact", "Contact"],

@@ -50,8 +50,8 @@ export default function NotificationCenter(){
       <div className="sm-notice-body">
        <div className="sm-notice-title">{!item.read&&<span className="sm-notice-dot" aria-label="Unread"/>}<strong>{item.title}</strong></div>
        <p>{item.message}</p>
-       {item.kind==="video"&&/^\/projects\/live_[a-f0-9-]{36}$/i.test(item.href)&&
-        <Link href={item.href} className="sm-notice-video-link" aria-label={"Open video for "+item.message}>
+       {item.kind==="video"&&/^\/(?:videos|projects)\/live_[a-f0-9-]{36}$/i.test(item.href)&&
+        <Link href={item.href.replace(/^\/projects\//,"/videos/")} className="sm-notice-video-link" aria-label={"Open video for "+item.message}>
          <PlayCircle size={16} aria-hidden="true"/> View video
         </Link>}
        <small>{new Date(item.created).toLocaleString("en-GB",{dateStyle:"medium",timeStyle:"short"})}</small>

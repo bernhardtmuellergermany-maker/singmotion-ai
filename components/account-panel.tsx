@@ -7,15 +7,6 @@ import {AccountCreditSummary} from "@/components/account-credit-summary";
 import {notifyAuthTransition} from "@/lib/client";
 
 export function AccountPanel({active}:{active:boolean}){
- const [guestPreview,setGuestPreview]=useState<{counts:{uploads:number;artists:number;drafts:number;jobs:number;videoProjects:number};pendingProjects:number}|null>(null),[importMessage,setImportMessage]=useState("");
- async function importGuest(mode:"preview"|"execute"){
-  setBusy(true);setImportMessage("");
-  try{
-   const res=await fetch("/api/customer-guest-import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({mode,confirmation:mode==="execute"?"IMPORT MY GUEST PROJECTS":undefined})});
-   const data=await res.json();if(!res.ok)throw Error(data.error||"Import failed");
-   if(mode==="preview")setGuestPreview(data);else{setGuestPreview(null);setImportMessage("Guest projects imported successfully.");window.location.reload()}
-  }catch(e){setImportMessage((e as Error).message)}finally{setBusy(false)}
- }
  const [passwordOpen,setPasswordOpen]=useState(false),[currentPassword,setCurrentPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[passwordMessage,setPasswordMessage]=useState("");
  async function changePassword(e:React.FormEvent<HTMLFormElement>){
   e.preventDefault();setBusy(true);setPasswordMessage("");
@@ -110,9 +101,6 @@ export function AccountPanel({active}:{active:boolean}){
     {!staff&&<details className="sm-account-advanced">
       <summary>More account options</summary>
       <div className="sm-account-advanced-actions">
-        <button type="button" disabled={busy} onClick={()=>void importGuest("preview")}>Check guest projects for import</button>
-        {guestPreview&&<div><p>Guest workspace: {guestPreview.counts.videoProjects} videos, {guestPreview.counts.drafts} drafts, {guestPreview.counts.uploads} uploads, {guestPreview.counts.artists} artists, {guestPreview.counts.jobs} jobs.</p><p>{guestPreview.pendingProjects?guestPreview.pendingProjects+" active tasks: import blocked until finished.":"Only your verified guest workspace will be moved."}</p><button type="button" disabled={busy||guestPreview.pendingProjects>0} onClick={()=>{if(window.confirm("Transfer all listed guest projects and uploads into this account? This changes their ownership."))void importGuest("execute")}}>Import my guest projects</button></div>}
-        {importMessage&&<p role="status">{importMessage}</p>}
         <button type="button" disabled={busy} onClick={()=>setPasswordOpen(!passwordOpen)}>Change password</button>
         {passwordOpen&&<form onSubmit={e=>void changePassword(e)} style={{display:"grid",gap:8}}>
           <input type="password" aria-label="Current password" required autoComplete="current-password" placeholder="Current password" value={currentPassword} onChange={e=>setCurrentPassword(e.target.value)}/>
