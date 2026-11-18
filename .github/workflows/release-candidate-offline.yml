@@ -11,7 +11,7 @@ on:
       - components/**
       - lib/commerce/**
       - app/(site)/videos/**
-      - tests/videos-navigation.test.ts
+      - tests/**
 
 permissions:
   contents: read
