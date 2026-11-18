@@ -37,6 +37,7 @@ jobs:
         run: |
           node --experimental-strip-types --test \
             tests/private-international-credit-beta.test.ts \
+            tests/private-production-credit-readiness.test.ts \
             tests/staging.test.ts \
             tests/international-credit-checkout.test.ts \
             tests/managed-credit-payments.test.ts \
