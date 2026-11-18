@@ -30,6 +30,10 @@ jobs:
             fix/security-dependency-audit-20261118 \
             feature/stripe-global-supported-buyers-20261118 \
             feature/videos-navigation-rename-20261118
+          # Freeze the three reviewed Git heads; stop on unexpected movement.
+          test "$(git rev-parse origin/fix/security-dependency-audit-20261118)" = "371573d8786ba4d645f0de929568ada808a717d9"
+          test "$(git rev-parse origin/feature/stripe-global-supported-buyers-20261118)" = "9b0c57e47f17de6281888c9cf4a12d2658b8a3da"
+          test "$(git rev-parse origin/feature/videos-navigation-rename-20261118)" = "6786f92d51249f88fa65d7de88b8784d2425c39b"
           git merge --no-ff --no-edit origin/fix/security-dependency-audit-20261118
           git merge --no-ff --no-edit origin/feature/stripe-global-supported-buyers-20261118
           git merge --no-ff --no-edit origin/feature/videos-navigation-rename-20261118
