@@ -1,4 +1,4 @@
-name: Remediate production dependency advisories (isolated branch)
+name: Verify production dependency CVE remediation
 
 on:
   pull_request:
@@ -7,84 +7,30 @@ on:
     paths:
       - .github/workflows/security-dependency-remediation.yml
       - package.json
+      - package-lock.json
       - tests/picomatch-remediation.test.ts
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  patch-audit:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/security-dependency-audit-20261118' }}
+  check-security-patch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
-          fetch-depth: 1
-          persist-credentials: true
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24.22.3
           cache: npm
-      - name: Resolve patched direct dependencies and safe transitive updates
-        run: |
-          set -eu
-          # Update the complete Payload peer set atomically BEFORE npm resolves.
-          # A direct npm install against a locked 3.92 peer tree ERESOLVES.
-          # Root.io publishes security-patched picomatch 2.x and 4.x builds.
-          # Verified patch record: https://osv.dev/vulnerability/ROOT-APP-NPM-CVE-2026-112366
-          # Evaluate the same patched picomatch implementation for all consumers.
-          # Major 2.x compatibility MUST be covered by micromatch/Payload tests.
-          npm view @ryotsu/picomatch@4.0.7-a version
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const file="package.json",pkg=JSON.parse(fs.readFileSync(file,"utf8"));
-            for(const key of ["payload","@payloadcms/next","@payloadcms/db-postgres"])
-              pkg.dependencies[key]="3.94.0";
-            pkg.dependencies.next="16.4.6";
-            // Payload pins an old Sass watcher tree; use a compatible fixed Sass.
-            pkg.overrides.sass="1.108.2";
-            // Keep semver-major paths separate. This replaces vulnerable
-            // glob parsers with independently patched versions, not a renamed
-            // copy of the original vulnerable package.
-            pkg.overrides.picomatch="npm:@ryotsu/picomatch@4.0.7-a";
-            delete pkg.overrides.tinyglobby;
-            fs.writeFileSync(file,JSON.stringify(pkg,null,2)+String.fromCharCode(10));
-          '
-          # Discard the obsolete 3.92 peer-resolution graph; regenerating lock
-          # from the exact, internally consistent 3.94 manifest avoids ERESOLVE.
-          rm package-lock.json
-          npm install --package-lock-only --ignore-scripts --audit=false
-          npm audit fix --package-lock-only --ignore-scripts --audit=false || true
-      - name: Print machine-readable production advisory summary (without secret data)
-        run: |
-          npm audit --json --omit=dev > /tmp/production-audit.json || true
-          node --input-type=module -e '
-            import fs from "node:fs";
-            const a=JSON.parse(fs.readFileSync("/tmp/production-audit.json","utf8"));
-            console.log("PRODUCTION_AUDIT_COUNTS",JSON.stringify(a.metadata?.vulnerabilities||{}));
-            for(const [name,v] of Object.entries(a.vulnerabilities||{})){
-              console.log("PRODUCTION_ADVISORY",JSON.stringify({
-                name,severity:v.severity,range:v.range,
-                via:v.via?.map(x=>typeof x==="string"?x:{name:x.name,title:x.title,url:x.url,range:x.range}),
-                fixAvailable:v.fixAvailable
-              }));
-            }
-          '
-      - name: Save patched manifest and lockfile on isolated branch
-        run: |
-          set -eu
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
-          if ! git diff --cached --quiet; then
-            git commit -m "fix(deps): update Payload Next and lockfile for security audit"
-            git push origin HEAD:fix/security-dependency-audit-20261118
-          fi
-      - name: Install and independently test real patched parser behavior
-        run: |
-          npm ci
-          node --experimental-strip-types --test tests/picomatch-remediation.test.ts
-      - name: Verify production audit gate
+      - name: Verify exact lockfile installation
+        run: npm ci
+      - name: Test real dependency provenance, glob compatibility, and bounded CVE execution
+        run: node --experimental-strip-types --test tests/picomatch-remediation.test.ts
+      - name: Fail closed if a published production advisory remains
         run: npm audit --omit=dev --audit-level=high
+      - name: Complete production build and checkout/credit/backup safety regressions
+        run: npm run build
