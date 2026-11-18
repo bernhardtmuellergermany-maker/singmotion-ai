@@ -29,7 +29,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v4
         with:
-          node-version: '24.22.1'
+          node-version: '24.22.3'
           cache: npm
       - run: npm ci
       - name: Validate Videos labels, old-link redirects, account-guest-import hiding and ownership regressions
