@@ -1,0 +1,36 @@
+name: Verify global credit buyer-country behavior
+
+on:
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+    paths:
+      - 'lib/commerce/managed-credit-payments.ts'
+      - 'app/(site)/api/credit-balance/route.ts'
+      - 'tests/managed-credit-payments.test.ts'
+      - 'tests/international-credit-checkout.test.ts'
+      - '.github/workflows/credit-global-country-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-global-credit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+          cache: npm
+      - run: npm ci
+      - name: Assert Stripe buyer-country policy and existing release guards without paid transactions
+        run: node --experimental-strip-types --test tests/managed-credit-payments.test.ts tests/international-credit-checkout.test.ts tests/public-credit-release.test.ts
+      - name: TypeScript validation
+        run: npm run typecheck
