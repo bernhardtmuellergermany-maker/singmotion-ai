@@ -1,0 +1,62 @@
+name: Remediate production dependency advisories (isolated branch)
+
+on:
+  pull_request:
+    branches:
+      - release/production-promoted-20261114
+    paths:
+      - .github/workflows/security-dependency-remediation.yml
+      - package.json
+      - package-lock.json
+
+permissions:
+  contents: write
+
+jobs:
+  patch-audit:
+    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'fix/security-dependency-audit-20261118' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 1
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.22.1
+          cache: npm
+      - name: Resolve patched direct dependencies and safe transitive updates
+        run: |
+          set -eu
+          npm install --package-lock-only --ignore-scripts --audit=false --save-exact \
+            payload@3.94.0 @payloadcms/next@3.94.0 @payloadcms/db-postgres@3.94.0 next@16.4.6
+          npm audit fix --package-lock-only --ignore-scripts --audit=false || true
+      - name: Print machine-readable production advisory summary (without secret data)
+        run: |
+          npm audit --json --omit=dev > /tmp/production-audit.json || true
+          node --input-type=module -e '
+            import fs from "node:fs";
+            const a=JSON.parse(fs.readFileSync("/tmp/production-audit.json","utf8"));
+            console.log("PRODUCTION_AUDIT_COUNTS",JSON.stringify(a.metadata?.vulnerabilities||{}));
+            for(const [name,v] of Object.entries(a.vulnerabilities||{})){
+              console.log("PRODUCTION_ADVISORY",JSON.stringify({
+                name,severity:v.severity,range:v.range,
+                via:v.via?.map(x=>typeof x==="string"?x:{name:x.name,title:x.title,url:x.url,range:x.range}),
+                fixAvailable:v.fixAvailable
+              }));
+            }
+          '
+      - name: Save patched manifest and lockfile on isolated branch
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if ! git diff --cached --quiet; then
+            git commit -m "fix(deps): update Payload Next and lockfile for security audit"
+            git push origin HEAD:fix/security-dependency-audit-20261118
+          fi
+      - name: Verify production audit gate
+        run: npm audit --omit=dev --audit-level=high
