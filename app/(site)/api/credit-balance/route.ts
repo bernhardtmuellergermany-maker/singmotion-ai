@@ -10,7 +10,7 @@ import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {privateCreditPilotApproved} from "@/lib/commerce/private-credit-pilot";
 import {privateLiveCreditTestEnabled} from "@/lib/commerce/private-live-credit-test";
-import {managedCreditMoRApproved,approvedMoRTaxCountries} from "@/lib/commerce/managed-credit-payments";
+import {managedCreditMoRApproved,approvedMoRBuyerCountries} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
 
@@ -77,10 +77,10 @@ export async function GET(req:NextRequest){
    // exists. The private DE owner pilot remains unchanged.
    globalCountrySelection:liveCheckout&&!privateLiveCreditTestEnabled(process.env)&&
      (managedCreditMoRApproved(process.env)||worldwideTaxPolicyAvailable(process.env)),
-   // Country picker never advertises destinations outside Stripe-managed
-   // indirect tax coverage. Tax policy JSON has independent server validation.
+   // Offer eligible Stripe buyer destinations, not only MoR-tax-covered ones.
+   // Non-covered destinations use seller-managed Stripe Tax responsibility.
    approvedBillingCountries:liveCheckout&&!privateLiveCreditTestEnabled(process.env)&&
-     managedCreditMoRApproved(process.env)?approvedMoRTaxCountries():null,
+     managedCreditMoRApproved(process.env)?approvedMoRBuyerCountries(process.env):null,
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
