@@ -36,6 +36,8 @@ jobs:
             for(const key of ["payload","@payloadcms/next","@payloadcms/db-postgres"])
               pkg.dependencies[key]="3.94.0";
             pkg.dependencies.next="16.4.6";
+            // Payload pins an old Sass watcher tree; use a compatible fixed Sass.
+            pkg.overrides.sass="1.108.2";
             fs.writeFileSync(file,JSON.stringify(pkg,null,2)+String.fromCharCode(10));
           '
           # Discard the obsolete 3.92 peer-resolution graph; regenerating lock
