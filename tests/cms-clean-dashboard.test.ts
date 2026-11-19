@@ -49,6 +49,31 @@ test("Only actual editable destinations are in the basic dashboard",()=>{
  assert.match(showcase,/ShowcaseManager/);
 });
 
+test("six duplicate Payload sidebar entries are hidden, while dashboard shortcuts and routes remain",()=>{
+ const config=read("cms/config.ts");
+ const operations=read("components/cms/operations.tsx");
+ const entries=[
+  {slug:"staff",until:"auth:",href:"/admin/collections/staff"},
+  {slug:"pages",until:"access:",href:"/admin/collections/pages"},
+  {slug:"cms-assets",until:"access:",href:"/admin/collections/cms-assets"},
+  {slug:"support-cases",until:"access:",href:"/admin/collections/support-cases"},
+  {slug:"studio-settings",until:"access:",href:"/admin/globals/studio-settings"},
+  {slug:"site-navigation",until:"access:",href:"/admin/globals/site-navigation"},
+ ];
+ for(const {slug,until,href} of entries){
+  const start=config.indexOf('slug: "'+slug+'"');
+  assert.ok(start>=0,slug+" remains registered");
+  const admin=config.indexOf("admin:",start);
+  const end=config.indexOf(until,admin);
+  assert.ok(admin>start&&end>admin,slug+" retains its admin configuration and access rules");
+  assert.match(config.slice(admin,end),/hidden:\\s*true/,slug+" must be hidden from the native sidebar");
+  assert.ok(operations.includes('href:"'+href+'"'),slug+" remains reachable through the CMS dashboard");
+ }
+ assert.match(config,/beforeNavLinks:\\s*\\["\\/components\\/cms\\/dashboard-nav\\.tsx#DashboardNav"\\]/);
+ assert.match(operations,/hasRole\\(user,\\["super-admin","editor"\\]\\)/);
+ assert.match(operations,/hasRole\\(user,\\["super-admin","support"\\]\\)/);
+});
+
 test("Mobile CSS uses dense links, single column and dark native menu",()=>{
  const css=read("app/(payload)/cms-control-center.css");
  const theme=read("app/(payload)/admin-theme.css");
