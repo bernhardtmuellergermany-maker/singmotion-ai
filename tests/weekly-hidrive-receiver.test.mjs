@@ -6,7 +6,7 @@ import { runProductionCiphertextReceiver } from "../scripts/hidrive-production-r
 
 const sunday=Date.UTC(2026,10,22,3,0);
 async function fixture(){
- const pki=await createTestPKI("singmotion-backup.railway.internal");
+ const pki=await createTestPKI("singmotion-backup.railway.internal",7);
  return {
    RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",
    RAILWAY_SERVICE_NAME:"singmotion-backup",
