@@ -22,3 +22,11 @@ export function parseStudioAccountReturn(raw:string|null):StudioAccountReturn|nu
  }catch{return null}
 }
 export const STUDIO_ACCOUNT_RESUME_KEY="sm-studio-account-resume";
+
+/** Open the normal sign-in screen, retaining only a validated same-origin
+ * Studio continuation. The draft ID is a lookup hint, never ownership proof.
+ */
+export function studioAccountLoginHref(draftId:string,requiredCredits:number):string|null{
+ const returnTo=studioAccountReturn(draftId,requiredCredits);
+ return returnTo?"/login?returnTo="+encodeURIComponent(returnTo):null;
+}
