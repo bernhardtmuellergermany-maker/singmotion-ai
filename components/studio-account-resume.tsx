@@ -65,31 +65,16 @@ export function StudioAccountResume(){
     sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
      draftId:wanted.draftId,requiredCredits:quote.credits,created:Date.now(),
     }));
-    // The guest media transfer is complete, but an email/password signup
-    // still needs inbox proof. Never route an unverified customer into a
-    // Stripe purchase, even in the staging sandbox.
-    if(identity.emailVerification==="pending"){
-     setMessage("Your draft is safe. Confirm your email before buying Credits…");
-     window.location.assign("/account/verify-email?from=studio");
-     return;
-    }
-    const balanceResponse=await fetch("/api/credit-balance",{
-     credentials:"same-origin",cache:"no-store",
-    });
-    const balance=await balanceResponse.json().catch(()=>null) as
-     {availableCredits?:number;purchaseEnabled?:boolean}|null;
-    if(!current)return;
-    if(balanceResponse.ok&&Number.isSafeInteger(balance?.availableCredits)&&
-       (balance!.availableCredits as number)>=quote.credits){
-     setMessage("Your wallet covers this video. Returning to Step 4…");
-     window.location.assign("/studio?draft="+encodeURIComponent(wanted.draftId)+"&resume=review");
-     return;
-    }
-    setMessage("Your project is saved. Continuing to Credits…");
-    // Checkout itself remains explicitly gated by server-side tax, webhook,
-    // balance and worker readiness; never fake a successful purchase.
-    window.location.assign("/credits?resumeDraft="+encodeURIComponent(wanted.draftId)+
-      "&requiredCredits="+quote.credits+"#buy-credits");
+    // This page is an authenticated ownership-transfer checkpoint, NOT a
+    // purchase flow. Always return to the same saved Step 4, irrespective of
+    // wallet balance or email verification status. Step 4 shows the wallet,
+    // and paid generation still requires its explicit user action.
+    setMessage("Your audio, photo, prompt and video settings are saved. Returning to Step 4…");
+    sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
+     draftId:wanted.draftId,requiredCredits:quote.credits,created:Date.now(),
+    }));
+    window.location.assign("/studio?draft="+encodeURIComponent(wanted.draftId)+"&resume=review");
+    return;
    }catch(cause){
     if(current){setError(cause instanceof Error?cause.message:"Could not verify saved project.");setRunning(false);}
    }
