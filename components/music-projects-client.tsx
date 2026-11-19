@@ -1,0 +1,81 @@
+"use client";
+import Link from "next/link";
+import {useCallback,useEffect,useState} from "react";
+import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2} from "lucide-react";
+import type {MusicProject} from "@/lib/music-video/core";
+import "./music-video.css";
+
+type Payload={projects:MusicProject[];error?:string};
+async function api<T>(url:string,init?:RequestInit):Promise<T>{
+  const response=await fetch(url,{credentials:"same-origin",cache:"no-store",...init});
+  const data=await response.json() as T & {error?:string};
+  if(!response.ok)throw new Error(data.error||"Unable to load projects.");
+  return data;
+}
+const duration=(ms:number)=>String(Math.floor(ms/60000))+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0");
+export function MusicProjectsClient(){
+  const [projects,setProjects]=useState<MusicProject[]>([]);
+  const [search,setSearch]=useState("");
+  const [error,setError]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [creating,setCreating]=useState(false);
+  const [busy,setBusy]=useState(false);
+  const [name,setName]=useState("");
+  const [song,setSong]=useState<File|null>(null);
+  const refresh=useCallback(async()=>{
+    try{const data=await api<Payload>("/api/music-video");setProjects(data.projects||[]);setError("");}
+    catch(e){setError(e instanceof Error?e.message:"Projects unavailable.");}
+    finally{setLoading(false);}
+  },[]);
+  useEffect(()=>{void refresh();},[refresh]);
+  async function create(e:React.FormEvent){
+    e.preventDefault();
+    if(!song||!name.trim()||busy)return;
+    setBusy(true);setError("");
+    try{
+      const body=new FormData();body.set("name",name);body.set("song",song);
+      const result=await api<{project:MusicProject}>("/api/music-video",{method:"POST",body});
+      window.location.assign("/projects/"+result.project.id);
+    }catch(e){setError(e instanceof Error?e.message:"Could not create project.");setBusy(false);}
+  }
+  async function rename(p:MusicProject){
+    const next=window.prompt("Rename project",p.name);
+    if(!next||next.trim()===p.name)return;
+    try{await api("/api/music-video/"+p.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:next})});await refresh();}
+    catch(e){setError(e instanceof Error?e.message:"Rename failed.");}
+  }
+  async function remove(p:MusicProject){
+    if(!window.confirm("Delete project '"+p.name+"' and its project uploads? Original videos in Videos will not be deleted."))return;
+    try{await api("/api/music-video/"+p.id,{method:"DELETE"});await refresh();}
+    catch(e){setError(e instanceof Error?e.message:"Delete failed.");}
+  }
+  const filtered=projects.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()));
+  return <main id="content" className="mv-root mv-projects">
+    <div className="mv-heading"><div><div className="mv-heading-title"><Clapperboard size={30}/><h1>Projects</h1></div>
+      <p>Your music video projects, all in one place.</p></div>
+      <button className="mv-primary" type="button" onClick={()=>setCreating(true)}><Plus size={17}/> New Project</button>
+    </div>
+    <div className="mv-search"><Search size={17}/><input aria-label="Search projects" placeholder="Search projects…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+    {error&&<p role="alert" className="mv-error">{error}</p>}
+    {loading?<p role="status">Loading projects…</p>:filtered.length?<div className="mv-project-grid">
+      {filtered.map(p=><article key={p.id} className="mv-project-card">
+        <Link href={"/projects/"+p.id} className="mv-project-link">
+          <div className="mv-project-art"><Music2 size={38}/><span>16:9</span></div>
+          <strong>{p.name}</strong><p>{duration(p.songDurationMs)} · Edited {new Date(p.updatedAt).toLocaleDateString("en-GB")}</p>
+        </Link>
+        <details className="mv-card-more"><summary aria-label={"Project options for "+p.name}><MoreHorizontal size={18}/></summary>
+          <div><button onClick={()=>void rename(p)}><Pencil size={14}/> Rename</button>
+          <button onClick={()=>void remove(p)}><Trash2 size={14}/> Delete</button></div>
+        </details>
+      </article>)}
+    </div>:<div className="mv-empty"><Clapperboard size={34}/><h2>{projects.length?"No matching projects":"Create your first music video project"}</h2><p>Start with one song, then arrange your videos on two tracks.</p>
+      <button className="mv-primary" onClick={()=>setCreating(true)}>New Project</button></div>}
+    {creating&&<div role="presentation" className="mv-dialog-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setCreating(false);}}>
+      <form className="mv-dialog" onSubmit={e=>void create(e)} aria-label="New music video project">
+        <h2>New Project</h2><label>Project Name<input autoFocus required maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder="My Music Video"/></label>
+        <label>Upload Song (MP3, WAV or M4A)<input required type="file" accept=".mp3,.wav,.m4a,audio/*" onChange={e=>setSong(e.target.files?.[0]||null)}/></label>
+        <div className="mv-dialog-actions"><button type="button" disabled={busy} onClick={()=>setCreating(false)}>Cancel</button><button type="submit" className="mv-primary" disabled={!name.trim()||!song||busy}>{busy?"Creating…":"Create Project"}</button></div>
+      </form>
+    </div>}
+  </main>;
+}

@@ -3,6 +3,8 @@ import {useEffect,useState} from "react";
 import {api,ensureSession,resetSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import {GenerationStatusView,type GenerationProgress} from "./generation-status-view";
+import {AddToMusicProject} from "./add-to-music-project";
+import "./music-video.css";
 
 export function SuperAdminGeneration({id}:{id:string}){
  const [project,setProject]=useState<StudioProject|null>(null);
@@ -99,6 +101,7 @@ export function SuperAdminGeneration({id}:{id:string}){
      reuseHref={project?.outputReady?`/studio?copy=live_${encodeURIComponent(id)}`:null}
      note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>}
 
+   {project?.outputReady&&<div style={{margin:"15px 0"}}><AddToMusicProject sourceKind="live" sourceId={id}/></div>}
    {project?.state==="prepared"&&<div className="sm-gen-extra-message">
       {resumeHref?<a className="sm-gen-reuse" href={resumeHref}>Return to Studio · Step 4 to continue generation</a>:
         <a className="sm-gen-reuse" href={`/studio?copy=live_${encodeURIComponent(id)}`}>Edit a new version in Studio</a>}

@@ -172,8 +172,8 @@ try{
 
  // The Videos library must list exactly the owner's paid order and
  // navigate to its existing private status, never initiate a new checkout.
- // Legacy bookmarks are kept as safe, permanent redirects to the new library.
- await page.goto(origin+"/projects");
+ // Music Video Projects now has its own route; the existing Videos library remains unchanged.
+ await page.goto(origin+"/videos");
  await page.waitForURL(origin+"/videos");
  await page.getByRole("heading",{name:"Videos"}).waitFor({timeout:15000});
  assert.equal(await page.getByRole("link",{name:/New video/}).count(),1);
