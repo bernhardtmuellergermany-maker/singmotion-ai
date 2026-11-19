@@ -5,6 +5,7 @@
  * fetch and verify Refund, Charge and Checkout from the matching Stripe mode.
  */
 import type {DatabaseSync} from "node:sqlite";
+import {createHash} from "node:crypto";
 import {validStripeRefundId} from "./stripe-reversal-identifiers.ts";
 import type {StripePaymentMode} from "./stripe-payment-mode.ts";
 type Refund={
@@ -31,7 +32,13 @@ export function reconcileVerifiedErasureRefund(
  if(!intent)throw Error("Refund references unknown account-deletion intent");
  const purchase=db.prepare("SELECT subject,credits,cents,status,stripe_session_id FROM credit_topup_purchases WHERE id=?")
   .get(purchaseId) as {subject:string;credits:number;cents:number;status:string;stripe_session_id:string}|undefined;
- if(!purchase||purchase.subject!=="customer:"+intent.account_id||
+ const legacy="customer:"+intent.account_id;
+ const closed="closed:"+createHash("sha256").update(intent.account_id).digest("hex");
+ const completed=db.prepare("SELECT state FROM customer_erasure_jobs WHERE account_id=?")
+  .get(intent.account_id) as {state:string}|undefined;
+ const historicalReplay=intent.state==="succeeded"&&completed?.state==="completed"&&
+   purchase?.subject===closed;
+ if(!purchase||(!historicalReplay&&purchase.subject!==legacy)||
     purchase.status!=="paid"||purchase.stripe_session_id!==intent.session_id||
     purchase.cents<intent.cents||session.id!==intent.session_id||
     session.payment_intent!==refund.payment_intent||
