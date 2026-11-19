@@ -42,7 +42,7 @@ if(process.getuid()!==uid||process.getgid()!==gid||
 process.umask(0o077);
 const {main,SafeError,existingHiDriveSession}=await import("/usr/local/lib/hidrive-backup-worker.mjs");
 try{
- if(process.env.BACKUP_MODE==="PRODUCTION_CIPHERTEXT_ONLY_RECEIVER"){
+ if(["PRODUCTION_CIPHERTEXT_ONLY_RECEIVER","PRODUCTION_WEEKLY_CIPHERTEXT_RECEIVER"].includes(process.env.BACKUP_MODE)){
   fs.writeSync(2,"HIDRIVE_RECEIVER_MODE_SELECTED\n");
   const {runProductionCiphertextReceiver}=await import("/usr/local/lib/singmotion-backup/scripts/hidrive-production-receiver.mjs");
   fs.writeSync(2,"HIDRIVE_RECEIVER_MODULE_LOADED\n");
@@ -70,6 +70,11 @@ catch(e){
   "RECEIVER_PRIVATE_ADDRESS_UNAVAILABLE",
   "APPROVED_RUN_ID_INVALID",
   "PRIVATE_BIND_REQUIRED",
+  "RECEIVER_WEEKLY_APPROVAL_REQUIRED",
+  "RECEIVER_WEEKLY_WINDOW_CLOSED",
+  "WEEKLY_BACKUP_SLOT_INVALID",
+  "WEEKLY_TRANSFER_BUDGET_REQUIRED",
+  "WEEKLY_RECEIVER_MODE_REFUSED",
  ]);
  const code=e instanceof SafeError?e.message:
    known.has(e?.message)?e.message:
