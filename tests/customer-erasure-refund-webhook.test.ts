@@ -1,6 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
+import {createHash} from "node:crypto";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 import {ensureDeletionRefundIntents} from "../lib/commerce/customer-erasure-refund-intents.ts";
 import {reconcileVerifiedErasureRefund} from "../lib/commerce/customer-erasure-refund-webhook.ts";
@@ -44,5 +45,20 @@ test("unrelated refunds are not intercepted from the legacy full-refund handler"
  const db=fixture();try{
   assert.equal(reconcileVerifiedErasureRefund(db,{...refund,metadata:{}},session,"test"),false);
   assert.equal(db.prepare("SELECT state FROM customer_erasure_refund_intents WHERE purchase_id=?").get(purchaseId)?.state,"pending");
+ }finally{db.close()}
+});
+
+test("a delayed Stripe webhook replay remains idempotent after the customer was pseudonymized",()=>{
+ const db=fixture();
+ try{
+  assert.equal(reconcileVerifiedErasureRefund(db,refund,session,"test"),true);
+  db.exec("CREATE TABLE customer_erasure_jobs(account_id TEXT PRIMARY KEY,state TEXT NOT NULL)");
+  db.prepare("INSERT INTO customer_erasure_jobs VALUES(?,'completed')").run(accountId);
+
+  const closed="closed:"+createHash("sha256").update(accountId).digest("hex");
+  db.prepare("UPDATE credit_topup_purchases SET subject=?,email='deleted-account@singmotion.invalid' WHERE id=?")
+   .run(closed,purchaseId);
+  assert.equal(reconcileVerifiedErasureRefund(db,refund,session,"test"),true);
+  assert.equal(db.prepare("SELECT state FROM customer_erasure_refund_intents WHERE purchase_id=?").get(purchaseId)?.state,"succeeded");
  }finally{db.close()}
 });
