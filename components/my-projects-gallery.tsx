@@ -7,6 +7,8 @@ import {ArrowDownToLine,ArrowUpDown,CalendarDays,Check,ChevronDown,
 import {api,ensureSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import "./my-projects-gallery.css";
+import "./music-video.css";
+import {AddToMusicProject} from "./add-to-music-project";
 
 type Tab="all"|"draft"|"processing"|"completed";
 type ProjectStatus="draft"|"processing"|"completed"|"review"|"awaiting-payment";
@@ -49,6 +51,13 @@ function statusText(v:ProjectStatus){
 }
 export function MyProjectsGallery(){
  const [drafts,setDrafts]=useState<SavedDraft[]>([]);
+ const [canAddMusic,setCanAddMusic]=useState(false);
+ useEffect(()=>{
+   let active=true;
+   void fetch("/api/music-video",{cache:"no-store",credentials:"same-origin"})
+     .then(r=>{if(active)setCanAddMusic(r.ok);}).catch(()=>{});
+   return()=>{active=false};
+ },[]);
  const [orders,setOrders]=useState<CustomerOrder[]>([]);
  const [live,setLive]=useState<StudioProject[]>([]);
  const [trash,setTrash]=useState<TrashedProject[]>([]);
@@ -479,6 +488,7 @@ export function MyProjectsGallery(){
             <summary aria-label={"More options for "+item.name} title="Video options" aria-expanded={openOptionsId===item.id}
               onClick={event=>{event.preventDefault();setOpenOptionsId(current=>current===item.id?null:item.id);}}><MoreHorizontal size={18}/></summary>
             <div className="sm-projects-options-menu">
+              {canAddMusic&&item.status==="completed"&&item.kind!=="draft"&&<AddToMusicProject enabled sourceKind={item.kind==="admin"?"live":"paid"} sourceId={item.kind==="admin"?item.id.slice(5):item.id.slice(6)} menu/>}
               <Link href={item.href} onClick={()=>setOpenOptionsId(null)}><SquarePen size={15}/> Edit</Link>
               <button type="button" onClick={()=>{setOpenOptionsId(null);setRenameText(item.name);setRenaming(item.id)}}><SquarePen size={15}/> Rename</button>
               <button type="button" className="sm-projects-delete" disabled={busyId===item.id} title={item.kind==="customer"?"Remove from Videos without deleting payment records":"Delete video"} onClick={()=>{setOpenOptionsId(null);void deleteProject(item);}}><Trash2 size={15}/> {busyId===item.id?"Removing…":item.kind==="customer"?"Remove":"Delete"}</button>

@@ -2,6 +2,8 @@
 import {useEffect,useState} from "react";
 import {GenerationStatusView,type GenerationProgress} from "./generation-status-view";
 import {paidOrderFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
+import {AddToMusicProject} from "./add-to-music-project";
+import "./music-video.css";
 
 type CustomerOrder={
  orderId:string;projectId:string;status:string;fulfillmentState:string|null;
@@ -73,5 +75,6 @@ export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
     downloadUrl={ready?order?.downloadUrl:null}
     reuseHref={ready?(order?.projectId?`/studio?copy=draft_${encodeURIComponent(order.projectId)}`:"/studio?new=1"):null}
     reuseBlank={ready&&!order?.projectId}/>}
+   {ready&&!guest&&<div style={{margin:"15px 0"}}><AddToMusicProject sourceKind="paid" sourceId={orderId}/></div>}
  </div>;
 }
