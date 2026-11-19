@@ -15,7 +15,7 @@ const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 type Env=Record<string,string|undefined>;
 export type DeletionRefundIntent={
  accountId:string;purchaseId:string;sessionId:string;credits:number;cents:number;
- state:"ready"|"pending"|"succeeded"|"failed";refundId:string|null;
+ state:"ready"|"pending"|"succeeded"|"failed";refundId:string|null;sentAt:number|null;
 };
 export function ensureDeletionRefundIntents(db:DatabaseSync){
  db.exec(`CREATE TABLE IF NOT EXISTS customer_erasure_refund_intents(
@@ -23,11 +23,11 @@ export function ensureDeletionRefundIntents(db:DatabaseSync){
  session_id TEXT NOT NULL,credits INTEGER NOT NULL CHECK(credits>0),
  cents INTEGER NOT NULL CHECK(cents>0),state TEXT NOT NULL
  CHECK(state IN ('ready','pending','succeeded','failed')),
- refund_id TEXT UNIQUE,created INTEGER NOT NULL,updated INTEGER NOT NULL
+ refund_id TEXT UNIQUE,sent_at INTEGER,created INTEGER NOT NULL,updated INTEGER NOT NULL
  )`);
 }
 const read=(db:DatabaseSync,purchaseId:string):DeletionRefundIntent|null=>{
- const row=db.prepare("SELECT account_id AS accountId,purchase_id AS purchaseId,session_id AS sessionId,credits,cents,state,refund_id AS refundId FROM customer_erasure_refund_intents WHERE purchase_id=?")
+ const row=db.prepare("SELECT account_id AS accountId,purchase_id AS purchaseId,session_id AS sessionId,credits,cents,state,refund_id AS refundId,sent_at AS sentAt FROM customer_erasure_refund_intents WHERE purchase_id=?")
  .get(purchaseId) as DeletionRefundIntent|undefined;
  return row??null;
 };
@@ -53,7 +53,7 @@ export function stageDeletionRefundIntents(db:DatabaseSync,accountId:string,line
     throw Error("Deletion refund intent idempotency conflict");
    results.push(existing);continue;
   }
-  db.prepare("INSERT INTO customer_erasure_refund_intents VALUES(?,?,?, ?,?,'ready',NULL,?,?)")
+  db.prepare("INSERT INTO customer_erasure_refund_intents VALUES(?,?,?, ?,?,'ready',NULL,NULL,?,?)")
    .run(line.purchaseId,accountId,line.sessionId,line.credits,line.cents,now,now);
   results.push(read(db,line.purchaseId)!);
  }
@@ -63,7 +63,8 @@ type StripeSession={id?:string;mode?:string;livemode?:boolean;currency?:string;
  payment_status?:string;amount_total?:number;payment_intent?:string;
  metadata?:{creditTopupId?:string;flow?:string}};
 type StripeRefund={id?:string;object?:string;payment_intent?:string;amount?:number;
- currency?:string;status?:string;livemode?:boolean};
+ currency?:string;status?:string;livemode?:boolean;
+ metadata?:{erasure_intent?:string;erasure_purchase?:string}};
 async function request<T>(pathname:string,key:string,verb:"GET"|"POST",body:URLSearchParams|undefined,
  sender:typeof fetch):Promise<T>{
  const r=await sender("https://api.stripe.com/v1/"+pathname,{
@@ -102,16 +103,35 @@ export async function advanceDeletionRefundIntent(
     session.metadata.creditTopupId!==intent.purchaseId||
     typeof session.payment_intent!=="string"||!/^pi_[A-Za-z0-9_]+$/.test(session.payment_intent))
   throw Error("Stripe credit purchase does not match stored account intent");
+ const idempotency="sm-erasure-v1-"+intent.purchaseId;
  let refund:StripeRefund;
  if(intent.refundId){
   refund=await request<StripeRefund>("refunds/"+encodeURIComponent(intent.refundId),key,"GET",undefined,sender);
  }else{
-  const idempotency="sm-erasure-v1-"+intent.purchaseId;
-  refund=await request<StripeRefund>("refunds",key,"POST",
-   new URLSearchParams({payment_intent:session.payment_intent,amount:String(intent.cents),
-    reason:"requested_by_customer",
-    "metadata[erasure_intent]":idempotency,
-    "metadata[erasure_purchase]":intent.purchaseId}),sender);
+  // Claim before making any irreversible network request. If a process dies
+  // after Stripe creates the refund but before the reply is persisted, never
+  // create a second refund based merely on a stale idempotency key.
+  const claimed=db.prepare("UPDATE customer_erasure_refund_intents SET state='pending',sent_at=?,updated=? WHERE purchase_id=? AND state='ready' AND refund_id IS NULL")
+   .run(Date.now(),Date.now(),intent.purchaseId);
+  if(claimed.changes===1){
+   refund=await request<StripeRefund>("refunds",key,"POST",
+    new URLSearchParams({payment_intent:session.payment_intent,amount:String(intent.cents),
+     reason:"requested_by_customer",
+     "metadata[erasure_intent]":idempotency,
+     "metadata[erasure_purchase]":intent.purchaseId}),sender);
+  }else{
+   // Recovery uses the provider's real refund list and purchase metadata,
+   // never an unbounded retry that could double-pay after 24h.
+   const discovered=await request<{data?:StripeRefund[];has_more?:boolean}>(
+    "refunds?payment_intent="+encodeURIComponent(session.payment_intent)+"&limit=100",key,"GET",undefined,sender);
+   if(discovered.has_more||!Array.isArray(discovered.data))
+    throw Error("Refund history needs financial reconciliation before deletion");
+   const matches=discovered.data.filter(r=>r.metadata?.erasure_intent===idempotency&&
+    r.metadata?.erasure_purchase===intent.purchaseId&&r.amount===intent.cents);
+   if(matches.length!==1)
+    throw Error("Refund creation result still pending independent verification");
+   refund=matches[0];
+  }
  }
  if(!refund||!/^re_[A-Za-z0-9_]+$/.test(refund.id||"")||
     refund.object!=="refund"||refund.payment_intent!==session.payment_intent||
