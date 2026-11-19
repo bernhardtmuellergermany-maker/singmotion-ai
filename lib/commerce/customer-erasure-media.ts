@@ -29,7 +29,7 @@ type LiveAttempt={id:string;source_job_id:string;data:string};
 type MediaAsset={id:string;owner:string;data:string};
 const uuid=/^[a-f0-9-]{36}$/i;
 const fileId=/^[A-Za-z0-9_-]{1,180}$/;
-const localName=/^[A-Za-z0-9_-]{1,180}(?:\.(?:mp4|mp3|jpg|png))?$/;
+const localName=/^[A-Za-z0-9_-]{1,180}(?:\.[A-Za-z0-9_-]{1,30}){0,2}$/;
 const safe=(name:string)=>'"'+name.replaceAll('"','""')+'"';
 const sha=(input:string)=>createHash("sha256").update(input).digest("hex");
 const has=(db:DatabaseSync,name:string)=>!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
@@ -269,6 +269,26 @@ export async function eraseCustomerMedia(root:string,id:string,deps:Dependencies
    assets:v.assets.length,studioProjects:v.projectIds.length,
    providerTasks:v.attempts.length,paidOutputs:v.paid.length,
    inputLeases:v.leases.length,cloudSources:v.sources.length};
+  // Verify every authorized local path *before* any irreversible R2 call.
+  for(const row of v.assets){
+   const asset=JSON.parse(row.data) as Asset;
+   if(asset.id!==row.id||asset.owner!==v.owner||!fileId.test(asset.id)||
+      !["audio","image","video"].includes(asset.kind)||
+      !Number.isSafeInteger(asset.bytes)||asset.bytes<=0)
+    throw new CustomerMediaErasureBlocked("INVALID_LOCAL_ASSET");
+   const filename=asset.id.startsWith("customer-video-")?
+    "paid-"+asset.id.slice("customer-video-".length)+".mp4":asset.id;
+   if(path.resolve(asset.path)!==path.resolve(root,"media",filename))
+    throw new CustomerMediaErasureBlocked("INVALID_LOCAL_ASSET_PATH");
+  }
+  for(const item of v.attempts){
+   const attempt=JSON.parse(item.data) as {outputPath?:string|null};
+   if(typeof attempt.outputPath==="string"&&attempt.outputPath){
+    const filename=path.basename(attempt.outputPath);
+    if(!localName.test(filename)||path.resolve(attempt.outputPath)!==path.resolve(root,"live-output",filename))
+     throw new CustomerMediaErasureBlocked("INVALID_LIVE_OUTPUT_PATH");
+   }
+  }
   for(const entry of v.leases)
    await leaseDelete(id,entry.order_id,entry.audio_key,entry.image_key);
   for(const item of v.attempts){
