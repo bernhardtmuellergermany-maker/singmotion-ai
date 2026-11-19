@@ -6,7 +6,7 @@ const read=(file:string)=>readFileSync(new URL("../"+file,import.meta.url),"utf8
 
 test("Stripe return and manual resume explicitly request the Studio review step",()=>{
  const credits=read("components/credits-dashboard.tsx");
- assert.match(credits,/window\.location\.replace\("\/studio\?draft="\+encodeURIComponent\(pending\.draftId\)\+"\&resume=review"\)/);
+ assert.match(credits,/window\.location\.assign\("\/studio\?draft="\+encodeURIComponent\(resumeCandidate\.draftId\)\+"\&resume=review"\)/);
  assert.match(credits,/href=\{`\/studio\?draft=\$\{encodeURIComponent\(resume\.draftId\)\}\&resume=review`\}/);
  const status=read("components/super-admin-generation.tsx");
  assert.match(status,/"\&resume=review"/);
