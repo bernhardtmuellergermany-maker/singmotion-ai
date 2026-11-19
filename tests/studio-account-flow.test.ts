@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
+import {DatabaseSync} from "node:sqlite";
+import {parseSavedStudioDraft} from "../lib/studio-draft.ts";
 import {studioAccountReturn,parseStudioAccountReturn} from "../lib/studio-account-handoff.ts";
 import {privateSourceKey,validCloudRecord} from "../lib/cloud-media.ts";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
@@ -156,4 +158,34 @@ test("login or new account restores the exact authenticated guest draft at Step 
  assert.doesNotMatch(resume,/window\.location\.assign\("\/credits\?resumeDraft="/);
  assert.doesNotMatch(resume,/window\.location\.assign\("\/account\/verify-email/);
  assert.doesNotMatch(resume,/\/api\/credit-checkout|action:"submit"/);
+});
+
+test("owner-only guest handoff leaves audio, original/cropped photo, prompt, performance, camera and all Step-4 options unchanged",()=>{
+ const db=new DatabaseSync(":memory:");
+ const before={
+  version:1,owner:"guest-11111111",songId:"audio-xyz",imageId:"cropped-photo",
+  sourceImageId:"original-photo",editedImageId:"cropped-photo",
+  appliedOutputFormat:"16:9",start:4,end:9,
+  performance:"Natural",camera:"Static Close-Up",
+  customPrompt:"Play into the camera with a subtle smile",
+  outputFormat:"16:9",formatMode:"auto"
+ };
+ try{
+  db.exec("CREATE TABLE studio_drafts(id TEXT PRIMARY KEY, owner TEXT NOT NULL, selection TEXT NOT NULL, step INTEGER NOT NULL)");
+  db.prepare("INSERT INTO studio_drafts VALUES(?,?,?,3)")
+   .run("draft-123",before.owner,JSON.stringify(before));
+  // This is the same JSON owner-only update as customer-guest-import/route.ts;
+  // it MUST NOT reconstruct or clear the private media/prompt selection.
+  db.prepare("UPDATE studio_drafts SET owner=?,selection=json_set(selection,'$.owner',?) WHERE id=? AND owner=?")
+   .run("customer-22222222","customer-22222222","draft-123",before.owner);
+  const row=db.prepare("SELECT owner,selection,step FROM studio_drafts WHERE id=?")
+   .get("draft-123") as {owner:string;selection:string;step:number};
+  assert.equal(row.step,3);
+  assert.equal(row.owner,"customer-22222222");
+  const after=parseSavedStudioDraft(JSON.parse(row.selection));
+  assert.deepEqual(after,{...before,owner:"customer-22222222"});
+  // Malicious concurrent/other-owner draft cannot be moved by this update.
+  assert.equal(db.prepare("UPDATE studio_drafts SET owner=? WHERE id=? AND owner=?")
+   .run("attacker","draft-123",before.owner).changes,0);
+ }finally{db.close()}
 });
