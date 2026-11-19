@@ -93,6 +93,17 @@ test("an unknown live provider record blocks deletion even if it embeds only own
   }finally{live.close();}
  });
 });
+test("guest payment evidence with differently cased email blocks account deletion",()=>{
+ fixture((store,_media,dir)=>{
+  const id=store.register("buyer@example.test",password);
+  store.db.prepare("INSERT INTO customer_orders VALUES(?,?,?,?,?,?,?,?,?,?,?,?)")
+   .run("order-guest",null,null,null,"BUYER@EXAMPLE.TEST","project-guest",499,"eur","paid","{}","request-guest",Date.now());
+  assert.equal(assessCustomerErasure(store,dir,id).code,"MEDIA_OR_ORDERS");
+  assert.equal(eraseEmptyCustomerAccount(store,dir,id).eligible,false);
+  assert.ok(store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(id));
+  assert.ok(store.db.prepare("SELECT 1 FROM customer_orders WHERE id=?").get("order-guest"));
+ });
+});
 test("Google-only customers are never offered a nonfunctional password-deletion path",()=>{
  fixture((store,_media,dir)=>{
   const login=store.googleLogin("1234567890123","google@example.test");
