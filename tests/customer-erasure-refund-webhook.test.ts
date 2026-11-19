@@ -34,7 +34,7 @@ test("mismatched charge/Checkout, amount and metadata never update intent",()=>{
   assert.throws(()=>reconcileVerifiedErasureRefund(db,{...refund,amount:999},session,"test"),/differs/);
   assert.throws(()=>reconcileVerifiedErasureRefund(db,refund,{...session,id:"cs_test_other"},"test"),/differs/);
   assert.throws(()=>reconcileVerifiedErasureRefund(db,refund,session,"live"),/differs/);
-  assert.throws(()=>reconcileVerifiedErasureRefund(db,{...refund,metadata:{...refund.metadata,erasure_purchase:"another"}},session,"test"),/differs|false/);
+  assert.equal(reconcileVerifiedErasureRefund(db,{...refund,metadata:{...refund.metadata,erasure_purchase:"another"}},session,"test"),false);
   assert.equal(db.prepare("SELECT state FROM customer_erasure_refund_intents WHERE purchase_id=?").get(purchaseId)?.state,"pending");
  }finally{db.close()}
 });
