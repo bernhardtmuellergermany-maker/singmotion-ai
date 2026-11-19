@@ -65,31 +65,15 @@ export function StudioAccountResume(){
     sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
      draftId:wanted.draftId,requiredCredits:quote.credits,created:Date.now(),
     }));
-    // The guest media transfer is complete, but an email/password signup
-    // still needs inbox proof. Never route an unverified customer into a
-    // Stripe purchase, even in the staging sandbox.
-    if(identity.emailVerification==="pending"){
-     setMessage("Your draft is safe. Confirm your email before buying Credits…");
-     window.location.assign("/account/verify-email?from=studio");
-     return;
-    }
-    const balanceResponse=await fetch("/api/credit-balance",{
-     credentials:"same-origin",cache:"no-store",
-    });
-    const balance=await balanceResponse.json().catch(()=>null) as
-     {availableCredits?:number;purchaseEnabled?:boolean}|null;
+    // The customer asked to SIGN IN first, not to buy Credits or generate.
+    // Always restore Step 4, even if email verification or wallet funding
+    // will be needed later. Step 4 displays the actual wallet and asks for
+    // any required action explicitly, without charging or starting a job.
+    // A new password account can verify its email when they choose to buy.
     if(!current)return;
-    if(balanceResponse.ok&&Number.isSafeInteger(balance?.availableCredits)&&
-       (balance!.availableCredits as number)>=quote.credits){
-     setMessage("Your wallet covers this video. Returning to Step 4…");
-     window.location.assign("/studio?draft="+encodeURIComponent(wanted.draftId)+"&resume=review");
-     return;
-    }
-    setMessage("Your project is saved. Continuing to Credits…");
-    // Checkout itself remains explicitly gated by server-side tax, webhook,
-    // balance and worker readiness; never fake a successful purchase.
-    window.location.assign("/credits?resumeDraft="+encodeURIComponent(wanted.draftId)+
-      "&requiredCredits="+quote.credits+"#buy-credits");
+    setMessage("Your audio, photo and video settings are safe. Returning to Step 4…");
+    sessionStorage.removeItem(STUDIO_ACCOUNT_RESUME_KEY);
+    window.location.assign("/studio?draft="+encodeURIComponent(wanted.draftId)+"&resume=review");
    }catch(cause){
     if(current){setError(cause instanceof Error?cause.message:"Could not verify saved project.");setRunning(false);}
    }
