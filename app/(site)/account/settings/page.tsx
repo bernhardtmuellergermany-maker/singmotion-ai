@@ -176,14 +176,14 @@ export default function AccountSettings(){
   finally{setRemoveBusy(false);}
  }
  return <Shell hideWorkspaceNav><div className="sm-settings-page">
- <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR WORKSPACE</span><h1>Account settings</h1><p>Manage your profile, security, payments and privacy in one place.</p></header>
+ <header className="sm-settings-header"><span className="sm-settings-eyebrow">YOUR ACCOUNT</span><h1>Account settings</h1></header>
  <div className="sm-settings-layout">
-  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Account</a><a href="#security"><ShieldCheck size={17}/> Security</a>{data&&!data.staffPreview&&<a href="#email-notifications"><Mail size={17}/> Email notifications</a>}<a href="#billing"><CreditCard size={17}/> Payments</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}{canShowAdmin&&<a href="#announcements"><Bell size={17}/> Notifications · Broadcast</a>}</nav>
-  <div className="sm-settings-content">
+  <nav aria-label="Settings sections" className="sm-settings-nav"><a href="#profile"><UserRound size={17}/> Profile</a><a href="#security"><ShieldCheck size={17}/> Security</a>{data&&!data.staffPreview&&<a href="#email-notifications"><Mail size={17}/> Email notifications</a>}<a href="#billing"><CreditCard size={17}/> Credits</a><a href="#invoices"><FileText size={17}/> Invoices</a><a href="#privacy"><Trash2 size={17}/> Privacy & deletion</a>{canShowAdmin&&<a href="#admin-console"><LayoutDashboard size={17}/> Admin consoles</a>}{canShowAdmin&&<a href="#announcements"><Bell size={17}/> Notifications · Broadcast</a>}</nav>
+  <div className={`sm-settings-content${data&&!data.staffPreview?" sm-settings-customer":""}`}>
    {data?.staffPreview&&<section className="sm-settings-section" role="status"><strong>Super Admin account</strong><p className="sm-settings-muted">You can view your own real credits and purchases under Credits, just like a customer. Account security and staff management remain in the admin area.</p></section>}
    {error&&<section role="alert" className="sm-settings-section"><p>{error}</p><Link href="/?card=login">Go to sign in</Link></section>}
    {data&&<>
-    <section id="profile" className="sm-settings-section"><h2>Account information</h2><label>Email address<input readOnly value={data.profile.email}/></label>
+    <section id="profile" className="sm-settings-section"><h2>Profile</h2><label>Email address<input readOnly value={data.profile.email}/></label>
     {!data.staffPreview&&<div className="sm-settings-verification" role="status" aria-live="polite">
      {data.emailVerification==="verified"?<span className="sm-settings-verification-ok">✓ Email verified</span>
       :data.emailVerification==="pending"?<><span className="sm-settings-verification-pending">Email not yet verified</span><button className="sm-settings-secondary" type="button" disabled={busy} onClick={()=>void resendVerification()}>{busy?"Sending…":"Resend verification email"}</button></>
@@ -199,9 +199,9 @@ export default function AccountSettings(){
       </div>
     </section>}
     {!data.staffPreview&&<section id="security" className="sm-settings-section sm-security-section">
-      <div className="sm-security-heading"><div><h2>Security</h2><p className="sm-settings-muted">Manage your password and devices that have access to your account.</p></div></div>
+      <div className="sm-security-heading"><div><h2>Security</h2><p className="sm-settings-muted">Password, inactivity and devices.</p></div></div>
       <div className="sm-security-panel">
-        <div className="sm-security-panel-intro"><div className="sm-security-icon"><ShieldCheck size={20}/></div><div><h3>Password</h3><p className="sm-settings-muted">Choose a unique password with at least 8 characters.</p></div></div>
+        <div className="sm-security-panel-intro"><div className="sm-security-icon"><ShieldCheck size={20}/></div><div><h3>Password</h3><p className="sm-settings-muted">Keep your password private.</p></div></div>
         <details className="sm-security-password-disclosure">
           <summary>Change password</summary>
           <form onSubmit={e=>{e.preventDefault();void action("change-password");}}>
@@ -213,7 +213,7 @@ export default function AccountSettings(){
         </details>
       </div>
       <div className="sm-security-panel sm-idle-security-panel">
-        <div className="sm-security-panel-intro"><div className="sm-security-icon"><ShieldCheck size={20}/></div><div><h3>Automatic sign-out</h3><p className="sm-settings-muted">When nobody uses your account on any device for the chosen period, all customer sessions are signed out. Background updates do not keep you signed in.</p></div></div>
+        <div className="sm-security-panel-intro"><div className="sm-security-icon"><ShieldCheck size={20}/></div><div><h3>Automatic sign-out</h3><p className="sm-settings-muted">Sign out automatically after inactivity.</p></div></div>
         <form className="sm-idle-form" onSubmit={e=>{e.preventDefault();void saveIdleMinutes();}}>
           <label htmlFor="sm-idle-minutes">Sign out after inactivity
             <select id="sm-idle-minutes" value={idleMinutes} onChange={e=>{setIdleMinutes(Number(e.target.value));setIdleNotice("");}}>
@@ -229,39 +229,35 @@ export default function AccountSettings(){
           </label>
           <button type="submit" disabled={idleSaving||idleMinutes===data.idleMinutes}>{idleSaving?"Saving…":"Save sign-out preference"}</button>
         </form>
-        <p className="sm-settings-muted sm-idle-note">This setting applies to all customer devices. Turning it off does not disable the separate 24-hour login session expiry.</p>
+        <p className="sm-settings-muted sm-idle-note">All devices · Maximum session: 24 hours, even when off.</p>
         {idleNotice&&<p className="sm-security-notice" role="status">{idleNotice}</p>}
       </div>
       <div className="sm-security-panel">
-        <div className="sm-security-panel-intro"><div className="sm-security-icon"><UserRound size={20}/></div><div><h3>Active sessions</h3><p className="sm-settings-muted">{data.sessions} active customer {data.sessions===1?"session":"sessions"}. Sign out everywhere if you suspect unauthorized access.</p></div></div>
+        <div className="sm-security-panel-intro"><div className="sm-security-icon"><UserRound size={20}/></div><div><h3>Active sessions</h3><p className="sm-settings-muted">{data.sessions} active {data.sessions===1?"session":"sessions"}</p></div></div>
         <button className="sm-settings-secondary" type="button" disabled={busy} onClick={()=>void action("logout-all")}>Sign out on all devices</button>
       </div>
       {notice&&<p className="sm-security-notice" role="status">{notice}</p>}
     </section>}
     {!data.staffPreview&&<section id="email-notifications" className="sm-settings-section">
      <h2><Mail size={21} aria-hidden="true"/> Email notifications</h2>
-     <p className="sm-settings-muted">Choose whether to receive an email when your generated video is ready. This applies to future video completions on your account.</p>
+     
      <label className="sm-settings-email-toggle">
       <input type="checkbox" checked={videoEmailEnabled===true}
        disabled={videoEmailEnabled===null||videoEmailSaving}
        onChange={e=>void changeVideoEmail(e.target.checked)}/>
       <span>Send me an email when my video is ready</span>
      </label>
-     <p className="sm-settings-muted">Security verification emails, receipts and essential billing notifications are not affected.</p>
+     <p className="sm-settings-muted sm-settings-small-note">Receipts and security emails stay enabled.</p>
      {videoEmailNotice&&<p role="status" className="sm-settings-muted">{videoEmailNotice}</p>}
     </section>}
     <section id="billing" className="sm-settings-section">
       <h2>Credits & payments</h2>
-      <div className="sm-plan-summary">
-        <strong>Prepaid Credits</strong>
-        <p>Buy credits once when Checkout is available, monitor your wallet and track each transaction. There is no monthly plan or automatic top-up.</p>
-        <p className="sm-settings-muted">Automatic recharge is currently off. No payment method is charged without explicit authorization. Any available Stripe invoices appear below.</p>
-        <p><Link href="/credits">Credits & top-up options</Link> · <Link href="/credits#usage">Usage history</Link> · <Link href="/plans">Pricing information</Link></p>
-      </div>
-      {storageUsage&&<p className="sm-settings-muted">Your uploaded audio and photos: {(storageUsage.usedBytes/1048576).toFixed(1)} MB stored{storageUsage.provider==="cloudflare-r2"?" privately on Cloudflare R2":""}. No cumulative account upload quota. Individual file-size and security limits still apply. Finished videos are stored separately.</p>}
+      <p className="sm-settings-muted">Prepaid Credits. No subscription or automatic top-up.</p>
+      <div className="sm-settings-quick-links"><Link href="/credits#buy-credits">Buy Credits</Link><Link href="/credits#usage">Usage</Link><Link href="/plans">Prices</Link></div>
+      {storageUsage&&<p className="sm-settings-muted sm-settings-small-note">Stored uploads: {(storageUsage.usedBytes/1048576).toFixed(1)} MB</p>}
       <div className="sm-settings-credit-balance"><CreditCard size={19}/><span>Available credits</span><strong>{data.credits.toLocaleString("en-GB")}</strong></div>
-      <p className="sm-settings-muted">Historical order records, if any, appear below. Only completed Stripe payments create invoice documents.</p>
-      {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span>{o.status==="paid"&&<button type="button" className="sm-settings-remove-order" onClick={()=>{setRemoveOrderId(o.id);setRemovePassword("");setRemoveNotice("");}}>Remove</button>}</div>)}</div>:<p className="sm-settings-muted">No account orders recorded.</p>}
+      
+      {data.orders.length?<div className="sm-settings-orders">{data.orders.map(o=><div key={o.id}><strong>{o.project_id}</strong><span>{new Date(o.created).toLocaleDateString("en-GB")}</span><span>{(o.price_cents/100).toLocaleString("en-GB",{style:"currency",currency:o.currency||"EUR"})}</span><span>{o.status}</span>{o.status==="paid"&&<button type="button" className="sm-settings-remove-order" onClick={()=>{setRemoveOrderId(o.id);setRemovePassword("");setRemoveNotice("");}}>Remove</button>}</div>)}</div>:<p className="sm-settings-muted">No orders yet.</p>}
       {removeOrderId&&<form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void removePaidOrder();}}>
        <div><strong>Remove this paid order from your list?</strong><p className="sm-settings-muted">Confirm with your account password. This hides the order from your account history; it does not cancel a charge, issue a refund, delete your video or erase an invoice.</p></div>
        <label>Account password<input type="password" autoComplete="current-password" value={removePassword} maxLength={256} required onChange={e=>setRemovePassword(e.target.value)}/></label>
@@ -270,36 +266,34 @@ export default function AccountSettings(){
       {removeNotice&&<p role="status" className="sm-settings-order-notice">{removeNotice}</p>}
     </section>
     <section id="invoices" className="sm-settings-section"><h2>Invoices & receipts</h2>
-      <p className="sm-settings-muted">Download available Stripe invoices for completed purchases. Only documents actually issued by Stripe appear here; an order confirmation is not automatically a tax invoice.</p>
+      <p className="sm-settings-muted">Your available Stripe invoices and receipts.</p>
       {invoicesLoading?<p className="sm-settings-muted" role="status">Checking available invoices…</p>:invoices.length?
        <div className="sm-settings-invoice-list">{invoices.map(invoice=><div className="sm-settings-invoice" key={invoice.id}>
          <div><strong>{invoice.number}</strong><p className="sm-settings-muted">{new Date(invoice.created).toLocaleDateString("en-GB")} · {(invoice.amount/100).toLocaleString("en-GB",{style:"currency",currency:invoice.currency.toUpperCase()})}{invoice.paymentStatus==="refunded"?" · Refunded":""}</p></div>
          <a href={invoice.pdf||invoice.hosted||"#"} rel="noopener noreferrer" target="_blank" className="sm-settings-invoice-link"><Download size={16}/> {invoice.pdf?"Download PDF":"View invoice"}</a>
-       </div>)}</div>:<div className="sm-settings-empty"><FileText size={22}/><div><strong>No invoices available</strong><p className="sm-settings-muted">{invoiceMessage||"Invoices will appear here when Stripe has issued them for your paid orders."}</p></div></div>}
-      <p className="sm-settings-muted">Need a receipt or invoice correction? <a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Contact billing support</a>. </p>
+       </div>)}</div>:<div className="sm-settings-empty"><FileText size={22}/><div><strong>No invoices yet</strong><p className="sm-settings-muted">{invoiceMessage||"Issued invoices appear here after payment."}</p></div></div>}
+      <p className="sm-settings-muted sm-settings-small-note"><a href="mailto:support@singmotion.ai?subject=Billing%20document%20request">Questions about an invoice?</a></p>
     </section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2>
-      <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Your personal information</strong><p className="sm-settings-muted">Account details and payments are restricted to authenticated access. Payment card details are handled by Stripe, not stored on this page.</p><Link href="/privacy">Read privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Videos & uploads</strong><p className="sm-settings-muted">Review your saved projects and uploads. Project files and payment records follow different retention requirements.</p><Link href="/projects">Open my projects <ExternalLink size={13}/></Link></div></div>
+      <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Privacy</strong><Link href="/privacy">Privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Your files</strong><Link href="/projects">My projects <ExternalLink size={13}/></Link></div></div>
       {data.staffPreview?<p className="sm-settings-muted">Staff and Super Admin accounts require a protected administrator handover. Do not use a customer password to close a staff account. <a href="mailto:support@singmotion.ai?subject=Staff%20account%20closure">Contact support</a>.</p>:<>
-       <p className="sm-settings-muted">{erasure?.automatic?
-        "Delete your account yourself without administrator approval. After password confirmation, unused purchased Credits are automatically refunded to their original payment methods, and private projects, videos, photos and audio are removed. Payment records kept for legal purposes remain protected; backup copies expire on their retention schedule.":
-        "You can permanently delete an unused customer account yourself, without administrator approval, after entering your password. Purchased Credits, payments, invoices, uploads and videos require safe settlement or verified deletion first. Backup copies expire on their separate retention schedule."}</p>
+       
        <div className="sm-settings-deletion-status" role="status" aria-live="polite">
-        {erasureLoading||erasure===null?"Checking account, payments and media safety…":erasure.message}
+        {erasureLoading||erasure===null?"Checking account…":erasure.eligible?(erasure.automatic?"Ready to delete · Unused purchased Credits are refunded to the original payment method.":"Ready to delete this account."): "Deletion is currently unavailable while payments or files need checking."}
        </div>
-       {(erasure?.eligible===true||erasure?.automatic===true)&&<details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
+       {erasure?.eligible===true&&<details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
         <summary>Delete account permanently</summary>
         <form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void deleteMyAccount();}}>
-         <p className="sm-settings-muted">You are permanently closing your account. This immediately revokes all login sessions. Automatic refunds and media deletion are processed and independently verified before completion. Keep the deletion status page open or revisit it later in the same browser. Your account cannot be recovered. Legally required financial records and existing backups follow separate retention rules.</p>
+         <p className="sm-settings-muted sm-settings-delete-warning">This cannot be undone. Eligible unused Credits are refunded; required payment records and backups follow their retention rules.</p>
          <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>
          <label>Type DELETE MY ACCOUNT<input type="text" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE MY ACCOUNT"/></label>
          <button className="sm-settings-danger" type="submit" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Deleting account…":"Permanently delete my account"}</button>
          {deleteNotice&&<p role="alert" className="sm-settings-muted">{deleteNotice}</p>}
         </form>
        </details>}
-       {erasure?.eligible===false&&!erasure?.automatic&&<p className="sm-settings-muted">Your account has not been deleted. Unused purchased Credits are not forfeited, and no refund is issued automatically. To arrange the required reconciliation or exercise your GDPR erasure rights, <a href="mailto:support@singmotion.ai?subject=Account%20erasure%20and%20remaining%20Credits">contact privacy support</a>. No administrator approval is required for the privacy request itself.</p>}
+       {erasure?.eligible===false&&!erasureLoading&&<p className="sm-settings-muted sm-settings-small-note">Your Credits remain safe. <a href="mailto:support@singmotion.ai?subject=Account%20erasure%20and%20remaining%20Credits">Contact privacy support</a> for help.</p>}
       </>}
-      <p className="sm-settings-support"><LifeBuoy size={17}/> Questions about account access, payments or privacy? <a href="mailto:support@singmotion.ai">Contact support</a>.</p>
+      <p className="sm-settings-support"><LifeBuoy size={17}/> <a href="mailto:support@singmotion.ai">Need help? Contact support</a></p>
      </section>
    {canShowAdmin&&<AdminAnnouncements/>}
    {canShowAdmin&&<AdminAccountDashboard overview={adminOverview} busy={adminStatusBusy} error={adminStatusError} refresh={()=>void refreshAdminStatus()}/>}
