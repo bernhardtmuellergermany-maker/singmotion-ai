@@ -5,7 +5,7 @@ import {notifyAuthTransition} from "@/lib/client";
 /** Reports actual user input only. Status checks NEVER refresh inactivity. */
 export function CustomerIdleGuard(){
  useEffect(()=>{
-  let alive=true,hadCustomerSession=false,pending=false,reporting=false,lastReport=0,signedOut=false;
+  let alive=true,hadCustomerSession=false,pending=false,reporting=false,lastReport=0,signedOut=false,authRevision=0;
   const expired=()=>{
    if(signedOut||!alive)return;
    signedOut=true;
@@ -28,26 +28,28 @@ export function CustomerIdleGuard(){
   };
   const check=async()=>{
    if(!alive||pending||signedOut)return;
+   const revision=authRevision;
    pending=true;
    try{
     const response=await fetch("/api/customer-session-activity",{cache:"no-store",credentials:"same-origin"});
-    if(!alive)return;
+    if(!alive||revision!==authRevision)return;
     if(response.ok)hadCustomerSession=true;
     else if(response.status===401){
      const state=await response.json().catch(()=>null) as {expiredSession?:boolean}|null;
      // Also recover after browser restart: no successful GET may have occurred
      // before the account-wide timeout was enforced on another device.
-     if(alive&&(hadCustomerSession||state?.expiredSession===true))expired();
+     if(alive&&revision===authRevision&&(hadCustomerSession||state?.expiredSession===true))expired();
     }
    }catch{/* An offline device cannot refresh its session or bypass the server timeout. */}
    finally{pending=false;}
   };
   const report=async()=>{
    if(!alive||!hadCustomerSession||reporting||signedOut||Date.now()-lastReport<45000)return;
+   const revision=authRevision;
    reporting=true;lastReport=Date.now();
    try{
     const response=await fetch("/api/customer-session-activity",{method:"POST",credentials:"same-origin",cache:"no-store"});
-    if(alive&&response.status===401)expired();
+    if(alive&&revision===authRevision&&response.status===401)expired();
    }catch{/* Retry only after a later real user gesture. */}
    finally{reporting=false;}
   };
@@ -56,7 +58,7 @@ export function CustomerIdleGuard(){
   };
   const visible=()=>{if(document.visibilityState==="visible")void check();};
   const focus=()=>{void check();};
-  const refreshed=()=>{hadCustomerSession=false;void check();};
+  const refreshed=()=>{authRevision++;hadCustomerSession=false;void check();};
   for(const name of ["pointerdown","pointermove","keydown","wheel","touchstart"])
    document.addEventListener(name,interaction,{passive:true});
   document.addEventListener("visibilitychange",visible);
