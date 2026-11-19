@@ -1,0 +1,245 @@
+/* Customer-first settings dashboard. The admin console keeps its existing layout.
+   Deliberately avoids the old globally forced 232px single-control column. */
+.sm-settings-page{padding:clamp(20px,3vw,44px);background:radial-gradient(ellipse at 55% -20%,#43225945,transparent 52%),#0a0b18}
+.sm-settings-header,.sm-settings-layout{max-width:1460px}
+.sm-settings-header{margin-bottom:22px}
+.sm-settings-header h1{font-size:clamp(29px,3.4vw,39px);margin:6px 0 0}
+.sm-settings-layout{grid-template-columns:184px minmax(0,1fr);gap:24px}
+.sm-settings-nav{gap:4px;top:96px}
+.sm-settings-nav a{min-height:42px;padding:10px 12px;font-size:13px}
+.sm-settings-nav a:focus-visible{outline:2px solid #b785ff;outline-offset:2px}
+
+.sm-settings-content.sm-settings-customer{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ align-items:start;
+ gap:16px;
+}
+.sm-settings-customer>.sm-settings-section{
+ box-sizing:border-box;
+ min-width:0;
+ margin:0;
+ padding:23px 24px;
+ border:1px solid #3c334e;
+ border-radius:16px;
+ background:linear-gradient(150deg,#191626,#121321 85%);
+ box-shadow:0 8px 30px #05040f22;
+}
+.sm-settings-customer>.sm-settings-section h2{
+ font-size:18px;
+ margin:0 0 14px;
+ letter-spacing:-.018em;
+ line-height:1.3;
+}
+.sm-settings-customer .sm-settings-muted{font-size:12.5px;line-height:1.48;margin:9px 0}
+.sm-settings-customer .sm-settings-small-note{color:#a99fbc;font-size:12px;margin:12px 0 0}
+.sm-settings-customer .sm-settings-section label{
+ width:100%;max-width:none;min-width:0;font-size:12.5px
+}
+.sm-settings-customer .sm-settings-section input,
+.sm-settings-customer .sm-settings-section select{
+ max-width:none;min-width:0;width:100%;
+}
+.sm-settings-customer .sm-settings-section form{
+ width:100%;max-width:none;
+ display:grid;grid-template-columns:minmax(0,1fr);
+ gap:12px;
+}
+.sm-settings-customer .sm-settings-section button{
+ box-sizing:border-box;width:auto;max-width:100%;
+ min-height:42px;padding:10px 15px;
+ font-size:12.5px;
+}
+.sm-settings-customer .sm-settings-section .sm-settings-secondary{margin-top:12px}
+.sm-settings-customer .sm-settings-section button:focus-visible{outline:2px solid #c8a4ff;outline-offset:3px}
+.sm-settings-customer>#profile{grid-column:1;grid-row:1}
+.sm-settings-customer>#email-notifications{grid-column:2;grid-row:1}
+.sm-settings-customer>#security{grid-column:1/-1;grid-row:2}
+.sm-settings-customer>#billing{grid-column:1;grid-row:3}
+.sm-settings-customer>#invoices{grid-column:2;grid-row:3}
+.sm-settings-customer>#privacy{grid-column:1/-1;grid-row:4}
+.sm-settings-customer>[role="alert"],
+.sm-settings-customer>.sm-admin-announcements,
+.sm-settings-customer>.sm-settings-admin-dashboard{grid-column:1/-1}
+
+/* Profile and notifications share the opening row, not two tall stacked pages. */
+.sm-settings-customer #profile label{
+ display:grid;grid-template-columns:90px minmax(0,1fr);
+ align-items:center;gap:16px;max-width:none;
+}
+.sm-settings-customer #profile label input{
+ width:100%;height:41px;
+ white-space:nowrap;text-overflow:ellipsis;
+}
+.sm-settings-customer #profile>.sm-settings-muted{margin:12px 0 0}
+.sm-settings-customer #email-notifications h2{margin-bottom:14px}
+.sm-settings-customer .sm-settings-email-toggle{
+ display:flex!important;align-items:center;
+ min-height:48px;padding:12px 14px;
+ background:#221b32;border-color:#54416e;border-radius:11px;
+ gap:12px;font-size:13px;
+}
+.sm-settings-customer .sm-settings-email-toggle input[type="checkbox"]{
+ flex:0 0 21px;width:21px;height:21px;
+}
+
+/* Security: three independent, compact controls side by side on wide screens. */
+.sm-settings-customer#unused-selector{display:none}
+.sm-settings-customer>#security{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ column-gap:12px;row-gap:13px;
+}
+.sm-settings-customer .sm-security-heading{grid-column:1/-1;margin:0}
+.sm-settings-customer .sm-security-heading h2{margin:0 0 3px}
+.sm-settings-customer .sm-security-heading p{margin:0}
+.sm-settings-customer .sm-security-panel{
+ display:flex;flex-direction:column;min-width:0;
+ gap:15px;margin:0;padding:17px;
+ border-color:#403351;border-radius:13px;background:#1e192c;
+}
+.sm-settings-customer .sm-security-panel-intro{gap:11px}
+.sm-settings-customer .sm-security-panel-intro>div:last-child{min-width:0}
+.sm-settings-customer .sm-security-icon{
+ flex:0 0 32px;width:32px;height:32px;
+ border-radius:9px;
+}
+.sm-settings-customer .sm-security-icon svg{width:17px;height:17px}
+.sm-settings-customer .sm-security-panel h3{font-size:14px;margin:0 0 4px}
+.sm-settings-customer .sm-security-panel .sm-settings-muted{margin:0;font-size:12px}
+.sm-settings-customer .sm-security-password-disclosure{
+ width:100%;max-width:none;margin:auto 0 0;
+}
+.sm-settings-customer .sm-security-password-disclosure>summary{
+ min-height:42px;padding:9px 12px;
+}
+.sm-settings-customer .sm-security-password-disclosure[open]>summary{margin-bottom:12px}
+.sm-settings-customer .sm-security-password-disclosure form{
+ width:100%;max-width:none;gap:10px;
+}
+.sm-settings-customer .sm-security-panel>button.sm-settings-secondary{
+ width:100%;margin:auto 0 0;min-height:42px;
+}
+.sm-settings-customer .sm-idle-security-panel .sm-idle-form{
+ display:grid;gap:10px;
+ margin:auto 0 0;width:100%;max-width:none;
+}
+.sm-settings-customer .sm-idle-security-panel .sm-idle-form label{
+ width:100%;max-width:none;
+}
+.sm-settings-customer .sm-idle-security-panel .sm-idle-form select{width:100%;max-width:none}
+.sm-settings-customer .sm-idle-security-panel .sm-idle-note{
+ margin:0;font-size:11.5px;
+}
+.sm-settings-customer .sm-security-notice{grid-column:1/-1;margin:0}
+
+/* The Credit overview has one amount and one row of useful destinations. */
+.sm-settings-customer #billing .sm-settings-credit-balance{
+ margin:12px 0;padding:13px 16px;
+ background:#241a37;border-color:#574071;
+}
+.sm-settings-customer #billing .sm-settings-credit-balance strong{font-size:24px}
+.sm-settings-customer .sm-settings-quick-links{
+ display:flex;align-items:center;flex-wrap:wrap;gap:8px;
+ margin:14px 0 0;
+}
+.sm-settings-customer .sm-settings-quick-links a{
+ display:inline-flex;align-items:center;justify-content:center;
+ min-height:34px;padding:7px 12px;
+ background:#29203b;border:1px solid #56416d;
+ border-radius:9px;color:#ead5ff;text-decoration:none;
+ font-size:12px;font-weight:650;
+}
+.sm-settings-customer .sm-settings-quick-links a:hover{border-color:#aa7be0;background:#35274c}
+.sm-settings-customer .sm-settings-orders{margin-top:15px}
+.sm-settings-customer .sm-settings-orders>div{grid-template-columns:minmax(0,1.35fr) 85px 75px 65px auto;gap:8px;align-items:center}
+.sm-settings-customer .sm-settings-remove-order{width:auto}
+.sm-settings-customer .sm-settings-order-confirm{
+ width:100%;max-width:none;
+ padding:17px;margin:14px 0;gap:12px;
+}
+.sm-settings-customer .sm-settings-order-confirm>div>strong{font-size:13px}
+.sm-settings-customer .sm-settings-order-confirm p{margin:7px 0 0}
+.sm-settings-customer .sm-settings-order-actions{display:flex;gap:9px}
+.sm-settings-customer .sm-settings-order-actions button{margin:0}
+
+/* Privacy links are short horizontal destinations, not explanatory blocks. */
+.sm-settings-customer #privacy .sm-settings-info-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:0 0 16px}
+.sm-settings-customer #privacy .sm-settings-info-grid>div{
+ display:flex;flex-direction:row;align-items:center;
+ gap:12px;min-width:0;padding:12px 14px;
+ background:#201a2c;border-color:#40354f;border-radius:11px;
+}
+.sm-settings-customer #privacy .sm-settings-info-grid svg{flex:none}
+.sm-settings-customer #privacy .sm-settings-info-grid strong{font-size:13px}
+.sm-settings-customer #privacy .sm-settings-info-grid a{
+ margin-left:auto;white-space:nowrap;
+ font-size:12px;
+}
+.sm-settings-customer #privacy .sm-settings-deletion-status{
+ max-width:none;margin:10px 0 13px;padding:12px 14px;
+ background:#211b30;border-color:#544268;
+ line-height:1.48;font-size:12.5px;
+}
+.sm-settings-customer #privacy .sm-settings-deletion-disclosure{max-width:none;margin:0}
+.sm-settings-customer #privacy .sm-settings-deletion-disclosure>summary{
+ padding:11px 15px;min-height:42px;box-sizing:border-box;
+ display:inline-flex;align-items:center;
+}
+.sm-settings-customer #privacy .sm-settings-deletion-disclosure .sm-settings-order-confirm{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:12px;max-width:760px;margin:12px 0;
+}
+.sm-settings-customer #privacy .sm-settings-delete-warning{grid-column:1/-1;margin:0 0 3px}
+.sm-settings-customer #privacy .sm-settings-deletion-disclosure .sm-settings-order-confirm>button{
+ grid-column:1/-1;justify-self:start;
+ margin:0;
+}
+.sm-settings-customer #privacy .sm-settings-deletion-disclosure [role="alert"]{grid-column:1/-1}
+.sm-settings-customer #privacy .sm-settings-support{margin:13px 0 0;gap:8px}
+.sm-settings-customer #privacy .sm-settings-support a{text-decoration:underline;text-underline-offset:2px}
+.sm-settings-customer #invoices .sm-settings-invoice-list{margin:12px 0}
+.sm-settings-customer #invoices .sm-settings-invoice{padding:13px 14px}
+.sm-settings-customer #invoices .sm-settings-empty{margin:12px 0;padding:14px;align-items:center}
+
+@media(max-width:1260px){
+ .sm-settings-customer>#security{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sm-settings-customer .sm-security-panel:last-of-type{grid-column:1/-1}
+}
+@media(max-width:990px){
+ .sm-settings-layout{grid-template-columns:155px minmax(0,1fr);gap:16px}
+ .sm-settings-content.sm-settings-customer{grid-template-columns:1fr;gap:12px}
+ .sm-settings-customer>#profile,.sm-settings-customer>#email-notifications,
+ .sm-settings-customer>#security,.sm-settings-customer>#billing,
+ .sm-settings-customer>#invoices,.sm-settings-customer>#privacy{
+  grid-column:1;grid-row:auto
+ }
+ .sm-settings-customer>#security{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .sm-settings-customer>.sm-settings-section{padding:20px}
+}
+@media(max-width:740px){
+ .sm-settings-page{padding:20px 15px 40px}
+ .sm-settings-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+ .sm-settings-nav{
+  display:flex;flex-direction:row;position:static;
+  gap:5px;overflow:auto;padding-bottom:5px;
+  scrollbar-width:thin;
+ }
+ .sm-settings-nav a{flex:0 0 auto;white-space:nowrap;padding:9px 11px;font-size:12px}
+ .sm-settings-header{margin-bottom:17px}
+ .sm-settings-content.sm-settings-customer{gap:11px}
+ .sm-settings-customer>.sm-settings-section{padding:17px 16px;border-radius:13px}
+ .sm-settings-customer>#security{grid-template-columns:1fr}
+ .sm-settings-customer .sm-security-panel:last-of-type{grid-column:1}
+ .sm-settings-customer .sm-settings-info-grid{grid-template-columns:1fr}
+ .sm-settings-customer #privacy .sm-settings-info-grid{grid-template-columns:1fr}
+ .sm-settings-customer #privacy .sm-settings-deletion-disclosure .sm-settings-order-confirm{grid-template-columns:1fr}
+ .sm-settings-customer #profile label{grid-template-columns:1fr;gap:7px}
+ .sm-settings-customer .sm-settings-orders>div{grid-template-columns:minmax(0,1fr) auto;gap:6px}
+ .sm-settings-customer .sm-settings-order-actions{flex-wrap:wrap}
+ .sm-settings-customer #privacy .sm-settings-info-grid a{white-space:normal}
+}
+@media(prefers-reduced-motion:reduce){
+ .sm-settings-customer .sm-settings-quick-links a{transition:none}
+}
