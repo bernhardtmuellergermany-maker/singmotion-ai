@@ -29,7 +29,7 @@ demo.exec("CREATE TABLE sessions(token TEXT PRIMARY KEY,owner TEXT NOT NULL,expi
 demo.close();
 const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","--hostname","127.0.0.1","-p",String(port)],{
  env:{...process.env,DATA_DIR:root,NODE_ENV:"production",APP_ORIGIN:origin,
-  RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
+  RAILWAY_ENVIRONMENT_ID:"",SINGMOTION_ISOLATED_ERASURE_TEST:"true",
   CUSTOMER_AUTOMATED_ERASURE_ENABLED:"true",
   CUSTOMER_ACCOUNTS_ENABLED:"true",CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"false",
   STAGING_AUTH_ENABLED:"false",CUSTOMER_R2_STORAGE_ENABLED:"false",
@@ -48,7 +48,7 @@ try{
   try{if((await fetch(origin+"/api/account")).status===200){ready=true;break}}catch{}
   await new Promise(resolve=>setTimeout(resolve,160));
  }
- assert.ok(ready,"Compiled Next server must boot over loopback");
+ assert.ok(ready,"Compiled Next server must boot over loopback: "+logs.slice(-900));
  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?
   {executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
  const context=await browser.newContext();
