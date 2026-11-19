@@ -1,0 +1,24 @@
+name: Verify customer account erasure refund plan
+on:
+  pull_request:
+    branches:
+      - fix/customer-facing-copy-cleanup-20261118
+    paths:
+      - "lib/commerce/customer-erasure-refund-*.ts"
+      - "tests/customer-erasure-refund-*.test.ts"
+      - "package.json"
+      - ".github/workflows/customer-erasure-refunds.yml"
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.3"
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/customer-erasure-refund-quote.test.ts tests/customer-erasure-refund-intents.test.ts
+      - run: npm run typecheck
