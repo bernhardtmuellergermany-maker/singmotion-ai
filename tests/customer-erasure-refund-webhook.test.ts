@@ -9,6 +9,8 @@ const accountId="11111111-1111-4111-8111-111111111111",purchaseId="22222222-2222
 const sessionId="cs_test_12345abcd";
 function fixture(){
  const db=new DatabaseSync(":memory:");new CreditWallet(db);ensureDeletionRefundIntents(db);
+ db.exec("CREATE TABLE customer_erasure_jobs(account_id TEXT PRIMARY KEY,state TEXT NOT NULL)");
+ db.prepare("INSERT INTO customer_erasure_jobs VALUES(?,'refunding')").run(accountId);
  db.prepare("INSERT INTO credit_topup_purchases(id,subject,email,credits,cents,status,request_key,stripe_session_id,created) VALUES(?,?,?,?,?,'paid',?,?,?)")
   .run(purchaseId,"customer:"+accountId,"customer@example.test",1000,1000,"request-1",sessionId,1);
  db.prepare("INSERT INTO customer_erasure_refund_intents VALUES(?,?,?,500,500,'pending',NULL,?,1,1)")
@@ -52,8 +54,7 @@ test("a delayed Stripe webhook replay remains idempotent after the customer was 
  const db=fixture();
  try{
   assert.equal(reconcileVerifiedErasureRefund(db,refund,session,"test"),true);
-  db.exec("CREATE TABLE customer_erasure_jobs(account_id TEXT PRIMARY KEY,state TEXT NOT NULL)");
-  db.prepare("INSERT INTO customer_erasure_jobs VALUES(?,'completed')").run(accountId);
+  db.prepare("UPDATE customer_erasure_jobs SET state='completed' WHERE account_id=?").run(accountId);
 
   const closed="closed:"+createHash("sha256").update(accountId).digest("hex");
   db.prepare("UPDATE credit_topup_purchases SET subject=?,email='deleted-account@singmotion.invalid' WHERE id=?")
