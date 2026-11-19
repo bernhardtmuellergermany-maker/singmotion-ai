@@ -82,11 +82,18 @@ async function main(){
     await writeFile(filename,raw,{mode:0o600,flag:'wx'});
     const childEnv={...process.env,RESTORE_HIDRIVE_RO_RCLONE_CONFIG:filename};
     delete childEnv[secretName];
-    console.log('RESTORE_RO_MANIFEST_PREFLIGHT_START');
+    const fullScan=process.env.RESTORE_RO_FULL_SCAN_ONCE==='YES';
+    if (fullScan && (
+        process.env.RESTORE_FULL_READ_APPROVED!=='YES' ||
+        process.env.RESTORE_RO_FULL_SCAN_RUN!=='267e5c70-7bdd-4157-ba40-5a757bdc07d9'))
+      fail('RESTORE_RO_FULL_SCAN_APPROVAL_REQUIRED');
+    const label=fullScan?'RESTORE_RO_FULL_CIPHERTEXT_READBACK':'RESTORE_RO_MANIFEST_PREFLIGHT';
+    console.log(label+'_START');
     const code=await runChild(process.execPath,[
-      '/opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs','--manifest-only'
+      '/opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs',
+      fullScan?'--all-ciphertext':'--manifest-only'
     ],childEnv);
-    console.log(code===0?'RESTORE_RO_MANIFEST_PREFLIGHT_PASS':'RESTORE_RO_MANIFEST_PREFLIGHT_FAIL');
+    console.log(label+(code===0?'_PASS':'_FAIL'));
     process.exitCode=code;
   }finally{
     raw.fill(0);
