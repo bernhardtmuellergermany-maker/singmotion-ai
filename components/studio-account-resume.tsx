@@ -62,9 +62,6 @@ export function StudioAccountResume(){
     if(saved.selection?.owner!==workspace.owner||saved.song?.kind!=="audio"||
        saved.image?.kind!=="image"||!quote||quote.credits!==wanted.requiredCredits)
      throw Error("Saved project ownership, files or video price changed. Review Step 4 before buying Credits.");
-    sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
-     draftId:wanted.draftId,requiredCredits:quote.credits,created:Date.now(),
-    }));
     // This page is an authenticated ownership-transfer checkpoint, NOT a
     // purchase flow. Always return to the same saved Step 4, irrespective of
     // wallet balance or email verification status. Step 4 shows the wallet,
