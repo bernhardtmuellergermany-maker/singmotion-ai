@@ -32,7 +32,7 @@ export async function GET(req:NextRequest){
   if(automationEnabled()){
    const quote=quoteCustomerErasureRefund(store.db,id);
    const cents=quote.refundableCents;
-   return reply({eligible:quote.ready,code:quote.reason,
+   return reply({automatic:true,eligible:quote.ready,code:quote.reason,
     refundableCents:cents,refundableCredits:quote.refundableCredits,
     message:quote.ready?
      "Delete your account yourself after entering your password. Your unused purchased Credits are estimated at €"+(cents/100).toFixed(2)+
