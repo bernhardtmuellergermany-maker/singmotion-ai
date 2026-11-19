@@ -287,6 +287,33 @@ export function StudioWizard({
             step: number;
           }>(`studio-drafts/${encodeURIComponent(requested)}`);
           if (!current) return;
+          // Only restore private Step 4 data from a server-verified owner.
+          // A query string, localStorage or handoff entry is never access proof.
+          if(saved.selection.owner!==sessionOwner)
+            throw Error("Saved Studio project owner mismatch.");
+          if(accountWorkspace&&resumeReview){
+            try{
+              const handoff=JSON.parse(sessionStorage.getItem(STUDIO_ACCOUNT_RESUME_KEY)||"null") as {
+                draftId?:string;requiredCredits?:number;created?:number;
+                timeline?:PerformanceSection[];
+              }|null;
+              const parts=handoff?.timeline;
+              if(handoff?.draftId===requested&&
+                 handoff.requiredCredits===quoteVideoCredits(saved.selection.start,saved.selection.end).credits&&
+                 typeof handoff.created==="number"&&Date.now()-handoff.created>=0&&
+                 Date.now()-handoff.created<2*60*60*1000&&
+                 Array.isArray(parts)&&parts.length<=60&&
+                 parts.every(x=>x&&typeof x.id==="string"&&
+                    /^[A-Za-z0-9_-]{1,80}$/.test(x.id)&&
+                    Number.isFinite(x.start)&&Number.isFinite(x.end)&&x.start>=0&&
+                    x.end<=saved.selection.end-saved.selection.start+0.00001&&x.end-x.start>=0.5&&
+                    typeof x.camera==="string"&&x.camera.length<=120&&
+                    typeof x.emotion==="string"&&x.emotion.length<=80&&
+                    typeof x.instructions==="string"&&x.instructions.length<=500)&&
+                 timelinePrompt(parts)===saved.selection.customPrompt)
+                setTimeline(parts);
+            }catch{/* The saved server-side prompt is still authoritative. */}
+          }
           setProjectName(saved.projectName || (!accountWorkspace && localStorage.getItem(`singmotion-project-name:${requested}`)) || saved.artistName || "Untitled Project");
           setDraft({
             ...initial,
