@@ -6,7 +6,7 @@ import path from "node:path";
 import {DatabaseSync} from "node:sqlite";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {privateSourceKey} from "../lib/cloud-media.ts";
-import {assessCustomerMediaErasure,eraseCustomerMedia,CustomerMediaErasureBlocked} from "../lib/commerce/customer-erasure-media.ts";
+import {assessCustomerMediaErasure,assertCustomerMediaErasureReady,eraseCustomerMedia,CustomerMediaErasureBlocked} from "../lib/commerce/customer-erasure-media.ts";
 const pass="a-genuinely-long-test-password";
 async function fixture(fn:(store:CommerceStore,demo:DatabaseSync,root:string,id:string,other:string)=>Promise<void>){
  const root=mkdtempSync(path.join(tmpdir(),"sm-media-erasure-"));
@@ -75,4 +75,20 @@ test("incomplete paid-provider output blocks before deleting private files",asyn
     (e:unknown)=>e instanceof CustomerMediaErasureBlocked&&e.code==="ACTIVE_PAID_PROVIDER_JOB");
   assert.ok(existsSync(path.join(root,"media","paid-project-audio")));
  });
+});
+
+test("remote media cleanup is refused before refund when R2 storage is not explicitly enabled",()=>{
+ const empty={assets:0,studioProjects:0,providerTasks:0,paidOutputs:0,inputLeases:0,cloudSources:0};
+ assert.doesNotThrow(()=>assertCustomerMediaErasureReady(empty));
+ const prev=process.env.CUSTOMER_R2_STORAGE_ENABLED;
+ try{
+  process.env.CUSTOMER_R2_STORAGE_ENABLED="false";
+  assert.throws(()=>assertCustomerMediaErasureReady({...empty,cloudSources:1}),
+   (e:unknown)=>e instanceof CustomerMediaErasureBlocked&&e.code==="PRIVATE_MEDIA_CLEANUP_UNAVAILABLE");
+  assert.throws(()=>assertCustomerMediaErasureReady({...empty,paidOutputs:1}),
+   (e:unknown)=>e instanceof CustomerMediaErasureBlocked&&e.code==="PRIVATE_MEDIA_CLEANUP_UNAVAILABLE");
+ }finally{
+  if(prev===undefined)delete process.env.CUSTOMER_R2_STORAGE_ENABLED;
+  else process.env.CUSTOMER_R2_STORAGE_ENABLED=prev;
+ }
 });

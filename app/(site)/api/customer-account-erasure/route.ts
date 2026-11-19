@@ -4,7 +4,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {assessCustomerErasure,eraseEmptyCustomerAccount} from "@/lib/commerce/customer-account-erasure";
 import {quoteCustomerErasureRefund} from "@/lib/commerce/customer-erasure-refund-quote";
 import {beginCustomerErasure} from "@/lib/commerce/customer-erasure-job";
-import {assessCustomerMediaErasure,CustomerMediaErasureBlocked} from "@/lib/commerce/customer-erasure-media";
+import {assessCustomerMediaErasure,assertCustomerMediaErasureReady,CustomerMediaErasureBlocked} from "@/lib/commerce/customer-erasure-media";
 import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
@@ -76,7 +76,7 @@ export async function POST(req:NextRequest){
    if(!quote.ready)
     return reply({eligible:false,code:quote.reason,
      message:"Your payments or Credit balance are not yet reconciled. No deletion or refund was started."},409);
-   try{assessCustomerMediaErasure(dataDir,id);}
+   try{assertCustomerMediaErasureReady(assessCustomerMediaErasure(dataDir,id));}
    catch(e){
     const code=e instanceof CustomerMediaErasureBlocked?e.code:"MEDIA_ERASURE_NOT_VERIFIED";
     // A provider currently processing can be allowed to finish; the async

@@ -10,7 +10,7 @@ import {CommerceStore} from "./store.ts";
 import {quoteCustomerErasureRefund} from "./customer-erasure-refund-quote.ts";
 import {ensureDeletionRefundIntents,stageDeletionRefundIntents,advanceDeletionRefundIntent} from "./customer-erasure-refund-intents.ts";
 import {readErasureJob,advanceErasureJob} from "./customer-erasure-job.ts";
-import {assessCustomerMediaErasure,eraseCustomerMedia,CustomerMediaErasureBlocked} from "./customer-erasure-media.ts";
+import {assessCustomerMediaErasure,assertCustomerMediaErasureReady,eraseCustomerMedia,CustomerMediaErasureBlocked} from "./customer-erasure-media.ts";
 import {finalizeErasedCustomerData,AccountErasureFinalizationBlocked} from "./customer-erasure-finalize.ts";
 
 export type ErasureRunSummary={checked:number;advanced:number;completed:number;deferred:number};
@@ -52,7 +52,7 @@ export async function runCustomerErasureJobs(
      }
      // A provider submission still running must not be erased. It is safe to
      // wait without authorizing a payout or losing the user's recovery token.
-     assessCustomerMediaErasure(root,row.id);
+     assertCustomerMediaErasureReady(assessCustomerMediaErasure(root,row.id));
      db.exec("BEGIN IMMEDIATE");
      try{
       const fresh=quoteCustomerErasureRefund(db,row.id);
