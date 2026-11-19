@@ -95,6 +95,8 @@ export function advanceErasureJob(db:DatabaseSync,accountId:string,state:Erasure
  ensureCustomerErasureJobs(db);
  const prior=readErasureJob(db,accountId);
  if(!prior||!transitions[prior.state].has(state))throw Error("Invalid erasure state change");
+ if(state==="completed"&&db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(accountId))
+  throw Error("Cannot mark erasure complete while customer identity still exists");
  const stamp=Date.now();
  const result=db.prepare(`UPDATE customer_erasure_jobs SET state=?,updated_at=?,
   attempts=attempts+1,issue=?,completed_at=CASE WHEN ?='completed' THEN ? ELSE completed_at END
