@@ -60,8 +60,41 @@ try{
  const account=store.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email) as {id:string};
  assert.ok(account?.id);
  const page=await context.newPage();
+ // Account Settings intentionally animates #privacy anchor scrolling.
+ // Disable motion for deterministic geometry sampling; the UI still retains
+ // smooth scrolling for visitors who have not requested reduced motion.
+ await page.emulateMedia({reducedMotion:"reduce"});
+ await page.setViewportSize({width:1440,height:900});
  await page.goto(origin+"/account/settings#privacy");
  await page.getByRole("heading",{name:"Privacy & account deletion"}).waitFor({timeout:15000});
+ // The customer view uses its width instead of stacking every settings card
+ // in a 232px-wide form column on a large desktop screen.
+ const profile=await page.locator("#profile").boundingBox();
+ const emails=await page.locator("#email-notifications").boundingBox();
+ const security=await page.locator("#security").boundingBox();
+ assert.ok(profile&&emails&&security);
+ assert.ok(Math.abs(profile.y-emails.y)<8,"profile and email preferences should share a desktop row");
+ assert.ok(profile.x+profile.width<emails.x,"desktop settings sections should be separate columns");
+ assert.ok(security.width>profile.width*1.75,"security controls should use the full available desktop width");
+ const panels=await page.locator("#security .sm-security-panel").all();
+ assert.equal(panels.length,3);
+ const cardRects=await Promise.all(panels.map(x=>x.boundingBox()));
+ assert.ok(cardRects.every(Boolean));
+ assert.ok(Math.abs(cardRects[0]!.y-cardRects[1]!.y)<8&&
+   Math.abs(cardRects[1]!.y-cardRects[2]!.y)<8,
+   "password, idle logout and device controls should share a desktop row");
+ await page.setViewportSize({width:390,height:844});
+ const smallProfile=await page.locator("#profile").boundingBox();
+ const smallEmails=await page.locator("#email-notifications").boundingBox();
+ assert.ok(smallProfile&&smallEmails&&smallEmails.y>smallProfile.y,
+  "mobile settings should stack cards in logical reading order");
+ const overflow=await page.evaluate(()=>({
+  content:document.documentElement.scrollWidth,
+  viewport:window.innerWidth,
+ }));
+ assert.ok(overflow.content<=overflow.viewport+1,
+  "mobile account settings must not scroll horizontally: "+JSON.stringify(overflow));
+ console.log("PASS: compact customer settings use desktop two-column cards and a readable 390px mobile layout.");
  await page.getByText("Delete account permanently",{exact:true}).click();
  await page.getByRole("textbox",{name:"Type DELETE MY ACCOUNT"}).fill("DELETE MY ACCOUNT");
  await page.getByLabel("Account password").fill(password);
