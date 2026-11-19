@@ -19,15 +19,15 @@ test("Video metadata is formatted from recorded evidence, never guessed from the
  assert.ok(projectCreatedLabel(1700000000000)?.includes("2023"));
 });
 
-test("After guest signup, the original project transfers before an inbox-verification checkpoint",()=>{
+test("After guest signup, media transfers before returning to Step 4; verification still gates purchases",()=>{
  const resume=read("components/studio-account-resume.tsx");
- const gate=read("components/studio-account-gate.tsx");
- assert.match(resume,/sm-credit-checkout-resume/);
- assert.match(resume,/identity\.emailVerification==="pending"/);
- assert.match(resume,/window\.location\.assign\("\/account\/verify-email\?from=studio"\)/);
- assert.ok(resume.indexOf('if(identity.emailVerification==="pending")')>resume.indexOf('const draftResponse='));
- assert.ok(resume.indexOf('if(identity.emailVerification==="pending")')<resume.indexOf('const balanceResponse='));
- assert.match(gate,/Email accounts must verify their address before purchasing Credits/);
+ const checkout=read("app/(site)/api/credit-checkout/route.ts");
+ assert.match(resume,/\/api\/customer-guest-import/);
+ assert.match(resume,/saved\.selection\?\.owner!==workspace\.owner/);
+ assert.match(resume,/window\.location\.assign\("\/studio\?draft="\+encodeURIComponent\(wanted\.draftId\)\+"&resume=review"\)/);
+ assert.doesNotMatch(resume,/window\.location\.assign\("\/account\/verify-email\?/);
+ assert.doesNotMatch(resume,/window\.location\.assign\("\/credits\?resumeDraft=/);
+ assert.match(checkout,/identity\.customerId && !store\.emailVerified\(identity\.customerId\)/);
 });
 
 test("Email verification has a verified-wallet call to action and does not authorize payments",()=>{
