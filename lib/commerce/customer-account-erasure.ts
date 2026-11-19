@@ -84,7 +84,8 @@ function checkOwnedRecords(db:DatabaseSync,id:string,email:string,allowSessions:
  return true;
 }
 function openIfPresent(filename:string,readOnly=true):DatabaseSync|null{
- return existsSync(filename)?new DatabaseSync(filename,readOnly?{readOnly:true}:undefined):null;
+ if(!existsSync(filename))return null;
+ return readOnly?new DatabaseSync(filename,{readOnly:true}):new DatabaseSync(filename);
 }
 function accountProfile(db:DatabaseSync,id:string):{email:string;password_hash:string}|undefined{
  return db.prepare("SELECT email,password_hash FROM customer_accounts WHERE id=?").get(id) as {email:string;password_hash:string}|undefined;
