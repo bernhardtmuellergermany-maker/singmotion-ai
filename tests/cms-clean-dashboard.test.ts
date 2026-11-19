@@ -66,12 +66,12 @@ test("six duplicate Payload sidebar entries are hidden, while dashboard shortcut
   const admin=config.indexOf("admin:",start);
   const end=config.indexOf(until,admin);
   assert.ok(admin>start&&end>admin,slug+" retains its admin configuration and access rules");
-  assert.match(config.slice(admin,end),/hidden:\\s*true/,slug+" must be hidden from the native sidebar");
+   assert.ok(config.slice(admin,end).includes("hidden: true"),slug+" must be hidden from the native sidebar");
   assert.ok(operations.includes('href:"'+href+'"'),slug+" remains reachable through the CMS dashboard");
  }
- assert.match(config,/beforeNavLinks:\\s*\\["\\/components\\/cms\\/dashboard-nav\\.tsx#DashboardNav"\\]/);
- assert.match(operations,/hasRole\\(user,\\["super-admin","editor"\\]\\)/);
- assert.match(operations,/hasRole\\(user,\\["super-admin","support"\\]\\)/);
+  assert.ok(config.includes('beforeNavLinks: ["/components/cms/dashboard-nav.tsx#DashboardNav"]'));
+  assert.ok(operations.includes('hasRole(user,["super-admin","editor"])'));
+  assert.ok(operations.includes('hasRole(user,["super-admin","support"])'));
 });
 
 test("Mobile CSS uses dense links, single column and dark native menu",()=>{
