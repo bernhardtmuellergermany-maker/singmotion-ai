@@ -29,6 +29,6 @@ export async function GET(req:NextRequest){
  const url=new URL("https://accounts.google.com/o/oauth2/v2/auth");
  for(const [key,value] of Object.entries({client_id:process.env.GOOGLE_OAUTH_CLIENT_ID!,redirect_uri:redirectUri,response_type:"code",scope:"openid email profile",state,nonce,code_challenge:challenge,code_challenge_method:"S256",prompt:"select_account"}))url.searchParams.set(key,value);
  const response=NextResponse.redirect(url);
- response.cookies.set("sm_google_oauth",JSON.stringify({state,verifier,nonce,...(returnTo?{returnTo}:{}),...(guestToken?{guestToken}:{})}),{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:300});
+ response.cookies.set("sm_google_oauth",JSON.stringify({state,verifier,nonce,...(returnTo?{returnTo}:{}),...(returnTo&&guestToken?{guestToken}:{})}),{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:300});
  return response;
 }
