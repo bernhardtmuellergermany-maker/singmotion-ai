@@ -53,9 +53,10 @@ test("paid Credits are not erased before a verified refund",()=>{
   assert.equal(store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(id),undefined);
   const purchase=store.db.prepare("SELECT email,subject,cents FROM credit_topup_purchases WHERE id=?").get(purchaseId) as {email:string;subject:string;cents:number};
   assert.equal(purchase.email,"deleted-account@singmotion.invalid");
-  assert.equal(purchase.subject,"erased:"+id);
+  assert.ok(purchase.subject.startsWith("closed:"));
+  assert.equal(purchase.subject.includes(id),false);
   assert.equal(purchase.cents,1000);
-  assert.equal(store.db.prepare("SELECT subject FROM credit_wallet_ledger WHERE kind='purchase'").get()?.subject,"erased:"+id);
+  assert.equal(store.db.prepare("SELECT subject FROM credit_wallet_ledger WHERE kind='purchase'").get()?.subject,purchase.subject);
   assert.equal(store.db.prepare("SELECT state FROM customer_erasure_refund_intents WHERE purchase_id=?").get(purchaseId)?.state,"succeeded");
  });
 });
