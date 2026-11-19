@@ -9,8 +9,11 @@ on:
       - "lib/commerce/customer-erasure-refund-webhook.ts"
       - "app/(site)/api/stripe-webhook/route.ts"
       - "lib/commerce/store.ts"
+      - "lib/commerce/customer-erasure-media.ts"
+      - "lib/cloud-paid-video.ts"
       - "tests/customer-erasure-refund-*.test.ts"
       - "tests/customer-erasure-job.test.ts"
+      - "tests/customer-erasure-media.test.ts"
       - "package.json"
       - ".github/workflows/customer-erasure-refunds.yml"
   workflow_dispatch:
@@ -25,5 +28,5 @@ jobs:
           node-version: "24.22.3"
           cache: npm
       - run: npm ci
-      - run: node --experimental-strip-types --test tests/customer-erasure-refund-quote.test.ts tests/customer-erasure-refund-intents.test.ts tests/customer-erasure-job.test.ts tests/customer-erasure-refund-webhook.test.ts
+      - run: node --experimental-strip-types --test tests/customer-erasure-refund-quote.test.ts tests/customer-erasure-refund-intents.test.ts tests/customer-erasure-job.test.ts tests/customer-erasure-refund-webhook.test.ts tests/customer-erasure-media.test.ts
       - run: npm run typecheck
