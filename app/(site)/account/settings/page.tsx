@@ -8,7 +8,7 @@ import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
 import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard,Bell,Mail} from "lucide-react";
 import "./account-settings.css";
 type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null;paymentStatus?:"paid"|"refunded"};
-type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
+type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;idleMinutes?:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
 export default function AccountSettings(){
  const [invoices,setInvoices]=useState<Invoice[]>([]),[invoiceMessage,setInvoiceMessage]=useState(""),[invoicesLoading,setInvoicesLoading]=useState(true);
  const [removeOrderId,setRemoveOrderId]=useState<string|null>(null);
@@ -24,6 +24,7 @@ export default function AccountSettings(){
  const [videoEmailEnabled,setVideoEmailEnabled]=useState<boolean|null>(null);
  const [videoEmailSaving,setVideoEmailSaving]=useState(false);
  const [videoEmailNotice,setVideoEmailNotice]=useState("");
+ const [idleMinutes,setIdleMinutes]=useState(30),[idleSaving,setIdleSaving]=useState(false),[idleNotice,setIdleNotice]=useState("");
  useEffect(()=>{
   if(!data||data.staffPreview)return;
   let live=true;
@@ -90,7 +91,22 @@ export default function AccountSettings(){
   const body=await response.json();if(!response.ok)throw Error(body.error||"Could not send verification email");
   setNotice(body.message||"Check your inbox for a new confirmation link.");
  }catch(e){setNotice(e instanceof Error?e.message:"Could not resend verification email");}finally{setBusy(false)}}
- useEffect(()=>{fetch("/api/customer-settings",{cache:"no-store"}).then(async r=>{if(r.status===401)throw Error("Please sign in with your customer account first.");if(!r.ok)throw Error("Could not load account settings.");return r.json()}).then(setData).catch(e=>setError(e.message));},[]);
+ useEffect(()=>{fetch("/api/customer-settings",{cache:"no-store"}).then(async r=>{if(r.status===401)throw Error("Please sign in with your customer account first.");if(!r.ok)throw Error("Could not load account settings.");return r.json()}).then((loaded:Data)=>{setData(loaded);setIdleMinutes(loaded.idleMinutes??30);}).catch(e=>setError(e.message));},[]);
+ async function saveIdleMinutes(){
+  if(idleSaving||!data||data.staffPreview)return;
+  setIdleSaving(true);setIdleNotice("");
+  try{
+   const response=await fetch("/api/customer-session-activity",{
+    method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({idleMinutes})
+   });
+   const result=await response.json() as {idleMinutes?:number;error?:string};
+   if(!response.ok||typeof result.idleMinutes!=="number")throw Error(result.error||"Could not save inactivity setting.");
+   setData(old=>old?{...old,idleMinutes:result.idleMinutes}:old);
+   setIdleNotice(result.idleMinutes===0?"Automatic sign-out after inactivity disabled.":"Automatic sign-out setting saved for all devices.");
+  }catch(e){setIdleNotice(e instanceof Error?e.message:"Could not save inactivity setting.");}
+  finally{setIdleSaving(false);}
+ }
  async function action(kind:"change-password"|"logout-all"){
   setNotice("");
   if(kind==="change-password"&&(newPassword.length<8||newPassword!==confirm)){setNotice("Use at least 8 characters and matching passwords.");return;}
@@ -152,6 +168,26 @@ export default function AccountSettings(){
             <button disabled={busy} type="submit">Save new password</button>
           </form>
         </details>
+      </div>
+      <div className="sm-security-panel sm-idle-security-panel">
+        <div className="sm-security-panel-intro"><div className="sm-security-icon"><ShieldCheck size={20}/></div><div><h3>Automatic sign-out</h3><p className="sm-settings-muted">When nobody uses your account on any device for the chosen period, all customer sessions are signed out. Background updates do not keep you signed in.</p></div></div>
+        <form className="sm-idle-form" onSubmit={e=>{e.preventDefault();void saveIdleMinutes();}}>
+          <label htmlFor="sm-idle-minutes">Sign out after inactivity
+            <select id="sm-idle-minutes" value={idleMinutes} onChange={e=>{setIdleMinutes(Number(e.target.value));setIdleNotice("");}}>
+              <option value={5}>5 minutes</option>
+              <option value={15}>15 minutes</option>
+              <option value={30}>30 minutes (default)</option>
+              <option value={60}>1 hour</option>
+              <option value={120}>2 hours</option>
+              <option value={240}>4 hours</option>
+              <option value={480}>8 hours</option>
+              <option value={0}>Off — no inactivity sign-out</option>
+            </select>
+          </label>
+          <button type="submit" disabled={idleSaving||idleMinutes===data.idleMinutes}>{idleSaving?"Saving…":"Save sign-out preference"}</button>
+        </form>
+        <p className="sm-settings-muted sm-idle-note">This setting applies to all customer devices. Turning it off does not disable the separate 24-hour login session expiry.</p>
+        {idleNotice&&<p className="sm-security-notice" role="status">{idleNotice}</p>}
       </div>
       <div className="sm-security-panel">
         <div className="sm-security-panel-intro"><div className="sm-security-icon"><UserRound size={20}/></div><div><h3>Active sessions</h3><p className="sm-settings-muted">{data.sessions} active customer {data.sessions===1?"session":"sessions"}. Sign out everywhere if you suspect unauthorized access.</p></div></div>
