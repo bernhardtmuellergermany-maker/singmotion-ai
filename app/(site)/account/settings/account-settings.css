@@ -308,3 +308,15 @@ html:has(.sm-settings-page){scroll-padding-top:82px}
 .sm-idle-form select:focus-visible{outline:2px solid #ae8eff;outline-offset:3px}
 .sm-idle-security-panel .sm-idle-note{margin:13px 0 0 52px;max-width:540px}
 @media(max-width:650px){.sm-idle-security-panel .sm-idle-form,.sm-idle-security-panel .sm-idle-note{margin-left:0}}
+
+/* Account privacy: accessible self-service confirmation, not a mailto button. */
+.sm-settings-deletion-status{margin:16px 0;max-width:680px;padding:12px 15px;
+ border:1px solid #55455f;border-radius:10px;background:#1b1828;color:#cfc3dc;
+ font-size:13px;line-height:1.65}
+.sm-settings-deletion-disclosure{margin:12px 0 18px;max-width:720px}
+.sm-settings-deletion-disclosure>summary{width:max-content;max-width:100%;padding:12px 15px;
+ border:1px solid #81464f;border-radius:9px;color:#ef9b9f;font-weight:650;
+ font-size:13px;cursor:pointer;list-style-position:inside}
+.sm-settings-deletion-disclosure>summary:focus-visible{outline:2px solid #ef9b9f;outline-offset:3px}
+.sm-settings-content .sm-settings-section .sm-settings-deletion-disclosure form{display:grid;grid-template-columns:1fr}
+.sm-settings-deletion-disclosure .sm-settings-order-confirm>button{justify-self:start}

@@ -16,6 +16,11 @@ export default function AccountSettings(){
  const [removePassword,setRemovePassword]=useState("");
  const [removeBusy,setRemoveBusy]=useState(false);
  const [removeNotice,setRemoveNotice]=useState("");
+ const [erasure,setErasure]=useState<{eligible:boolean;code:string;message:string}|null>(null);
+ const [erasureLoading,setErasureLoading]=useState(false);
+ const [deleteOpen,setDeleteOpen]=useState(false),[deleteBusy,setDeleteBusy]=useState(false);
+ const [deletePassword,setDeletePassword]=useState(""),[deleteConfirmation,setDeleteConfirmation]=useState("");
+ const [deleteNotice,setDeleteNotice]=useState("");
  const [storageUsage,setStorageUsage]=useState<{usedBytes:number;unlimited?:boolean;limitBytes:number|null;provider?:string}|null>(null);
  const [data,setData]=useState<Data|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false),[oldPassword,setOldPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[confirm,setConfirm]=useState(""),[notice,setNotice]=useState("");
  const [adminOverview,setAdminOverview]=useState<AdminSupportOverview|null>(null);
@@ -115,6 +120,37 @@ export default function AccountSettings(){
   setBusy(true);
   try{const response=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:kind,password:oldPassword,newPassword})});const json=await response.json();if(!response.ok)throw Error(json.error||"Request failed");if(kind==="logout-all"){notifyAuthTransition();location.href="/login";return;}setOldPassword("");setNewPassword("");setConfirm("");setNotice("Password updated. Other customer sessions have been signed out.");}
   catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
+ }
+ useEffect(()=>{
+  if(!data||data.staffPreview)return;
+  let active=true;
+  setErasureLoading(true);
+  fetch("/api/customer-account-erasure",{cache:"no-store",credentials:"same-origin"})
+   .then(async r=>{const result=await r.json() as {eligible?:boolean;code?:string;message?:string};if(!r.ok)throw Error(result.message||"Deletion eligibility unavailable.");return result;})
+   .then(result=>{if(active)setErasure({eligible:result.eligible===true,code:result.code||"",message:result.message||""});})
+   .catch(()=>{if(active)setErasure({eligible:false,code:"RECORDS_REQUIRE_REVIEW",message:"The deletion safety check is unavailable. No data was removed."});})
+   .finally(()=>{if(active)setErasureLoading(false);});
+  return()=>{active=false;};
+ },[data?.profile.email,data?.staffPreview]);
+ async function deleteMyAccount(){
+  if(deleteBusy||!erasure?.eligible||deleteConfirmation!=="DELETE MY ACCOUNT"||!deletePassword)return;
+  if(!window.confirm("Permanently delete your SingMotion customer account? This cannot be undone."))return;
+  setDeleteBusy(true);setDeleteNotice("");
+  try{
+   const response=await fetch("/api/customer-account-erasure",{
+    method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({password:deletePassword,confirmation:deleteConfirmation})
+   });
+   const result=await response.json() as {deleted?:boolean;error?:string;message?:string;eligible?:boolean;code?:string};
+   if(!response.ok||result.deleted!==true){
+    if(result.eligible===false)setErasure({eligible:false,code:result.code||"",message:result.message||"Account data needs review."});
+    throw Error(result.error||result.message||"Deletion could not be completed.");
+   }
+   setDeletePassword("");setDeleteConfirmation("");
+   notifyAuthTransition();
+   window.location.assign("/login?account_deleted=1");
+  }catch(e){setDeleteNotice(e instanceof Error?e.message:"Deletion could not be completed.");}
+  finally{setDeleteBusy(false);}
  }
  async function removePaidOrder(){
   if(!removeOrderId||!removePassword||removeBusy)return;
@@ -238,15 +274,23 @@ export default function AccountSettings(){
     </section>
     <section id="privacy" className="sm-settings-section"><h2>Privacy & account deletion</h2>
       <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Your personal information</strong><p className="sm-settings-muted">Account details and payments are restricted to authenticated access. Payment card details are handled by Stripe, not stored on this page.</p><Link href="/privacy">Read privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Videos & uploads</strong><p className="sm-settings-muted">Review your saved projects and uploads. Project files and payment records follow different retention requirements.</p><Link href="/projects">Open my projects <ExternalLink size={13}/></Link></div></div>
-      <p className="sm-settings-muted">You can request deletion of your account and personal data. Existing orders and legally required payment records may need to be retained.</p>
-      <button className="sm-settings-danger" type="button" onClick={()=>{
-       const kind=data.staffPreview?"Super Admin / staff":"customer";
-       if(!window.confirm("Request deletion of your "+kind+" account? This opens your email application; nothing will be deleted automatically."))return;
-       const subject=encodeURIComponent("Account deletion request – SingMotion AI");
-       const body=encodeURIComponent("Please review deletion of my SingMotion AI "+kind+" account associated with: "+data.profile.email+"\\n\\nI understand that my identity must be verified and legally required billing and security records may need to be retained.");
-       window.location.href="mailto:support@singmotion.ai?subject="+subject+"&body="+body;
-      }}>Request account deletion</button>
-      <p className="sm-settings-muted">Deletion is reviewed by support after identity verification. The button opens a draft email; you must send it yourself. Super Admin deletion requires an administrator handover and cannot be performed automatically. Legally required financial and security records may need to be retained.</p>
+      {data.staffPreview?<p className="sm-settings-muted">Staff and Super Admin accounts require a protected administrator handover. Do not use a customer password to close a staff account. <a href="mailto:support@singmotion.ai?subject=Staff%20account%20closure">Contact support</a>.</p>:<>
+       <p className="sm-settings-muted">You can permanently delete an unused customer account yourself, without administrator approval, after entering your password. Purchased Credits, payments, invoices, uploads and videos require safe settlement or verified deletion first. Backup copies expire on their separate retention schedule.</p>
+       <div className="sm-settings-deletion-status" role="status" aria-live="polite">
+        {erasureLoading||erasure===null?"Checking account, payments and media safety…":erasure.message}
+       </div>
+       {erasure?.eligible===true&&<details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
+        <summary>Delete account permanently</summary>
+        <form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void deleteMyAccount();}}>
+         <p className="sm-settings-muted">This permanently removes your customer login, personal account settings and all device sessions. Your account cannot be recovered. Any legally required records and existing backups follow separate retention rules.</p>
+         <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>
+         <label>Type DELETE MY ACCOUNT<input type="text" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE MY ACCOUNT"/></label>
+         <button className="sm-settings-danger" type="submit" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Deleting account…":"Permanently delete my account"}</button>
+         {deleteNotice&&<p role="alert" className="sm-settings-muted">{deleteNotice}</p>}
+        </form>
+       </details>}
+       {erasure?.eligible===false&&<p className="sm-settings-muted">Your account has not been deleted. Unused purchased Credits are not forfeited, and no refund is issued automatically. To arrange the required reconciliation or exercise your GDPR erasure rights, <a href="mailto:support@singmotion.ai?subject=Account%20erasure%20and%20remaining%20Credits">contact privacy support</a>. No administrator approval is required for the privacy request itself.</p>}
+      </>}
       <p className="sm-settings-support"><LifeBuoy size={17}/> Questions about account access, payments or privacy? <a href="mailto:support@singmotion.ai">Contact support</a>.</p>
      </section>
    {canShowAdmin&&<AdminAnnouncements/>}

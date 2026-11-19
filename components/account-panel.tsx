@@ -18,6 +18,7 @@ export function AccountPanel({active}:{active:boolean}){
  }
  const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false);
  const [googleAvailable,setGoogleAvailable]=useState(false);
+ const [deletionComplete,setDeletionComplete]=useState(false);
 
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const search=new URLSearchParams(window.location.search);
@@ -29,9 +30,12 @@ export function AccountPanel({active}:{active:boolean}){
   // rendering so a refresh cannot present a stale error to the next customer.
   if(reason)search.delete("google_error");
   if(expired)search.delete("session");
+  const removed=search.get("account_deleted")==="1";
+  if(removed)void Promise.resolve().then(()=>setDeletionComplete(true));
+  if(removed)search.delete("account_deleted");
   const changed=search.has("auth_changed");
   if(changed)search.delete("auth_changed");
-  if(reason||expired||changed)
+  if(reason||expired||changed||removed)
    window.history.replaceState(null,"",window.location.pathname+(search.toString()?"?"+search.toString():"")+window.location.hash);
   if(changed)notifyAuthTransition();
  },[active]);
@@ -86,6 +90,7 @@ export function AccountPanel({active}:{active:boolean}){
  return <div className="sm-carousel-login" data-mode={mode}>
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
+  {deletionComplete&&<p className="sm-account-intro" role="status">Your customer account and login sessions were deleted. You can create a new account whenever you choose.</p>}
   {!account&&<p className="sm-account-intro">{mode==="register"
    ?"Build your private AI music-video workspace. Save drafts, create performances and keep every generation in one place."
    :"Sign in to bring your music to life with AI-generated videos. Your studio, projects and Credits are ready."}</p>}
