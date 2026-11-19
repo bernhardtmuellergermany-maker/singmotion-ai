@@ -1,5 +1,6 @@
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
 import { CreditWallet } from "./credit-wallet.ts";
+import {erasureInProgress} from "./customer-erasure-job.ts";
 import { betaWelcomeCreditsEnabled, grantBetaWelcomeCredits } from "./beta-welcome-credits.ts";
 import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
@@ -44,6 +45,7 @@ export class CommerceStore {
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
  CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_erasure_jobs(account_id TEXT PRIMARY KEY,token_hash TEXT UNIQUE NOT NULL,state TEXT NOT NULL CHECK(state IN ('requested','refunding','removing-media','removing-data','completed','needs-attention')),created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,issue TEXT,completed_at INTEGER);
  CREATE TABLE IF NOT EXISTS customer_session_policies(account_id TEXT PRIMARY KEY,idle_minutes INTEGER NOT NULL DEFAULT 30 CHECK(idle_minutes IN (0,5,15,30,60,120,240,480)),last_activity INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_email_verifications(account_id TEXT PRIMARY KEY,verified_at INTEGER,token_hash TEXT UNIQUE,token_expires INTEGER,sent_at INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS customer_orders(id TEXT PRIMARY KEY,account_id TEXT,guest_hash TEXT,guest_expiry INTEGER,email TEXT NOT NULL,project_id TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,quote_evidence TEXT NOT NULL,request_key TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
@@ -149,6 +151,7 @@ export class CommerceStore {
       // audience, issuer, subject and nonce. Never infer it from an email alone.
       this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,?,0) ON CONFLICT(account_id) DO UPDATE SET verified_at=excluded.verified_at,token_hash=NULL,token_expires=NULL")
         .run(id,Date.now());
+      if(erasureInProgress(this.db,id))throw Error("This account is being permanently deleted");
       const token=randomBytes(32).toString("base64url");
       this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
       this.recordSessionActivity(id);
@@ -168,6 +171,7 @@ export class CommerceStore {
       Buffer.from(digest, "hex"),
     );
     if (!row || !valid) throw Error("Invalid credentials");
+    if(erasureInProgress(this.db,String(row.id)))throw Error("This account is being permanently deleted");
     const token = randomBytes(32).toString("base64url");
     this.db
       .prepare("INSERT INTO customer_sessions VALUES(?,?,?)")
@@ -242,6 +246,7 @@ export class CommerceStore {
       .get(hash(token),now) as {account_id:string}|undefined;
     if(!row)return null;
     const accountId=String(row.account_id);
+    if(erasureInProgress(this.db,accountId))return null;
     const policy=this.sessionPolicy(accountId,now);
     if(policy.idleMinutes!==0 && now-policy.lastActivity>=policy.idleMinutes*60000){
       // Recheck under a write lock: an activity report from another device

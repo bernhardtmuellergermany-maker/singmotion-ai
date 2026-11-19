@@ -6,6 +6,7 @@ import { CreditWallet, stripeCreditWebhookTestEnabled, stripeCreditTopupsLiveEna
 import {ensurePaidCreditEmail} from "@/lib/commerce/credit-topup-email";
 import {validStripeRefundId,validStripeChargeId,validStripeDisputeId} from "@/lib/commerce/stripe-reversal-identifiers";
 import {reconcileSignedFullCreditRefund} from "@/lib/commerce/stripe-signed-credit-refund";
+import {reconcileVerifiedErasureRefund} from "@/lib/commerce/customer-erasure-refund-webhook";
 import { stripeCheckoutAdapter, verifyStripePaymentEvent, readBoundedStripeWebhookBody, StripeWebhookPayloadTooLarge, type StripeTestEvent } from "@/lib/commerce/stripe-webhook";
 import { dataDir } from "@/lib/db";
 import {ensurePaidContractConfirmation} from "@/lib/commerce/contract-confirmation";
@@ -176,6 +177,9 @@ async function reconcileReversal(store:CommerceStore,event:StripeTestEvent,mode:
    session.amount_total!==charge.amount||
    charge.currency!=="eur")
    throw Error("Checkout payment and charge mismatch");
+ // Signed partial refund of unused purchased Credits on account deletion.
+ // Never pass it to the legacy full-purchase wallet reversal handler.
+ if(refund&&reconcileVerifiedErasureRefund(store.db,verified,session,mode))return;
  const bound=store.db.prepare("SELECT order_id FROM stripe_checkout_sessions WHERE session_id=?").get(session.id) as {order_id:string}|undefined;
  if(!bound && ((mode==="test" &&
     process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041")||

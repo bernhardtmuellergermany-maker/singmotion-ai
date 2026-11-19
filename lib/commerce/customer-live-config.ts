@@ -75,8 +75,18 @@ export function productionPrivateCustomerPreviewEnabled(env:Record<string,string
 /** Account settings may be read inside the private, Basic-Auth-protected customer
  * preview. This never authorizes customer payments or public launch. */
 export function customerAccountSettingsAccessible(env:Record<string,string|undefined>):boolean{
+ // Built browser regression only: a fresh temporary localhost server with
+ // external payments and generation disabled. Railway ALWAYS has an env ID,
+ // so this exception can never make a deployed Railway preview public.
+ const isolatedBrowser=env.SINGMOTION_ISOLATED_ERASURE_TEST==="true"&&
+  !env.RAILWAY_ENVIRONMENT_ID&&env.NODE_ENV==="production"&&
+  env.STAGING_AUTH_ENABLED==="false"&&env.DEMO_MODE==="true"&&
+  env.GENERATIONS_ENABLED==="false"&&env.ADMIN_DEMO_ENABLED==="false"&&
+  env.STRIPE_LIVE_ENABLED!=="true"&&env.STRIPE_CHECKOUT_ENABLED!=="true"&&
+  /^http:\/\/127\.0\.0\.1:[0-9]{1,5}$/.test(env.APP_ORIGIN||"");
  return env.CUSTOMER_ACCOUNTS_ENABLED==="true" &&
-  (env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" ||
+  (isolatedBrowser||
+   env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" ||
    productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || productionPrivateCustomerPreviewEnabled(env) ||
    assessProductionSandboxPilot(env).ready || protectedProductionLivePilotApproved(env) || privateInternationalCreditBetaEnabled(env));
 }

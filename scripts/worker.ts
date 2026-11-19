@@ -32,6 +32,7 @@ const approvedLiveCustomer=process.env.DEMO_MODE==="false" &&
   process.env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true";
 if(!approvedLiveCustomer)demoOnly();
 let nextCustomerPaidPoll=0;
+let nextAccountErasurePoll=0;
 let nextWithdrawalReceiptRetry=0;
 let nextVideoReadyEmailRetry=0;
 let nextSupportMailRetry=0;
@@ -137,6 +138,21 @@ if (process.env.PRODUCTION_POSTGRES_ROOT_CA_PROBE_EXPIRES_AT) {
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
+ // Explicit kill switch: no refunds or deletion requests are processed
+ // until the same tested release is independently enabled per environment.
+ if(process.env.CUSTOMER_AUTOMATED_ERASURE_ENABLED==="true"&&
+    ["dfaeabed-03df-43ed-aa71-50f343a75041",
+     "36adc41d-7e54-4396-ad1a-fd432ba0441d"].includes(process.env.RAILWAY_ENVIRONMENT_ID||"")&&
+    Date.now()>=nextAccountErasurePoll){
+  nextAccountErasurePoll=Date.now()+60_000;
+  try{
+   const {runCustomerErasureJobs}=await import("../lib/commerce/customer-erasure-runner.ts");
+   const state=await runCustomerErasureJobs(dataDir,{limit:2});
+   if(state.checked||state.deferred)
+    console.info("ACCOUNT_ERASURE_WORKER",{checked:state.checked,
+     advanced:state.advanced,completed:state.completed,deferred:state.deferred});
+  }catch{console.warn("ACCOUNT_ERASURE_WORKER step unavailable; no completion was claimed")}
+ }
   if(Date.now()>=nextWithdrawalReceiptRetry){
     nextWithdrawalReceiptRetry=Date.now()+60_000;
     try{await retryPendingWithdrawalReceipts(path.join(dataDir,"commerce.sqlite"));}

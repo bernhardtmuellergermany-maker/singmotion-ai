@@ -1,0 +1,41 @@
+name: Verify customer account erasure refund plan
+on:
+  pull_request:
+    branches:
+      - fix/customer-facing-copy-cleanup-20261118
+    paths:
+      - "lib/commerce/customer-erasure-refund-*.ts"
+      - "lib/commerce/customer-erasure-job.ts"
+      - "lib/commerce/customer-erasure-refund-webhook.ts"
+      - "app/(site)/api/stripe-webhook/route.ts"
+      - "lib/commerce/store.ts"
+      - "lib/commerce/customer-erasure-media.ts"
+      - "lib/commerce/customer-erasure-finalize.ts"
+      - "lib/commerce/customer-erasure-runner.ts"
+      - "app/(site)/api/customer-account-erasure/route.ts"
+      - "app/(site)/api/customer-erasure-status/route.ts"
+      - "app/(site)/account/settings/page.tsx"
+      - "app/(site)/account/deletion-status/page.tsx"
+      - "scripts/worker.ts"
+      - "lib/cloud-paid-video.ts"
+      - "tests/customer-erasure-refund-*.test.ts"
+      - "tests/customer-erasure-job.test.ts"
+      - "tests/customer-erasure-media.test.ts"
+      - "tests/customer-erasure-finalize.test.ts"
+      - "tests/customer-erasure-runner.test.ts"
+      - "package.json"
+      - ".github/workflows/customer-erasure-refunds.yml"
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.3"
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/customer-erasure-refund-quote.test.ts tests/customer-erasure-refund-intents.test.ts tests/customer-erasure-job.test.ts tests/customer-erasure-refund-webhook.test.ts tests/customer-erasure-media.test.ts tests/customer-erasure-finalize.test.ts tests/customer-erasure-runner.test.ts
+      - run: npm run typecheck
