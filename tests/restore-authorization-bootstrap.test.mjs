@@ -19,3 +19,11 @@ test('reject invalid encoding, rw access, extra remote and missing tokens',()=>{
   for(const c of cases)assert.throws(()=>parsePrivateReadOnlyProfile(c,remote));
 });
 test('reject config/remote mismatch',()=>assert.throws(()=>parsePrivateReadOnlyProfile(make(),'other:SingMotion-DR')));
+test('rclone default user scope_role omitted is valid only if access is ro',()=>{
+ const profile=make('[hidrive-ro]\\ntype = hidrive\\nscope_access = ro\\ntoken = {\"access_token\":\"aaaaaaaaaaaaaaaa\",\"refresh_token\":\"bbbbbbbbbbbbbbbb\"}\\n');
+ assert.match(parsePrivateReadOnlyProfile(profile,remote).toString(),/scope_access = ro/);
+ for(const role of ['admin','owner','']){
+   const wrong=make('[hidrive-ro]\\ntype=hidrive\\nscope_access=ro\\nscope_role='+role+'\\ntoken={\"access_token\":\"aaaaaaaaaaaaaaaa\",\"refresh_token\":\"bbbbbbbbbbbbbbbb\"}\\n');
+   assert.throws(()=>parsePrivateReadOnlyProfile(wrong,remote));
+ }
+});
