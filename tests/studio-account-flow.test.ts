@@ -75,7 +75,7 @@ test("Account handoff never grants cross-account ownership or payments based on 
  const importer=read("app/(site)/api/customer-guest-import/route.ts");
  assert.match(resume,/sessionStorage\.getItem\(STUDIO_ACCOUNT_RESUME_KEY\)/);
  assert.match(resume,/identity\.kind!=="customer"&&identity\.kind!=="staff"/);
- assert.match(resume,/workspace\.owner\?\.startsWith\("customer-"\)/);
+ assert.match(resume,/workspace\.owner\?\.startsWith\(expectedOwnerPrefix\)/);
  assert.match(resume,/\/api\/customer-guest-import/);
  assert.match(resume,/saved\.selection\?\.owner!==workspace\.owner/);
  assert.match(resume,/quote\.credits!==wanted\.requiredCredits/);
