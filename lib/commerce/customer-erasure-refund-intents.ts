@@ -10,6 +10,7 @@
 import type {DatabaseSync} from "node:sqlite";
 import type {ErasureRefundLine} from "./customer-erasure-refund-quote.ts";
 import {customerStripeCredential,type StripePaymentMode} from "./stripe-payment-mode.ts";
+import {readErasureJob} from "./customer-erasure-job.ts";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 type Env=Record<string,string|undefined>;
@@ -33,6 +34,9 @@ const read=(db:DatabaseSync,purchaseId:string):DeletionRefundIntent|null=>{
 };
 export function stageDeletionRefundIntents(db:DatabaseSync,accountId:string,lines:readonly ErasureRefundLine[]):DeletionRefundIntent[]{
  if(!/^[a-f0-9-]{36}$/i.test(accountId))throw Error("Invalid account");
+ const job=readErasureJob(db,accountId);
+ if(!job||!["requested","refunding"].includes(job.state))
+  throw Error("Deletion refund requires a frozen customer account");
  ensureDeletionRefundIntents(db);
  const now=Date.now(),results:DeletionRefundIntent[]=[];
  // No browser-supplied amounts. Caller must pass only verified ledger quote
@@ -85,6 +89,8 @@ export async function advanceDeletionRefundIntent(
 ):Promise<DeletionRefundIntent>{
  const intent=read(db,purchaseId);
  if(!intent)throw Error("Missing deletion refund intent");
+ if(readErasureJob(db,intent.accountId)?.state!=="refunding")
+  throw Error("Stripe refund is not authorized by active erasure job");
  if(intent.state==="succeeded"||intent.state==="failed")return intent;
  const isLive=intent.sessionId.startsWith("cs_live_");
  if(!isLive&&!intent.sessionId.startsWith("cs_test_"))throw Error("Invalid payment mode");
