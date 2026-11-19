@@ -62,6 +62,7 @@ export function notifyAuthTransition(){
  resetSession();
  if(typeof window!=="undefined"){
   try{localStorage.setItem("sm-auth-revision",Date.now()+":"+Math.random())}catch{}
+  window.dispatchEvent(new Event("sm-auth-changed"));
  }
 }
 if(typeof window!=="undefined"){
