@@ -133,16 +133,17 @@ export async function advanceDeletionRefundIntent(
    refund=matches[0];
   }
  }
- if(!refund||!/^re_[A-Za-z0-9_]+$/.test(refund.id||"")||
+ const refundId=refund?.id;
+ if(typeof refundId!=="string"||!/^re_[A-Za-z0-9_]+$/.test(refundId)||
     refund.object!=="refund"||refund.payment_intent!==session.payment_intent||
     refund.amount!==intent.cents||refund.currency!=="eur"||
     (refund.livemode!==undefined&&refund.livemode!==isLive))
   throw Error("Stripe returned mismatched deletion refund");
- if(intent.refundId&&intent.refundId!==refund.id)
+ if(intent.refundId&&intent.refundId!==refundId)
   throw Error("Deletion refund ID was unexpectedly replaced");
  const status=refund.status==="succeeded"?"succeeded":
   refund.status==="failed"||refund.status==="canceled"?"failed":"pending";
  db.prepare("UPDATE customer_erasure_refund_intents SET state=?,refund_id=?,updated=? WHERE purchase_id=? AND (refund_id IS NULL OR refund_id=?)")
-  .run(status,refund.id,Date.now(),intent.purchaseId,refund.id);
+  .run(status,refundId,Date.now(),intent.purchaseId,refundId);
  return read(db,intent.purchaseId)!;
 }
