@@ -12,6 +12,8 @@ export type CustomerAuthStatus={
  staffRole?:"super-admin"|"editor";
 };
 let pending:Promise<CustomerAuthStatus|null>|null=null;
+/** Auth transition must never reuse a response started under the old cookies. */
+export function invalidateCustomerAuthStatus(){pending=null;}
 export function readCustomerAuthStatus():Promise<CustomerAuthStatus|null>{
  if(pending)return pending;
  const request=fetch("/api/customer-auth",{cache:"no-store",credentials:"same-origin"})
