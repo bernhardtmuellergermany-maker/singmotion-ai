@@ -11,6 +11,7 @@ import "./header-account-menu.css";
 export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const menu=useRef<HTMLDetailsElement>(null);
  const [identity,setIdentity]=useState<"loading"|"guest"|"customer"|"staff"|"super-admin">("loading");
+ const [email,setEmail]=useState<string|null>(null);
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const [availableCredits,setAvailableCredits]=useState<number|null>(null);
@@ -19,14 +20,28 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  useEffect(()=>{
   let active=true;
   const refresh=()=>{void readCustomerAuthStatus()
-   .then(v=>{if(active){setIdentity(v?.authenticated===true?(v.kind==="staff"?(v.staffRole==="super-admin"?"super-admin":"staff"):"customer"):"guest");}})
-   .catch(()=>{if(active)setIdentity("guest")})};
+   .then(v=>{
+    if(!active)return;
+    const authenticated=v?.authenticated===true;
+    const verifiedEmail=typeof v?.email==="string"&&v.email.includes("@")?v.email:null;
+    setIdentity(authenticated?(v.kind==="staff"?(v.staffRole==="super-admin"?"super-admin":"staff"):"customer"):"guest");
+    setEmail(authenticated?verifiedEmail:null);
+   })
+   .catch(()=>{if(active){setIdentity("guest");setEmail(null);}})};
   refresh();
   const outside=(e:PointerEvent)=>{if(menu.current&&!menu.current.contains(e.target as Node))menu.current.open=false};
   const escape=(e:KeyboardEvent)=>{if(e.key==="Escape"&&menu.current)menu.current.open=false};
   const focus=()=>refresh();
-  document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);window.addEventListener("focus",focus);
-  return()=>{active=false;document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);window.removeEventListener("focus",focus)};
+  const onToggle=()=>{if(menu.current?.open)refresh()};
+  const current=menu.current;
+  document.addEventListener("pointerdown",outside);document.addEventListener("keydown",escape);
+  window.addEventListener("focus",focus);window.addEventListener("sm-auth-changed",refresh);
+  current?.addEventListener("toggle",onToggle);
+  return()=>{
+   active=false;document.removeEventListener("pointerdown",outside);document.removeEventListener("keydown",escape);
+   window.removeEventListener("focus",focus);window.removeEventListener("sm-auth-changed",refresh);
+   current?.removeEventListener("toggle",onToggle);
+  };
  },[]);
  useEffect(()=>{
   if(identity!=="customer"&&identity!=="super-admin")return;
@@ -80,6 +95,11 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  return <details ref={menu} className="sm-global-menu sm-account-menu">
   <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
+   {email&&(identity==="customer"||identity==="super-admin"||identity==="staff")&&
+    <div className="sm-account-signed-in">
+     <span>Signed in as</span>
+     <strong title={email}>{email}</strong>
+    </div>}
    {identity==="loading"?<span className="sm-account-menu-info">Checking login…</span>:
     identity==="guest"?<>
      <Link href="/login" onClick={e=>{if(menu.current)menu.current.open=false;if(onLoginClick){e.preventDefault();onLoginClick();}}}>Login</Link>
