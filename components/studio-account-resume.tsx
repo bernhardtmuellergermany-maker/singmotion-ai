@@ -21,12 +21,13 @@ export function StudioAccountResume(){
    try{
     const params=new URLSearchParams(window.location.search);
     const oauthError=params.get("google_error");
-    if(oauthError)throw Error("Google sign-in was not completed. "+oauthError);
+    params.delete("google_error");
     params.delete("auth_changed");
     const original="/studio/continue?"+params.toString();
     const wanted=parseStudioAccountReturn(original);
     if(!wanted)throw Error("This Studio return link is invalid. Your original guest project has not been changed.");
     if(current)setRetryLogin("/login?returnTo="+encodeURIComponent(original));
+    if(oauthError)throw Error("Google sign-in was not completed. "+oauthError);
     const stored=JSON.parse(sessionStorage.getItem(STUDIO_ACCOUNT_RESUME_KEY)||"null") as
      {draftId?:string;requiredCredits?:number;created?:number}|null;
     if(!stored||stored.draftId!==wanted.draftId||stored.requiredCredits!==wanted.requiredCredits||
