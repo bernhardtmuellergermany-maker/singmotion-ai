@@ -110,7 +110,21 @@ try{
    await page.getByLabel("Email",{exact:true}).fill(email);
    await page.getByLabel("Password",{exact:true}).fill(password);
    await page.getByRole("button",{name:registration?"Create account":"Sign in",exact:true}).last().click();
-   await page.waitForURL(new RegExp("/studio\\?draft="+id+"&resume=review"),{timeout:20000});
+   await page.waitForURL(new RegExp("/studio\\\\?draft="+id+"&resume=review"),{timeout:20000}).catch(async error=>{
+    // Only nonsecret diagnostics: never log passwords, cookies or tokens.
+    const location=new URL(page.url());
+    const messages=await page.locator('[role="alert"],[role="status"]').allTextContents().catch(()=>[]);
+    const headings=await page.locator("h1,h2").allTextContents().catch(()=>[]);
+    const auth=await context.request.get(origin+"/api/customer-auth",{failOnStatusCode:false}).catch(()=>null);
+    const authBody=auth?await auth.json().catch(()=>null) as {authenticated?:boolean;kind?:string;error?:string}:null;
+    console.error("STUDIO_LOGIN_RESUME_DIAGNOSTIC",{
+     pathname:location.pathname,queryKeys:Array.from(location.searchParams.keys()),
+     headings:headings.slice(0,5),messages:messages.slice(0,6).map(x=>x.slice(0,250)),
+     customerAuthStatus:auth?.status(),customerAuthenticated:authBody?.authenticated,kind:authBody?.kind,
+     authError:authBody?.error,
+    });
+    throw error;
+   });
    await page.getByRole("heading",{name:"Ready to generate?"}).waitFor({timeout:15000});
    await page.getByText(prompt,{exact:true}).first().waitFor({timeout:15000});
    assert.ok(await page.getByText("original-song.mp3",{exact:true}).count());
