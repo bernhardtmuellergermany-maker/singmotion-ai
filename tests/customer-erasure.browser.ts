@@ -82,6 +82,42 @@ try{
  const withoutToken=await fetch(origin+"/api/customer-erasure-status");
  assert.equal(withoutToken.status,401,"anonymous visitor cannot read somebody else's erasure status");
  console.log("PASS: real HTTP Chromium password confirmation, account freeze, private cookie receipt, worker completion and login deletion.");
+ // Regression for a customer who reopens the browser after 30 minutes:
+ // the first GET is already expired; a leftover Payload cookie and private
+ // media cookie must not make the login page look authenticated.
+ const idleContext=await browser.newContext();
+ try{
+  const idleEmail="idle-browser-"+randomUUID()+"@example.test";
+  const registered=await idleContext.request.post(origin+"/api/account",{
+   headers:{origin},data:{action:"register",email:idleEmail,password}});
+  assert.equal(registered.status(),200);
+  const idleAccount=store.db.prepare("SELECT id FROM customer_accounts WHERE email=?")
+   .get(idleEmail) as {id:string};
+  assert.ok(idleAccount?.id);
+  await idleContext.addCookies([{name:"payload-token",value:"obsolete-staff-cookie",
+   url:origin}]);
+  const startCookies=await idleContext.cookies(origin);
+  assert.ok(startCookies.some(x=>x.name==="sm_customer"));
+  assert.ok(startCookies.some(x=>x.name==="payload-token"));
+  store.db.prepare("UPDATE customer_session_policies SET last_activity=? WHERE account_id=?")
+   .run(Date.now()-31*60_000,idleAccount.id);
+  const idlePage=await idleContext.newPage();
+  await idlePage.goto(origin+"/login");
+  await idlePage.getByText("You were signed out after inactivity. Please sign in again.")
+   .waitFor({timeout:18000});
+  await idlePage.getByRole("heading",{name:"Sign in"})
+   .waitFor({timeout:10000});
+  assert.equal(await idlePage.getByRole("button",{name:"Sign out"}).count(),0);
+  assert.equal(await idlePage.getByText(idleEmail,{exact:true}).count(),0);
+  const cookies=await idleContext.cookies(origin);
+  for(const name of ["sm_customer","sm_session","payload-token"])
+   assert.equal(cookies.some(c=>c.name===name),false,
+    name+" must be removed automatically after the timeout");
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_sessions WHERE account_id=?")
+   .get(idleAccount.id)?.n,0);
+  console.log("PASS: expired first-load customer token, stale Payload cookie and media session are cleared; login form replaces account actions without an extra click.");
+ }finally{await idleContext.close()}
+
 }finally{
  await browser?.close().catch(()=>{});
  store?.close();

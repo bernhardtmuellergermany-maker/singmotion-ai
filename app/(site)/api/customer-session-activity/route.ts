@@ -1,7 +1,7 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore,CUSTOMER_IDLE_MINUTES} from "@/lib/commerce/store";
-import {dataDir} from "@/lib/db";
+import {dataDir,session,revokeMediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {customerAccountSettingsAccessible} from "@/lib/commerce/customer-live-config";
 import {applicationOrigin} from "@/lib/request-origin";
@@ -26,11 +26,35 @@ async function handler(req:NextRequest){
  try{
   const token=req.cookies.get("sm_customer")?.value||"";
   const accountId=store.session(token);
-  if(!accountId)return json({authenticated:false,error:"Customer login required"},401);
+  if(!accountId){
+   const response=json({authenticated:false,error:"Customer login required",
+    // A fresh tab can arrive after the server has already revoked the token.
+    // A staff-only or anonymous browser must not be signed out by this route.
+    expiredSession:Boolean(token)},401);
+   if(token){
+    // Cookie expiry accompanies the server-side 30-minute revocation: do not
+    // leave an orphaned media or legacy Payload identity behind in the browser.
+    const mediaToken=req.cookies.get("sm_session")?.value;
+    if(mediaToken&&session(mediaToken)?.owner.startsWith("customer-"))
+     revokeMediaSession(mediaToken);
+    response.cookies.delete("sm_customer");
+    response.cookies.delete("sm_session");
+    response.cookies.delete("payload-token");
+   }
+   return response;
+  }
   if(req.method==="GET")return json(shape(store.sessionPolicy(accountId)));
   if(req.method==="POST"){
    const policy=store.touchSession(token);
-   return policy?json(shape(policy)):json({authenticated:false,error:"Session expired"},401);
+   if(policy)return json(shape(policy));
+   const response=json({authenticated:false,error:"Session expired",expiredSession:true},401);
+   response.cookies.delete("sm_customer");
+   response.cookies.delete("sm_session");
+   response.cookies.delete("payload-token");
+   const mediaToken=req.cookies.get("sm_session")?.value;
+   if(mediaToken&&session(mediaToken)?.owner.startsWith("customer-"))
+    revokeMediaSession(mediaToken);
+   return response;
   }
   if(req.method==="PATCH"){
    if(Number(req.headers.get("content-length"))>512)return json({error:"Request too large"},413);

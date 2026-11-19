@@ -49,13 +49,26 @@ export function AccountPanel({active}:{active:boolean}){
    if(now-lastCheck<1500)return;
    lastCheck=now;
    void readCustomerAuthStatus()
-    .then(d=>{if(!live||!d)return;setAccount(d.authenticated?d.email??null:null);setStaff(d.authenticated===true&&d.kind==="staff");setSuperAdmin(d.authenticated===true&&d.kind==="staff"&&d.staffRole==="super-admin");});
+    .then(d=>{if(!live)return;
+     // An expired cookie or a failed identity verification must never leave
+     // the old email and its account actions rendered on the login page.
+     setAccount(d?.authenticated===true?d.email??null:null);
+     setStaff(d?.authenticated===true&&d.kind==="staff");
+     setSuperAdmin(d?.authenticated===true&&d.kind==="staff"&&d.staffRole==="super-admin");
+    });
   };
   refresh();
+  const changed=()=>{
+   // Clear stale account controls synchronously when the idle guard or
+   // another authenticated action broadcasts that the principal changed.
+   setAccount(null);setStaff(false);setSuperAdmin(false);
+   lastCheck=0;refresh();
+  };
   window.addEventListener("focus",refresh);
   document.addEventListener("visibilitychange",refresh);
   window.addEventListener("pageshow",refresh);
-  return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh)};
+  window.addEventListener("sm-auth-changed",changed);
+  return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh);window.removeEventListener("sm-auth-changed",changed)};
  },[active]);
  async function logoutAll(){
   if(!window.confirm("Sign out this account on all devices?"))return;

@@ -7,6 +7,10 @@ on:
       - "app/(site)/api/customer-session-activity/route.ts"
       - "app/(site)/account/settings/**"
       - "components/customer-idle-guard.tsx"
+      - "components/account-panel.tsx"
+      - "lib/client-auth-status.ts"
+      - "lib/client.ts"
+      - "tests/customer-erasure.browser.ts"
       - "tests/customer-session-idle.test.ts"
       - ".github/workflows/customer-idle-policy-ci.yml"
   push:
