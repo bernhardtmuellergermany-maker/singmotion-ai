@@ -12,7 +12,7 @@ import {lstat,realpath,unlink,readdir} from "node:fs/promises";
 import {DatabaseSync} from "node:sqlite";
 import {createHash} from "node:crypto";
 import {DeleteObjectCommand,HeadObjectCommand,S3Client} from "@aws-sdk/client-s3";
-import {deleteMirroredPrivateSource,validCloudRecord,type CloudMediaRecord} from "../cloud-media.ts";
+import {deleteMirroredPrivateSource,validCloudRecord,customerR2Enabled,type CloudMediaRecord} from "../cloud-media.ts";
 import {deletePrivatePaidVideo,validPaidCloudRecord,type CloudPaidVideoRecord} from "../cloud-paid-video.ts";
 import {R2PrivateInputDelivery} from "../live/r2.ts";
 import {LiveTestStore} from "../live/store.ts";
@@ -42,6 +42,18 @@ export type CustomerMediaErasurePlan={
  assets:number;studioProjects:number;providerTasks:number;paidOutputs:number;
  inputLeases:number;cloudSources:number;
 };
+/** Check the physical removal capability before a customer is frozen or paid
+ * out. A successful SQL inventory is not proof that remote R2 object deletion
+ * is enabled or that runtime storage credentials are valid.
+ */
+export function assertCustomerMediaErasureReady(plan:CustomerMediaErasurePlan):void{
+ if(plan.cloudSources||plan.paidOutputs||plan.inputLeases||plan.providerTasks){
+  if(!customerR2Enabled())
+   throw new CustomerMediaErasureBlocked("PRIVATE_MEDIA_CLEANUP_UNAVAILABLE");
+  try{loadR2Config()}
+  catch{throw new CustomerMediaErasureBlocked("PRIVATE_MEDIA_CREDENTIALS_UNAVAILABLE")}
+ }
+}
 type Dependencies={
  deleteSource?:(owner:string,id:string,record:CloudMediaRecord)=>Promise<void>;
  deletePaid?:(account:string,order:string,record:CloudPaidVideoRecord)=>Promise<void>;
