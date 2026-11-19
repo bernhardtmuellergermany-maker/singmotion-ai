@@ -320,3 +320,65 @@ html:has(.sm-settings-page){scroll-padding-top:82px}
 .sm-settings-deletion-disclosure>summary:focus-visible{outline:2px solid #ef9b9f;outline-offset:3px}
 .sm-settings-content .sm-settings-section .sm-settings-deletion-disclosure form{display:grid;grid-template-columns:1fr}
 .sm-settings-deletion-disclosure .sm-settings-order-confirm>button{justify-self:start}
+
+/* Privacy-only improvement: the main Account Settings sections remain in
+   their original vertical document order. Only the destructive confirmation
+   gains a usable desktop width instead of the old global 232px input rule. */
+.sm-settings-content #privacy .sm-settings-deletion-disclosure{
+  width:100%;
+  max-width:840px;
+  margin:14px 0 18px;
+}
+.sm-settings-content #privacy .sm-settings-deletion-disclosure form.sm-settings-order-confirm{
+  box-sizing:border-box;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  width:100%;
+  max-width:800px;
+  gap:15px 18px;
+  padding:20px 22px;
+  margin:14px 0;
+}
+.sm-settings-content #privacy .sm-settings-deletion-disclosure .sm-settings-delete-warning{
+  grid-column:1/-1;
+  max-width:70ch;
+  margin:0;
+  line-height:1.55;
+}
+.sm-settings-content #privacy .sm-settings-deletion-disclosure label{
+  box-sizing:border-box;
+  width:100%;
+  max-width:none;
+  min-width:0;
+}
+.sm-settings-content #privacy .sm-settings-deletion-disclosure input{
+  width:100%;
+  max-width:none;
+  min-width:0;
+}
+.sm-settings-content #privacy .sm-settings-deletion-disclosure form.sm-settings-order-confirm>button{
+  grid-column:1/-1;
+  justify-self:start;
+  width:auto;
+  max-width:none;
+  min-height:44px;
+  margin:3px 0 0;
+}
+.sm-settings-content #privacy .sm-settings-deletion-disclosure [role="alert"]{
+  grid-column:1/-1;
+  margin:0;
+}
+.sm-settings-content #privacy .sm-settings-small-note{
+  max-width:720px;
+  line-height:1.55;
+}
+@media(max-width:700px){
+  .sm-settings-content #privacy .sm-settings-deletion-disclosure form.sm-settings-order-confirm{
+    grid-template-columns:minmax(0,1fr);
+    padding:17px;
+  }
+  .sm-settings-content #privacy .sm-settings-deletion-disclosure form.sm-settings-order-confirm>button{
+    justify-self:stretch;
+    width:100%;
+  }
+}
