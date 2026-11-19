@@ -69,6 +69,14 @@ try{
  const emails=await page.locator("#email-notifications").boundingBox();
  const security=await page.locator("#security").boundingBox();
  assert.ok(profile&&emails&&security);
+ console.log("ACCOUNT_LAYOUT_DIAGNOSTIC",JSON.stringify({
+  profile,emails,security,
+  settingsClass:await page.locator(".sm-settings-content").getAttribute("class"),
+  css:await page.locator(".sm-settings-content").evaluate(el=>({
+   display:getComputedStyle(el).display,columns:getComputedStyle(el).gridTemplateColumns,
+   width:el.getBoundingClientRect().width,
+  })),
+ }));
  assert.ok(Math.abs(profile.y-emails.y)<8,"profile and email preferences should share a desktop row");
  assert.ok(profile.x+profile.width<emails.x,"desktop settings sections should be separate columns");
  assert.ok(security.width>profile.width*1.75,"security controls should use the full available desktop width");
