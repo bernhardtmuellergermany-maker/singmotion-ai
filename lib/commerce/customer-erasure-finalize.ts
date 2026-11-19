@@ -8,6 +8,7 @@
  * Financial records are NEVER sent to clients after the account disappears.
  */
 import {DatabaseSync} from "node:sqlite";
+import {createHash} from "node:crypto";
 import type {CommerceStore} from "./store.ts";
 import {quoteCustomerErasureRefund} from "./customer-erasure-refund-quote.ts";
 import {readErasureJob,advanceErasureJob} from "./customer-erasure-job.ts";
@@ -136,9 +137,22 @@ export function finalizeErasedCustomerData(store:CommerceStore,accountId:string)
     db.prepare("UPDATE credit_topup_purchases SET subject=?,email=?,checkout_url=NULL,request_key=? WHERE id=?")
      .run(erased,"deleted-account@singmotion.invalid","erased:"+purchase.id,purchase.id);
   }
-  if(has(db,"credit_wallet_ledger"))
-   db.prepare("DELETE FROM credit_wallet_ledger WHERE subject=? AND kind='beta-welcome' AND reference=?")
-    .run(subject,"beta-welcome:v1:"+accountId);
+  if(has(db,"credit_wallet_ledger")){
+   // Terminate the whole spendable balance after recording verified purchased
+   // refunds. Remaining promotional Credits expire without cash payout.
+   const row=db.prepare("SELECT COALESCE(SUM(delta),0) AS balance FROM credit_wallet_ledger WHERE subject=?")
+    .get(subject) as {balance:number};
+   if(!Number.isSafeInteger(row.balance)||row.balance<0)
+    throw new AccountErasureFinalizationBlocked("UNSETTLED_WALLET_BALANCE");
+   const hash=createHash("sha256").update(accountId).digest("hex");
+   if(row.balance>0)
+    db.prepare("INSERT OR IGNORE INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
+     .run("erasure-close:"+hash,subject,-row.balance,"erasure-close","erasure-close:"+hash,Date.now());
+   // Keep the ledger arithmetically intact but remove the account UUID from
+   // the promotional grant identifier before pseudonymizing all subjects.
+   db.prepare("UPDATE credit_wallet_ledger SET id=?,reference=? WHERE subject=? AND kind='beta-welcome' AND reference=?")
+    .run("erased-bonus:"+hash,"erased-bonus:"+hash,subject,"beta-welcome:v1:"+accountId);
+  }
   anonymizeBy(db,"credit_wallet_ledger","subject",subject,erased);
   anonymizeBy(db,"credit_video_reservations","subject",subject,erased);
   for(const order of orderIds){
