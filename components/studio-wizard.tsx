@@ -299,7 +299,7 @@ export function StudioWizard({
               }|null;
               const parts=handoff?.timeline;
               if(handoff&&handoff.draftId===requested&&
-                 handoff.requiredCredits===quoteVideoCredits(saved.selection.start,saved.selection.end).credits&&
+                 handoff.requiredCredits===quoteVideoCredits(saved.selection.start,saved.selection.end)?.credits&&
                  typeof handoff.created==="number"&&Date.now()-handoff.created>=0&&
                  Date.now()-handoff.created<2*60*60*1000&&
                  Array.isArray(parts)&&parts.length<=60&&
