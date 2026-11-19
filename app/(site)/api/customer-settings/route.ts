@@ -34,6 +34,6 @@ export async function GET(req:NextRequest){
   const credits=store.db.prepare("SELECT COALESCE(SUM(delta),0) AS balance FROM customer_credits WHERE account_id=?").get(id) as {balance:number};
   const {uploadStorageBytes:_legacyQuota,...plan}=new PlanLedger(store.db).snapshot(id);
   void _legacyQuota;
-  return NextResponse.json({plan,profile,emailVerification:store.verificationState(id),orders,sessions:sessions.count,credits:Number(credits.balance)+new CreditWallet(store.db).total("customer:"+id),invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
+  return NextResponse.json({plan,profile,emailVerification:store.verificationState(id),orders,sessions:sessions.count,idleMinutes:store.sessionPolicy(id).idleMinutes,credits:Number(credits.balance)+new CreditWallet(store.db).total("customer:"+id),invoiceDownloadsAvailable:false,accountDeletionAvailable:false},{headers:{"Cache-Control":"private, no-store"}});
  }finally{store.close();}
 }
