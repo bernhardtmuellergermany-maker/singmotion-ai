@@ -16,6 +16,7 @@ import {finalizeErasedCustomerData,AccountErasureFinalizationBlocked} from "./cu
 export type ErasureRunSummary={checked:number;advanced:number;completed:number;deferred:number};
 type Dependencies={
  stripeFetch?:typeof fetch;
+ env?:Record<string,string|undefined>;
  eraseMedia?:typeof eraseCustomerMedia;
  now?:number;
  limit?:number;
@@ -72,7 +73,7 @@ export async function runCustomerErasureJobs(
       throw new AccountErasureFinalizationBlocked("REFUND_FAILED");
      const pending=intents.find(x=>x.state!=="succeeded");
      if(pending){
-      const updated=await advanceDeletionRefundIntent(db,pending.id,process.env,deps.stripeFetch??fetch);
+      const updated=await advanceDeletionRefundIntent(db,pending.id,deps.env??process.env,deps.stripeFetch??fetch);
       if(updated.state==="failed")throw new AccountErasureFinalizationBlocked("REFUND_FAILED");
       if(updated.state!=="succeeded"){result.deferred++;continue}
       result.advanced++;continue;
