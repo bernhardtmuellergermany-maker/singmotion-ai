@@ -71,3 +71,26 @@ test("a refund quote cannot infer paid balance from forged ledger entries",()=>{
   assert.equal(quoteCustomerErasureRefund(db,accountId).reason,"unreconciled-wallet");
  }finally{db.close();}
 });
+
+test("legacy one-video credits or reserved holds are never mistaken for refundable prepaid Credits",()=>{
+ const db=fixture();
+ try{
+  paid(db,"p1",1000,1);
+  db.exec("CREATE TABLE customer_credits(id TEXT PRIMARY KEY,account_id TEXT NOT NULL,delta INTEGER NOT NULL,kind TEXT NOT NULL,evidence TEXT NOT NULL,created INTEGER NOT NULL)");
+  db.prepare("INSERT INTO customer_credits VALUES('legacy-paid',?,500,'purchase','legacy',1)").run(accountId);
+  assert.equal(quoteCustomerErasureRefund(db,accountId).reason,"legacy-financial-balance");
+  db.prepare("DELETE FROM customer_credits").run();
+  db.exec("CREATE TABLE customer_holds(order_id TEXT PRIMARY KEY,account_id TEXT NOT NULL,cents INTEGER NOT NULL,state TEXT NOT NULL)");
+  db.prepare("INSERT INTO customer_holds VALUES('legacy-1',?,200,'reserved')").run(accountId);
+  assert.equal(quoteCustomerErasureRefund(db,accountId).reason,"legacy-financial-balance");
+ }finally{db.close();}
+});
+test("active Hobby subscription must be resolved before initiating any Stripe Credit refund",()=>{
+ const db=fixture();
+ try{
+  paid(db,"p1",1000,1);
+  db.exec("CREATE TABLE customer_subscriptions(account_id TEXT PRIMARY KEY,plan TEXT,status TEXT)");
+  db.prepare("INSERT INTO customer_subscriptions VALUES(?,'hobby','active')").run(accountId);
+  assert.equal(quoteCustomerErasureRefund(db,accountId).reason,"active-subscription");
+ }finally{db.close();}
+});
