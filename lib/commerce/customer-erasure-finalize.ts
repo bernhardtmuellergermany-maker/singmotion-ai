@@ -136,6 +136,9 @@ export function finalizeErasedCustomerData(store:CommerceStore,accountId:string)
     db.prepare("UPDATE credit_topup_purchases SET subject=?,email=?,checkout_url=NULL,request_key=? WHERE id=?")
      .run(erased,"deleted-account@singmotion.invalid","erased:"+purchase.id,purchase.id);
   }
+  if(has(db,"credit_wallet_ledger"))
+   db.prepare("DELETE FROM credit_wallet_ledger WHERE subject=? AND kind='beta-welcome' AND reference=?")
+    .run(subject,"beta-welcome:v1:"+accountId);
   anonymizeBy(db,"credit_wallet_ledger","subject",subject,erased);
   anonymizeBy(db,"credit_video_reservations","subject",subject,erased);
   for(const order of orderIds){
