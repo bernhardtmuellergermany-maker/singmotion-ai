@@ -37,6 +37,8 @@ let nextWithdrawalReceiptRetry=0;
 let nextVideoReadyEmailRetry=0;
 let nextSupportMailRetry=0;
 let nextProjectTrashCleanup=0;
+let nextWeeklyHiDriveCheck=0;
+let weeklyHiDriveActive=false;
 let stopping = false;
 process.on("SIGTERM", () => {
   stopping = true;
@@ -137,6 +139,24 @@ if (process.env.PRODUCTION_POSTGRES_ROOT_CA_PROBE_EXPIRES_AT) {
 }
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
+  // Weekly offsite backup uses the EXISTING volume-owning worker. No new
+  // Railway service, public endpoint, DB write or additional worker polling.
+  // The private receiver has a separate Sunday UTC Railway cron. Nothing
+  // happens unless both weekly owner-approval flags are explicitly enabled.
+  if(process.env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d" &&
+     process.env.PRODUCTION_WEEKLY_HIDRIVE_ENABLED==="YES" &&
+     !weeklyHiDriveActive && Date.now()>=nextWeeklyHiDriveCheck) {
+    nextWeeklyHiDriveCheck=Date.now()+30_000;
+    weeklyHiDriveActive=true;
+    void import("../lib/ops/weekly-hidrive-sender.mjs")
+      .then(({runApprovedWeeklyHiDriveOnce})=>
+        runApprovedWeeklyHiDriveOnce(process.env,{
+          log:(marker:string)=>console.info(marker),
+          warn:(marker:string)=>console.warn(marker),
+        }))
+      .catch(()=>console.warn("WEEKLY_HIDRIVE_EXPORT_FAILED"))
+      .finally(()=>{weeklyHiDriveActive=false;});
+  }
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
  // Explicit kill switch: no refunds or deletion requests are processed
  // until the same tested release is independently enabled per environment.
