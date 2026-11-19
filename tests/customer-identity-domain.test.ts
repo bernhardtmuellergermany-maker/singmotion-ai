@@ -58,7 +58,7 @@ test("Google callback failure returns to direct login with visible, one-time fee
  const callback=readFileSync(new URL("../app/(site)/api/google-auth/callback/route.ts",import.meta.url),"utf8");
  const account=readFileSync(new URL("../components/account-panel.tsx",import.meta.url),"utf8");
  const login=readFileSync(new URL("../app/(site)/login/page.tsx",import.meta.url),"utf8");
- assert.match(callback,/const target=savedReturn\|\|"\/login"/);
+ assert.match(callback,/const target=savedReturn\?"\/login\?returnTo="\+encodeURIComponent\(savedReturn\):"\/login"/);
  assert.match(callback,/google_error="\+encodeURIComponent\(reason\)/);
  assert.match(callback,/This email already has a password account/);
  assert.match(account,/search\.get\("google_error"\)/);
