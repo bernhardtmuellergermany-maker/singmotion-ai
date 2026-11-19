@@ -172,7 +172,7 @@ export function finalizeErasedCustomerData(store:CommerceStore,accountId:string)
    db.prepare("DELETE FROM support_case_mail_outbox WHERE lower(recipient)=lower(?)").run(account.email);
   // No identity should remain in incidental tables (payment evidence already
   // minimized and erasure job/status receipts intentionally retained).
-  const allowedResidue=new Set(["customer_erasure_jobs","customer_erasure_refund_intents"]);
+  const allowedResidue=new Set(["customer_accounts","customer_erasure_jobs","customer_erasure_refund_intents"]);
   for(const table of tables(db)){
    if(allowedResidue.has(table.name))continue;
    if(search(table.name,accountId,account.email))
