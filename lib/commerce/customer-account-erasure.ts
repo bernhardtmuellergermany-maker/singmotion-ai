@@ -41,7 +41,7 @@ function containsIdentity(db:DatabaseSync,table:string,id:string,email:string):b
   if(!/TEXT|CHAR|CLOB|JSON|VARCHAR/.test(type))continue;
   // Exact values also find owner/user/email columns; instr finds manifests,
   // serialized projects and audit records without assuming JSON validity.
-  clauses.push("("+field+"=? OR "+field+"=? OR "+field+"=? OR "+field+"=? OR instr("+field+",?)>0 OR instr("+field+",?)>0 OR instr("+field+",?)>0)");
+  clauses.push("("+field+"=? OR "+field+"=? OR "+field+"=? OR lower("+field+")=lower(?) OR instr("+field+",?)>0 OR instr("+field+",?)>0 OR instr(lower("+field+"),lower(?))>0)");
   params.push(id,owner,subject,email,owner,subject,email);
  }
  if(clauses.length===0)return false;
@@ -117,10 +117,12 @@ export function eraseEmptyCustomerAccount(store:CommerceStore,root:string,id:str
  const demoFile=path.join(root,"demo.sqlite");
  if(!existsSync(demoFile))return denied("RECORDS_REQUIRE_REVIEW","Media storage is unavailable. Nothing has been deleted.");
  const demo=new DatabaseSync(demoFile);
- let commerceLocked=false,demoLocked=false;
+ const live=openIfPresent(path.join(root,"live-test.sqlite"),false);
+ let commerceLocked=false,demoLocked=false,liveLocked=false;
  try{
   store.db.exec("BEGIN IMMEDIATE");commerceLocked=true;
   demo.exec("BEGIN IMMEDIATE");demoLocked=true;
+  if(live){live.exec("BEGIN IMMEDIATE");liveLocked=true;}
   const profile=accountProfile(store.db,id);
   if(!profile)return denied("ACCOUNT_MISSING","Account is no longer available.");
   if(profile.password_hash.startsWith("google-only:"))return googleReauth();
@@ -128,11 +130,8 @@ export function eraseEmptyCustomerAccount(store:CommerceStore,root:string,id:str
   if(!check.eligible)return check;
   if(!checkOwnedRecords(demo,id,profile.email,true))
    return denied("MEDIA_OR_ORDERS","Owned media records were detected. Nothing has been deleted.");
-  const live=openIfPresent(path.join(root,"live-test.sqlite"));
-  try{
-   if(live&&!checkOwnedRecords(live,id,profile.email,false))
-    return denied("MEDIA_OR_ORDERS","A video or provider record still needs secure cleanup. Nothing has been deleted.");
-  }finally{live?.close();}
+  if(live&&!checkOwnedRecords(live,id,profile.email,false))
+   return denied("MEDIA_OR_ORDERS","A video or provider record still needs secure cleanup. Nothing has been deleted.");
   const subject="customer:"+id;
   // The one verified promotional gift may be discarded. Never remove a
   // purchased top-up, consumed paid-credit evidence or provider reservation.
@@ -148,12 +147,15 @@ export function eraseEmptyCustomerAccount(store:CommerceStore,root:string,id:str
   demo.prepare("DELETE FROM sessions WHERE owner=?").run("customer-"+id);
   const removed=store.db.prepare("DELETE FROM customer_accounts WHERE id=?").run(id);
   if(removed.changes!==1)throw Error("Account erasure transaction did not match one account");
+  if(live){live.exec("COMMIT");liveLocked=false;}
   demo.exec("COMMIT");demoLocked=false;
   store.db.exec("COMMIT");commerceLocked=false;
   return ready;
  }finally{
+  if(liveLocked)try{live?.exec("ROLLBACK")}catch{}
   if(demoLocked)try{demo.exec("ROLLBACK")}catch{}
   if(commerceLocked)try{store.db.exec("ROLLBACK")}catch{}
+  live?.close();
   demo.close();
  }
 }
