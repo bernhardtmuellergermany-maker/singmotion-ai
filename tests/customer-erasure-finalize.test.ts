@@ -20,12 +20,13 @@ function fixture(fn:(s:CommerceStore,id:string,other:string)=>void){
 }
 test("identity and all login sessions are removed, unrelated customers remain",()=>{
  fixture((store,id,other)=>{
-  const token=store.login("one@example.test",pass);
-  assert.equal(store.session(token),id);
+  const lingering="old-session-hash";
+  store.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(lingering,id,Date.now()+100000);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_sessions WHERE account_id=?").get(id)?.n,1);
   assert.equal(finalizeErasedCustomerData(store,id),true);
   assert.equal(finalizeErasedCustomerData(store,id),true);
   assert.equal(store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(id),undefined);
-  assert.equal(store.session(token),null);
+  assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_sessions WHERE account_id=?").get(id)?.n,0);
   assert.ok(store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(other));
   assert.equal(store.db.prepare("SELECT state FROM customer_erasure_jobs WHERE account_id=?").get(id)?.state,"completed");
  });
@@ -83,6 +84,7 @@ test("unknown customer references and active subscriptions are not silently dele
   assert.ok(store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(id));
  });
  fixture((store,id)=>{
+  store.db.exec("CREATE TABLE customer_subscriptions(account_id TEXT PRIMARY KEY,plan TEXT,provider TEXT,provider_subscription_id TEXT,status TEXT,current_period_end INTEGER,updated_at INTEGER)");
   store.db.prepare("INSERT INTO customer_subscriptions(account_id,plan,provider,provider_subscription_id,status,current_period_end,updated_at) VALUES(?,'hobby','stripe','sub_123','active',?,?)")
    .run(id,Date.now()+10000,Date.now());
   assert.throws(()=>finalizeErasedCustomerData(store,id),
