@@ -83,7 +83,9 @@ test("paid balance refunded once before data deletion; financial shell anonymize
   assert.equal(payoutCalls,1);
   assert.equal(store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(id),undefined);
   assert.equal(store.db.prepare("SELECT email FROM credit_topup_purchases WHERE id=?").get(purchaseId)?.email,"deleted-account@singmotion.invalid");
-  assert.equal(store.db.prepare("SELECT COALESCE(SUM(delta),0) AS total FROM credit_wallet_ledger WHERE subject=?").get("erased:"+id)?.total,0);
+  const purchase=store.db.prepare("SELECT subject FROM credit_topup_purchases WHERE id=?").get(purchaseId) as {subject:string};
+  assert.equal(purchase.subject.includes(id),false);
+  assert.equal(store.db.prepare("SELECT COALESCE(SUM(delta),0) AS total FROM credit_wallet_ledger WHERE subject=?").get(purchase.subject)?.total,0);
  });
 });
 test("unknown media never triggers refund or account removal",async()=>{
