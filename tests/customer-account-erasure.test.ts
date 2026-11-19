@@ -29,7 +29,10 @@ test("confirmed empty account erasure revokes all own devices, leaves unrelated 
   media.prepare("INSERT INTO sessions VALUES (?,?,?,0)").run("second","customer-"+id,Date.now()+100000);
   media.prepare("INSERT INTO sessions VALUES (?,?,?,0)").run("other","customer-"+other,Date.now()+100000);
   assert.equal(store.verifyCustomerPassword(id,password),true);
+  assert.equal(store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='credit_wallet_ledger'").get(),undefined);
   assert.equal(assessCustomerErasure(store,dir,id).eligible,true);
+  assert.equal(store.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='credit_wallet_ledger'").get(),undefined,
+   "read-only preflight must not create a wallet schema for an empty customer");
   assert.equal(eraseEmptyCustomerAccount(store,dir,id).eligible,true);
   assert.equal(store.session(t1),null);
   assert.equal(store.session(t2),null);
