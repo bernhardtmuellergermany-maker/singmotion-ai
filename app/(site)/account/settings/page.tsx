@@ -8,6 +8,7 @@ import {AdminAnnouncements} from "@/components/admin-announcements";
 import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
 import {UserRound,ShieldCheck,CreditCard,FileText,Trash2,Download,ExternalLink,LifeBuoy,HardDrive,LockKeyhole,LayoutDashboard,Bell,Mail} from "lucide-react";
 import "./account-settings.css";
+import "./account-settings-compact.css";
 type Invoice={id:string;number:string;created:number;amount:number;currency:string;pdf:string|null;hosted:string|null;paymentStatus?:"paid"|"refunded"};
 type Data={staffPreview?:boolean;emailVerification?:"verified"|"pending"|"legacy";plan?:{code:"free"|"hobby";monthlyPriceCents:number;uploadStorageBytes:number;monthlySeconds:number;secondsUsed:number;secondsRemaining:number;period:string;renewsAt?:number|null};profile:{email:string;created:number};orders:{id:string;project_id:string;price_cents:number;currency:string;status:string;created:number}[];sessions:number;idleMinutes?:number;credits:number;invoiceDownloadsAvailable:boolean;accountDeletionAvailable:boolean};
 export default function AccountSettings(){
