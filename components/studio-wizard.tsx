@@ -298,7 +298,7 @@ export function StudioWizard({
                 timeline?:PerformanceSection[];
               }|null;
               const parts=handoff?.timeline;
-              if(handoff?.draftId===requested&&
+              if(handoff&&handoff.draftId===requested&&
                  handoff.requiredCredits===quoteVideoCredits(saved.selection.start,saved.selection.end).credits&&
                  typeof handoff.created==="number"&&Date.now()-handoff.created>=0&&
                  Date.now()-handoff.created<2*60*60*1000&&
