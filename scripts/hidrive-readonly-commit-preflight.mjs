@@ -55,6 +55,24 @@ async function assertPrivateConfig(value) {
  * `move`, or a browser-visible endpoint. No dynamic flags from user input.
  * The config may contain an OAuth token; the runner prints none of it.
  */
+function classifyRcloneReadError(output, spawnError) {
+  if (spawnError) return "HIDRIVE_RCLONE_EXECUTION_ERROR";
+  const s=output.slice(0,8192);
+  if (/unknown flag|flag provided but not defined|unknown command|unknown backend/i.test(s))
+    return "HIDRIVE_RCLONE_VERSION_INCOMPATIBLE";
+  if (/invalid_grant|invalid_token|unauthorized|unauthorised|token expired|401|invalid credentials/i.test(s))
+    return "HIDRIVE_AUTH_REJECTED";
+  if (/permission denied|forbidden|403|access denied/i.test(s))
+    return "HIDRIVE_ACCESS_FORBIDDEN";
+  if (/not found|404|does not exist|directory not found|object not found/i.test(s))
+    return "HIDRIVE_OBJECT_NOT_FOUND";
+  if (/429|rate limit|too many requests/i.test(s))
+    return "HIDRIVE_RATE_LIMITED";
+  if (/network|timeout|connection refused|connection reset|no such host|tls handshake/i.test(s))
+    return "HIDRIVE_NETWORK_ERROR";
+  return "HIDRIVE_READ_ERROR_UNCLASSIFIED";
+}
+
 function rcloneCat(remoteFile) {
   return (async function* () {
     const child = spawn("rclone", [
@@ -63,7 +81,7 @@ function rcloneCat(remoteFile) {
       "--hidrive-scope-role", "user",
       remoteFile,
     ], {
-      stdio: ["ignore", "pipe", "ignore"],
+      stdio: ["ignore", "pipe", "pipe"],
       env: {
         PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
         HOME: "/tmp",
@@ -71,12 +89,21 @@ function rcloneCat(remoteFile) {
       },
     });
     let spawnError = false;
+    let stderr = "";
+    // Capture only in memory, never emit raw rclone stderr: it may contain
+    // credential-bearing URLs or private object paths. Emit a fixed code only.
+    child.stderr.on("data", (chunk) => {
+      if (stderr.length < 8192) stderr += chunk.toString("utf8").slice(0,8192-stderr.length);
+    });
     child.once("error", () => { spawnError = true; });
     const closed = new Promise((resolve) => child.once("close", resolve));
     try {
       for await (const chunk of child.stdout) yield chunk;
       const code = await closed;
-      if (spawnError || code !== 0) fail("HIDRIVE_READ_FAILED");
+      if (spawnError || code !== 0) {
+        console.error(classifyRcloneReadError(stderr, spawnError));
+        fail("HIDRIVE_READ_FAILED");
+      }
     } catch { fail("HIDRIVE_READ_FAILED"); }
     finally {
       if (child.exitCode === null && !child.killed) child.kill("SIGTERM");
