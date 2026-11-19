@@ -31,7 +31,7 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
       - name: Verify weekly run identity, Sunday boundary, budget and durable claim
-        run: node --test tests/weekly-hidrive-schedule.test.mjs tests/weekly-hidrive-sender.test.mjs
+        run: node --test tests/weekly-hidrive-schedule.test.mjs tests/weekly-hidrive-sender.test.mjs tests/weekly-hidrive-receiver.test.mjs
       - name: Preserve existing private encrypted sender and receiver safety
         run: node --experimental-strip-types --test tests/production-offsite-sender.test.mjs tests/hidrive-production-receiver.test.mjs tests/private-backup-worker.test.mjs
       - name: Type-check app worker
