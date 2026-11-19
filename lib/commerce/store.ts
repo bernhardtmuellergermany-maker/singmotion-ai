@@ -14,6 +14,9 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 const hash = (s: string) => createHash("sha256").update(s).digest("hex");
+/** 0 disables inactivity expiry, not the existing 24-hour absolute login expiry. */
+export const CUSTOMER_IDLE_MINUTES = [0,5,15,30,60,120,240,480] as const;
+export const DEFAULT_CUSTOMER_IDLE_MINUTES = 30;
 const amount = (n: number) => {
   if (!Number.isSafeInteger(n) || n <= 0 || n > 10000000)
     throw Error("Invalid monetary amount");
@@ -41,6 +44,7 @@ export class CommerceStore {
     this.db.exec(`PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;
  CREATE TABLE IF NOT EXISTS customer_accounts(id TEXT PRIMARY KEY,email TEXT UNIQUE NOT NULL,password_hash TEXT NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_sessions(token_hash TEXT PRIMARY KEY,account_id TEXT NOT NULL,expires INTEGER NOT NULL);
+ CREATE TABLE IF NOT EXISTS customer_session_policies(account_id TEXT PRIMARY KEY,idle_minutes INTEGER NOT NULL DEFAULT 30 CHECK(idle_minutes IN (0,5,15,30,60,120,240,480)),last_activity INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_email_verifications(account_id TEXT PRIMARY KEY,verified_at INTEGER,token_hash TEXT UNIQUE,token_expires INTEGER,sent_at INTEGER NOT NULL DEFAULT 0);
  CREATE TABLE IF NOT EXISTS customer_orders(id TEXT PRIMARY KEY,account_id TEXT,guest_hash TEXT,guest_expiry INTEGER,email TEXT NOT NULL,project_id TEXT NOT NULL,price_cents INTEGER NOT NULL,currency TEXT NOT NULL,status TEXT NOT NULL,quote_evidence TEXT NOT NULL,request_key TEXT UNIQUE NOT NULL,created INTEGER NOT NULL);
  CREATE TABLE IF NOT EXISTS customer_hidden_paid_orders(account_id TEXT NOT NULL,order_id TEXT NOT NULL,hidden_at INTEGER NOT NULL,PRIMARY KEY(account_id,order_id));
@@ -147,6 +151,7 @@ export class CommerceStore {
         .run(id,Date.now());
       const token=randomBytes(32).toString("base64url");
       this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),id,Date.now()+86400000);
+      this.recordSessionActivity(id);
       return {id,token};
     });
   }
@@ -167,6 +172,7 @@ export class CommerceStore {
     this.db
       .prepare("INSERT INTO customer_sessions VALUES(?,?,?)")
       .run(hash(token), row.id, Date.now() + 86400000);
+    this.recordSessionActivity(String(row.id));
     return token;
   }
   /** Re-authenticate a sensitive customer-only action without minting a new session.
@@ -199,15 +205,67 @@ export class CommerceStore {
     });
     const token=randomBytes(32).toString("base64url");
     this.db.prepare("INSERT INTO customer_sessions VALUES(?,?,?)").run(hash(token),accountId,Date.now()+86400000);
+    this.recordSessionActivity(accountId);
     return token;
   }
-  session(token: string, now = Date.now()) {
-    const s = this.db
-      .prepare(
-        "SELECT account_id FROM customer_sessions WHERE token_hash=? AND expires>?",
-      )
-      .get(hash(token), now);
-    return s ? String(s.account_id) : null;
+  /** Account-wide user activity; background GET requests never extend this deadline. */
+  private recordSessionActivity(accountId: string, now = Date.now()) {
+    this.db.prepare("INSERT INTO customer_session_policies(account_id,idle_minutes,last_activity) VALUES(?,?,?) ON CONFLICT(account_id) DO UPDATE SET last_activity=MAX(customer_session_policies.last_activity,excluded.last_activity)")
+      .run(accountId,DEFAULT_CUSTOMER_IDLE_MINUTES,now);
+  }
+  sessionPolicy(accountId: string, now = Date.now()): {idleMinutes:number;lastActivity:number} {
+    if(!this.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(accountId))throw Error("Account unavailable");
+    type Row={idle_minutes:number;last_activity:number};
+    let row=this.db.prepare("SELECT idle_minutes,last_activity FROM customer_session_policies WHERE account_id=?").get(accountId) as Row|undefined;
+    if(!row){
+      // Safely bootstrap pre-existing accounts without expiring them on deployment.
+      this.db.prepare("INSERT OR IGNORE INTO customer_session_policies(account_id,idle_minutes,last_activity) VALUES(?,?,?)")
+        .run(accountId,DEFAULT_CUSTOMER_IDLE_MINUTES,now);
+      row=this.db.prepare("SELECT idle_minutes,last_activity FROM customer_session_policies WHERE account_id=?").get(accountId) as Row;
+    }
+    return {idleMinutes:row.idle_minutes,lastActivity:row.last_activity};
+  }
+  setSessionIdleMinutes(accountId:string,minutes:number,now=Date.now()){
+    if(!CUSTOMER_IDLE_MINUTES.includes(minutes as typeof CUSTOMER_IDLE_MINUTES[number]))
+      throw Error("Unsupported inactivity interval");
+    return this.tx(()=>{
+      this.sessionPolicy(accountId,now);
+      // A new policy begins at the moment it is saved, on every device.
+      this.db.prepare("UPDATE customer_session_policies SET idle_minutes=?,last_activity=? WHERE account_id=?")
+        .run(minutes,now,accountId);
+      return this.sessionPolicy(accountId,now);
+    });
+  }
+  session(token: string, now = Date.now()): string|null {
+    if(!token)return null;
+    const row=this.db.prepare("SELECT account_id FROM customer_sessions WHERE token_hash=? AND expires>?")
+      .get(hash(token),now) as {account_id:string}|undefined;
+    if(!row)return null;
+    const accountId=String(row.account_id);
+    const policy=this.sessionPolicy(accountId,now);
+    if(policy.idleMinutes!==0 && now-policy.lastActivity>=policy.idleMinutes*60000){
+      // Recheck under a write lock: an activity report from another device
+      // may have arrived between our first read and invalidation.
+      return this.tx(()=>{
+        const latest=this.sessionPolicy(accountId,now);
+        if(latest.idleMinutes!==0 && now-latest.lastActivity>=latest.idleMinutes*60000){
+          this.db.prepare("DELETE FROM customer_sessions WHERE account_id=?").run(accountId);
+          return null;
+        }
+        const current=this.db.prepare("SELECT 1 FROM customer_sessions WHERE token_hash=? AND expires>?").get(hash(token),now);
+        return current?accountId:null;
+      });
+    }
+    return accountId;
+  }
+  /** Explicit trusted user interaction only; authenticated polling is read-only. */
+  touchSession(token:string,now=Date.now()){
+    return this.tx(()=>{
+      const accountId=this.session(token,now);
+      if(!accountId)return null;
+      this.recordSessionActivity(accountId,now);
+      return this.sessionPolicy(accountId,now);
+    });
   }
   /** Old customer records predate verification and remain grandfathered;
    * only new explicitly pending rows block paid ordering. */

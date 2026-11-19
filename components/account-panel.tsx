@@ -22,13 +22,16 @@ export function AccountPanel({active}:{active:boolean}){
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const search=new URLSearchParams(window.location.search);
   const reason=search.get("google_error");
+  const expired=search.get("session")==="expired";
   if(reason)void Promise.resolve().then(()=>setError(reason.slice(0,240)));
+  else if(expired)void Promise.resolve().then(()=>setError("You were signed out after inactivity. Please sign in again."));
   // OAuth failure is a one-time notice. Remove it from the address bar after
   // rendering so a refresh cannot present a stale error to the next customer.
   if(reason)search.delete("google_error");
+  if(expired)search.delete("session");
   const changed=search.has("auth_changed");
   if(changed)search.delete("auth_changed");
-  if(reason||changed)
+  if(reason||expired||changed)
    window.history.replaceState(null,"",window.location.pathname+(search.toString()?"?"+search.toString():"")+window.location.hash);
   if(changed)notifyAuthTransition();
  },[active]);

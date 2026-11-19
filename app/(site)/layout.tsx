@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import {CustomerIdleGuard} from "@/components/customer-idle-guard";
 import {seoPrelaunchMetadataRobots} from "@/lib/seo/search-pages";
 import "./globals.css";
 import "./redesign.css";
@@ -31,6 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <CustomerIdleGuard/>
         <a className="skip-link" href="#content">
           Skip to content
         </a>

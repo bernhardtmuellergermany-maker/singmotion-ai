@@ -1,0 +1,31 @@
+name: Customer inactivity session policy
+
+on:
+  pull_request:
+    paths:
+      - "lib/commerce/store.ts"
+      - "app/(site)/api/customer-session-activity/route.ts"
+      - "app/(site)/account/settings/**"
+      - "components/customer-idle-guard.tsx"
+      - "tests/customer-session-idle.test.ts"
+      - ".github/workflows/customer-idle-policy-ci.yml"
+  push:
+    branches:
+      - "feat/customer-idle-session-policy-20261119"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: node --experimental-strip-types --test tests/customer-session-idle.test.ts

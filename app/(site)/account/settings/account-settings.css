@@ -296,3 +296,15 @@ html:has(.sm-settings-page){scroll-padding-top:82px}
 .sm-settings-email-toggle input[type="checkbox"]{width:21px;height:21px;margin:0;flex:0 0 auto;accent-color:#a95bdb;cursor:pointer}
 .sm-settings-email-toggle input:disabled{cursor:wait;opacity:.55}
 #email-notifications h2{display:flex;align-items:center;gap:10px}
+
+/* Customer security: explicit, account-wide idle policy with accessible controls. */
+.sm-idle-security-panel .sm-idle-form{margin:18px 0 0 52px;gap:12px}
+.sm-settings-content .sm-idle-security-panel .sm-idle-form label{width:100%;max-width:320px}
+.sm-idle-form select{
+ box-sizing:border-box;width:100%;min-height:44px;padding:9px 12px;
+ border:1px solid #5f497d;border-radius:9px;background:#161322;
+ color:#f5f1ff;font:inherit
+}
+.sm-idle-form select:focus-visible{outline:2px solid #ae8eff;outline-offset:3px}
+.sm-idle-security-panel .sm-idle-note{margin:13px 0 0 52px;max-width:540px}
+@media(max-width:650px){.sm-idle-security-panel .sm-idle-form,.sm-idle-security-panel .sm-idle-note{margin-left:0}}
