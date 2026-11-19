@@ -14,7 +14,7 @@ import type {CommerceStore} from "./store.ts";
 
 export type ErasureAssessment={
  eligible:boolean;
- code:"READY"|"ACCOUNT_MISSING"|"CREDITS_OR_PAYMENTS"|"MEDIA_OR_ORDERS"|"RECORDS_REQUIRE_REVIEW";
+ code:"READY"|"ACCOUNT_MISSING"|"GOOGLE_REAUTH_REQUIRED"|"CREDITS_OR_PAYMENTS"|"MEDIA_OR_ORDERS"|"RECORDS_REQUIRE_REVIEW";
  message:string;
 };
 const ready:ErasureAssessment={eligible:true,code:"READY",
@@ -86,13 +86,16 @@ function checkOwnedRecords(db:DatabaseSync,id:string,email:string,allowSessions:
 function openIfPresent(filename:string,readOnly=true):DatabaseSync|null{
  return existsSync(filename)?new DatabaseSync(filename,readOnly?{readOnly:true}:undefined):null;
 }
-function accountProfile(db:DatabaseSync,id:string):{email:string}|undefined{
- return db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(id) as {email:string}|undefined;
+function accountProfile(db:DatabaseSync,id:string):{email:string;password_hash:string}|undefined{
+ return db.prepare("SELECT email,password_hash FROM customer_accounts WHERE id=?").get(id) as {email:string;password_hash:string}|undefined;
 }
+const googleReauth=()=>denied("GOOGLE_REAUTH_REQUIRED",
+ "This account uses Google sign-in without a local password. Fresh Google re-authentication is not yet implemented for deletion; please contact privacy support. No account data has been deleted.");
 /** Never changes a record. A guard here must be repeated under a write lock. */
 export function assessCustomerErasure(store:CommerceStore,root:string,id:string):ErasureAssessment{
  const profile=accountProfile(store.db,id);
  if(!profile)return denied("ACCOUNT_MISSING","Account is no longer available.");
+ if(profile.password_hash.startsWith("google-only:"))return googleReauth();
  const commerce=checkCommerce(store.db,id,profile.email);
  if(!commerce.eligible)return commerce;
  const demo=openIfPresent(path.join(root,"demo.sqlite"));
@@ -120,6 +123,7 @@ export function eraseEmptyCustomerAccount(store:CommerceStore,root:string,id:str
   demo.exec("BEGIN IMMEDIATE");demoLocked=true;
   const profile=accountProfile(store.db,id);
   if(!profile)return denied("ACCOUNT_MISSING","Account is no longer available.");
+  if(profile.password_hash.startsWith("google-only:"))return googleReauth();
   const check=checkCommerce(store.db,id,profile.email);
   if(!check.eligible)return check;
   if(!checkOwnedRecords(demo,id,profile.email,true))
