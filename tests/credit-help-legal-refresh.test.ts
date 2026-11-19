@@ -122,18 +122,22 @@ test("Legal pages and electronic withdrawal are English, link to real policies a
  }
 });
 
-test("Super Admin account settings show real security route and a safe account deletion request",()=>{
+test("Super Admin security stays protected; eligible customers get password-confirmed erasure",()=>{
  const page=read("app/(site)/account/settings/page.tsx");
  const api=read("app/(site)/api/customer-settings/route.ts");
+ const erasure=read("app/(site)/api/customer-account-erasure/route.ts");
  const cms=read("cms/config.ts");
  assert.match(page,/data\.staffPreview&&<section id="security"/);
  assert.match(page,/href="\/admin\/account"/);
  assert.match(page,/Change password in Admin/);
- assert.match(page,/Request account deletion/);
- assert.match(page,/staff account|Super Admin \/ staff/);
- assert.match(page,/window\.confirm/);
+ assert.match(page,/Staff and Super Admin accounts require a protected administrator handover/);
+ assert.match(page,/Delete account permanently/);
+ assert.match(page,/Permanently delete my account/);
  assert.match(page,/mailto:support@singmotion\.ai/);
- assert.match(page,/you must send it yourself/);
+ assert.match(page,/window\.confirm/);
+ assert.doesNotMatch(page,/you must send it yourself/);
+ assert.match(erasure,/store\.verifyCustomerPassword\(id,input.password\)/);
+ assert.match(erasure,/input.confirmation!=="DELETE MY ACCOUNT"/);
  assert.match(cms,/delete: never/);
  assert.match(cms,/password\.length < 20/);
  assert.match(api,/user\.createdAt/);
