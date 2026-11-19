@@ -8,7 +8,7 @@
  */
 import path from "node:path";
 import {existsSync} from "node:fs";
-import {lstat,realpath,unlink} from "node:fs/promises";
+import {lstat,realpath,unlink,readdir} from "node:fs/promises";
 import {DatabaseSync} from "node:sqlite";
 import {createHash} from "node:crypto";
 import {DeleteObjectCommand,HeadObjectCommand,S3Client} from "@aws-sdk/client-s3";
@@ -321,6 +321,29 @@ export async function eraseCustomerMedia(root:string,id:string,deps:Dependencies
     if(!localName.test(filename)||path.resolve(attempt.outputPath)!==path.resolve(root,"live-output",filename))
      throw new CustomerMediaErasureBlocked("INVALID_LIVE_OUTPUT_PATH");
     await local(root,"live-output",filename);
+   }
+  }
+  // Paid output and optional FFmpeg intermediates are bound to the exact
+  // verified order UUID; remove them even if the browser MP4 was already
+  // hydrated from R2 or deleted locally by a previous retry.
+  for(const order of v.orders){
+   if(!uuid.test(order.id))throw new CustomerMediaErasureBlocked("INVALID_PAID_ORDER_REFERENCE");
+   for(const suffix of [".mp4",".provider-source.mp4",".restoring.mp4"])
+    await local(root,"media","paid-"+order.id+suffix);
+  }
+  // Provider-side restoration may leave private intermediate files, including
+  // lease-nonce .partial.mp4. Never enumerate/remove a different attempt.
+  if(v.attempts.length){
+   const outputs=await readdir(path.join(root,"live-output"));
+   for(const attempt of v.attempts){
+    if(!uuid.test(attempt.id))throw new CustomerMediaErasureBlocked("INVALID_LIVE_ATTEMPT_REFERENCE");
+    await local(root,"live-output",attempt.id+".provider-source.mp4");
+    for(const filename of outputs){
+     const prefix=attempt.id+".";
+     if(filename.startsWith(prefix)&&filename.endsWith(".partial.mp4")&&
+       /^[A-Za-z0-9_-]{8,128}$/.test(filename.slice(prefix.length,-".partial.mp4".length)))
+      await local(root,"live-output",filename);
+    }
    }
   }
   // SQL files cannot share an atomic transaction. We only perform SQL
