@@ -8,12 +8,11 @@ Date: 2026-11-19. Source of previous evidence: issue #230 owner-reported offline
 - Media: signed 398 R2 objects and 131 local files re-read SHA and range checks; 527/527 recognized media decoded with ffprobe/ffmpeg, two other content signatures not yet categorized.
 - These are **owner-reported results** from an offline private Windows workstation, not a public Railway application restore.
 
-## Infrastructure inspected 2026-11-19
-- Production backup worker `singmotion-backup` is a ciphertext-only one-shot receiver. It is not a recurring producer. Its service config has no cronSchedule; do not claim daily backups run.
-- Separate project `singmotion-restore-230-isolated`, environment `restore-only`, service `restore-worker-private`: deployed SUCCESS and private, with mounted private scratch volume and dedicated media bucket.
-- Its `Dockerfile.restore-readonly` starts a bounded sleep only, without running any restore command.
-- `scripts/hidrive-readonly-commit-preflight.mjs` requires a **new verifiably read-only** HiDrive grant, an owner-local 0600 rclone config path, and manual operator invocation. Its mode `--all-ciphertext` requires separate `RESTORE_FULL_READ_APPROVED=YES`. A Railway environment variable containing only a config path does not provision the underlying file. Never paste OAuth tokens, RSA private keys, manifests, customer data, or rclone config into GitHub or chat.
-- Current deployment logs show container startup, **not** signed remote verification.
+## Observed state verified 2026-11-19
+- **Independent offsite HiDrive readback: PASS.** Isolated restore-worker-private deployment 074e7f7f-2287-4459-9dd0-1d9c5a0cb6a4 logged RESTORE_RO_FULL_CIPHERTEXT_READBACK_PASS: exact encrypted COMMITTED receipt, pinned manifest and all 689 encrypted segments verified by authenticated read-only API fetch and SHA-256, totaling 690/690 objects. Details: #230 issue comment 7020136339. No source data decrypted in Railway.
+- **Railway daily volume backups:** owner reports these already run; the connected Railway app cannot independently attest their daily schedule and successful volume snapshots. Do not modify them for weekly HiDrive.
+- **Production HiDrive:** singmotion-backup is a one-shot private ciphertext receiver, not a scheduled source-data producer. Its Railway service configuration has no cronSchedule; app service singmotion-ai has no cronSchedule. A cron on the receiver alone does not create a new snapshot.
+- **Owner-approved weekly objective:** new independent encrypted HiDrive snapshot every 7 days, <=EUR 10/month additional total; Sunday 03:00 UTC as proposed timing, with 24h retry grace. No working weekly source producer has been deployed; do not claim that weekly backups are running.
 
 ## Safe order to reach actual P0 acceptance
 1. Operator: from trusted Railway service Console only, provision the verified user,ro HiDrive OAuth rclone config as a local **0600 file owned by the non-root worker**; do not place secrets in logs, GitHub or chat. Validate which mode, remote and account the grant authorizes. No unreviewed source credentials.
@@ -21,7 +20,7 @@ Date: 2026-11-19. Source of previous evidence: issue #230 owner-reported offline
 3. Perform full recovery into **isolated databases and media** using the owner-held RSA private key, without copying live Stripe/BytePlus/R2 credentials or exposing customer plaintext. Re-run native SQLite integrity/foreign keys, Credit Ledger audit, isolated PG native import/catalog checks, and private object/media hashes.
 4. Run isolated app acceptance against restored data with synthetic/isolated identities: private MP4 complete GET and HTTP Range; cross-account access denial; no duplicate worker dispatch or Stripe/provider side effects; orphan task reconciliation. A local `File.slice` check does not prove R2 HTTP or authorization.
 5. Measure actual backup creation time, recovery timestamp, drill duration (RPO/RTO); document original-name mapping and the two unclassified objects' intended role privately.
-6. Implement and test a **separate scheduled producer** that consistently snapshots SQLite/Postgres/R2, encrypts and sends bounded immutable snapshots, verifies remote COMMITTED receipts, applies retention, detects stale/missing backups, and alerts. Receiver startup or one historic receipt does **not** fulfill this requirement. Respect the previously documented €10 **total additional-cost cap** and obtain a verified cost bound before any new long-running/scheduled transfer.
+6. Implement and test a **separate every-seven-days source-data producer** that consistently snapshots SQLite/Postgres/R2, encrypts and sends bounded immutable snapshots, verifies remote COMMITTED receipts, applies retention, detects stale/missing backups, and alerts. Receiver startup or one historic receipt does **not** fulfill this requirement. Respect the previously documented €10 **total additional-cost cap** and obtain a verified cost bound before any new long-running/scheduled transfer.
 7. Only if the above independent checks PASS, record audit evidence and then review `BACKUP_RESTORE_EXERCISE_VERIFIED`, `PRODUCTION_CMS_BACKUP_RESTORE_VERIFIED` and other public-release gates. Do not mark them true from synthetic tests or owner-reported metadata alone.
 
 ## Safety and deployment
