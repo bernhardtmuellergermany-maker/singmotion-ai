@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
-import {StudioAccountGate} from "./studio-account-gate";
+import {studioAccountReturn,STUDIO_ACCOUNT_RESUME_KEY} from "@/lib/studio-account-handoff";
 import type {StudioProject} from "@/lib/live/studio";
 import {CustomerFeedback} from "./customer-feedback";
 import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
@@ -120,7 +120,6 @@ export function StudioWizard({
     [reviewBalance,setReviewBalance] = useState<number|null>(null),
     [reviewRights, setReviewRights] = useState(false),
     [confirm, setConfirm] = useState(false),
-    [guestAccountOpen,setGuestAccountOpen] = useState(false),
     [generationProjectId,setGenerationProjectId] = useState(""),
     [generating,setGenerating] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
@@ -666,11 +665,19 @@ export function StudioWizard({
           projectName,step:3,
         }),
       });
+      // Never navigate away until the precise current Step-4 selection and
+      // the guest-owned upload references have been committed on the server.
+      const returnTo=studioAccountReturn(projectKey,creditQuote.credits);
+      if(!returnTo)throw Error("Saved project could not be verified.");
+      sessionStorage.setItem(STUDIO_ACCOUNT_RESUME_KEY,JSON.stringify({
+       draftId:projectKey,requiredCredits:creditQuote.credits,created:Date.now()
+      }));
       setSaved(true);
-      setGuestAccountOpen(true);
+      window.location.assign("/login?returnTo="+encodeURIComponent(returnTo));
     }catch{
       setError("Your Step 4 project could not be saved. Retry before signing in; no payment or video generation started.");
-    }finally{setBusy(false);}
+      setBusy(false);
+    }
   }
   // A signed-in customer with too few Credits must not encounter a disabled
   // Generate button. Save Step 4 (including the exact owner-bound audio/photo
@@ -1070,9 +1077,6 @@ export function StudioWizard({
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} initialRights={reviewRights} onClose={()=>setConfirm(false)}/>}
-      {guestAccountOpen && !creditStudio && projectKey && creditQuote &&
-       <StudioAccountGate draftId={projectKey} requiredCredits={creditQuote.credits}
-        onClose={()=>setGuestAccountOpen(false)}/>}
     </div>
   );
 }
