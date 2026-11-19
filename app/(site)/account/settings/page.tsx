@@ -2,6 +2,7 @@
 import {useEffect,useState} from "react";
 import Link from "next/link";
 import {Shell} from "@/components/shell";
+import {notifyAuthTransition} from "@/lib/client";
 import {AdminAccountDashboard} from "@/components/admin-account-dashboard";
 import {AdminAnnouncements} from "@/components/admin-announcements";
 import type {AdminSupportOverview} from "@/lib/commerce/admin-support-overview";
@@ -112,7 +113,7 @@ export default function AccountSettings(){
   if(kind==="change-password"&&(newPassword.length<8||newPassword!==confirm)){setNotice("Use at least 8 characters and matching passwords.");return;}
   if(kind==="logout-all"&&!window.confirm("Sign out on every device, including this one?"))return;
   setBusy(true);
-  try{const response=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:kind,password:oldPassword,newPassword})});const json=await response.json();if(!response.ok)throw Error(json.error||"Request failed");if(kind==="logout-all"){location.href="/?card=login";return;}setOldPassword("");setNewPassword("");setConfirm("");setNotice("Password updated. Other customer sessions have been signed out.");}
+  try{const response=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:kind,password:oldPassword,newPassword})});const json=await response.json();if(!response.ok)throw Error(json.error||"Request failed");if(kind==="logout-all"){notifyAuthTransition();location.href="/login";return;}setOldPassword("");setNewPassword("");setConfirm("");setNotice("Password updated. Other customer sessions have been signed out.");}
   catch(e){setNotice((e as Error).message)}finally{setBusy(false)}
  }
  async function removePaidOrder(){
