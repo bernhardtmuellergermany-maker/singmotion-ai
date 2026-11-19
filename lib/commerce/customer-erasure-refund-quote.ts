@@ -14,7 +14,7 @@ export type ErasureRefundLine={
 };
 export type ErasureRefundQuote={
  ready:boolean;reason:"ready"|"pending-checkout"|"unsettled-video"|"unreconciled-wallet"|
- "missing-wallet-records"|"disputed-or-reversed"|"invalid-paid-purchase";
+ "missing-wallet-records"|"disputed-or-reversed"|"invalid-paid-purchase"|"legacy-financial-balance"|"active-subscription";
  purchasedCredits:number;spentCredits:number;refundableCredits:number;
  refundableCents:number;freeCredits:number;lines:ErasureRefundLine[];
 };
@@ -35,6 +35,24 @@ type Reservation={credits:number;state:string};
 export function quoteCustomerErasureRefund(db:DatabaseSync,accountId:string):ErasureRefundQuote{
  if(!/^[a-f0-9-]{36}$/i.test(accountId))return zero("unreconciled-wallet");
  const subject="customer:"+accountId;
+ // Earlier one-video and Hobby products coexist with the prepaid wallet.
+ // Their financial claims are NOT convertible into purchase refunds here.
+ if(table(db,"customer_credits")&&
+    db.prepare("SELECT 1 FROM customer_credits WHERE account_id=? LIMIT 1").get(accountId))
+  return zero("legacy-financial-balance");
+ if(table(db,"customer_holds")&&
+    db.prepare("SELECT 1 FROM customer_holds WHERE account_id=? AND state='reserved' LIMIT 1").get(accountId))
+  return zero("legacy-financial-balance");
+ if(table(db,"customer_subscriptions")&&
+    db.prepare("SELECT 1 FROM customer_subscriptions WHERE account_id=? AND status NOT IN ('cancelled','canceled','expired','inactive') LIMIT 1")
+     .get(accountId))
+  return zero("active-subscription");
+ if(table(db,"customer_split_quotes")&&
+    db.prepare("SELECT 1 FROM customer_split_quotes WHERE account_id=? AND state='reserved' LIMIT 1").get(accountId))
+  return zero("legacy-financial-balance");
+ if(table(db,"customer_plan_usage")&&
+    db.prepare("SELECT 1 FROM customer_plan_usage WHERE account_id=? AND state='reserved' LIMIT 1").get(accountId))
+  return zero("legacy-financial-balance");
  const schema=["credit_topup_purchases","credit_wallet_ledger","credit_video_reservations"];
  const existing=schema.filter(name=>table(db,name));
  if(existing.length===0)return zero("ready");
