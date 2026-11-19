@@ -24,9 +24,11 @@ test("partial refund event reconciles only its bound intent and is idempotent",(
   assert.equal(reconcileVerifiedErasureRefund(db,refund,session,"test"),true);
   assert.equal(reconcileVerifiedErasureRefund(db,refund,session,"test"),true);
   const intent=db.prepare("SELECT state,refund_id FROM customer_erasure_refund_intents WHERE purchase_id=?").get(purchaseId);
-  assert.deepEqual(intent,{state:"succeeded",refund_id:"pyr_123abc"});
+  assert.equal(intent?.state,"succeeded");
+  assert.equal(intent?.refund_id,"pyr_123abc");
   const purchase=db.prepare("SELECT credits,status FROM credit_topup_purchases WHERE id=?").get(purchaseId);
-  assert.deepEqual(purchase,{credits:1000,status:"paid"},"other 500 Credits must not be reversed");
+  assert.equal(purchase?.credits,1000,"other 500 Credits must not be reversed");
+  assert.equal(purchase?.status,"paid");
  }finally{db.close()}
 });
 test("mismatched charge/Checkout, amount and metadata never update intent",()=>{
