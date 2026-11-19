@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 import {stageDeletionRefundIntents,advanceDeletionRefundIntent} from "../lib/commerce/customer-erasure-refund-intents.ts";
+import {ensureCustomerErasureJobs} from "../lib/commerce/customer-erasure-job.ts";
 
 const id="11111111-1111-4111-8111-111111111111",subject="customer:"+id;
 const purchase="22222222-2222-4222-8222-222222222222";
@@ -13,11 +14,15 @@ const refund={id:"re_123abc",object:"refund",payment_intent:"pi_123456789",amoun
  metadata:{erasure_intent:"sm-erasure-v1-"+purchase,erasure_purchase:purchase}};
 function fixture(){
  const db=new DatabaseSync(":memory:");new CreditWallet(db);
+ ensureCustomerErasureJobs(db);
+ db.prepare("INSERT INTO customer_erasure_jobs(account_id,token_hash,state,created_at,updated_at) VALUES(?,?,'requested',?,?)")
+  .run(id,"fake-test-token-hash",Date.now(),Date.now());
  db.prepare("INSERT INTO credit_topup_purchases(id,subject,email,credits,cents,status,request_key,stripe_session_id,created) VALUES(?,?,?,1000,1000,'paid',?,?,1)")
   .run(purchase,subject,"owner@example.test","request-1",session);
  return db;
 }
 const line=[{purchaseId:purchase,sessionId:session,credits:500,cents:500}];
+const authorize=(db:DatabaseSync)=>db.prepare("UPDATE customer_erasure_jobs SET state='refunding' WHERE account_id=?").run(id);
 function sender(opts:{mismatch?:boolean;networkFailure?:boolean;recover?:boolean;missing?:boolean}={}){
  const calls:string[]=[];
  const mock=async(input:string|URL|Request,init?:RequestInit)=>{
@@ -50,7 +55,7 @@ test("refund intents store a snapshot only for the exact paid purchase and accou
   assert.equal(saved[0].cents,500);
   assert.equal(stageDeletionRefundIntents(db,id,line)[0].cents,500);
   assert.throws(()=>stageDeletionRefundIntents(db,id,[{...line[0],cents:200}]),/differs from paid ledger|idempotency/);
-  assert.throws(()=>stageDeletionRefundIntents(db,"33333333-3333-4333-8333-333333333333",line),/differs/);
+  assert.throws(()=>stageDeletionRefundIntents(db,"33333333-3333-4333-8333-333333333333",line),/frozen/);
   assert.throws(()=>stageDeletionRefundIntents(db,id,[{...line[0],cents:2000}]),/differs/);
  }finally{db.close();}
 });
@@ -58,6 +63,7 @@ test("verified Stripe checkout receives exactly one partial refund",async()=>{
  const db=fixture();
  try{
   stageDeletionRefundIntents(db,id,line);
+  authorize(db);
   const x=sender();
   const result=await advanceDeletionRefundIntent(db,purchase,env,x.mock);
   assert.equal(result.state,"succeeded");
@@ -71,6 +77,7 @@ test("uncertain network response is recovered by listing the matching refund, ne
  const db=fixture();
  try{
   stageDeletionRefundIntents(db,id,line);
+  authorize(db);
   const lost=sender({networkFailure:true});
   await assert.rejects(()=>advanceDeletionRefundIntent(db,purchase,env,lost.mock),/lost Stripe/);
   assert.equal(db.prepare("SELECT state,refund_id FROM customer_erasure_refund_intents WHERE purchase_id=?").get(purchase)?.state,"pending");
@@ -83,6 +90,7 @@ test("missing or unverified payout cannot accidentally be sent twice",async()=>{
  const db=fixture();
  try{
   stageDeletionRefundIntents(db,id,line);
+  authorize(db);
   await assert.rejects(()=>advanceDeletionRefundIntent(db,purchase,env,sender({networkFailure:true}).mock));
   const unknown=sender({missing:true});
   await assert.rejects(()=>advanceDeletionRefundIntent(db,purchase,env,unknown.mock),/pending independent verification/);
@@ -94,11 +102,24 @@ test("unverified checkout or environment mismatch blocks before any refund",asyn
  const db=fixture();
  try{
   stageDeletionRefundIntents(db,id,line);
+  authorize(db);
   const wrong=sender({mismatch:true});
   await assert.rejects(()=>advanceDeletionRefundIntent(db,purchase,env,wrong.mock),/does not match/);
   assert.equal(wrong.calls.filter(c=>c.startsWith("POST ")).length,0);
   const normal=sender();
   await assert.rejects(()=>advanceDeletionRefundIntent(db,purchase,{...env,RAILWAY_ENVIRONMENT_ID:"production"},normal.mock),/environment mismatch/);
   assert.equal(normal.calls.length,0);
+ }finally{db.close();}
+});
+
+test("refund operation is impossible before deletion job authorizes the refund stage",async()=>{
+ const db=fixture();
+ try{
+  stageDeletionRefundIntents(db,id,line);
+  const network=sender();
+  await assert.rejects(()=>advanceDeletionRefundIntent(db,purchase,env,network.mock),/not authorized/);
+  assert.equal(network.calls.length,0);
+  db.prepare("DELETE FROM customer_erasure_jobs WHERE account_id=?").run(id);
+  assert.throws(()=>stageDeletionRefundIntents(db,id,line),/frozen/);
  }finally{db.close();}
 });
