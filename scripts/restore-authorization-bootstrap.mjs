@@ -44,7 +44,7 @@ export function parsePrivateReadOnlyProfile(encoded,remote){
   }
   if(sections.size!==1||!sections.has(section))fail('RESTORE_RO_CONFIG_REMOTE_MISMATCH');
   const fields=sections.get(section);
-  if(fields.get('type')!=='hidrive'||fields.get('scope_role')!=='user'||
+  if(fields.get('type')!=='hidrive'||(fields.has('scope_role')&&fields.get('scope_role')!=='user')||
      fields.get('scope_access')!=='ro'||!fields.has('token'))
     fail('RESTORE_RO_CONFIG_SCOPE_INVALID');
   let token;
