@@ -72,7 +72,7 @@ test("AI-use and privacy documents, plus camera Help, open separately from Studi
  }
  assert.match(wizard,/href="\/help\/camera-movements" target="_blank" rel="noopener noreferrer"/);
  assert.match(wizard,/AI-generated videos can contain unexpected visual, motion or lip-sync imperfections/);
- assert.match(wizard,/Next: create your free account or sign in/);
+ assert.match(wizard,/Next: sign in or create a free account/);
  assert.match(css,/\.sm-review-ai-notice,\s*\.product-theme\.singmotion-flow \.sm-review-payment-note\{/);
  assert.match(css,/text-align:center!important/);
  assert.match(css,/sm-review-legal-links/);
