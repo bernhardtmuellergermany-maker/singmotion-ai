@@ -29,6 +29,7 @@ type LiveAttempt={id:string;source_job_id:string;data:string};
 type MediaAsset={id:string;owner:string;data:string};
 const uuid=/^[a-f0-9-]{36}$/i;
 const fileId=/^[A-Za-z0-9_-]{1,180}$/;
+const localName=/^[A-Za-z0-9_-]{1,180}(?:\.(?:mp4|mp3|jpg|png))?$/;
 const safe=(name:string)=>'"'+name.replaceAll('"','""')+'"';
 const sha=(input:string)=>createHash("sha256").update(input).digest("hex");
 const has=(db:DatabaseSync,name:string)=>!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
@@ -67,7 +68,7 @@ const owns=(db:DatabaseSync,id:string,email:string,allowed:Set<string>)=>{
  }
 };
 async function localFile(root:string,base:"media"|"live-output",name:string):Promise<void>{
- if(!fileId.test(name)||name.includes(".."))throw new CustomerMediaErasureBlocked("INVALID_MEDIA_ID");
+ if(!localName.test(name)||name.includes(".."))throw new CustomerMediaErasureBlocked("INVALID_MEDIA_ID");
  const absolute=await realpath(root);
  const folder=await realpath(path.join(root,base)).catch(()=>null);
  if(folder!==path.join(absolute,base))
@@ -154,6 +155,28 @@ function inspect(demo:DatabaseSync,live:DatabaseSync|null,commerce:DatabaseSync,
   "SELECT attempt_id FROM live_studio_projects WHERE owner=?",owner).map(x=>x.attempt_id):[];
  if(projectIds.some(id=>!attempts.some(x=>x.id===id)))
   throw new CustomerMediaErasureBlocked("STUDIO_PROJECT_MISSING_ATTEMPT");
+ // An unmodelled table referencing a deleted attempt or paid order would be
+ // left orphaned, or worse: lose payment evidence. Refuse before any purge.
+ if(live){
+  const tables=live.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as {name:string}[];
+  for(const table of tables){
+   if(liveKnown.has(table.name))continue;
+   if(cols(live,table.name).some(c=>c.name==="attempt_id")){
+    const stmt=live.prepare("SELECT 1 FROM "+safe(table.name)+" WHERE attempt_id=? LIMIT 1");
+    if(attempts.some(a=>stmt.get(a.id)))
+     throw new CustomerMediaErasureBlocked("UNKNOWN_LIVE_ATTEMPT_REFERENCE");
+   }
+  }
+ }
+ const unknownOrders=commerce.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as {name:string}[];
+ for(const table of unknownOrders){
+  if(commerceKnown.has(table.name))continue;
+  if(cols(commerce,table.name).some(c=>c.name==="order_id")){
+   const match=commerce.prepare("SELECT 1 FROM "+safe(table.name)+" WHERE order_id=? LIMIT 1");
+   if(orders.some(order=>match.get(order.id)))
+    throw new CustomerMediaErasureBlocked("UNKNOWN_PAID_ORDER_REFERENCE");
+  }
+ }
  const sources=list<CloudSource>(demo,"cloud_source_media",
   "SELECT asset_id,key,sha256,bytes FROM cloud_source_media WHERE owner=?",owner);
  for(const source of sources){
@@ -274,7 +297,7 @@ export async function eraseCustomerMedia(root:string,id:string,deps:Dependencies
    const attempt=JSON.parse(item.data) as {outputPath?:string|null};
    if(typeof attempt.outputPath==="string"&&attempt.outputPath){
     const filename=path.basename(attempt.outputPath);
-    if(!fileId.test(filename)||path.resolve(attempt.outputPath)!==path.resolve(root,"live-output",filename))
+    if(!localName.test(filename)||path.resolve(attempt.outputPath)!==path.resolve(root,"live-output",filename))
      throw new CustomerMediaErasureBlocked("INVALID_LIVE_OUTPUT_PATH");
     await local(root,"live-output",filename);
    }
@@ -298,7 +321,7 @@ export async function eraseCustomerMedia(root:string,id:string,deps:Dependencies
     for(const attempt of v.attempts){
      const tables=live.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all() as {name:string}[];
      for(const table of tables){
-      if(table.name==="live_attempts")continue;
+      if(table.name==="live_attempts"||!liveKnown.has(table.name))continue;
       if(cols(live,table.name).some(c=>c.name==="attempt_id"))
        live.prepare("DELETE FROM "+safe(table.name)+" WHERE attempt_id=?").run(attempt.id);
      }
