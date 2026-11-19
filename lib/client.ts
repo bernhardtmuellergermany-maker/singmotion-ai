@@ -53,6 +53,8 @@ export async function upload(file: File, kind: "audio" | "image", onProgress?: (
   });
 }
 
+import {invalidateCustomerAuthStatus} from "./client-auth-status";
+
 export function resetSession() {
   sessionPromise = undefined;
 }
@@ -60,6 +62,7 @@ export function resetSession() {
  * whenever this tab signs in, signs out or switches customer/staff identity. */
 export function notifyAuthTransition(){
  resetSession();
+ invalidateCustomerAuthStatus();
  if(typeof window!=="undefined"){
   try{localStorage.setItem("sm-auth-revision",Date.now()+":"+Math.random())}catch{}
   window.dispatchEvent(new Event("sm-auth-changed"));
@@ -69,6 +72,7 @@ if(typeof window!=="undefined"){
  window.addEventListener("storage",event=>{
   if(event.key==="sm-auth-revision"){
    resetSession();
+   invalidateCustomerAuthStatus();
    window.location.reload();
   }
  });
