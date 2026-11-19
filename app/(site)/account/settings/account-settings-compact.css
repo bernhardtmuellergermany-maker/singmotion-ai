@@ -84,7 +84,6 @@
 }
 
 /* Security: three independent, compact controls side by side on wide screens. */
-.sm-settings-customer#unused-selector{display:none}
 .sm-settings-customer>#security{
  display:grid;
  grid-template-columns:repeat(3,minmax(0,1fr));
