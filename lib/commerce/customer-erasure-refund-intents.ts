@@ -11,6 +11,7 @@ import type {DatabaseSync} from "node:sqlite";
 import type {ErasureRefundLine} from "./customer-erasure-refund-quote.ts";
 import {customerStripeCredential,type StripePaymentMode} from "./stripe-payment-mode.ts";
 import {readErasureJob} from "./customer-erasure-job.ts";
+import {validStripeRefundId} from "./stripe-reversal-identifiers.ts";
 const PRODUCTION="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const STAGING="dfaeabed-03df-43ed-aa71-50f343a75041";
 type Env=Record<string,string|undefined>;
@@ -140,7 +141,7 @@ export async function advanceDeletionRefundIntent(
   }
  }
  const refundId=refund?.id;
- if(typeof refundId!=="string"||!/^re_[A-Za-z0-9_]+$/.test(refundId)||
+ if(!validStripeRefundId(refundId)||
     refund.object!=="refund"||refund.payment_intent!==session.payment_intent||
     refund.amount!==intent.cents||refund.currency!=="eur"||
     (refund.livemode!==undefined&&refund.livemode!==isLive))
