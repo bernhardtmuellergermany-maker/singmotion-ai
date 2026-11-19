@@ -11,7 +11,6 @@ import {existsSync} from "node:fs";
 import path from "node:path";
 import {DatabaseSync} from "node:sqlite";
 import type {CommerceStore} from "./store.ts";
-import {CreditWallet} from "./credit-wallet.ts";
 
 export type ErasureAssessment={
  eligible:boolean;
@@ -61,14 +60,13 @@ const removableCommerce=new Set([
  "customer_password_resets","customer_email_preferences","credit_wallet_ledger",
 ]);
 function checkCommerce(db:DatabaseSync,id:string,email:string):ErasureAssessment{
- new CreditWallet(db); // Ensure that wallet purchases and reservations are visible.
  if(!ownGiftOnly(db,id))return denied("CREDITS_OR_PAYMENTS",
   "Credits or their financial ledger require resolution before account deletion. Purchased Credits are not automatically forfeited or refunded.");
  // Every recorded top-up is financially relevant, including pending Checkout
  // attempts and reversals which must remain reconcilable with Stripe.
  const subject="customer:"+id;
- if((db.prepare("SELECT 1 FROM credit_topup_purchases WHERE subject=? OR email=? LIMIT 1").get(subject,email))||
-    (db.prepare("SELECT 1 FROM credit_video_reservations WHERE subject=? LIMIT 1").get(subject)))
+ if((hasTable(db,"credit_topup_purchases")&&db.prepare("SELECT 1 FROM credit_topup_purchases WHERE subject=? OR email=? LIMIT 1").get(subject,email))||
+    (hasTable(db,"credit_video_reservations")&&db.prepare("SELECT 1 FROM credit_video_reservations WHERE subject=? LIMIT 1").get(subject)))
   return denied("CREDITS_OR_PAYMENTS",
     "Credit purchases, reservations or payment reconciliation must be settled before account deletion.");
  for(const table of tableNames(db)){
@@ -134,8 +132,9 @@ export function eraseEmptyCustomerAccount(store:CommerceStore,root:string,id:str
   const subject="customer:"+id;
   // The one verified promotional gift may be discarded. Never remove a
   // purchased top-up, consumed paid-credit evidence or provider reservation.
-  store.db.prepare("DELETE FROM credit_wallet_ledger WHERE subject=? AND kind='beta-welcome' AND reference=?")
-   .run(subject,giftRef(id));
+  if(hasTable(store.db,"credit_wallet_ledger"))
+   store.db.prepare("DELETE FROM credit_wallet_ledger WHERE subject=? AND kind='beta-welcome' AND reference=?")
+    .run(subject,giftRef(id));
   for(const table of ["customer_sessions","customer_session_policies",
      "customer_email_verifications","customer_google_identities",
      "customer_password_resets","customer_email_preferences"]){
