@@ -12,18 +12,34 @@ export const runtime="nodejs";export const dynamic="force-dynamic";
 const json=(v:unknown,status=200)=>Response.json(v,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(!customerIdentityOrigin(process.env))return json({error:"Customer accounts are not available in this environment."},403);
+ const customerEnabled=Boolean(customerIdentityOrigin(process.env));
+ if(!customerEnabled&&process.env.CMS_ENABLED!=="true")
+  return json({error:"Account import unavailable in this environment."},403);
  if(req.headers.get("origin")!==applicationOrigin(req.url,req.headers.get("host")))return json({error:"Invalid origin"},403);
  const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
-  const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
-  if(!accountId)return json({error:"Sign in first"},401);
-  const accountOwner="customer-"+accountId;
+  // Require the exact same server-verified, allowlisted Studio operator
+  // identity as /api/session. Staff login alone never grants import rights.
+  let accountOwner:string|null=null;
+  if(process.env.CMS_ENABLED==="true"){
+   const {getPayload}=await import("payload");
+   const {default:config}=await import("@payload-config");
+   const {studioStaff}=await import("@/cms/studio-access");
+   const payload=await getPayload({config});
+   const identity=await payload.auth({headers:req.headers});
+   try{accountOwner=studioStaff(identity.user,req.method,req.headers,process.env)}
+   catch{/* No authorization without an allowlisted operator identity. */}
+  }
+  if(!accountOwner&&customerEnabled){
+   const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
+   if(accountId)accountOwner="customer-"+accountId;
+  }
+  if(!accountOwner)return json({error:"Sign in as a customer or authorized Studio operator first"},401);
   if(session(req.cookies.get("sm_session")?.value)?.owner!==accountOwner)return json({error:"Account workspace mismatch"},403);
   const guestToken=req.cookies.get("sm_guest_session")?.value;
   const guestOwner=session(guestToken)?.owner;
   if(!guestOwner||! /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(guestOwner))return json({error:"No verified guest workspace to import"},404);
-  limit("guest-import:"+accountId,10,60000);
+  limit("guest-import:"+accountOwner,10,60000);
   const body=await req.json().catch(()=>null) as {mode?:string;confirmation?:string;draftId?:string}|null;
   if(!body||!["preview","execute"].includes(body.mode||""))return json({error:"Invalid mode"},400);
   const liveFile=path.join(dataDir,"live-test.sqlite");

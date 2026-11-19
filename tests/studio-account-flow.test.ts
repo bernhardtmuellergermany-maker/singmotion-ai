@@ -46,6 +46,7 @@ test("guest Step 4 saves media and prompt then opens standard login without a re
  assert.match(account,/mode==="login"\?"Create account"/);
  assert.match(account,/parseStudioAccountReturn\(search\.get\("returnTo"\)\)/);
  assert.match(account,/if\(studioReturn\)\{window\.location\.assign\(studioReturn\);return;\}/);
+ assert.match(account,/d\.kind==="customer"\|\|d\.kind==="staff"/);
  assert.match(account,/studioReturn\?"\/api\/google-auth\?start=1&returnTo="/);
  const guestOnly=wizard.slice(wizard.indexOf("async function openGuestAccount()"),
   wizard.indexOf("async function continueToCreditPurchase()"));
@@ -73,13 +74,14 @@ test("Account handoff never grants cross-account ownership or payments based on 
  const resume=read("components/studio-account-resume.tsx");
  const importer=read("app/(site)/api/customer-guest-import/route.ts");
  assert.match(resume,/sessionStorage\.getItem\(STUDIO_ACCOUNT_RESUME_KEY\)/);
- assert.match(resume,/identity\.kind!=="customer"/);
+ assert.match(resume,/identity\.kind!=="customer"&&identity\.kind!=="staff"/);
  assert.match(resume,/workspace\.owner\?\.startsWith\("customer-"\)/);
  assert.match(resume,/\/api\/customer-guest-import/);
  assert.match(resume,/saved\.selection\?\.owner!==workspace\.owner/);
  assert.match(resume,/quote\.credits!==wanted\.requiredCredits/);
  assert.match(resume,/mode:"execute",confirmation:"IMPORT MY GUEST PROJECTS",draftId/);
  assert.match(importer,/customerIdentityOrigin\(process\.env\)/);
+ assert.match(importer,/studioStaff\(identity\.user,req\.method,req\.headers,process\.env\)/);
  assert.match(importer,/guestToken=req\.cookies\.get\("sm_guest_session"\)\?\.value/);
  assert.match(importer,/guestOwner=session\(guestToken\)\?\.owner/);
  assert.match(importer,/SELECT selection,step FROM studio_drafts WHERE id=\? AND owner=\?/);
@@ -142,7 +144,7 @@ test("login, registration and Google OAuth all return the same server-verified d
  assert.match(account,/mode==="register"/);
  assert.match(account,/studioReturn/);
  assert.match(resume,/sessionStorage\.getItem\(STUDIO_ACCOUNT_RESUME_KEY\)/);
- assert.match(resume,/identity\.kind!=="customer"/);
+ assert.match(resume,/identity\.kind!=="customer"&&identity\.kind!=="staff"/);
  assert.match(resume,/\/api\/customer-guest-import/);
  assert.match(resume,/saved\.selection\?\.owner!==workspace\.owner/);
  assert.match(resume,/quote\.credits!==wanted\.requiredCredits/);
@@ -155,4 +157,18 @@ test("login, registration and Google OAuth all return the same server-verified d
  assert.match(wizard,/saved\.selection\.owner!==sessionOwner/);
  assert.match(wizard,/timelinePrompt\(parts\)===saved\.selection\.customPrompt/);
  assert.doesNotMatch(resume,/action:"submit"|\/api\/credit-checkout/);
+});
+
+test("authorized staff login preserves an owner-verified guest Step 4 handoff",()=>{
+ const cms=read("app/(payload)/api/cms/[...slug]/route.ts");
+ const importer=read("app/(site)/api/customer-guest-import/route.ts");
+ const resume=read("components/studio-account-resume.tsx");
+ assert.match(cms,/mediaOwner\?\.startsWith\("customer-"\)/);
+ assert.match(cms,/mediaOwner\?\.startsWith\("cms-staff-"\)/);
+ assert.match(cms,/exclusive\.cookies\.set\("sm_guest_session",media/);
+ assert.match(importer,/studioStaff\(identity\.user,req\.method,req\.headers,process\.env\)/);
+ assert.match(importer,/session\(req\.cookies\.get\("sm_session"\)\?\.value\)\?\.owner!==accountOwner/);
+ assert.match(importer,/guestOwner=session\(guestToken\)\?\.owner/);
+ assert.match(resume,/expectedOwnerPrefix=identity\.kind==="staff"\?"cms-staff-":"customer-"/);
+ assert.doesNotMatch(resume,/\/api\/credit-checkout|\/api\/stripe-checkout/);
 });

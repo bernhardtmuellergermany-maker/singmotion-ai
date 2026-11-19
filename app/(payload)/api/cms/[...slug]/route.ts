@@ -95,10 +95,18 @@ function protect(
         const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
         try{store.logout(token)}finally{store.close()}
       }
-      if(media&&session(media))revokeMediaSession(media);
+      const mediaOwner=media?session(media)?.owner:null;
+      // Preserve a verified anonymous workspace until its owner explicitly
+      // transfers it; only revoke an earlier authenticated account session.
+      if(media&&(mediaOwner?.startsWith("customer-")||mediaOwner?.startsWith("cms-staff-")))
+        revokeMediaSession(media);
       const exclusive=new NextResponse(response.body,{status:response.status,headers:response.headers});
       exclusive.cookies.delete("sm_customer");
       exclusive.cookies.delete("sm_session");
+      if(media&&mediaOwner&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(mediaOwner))
+        exclusive.cookies.set("sm_guest_session",media,{
+          httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400,
+        });
       exclusive.headers.set("Cache-Control","private, no-store");
       exclusive.headers.set("X-Content-Type-Options","nosniff");
       return exclusive;

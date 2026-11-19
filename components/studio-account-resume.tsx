@@ -33,11 +33,13 @@ export function StudioAccountResume(){
      throw Error("The private guest project handoff has expired. Open Step 4 in your original browser and sign in again.");
     const identityResponse=await fetch("/api/customer-auth",{cache:"no-store",credentials:"same-origin"});
     const identity=await identityResponse.json().catch(()=>null) as {authenticated?:boolean;kind?:string;emailVerification?:"pending"|"verified"|"legacy"}|null;
-    if(!identityResponse.ok||identity?.authenticated!==true||identity.kind!=="customer")
-     throw Error("Sign in to your customer account before transferring your guest project.");
+    if(!identityResponse.ok||identity?.authenticated!==true||
+       (identity.kind!=="customer"&&identity.kind!=="staff"))
+     throw Error("Sign in to your customer or authorized Studio operator account before transferring your guest project.");
     const workspace=await ensureSession() as {owner?:string};
-    if(!workspace.owner?.startsWith("customer-"))
-     throw Error("Customer workspace verification failed; your original guest files remain protected.");
+    const expectedOwnerPrefix=identity.kind==="staff"?"cms-staff-":"customer-";
+    if(!workspace.owner?.startsWith(expectedOwnerPrefix))
+     throw Error("Account workspace verification failed; your original guest files remain protected.");
     if(!current)return;
     setMessage("Transferring the saved audio, photo and Step 4 setup to your account…");
     const importResponse=await fetch("/api/customer-guest-import",{
