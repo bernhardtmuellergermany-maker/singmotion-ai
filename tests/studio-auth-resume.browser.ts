@@ -110,17 +110,31 @@ try{
    await page.getByLabel("Email",{exact:true}).fill(email);
    await page.getByLabel("Password",{exact:true}).fill(password);
    await page.getByRole("button",{name:registration?"Create account":"Sign in",exact:true}).last().click();
-   // Next.js may continue loading asynchronous assets after the Step-4
-   // review is already interactive. Do not await the whole page "load"
-   // event: verify the exact final URL + visible Step-4 content instead.
-   await page.waitForURL(url=>
-    url.pathname==="/studio"&&url.searchParams.get("draft")===id&&
-    url.searchParams.get("resume")==="review"&&url.searchParams.size===2,
-    {waitUntil:"commit",timeout:20000});
+   // Two fast first-party Next.js redirects can abort the intermediate
+   // navigation request after the final Step 4 is already visible. Observe
+   // only the browser's final address, then verify the actual saved content.
+   const returnDeadline=Date.now()+20000;
+   let arrivedAtReview=false;
+   while(Date.now()<returnDeadline){
+    const location=new URL(page.url());
+    if(location.pathname==="/studio"&&location.searchParams.get("draft")===id&&
+       location.searchParams.get("resume")==="review"&&location.searchParams.size===2){
+     arrivedAtReview=true;
+     break;
+    }
+    await new Promise<void>(resolve=>setTimeout(resolve,100));
+   }
+   assert.ok(arrivedAtReview,"Login must return to the exact saved Step 4");
    await page.getByRole("heading",{name:"Ready to generate?"}).waitFor({timeout:15000});
    await page.getByText(prompt,{exact:true}).first().waitFor({timeout:15000});
    assert.ok(await page.getByText("original-song.mp3",{exact:true}).count());
    assert.ok(await page.locator(".sm-review-photo-value img").count());
+   // Make sure we did not merely pass through Step 4 before a wallet redirect.
+   const finalLocation=new URL(page.url());
+   assert.equal(finalLocation.pathname,"/studio");
+   assert.equal(finalLocation.searchParams.get("draft"),id);
+   assert.equal(finalLocation.searchParams.get("resume"),"review");
+   assert.equal(finalLocation.searchParams.size,2);
    const user=commerce.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email) as {id:string}|undefined;
    assert.ok(user);
    const customerOwner="customer-"+user.id;
