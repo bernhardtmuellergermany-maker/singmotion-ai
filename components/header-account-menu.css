@@ -48,8 +48,8 @@
 
 /* Shared logo and navigation control appearance is defined only in app/(site)/site-navigation.css. */
 
-/* Quiet identity hint immediately above the credits card; show the full email
-   without clipping when someone has a long address on mobile. */
+/* Quiet identity hint above credits: stay on one line and ellipsize
+   long addresses on narrow mobile menus. Full address remains in title. */
 .sm-account-signed-in{
  display:flex;flex-direction:column;gap:2px;min-width:0;
  margin:4px 5px 7px;padding:4px 9px 0;
@@ -59,7 +59,7 @@
 }
 .sm-account-signed-in>strong{
  min-width:0;color:#ded7e9;font-size:12px;line-height:1.4;
- font-weight:500;overflow-wrap:anywhere;
+ font-weight:500;display:block;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 
 /* Real account balance — never infer a paid wallet from the demo workspace. */
