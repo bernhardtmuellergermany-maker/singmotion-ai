@@ -67,7 +67,8 @@ export function finalizeErasedCustomerData(store:CommerceStore,accountId:string)
     .get(accountId);
    if(active)throw new AccountErasureFinalizationBlocked("ACTIVE_SUBSCRIPTION");
   }
-  const owner="customer-"+accountId,subject="customer:"+accountId,erased="erased:"+accountId;
+  const owner="customer-"+accountId,subject="customer:"+accountId,
+   erased="closed:"+createHash("sha256").update(accountId).digest("hex");
   const orderIds=has(db,"customer_orders")?
    db.prepare("SELECT id FROM customer_orders WHERE account_id=?").all(accountId) as {id:string}[]:[];
   // Unknown account-linked tables are not silently discarded. They may hold
