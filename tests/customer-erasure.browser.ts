@@ -95,7 +95,7 @@ try{
    .get(idleEmail) as {id:string};
   assert.ok(idleAccount?.id);
   await idleContext.addCookies([{name:"payload-token",value:"obsolete-staff-cookie",
-   url:origin,path:"/"}]);
+   url:origin}]);
   const startCookies=await idleContext.cookies(origin);
   assert.ok(startCookies.some(x=>x.name==="sm_customer"));
   assert.ok(startCookies.some(x=>x.name==="payload-token"));
