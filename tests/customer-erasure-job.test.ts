@@ -54,6 +54,8 @@ test("durable erasure state machine rejects skipped steps and unsafe issue strin
   assert.throws(()=>advanceErasureJob(store.db,id,"removing-data","raw private email@test.com"),/Invalid safe issue/);
   assert.equal(advanceErasureJob(store.db,id,"removing-media").state,"removing-media");
   assert.equal(advanceErasureJob(store.db,id,"removing-data").state,"removing-data");
+  assert.throws(()=>advanceErasureJob(store.db,id,"completed"),/identity still exists/);
+  store.db.prepare("DELETE FROM customer_accounts WHERE id=?").run(id);
   assert.equal(advanceErasureJob(store.db,id,"completed").state,"completed");
   assert.equal(erasureInProgress(store.db,id),false);
   assert.throws(()=>advanceErasureJob(store.db,id,"requested"),/Invalid erasure state/);
