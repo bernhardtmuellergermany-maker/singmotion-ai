@@ -83,8 +83,8 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
     const accountId=owner.slice(9);
     const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     try{
-      store.ownedOrder(ref,accountId,null);
-      if(!store.ownedDeliveredVideoAsset(ref,accountId,null))throw new MusicError("Video is not ready.",409);
+      store.ownedOrder(ref,accountId,undefined);
+      if(!store.ownedDeliveredVideoAsset(ref,accountId,undefined))throw new MusicError("Video is not ready.",409);
       const row=store.db.prepare("SELECT duration_seconds,display_name FROM customer_orders WHERE id=? AND account_id=?").get(ref,accountId) as {duration_seconds?:number;display_name?:string}|undefined;
       const duration=Number(row?.duration_seconds);
       if(!Number.isFinite(duration)||duration<=0)throw new MusicError("Video duration unavailable.",409);
