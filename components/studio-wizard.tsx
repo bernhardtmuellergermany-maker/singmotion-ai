@@ -1063,7 +1063,7 @@ export function StudioWizard({
             <Link href="/terms" target="_blank" rel="noopener noreferrer">Terms</Link>
             <Link href="/privacy" target="_blank" rel="noopener noreferrer">Privacy</Link>
           </nav>
-          <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Next: create your free account or sign in. Your saved audio and photo will move into your personal workspace. Buy Credits when available, then return to Step 4. Creating an account costs nothing."}</p>
+          <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Next: sign in with your account, or create one for free. Your audio, photo, prompt and video settings will be restored automatically at Step 4. You can review Credits there before choosing to generate."}</p>
         </section>}
         {step===3&&generating&&<p className="sm-review-payment-note sm-review-starting-status" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
