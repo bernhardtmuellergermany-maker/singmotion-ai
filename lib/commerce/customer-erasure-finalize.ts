@@ -46,6 +46,12 @@ export function finalizeErasedCustomerData(store:CommerceStore,accountId:string)
    advanceErasureJob(db,accountId,"completed");
    db.exec("COMMIT");return true;
   }
+  // Existing subscriptions are independent financial obligations, never
+  // silently cancelled by a refund of newly purchased prepaid Credits.
+  if(has(db,"customer_subscriptions")&&
+     db.prepare("SELECT 1 FROM customer_subscriptions WHERE account_id=? AND status NOT IN ('cancelled','canceled','expired','inactive') LIMIT 1")
+      .get(accountId))
+   throw new AccountErasureFinalizationBlocked("ACTIVE_SUBSCRIPTION");
   const quote=quoteCustomerErasureRefund(db,accountId);
   if(!quote.ready)throw new AccountErasureFinalizationBlocked("FINANCIAL_RECONCILIATION_REQUIRED");
   if(quote.lines.length){
