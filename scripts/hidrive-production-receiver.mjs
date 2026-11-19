@@ -113,12 +113,18 @@ export async function runProductionCiphertextReceiver(env,{
   if (weekly) {
     if(!weeklyBackupEnabled(env,true))
       refused("RECEIVER_WEEKLY_APPROVAL_REQUIRED");
-    const slot=weeklyBackupSlot(now(),env.BACKUP_RECEIVER_WRITER_FP);
+    const slot=weeklyBackupSlot(now(),env.WEEKLY_BACKUP_RECEIVER_WRITER_FP);
     if (!slot.receiverOpen)
       refused("RECEIVER_WEEKLY_WINDOW_CLOSED");
     env={
       ...env,
       BACKUP_WEEKLY_EXECUTION_CONTEXT:"YES",
+      // Weekly TLS identity remains separate from historical one-shot identity.
+      BACKUP_RECEIVER_CA_B64:env.WEEKLY_BACKUP_RECEIVER_CA_B64,
+      BACKUP_RECEIVER_CERT_B64:env.WEEKLY_BACKUP_RECEIVER_CERT_B64,
+      BACKUP_RECEIVER_KEY_B64:env.WEEKLY_BACKUP_RECEIVER_KEY_B64,
+      BACKUP_RECEIVER_WRITER_FP:env.WEEKLY_BACKUP_RECEIVER_WRITER_FP,
+      BACKUP_RECEIVER_READER_FP:undefined,
       BACKUP_MODE:"PRODUCTION_CIPHERTEXT_ONLY_RECEIVER",
       BACKUP_REAL_TRANSFER_APPROVED:"YES",
       BACKUP_RUN_ID:slot.run,
