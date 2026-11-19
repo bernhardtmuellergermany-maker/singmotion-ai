@@ -1,0 +1,40 @@
+name: Guard weekly HiDrive exporter and private receiver
+
+on:
+  push:
+    branches:
+      - feat/230-weekly-hidrive-automated-pipeline-20261119
+  pull_request:
+    branches:
+      - fix/studio-standard-login-return-step4-20261119
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-hidrive-safe-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  weekly-hidrive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.22.3"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Verify weekly run identity, Sunday boundary, budget and durable claim
+        run: node --test tests/weekly-hidrive-schedule.test.mjs tests/weekly-hidrive-sender.test.mjs
+      - name: Preserve existing private encrypted sender and receiver safety
+        run: node --experimental-strip-types --test tests/production-offsite-sender.test.mjs tests/hidrive-production-receiver.test.mjs tests/private-backup-worker.test.mjs
+      - name: Type-check app worker
+        run: npm run typecheck
+      - name: Build minimal receiver with weekly authorization module
+        run: docker build -f Dockerfile.backup -t singmotion-weekly-hidrive-ci .
