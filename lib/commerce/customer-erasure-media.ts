@@ -35,7 +35,8 @@ const sha=(input:string)=>createHash("sha256").update(input).digest("hex");
 const has=(db:DatabaseSync,name:string)=>!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
 const cols=(db:DatabaseSync,name:string)=>(db.prepare("PRAGMA table_info("+safe(name)+")").all() as Array<{name:string;type:string}>);
 export class CustomerMediaErasureBlocked extends Error{
- constructor(readonly code:string){super(code)}
+ readonly code:string;
+ constructor(code:string){super(code);this.code=code}
 }
 export type CustomerMediaErasurePlan={
  assets:number;studioProjects:number;providerTasks:number;paidOutputs:number;
