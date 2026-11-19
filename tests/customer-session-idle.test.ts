@@ -93,3 +93,21 @@ test("the browser only reports trusted user gestures; settings enforce origin an
  assert.match(route,/CUSTOMER_IDLE_MINUTES\.includes/);
  assert.match(api,/commerce\.session\(req\.cookies\.get\("sm_customer"\)\?\.value\|\|""\)/);
 });
+
+test("expired customer session cleans HttpOnly identities before showing sign-in, including a first-load expired cookie",()=>{
+ const guard=readFileSync(new URL("../components/customer-idle-guard.tsx",import.meta.url),"utf8");
+ const activity=readFileSync(new URL("../app/(site)/api/customer-session-activity/route.ts",import.meta.url),"utf8");
+ const login=readFileSync(new URL("../components/account-panel.tsx",import.meta.url),"utf8");
+ const auth=readFileSync(new URL("../lib/client-auth-status.ts",import.meta.url),"utf8");
+ assert.match(activity,/expiredSession:Boolean\(token\)/);
+ assert.match(activity,/response\.cookies\.delete\("sm_customer"\)/);
+ assert.match(activity,/response\.cookies\.delete\("sm_session"\)/);
+ assert.match(activity,/response\.cookies\.delete\("payload-token"\)/);
+ assert.match(activity,/if\(token\)\{/);
+ assert.match(guard,/await fetch\("\/api\/unified-logout"/);
+ assert.match(guard,/window\.location\.replace\("\/login\?session=expired"\)/);
+ assert.match(guard,/state\?\.expiredSession===true/);
+ assert.match(login,/window\.addEventListener\("sm-auth-changed",changed\)/);
+ assert.match(login,/setAccount\(d\?\.authenticated===true\?d.email\?\?null:null\)/);
+ assert.match(auth,/export function invalidateCustomerAuthStatus\(\)/);
+});
