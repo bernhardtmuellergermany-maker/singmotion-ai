@@ -67,35 +67,46 @@ try{
  await page.setViewportSize({width:1440,height:900});
  await page.goto(origin+"/account/settings#privacy");
  await page.getByRole("heading",{name:"Privacy & account deletion"}).waitFor({timeout:15000});
- // The customer view uses its width instead of stacking every settings card
- // in a 232px-wide form column on a large desktop screen.
- const profile=await page.locator("#profile").boundingBox();
- const emails=await page.locator("#email-notifications").boundingBox();
- const security=await page.locator("#security").boundingBox();
- assert.ok(profile&&emails&&security);
- assert.ok(Math.abs(profile.y-emails.y)<8,"profile and email preferences should share a desktop row");
- assert.ok(profile.x+profile.width<emails.x,"desktop settings sections should be separate columns");
- assert.ok(security.width>profile.width*1.75,"security controls should use the full available desktop width");
- const panels=await page.locator("#security .sm-security-panel").all();
- assert.equal(panels.length,3);
- const cardRects=await Promise.all(panels.map(x=>x.boundingBox()));
- assert.ok(cardRects.every(Boolean));
- assert.ok(Math.abs(cardRects[0]!.y-cardRects[1]!.y)<8&&
-   Math.abs(cardRects[1]!.y-cardRects[2]!.y)<8,
-   "password, idle logout and device controls should share a desktop row");
+ // Restore the original single-column Account Settings section flow.
+ // Only the deletion confirmation itself uses two columns on desktop.
+ const ids=["profile","security","email-notifications","billing","invoices","privacy"];
+ const boxes=await Promise.all(ids.map(async id=>page.locator("#"+id).boundingBox()));
+ assert.ok(boxes.every(Boolean),"all six account settings sections must be visible");
+ for(let i=1;i<boxes.length;i++){
+  assert.ok(Math.abs(boxes[i]!.x-boxes[0]!.x)<3,
+   ids[i]+" must align with the previous vertical sections");
+  assert.ok(Math.abs(boxes[i]!.width-boxes[0]!.width)<3,
+   ids[i]+" must retain full content width");
+  assert.ok(boxes[i]!.y>=boxes[i-1]!.y+boxes[i-1]!.height-2,
+   ids[i]+" must be BELOW "+ids[i-1]+", not a side-by-side dashboard");
+ }
+ await page.getByText("Delete account permanently",{exact:true}).click();
+ const form=page.locator("#privacy .sm-settings-deletion-disclosure form");
+ const desktopForm=await form.boundingBox();
+ const passwordField=await form.getByLabel("Account password").boundingBox();
+ const confirmationField=await form.getByRole("textbox",{name:"Type DELETE MY ACCOUNT"}).boundingBox();
+ assert.ok(desktopForm&&passwordField&&confirmationField);
+ assert.ok(desktopForm.width>500,"only the deletion form needs a usable desktop width");
+ assert.ok(Math.abs(passwordField.y-confirmationField.y)<9&&
+   passwordField.x+passwordField.width<confirmationField.x,
+   "password and final confirmation are side by side INSIDE deletion form");
  await page.setViewportSize({width:390,height:844});
- const smallProfile=await page.locator("#profile").boundingBox();
- const smallEmails=await page.locator("#email-notifications").boundingBox();
- assert.ok(smallProfile&&smallEmails&&smallEmails.y>smallProfile.y,
-  "mobile settings should stack cards in logical reading order");
+ const mobileBoxes=await Promise.all(ids.map(id=>page.locator("#"+id).boundingBox()));
+ assert.ok(mobileBoxes.every(Boolean));
+ for(let i=1;i<mobileBoxes.length;i++)
+  assert.ok(mobileBoxes[i]!.y>=mobileBoxes[i-1]!.y+mobileBoxes[i-1]!.height-2,
+   ids[i]+" must remain a separate stacked section on phones");
+ const mobilePassword=await form.getByLabel("Account password").boundingBox();
+ const mobileConfirm=await form.getByRole("textbox",{name:"Type DELETE MY ACCOUNT"}).boundingBox();
+ assert.ok(mobilePassword&&mobileConfirm&&
+   mobileConfirm.y>=mobilePassword.y+mobilePassword.height-2,
+   "deletion form should stack both fields on narrow screens");
  const overflow=await page.evaluate(()=>({
-  content:document.documentElement.scrollWidth,
-  viewport:window.innerWidth,
+  content:document.documentElement.scrollWidth,viewport:window.innerWidth,
  }));
  assert.ok(overflow.content<=overflow.viewport+1,
   "mobile account settings must not scroll horizontally: "+JSON.stringify(overflow));
- console.log("PASS: compact customer settings use desktop two-column cards and a readable 390px mobile layout.");
- await page.getByText("Delete account permanently",{exact:true}).click();
+ console.log("PASS: six original Account Settings sections are vertically stacked; only deletion confirmation expands to two desktop fields and fits 390px mobile.");
  await page.getByRole("textbox",{name:"Type DELETE MY ACCOUNT"}).fill("DELETE MY ACCOUNT");
  await page.getByLabel("Account password").fill(password);
  page.on("dialog",dialog=>void dialog.accept());
