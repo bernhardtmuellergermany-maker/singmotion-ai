@@ -47,7 +47,9 @@ test("guest Step 4 saves media and prompt then opens standard login without a re
  assert.match(account,/parseStudioAccountReturn\(search\.get\("returnTo"\)\)/);
  assert.match(account,/if\(studioReturn\)\{window\.location\.assign\(studioReturn\);return;\}/);
  assert.match(account,/studioReturn\?"\/api\/google-auth\?start=1&returnTo="/);
- assert.doesNotMatch(wizard,/api\/stripe|action:"submit"/);
+ const guestOnly=wizard.slice(wizard.indexOf("async function openGuestAccount()"),
+  wizard.indexOf("async function continueToCreditPurchase()"));
+ assert.doesNotMatch(guestOnly,/api\/stripe|action:"submit"|\/api\/credit-checkout/);
 });
 
 test("Google OAuth redirects back to only the validated server-bound Studio return",()=>{
