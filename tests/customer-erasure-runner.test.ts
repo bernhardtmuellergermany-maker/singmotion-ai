@@ -100,7 +100,7 @@ test("unknown media never triggers refund or account removal",async()=>{
   media.close();
   beginCustomerErasure(store,id);
   let calls=0;
-  await runCustomerErasureJobs(root,{env,stripeFetch:async()=>{calls++;throw Error("Forbidden")} as typeof fetch});
+  await runCustomerErasureJobs(root,{env,stripeFetch:(async()=>{calls++;throw Error("Forbidden")}) as typeof fetch});
   assert.equal(calls,0,"refund must never precede a safe media preflight");
   assert.equal(readErasureJob(store.db,id)?.state,"requested");
   assert.ok(store.db.prepare("SELECT 1 FROM customer_accounts WHERE id=?").get(id));
