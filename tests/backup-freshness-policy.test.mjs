@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign, randomUUID } from "node:crypto";
-import { evaluateBackupFreshness } from "../lib/ops/backup-freshness-policy.mjs";
+import { evaluateBackupFreshness, WEEKLY_HIDRIVE_INTERVAL_DAYS, WEEKLY_HIDRIVE_MAX_AGE_MS } from "../lib/ops/backup-freshness-policy.mjs";
 
 const keys=generateKeyPairSync("ed25519");
 const now=Date.parse("2026-11-19T18:00:00.000Z");
@@ -28,10 +28,25 @@ test("rejects unsigned, tampered and untrusted proof",()=>{
 });
 test("rejects stale, future and missing-store snapshots",()=>{
  for (const changes of [
-  {completedAt:new Date(now-37*3600000).toISOString()},
-  {verifiedAt:new Date(now-37*3600000).toISOString()},
+  {completedAt:new Date(now-9*24*3600000).toISOString()},
+  {verifiedAt:new Date(now-9*24*3600000).toISOString()},
   {completedAt:new Date(now+300000).toISOString()},
   {status:"RECEIVER_STARTED"},{coverage:{sqlite:3,postgres:1,r2:false,local:true}},
   {ciphertextObjects:0},{receiptSha256:"not-a-hash"}])
  assert.throws(()=>evaluateBackupFreshness(fixture(changes)));
+});
+
+test("weekly cadence has seven days, with one retry day grace",()=>{
+ assert.equal(WEEKLY_HIDRIVE_INTERVAL_DAYS,7);
+ assert.equal(WEEKLY_HIDRIVE_MAX_AGE_MS,8*24*60*60*1000);
+ const recent=evaluateBackupFreshness(fixture({
+  completedAt:new Date(now-7*24*3600000).toISOString(),
+  verifiedAt:new Date(now-6*24*3600000).toISOString(),
+ }));
+ assert.equal(recent.schedule,"WEEKLY_HIDRIVE");
+ assert.equal(recent.ageHours,168);
+ assert.throws(()=>evaluateBackupFreshness(fixture({
+  completedAt:new Date(now-8*24*3600000-1000).toISOString(),
+  verifiedAt:new Date(now-8*24*3600000-1000).toISOString(),
+ })),/BACKUP_STALE/);
 });
