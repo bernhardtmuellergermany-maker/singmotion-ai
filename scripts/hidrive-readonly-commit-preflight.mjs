@@ -73,6 +73,89 @@ function classifyRcloneReadError(output, spawnError) {
   return "HIDRIVE_READ_ERROR_UNCLASSIFIED";
 }
 
+/**
+ * HiDrive API roots differ from the browser's user directory. Discover only
+ * the exact existing receipt under user-scoped SingMotion-DR directories.
+ * Never print a user alias, path, file listing, OAuth token or raw stderr.
+ * rclone is invoked with read-only lsf; this cannot upload/delete anything.
+ */
+export function buildHiDriveUserCandidates(configuredRemote, directoryListing) {
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}:SingMotion-DR$/.test(configuredRemote) ||
+      typeof directoryListing !== "string" || directoryListing.length > 65536)
+    fail("HIDRIVE_DISCOVERY_INPUT_INVALID");
+  const remoteName = configuredRemote.slice(0, configuredRemote.indexOf(":"));
+  const matches = [];
+  const seen = new Set();
+  for (const item of directoryListing.split(/\r?\n/)) {
+    const name = item.trim();
+    if (!/^[a-zA-Z0-9_.-]{1,80}\/$/.test(name)) continue;
+    const path = remoteName + ":users/" + name + "SingMotion-DR";
+    strictRemote(path);
+    if (!seen.has(path)) { seen.add(path); matches.push(path); }
+  }
+  if (matches.length > 32) fail("HIDRIVE_USER_CANDIDATE_LIMIT");
+  return matches;
+}
+
+async function rcloneListSafe(remoteDir, kind, filename) {
+  const args = [
+    "lsf", "--config", config,
+    "--hidrive-scope-access", "ro", "--hidrive-scope-role", "user",
+    kind === "dirs" ? "--dirs-only" : "--files-only",
+  ];
+  if (kind === "files") args.push("--include", filename);
+  args.push(remoteDir);
+  return await new Promise(resolve => {
+    const child = spawn("rclone", args, {
+      stdio: ["ignore", "pipe", "ignore"],
+      env: {
+        PATH: process.env.PATH || "/usr/local/bin:/usr/bin:/bin",
+        HOME: "/tmp", TMPDIR: "/tmp",
+      },
+    });
+    let output = "", tooLarge = false, resolved = false;
+    const done = value => { if (!resolved) { resolved = true; resolve(value); } };
+    child.stdout.on("data", chunk => {
+      if (tooLarge) return;
+      output += chunk.toString("utf8");
+      if (output.length > 65536) {
+        tooLarge = true;
+        child.kill("SIGTERM");
+      }
+    });
+    child.once("error", () => done(null));
+    child.once("close", (status, signal) => {
+      if (status !== 0 || signal || tooLarge) return done(null);
+      done(output.split(/\r?\n/).map(x => x.trim()).filter(Boolean));
+    });
+  });
+}
+
+async function resolveReceiptRemote(configuredRemote) {
+  const receipt = "sm-" + PRODUCTION_RECEIPT_PIN_230.run + "-COMMITTED.enc";
+  const direct = await rcloneListSafe(configuredRemote, "files", receipt);
+  if (direct?.includes(receipt)) return configuredRemote;
+  // Auto-discovery is permitted only for the configured top-level SingMotion-DR.
+  // A configured user path is never silently redirected to another user.
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}:SingMotion-DR$/.test(configuredRemote))
+    fail("HIDRIVE_CONFIGURED_RECEIPT_NOT_FOUND");
+  const remoteName = configuredRemote.slice(0, configuredRemote.indexOf(":"));
+  const users = await rcloneListSafe(remoteName + ":users", "dirs");
+  if (!users) fail("HIDRIVE_USER_FOLDER_LIST_FAILED");
+  const candidates = buildHiDriveUserCandidates(configuredRemote, users.join("\n"));
+  let found = null;
+  for (const candidate of candidates) {
+    const files = await rcloneListSafe(candidate, "files", receipt);
+    if (files?.includes(receipt)) {
+      if (found) fail("HIDRIVE_RECEIPT_PATH_AMBIGUOUS");
+      found = candidate;
+    }
+  }
+  if (!found) fail("HIDRIVE_RECEIPT_PATH_NOT_FOUND");
+  console.log("HIDRIVE_READONLY_USER_PATH_RESOLVED");
+  return found;
+}
+
 function rcloneCat(remoteFile) {
   return (async function* () {
     const child = spawn("rclone", [
@@ -148,9 +231,10 @@ async function main() {
       catch { fail("TOKENINFO_INVALID"); }
     },
   });
-  const prefix = remote + "/sm-" + PRODUCTION_RECEIPT_PIN_230.run + "-";
+  const locatedRemote = await resolveReceiptRemote(remote);
+  const prefix = locatedRemote + "/sm-" + PRODUCTION_RECEIPT_PIN_230.run + "-";
   const session = {
-    dir: remote,
+    dir: locatedRemote,
     async request(method, endpoint, params, body) {
       if (method !== "GET" || endpoint !== "/file" ||
           body !== null || typeof params?.path !== "string" ||
@@ -169,7 +253,8 @@ async function main() {
   process.stdout.write(JSON.stringify({...roReport,...report}) + "\n");
 }
 
-main().catch((error) => {
+if (process.argv[1] && import.meta.url === new URL("file://" + process.argv[1]).href)
+  main().catch((error) => {
   const code = typeof error?.message === "string" &&
     /^[A-Z][A-Z0-9_]{2,90}$/.test(error.message)
     ? error.message : "READONLY_PREFLIGHT_FAILED";
