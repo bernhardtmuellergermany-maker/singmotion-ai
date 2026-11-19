@@ -85,10 +85,10 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
     try{
       store.ownedOrder(ref,accountId,undefined);
       if(!store.ownedDeliveredVideoAsset(ref,accountId,undefined))throw new MusicError("Video is not ready.",409);
-      const row=store.db.prepare("SELECT duration_seconds,display_name FROM customer_orders WHERE id=? AND account_id=?").get(ref,accountId) as {duration_seconds?:number;display_name?:string}|undefined;
+      const row=store.db.prepare("SELECT CASE WHEN json_valid(media_json) THEN json_extract(media_json,\'$.durationSeconds\') ELSE NULL END AS duration_seconds FROM customer_prepared_media WHERE order_id=?").get(ref) as {duration_seconds?:number}|undefined;
       const duration=Number(row?.duration_seconds);
       if(!Number.isFinite(duration)||duration<=0)throw new MusicError("Video duration unavailable.",409);
-      return {kind:"ai-video" as MediaKind,name:row?.display_name||"Generated video",durationMs:toMs(duration),sourceStartMs:null,sourceEndMs:null};
+      return {kind:"ai-video" as MediaKind,name:"Generated video",durationMs:toMs(duration),sourceStartMs:null,sourceEndMs:null};
     }finally{store.close();}
   }
   throw new MusicError("Source video access denied.",403);
@@ -156,7 +156,7 @@ async function handler(req:NextRequest,context:Context){
         const asset=newMusicAsset(id,owner,{...verified,sourceKind,sourceId});
         return json({asset},201);
       }
-      const {file}=await fileForm(req,60*1024*1024,"video");
+      const {file}=await fileForm(req,50*1024*1024,"video");
       const extension=file.name.toLowerCase().endsWith(".mp4")?"mp4":file.name.toLowerCase().endsWith(".webm")?"webm":null;
       if(!extension)throw new MusicError("Use an MP4 or WebM video.");
       const folder=projectFolder(id);
@@ -170,7 +170,7 @@ async function handler(req:NextRequest,context:Context){
         const duration=Number(media.format.duration);
         if(!Number.isFinite(duration)||duration<=0||duration>3600)throw new MusicError("Invalid video duration.");
         saved=newMusicAsset(id,owner,{name:file.name.slice(0,80),kind:"imported",sourceKind:"uploaded",sourceId:extension,durationMs:toMs(duration)});
-        await rename(temporary,path.join(folder,saved.id+"."+extension));
+        await rename(temporary,path.join(/*turbopackIgnore: true*/ folder,saved.id+"."+extension));
         return json({asset:saved},201);
       }catch(error){
         if(saved)removeMusicAsset(id,owner,saved.id);
@@ -181,12 +181,12 @@ async function handler(req:NextRequest,context:Context){
       const asset=musicAsset(id,owner,assetId);
       if(req.method==="DELETE"){
         removeMusicAsset(id,owner,assetId);
-        if(asset.sourceKind==="uploaded")await unlink(path.join(projectFolder(id),asset.id+"."+asset.sourceId)).catch(()=>{});
+        if(asset.sourceKind==="uploaded")await unlink(path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId)).catch(()=>{});
         return json({deleted:true});
       }
       if(req.method==="GET"){
         if(asset.sourceKind==="uploaded")
-          return await streamFile(req,path.join(projectFolder(id),asset.id+"."+asset.sourceId),asset.sourceId==="webm"?"video/webm":"video/mp4");
+          return await streamFile(req,path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId),asset.sourceId==="webm"?"video/webm":"video/mp4");
         if(asset.sourceKind==="live")
           return Response.redirect(new URL("/api/studio-live?id="+encodeURIComponent(asset.sourceId||"")+"&video=1",req.url));
         if(asset.sourceKind==="paid")

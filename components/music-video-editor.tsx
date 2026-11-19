@@ -350,7 +350,7 @@ export function MusicVideoEditor({id}:{id:string}){
                     draggable={!c.syncLocked}
                     onDragStart={e=>e.dataTransfer.setData("application/x-mvclip",c.id)}
                     onClick={()=>{setSelected(c.id);seek(c.timelineStartMs);}}
-                    onPointerDown={e=>{if(e.target===e.currentTarget)movePointer(e,c,"move");}}
+                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))movePointer(e,c,"move");}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button className="mv-handle" aria-label="Trim clip start" onPointerDown={e=>movePointer(e,c,"start")}>Ⅱ</button>
                   <span className="mv-clip-title">{a.kind==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
