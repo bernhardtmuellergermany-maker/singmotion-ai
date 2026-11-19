@@ -254,7 +254,7 @@ export default function AccountSettings(){
     <section id="billing" className="sm-settings-section">
       <h2>Credits & payments</h2>
       <p className="sm-settings-muted">Prepaid Credits. No subscription or automatic top-up.</p>
-      <div className="sm-settings-quick-links"><Link href="/credits#buy-credits">Buy Credits</Link><Link href="/credits#usage">Usage</Link><Link href="/plans">Prices</Link></div>
+      <div className="sm-settings-quick-links"><Link href="/credits">Buy Credits</Link><Link href="/credits#usage">Usage</Link><Link href="/plans">Prices</Link></div>
       {storageUsage&&<p className="sm-settings-muted sm-settings-small-note">Stored uploads: {(storageUsage.usedBytes/1048576).toFixed(1)} MB</p>}
       <div className="sm-settings-credit-balance"><CreditCard size={19}/><span>Available credits</span><strong>{data.credits.toLocaleString("en-GB")}</strong></div>
       
@@ -279,13 +279,14 @@ export default function AccountSettings(){
       <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Privacy</strong><Link href="/privacy">Privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Your files</strong><Link href="/projects">My projects <ExternalLink size={13}/></Link></div></div>
       {data.staffPreview?<p className="sm-settings-muted">Staff and Super Admin accounts require a protected administrator handover. Do not use a customer password to close a staff account. <a href="mailto:support@singmotion.ai?subject=Staff%20account%20closure">Contact support</a>.</p>:<>
        
-       <div className="sm-settings-deletion-status" role="status" aria-live="polite">
-        {erasureLoading||erasure===null?"Checking account…":erasure.eligible?(erasure.automatic?"Ready to delete · Unused purchased Credits are refunded to the original payment method.":"Ready to delete this account."): "Deletion is currently unavailable while payments or files need checking."}
-       </div>
+       {(erasureLoading||erasure===null||!erasure.eligible)&&
+        <p className="sm-settings-deletion-status" role="status" aria-live="polite">
+         {erasureLoading||erasure===null?"Checking account…":"Deletion is temporarily unavailable while payments or files are checked."}
+        </p>}
        {erasure?.eligible===true&&<details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
         <summary>Delete account permanently</summary>
         <form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void deleteMyAccount();}}>
-         <p className="sm-settings-muted sm-settings-delete-warning">This cannot be undone. Eligible unused Credits are refunded; required payment records and backups follow their retention rules.</p>
+         <p className="sm-settings-muted sm-settings-delete-warning"><strong>This cannot be undone.</strong> Your account and private files will be deleted. Unused purchased Credits are refunded to the original payment method. Required payment records remain stored.</p>
          <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>
          <label>Type DELETE MY ACCOUNT<input type="text" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE MY ACCOUNT"/></label>
          <button className="sm-settings-danger" type="submit" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Deleting account…":"Permanently delete my account"}</button>
