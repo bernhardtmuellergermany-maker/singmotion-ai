@@ -129,7 +129,7 @@ export function AccountPanel({active}:{active:boolean}){
   <span className="sm-carousel-song-icon"><UserRound size={27}/></span>
   <h1>{account?"Your account":mode==="login"?"Sign in":"Create your account"}</h1>
   {deletionComplete&&<p className="sm-account-intro" role="status">Your customer account and login sessions were deleted. You can create a new account whenever you choose.</p>}
-  {!account&&studioReturn&&<p className="sm-account-intro" role="status">Your video project is saved. Sign in or create an account to return to Step 4 with your audio, photo and settings.</p>}
+  {!account&&studioReturn&&<p className="sm-account-intro" role="status">Your video project is saved. Sign in or create an account to return to Step 4 with your audio, photo and settings. <Link href={"/studio?draft="+encodeURIComponent(parseStudioAccountReturn(studioReturn)!.draftId)+"&resume=review"}>Back to Step 4</Link></p>}
   {!account&&!studioReturn&&<p className="sm-account-intro">{mode==="register"
    ?"Build your private AI music-video workspace. Save drafts, create performances and keep every generation in one place."
    :"Sign in to bring your music to life with AI-generated videos. Your studio, projects and Credits are ready."}</p>}
