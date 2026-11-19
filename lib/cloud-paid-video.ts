@@ -6,7 +6,7 @@
 import {createHash} from "node:crypto";
 import {createReadStream} from "node:fs";
 import {stat} from "node:fs/promises";
-import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand} from "@aws-sdk/client-s3";
+import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand,DeleteObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "./live/r2-config.ts";
 import {customerR2Enabled} from "./cloud-media.ts";
 
@@ -100,4 +100,24 @@ export async function paidR2ByteRange(
    },
   });
  }catch(e){client.destroy();throw e}
+}
+
+/** Exact-key deletion of a paid private MP4 after a verified account-erasure
+ * authorization. Never deletes by prefix. A 404 HEAD confirms absence.
+ */
+export async function deletePrivatePaidVideo(
+ accountId:string,orderId:string,record:CloudPaidVideoRecord
+):Promise<void>{
+ if(!customerR2Enabled()||!validPaidCloudRecord(accountId,orderId,record))
+  throw Error("Private paid-video erasure requires a verified owner-bound manifest");
+ const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
+ try{
+  await client.send(new DeleteObjectCommand({Bucket:config.bucket,Key:record.key}));
+  try{
+   await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}));
+   throw Error("Private paid-video erasure not verified");
+  }catch(error){
+   if((error as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==404)throw error;
+  }
+ }finally{client.destroy()}
 }
