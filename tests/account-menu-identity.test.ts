@@ -16,9 +16,12 @@ test("account menu shows verified customer or staff email above available credit
  assert.match(menu,/<strong title=\{email\}>\{email\}<\/strong>/);
 });
 
-test("signed-in email remains discreet and can wrap in narrow mobile menus",()=>{
+test("signed-in email stays on one line with end ellipsis in narrow mobile menus",()=>{
  assert.match(css,/\.sm-account-signed-in>span\{/);
  assert.match(css,/\.sm-account-signed-in>strong\{/);
- assert.match(css,/overflow-wrap:anywhere/);
+ assert.match(css,/white-space:nowrap/);
+ assert.match(css,/overflow:hidden/);
+ assert.match(css,/text-overflow:ellipsis/);
+ assert.doesNotMatch(css,/overflow-wrap:anywhere/);
  assert.match(menu,/window\.addEventListener\("sm-auth-changed",refresh\)/);
 });
