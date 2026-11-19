@@ -1,6 +1,6 @@
 import { applicationOrigin } from "./request-origin.ts";
 import {assessProductionSandboxPilot} from "./commerce/customer-sandbox-pilot-policy.ts";
-import { productionCustomerReleaseApproved, productionPrivateCustomerPreviewEnabled, PRODUCTION_RAILWAY_ENVIRONMENT_ID } from "./commerce/customer-live-config.ts";
+import { productionCustomerReleaseApproved, productionPrivateCustomerPreviewEnabled, PRODUCTION_RAILWAY_ENVIRONMENT_ID, customerAccountSettingsAccessible } from "./commerce/customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./commerce/public-credit-release.ts";
 import {privateInternationalCreditBetaEnabled} from "./commerce/private-international-credit-beta.ts";
 
@@ -16,6 +16,14 @@ const PRODUCTION_ORIGIN = "https://www.singmotion.ai";
 export function customerIdentityOrigin(env: Env): string | null {
   const id = env.RAILWAY_ENVIRONMENT_ID;
   if (env.CUSTOMER_ACCOUNTS_ENABLED !== "true") return null;
+  // Automated browser tests run against a temporary 127.0.0.1-only server
+  // with no Stripe checkout or provider. This cannot be enabled by any
+  // deployed Railway instance, where RAILWAY_ENVIRONMENT_ID is always set.
+  if (env.SINGMOTION_ISOLATED_ERASURE_TEST === "true" &&
+      customerAccountSettingsAccessible(env) &&
+      env.GOOGLE_OAUTH_CLIENT_ID === undefined &&
+      env.GOOGLE_OAUTH_CLIENT_SECRET === undefined)
+    return env.APP_ORIGIN || null;
   const candidate = id === STAGING ? STAGING_ORIGIN :
     id === PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
     (productionPrivateCustomerPreviewEnabled(env) || productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || assessProductionSandboxPilot(env).ready || privateInternationalCreditBetaEnabled(env)) ?

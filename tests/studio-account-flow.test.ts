@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {studioAccountReturn,parseStudioAccountReturn} from "../lib/studio-account-handoff.ts";
+import {studioAccountReturn,studioAccountLoginHref,parseStudioAccountReturn} from "../lib/studio-account-handoff.ts";
 import {privateSourceKey,validCloudRecord} from "../lib/cloud-media.ts";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 
@@ -9,6 +9,8 @@ test("guest Studio return is same-origin and bounded to an exact draft, never a 
  const draft="123e4567-e89b-42d3-a456-426614174000";
  const path=studioAccountReturn(draft,125);
  assert.equal(path,"/studio/continue?draft="+draft+"&requiredCredits=125");
+ assert.equal(studioAccountLoginHref(draft,125),"/login?returnTo="+encodeURIComponent(path));
+ assert.equal(studioAccountLoginHref("../bad",125),null);
  assert.deepEqual(parseStudioAccountReturn(path),{draftId:draft,requiredCredits:125});
  for(const invalid of [null,"", "//evil.test/studio/continue?draft="+draft+"&requiredCredits=125",
   "https://evil.test/studio/continue?draft="+draft+"&requiredCredits=125",
@@ -27,23 +29,27 @@ test("guest Studio return is same-origin and bounded to an exact draft, never a 
  assert.equal(studioAccountReturn(draft,7501),null);
 });
 
-test("Guest Step 4 never opens an operator dialog or starts paid work before login",()=>{
+test("guest Step 4 saves media and prompt then opens standard login without a registration popup",()=>{
  const wizard=read("components/studio-wizard.tsx");
- const gate=read("components/studio-account-gate.tsx");
+ const account=read("components/account-panel.tsx");
  assert.match(wizard,/Login to generate/);
- assert.doesNotMatch(wizard,/Login to generate video/);
  assert.match(wizard,/!creditStudio\?void openGuestAccount\(\):reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
  assert.match(wizard,/await saveQueue\.current/);
  assert.match(wizard,/await api\("studio-drafts"/);
- assert.match(wizard,/setGuestAccountOpen\(true\)/);
- assert.match(wizard,/<StudioAccountGate draftId=\{projectKey\} requiredCredits=\{creditQuote\.credits\}/);
- assert.match(gate,/Account creation is <strong>free<\/strong>/);
- assert.match(gate,/action:mode,email,password/);
- assert.match(gate,/mode==="register"\?8:1/);
- assert.match(gate,/Continue with Google/);
- assert.match(gate,/sm-studio-account-resume|STUDIO_ACCOUNT_RESUME_KEY/);
- assert.doesNotMatch(gate,/api\/cms\/staff\/login/);
- assert.doesNotMatch(gate,/api\/stripe|studio-live.*submit/);
+ assert.match(wizard,/projectName,step:3/);
+ assert.match(wizard,/studioAccountLoginHref\(projectKey,creditQuote\.credits\)/);
+ assert.match(wizard,/sessionStorage\.setItem\(STUDIO_ACCOUNT_RESUME_KEY/);
+ assert.match(wizard,/window\.location\.assign\(loginHref\)/);
+ assert.doesNotMatch(wizard,/<StudioAccountGate/);
+ assert.match(account,/useState<"login"\|"register">\("login"\)/);
+ assert.match(account,/mode==="login"\?"Sign in"/);
+ assert.match(account,/mode==="login"\?"Create account"/);
+ assert.match(account,/parseStudioAccountReturn\(search\.get\("returnTo"\)\)/);
+ assert.match(account,/if\(studioReturn\)\{window\.location\.assign\(studioReturn\);return;\}/);
+ assert.match(account,/studioReturn\?"\/api\/google-auth\?start=1&returnTo="/);
+ const guestOnly=wizard.slice(wizard.indexOf("async function openGuestAccount()"),
+  wizard.indexOf("async function continueToCreditPurchase()"));
+ assert.doesNotMatch(guestOnly,/api\/stripe|action:"submit"|\/api\/credit-checkout/);
 });
 
 test("Google OAuth redirects back to only the validated server-bound Studio return",()=>{
@@ -55,6 +61,12 @@ test("Google OAuth redirects back to only the validated server-bound Studio retu
  assert.match(callback,/savedReturn=parseStudioAccountReturn\(saved\.returnTo\|\|null\)/);
  assert.match(callback,/savedReturn\?savedReturn\+"&auth_changed=1"/);
  assert.match(callback,/sm_guest_session/);
+ assert.match(oauth,/session\(mediaToken\)\?\.owner/);
+ assert.match(oauth,/returnTo&&guestToken\?\{guestToken\}/);
+ assert.match(callback,/verifiedGuest/);
+ assert.match(callback,/saved\.guestToken/);
+ assert.match(callback,/guest=verifiedGuest/);
+ assert.match(callback,/\/login\?returnTo=/);
 });
 
 test("Account handoff never grants cross-account ownership or payments based on URL alone",()=>{
@@ -120,21 +132,27 @@ test("signed-in customer without enough Credits can purchase from Step 4, never 
  assert.doesNotMatch(action,/\/api\/credit-checkout|action:"submit"|stripe\.com/);
 });
 
-test("guest sign-in and Stripe wallet settlement preserve same Step 4 without automatic generation",()=>{
+test("login, registration and Google OAuth all return the same server-verified draft to Step 4 without checkout",()=>{
  const wizard=read("components/studio-wizard.tsx");
- const gate=read("components/studio-account-gate.tsx");
+ const account=read("components/account-panel.tsx");
  const resume=read("components/studio-account-resume.tsx");
- const credits=read("components/credits-dashboard.tsx");
+ const importer=read("app/(site)/api/customer-guest-import/route.ts");
  assert.match(wizard,/!creditStudio\?"Login to generate"/);
- assert.match(gate,/Create your free account/);
- assert.match(gate,/Continue with Google/);
- assert.match(gate,/Email address/);
- assert.match(gate,/Account creation is <strong>free<\/strong>/);
+ assert.match(account,/useState<"login"\|"register">\("login"\)/);
+ assert.match(account,/mode==="register"/);
+ assert.match(account,/studioReturn/);
+ assert.match(resume,/sessionStorage\.getItem\(STUDIO_ACCOUNT_RESUME_KEY\)/);
  assert.match(resume,/identity\.kind!=="customer"/);
+ assert.match(resume,/\/api\/customer-guest-import/);
+ assert.match(resume,/saved\.selection\?\.owner!==workspace\.owner/);
  assert.match(resume,/quote\.credits!==wanted\.requiredCredits/);
- assert.match(resume,/window\.location\.assign\("\/credits\?resumeDraft="/);
- assert.match(credits,/checkoutResult==="success"&&resumeCandidate&&/);
- assert.match(credits,/data\.availableCredits>=resumeCandidate\.requiredCredits/);
- assert.match(credits,/window\.location\.assign\("\/studio\?draft="/);
- assert.doesNotMatch(credits,/api\/studio-live.*submit/);
+ assert.match(resume,/window\.location\.assign\("\/studio\?draft="\+encodeURIComponent\(wanted\.draftId\)\+"&resume=review"\)/);
+ assert.doesNotMatch(resume,/window\.location\.assign\("\/credits\?resumeDraft="/);
+ assert.doesNotMatch(resume,/window\.location\.assign\("\/account\/verify-email\?/);
+ assert.match(importer,/guestToken=req\.cookies\.get\("sm_guest_session"\)\?\.value/);
+ assert.match(wizard,/setDraft\(\{/);
+ assert.match(wizard,/song: saved\.song/);
+ assert.match(wizard,/saved\.selection\.owner!==sessionOwner/);
+ assert.match(wizard,/timelinePrompt\(parts\)===saved\.selection\.customPrompt/);
+ assert.doesNotMatch(resume,/action:"submit"|\/api\/credit-checkout/);
 });

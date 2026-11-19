@@ -16,12 +16,12 @@ export async function GET(req:NextRequest){
   // Redirect directly to the login page. The legacy /?card=login route
   // redirects to /login without preserving query parameters, which used to
   // silently discard Google OAuth errors and leave customers with no feedback.
-  const target=savedReturn||"/login";
+  const target=savedReturn?"/login?returnTo="+encodeURIComponent(savedReturn):"/login";
   const sep=target.includes("?")?"&":"?";
   return clear(NextResponse.redirect(trustedOrigin+target+sep+"google_error="+encodeURIComponent(reason)));
  };
  if(!googleLoginReady(process.env))return go("Google sign-in unavailable");
- let saved:{state:string;verifier:string;nonce:string;returnTo?:string};
+ let saved:{state:string;verifier:string;nonce:string;returnTo?:string;guestToken?:string};
  try{saved=JSON.parse(req.cookies.get("sm_google_oauth")?.value||"");}catch{return go("Sign-in session expired");}
  savedReturn=parseStudioAccountReturn(saved.returnTo||null)?saved.returnTo!:null;
  const state=req.nextUrl.searchParams.get("state"),code=req.nextUrl.searchParams.get("code");
@@ -42,11 +42,21 @@ export async function GET(req:NextRequest){
   const media=createAccountMediaSession("customer-"+account.id);
   const old=req.cookies.get("sm_session")?.value;
   const owner=old?session(old)?.owner:null;
+  // Strict cookies do not accompany Google's cross-origin callback. The
+  // short-lived, state-bound OAuth cookie carries the original verified guest
+  // session from the first-party OAuth start; it is never a URL parameter.
+  const carried=savedReturn&&typeof saved.guestToken==="string"&&
+    /^[A-Za-z0-9_-]{40,128}$/.test(saved.guestToken)?saved.guestToken:null;
+  const carriedOwner=carried?session(carried)?.owner:null;
+  const verifiedGuest=carried&&carriedOwner&&
+    !carriedOwner.startsWith("customer-")&&!carriedOwner.startsWith("cms-staff-")
+    ?carried:null;
   if(old&&owner&&(owner.startsWith("customer-")||owner.startsWith("cms-staff-")))
     revokeMediaSession(old);
   const response=clear(NextResponse.redirect(trustedOrigin+(savedReturn?savedReturn+"&auth_changed=1":"/?card=login&auth_changed=1")));
   response.cookies.delete("payload-token"); // OAuth customer login replaces a prior CMS staff session.
-  if(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-"))response.cookies.set("sm_guest_session",old,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
+  const guest=verifiedGuest||(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-")?old:null);
+  if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   response.cookies.set("sm_customer",account.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
   response.cookies.set("sm_session",media.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
   return response;

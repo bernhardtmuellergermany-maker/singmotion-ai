@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { ProductHeader } from "./product-header";
 import { GenerationDialog } from "./generation-dialog";
-import {StudioAccountGate} from "./studio-account-gate";
+import {studioAccountLoginHref,STUDIO_ACCOUNT_RESUME_KEY} from "@/lib/studio-account-handoff";
 import type {StudioProject} from "@/lib/live/studio";
 import {CustomerFeedback} from "./customer-feedback";
 import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
@@ -120,7 +120,6 @@ export function StudioWizard({
     [reviewBalance,setReviewBalance] = useState<number|null>(null),
     [reviewRights, setReviewRights] = useState(false),
     [confirm, setConfirm] = useState(false),
-    [guestAccountOpen,setGuestAccountOpen] = useState(false),
     [generationProjectId,setGenerationProjectId] = useState(""),
     [generating,setGenerating] = useState(false),
     [detectedFormat, setDetectedFormat] = useState<"9:16" | "16:9">("9:16"),
@@ -288,6 +287,33 @@ export function StudioWizard({
             step: number;
           }>(`studio-drafts/${encodeURIComponent(requested)}`);
           if (!current) return;
+          // Only restore private Step 4 data from a server-verified owner.
+          // A query string, localStorage or handoff entry is never access proof.
+          if(saved.selection.owner!==sessionOwner)
+            throw Error("Saved Studio project owner mismatch.");
+          if(accountWorkspace&&resumeReview){
+            try{
+              const handoff=JSON.parse(sessionStorage.getItem(STUDIO_ACCOUNT_RESUME_KEY)||"null") as {
+                draftId?:string;requiredCredits?:number;created?:number;
+                timeline?:PerformanceSection[];
+              }|null;
+              const parts=handoff?.timeline;
+              if(handoff&&handoff.draftId===requested&&
+                 handoff.requiredCredits===quoteVideoCredits(saved.selection.start,saved.selection.end)?.credits&&
+                 typeof handoff.created==="number"&&Date.now()-handoff.created>=0&&
+                 Date.now()-handoff.created<2*60*60*1000&&
+                 Array.isArray(parts)&&parts.length<=60&&
+                 parts.every(x=>x&&typeof x.id==="string"&&
+                    /^[A-Za-z0-9_-]{1,80}$/.test(x.id)&&
+                    Number.isFinite(x.start)&&Number.isFinite(x.end)&&x.start>=0&&
+                    x.end<=saved.selection.end-saved.selection.start+0.00001&&x.end-x.start>=0.5&&
+                    typeof x.camera==="string"&&x.camera.length<=120&&
+                    typeof x.emotion==="string"&&x.emotion.length<=80&&
+                    typeof x.instructions==="string"&&x.instructions.length<=500)&&
+                 timelinePrompt(parts)===saved.selection.customPrompt)
+                setTimeline(parts);
+            }catch{/* The saved server-side prompt is still authoritative. */}
+          }
           setProjectName(saved.projectName || (!accountWorkspace && localStorage.getItem(`singmotion-project-name:${requested}`)) || saved.artistName || "Untitled Project");
           setDraft({
             ...initial,
@@ -666,8 +692,16 @@ export function StudioWizard({
           projectName,step:3,
         }),
       });
+      const loginHref=studioAccountLoginHref(projectKey,creditQuote.credits);
+      if(!loginHref)throw Error("Invalid saved Studio return link.");
+      // Keep the private handoff in this tab. It is not ownership proof:
+      // the server checks both the original guest HttpOnly cookie and draft.
+      sessionStorage.setItem(STUDIO_ACCOUNT_RESUME_KEY,JSON.stringify({
+        draftId:projectKey,requiredCredits:creditQuote.credits,created:Date.now(),
+        timeline:timeline.slice(0,60),
+      }));
       setSaved(true);
-      setGuestAccountOpen(true);
+      window.location.assign(loginHref);
     }catch{
       setError("Your Step 4 project could not be saved. Retry before signing in; no payment or video generation started.");
     }finally{setBusy(false);}
@@ -1056,7 +1090,7 @@ export function StudioWizard({
             <Link href="/terms" target="_blank" rel="noopener noreferrer">Terms</Link>
             <Link href="/privacy" target="_blank" rel="noopener noreferrer">Privacy</Link>
           </nav>
-          <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Next: create your free account or sign in. Your saved audio and photo will move into your personal workspace. Buy Credits when available, then return to Step 4. Creating an account costs nothing."}</p>
+          <p className="sm-review-payment-note">{creditStudio?"Next: your available Credits are verified and the displayed amount is reserved before submitting the video. No separate Stripe checkout is required once you have Credits.":"Next: sign in or create a free account. Your audio, photo, performance and prompt stay saved, and you return to Step 4 before choosing whether to buy Credits or generate a video."}</p>
         </section>}
         {step===3&&generating&&<p className="sm-review-payment-note sm-review-starting-status" role="status">Checking your saved project and reserving Credits securely. The generation will open on its project page when confirmed.</p>}
         <nav className="sm-studio-navigation sm-new-navigation" aria-label="Studio steps">
@@ -1070,9 +1104,6 @@ export function StudioWizard({
         <div className="sm-studio-scroll-spacer" aria-hidden="true" />
       </main>
       {confirm && selection && <GenerationDialog key={JSON.stringify(selection)} selection={selection} requestKey={projectKey} artistName={draft.artistName} projectName={projectName} songName={draft.song?.name || "Audio"} initialRights={reviewRights} onClose={()=>setConfirm(false)}/>}
-      {guestAccountOpen && !creditStudio && projectKey && creditQuote &&
-       <StudioAccountGate draftId={projectKey} requiredCredits={creditQuote.credits}
-        onClose={()=>setGuestAccountOpen(false)}/>}
     </div>
   );
 }

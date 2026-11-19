@@ -4,7 +4,8 @@ test("account keeps centered credit and studio actions",()=>{
  const account=read("components/account-panel.tsx"),style=read("components/account-credit-summary.css");
  assert.match(account,/AccountCreditSummary/);
  assert.match(account,/href="\/credits#buy-credits" className="sm-account-action sm-account-action-buy"/);
- assert.match(account,/href="\/studio\?new=1" className="sm-account-action sm-account-action-create"/);
+ assert.match(account,/href=\{studioReturn\|\|"\/studio\?new=1"\} className="sm-account-action sm-account-action-create"/);
+ assert.match(account,/studioReturn\?"Continue to Step 4":"Create video"/);
  assert.match(style,/\.sm-account-signed-in \.sm-account-settings-link/);
  assert.match(style,/max-width:none;min-height:49px;margin:0/);
  assert.doesNotMatch(account,/Testansicht/);
