@@ -93,6 +93,15 @@ test("an unknown live provider record blocks deletion even if it embeds only own
   }finally{live.close();}
  });
 });
+test("Google-only customers are never offered a nonfunctional password-deletion path",()=>{
+ fixture((store,_media,dir)=>{
+  const login=store.googleLogin("1234567890123","google@example.test");
+  assert.equal(store.verifyCustomerPassword(login.id,password),false);
+  assert.equal(assessCustomerErasure(store,dir,login.id).code,"GOOGLE_REAUTH_REQUIRED");
+  assert.equal(eraseEmptyCustomerAccount(store,dir,login.id).code,"GOOGLE_REAUTH_REQUIRED");
+  assert.equal(store.session(login.token),login.id);
+ });
+});
 test("customer erasure is never a GET mutation; POST demands origin, session, password and exact phrase",()=>{
  const route=readFileSync(new URL("../app/(site)/api/customer-account-erasure/route.ts",import.meta.url),"utf8");
  const page=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
