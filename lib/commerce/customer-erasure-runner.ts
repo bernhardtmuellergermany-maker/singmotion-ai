@@ -94,6 +94,10 @@ export async function runCustomerErasureJobs(
     }
    }catch(e){
     const code=safe(issue(e));
+    if(["ACTIVE_MEDIA_JOB","ACTIVE_PAID_PROVIDER_JOB","ACTIVE_OR_UNKNOWN_PROVIDER_JOB",
+        "PROVIDER_INPUT_LEASE_ACTIVE","LIVE_PROVIDER_INPUT_LEASE_ACTIVE"].includes(code)){
+     result.deferred++;continue; // still processing: retry later, without freezing progress indefinitely
+    }
     const previous=readErasureJob(db,row.id);
     if(!previous||previous.state==="completed")continue;
     const attempts=db.prepare("UPDATE customer_erasure_jobs SET attempts=attempts+1,updated_at=?,issue=? WHERE account_id=? AND state=?")
