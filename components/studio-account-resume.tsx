@@ -14,6 +14,7 @@ export function StudioAccountResume(){
  const [error,setError]=useState("");
  const [running,setRunning]=useState(true);
  const [attempt,setAttempt]=useState(0);
+ const [retryLogin,setRetryLogin]=useState("/login");
  useEffect(()=>{
   let current=true;
   const proceed=async()=>{
@@ -25,6 +26,7 @@ export function StudioAccountResume(){
     const original="/studio/continue?"+params.toString();
     const wanted=parseStudioAccountReturn(original);
     if(!wanted)throw Error("This Studio return link is invalid. Your original guest project has not been changed.");
+    if(current)setRetryLogin("/login?returnTo="+encodeURIComponent(original));
     const stored=JSON.parse(sessionStorage.getItem(STUDIO_ACCOUNT_RESUME_KEY)||"null") as
      {draftId?:string;requiredCredits?:number;created?:number}|null;
     if(!stored||stored.draftId!==wanted.draftId||stored.requiredCredits!==wanted.requiredCredits||
@@ -91,7 +93,7 @@ export function StudioAccountResume(){
     <p>We did not charge Credits or submit a video. Your original guest project remains protected.</p>
     <button type="button" className="product-secondary" disabled={running}
      onClick={()=>{setError("");setRunning(true);setAttempt(n=>n+1);}}>Try again</button>
-    <p><Link href="/studio">Back to Studio</Link> · <Link href="/login">Sign in</Link></p>
+    <p><Link href="/studio">Back to Studio</Link> · <Link href={retryLogin}>Sign in</Link></p>
    </div>}
  </section>;
 }
