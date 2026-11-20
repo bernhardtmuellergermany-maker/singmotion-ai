@@ -12,7 +12,7 @@ test("authenticated, account-scoped, read-only balance",()=>{
 test("super-admin and customer share the same wallet menu; usage lives under credits",()=>{
  const menu=read("components/header-account-menu.tsx"),dashboard=read("components/credits-dashboard.tsx");
  assert.match(menu,/identity==="customer"\|\|identity==="super-admin"/);
- assert.match(menu,/fetch\("\/api\/credit-balance"/);assert.match(menu,/href="\/credits"/);
+ assert.match(menu,/fetch\("\/api\/account-credit-summary"/);assert.match(menu,/href="\/credits"/);
  assert.doesNotMatch(menu,/href="\/usage"|TEST ONLY|previewCredits|Credit test view/);
  assert.match(dashboard,/id="usage"/);assert.match(dashboard,/legacyOrders/);assert.match(dashboard,/Equivalent only/);
  assert.doesNotMatch(dashboard,/admin-preview|testCredits|Simuliertes/);
@@ -110,9 +110,16 @@ test("abandoned Stripe checkouts remain persisted but are absent from customer p
 test("account menu estimates affordable whole video seconds using the live campaign tariff",()=>{
  const menu=read("components/header-account-menu.tsx");
  const css=read("components/header-account-menu.css");
- const api=read("app/(site)/api/credit-tariff/route.ts");
- assert.match(menu,/fetch\("\/api\/credit-tariff",\{cache:"no-store",credentials:"same-origin"\}\)/);
+ const api=read("app/(site)/api/account-credit-summary/route.ts");
+ assert.match(menu,/fetch\("\/api\/account-credit-summary",\{cache:"no-store",credentials:"same-origin"\}\)/);
+ assert.doesNotMatch(menu,/fetch\("\/api\/credit-tariff"/);
+ assert.match(api,/resolveCreditWalletIdentity\(req,store\)/);
  assert.match(api,/CampaignPricing\(store\.db\)\.active\(\)/);
+ assert.match(api,/wallet\.total\(identity\.subject\)-wallet\.reserved\(identity\.subject\)/);
+ assert.match(api,/private, no-store/);
+ assert.doesNotMatch(api,/wallet\.entries\(|wallet\.purchases\(|customer_orders/);
+ assert.match(menu,/if\(inFlight\)\{queued=true;return;\}/);
+ assert.match(menu,/setAvailableCredits\(result\.availableCredits\);\s*setCreditsPerSecond\(result\.creditsPerSecond\)/);
  assert.match(menu,/estimatedRemainingVideoSeconds/);
  assert.match(menu,/title=\{creditsPerSecond\+" Credits per started video second"\}/);
  assert.match(menu,/≈ \{new Intl\.NumberFormat\("en-GB"\)\.format\(remainingSeconds\)\} s left/);

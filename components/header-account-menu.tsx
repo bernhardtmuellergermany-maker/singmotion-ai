@@ -45,32 +45,36 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   };
  },[]);
  useEffect(()=>{
-  if(identity!=="customer"&&identity!=="super-admin"){setCreditsPerSecond(null);return;}
-  let active=true,requestId=0;
+  if(identity!=="customer"&&identity!=="super-admin"){
+   setAvailableCredits(null);setCreditsPerSecond(null);setCreditState("loading");return;
+  }
+  let active=true,inFlight=false,queued=false;
+  // Clear verified values only when the signed-in account changes, not on every refresh.
+  setAvailableCredits(null);setCreditsPerSecond(null);setCreditState("loading");
   const refresh=()=>{
-   const latest=++requestId;
-   // Clear the old rate rather than displaying a misleading estimate after a campaign change.
-   setCreditsPerSecond(null);
-   void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
+   // Coalesce focus/menu/credit events instead of discarding an almost-complete response.
+   if(inFlight){queued=true;return;}
+   inFlight=true;
+   // One small authenticated response contains both the spendable balance and live campaign rate.
+   void fetch("/api/account-credit-summary",{cache:"no-store",credentials:"same-origin"})
     .then(async response=>{
-     if(!response.ok)throw Error("Credit balance unavailable");
-     const result=await response.json() as {availableCredits?:number};
-     if(typeof result.availableCredits!=="number"||!Number.isSafeInteger(result.availableCredits)||result.availableCredits<0)
-      throw Error("Invalid credit balance");
-     if(active&&latest===requestId){setAvailableCredits(result.availableCredits);setCreditState("ready");}
-    }).catch(()=>{if(active&&latest===requestId){setAvailableCredits(null);setCreditState("unavailable");}});
-   // Same versioned campaign tariff as the Credit purchase estimator, never a fixed € or Credit price.
-   void fetch("/api/credit-tariff",{cache:"no-store",credentials:"same-origin"})
-    .then(async response=>{
-     if(!response.ok)throw Error("Current video tariff unavailable");
-     const tariff=await response.json() as {creditsPerSecond?:number;expiresUtc?:number|null};
-     if(!Number.isSafeInteger(tariff.creditsPerSecond)||!tariff.creditsPerSecond||
-        tariff.creditsPerSecond<1||tariff.creditsPerSecond>1000||
-        (tariff.expiresUtc!==null&&tariff.expiresUtc!==undefined&&
-         (!Number.isSafeInteger(tariff.expiresUtc)||tariff.expiresUtc<=Date.now())))
-      throw Error("Invalid or expired video tariff");
-     if(active&&latest===requestId)setCreditsPerSecond(tariff.creditsPerSecond);
-    }).catch(()=>{if(active&&latest===requestId)setCreditsPerSecond(null);});
+     if(!response.ok)throw Error("Account credit summary unavailable");
+     const result=await response.json() as {
+      availableCredits?:number;creditsPerSecond?:number;expiresUtc?:number|null
+     };
+     if(!Number.isSafeInteger(result.availableCredits)||result.availableCredits===undefined||result.availableCredits<0||
+        !Number.isSafeInteger(result.creditsPerSecond)||result.creditsPerSecond===undefined||
+        result.creditsPerSecond<1||result.creditsPerSecond>1000||
+        (result.expiresUtc!==null&&result.expiresUtc!==undefined&&
+         (!Number.isSafeInteger(result.expiresUtc)||result.expiresUtc<=Date.now())))
+      throw Error("Invalid or expired account credit summary");
+     if(active){
+      setAvailableCredits(result.availableCredits);
+      setCreditsPerSecond(result.creditsPerSecond);
+      setCreditState("ready");
+     }
+    }).catch(()=>{if(active){setAvailableCredits(null);setCreditsPerSecond(null);setCreditState("unavailable");}})
+    .finally(()=>{inFlight=false;if(active&&queued){queued=false;refresh();}});
   };
   const onToggle=()=>{if(menu.current?.open)refresh();};
   const onVisible=()=>{if(document.visibilityState==="visible")refresh();};
@@ -83,7 +87,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   menu.current?.addEventListener("toggle",onToggle);
   const current=menu.current;
   return()=>{active=false;window.clearInterval(interval);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("credit-balance-updated",refresh);document.removeEventListener("visibilitychange",onVisible);current?.removeEventListener("toggle",onToggle)};
- },[identity]);
+ },[identity,email]);
  useEffect(()=>{
   if(identity!=="customer"&&identity!=="super-admin"){setUnreadNotices(0);return;}
   let active=true;
