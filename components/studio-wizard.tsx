@@ -3,6 +3,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "./site-header";
+import {SunoSongImport} from "./suno-song-import";
 import {
   ArrowLeft,
   ArrowRight,
@@ -900,6 +901,7 @@ export function StudioWizard({
               </div>
             </>
           )}
+          {!draft.song&&<SunoSongImport disabled={!ready||busy} onImportFile={file=>add(file,"audio")}/>}
         </div>}
         {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
           <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"
