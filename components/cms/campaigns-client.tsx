@@ -196,7 +196,9 @@ export function CampaignsClient(){
         <p>With SingMotion AI — your song, your performance.</p>
         {selected.showBanner&&<div className="sm-marketing-preview-offer">
          <div className="sm-marketing-preview-offer-top">
-          <strong>{label}</strong><span>{euro} / sec · {rate} Credits / sec</span>
+          <strong className="sm-marketing-preview-offer-name">🚀 {label} Offer</strong>
+          <span className="sm-marketing-preview-offer-price">{euro} / sec</span>
+          <span className="sm-marketing-preview-offer-credits">{rate} Credits / started sec</span>
           {percent!==null&&<b>{percent}% OFF</b>}
          </div>
          {selected.heading&&<strong>{selected.heading}</strong>}
