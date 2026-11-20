@@ -69,7 +69,7 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.match(banner,/discounted&&tariff.showDiscountPercent&&/);
  assert.match(banner,/discounted&&tariff.showRegularPrice&&/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
- assert.match(css,/padding:7px 9px/);
+ assert.match(css,/padding:7px 12px/);
  assert.match(css,/width:max-content;max-width:min\(560px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
