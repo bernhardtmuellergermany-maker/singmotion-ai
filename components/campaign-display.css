@@ -118,7 +118,14 @@
  background:linear-gradient(105deg,#270d43e8,#170b32e8 55%,#39104fe0);
  box-shadow:inset 0 1px 0 #ffffff46,0 0 25px #ab32ed69,0 8px 22px #09021277;
  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
- line-height:1.25;color:#fff;
+ line-height:1.25;color:#fff;text-decoration:none;cursor:pointer;
+ transition:box-shadow .18s ease,border-color .18s ease;
+}
+.sm-immersive-home .sm-campaign-offer-line:hover{
+ border-color:#ef8bff;box-shadow:inset 0 1px 0 #ffffff5a,0 0 31px #b43cf184,0 8px 22px #09021277;
+}
+.sm-immersive-home .sm-campaign-offer-line:focus-visible{
+ outline:3px solid #fff;outline-offset:3px;
 }
 .sm-immersive-home .sm-campaign-offer-identity{
  display:inline-flex;align-items:center;justify-content:center;gap:10px;
