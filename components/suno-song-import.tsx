@@ -1,7 +1,8 @@
 "use client";
 
 import {useEffect,useId,useRef,useState} from "react";
-import {CheckCircle2,ExternalLink,Link2,Music2} from "lucide-react";
+import {CheckCircle2,ExternalLink,Link2} from "lucide-react";
+import Image from "next/image";
 import {normalizeSunoSongLink} from "@/lib/suno-song-link";
 import styles from "./suno-song-import.module.css";
 
@@ -111,8 +112,8 @@ export function SunoSongImport({disabled,onImportFile}:{
  }
  return <details id="suno-import" className={styles.panel} open={expanded}
   onToggle={event=>setExpanded(event.currentTarget.open)}>
-  <summary className={styles.summary}><Music2 size={20} aria-hidden="true"/>
-   <span><strong>Import your Suno song</strong><small>Paste a Suno share link — no manual MP3 download</small></span>
+  <summary className={styles.summary}><Image src="/suno-mark.svg" width={20} height={20} alt="" aria-hidden="true" className={styles.sunoIcon}/>
+   <span><strong>Import your Suno song</strong><small>Paste a Suno share link</small></span>
    <span aria-hidden="true" className={styles.plus}>+</span>
   </summary>
   <div className={styles.body}>
@@ -121,7 +122,6 @@ export function SunoSongImport({disabled,onImportFile}:{
     <button type="button" className={styles.disconnect} disabled={disabled||working}
      onClick={()=>void disconnect()}>Disconnect</button>
    </div>}
-   <p className={styles.description}>Connect your own Suno account to import a song directly. Suno may charge one of your download credits for a first-time download; SingMotion will ask you before approving it.</p>
    <label className={styles.label} htmlFor={id}>Suno song link</label>
    <input ref={linkInput} id={id} className={styles.input} type="url" inputMode="url" autoCapitalize="off"
     autoComplete="off" spellCheck={false} placeholder="https://suno.com/s/..."
@@ -134,11 +134,11 @@ export function SunoSongImport({disabled,onImportFile}:{
     </button>}
    {connected===true&&canonical&&!needsCredit&&
     <button type="button" className={styles.open} disabled={disabled||working} onClick={()=>void importSong(false)}>
-     <Music2 size={17} aria-hidden="true"/> {working?"Importing from Suno…":"Import song directly"}
+     <Image src="/suno-mark.svg" width={17} height={17} alt="" aria-hidden="true" className={styles.sunoIcon}/> {working?"Importing from Suno…":"Import song directly"}
     </button>}
    {connected===true&&canonical&&needsCredit&&
     <button type="button" className={styles.open} disabled={disabled||working} onClick={()=>void importSong(true)}>
-     <Music2 size={17} aria-hidden="true"/> {working?"Requesting Suno download…":"Confirm 1 Suno download credit & import"}
+     <Image src="/suno-mark.svg" width={17} height={17} alt="" aria-hidden="true" className={styles.sunoIcon}/> {working?"Requesting Suno download…":"Confirm 1 Suno download credit & import"}
     </button>}
    {notice&&<p className={styles.note} role="status">{notice}</p>}
    {canonical&&<a className={styles.link} href={canonical} target="_blank" rel="noopener noreferrer">
