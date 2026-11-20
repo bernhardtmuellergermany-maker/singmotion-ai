@@ -6,7 +6,7 @@ import "./camera-movements.css";
 import {cameraMovements} from "@/lib/studio-camera-movements";
 
 export const metadata={
- title:"Camera Movements & Prompt Guide · SingMotion AI",
+ title:"Camera Movements & Prompt Guide",
  description:"Practical prompts for continuous actions, singing, speaking, camera movements and creative video ideas. Copy examples directly into SingMotion Studio.",
 };
 

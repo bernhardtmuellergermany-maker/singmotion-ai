@@ -69,7 +69,7 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.match(banner,/discounted&&tariff.showDiscountPercent&&/);
  assert.match(banner,/discounted&&tariff.showRegularPrice&&/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
- assert.match(css,/padding:7px 9px/);
+ assert.match(css,/padding:7px 12px/);
  assert.match(css,/width:max-content;max-width:min\(560px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
@@ -179,7 +179,7 @@ test("short-height hero is lower with breathing room while offer pill tracks its
  assert.match(home,/font-size:clamp\(43px,5vw,66px\)/);
  assert.match(home,/\.sm-immersive-home \.sm-immersive-scroll-cue\{display:none!important\}/);
  assert.match(offer,/width:max-content;max-width:min\(560px,100%\)/);
- assert.match(offer,/min-height:50px;margin:0;padding:7px 9px/);
- assert.match(offer,/min-height:50px;gap:7px 9px;margin:0;padding:7px 8px/);
+ assert.match(offer,/min-height:50px;margin:0;padding:7px 12px/);
+ assert.match(offer,/min-height:50px;gap:5px;margin:0;padding:6px 10px/);
  assert.doesNotMatch(home,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-immersive-cta\{\s*min-height:48px/);
 });

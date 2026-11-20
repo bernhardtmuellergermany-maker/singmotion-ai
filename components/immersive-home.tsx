@@ -547,7 +547,7 @@ export function ImmersiveHome(){
       <RotateCw size={29} strokeWidth={3}/>
     </div>
     <div className="sm-mobile-reel-content">
-     <h1>Turn your song into a music video.</h1>
+     <h2>Turn your song into a music video.</h2>
      <p>Make your music come alive with SingMotion AI.</p>
      <Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>
      <CampaignOfferLine/>
