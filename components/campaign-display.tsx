@@ -2,7 +2,7 @@
 import {useEffect,useState} from "react";
 import type {CSSProperties} from "react";
 import Link from "next/link";
-import {Rocket} from "lucide-react";
+import {Rocket,Clock3} from "lucide-react";
 import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
 import "./campaign-display.css";
 
@@ -47,26 +47,36 @@ export function CampaignLogoBadge(){
  return <span className="sm-campaign-logo-badge" data-theme={tariff.theme}
   style={palette(tariff)} title={tariff.badgeText}>{tariff.badgeText}</span>;
 }
-/** Compact, translucent homepage row that does not replace the existing hero CTA. */
+/** Offer-only visual component. The real studio CTA remains untouched above it. */
 export function CampaignOfferLine(){
  const tariff=useVideoTariff();
  if(!tariff?.campaignId||!tariff.showBanner)return null;
- return <aside className="sm-campaign-offer-line" data-theme={tariff.theme}
-   style={palette(tariff)} aria-label={tariff.heading||"Current video offer"}>
-   <div className="sm-campaign-offer-copy">
-    <div className="sm-campaign-offer-top">
-     <span className="sm-campaign-offer-identity">
-      <Rocket size={20} strokeWidth={2.3} aria-hidden="true"/>
-      <strong className="sm-campaign-offer-name">{tariff.badgeText||"SPECIAL"} Offer</strong>
-     </span>
-     <CampaignPriceLine tariff={tariff}/>
-    </div>
-    {tariff.heading&&<strong className="sm-campaign-offer-heading">{tariff.heading}</strong>}
-    {tariff.description&&<span className="sm-campaign-offer-description">{tariff.description}</span>}
-    {tariff.actionHint&&<small className="sm-campaign-offer-hint">{tariff.actionHint}</small>}
-   </div>
+ // The API only returns a discount percentage when comparative-price evidence exists.
+ const verifiedDiscount=tariff.discountPercent!==null&&
+  tariff.creditsPerSecond<tariff.regularCreditsPerSecond;
+ return <div className="sm-campaign-offer-block" data-theme={tariff.theme} style={palette(tariff)}>
+  <aside className="sm-campaign-offer-line" aria-label={tariff.heading||"Current video offer"}>
+   <span className="sm-campaign-offer-identity">
+    <Rocket size={20} strokeWidth={2.5} aria-hidden="true"/>
+    <strong className="sm-campaign-offer-name">{tariff.badgeText||"SPECIAL"} Offer</strong>
+   </span>
+   <span className="sm-campaign-offer-divider" aria-hidden="true"/>
+   <strong className="sm-campaign-offer-current">{euro(tariff.creditsPerSecond)} / sec</strong>
+   {verifiedDiscount&&<>
+    <span className="sm-campaign-offer-discount">{tariff.discountPercent}% OFF</span>
+    <del className="sm-campaign-offer-regular" aria-label="Regular price">{euro(tariff.regularCreditsPerSecond)} / sec</del>
+   </>}
+  </aside>
+  <div className="sm-campaign-offer-meta">
+   {(tariff.heading||tariff.description)&&<span className="sm-campaign-offer-details">
+    {tariff.heading&&<strong>{tariff.heading}</strong>}
+    {tariff.description&&<span>{tariff.description}</span>}
+   </span>}
+   <small className="sm-campaign-offer-hint"><Clock3 size={15} strokeWidth={2} aria-hidden="true"/>
+    {tariff.actionHint||"Limited-time offer"}</small>
    {tariff.ctaText&&<Link className="sm-campaign-offer-link" href="/credits#buy-credits">{tariff.ctaText}</Link>}
-  </aside>;
+  </div>
+ </div>;
 }
 /** The same offer appears on Pricing and Credits, including all CMS copy fields. */
 export function CampaignPricingBanner({placement}:{placement:"pricing"|"credits"}){

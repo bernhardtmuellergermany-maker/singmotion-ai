@@ -527,8 +527,8 @@ export function ImmersiveHome(){
     <div className="sm-immersive-desktop-intro">
      <h1>Turn your song into a <span>music video.</span></h1>
      <p>With SingMotion AI — your song, your performance.</p>
-     <CampaignOfferLine/>
      <Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>
+     <CampaignOfferLine/>
     </div>
     <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
      {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
@@ -549,8 +549,8 @@ export function ImmersiveHome(){
     <div className="sm-mobile-reel-content">
      <h1>Turn your song into a music video.</h1>
      <p>Make your music come alive with SingMotion AI.</p>
-     <CampaignOfferLine/>
      <Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>
+     <CampaignOfferLine/>
     </div>
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}
     <a href="#showcase" onClick={scrollToShowcase} className="sm-immersive-scroll-cue" aria-label="Sanft zum 16:9-Videokarussell scrollen"><span className="sm-scroll-mouse" aria-hidden="true"><span className="sm-scroll-mouse-dot"/></span><ChevronDown size={17} aria-hidden="true"/></a>

@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   candidate:
-    if: github.event_name != 'pull_request' || github.head_ref == 'release/campaign-credits-ui-production-20261120'
+    if: github.event_name != 'pull_request' || startsWith(github.head_ref, 'release/')
     runs-on: ubuntu-latest
     timeout-minutes: 38
     steps:

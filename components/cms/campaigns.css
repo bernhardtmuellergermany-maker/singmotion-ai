@@ -140,49 +140,67 @@
 }
 
 
-/* Preview mirrors the offer above the existing, UNRESIZED main CTA. */
+
+/* CMS homepage preview mirrors the live pill, positioned BELOW the unchanged CTA. */
+.sm-marketing-preview-home .sm-marketing-preview-offer-block{
+ display:flex;flex-direction:column;align-items:center;gap:7px;
+ width:100%;max-width:610px;margin:8px 0 0;
+}
 .sm-marketing-preview-home .sm-marketing-preview-offer{
- border:1.5px solid color-mix(in srgb,var(--campaign-accent,#b84fff) 75%,#f0d0ff);
- border-radius:24px;padding:15px 19px;margin:10px 0 7px;
- background:linear-gradient(105deg,rgba(53,21,81,.89),rgba(24,13,49,.92) 56%,rgba(70,27,86,.86));
- box-shadow:inset 0 1px 0 #ffffff28,0 0 20px #9b29e333;
+ display:flex;align-items:center;justify-content:center;
+ box-sizing:border-box;width:100%;min-height:44px;margin:0;padding:11px 17px;
+ border:1.5px solid color-mix(in srgb,var(--campaign-accent,#ba3dea) 78%,#f4ddff);
+ border-radius:999px;background:linear-gradient(105deg,#33154be8,#1b0e32ee 60%,#441c50da);
+ box-shadow:inset 0 1px 0 #ffffff34,0 0 18px #b536ef5c;
 }
 .sm-marketing-preview-home .sm-marketing-preview-offer-top{
- display:flex;align-items:center;justify-content:center;
- width:100%;gap:8px 15px;flex-wrap:wrap;
+ display:flex;align-items:center;justify-content:center;flex-wrap:wrap;
+ width:100%;gap:8px 12px;
 }
 .sm-marketing-preview-home .sm-marketing-preview-offer-name{
- color:#fff;font-size:clamp(12px,1.5vw,15px);
- font-weight:850;white-space:normal;
+ display:inline-flex;align-items:center;gap:7px;white-space:nowrap;
+ font-size:clamp(11px,1.35vw,14px)!important;font-weight:800;color:#fff!important;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-name svg{flex:none;color:#f9e5ff}
+.sm-marketing-preview-home .sm-marketing-preview-offer-divider{
+ flex:none;height:22px;width:1px;background:#e1b9edaa;
 }
 .sm-marketing-preview-home .sm-marketing-preview-offer-price{
- color:#ffea54;font-size:clamp(19px,2.2vw,26px);
- font-weight:900;line-height:1.2;white-space:nowrap;
+ color:#ffe629;font-size:clamp(17px,2vw,24px);font-weight:900;white-space:nowrap;
 }
-.sm-marketing-preview-home .sm-marketing-preview-offer-credits{
- color:#f2dcfa;font-size:11px;
+.sm-marketing-preview-home .sm-marketing-preview-offer-top>.sm-marketing-preview-offer-discount{
+ background:#90fb7c;color:#0b1b0b;border-radius:999px;
+ font-size:11px;font-weight:900;padding:6px 10px;white-space:nowrap;
 }
-.sm-marketing-preview-home .sm-marketing-preview-offer-top>b{
- color:#081008;background:#9bf988;
- padding:5px 9px;border-radius:999px;font-weight:900;
+.sm-marketing-preview-home .sm-marketing-preview-offer-regular{
+ color:#e5d4e6;font-size:11px;opacity:.82;white-space:nowrap;
 }
+.sm-marketing-preview-home .sm-marketing-preview-offer-meta{
+ display:flex;flex-direction:column;align-items:center;gap:5px;
+ color:#e5d7ee;font-size:11px;max-width:100%;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-detail{
+ display:inline-flex;justify-content:center;flex-wrap:wrap;gap:4px 8px;
+ font-size:10px;max-width:100%;overflow-wrap:anywhere;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-detail strong{font-size:10px!important}
+.sm-marketing-preview-home .sm-marketing-preview-offer-hint{
+ display:inline-flex;align-items:center;justify-content:center;
+ gap:7px;font-size:11px!important;color:#e1d2ea;font-weight:500;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-hint svg{flex:none}
 .sm-marketing-preview-home .sm-marketing-preview-offer-cta{
- background:transparent;border:0;padding:2px 4px;
- text-decoration:underline;text-underline-offset:3px;
- color:#f0d3ff;font-weight:700;
+ background:transparent;border:0;padding:0 3px;text-decoration:underline;
+ color:#ecd2ff;font-size:10px;font-weight:650;
 }
 .sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer{
- border-radius:18px;padding:11px 13px;
+ padding:10px 12px;border-radius:999px;
 }
 .sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-top{
- justify-content:space-between;text-align:left;
+ justify-content:center;gap:7px 9px;
 }
 .sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-name{
- width:100%;text-align:left;font-size:13px;
+ width:auto;font-size:11px!important;
 }
-.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-price{
- font-size:21px;
-}
-.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-credits{
- order:3;flex-basis:100%;text-align:left;font-size:10px;
-}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-price{font-size:18px}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-regular{font-size:10px}
