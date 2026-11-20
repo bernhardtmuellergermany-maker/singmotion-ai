@@ -45,7 +45,7 @@ function newCampaign():FormCampaign{
  return {identifier:"aktion-"+Date.now().toString(36),status:"draft",
   startUtc:start,endUtc:start+7*86400000,creditsPerSecond:12,
   badgeText:"SPECIAL",heading:"SingMotion Special",description:"",
-  actionHint:"",ctaText:"Create your video",theme:"purple",accent:"#af65ef",
+  actionHint:"Limited-time offer",ctaText:"Create your video",theme:"purple",accent:"#af65ef",
   showBadge:true,showBanner:true,comparisonEvidence:null,
   maxCustomerGenerations:null,maxCampaignCredits:null};
 }
@@ -106,8 +106,8 @@ export function CampaignsClient(){
  const label=selected?.badgeText||"SPECIAL";
  const rate=selected?.creditsPerSecond??25;
  const euro=new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"}).format(rate/100);
- const percent=selected?.comparisonEvidence&&selected.comparisonEvidence.length>=20&&rate<25
-  ?Math.round((1-rate/25)*100):null;
+ const percent=rate<25?Math.round((1-rate/25)*100):null;
+ const offerLabel=/\boffer$/i.test(label)?label:label+" Offer";
  return <main className="sm-marketing" aria-label="Marketing & Aktionen">
   <header className="sm-marketing-heading"><span>SUPER ADMIN · VERSIONIERTE TARIFE</span><h1>Marketing & Aktionen</h1>
    <p>Kampagnen, Aktionspreise, Badge-Texte und Laufzeiten verwalten. Speicherung in UTC, Anzeige in Europe/Berlin. Nur eine veröffentlichte Aktion je Zeitraum.</p>
@@ -143,13 +143,15 @@ export function CampaignsClient(){
       value={selected.creditsPerSecond} onChange={e=>edit("creditsPerSecond",Number(e.target.value))}/></label>
      <label>Badge-Text (z. B. BETA, BLACK WEEK) <input maxLength={32} value={selected.badgeText}
       onChange={e=>edit("badgeText",e.target.value)}/></label>
-     <label>Kampagnenüberschrift · Homepage, Pricing, Credits <input maxLength={120} value={selected.heading}
+     <label>Kampagnenüberschrift · Pricing, Credits (nicht doppelt auf Homepage) <input maxLength={120} value={selected.heading}
       onChange={e=>edit("heading",e.target.value)}/></label>
-     <label>Beschreibung · Homepage, Pricing, Credits <textarea rows={2} maxLength={220} value={selected.description}
+     <label>Beschreibung · Pricing, Credits <textarea rows={2} maxLength={220} value={selected.description}
       onChange={e=>edit("description",e.target.value)}/></label>
-     <label>Aktionshinweis · Homepage, Pricing, Credits <input maxLength={160} value={selected.actionHint}
-      onChange={e=>edit("actionHint",e.target.value)}/></label>
-     <label>CTA-Text · Angebot / Kaufen <input maxLength={60} value={selected.ctaText}
+     <label>Uhr-Hinweis unter der Angebotsleiste · Homepage, Pricing, Credits
+      <input maxLength={160} placeholder="Limited-time offer" value={selected.actionHint}
+       onChange={e=>edit("actionHint",e.target.value)}/>
+      <small>Frei bearbeitbar – auch bei bestehenden Aktionen. Leer = Standardtext „Limited-time offer“.</small></label>
+     <label>CTA-Text · Pricing / Credits kaufen (nicht der Homepage-Hauptbutton) <input maxLength={60} value={selected.ctaText}
       onChange={e=>edit("ctaText",e.target.value)}/></label>
      <label>Geprüfte Designvorlage <select value={selected.theme}
       onChange={e=>{const preset=presets.find(p=>p.theme===e.target.value);if(preset)setSelected(c=>c?{...c,theme:preset.theme,accent:preset.accent}:c)}}>
@@ -161,7 +163,7 @@ export function CampaignsClient(){
      <label className="sm-marketing-full">Nachweis zulässiger Preisvergleich (intern; optional)
       <textarea rows={2} maxLength={500} value={selected.comparisonEvidence??""}
        onChange={e=>edit("comparisonEvidence",e.target.value||null)}/>
-      <small>Rabattprozente werden nur bei hinterlegtem überprüfbarem Vergleichspreisnachweis angezeigt.</small></label>
+      <small>Die Prozentangabe wird automatisch aus 25 Credits = 0,25 € regulärem Preis berechnet; Vergleichspreis-Nachweis optional zur internen Prüfung. Historische Preiswerbung separat rechtlich prüfen.</small></label>
      <label className="sm-marketing-check"><input type="checkbox" checked={selected.showBadge}
       onChange={e=>edit("showBadge",e.target.checked)}/> Logo-Badge anzeigen</label>
      <label className="sm-marketing-check"><input type="checkbox" checked={selected.showBanner}
@@ -199,7 +201,7 @@ export function CampaignsClient(){
         {selected.showBanner&&<div className="sm-marketing-preview-offer-block">
          <div className="sm-marketing-preview-offer">
           <div className="sm-marketing-preview-offer-top">
-           <strong className="sm-marketing-preview-offer-name"><Rocket size={17} aria-hidden="true"/>{label} Offer</strong>
+           <strong className="sm-marketing-preview-offer-name"><Rocket size={17} aria-hidden="true"/>{offerLabel}</strong>
            <span className="sm-marketing-preview-offer-divider" aria-hidden="true"/>
            <span className="sm-marketing-preview-offer-price">{euro} / sec</span>
            {percent!==null&&<>
@@ -209,12 +211,7 @@ export function CampaignsClient(){
           </div>
          </div>
          <div className="sm-marketing-preview-offer-meta">
-          {(selected.heading||selected.description)&&<span className="sm-marketing-preview-offer-detail">
-           {selected.heading&&<strong>{selected.heading}</strong>}
-           {selected.description&&<span>{selected.description}</span>}
-          </span>}
           <small className="sm-marketing-preview-offer-hint"><Clock3 size={14} aria-hidden="true"/>{selected.actionHint||"Limited-time offer"}</small>
-          {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
          </div>
         </div>}
        </div>:<div className="sm-marketing-preview-info">
