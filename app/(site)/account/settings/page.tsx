@@ -71,7 +71,11 @@ export default function AccountSettings(){
    setAdminStatusError(e instanceof Error?e.message:"Support status unavailable.");
   }finally{setAdminStatusBusy(false)}
  }
- useEffect(()=>{void refreshAdminStatus();},[]);
+ useEffect(()=>{
+   let active=true;
+   void Promise.resolve().then(()=>{if(active)void refreshAdminStatus();});
+   return()=>{active=false};
+  },[]);
  const canShowAdmin=!adminDenied&&(adminOverview!==null||data?.staffPreview===true);
  // The Account sections render after account authentication, so a hash from
  // a different page can arrive before its target exists. Reapply the deep
@@ -124,7 +128,7 @@ export default function AccountSettings(){
  useEffect(()=>{
   if(!data||data.staffPreview)return;
   let active=true;
-  setErasureLoading(true);
+  void Promise.resolve().then(()=>{if(active)setErasureLoading(true)});
   fetch("/api/customer-account-erasure",{cache:"no-store",credentials:"same-origin"})
    .then(async r=>{const result=await r.json() as {eligible?:boolean;automatic?:boolean;code?:string;message?:string};if(!r.ok)throw Error(result.message||"Deletion eligibility unavailable.");return result;})
    .then(result=>{if(active)setErasure({eligible:result.eligible===true,automatic:result.automatic===true,code:result.code||"",message:result.message||""});})

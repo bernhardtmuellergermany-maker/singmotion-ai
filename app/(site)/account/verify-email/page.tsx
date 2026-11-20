@@ -24,8 +24,10 @@ export default function VerifyEmail(){
  const [resume,setResume]=useState<Resume|null>(null);
  useEffect(()=>{
   let active=true;
-  setToken(new URLSearchParams(window.location.search).get("token")||"");
-  setResume(savedStudioResume());
+  void Promise.resolve().then(()=>{if(active){
+   setToken(new URLSearchParams(window.location.search).get("token")||"");
+   setResume(savedStudioResume());
+  }});
   const refresh=async()=>{
    try{
     const response=await fetch("/api/customer-auth",{credentials:"same-origin",cache:"no-store"});

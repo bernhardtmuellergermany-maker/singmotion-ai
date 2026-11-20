@@ -79,7 +79,7 @@ export function CustomerInsightsClient(){
  },[input]);
  useEffect(()=>{
   const controller=new AbortController();
-  setLoading(true);setError("");
+  void Promise.resolve().then(()=>{if(!controller.signal.aborted){setLoading(true);setError("");}});
   const params=new URLSearchParams({q:search,page:String(page)});
   void fetch("/api/customer-insights?"+params.toString(),{
    credentials:"same-origin",cache:"no-store",signal:controller.signal,
@@ -93,9 +93,15 @@ export function CustomerInsightsClient(){
   return()=>controller.abort();
  },[search,page]);
  useEffect(()=>{
-  if(!selected){setDetail(null);setDetailError("");return}
+  if(!selected){
+   let active=true;
+   void Promise.resolve().then(()=>{if(active){setDetail(null);setDetailError("");}});
+   return()=>{active=false};
+  }
   const controller=new AbortController();
-  setDetail(null);setDetailError("");setDetailLoading(true);
+  void Promise.resolve().then(()=>{if(!controller.signal.aborted){
+   setDetail(null);setDetailError("");setDetailLoading(true);
+  }});
   void fetch("/api/customer-insights?id="+encodeURIComponent(selected),{
    cache:"no-store",credentials:"same-origin",signal:controller.signal,
   }).then(async res=>{
