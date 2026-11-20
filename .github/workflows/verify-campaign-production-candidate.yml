@@ -1,0 +1,57 @@
+name: Verify campaign and credit production candidate
+
+on:
+  pull_request:
+    branches:
+      - production
+    paths:
+      - '.github/workflows/verify-campaign-production-candidate.yml'
+      - 'app/(site)/**'
+      - 'app/(payload)/**'
+      - 'cms/**'
+      - 'components/**'
+      - 'lib/commerce/**'
+      - 'lib/live/**'
+      - 'tests/campaign-*.test.ts'
+      - 'tests/manual-credit-gifts.test.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: campaign-production-candidate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate:
+    if: github.event_name != 'pull_request' || github.head_ref == 'release/campaign-credits-ui-production-20261120'
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - name: Install offline media test dependencies
+        run: sudo apt-get update -qq && sudo apt-get install -qq -y ffmpeg
+      - name: Install locked application dependencies
+        run: npm ci
+      - name: Check integration with current Production codebase
+        run: npm run typecheck
+      - name: Verify existing wallet, campaigns, credits, CMS and pricing presentation
+        run: |
+          node --experimental-strip-types --test \
+            tests/campaign-pricing.test.ts \
+            tests/campaign-presentation.test.ts \
+            tests/manual-credit-gifts.test.ts \
+            tests/prepaid-credit-ui.test.ts \
+            tests/credit-help-legal-refresh.test.ts \
+            tests/customer-credit-studio-beta.test.ts \
+            tests/cms-compatibility.test.mjs \
+            tests/cms-database-guard.test.mjs
+      - name: Production build and built-in release parity checks
+        run: npm run build
