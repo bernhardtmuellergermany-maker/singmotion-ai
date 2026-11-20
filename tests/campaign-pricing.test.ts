@@ -30,6 +30,8 @@ test("pricing is versioned, scheduled, exclusive, correct and safely returns to 
   const first=pricing.save(valid(),"admin");
   assert.equal(pricing.active().version,"campaign:"+first.id+":v1");
   assert.equal(pricing.active().creditsPerSecond,12);
+  assert.equal(pricing.active().showDiscountPercent,true);
+  assert.equal(pricing.active().showRegularPrice,true);
   assert.equal(quoteVideoCredits(0,5.1,pricing.active().creditsPerSecond)?.credits,72);
   assert.equal(quoteVideoCredits(0,5.1)?.credits,150);
   assert.equal(pricing.active().discountPercent,52,"12 vs 25 Credits is 52% below the regular tariff");
@@ -46,6 +48,45 @@ test("pricing is versioned, scheduled, exclusive, correct and safely returns to 
   assert.deepEqual(pricing.active(),regularTariff());
   assert.equal(pricing.list()[0].effectiveStatus,"paused");
   assert.throws(()=>pricing.save({...valid("bad-rate"),creditsPerSecond:35},"admin"),/preis|Kampagnenpreis/i);
+ }finally{db.close()}
+});
+test("comparison display flags default on for old SQLite campaigns and persist independently",()=>{
+ const db=new DatabaseSync(":memory:");
+ try{
+  db.exec("CREATE TABLE commerce_audit(id INTEGER PRIMARY KEY,actor TEXT NOT NULL,action TEXT NOT NULL,record TEXT NOT NULL,created INTEGER NOT NULL)");
+  // Same schema shape as before the two independent display flags existed.
+  db.exec(`CREATE TABLE marketing_campaigns (
+   id TEXT PRIMARY KEY,identifier TEXT NOT NULL UNIQUE,status TEXT NOT NULL,
+   start_utc INTEGER NOT NULL,end_utc INTEGER NOT NULL,credits_per_second INTEGER NOT NULL,
+   badge_text TEXT NOT NULL,heading TEXT NOT NULL,description TEXT NOT NULL,
+   action_hint TEXT NOT NULL,cta_text TEXT NOT NULL,theme TEXT NOT NULL,accent TEXT NOT NULL,
+   show_badge INTEGER NOT NULL,show_banner INTEGER NOT NULL,comparison_evidence TEXT,
+   max_customer_generations INTEGER,max_campaign_credits INTEGER,
+   revision INTEGER NOT NULL,updated INTEGER NOT NULL)`);
+  const pricing=new CampaignPricing(db);
+  const columns=(db.prepare("PRAGMA table_info(marketing_campaigns)").all() as Array<{name:string}>).map(row=>row.name);
+  assert.ok(columns.includes("show_discount_percent"));
+  assert.ok(columns.includes("show_regular_price"));
+  const original=pricing.save(valid("visibility-switches"),"admin");
+  assert.equal(original.showDiscountPercent,true);
+  assert.equal(original.showRegularPrice,true);
+  const states:[[boolean,boolean],[boolean,boolean],[boolean,boolean],[boolean,boolean]]=
+   [[false,false],[false,true],[true,false],[true,true]];
+  for(const [showDiscountPercent,showRegularPrice] of states){
+   const current=pricing.list()[0];
+   const saved=pricing.save({...current,showDiscountPercent,showRegularPrice},"admin",current.revision);
+   const live=pricing.active();
+   assert.equal(saved.showDiscountPercent,showDiscountPercent);
+   assert.equal(saved.showRegularPrice,showRegularPrice);
+   assert.equal(live.showDiscountPercent,showDiscountPercent);
+   assert.equal(live.showRegularPrice,showRegularPrice);
+   assert.equal(live.discountPercent,52,"display does not affect numeric discount");
+   assert.equal(pricing.versions(original.id).length,saved.revision);
+  }
+  new CampaignPricing(db); // additive upgrade may run more than once
+  const current=pricing.list()[0];
+  assert.throws(()=>pricing.save({...current,showRegularPrice:"nope" as unknown as boolean},
+   "admin",current.revision),/Ungültiger Schalter/);
  }finally{db.close()}
 });
 test("Wallet holds enforce exact campaign version, global credit budget and customer usage",()=>{

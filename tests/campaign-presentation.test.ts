@@ -66,7 +66,8 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  }
  assert.match(banner,/tariff\.discountPercent!==null&&/);
  assert.match(banner,/tariff\.creditsPerSecond<tariff\.regularCreditsPerSecond/);
- assert.match(banner,/discounted&&<>/);
+ assert.match(banner,/discounted&&tariff.showDiscountPercent&&/);
+ assert.match(banner,/discounted&&tariff.showRegularPrice&&/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
  assert.match(css,/padding:11px 20px/);
  assert.match(css,/width:min\(560px,100%\)/);
@@ -75,6 +76,13 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.ok(banner.indexOf('</aside>')<banner.indexOf('className="sm-campaign-offer-meta"'));
  assert.ok(preview.indexOf('sm-marketing-preview-primary')<preview.indexOf('sm-marketing-preview-offer-block'));
  assert.match(preview,/sm-marketing-preview-offer-regular/);
+ assert.match(preview,/selected.showDiscountPercent&&percent!==null&&/);
+ assert.match(preview,/selected.showRegularPrice&&percent!==null&&/);
+ for(const key of ["showDiscountPercent","showRegularPrice"]){
+  assert.ok(preview.includes('edit("'+key+'",'));
+  assert.ok(preview.includes('selected.'+key));
+ }
+ assert.match(banner,/tariff.showDiscountPercent&&tariff.discountPercent!==null&&/);
  assert.match(preview,/sm-marketing-preview-offer-hint/);
  assert.match(preview,/Uhr-Hinweis unter der Angebotsleiste/);
  assert.doesNotMatch(preview,/sm-marketing-preview-offer-detail/);
