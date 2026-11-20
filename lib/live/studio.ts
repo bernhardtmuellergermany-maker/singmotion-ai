@@ -378,6 +378,7 @@ export class StudioWorkflow {
     actor: string,
     confirmation: unknown,
     verifiedCreditSubject?: string,
+    confirmedPricing?:{version:string;creditsPerSecond:number;campaignId:string|null},
   ) {
     const row = this.row(id, owner),
       a = this.store.get(id);
@@ -1001,12 +1002,17 @@ export class StudioWorkflow {
       if(!matchedStaff&&!matchedCustomer)
         throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","Verified account required before generating a paid video.",403);
       const selection=JSON.parse(row.selection_json) as StudioDraftExport;
-      const quote=quoteVideoCredits(selection.start,selection.end);
+      const quote=quoteVideoCredits(selection.start,selection.end,confirmedPricing?.creditsPerSecond??25);
       if(!quote)throw new StudioLiveError("CREDIT_QUOTE_INVALID","Select a valid 5–300-second audio excerpt.",400);
       const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
       try {
         const wallet=new CreditWallet(commerce.db);
-        try {wallet.reserveVideo(id,verifiedCreditSubject,quote.credits);}
+        try {wallet.reserveVideo(id,verifiedCreditSubject,quote.credits,{
+          version:confirmedPricing?.version??"regular-v1",
+          creditsPerSecond:confirmedPricing?.creditsPerSecond??25,
+          campaignId:confirmedPricing?.campaignId??null,
+          startedSeconds:quote.startedSeconds,
+         });}
         catch(error){
           if(error instanceof Error&&error.message==="Insufficient video credits")
            throw new StudioLiveError("INSUFFICIENT_CREDITS",
