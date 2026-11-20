@@ -1,6 +1,7 @@
 "use client";
 
 import {useEffect,useState} from "react";
+import Link from "next/link";
 import type {
  CustomerInsightsList,CustomerInsightsProfile,CustomerInsight,CustomerInsightEvent,
 } from "../../lib/commerce/customer-insights";
@@ -57,7 +58,7 @@ function Detail({data,onClose}:{data:CustomerInsightsProfile;onClose:()=>void}){
    {data.events.map(item=><ActivityItem item={item} key={item.id}/>)}
   </ul>}
   <p className="sm-insights-support">Für Erstattungen, Rechteanfragen oder Support nutze weiterhin
-   die <a href="/support-admin">geschützte Support-Konsole</a>. Diese Übersicht darf keine Rückerstattung oder Marketingaktion auslösen.</p>
+   die <Link href="/support-admin">geschützte Support-Konsole</Link>. Diese Übersicht darf keine Rückerstattung oder Marketingaktion auslösen.</p>
  </section>;
 }
 

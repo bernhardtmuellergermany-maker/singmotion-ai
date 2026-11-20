@@ -48,7 +48,7 @@ export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
       <div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
         <div className="mv-dialog" role="dialog" aria-modal="true" aria-label="Add video to music project">
           <h2>Add to Project</h2>
-          {complete?<p role="status">Video added to the selected project's Library. It has not been placed on the timeline.</p>:
+          {complete?<p role="status">Video added to the selected project&apos;s Library. It has not been placed on the timeline.</p>:
             projects.length?<div style={{display:"grid",gap:9,maxHeight:350,overflowY:"auto"}}>
               {projects.map(p=><button type="button" key={p.id} disabled={busy} onClick={()=>void add(p.id)}
                 style={{display:"flex",alignItems:"center",gap:9,padding:12,border:"1px solid #8952aa",borderRadius:10,background:"#2a173e",textAlign:"left",color:"#fff"}}>

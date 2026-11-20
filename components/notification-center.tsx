@@ -44,7 +44,7 @@ export default function NotificationCenter(){
     </div>
     {error&&<p role="alert" className="sm-notifications-error">{error}</p>}
     {loading?<p className="sm-notifications-empty">Loading notifications…</p>:
-     inbox.notifications.length===0?<div className="sm-notifications-empty"><CheckCircle2 size={27}/><p>You're all caught up.</p><small>New account and video updates will appear here.</small></div>:
+     inbox.notifications.length===0?<div className="sm-notifications-empty"><CheckCircle2 size={27}/><p>You&apos;re all caught up.</p><small>New account and video updates will appear here.</small></div>:
      <ul className="sm-notifications-list">{inbox.notifications.map(item=><li key={item.id} className={item.read?"sm-notice-read":"sm-notice-unread"}>
       <div className="sm-notice-icon">{item.kind==="video"?<Film size={18}/>:item.kind==="payment"?<Wallet size={18}/>:<Bell size={18}/>}</div>
       <div className="sm-notice-body">
