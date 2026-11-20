@@ -25,6 +25,10 @@ export function CustomerCreditGift({customer,onBooked}:{customer:CustomerInsight
  const [error,setError]=useState("");
  const [success,setSuccess]=useState("");
  const [confirmation,setConfirmation]=useState(false);
+ const [correction,setCorrection]=useState<Gift|null>(null);
+ const [correctionReason,setCorrectionReason]=useState("");
+ const [correctionAccepted,setCorrectionAccepted]=useState(false);
+ const correctionKey=useRef<string|null>(null);
  const requestKey=useRef<string|null>(null);
  const [balance,setBalance]=useState(customer.availableCredits);
  const load=async()=>{
@@ -71,6 +75,25 @@ export function CustomerCreditGift({customer,onBooked}:{customer:CustomerInsight
   }catch(e){setError(e instanceof Error?e.message:"Buchung nicht bestätigt. Mit derselben Referenz erneut versuchen.")}
   finally{setBusy(false)}
  };
+ const executeCorrection=async()=>{
+  if(!correction||correctionReason.trim().length<20||!correctionAccepted||busy)return;
+  setBusy(true);setError("");
+  try{
+   const response=await fetch("/api/admin-credit-gifts",{method:"POST",credentials:"same-origin",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({action:"correct",giftId:correction.id,reason:correctionReason,
+     requestKey:(correctionKey.current??=crypto.randomUUID()),
+     confirmation:"CORRECT "+correction.id})});
+   const body=await response.json() as {availableCredits?:number;error?:string};
+   if(!response.ok||typeof body.availableCredits!=="number")
+    throw Error(body.error||"Korrektur nicht bestätigt. Dieselbe Referenz erneut prüfen.");
+   setBalance(body.availableCredits);
+   setSuccess("Korrektur verbucht. Verfügbar: "+n(body.availableCredits)+" Credits.");
+   setCorrection(null);setCorrectionAccepted(false);
+   await load();onBooked();
+  }catch(e){setError(e instanceof Error?e.message:"Korrektur fehlgeschlagen");}
+  finally{setBusy(false)}
+ };
  // A different form must not accidentally reuse the same request identity.
  const change=()=>{requestKey.current=crypto.randomUUID();setConfirmation(false);setError("")};
  return <section className="sm-admin-gifts" aria-label="Manuelle Geschenk-Credits">
@@ -90,8 +113,29 @@ export function CustomerCreditGift({customer,onBooked}:{customer:CustomerInsight
    <strong>Einzelgutschriften an diesen Kunden</strong>
    <ul>{overview.gifts.map(g=><li key={g.id}><span>{date(g.created)} · {g.reason} · <code>{g.id}</code>
     {g.reversedAt&&<small> Sicher korrigiert: {date(g.reversedAt)}</small>}</span>
-    <b>+{n(g.credits)}</b></li>)}</ul>
+    <b>+{n(g.credits)}</b>
+    {!g.reversedAt&&<button type="button" onClick={()=>{
+     setCorrection(g);setCorrectionReason("");setCorrectionAccepted(false);
+     correctionKey.current=crypto.randomUUID();setError("");setOpen(false);
+    }}>Korrektur prüfen</button>}</li>)}</ul>
   </div>:null}
+  {correction&&<div className="sm-gift-modal-backdrop" role="presentation">
+   <section className="sm-gift-dialog" role="dialog" aria-modal="true" aria-label="Gutschrift korrigieren">
+    <h3>Gesonderte Korrekturbuchung</h3>
+    <p>Originalbuchung <code>{correction.id}</code>: +{n(correction.credits)} Credits.
+     Der Originaleintrag bleibt unverändert erhalten.</p>
+    <p>Wenn Credits bereits verwendet oder reserviert sind, blockiert der Server die Korrektur. Eine Videogenerierung wird niemals zurückgenommen.</p>
+    <label>Dokumentierter Korrekturgrund (mindestens 20 Zeichen)
+     <textarea rows={3} maxLength={1000} value={correctionReason}
+      onChange={e=>{setCorrectionReason(e.target.value);correctionKey.current=crypto.randomUUID();setCorrectionAccepted(false)}}/></label>
+    <label className="sm-gift-confirm"><input type="checkbox" checked={correctionAccepted}
+     onChange={e=>setCorrectionAccepted(e.target.checked)}/> Ich bestätige die gesonderte Negativbuchung von {n(correction.credits)} Credits, sofern ausreichend Guthaben frei verfügbar ist.</label>
+    {error&&<p role="alert" className="sm-insights-error">{error}</p>}
+    <div className="sm-gift-actions"><button type="button" disabled={busy} onClick={()=>{setCorrection(null);setError("")}}>Abbrechen</button>
+    <button type="button" disabled={busy||!correctionAccepted||correctionReason.trim().length<20}
+      onClick={()=>void executeCorrection()}>Korrektur bestätigen</button></div>
+   </section>
+  </div>}
   {open&&<div className="sm-gift-modal-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)close()}}>
    <section className="sm-gift-dialog" role="dialog" aria-modal="true" aria-label="Credits an Kunden verschenken">
     <div className="sm-gift-dialog-head"><h3>Credits an Kunden verschenken</h3>
