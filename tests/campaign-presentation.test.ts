@@ -69,11 +69,11 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.match(banner,/discounted&&tariff.showDiscountPercent&&/);
  assert.match(banner,/discounted&&tariff.showRegularPrice&&/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
- assert.match(css,/padding:11px 20px/);
+ assert.match(css,/padding:11px 12px/);
  assert.match(css,/width:min\(560px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
- assert.ok(banner.indexOf('</aside>')<banner.indexOf('className="sm-campaign-offer-meta"'));
+ assert.ok(banner.indexOf('</Link>')<banner.indexOf('className="sm-campaign-offer-meta"'));
  assert.ok(preview.indexOf('sm-marketing-preview-primary')<preview.indexOf('sm-marketing-preview-offer-block'));
  assert.match(preview,/sm-marketing-preview-offer-regular/);
  assert.match(preview,/selected.showDiscountPercent&&percent!==null&&/);
@@ -89,4 +89,67 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.doesNotMatch(banner,/sm-campaign-offer-details/);
  assert.doesNotMatch(css,/\[data-theme="beta"\]::before/);
  assert.match(previewCss,/\.sm-marketing-preview-mobile\.sm-marketing-preview-home \.sm-marketing-preview-offer/);
+});
+
+test("pricing example tiles never squeeze seconds into a 20px track on phones",()=>{
+ const css=read("app/(site)/plans/plans.css");
+ assert.doesNotMatch(css,/grid-template-columns:20px 1fr auto/);
+ assert.match(css,/\.sm-plan-single \.sm-plan-examples>div\{\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,max-content\)/);
+ assert.match(css,/\.sm-plan-single \.sm-plan-examples strong\{[^}]*text-align:right/);
+});
+test("credits campaign uses the existing offer design and shared versioned tariff",()=>{
+ const jsx=read("components/campaign-display.tsx");
+ const css=read("components/campaign-display.css");
+ const cms=read("components/cms/campaigns-client.tsx");
+ assert.match(jsx,/<Rocket size=\{20\} strokeWidth=\{2\.3\}/);
+ assert.doesNotMatch(jsx,/placement==="credits"&&<Rocket/);
+ assert.match(jsx,/<span className="sm-campaign-pricing-light-sweep"/);
+ assert.match(jsx,/sm-campaign-rate-regular/);
+ assert.match(jsx,/tariff.showRegularPrice&&tariff.discountPercent!==null&&/);
+ assert.match(css,/\.sm-campaign-pricing-banner::before/);
+ assert.match(css,/\.sm-campaign-pricing-banner \.sm-campaign-pricing-light-sweep/);
+ assert.match(css,/\.sm-campaign-pricing-banner \.sm-campaign-rate-line>em/);
+ assert.match(css,/\.sm-campaign-pricing-banner \.sm-campaign-rate-regular/);
+ assert.match(cms,/sm-marketing-preview-credits-rate/);
+ assert.match(cms,/selected.showRegularPrice&&percent!==null&&<del>/);
+});
+
+test("Pricing and Credits reuse the exact same versioned neon offer styles",()=>{
+ const jsx=read("components/campaign-display.tsx");
+ const css=read("components/campaign-display.css");
+ const previewCss=read("components/cms/campaigns.css");
+ const plans=read("app/(site)/plans/page.tsx");
+ const credits=read("app/(site)/credits/page.tsx");
+ assert.match(plans,/<CampaignPricingBanner placement="pricing"\/>/);
+ assert.match(credits,/<CampaignPricingBanner placement="credits"\/>/);
+ assert.match(jsx,/\{"sm-campaign-pricing-banner sm-campaign-pricing-"\+placement\}/);
+ assert.match(jsx,/fetch\("\/api\/credit-tariff"/);
+ assert.doesNotMatch(jsx,/placement==="credits"&&<Rocket/);
+ assert.doesNotMatch(jsx,/placement==="credits"&&<span className="sm-campaign-pricing-light-sweep"/);
+ assert.match(css,/\.sm-campaign-pricing-banner::before/);
+ assert.match(css,/\.sm-campaign-pricing-banner \.sm-campaign-pricing-price/);
+ assert.match(previewCss,/\.sm-marketing-preview:is\(\.sm-marketing-preview-credits,\.sm-marketing-preview-pricing\)/);
+ assert.doesNotMatch(css,/width:min\(300px,100%\)/);
+ assert.match(css,/width:min\(560px,100%\)/);
+});
+
+test("offer link navigates to Credits only after login; Studio cost hides internal details",()=>{
+ const offer=read("components/campaign-display.tsx");
+ const panel=read("components/account-panel.tsx");
+ const google=read("app/(site)/api/google-auth/route.ts");
+ const callback=read("app/(site)/api/google-auth/callback/route.ts");
+ const studio=read("components/studio-wizard.tsx");
+ assert.match(offer,/readCustomerAuthStatus\(\)/);
+ assert.match(offer,/status\.kind==="customer"/);
+ assert.match(offer,/href=\{loginHref\}/);
+ assert.match(offer,/window\.location\.assign\(loginHref\)/);
+ assert.match(panel,/search\.get\("returnTo"\)===CREDIT_BUY_RETURN/);
+ assert.match(panel,/window\.location\.assign\(loginReturn\)/);
+ assert.match(google,/parseAccountReturn/);
+ assert.match(callback,/parseAccountReturn/);
+ assert.match(callback,/destination\.searchParams\.set\("auth_changed","1"\)/);
+ assert.match(studio,/<strong>Estimated cost:<\/strong> \{reviewPrice\}/);
+ assert.doesNotMatch(studio,/<strong>Price version:<\/strong>/);
+ assert.doesNotMatch(studio,/Playback slow-down and longer provider output/);
+ assert.doesNotMatch(offer,/Credits \/ started sec<\/span>/);
 });

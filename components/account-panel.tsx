@@ -5,7 +5,7 @@ import {UserRound,Eye,EyeOff} from "lucide-react";
 import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import {AccountCreditSummary} from "@/components/account-credit-summary";
 import {notifyAuthTransition} from "@/lib/client";
-import {parseStudioAccountReturn,studioAccountReturn} from "@/lib/studio-account-handoff";
+import {parseStudioAccountReturn,studioAccountReturn,CREDIT_BUY_RETURN} from "@/lib/studio-account-handoff";
 
 export function AccountPanel({active}:{active:boolean}){
  const [passwordOpen,setPasswordOpen]=useState(false),[currentPassword,setCurrentPassword]=useState(""),[newPassword,setNewPassword]=useState(""),[passwordMessage,setPasswordMessage]=useState("");
@@ -20,12 +20,15 @@ export function AccountPanel({active}:{active:boolean}){
  const [confirmPassword,setConfirmPassword]=useState(""),[showPassword,setShowPassword]=useState(false);
  const [googleAvailable,setGoogleAvailable]=useState(false);
  const [studioReturn,setStudioReturn]=useState<string|null>(null);
+ const [creditsReturn,setCreditsReturn]=useState<string|null>(null);
+ const loginReturn=studioReturn||creditsReturn;
  const [deletionComplete,setDeletionComplete]=useState(false);
 
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const search=new URLSearchParams(window.location.search);
   const allowedReturn=parseStudioAccountReturn(search.get("returnTo"));
   setStudioReturn(allowedReturn?studioAccountReturn(allowedReturn.draftId,allowedReturn.requiredCredits):null);
+  setCreditsReturn(search.get("returnTo")===CREDIT_BUY_RETURN?CREDIT_BUY_RETURN:null);
   const reason=search.get("google_error");
   const expired=search.get("session")==="expired";
   if(reason)void Promise.resolve().then(()=>setError(reason.slice(0,240)));
@@ -57,8 +60,8 @@ export function AccountPanel({active}:{active:boolean}){
      // An expired cookie or a failed identity verification must never leave
      // the old email and its account actions rendered on the login page.
      setAccount(d?.authenticated===true?d.email??null:null);
-     if(studioReturn&&d?.authenticated===true&&(d.kind==="customer"||d.kind==="staff"))
-      window.location.replace(studioReturn);
+     if(loginReturn&&d?.authenticated===true&&(d.kind==="customer"||d.kind==="staff"))
+      window.location.replace(loginReturn);
      setStaff(d?.authenticated===true&&d.kind==="staff");
      setSuperAdmin(d?.authenticated===true&&d.kind==="staff"&&d.staffRole==="super-admin");
     });
@@ -75,7 +78,7 @@ export function AccountPanel({active}:{active:boolean}){
   window.addEventListener("pageshow",refresh);
   window.addEventListener("sm-auth-changed",changed);
   return()=>{live=false;window.removeEventListener("focus",refresh);document.removeEventListener("visibilitychange",refresh);window.removeEventListener("pageshow",refresh);window.removeEventListener("sm-auth-changed",changed)};
- },[active,studioReturn]);
+ },[active,loginReturn]);
  async function logoutAll(){
   if(!window.confirm("Sign out this account on all devices?"))return;
   setBusy(true);setError("");
@@ -100,13 +103,13 @@ export function AccountPanel({active}:{active:boolean}){
     if(action==="login" && [401,403,503].includes(res.status)){
      const staffRes=await fetch("/api/cms/staff/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
      if(staffRes.ok){notifyAuthTransition();setPassword("");
-      if(studioReturn){window.location.assign(studioReturn);return;}
+      if(loginReturn){window.location.assign(loginReturn);return;}
       window.location.reload();return;}
     }
     throw Error(d.error||"Sign-in failed");
    }
    notifyAuthTransition();setPassword("");setAccount(d.email);
-   if(studioReturn){window.location.assign(studioReturn);return;}
+   if(loginReturn){window.location.assign(loginReturn);return;}
    window.location.reload();
   }catch(e){setError((e as Error).message)}finally{setBusy(false)}
  }
@@ -148,7 +151,7 @@ export function AccountPanel({active}:{active:boolean}){
    {mode==="register"&&<><label className="sm-account-label">Confirm password<span className="sm-account-password-wrap"><input type={showPassword?"text":"password"} aria-label="Confirm password" required minLength={8} maxLength={256} autoComplete="new-password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} placeholder="Repeat your password"/><button type="button" className="sm-account-eye" aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(!showPassword)}>{showPassword?<EyeOff size={19}/>:<Eye size={19}/>}</button></span></label><p className="sm-account-hint">Use at least 8 characters. Your projects remain private to your account.</p></>}
    {mode==="login"&&<Link className="sm-account-recovery-link" href="/account/reset-password">Forgot password?</Link>}
    <button type="submit" className="sm-carousel-primary" disabled={busy}>{busy?"Working…":mode==="login"?"Sign in":"Create account"}</button>
-   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href={studioReturn?"/api/google-auth?start=1&returnTo="+encodeURIComponent(studioReturn):"/api/google-auth?start=1"}><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
+   {googleAvailable&&<><div className="sm-account-divider"><span>or</span></div><Link className="sm-account-google" href={loginReturn?"/api/google-auth?start=1&returnTo="+encodeURIComponent(loginReturn):"/api/google-auth?start=1"}><span aria-hidden="true" className="sm-google-g">G</span>Continue with Google</Link></>}
    <button type="button" onClick={()=>{setMode(mode==="login"?"register":"login");setConfirmPassword("");setError("")}} style={{border:0,background:"transparent",color:"#d4c1ef",cursor:"pointer"}}>{mode==="login"?"Create account":"Back to sign in"}</button>
   </form>}
  </div>;
