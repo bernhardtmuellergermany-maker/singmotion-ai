@@ -1,0 +1,30 @@
+name: Suno production release candidate
+on:
+  pull_request:
+    branches: [production]
+    paths:
+      - "lib/suno-*.ts"
+      - "components/suno-song-import*"
+      - "components/studio-wizard.tsx"
+      - "app/(site)/api/suno-import/**"
+      - "tests/suno-song-import.test.ts"
+      - "package.json"
+      - ".github/workflows/suno-production-candidate.yml"
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  suno-candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Verify Suno auth, download, disconnect and strict Production origin
+        run: node --experimental-strip-types --test tests/suno-song-import.test.ts
+      - name: Verify full release build and TypeScript
+        run: npm run build
