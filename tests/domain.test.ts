@@ -52,14 +52,12 @@ test("file extension and size limits are enforced before expensive decoding", ()
   ] as const)
     assert.throws(() => validateFile(name, size, kind));
 });
-test("camera presets are composed with optional custom directions", () => {
-  const baseline = composePrompt("Natural", "Static camera", "");
-  assert.match(baseline, /camera fixed/);
-  const custom = composePrompt("Energetic", "Orbit left", "Sing passionately");
-  assert.match(custom, /Energetic singing performance/);
-  assert.match(custom, /arc to the left/);
-  assert.match(custom, /Sing passionately/);
-  assert.match(composePrompt("Natural", "Static Close-Up", ""), /Camera direction/);
+test("camera and performance selections never inject provider prompt instructions", () => {
+  assert.equal(composePrompt("Natural", "Static camera", ""), "");
+  assert.equal(composePrompt("Natural", "Static Close-Up", ""), "");
+  assert.equal(composePrompt("Energetic", "Orbit left", "Sing passionately"), "Sing passionately");
+  const literal = "  Sing gently with a static camera.  ";
+  assert.equal(composePrompt("Natural", "Slow Push-In", literal), literal);
   assert.throws(() => composePrompt("Custom", "Static camera", ""));
   assert.throws(() => composePrompt("Natural", "Orbit", ""));
   assert.throws(() => composePrompt("Natural", "Static camera", "x".repeat(1501)));
