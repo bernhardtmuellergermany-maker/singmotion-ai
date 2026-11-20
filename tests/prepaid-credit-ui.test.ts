@@ -88,11 +88,12 @@ test("credit estimator reuses Studio's credit tariff and does not show duplicate
  const picker=read("components/credit-amount-picker.tsx");
  const css=read("components/credit-amount-picker.css");
  const plans=read("app/(site)/plans/plans.css");
- assert.match(picker,/VIDEO_CREDITS_PER_STARTED_SECOND/);
- assert.match(picker,/Math\.floor\(credits\/VIDEO_CREDITS_PER_STARTED_SECOND\)/);
+ assert.match(picker,/fetch\("\/api\/credit-tariff"/);
+ assert.match(picker,/Math\.floor\(credits\/creditsPerSecond\)/);
  assert.match(picker,/Estimated AI Video Seconds/);
  assert.match(picker,/Individual video limits apply/);
- assert.match(css,/grid-template-columns:repeat\(3,minmax\(0,1fr\)\)/);
+ assert.match(css,/grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+ assert.match(css,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
  assert.doesNotMatch(picker,/Sign in to check if Credit checkout is available for your account/);
  assert.match(picker,/!\(discoverAvailability&&checkoutAccess\.state==="signed-out"\)/);
  assert.match(plans,/\.sm-plan-single \.sm-plan-action\{max-width:none;width:100%;min-height:65px/);
