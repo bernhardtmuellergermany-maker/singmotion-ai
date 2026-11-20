@@ -48,20 +48,32 @@ test("actual homepage, Pricing and Credits show live CMS fields and never a stal
 });
 
 
-test("decorated campaign offer occupies its own hero row without resizing the original CTA",()=>{
+test("reference pill follows original CTA and aligns with evidence-backed pricing",()=>{
  const banner=read("components/campaign-display.tsx");
- const campaignCss=read("components/campaign-display.css");
+ const css=read("components/campaign-display.css");
  const hero=read("components/immersive-home.tsx");
- const heroCss=read("app/(site)/home-immersive.css");
+ const homeCss=read("app/(site)/home-immersive.css");
  const preview=read("components/cms/campaigns-client.tsx");
  const previewCss=read("components/cms/campaigns.css");
- assert.match(hero,/<CampaignOfferLine\/>\s*<Link className="sm-immersive-cta"/);
- assert.match(campaignCss,/\.sm-immersive-home \.sm-immersive-desktop-intro>\.sm-campaign-offer-line\{\s*display:flex;/);
- assert.match(campaignCss,/\.sm-immersive-home \.sm-campaign-offer-line\{\s*display:flex;flex-direction:column/);
- assert.match(campaignCss,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-campaign-offer-line/);
- assert.match(heroCss,/\.sm-immersive-cta\{[^}]*min-height:54px;min-width:min\(320px,100%\)/);
- assert.match(banner,/<Rocket size=\{20\}/);
- assert.match(banner,/tariff\.discountPercent!==null&&<em>/);
- assert.match(preview,/sm-marketing-preview-offer-price/);
+ const cta='<Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>';
+ assert.equal(hero.split(cta+"\n     <CampaignOfferLine/>").length-1,2);
+ assert.match(homeCss,/\.sm-immersive-cta\{[^}]*min-height:54px;min-width:min\(320px,100%\)/);
+ for(const token of ["<Rocket size={20}","sm-campaign-offer-divider",
+   "sm-campaign-offer-current","sm-campaign-offer-discount",
+   "sm-campaign-offer-regular","<Clock3 size={15}",
+   "sm-campaign-offer-meta"]){
+  assert.ok(banner.includes(token),"Missing offer item "+token);
+ }
+ assert.match(banner,/tariff\.discountPercent!==null&&/);
+ assert.match(banner,/tariff\.creditsPerSecond<tariff\.regularCreditsPerSecond/);
+ assert.match(banner,/verifiedDiscount&&<>/);
+ assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
+ assert.match(css,/padding:12px 26px/);
+ assert.match(css,/border-radius:999px/);
+ assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
+ assert.ok(banner.indexOf('</aside>')<banner.indexOf('className="sm-campaign-offer-meta"'));
+ assert.ok(preview.indexOf('sm-marketing-preview-primary')<preview.indexOf('sm-marketing-preview-offer-block'));
+ assert.match(preview,/sm-marketing-preview-offer-regular/);
+ assert.match(preview,/sm-marketing-preview-offer-hint/);
  assert.match(previewCss,/\.sm-marketing-preview-mobile\.sm-marketing-preview-home \.sm-marketing-preview-offer/);
 });
