@@ -3,30 +3,12 @@ name: Validate private staging without paid services
 on:
   pull_request:
     branches:
-      - fix/tempo-distinguish-provider-errors-20261028
-      - feat/super-admin-promo-codes-20261103
-      - feat/automatic-customer-video-worker-20261105
-      - feat/owner-confirmed-byteplus-pricing-checkout-20261105
-      - feat/stripe-live-customer-release-preflight-20261105
-      - fix/production-customer-session-and-release-safety-20261105
-      - fix/stripe-live-permissions-20261105
-      - fix/stripe-endive-hobby-invoice-20261105
-      - feat/production-r2-readonly-preflight-20261105
-      - feat/production-private-customer-preview-300s-20261105
-      - feat/super-admin-stripe-free-private-studio-20261105
+      - staging
+      - production
   push:
     branches:
-      - fix/mobile-private-gate-cookie-20261105
-      - fix/tempo-distinguish-provider-errors-20261028
-      - feat/super-admin-promo-codes-20261103
-      - feat/automatic-customer-video-worker-20261105
-      - feat/owner-confirmed-byteplus-pricing-checkout-20261105
-      - feat/stripe-live-customer-release-preflight-20261105
-      - fix/production-customer-session-and-release-safety-20261105
-      - fix/stripe-live-permissions-20261105
-      - fix/stripe-endive-hobby-invoice-20261105
-      - feat/production-r2-readonly-preflight-20261105
-      - feat/production-private-customer-preview-300s-20261105
+      - staging
+      - production
   workflow_dispatch:
 
 permissions:

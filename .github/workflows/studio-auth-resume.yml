@@ -1,6 +1,9 @@
 name: Studio standard login and guest draft resume
 on:
   pull_request:
+    branches:
+      - staging
+      - production
     paths:
       - "components/studio-wizard.tsx"
       - "components/studio-account-resume.tsx"
@@ -12,6 +15,7 @@ on:
       - "package.json"
       - ".github/workflows/studio-auth-resume.yml"
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

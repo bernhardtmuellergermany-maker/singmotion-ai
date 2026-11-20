@@ -3,7 +3,8 @@ name: Verify canonical Videos navigation and private links
 on:
   pull_request:
     branches:
-      - release/production-promoted-20261114
+      - staging
+      - production
     paths:
       - 'app/(site)/videos/**'
       - 'app/(site)/projects/**'
