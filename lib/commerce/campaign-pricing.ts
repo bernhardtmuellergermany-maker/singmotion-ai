@@ -8,7 +8,8 @@ export type Campaign={
  id:string;identifier:string;status:CampaignStatus;startUtc:number;endUtc:number;
  creditsPerSecond:number;badgeText:string;heading:string;description:string;
  actionHint:string;ctaText:string;theme:CampaignTheme;accent:string;
- showBadge:boolean;showBanner:boolean;comparisonEvidence:string|null;
+ showBadge:boolean;showBanner:boolean;showDiscountPercent:boolean;showRegularPrice:boolean;
+ comparisonEvidence:string|null;
  maxCustomerGenerations:number|null;maxCampaignCredits:number|null;
  revision:number;updated:number;
 };
@@ -16,7 +17,8 @@ export type PublicTariff={
  version:string;campaignId:string|null;identifier:string|null;
  creditsPerSecond:number;regularCreditsPerSecond:25;discountPercent:number|null;
  badgeText:string;heading:string;description:string;actionHint:string;
- ctaText:string;theme:CampaignTheme;accent:string;showBadge:boolean;showBanner:boolean;
+ ctaText:string;theme:CampaignTheme;accent:string;
+ showBadge:boolean;showBanner:boolean;showDiscountPercent:boolean;showRegularPrice:boolean;
  expiresUtc:number|null;
 };
 const themes=["purple","rose","gold","ice","emerald","beta"] as const;
@@ -45,6 +47,11 @@ function string(value:unknown,max:number,required=false){
   throw new CampaignError("Ungültiger Kampagnentext oder unerlaubtes Markup.",400);
  return value.trim();
 }
+function booleanOnByDefault(value:unknown){
+ if(value===undefined||value===true)return true;
+ if(value===false)return false;
+ throw new CampaignError("Ungültiger Schalter für die Preisanzeige.",400);
+}
 function integer(value:unknown,min:number,max:number){
  if(!Number.isSafeInteger(value)||Number(value)<min||Number(value)>max)
   throw new CampaignError("Ungültiger Kampagnenpreis oder Zeitraum.",400);
@@ -54,7 +61,7 @@ export function regularTariff():PublicTariff {
  return {version:"regular-v1",campaignId:null,identifier:null,creditsPerSecond:25,
   regularCreditsPerSecond:25,discountPercent:null,badgeText:"",heading:"",
   description:"",actionHint:"",ctaText:"",theme:"purple",accent:"#af65ef",
-  showBadge:false,showBanner:false,expiresUtc:null};
+  showBadge:false,showBanner:false,showDiscountPercent:true,showRegularPrice:true,expiresUtc:null};
 }
 export class CampaignPricing{
  private readonly db:DatabaseSync;
@@ -67,7 +74,10 @@ export class CampaignPricing{
     credits_per_second INTEGER NOT NULL CHECK(credits_per_second>=1 AND credits_per_second<=1000),
     badge_text TEXT NOT NULL,heading TEXT NOT NULL,description TEXT NOT NULL,action_hint TEXT NOT NULL,
     cta_text TEXT NOT NULL,theme TEXT NOT NULL,accent TEXT NOT NULL,
-    show_badge INTEGER NOT NULL,show_banner INTEGER NOT NULL,comparison_evidence TEXT,
+    show_badge INTEGER NOT NULL,show_banner INTEGER NOT NULL,
+    show_discount_percent INTEGER NOT NULL DEFAULT 1 CHECK(show_discount_percent IN (0,1)),
+    show_regular_price INTEGER NOT NULL DEFAULT 1 CHECK(show_regular_price IN (0,1)),
+    comparison_evidence TEXT,
     max_customer_generations INTEGER,max_campaign_credits INTEGER,
     revision INTEGER NOT NULL,updated INTEGER NOT NULL
    );
@@ -78,6 +88,13 @@ export class CampaignPricing{
     PRIMARY KEY(campaign_id,revision)
    );
   `);
+  // Idempotent upgrade for existing SQLite campaigns: current display stays ON.
+  const columns=new Set((db.prepare("PRAGMA table_info(marketing_campaigns)").all() as
+   Array<{name:string}>).map(column=>column.name));
+  if(!columns.has("show_discount_percent"))
+   db.exec("ALTER TABLE marketing_campaigns ADD COLUMN show_discount_percent INTEGER NOT NULL DEFAULT 1 CHECK(show_discount_percent IN (0,1))");
+  if(!columns.has("show_regular_price"))
+   db.exec("ALTER TABLE marketing_campaigns ADD COLUMN show_regular_price INTEGER NOT NULL DEFAULT 1 CHECK(show_regular_price IN (0,1))");
  }
  private tx<T>(f:()=>T):T{
   this.db.exec("BEGIN IMMEDIATE");
@@ -89,6 +106,7 @@ export class CampaignPricing{
    badgeText:String(r.badge_text),heading:String(r.heading),description:String(r.description),
    actionHint:String(r.action_hint),ctaText:String(r.cta_text),theme:r.theme as CampaignTheme,
    accent:String(r.accent),showBadge:r.show_badge===1,showBanner:r.show_banner===1,
+   showDiscountPercent:r.show_discount_percent===1,showRegularPrice:r.show_regular_price===1,
    comparisonEvidence:r.comparison_evidence===null?null:String(r.comparison_evidence),
    maxCustomerGenerations:r.max_customer_generations===null?null:Number(r.max_customer_generations),
    maxCampaignCredits:r.max_campaign_credits===null?null:Number(r.max_campaign_credits),
@@ -126,6 +144,8 @@ export class CampaignPricing{
    ctaText:string(input.ctaText??"",60),theme:input.theme??"purple",
    accent:input.accent??"#af65ef",
    showBadge:input.showBadge===true,showBanner:input.showBanner===true,
+   showDiscountPercent:booleanOnByDefault(input.showDiscountPercent),
+   showRegularPrice:booleanOnByDefault(input.showRegularPrice),
    comparisonEvidence:input.comparisonEvidence?string(input.comparisonEvidence,500):null,
    maxCustomerGenerations:input.maxCustomerGenerations==null?null:integer(input.maxCustomerGenerations,1,100000),
    maxCampaignCredits:input.maxCampaignCredits==null?null:integer(input.maxCampaignCredits,1,100000000),
@@ -154,20 +174,24 @@ export class CampaignPricing{
    const revision=(old?.revision??0)+1,updated=Date.now();
    this.db.prepare(`INSERT INTO marketing_campaigns
     (id,identifier,status,start_utc,end_utc,credits_per_second,badge_text,heading,description,
-     action_hint,cta_text,theme,accent,show_badge,show_banner,comparison_evidence,
+     action_hint,cta_text,theme,accent,show_badge,show_banner,
+     show_discount_percent,show_regular_price,comparison_evidence,
      max_customer_generations,max_campaign_credits,revision,updated)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
      identifier=excluded.identifier,status=excluded.status,start_utc=excluded.start_utc,
      end_utc=excluded.end_utc,credits_per_second=excluded.credits_per_second,
      badge_text=excluded.badge_text,heading=excluded.heading,description=excluded.description,
      action_hint=excluded.action_hint,cta_text=excluded.cta_text,theme=excluded.theme,
      accent=excluded.accent,show_badge=excluded.show_badge,show_banner=excluded.show_banner,
+     show_discount_percent=excluded.show_discount_percent,
+     show_regular_price=excluded.show_regular_price,
      comparison_evidence=excluded.comparison_evidence,max_customer_generations=excluded.max_customer_generations,
      max_campaign_credits=excluded.max_campaign_credits,revision=excluded.revision,updated=excluded.updated`)
     .run(id,item.identifier,item.status,item.startUtc,item.endUtc,item.creditsPerSecond,
      item.badgeText,item.heading,item.description,item.actionHint,item.ctaText,item.theme,item.accent,
-     item.showBadge?1:0,item.showBanner?1:0,item.comparisonEvidence,
+     item.showBadge?1:0,item.showBanner?1:0,
+     item.showDiscountPercent?1:0,item.showRegularPrice?1:0,item.comparisonEvidence,
      item.maxCustomerGenerations,item.maxCampaignCredits,revision,updated);
    const campaign=this.byId(id)!;
    this.db.prepare("INSERT INTO marketing_campaign_versions VALUES(?,?,?,?,?)")
@@ -193,7 +217,8 @@ export class CampaignPricing{
    regularCreditsPerSecond:25,discountPercent,badgeText:c.badgeText,
    heading:c.heading,description:c.description,actionHint:c.actionHint,
    ctaText:c.ctaText,theme:c.theme,accent:c.accent,showBadge:c.showBadge,
-   showBanner:c.showBanner,expiresUtc:c.endUtc};
+   showBanner:c.showBanner,showDiscountPercent:c.showDiscountPercent,
+   showRegularPrice:c.showRegularPrice,expiresUtc:c.endUtc};
  }
  stats(campaignId:string){
   if(!uuid.test(campaignId))throw new CampaignError("Ungültige Kampagnen-ID",400);
