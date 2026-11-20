@@ -129,6 +129,21 @@ try{
    await page.getByText(prompt,{exact:true}).first().waitFor({timeout:15000});
    assert.ok(await page.getByText("original-song.mp3",{exact:true}).count());
    assert.ok(await page.locator(".sm-review-photo-value img").count());
+   // Real Chromium navigation at phone and desktop widths: four neon circles,
+   // restored audio/photo/prompt, and no billing side effects.
+   for(const viewport of [{width:390,height:844},{width:1280,height:900}]){
+    await page.setViewportSize(viewport);
+    await page.getByRole("button",{name:"Go to step 3 of 4: Performance"}).click();
+    await page.getByRole("heading",{name:"Your performance"}).waitFor({timeout:10000});
+    assert.equal(await page.locator("#flow-performance-prompt").inputValue(),prompt);
+    await page.getByRole("button",{name:"Go to step 2 of 4: Photo"}).click();
+    await page.getByRole("heading",{name:"Your artist photo"}).waitFor({timeout:10000});
+    await page.getByRole("button",{name:"Go to step 1 of 4: Audio"}).click();
+    await page.getByText("Step 1 of 4 · Audio",{exact:true}).waitFor({timeout:10000});
+    await page.getByRole("button",{name:"Go to step 4 of 4: Generate"}).click();
+    await page.getByRole("heading",{name:"Ready to generate?"}).waitFor({timeout:10000});
+    await page.getByText(prompt,{exact:true}).first().waitFor({timeout:10000});
+   }
    // Make sure we did not merely pass through Step 4 before a wallet redirect.
    const finalLocation=new URL(page.url());
    assert.equal(finalLocation.pathname,"/studio");
