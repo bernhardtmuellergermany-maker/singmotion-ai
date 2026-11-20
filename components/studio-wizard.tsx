@@ -901,7 +901,7 @@ export function StudioWizard({
               </div>
             </>
           )}
-          {!draft.song&&<SunoSongImport disabled={!ready||busy} onChooseFile={()=>audioFileInput.current?.click()} onImportFile={file=>add(file,"audio")}/>}
+          {!draft.song&&<SunoSongImport disabled={!ready||busy} onImportFile={file=>add(file,"audio")}/>}
         </div>}
         {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
           <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"

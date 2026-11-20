@@ -120,6 +120,17 @@ test("unapproved MCP download hosts are rejected and diagnostics never expose si
   }
  }finally{console.warn=originalWarn}
 });
+test("Suno OAuth return opens direct import, confirms connection, and excludes manual fallback",()=>{
+ assert.match(ui,/setExpanded\(true\)/);
+ assert.match(ui,/suno_connected/);
+ assert.match(ui,/focusAfterConnect/);
+ assert.match(ui,/linkInput\.current\?\.focus\(\)/);
+ assert.match(ui,/Suno connected — ready to import your song/);
+ assert.match(ui,/open=\{expanded\}/);
+ assert.doesNotMatch(ui,/Choose downloaded audio|Or download the song through Suno|FileMusic|onChooseFile/);
+ assert.doesNotMatch(wizard,/onChooseFile=\{\(\)=>audioFileInput/);
+ assert.match(ui,/Import song directly/);
+});
 test("Studio integrates direct official download into the existing validated private audio upload",()=>{
  assert.match(wizard,/onImportFile=\{file=>add\(file,"audio"\)\}/);
  assert.match(wizard,/uploadWithProgress\(file, kind,/);
