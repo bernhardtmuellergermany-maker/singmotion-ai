@@ -5,6 +5,7 @@ import type {
  CustomerInsightsList,CustomerInsightsProfile,CustomerInsight,CustomerInsightEvent,
 } from "../../lib/commerce/customer-insights";
 import "./customer-insights.css";
+import {CustomerCreditGift} from "./customer-credit-gift";
 
 const number=(n:number)=>new Intl.NumberFormat("de-DE").format(n);
 const money=(cents:number)=>new Intl.NumberFormat("de-DE",{style:"currency",currency:"EUR"})
@@ -31,7 +32,7 @@ function ActivityItem({item}:{item:CustomerInsightEvent}){
   <small>{datetime(item.at)}{item.reference?" · "+item.reference:""}</small></div>
   <span>{item.credits!==undefined?number(item.credits)+" Credits":item.cents!==undefined?money(item.cents):""}</span></li>;
 }
-function Detail({data,onClose}:{data:CustomerInsightsProfile;onClose:()=>void}){
+function Detail({data,onClose,onBooked}:{data:CustomerInsightsProfile;onClose:()=>void;onBooked:()=>void}){
  const c=data.customer;
  return <section className="sm-insights-detail" aria-label="Kundendetails">
   <div className="sm-insights-detail-head"><div><span className="sm-insights-kicker">KUNDENPROFIL · NUR SUPER-ADMIN</span>
@@ -44,6 +45,7 @@ function Detail({data,onClose}:{data:CustomerInsightsProfile;onClose:()=>void}){
    <p><span>Credits verfügbar / reserviert</span><strong>{number(c.availableCredits)} / {number(c.reservedCredits)}</strong></p>
    <p><span>Credits verwendet</span><strong>{number(c.creditsSpent)}</strong></p>
    <p><span>Beta-/Bonus-Credits gebucht</span><strong>{number(c.promotionalCredits)}</strong></p>
+   <p><span>Manuell geschenkte Credits</span><strong>{number(c.manualGiftCredits)}</strong></p>
    <p><span>Credit-Käufe · verbucht</span><strong>{number(c.paidTopups)} · {money(c.topupCents)}</strong></p>
    <p><span>Frühere Käufe · brutto</span><strong>{money(c.legacyGrossCents)}</strong></p>
    <p><span>Bekannte Rückerstattungen · früher</span><strong>{money(c.knownRefundCents)}</strong></p>
@@ -51,13 +53,14 @@ function Detail({data,onClose}:{data:CustomerInsightsProfile;onClose:()=>void}){
    <p><span>Letzte Transaktion</span><strong>{datetime(c.lastTransactionAt)}</strong></p>
    <p><span>Marketing-Einwilligung</span><strong>Nicht erfasst</strong></p>
   </div>
+  <CustomerCreditGift customer={c} onBooked={onBooked}/>
   <h3>Letzte Buchungen und Video-Status</h3>
   <p>Technische Statuswerte aus den vorhandenen Buchungen; keine Zahlungsbelege oder Besuchsprotokolle.</p>
   {data.events.length===0?<p>Keine Transaktionen vorhanden.</p>:<ul className="sm-insights-events">
    {data.events.map(item=><ActivityItem item={item} key={item.id}/>)}
   </ul>}
   <p className="sm-insights-support">Für Erstattungen, Rechteanfragen oder Support nutze weiterhin
-   die <a href="/support-admin">geschützte Support-Konsole</a>. Diese Übersicht darf keine Rückerstattung oder Marketingaktion auslösen.</p>
+   die <a href="/support-admin">geschützte Support-Konsole</a>. Korrekturbuchungen und Rückerstattungen sind ausdrücklich getrennte, geschützte Vorgänge.</p>
  </section>;
 }
 
@@ -72,6 +75,7 @@ export function CustomerInsightsClient(){
  const [detail,setDetail]=useState<CustomerInsightsProfile|null>(null);
  const [detailError,setDetailError]=useState("");
  const [detailLoading,setDetailLoading]=useState(false);
+ const [detailRevision,setDetailRevision]=useState(0);
  useEffect(()=>{
   const timer=window.setTimeout(()=>{setSearch(input.trim());setPage(1);setSelected(null);setDetail(null)},350);
   return()=>window.clearTimeout(timer);
@@ -105,12 +109,12 @@ export function CustomerInsightsClient(){
    if(!controller.signal.aborted)setDetailError(reason instanceof Error?reason.message:"Fehler bei der Detailabfrage");
   }).finally(()=>{if(!controller.signal.aborted)setDetailLoading(false)});
   return()=>controller.abort();
- },[selected]);
+ },[selected,detailRevision]);
  const metrics=result?.summary;
  return <main className="sm-insights" aria-label="Customer Insights">
   <header className="sm-insights-hero"><span className="sm-insights-kicker">SINGMOTION AI · PRIVATE OPERATIONS</span>
    <h1>Customer Insights</h1>
-   <p>Kunden, Videos, Credits und vorhandene Zahlungsdaten – ausschließlich lesend, innerhalb dieser Railway-Umgebung.
+   <p>Kunden, Videos, Credits und vorhandene Zahlungsdaten in dieser Railway-Umgebung. Einzelgutschriften sind separat geschützt.
      Kein Kundentracking und keine Datenweitergabe an Werbenetzwerke.</p>
   </header>
   {error&&<ErrorMessage text={error}/>}
@@ -161,7 +165,7 @@ export function CustomerInsightsClient(){
   {selected&&<div className="sm-insights-detail-wrap">
    {detailLoading&&<p role="status">Kundenprofil wird geladen…</p>}
    {detailError&&<ErrorMessage text={detailError}/>}
-   {detail&&<Detail data={detail} onClose={()=>setSelected(null)}/>}
+   {detail&&<Detail data={detail} onClose={()=>setSelected(null)} onBooked={()=>setDetailRevision(v=>v+1)}/>}
   </div>}
   <section className="sm-insights-area sm-insights-privacy" aria-label="Nicht erhobene Analysedaten">
    <h2>Was bewusst nicht erfasst wird</h2>

@@ -1,5 +1,6 @@
 import { DashboardNav as DashboardNav_sm20261104 } from "../../../components/cms/dashboard-nav.tsx";
 import { CustomerInsightsView as CustomerInsightsView_sm20261118 } from "../../../components/cms/customer-insights-view.tsx";
+import { CampaignsCmsView as CampaignsCmsView_sm20261120 } from "../../../components/cms/campaigns-view.tsx";
 import { CleanDashboardView as CleanDashboardView_sm20261118 } from "../../../components/cms/dashboard-view.tsx";
 import { ShowcaseCmsView as ShowcaseCmsView_sm20261118 } from "../../../components/cms/showcase-view.tsx";
 import { AdvancedCmsView as AdvancedCmsView_sm20261118 } from "../../../components/cms/advanced-view.tsx";
@@ -16,6 +17,8 @@ export const importMap = {
     AdvancedCmsView_sm20261118,
   "/components/cms/customer-insights-view.tsx#CustomerInsightsView":
     CustomerInsightsView_sm20261118,
+  "/components/cms/campaigns-view.tsx#CampaignsCmsView":
+    CampaignsCmsView_sm20261120,
   "@payloadcms/next/rsc#CollectionCards":
     CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1,
 };

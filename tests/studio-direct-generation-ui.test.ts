@@ -19,7 +19,7 @@ test("Step 4 starts authorized account Credit generation directly or guides gues
 
 test("generation is idempotently guarded and failures keep project recovery visible",()=>{
  assert.match(wizard,/if\(busy\|\|generating\|\|!selection/);
- assert.match(wizard,/generationProjectId\)return/);
+ assert.match(wizard,/generationProjectId\|\|!activeTariff\)return/);
  assert.match(wizard,/if\(prepared\.state!=="prepared"\)/);
  assert.match(wizard,/setGenerationProjectId\(prepared\.id\)/);
  assert.match(wizard,/Open the saved video status/);

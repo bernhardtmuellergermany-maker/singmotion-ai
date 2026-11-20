@@ -58,7 +58,8 @@ import {
   featuredCameraMovements, additionalCameraMovements, type CameraMovement,
 } from "@/lib/studio-camera-movements";
 import {hasFirstStudioUpload, type StudioDraftExport} from "@/lib/studio-draft";
-import {quoteVideoCredits,VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
+import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
+import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
 const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
@@ -118,6 +119,7 @@ export function StudioWizard({
     [photoSize,setPhotoSize] = useState({width:1,height:1}),
     [error, setError] = useState(""),
     [reviewBalance,setReviewBalance] = useState<number|null>(null),
+    [activeTariff,setActiveTariff] = useState<PublicTariff|null>(null),
     [reviewRights, setReviewRights] = useState(false),
     [confirm, setConfirm] = useState(false),
     [generationProjectId,setGenerationProjectId] = useState(""),
@@ -644,7 +646,19 @@ export function StudioWizard({
   // uses slowed playback, extra output frames or another internal cost uplift.
   const operatorStudio=owner.startsWith("cms-staff-");
   const creditStudio=operatorStudio||owner.startsWith("customer-");
-  const creditQuote=selection?quoteVideoCredits(selection.start,selection.end):null;
+  useEffect(()=>{
+    if(step!==3)return;
+    let active=true;
+    const load=()=>void fetch("/api/credit-tariff",{cache:"no-store"})
+      .then(async response=>{if(!response.ok)throw Error("Tariff unavailable");
+        return await response.json() as PublicTariff})
+      .then(info=>{if(active)setActiveTariff(info)})
+      .catch(()=>{if(active)setActiveTariff(null)});
+    load();window.addEventListener("focus",load);
+    return()=>{active=false;window.removeEventListener("focus",load)};
+  },[step]);
+  const creditQuote=selection&&activeTariff
+   ?quoteVideoCredits(selection.start,selection.end,activeTariff.creditsPerSecond):null;
   const reviewPrice=creditQuote
     ?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits"
     :"Unavailable";
@@ -736,7 +750,7 @@ export function StudioWizard({
   }
   async function startCreditGeneration(){
     if(busy||generating||!selection||!available||!reviewRights||!creditQuote||
-       reviewShortage||!projectKey||generationProjectId)return;
+       reviewShortage||!projectKey||generationProjectId||!activeTariff)return;
     setGenerating(true);setError("");
     let preparedId="";
     try{
@@ -747,6 +761,12 @@ export function StudioWizard({
       if(!rights.version||!access.pilot||!(operatorStudio?access.superAdmin:access.customerBeta)||
          (access.blockers?.length??0)>0)
         throw Error("Credit video generation is not authorized for this signed-in account. Your saved Studio project is unchanged.");
+      const tariffResponse=await fetch("/api/credit-tariff",{cache:"no-store"});
+      if(!tariffResponse.ok)throw Error("Current Video Credit tariff cannot be verified.");
+      const confirmedTariff=await tariffResponse.json() as PublicTariff;
+      if(confirmedTariff.version!==activeTariff.version||
+         confirmedTariff.creditsPerSecond!==activeTariff.creditsPerSecond)
+       throw Error("Video tariff changed. Review and confirm the current price again.");
       const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
       if(!response.ok)throw Error("Credit balance unavailable. Please retry after checking your wallet.");
       const wallet=await response.json() as {availableCredits?:number};
@@ -772,6 +792,7 @@ export function StudioWizard({
       await api("studio-live",{
         method:"POST",body:JSON.stringify({
           action:"submit",id:prepared.id,digest:prepared.digest,
+          priceVersion:activeTariff.version,
           ceilingMicroUsd:prepared.ceilingMicroUsd,consent:true,
           termsVersion:rights.version,
           confirmation:`CONFIRM PAID STUDIO ${prepared.id} ${prepared.digest} ${prepared.ceilingMicroUsd}${prepared.experimental?" ACCEPT EXPERIMENTAL UNKNOWN DURATION FEES MEDIA":""}`,
@@ -1067,9 +1088,10 @@ export function StudioWizard({
                 {creditQuote?<div aria-label="Video Credit calculation" className="sm-review-credit-breakdown">
                   <p><strong>Original selected audio:</strong> {creditQuote.sourceSeconds.toFixed(3)} seconds</p>
                   <p><strong>Started seconds billed:</strong> {creditQuote.startedSeconds} (rounded up)</p>
-                  <p><strong>Rate:</strong> {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second</p>
+                  <p><strong>Rate:</strong> {activeTariff?.creditsPerSecond} Credits per started second</p>
+                  <p><strong>Price version:</strong> {activeTariff?.version}</p>
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
-                  <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
+                  <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × {activeTariff?.creditsPerSecond} = {6*(activeTariff?.creditsPerSecond??0)} Credits.</p>
                   <p className="sm-review-credit-disclaimer">{creditStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
                 </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>

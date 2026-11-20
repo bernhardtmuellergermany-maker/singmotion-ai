@@ -144,7 +144,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
      <h3>Credit transactions</h3>
      {balance.entries.length===0?<p className="sm-credits-empty">No credit transactions recorded yet.</p>:
       <ul>{balance.entries.map(entry=><li key={entry.id}>
-       <span><strong>{entry.type==="purchase"?"Credits purchased":entry.type==="beta-welcome"?"Beta welcome gift":entry.type==="video"?"Video paid with credits":entry.type==="video-release"?"Video credit hold released":entry.type==="refund"?"Refund":entry.type==="dispute"?"Payment dispute":"Credit adjustment"}</strong>
+       <span><strong>{entry.type==="purchase"?"Credits purchased":entry.type==="beta-welcome"?"Beta welcome gift":entry.type==="manual-gift"?"Promotional Gift":entry.type==="manual-gift-correction"?"Promotional Gift correction":entry.type==="video"?"Video paid with credits":entry.type==="video-release"?"Video credit hold released":entry.type==="refund"?"Refund":entry.type==="dispute"?"Payment dispute":"Credit adjustment"}</strong>
        <small>{date(entry.created)} · {entry.reference.slice(0,24)}</small></span>
        <strong className={entry.credits>0?"sm-credits-positive":""}>{entry.credits>0?"+":""}{num(entry.credits)} Credits</strong>
       </li>)}</ul>}

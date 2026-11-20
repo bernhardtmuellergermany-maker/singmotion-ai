@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { api, ensureSession, resetSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
-import {quoteVideoCredits,VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
+import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
+import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
 import {CustomerFeedback} from "./customer-feedback";
 import {generationFeedback,requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 
@@ -41,6 +42,7 @@ export function GenerationDialog({
     [pilot, setPilot] = useState<boolean | null>(null),
     [superAdmin, setSuperAdmin] = useState(false),
     [availableCredits,setAvailableCredits] = useState<number|null>(null),
+    [activeTariff,setActiveTariff] = useState<PublicTariff|null>(null),
     [loginBusy, setLoginBusy] = useState(false),
     [blockers, setBlockers] = useState<string[]>([]),
     [customerOrdersAvailable, setCustomerOrdersAvailable] = useState(false),
@@ -54,6 +56,16 @@ export function GenerationDialog({
     [appliedPromo,setAppliedPromo] = useState(""),
     [promoError,setPromoError] = useState(""),
     [quotePending, setQuotePending] = useState(true);
+  useEffect(()=>{
+    let active=true;
+    const reload=()=>void fetch("/api/credit-tariff",{cache:"no-store"})
+      .then(async response=>{if(!response.ok)throw Error("Tariff unavailable");
+       return await response.json() as PublicTariff;})
+      .then(value=>{if(active)setActiveTariff(value)})
+      .catch(()=>{if(active)setActiveTariff(null)});
+    reload();window.addEventListener("focus",reload);
+    return()=>{active=false;window.removeEventListener("focus",reload)};
+  },[]);
   // CMS operators must never fall through to the public guest checkout.
   const operatorFlow=selection.owner.startsWith("cms-staff-");
   const customerFlow=!operatorFlow && customerOrdersAvailable;
@@ -291,11 +303,17 @@ export function GenerationDialog({
     }
   }
   async function act(repeatOf?: string) {
-    if (lock.current || !rights || !terms || !pilot || (blockers.length > 0 && !superAdmin)) return;
+    if (lock.current || !rights || !terms || !pilot || !activeTariff || (blockers.length > 0 && !superAdmin)) return;
     lock.current = true;
     setBusy(true);
     setError("");
     try {
+      const tariffResponse=await fetch("/api/credit-tariff",{cache:"no-store"});
+      if(!tariffResponse.ok)throw Error("Current Credit tariff could not be verified.");
+      const currentTariff=await tariffResponse.json() as PublicTariff;
+      if(currentTariff.version!==activeTariff.version||
+         currentTariff.creditsPerSecond!==activeTariff.creditsPerSecond)
+       throw Error("Credit tariff changed. Review the price again before submitting.");
       if (!plan || repeatOf) {
         const prepared = await api<StudioProject>("studio-live", {
             method: "POST",
@@ -317,6 +335,7 @@ export function GenerationDialog({
           await api("studio-live", {
             method: "POST",
             body: JSON.stringify({
+              priceVersion:activeTariff.version,
               action: "submit", id: prepared.id, digest: prepared.digest,
               ceilingMicroUsd: prepared.ceilingMicroUsd, consent: true,
               termsVersion: terms,
@@ -339,7 +358,8 @@ export function GenerationDialog({
       await api("studio-live", {
         method: "POST",
         body: JSON.stringify({
-          action: "submit",
+          priceVersion:activeTariff.version,
+              action: "submit",
           id: plan.id,
           digest: plan.digest,
           ceilingMicroUsd: plan.ceilingMicroUsd,
@@ -359,6 +379,7 @@ export function GenerationDialog({
     }
   }
   const blocked =
+    !activeTariff ||
     busy ||
     !rights ||
     !terms ||
@@ -371,7 +392,7 @@ export function GenerationDialog({
           !plan.ceilingMicroUsd ||
           !!plan.budgetBlocker)));
   const selectedSeconds = Math.max(0, selection.end - selection.start);
-  const creditQuote=quoteVideoCredits(selection.start,selection.end);
+  const creditQuote=activeTariff?quoteVideoCredits(selection.start,selection.end,activeTariff.creditsPerSecond):null;
   const creditPrice=creditQuote?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits":"Unavailable";
   const insufficient=superAdmin&&creditQuote!==null&&availableCredits!==null&&availableCredits<creditQuote.credits;
   const creditsHref=creditQuote?`/credits?resumeDraft=${encodeURIComponent(requestKey)}&requiredCredits=${creditQuote.credits}#buy-credits`:"/credits#buy-credits";
@@ -382,7 +403,7 @@ export function GenerationDialog({
     if(autoSubmitted.current||!rights||!terms||pilot!==true||!superAdmin||
       !plan||plan.state!=="prepared"||!plan.digest||!plan.ceilingMicroUsd||
       plan.budgetBlocker||busy||lock.current||error||blockers.length||
-      availableCredits===null||!creditQuote||availableCredits<creditQuote.credits)return;
+      availableCredits===null||!activeTariff||!creditQuote||availableCredits<creditQuote.credits)return;
     autoSubmitted.current=true;
     void act();
   },[rights,terms,pilot,superAdmin,plan,busy,error,blockers.length,availableCredits,creditQuote]);
@@ -406,7 +427,7 @@ export function GenerationDialog({
         <div><span>Duration</span><strong>{time(selectedSeconds)}</strong></div>
         <div><span>Song</span><strong className="sm-confirm-song" title={songName}>{songName}</strong></div>
       </div>
-      {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {VIDEO_CREDITS_PER_STARTED_SECOND} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"Customer credit-paid generation is not yet enabled, so this preview does not deduct Credits.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
+      {creditQuote&&<p className="sm-confirm-notice" role="status">Customer credit calculation: {creditQuote.sourceSeconds.toFixed(3)} selected source seconds → {creditQuote.startedSeconds} started seconds × {activeTariff?.creditsPerSecond} Credits = <strong>{creditPrice}</strong>. Playback slow-down never increases this credit price. {customerFlow?"Customer credit-paid generation is not yet enabled, so this preview does not deduct Credits.":"Your available wallet Credits will be reserved before BytePlus submission and charged after verified video delivery."}</p>}
       <p className="sm-confirm-notice">{customerFlow?"Customer video generation with Credits is not yet enabled.":<>Your own wallet must contain enough available Credits. <Link href={creditsHref}>Buy Credits</Link> if needed before confirming this operator generation. There is no additional Stripe charge at generation time.</>}</p>
       <p className="sm-confirm-links">View <Link href="/legal" target="_blank">Terms, Privacy &amp; Legals</Link></p>
       {pilot !== true && !customerFlow && (

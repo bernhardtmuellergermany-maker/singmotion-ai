@@ -279,3 +279,13 @@
   right:calc(12px + var(--sm-nav-control) + var(--sm-nav-gap))!important;
  }
 }
+
+/* Campaign badge is intentionally tiny and never expands the navigation height. */
+.sm-campaign-logo-badge{display:inline-flex;align-items:center;justify-content:center;
+ max-width:112px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+ font-size:9px;line-height:1.2;font-weight:850;letter-spacing:.045em;
+ padding:4px 7px;border:1px solid var(--campaign-accent,#af65ef);
+ color:var(--campaign-accent,#af65ef);border-radius:999px;background:#110b1ccc;
+ flex-shrink:1;min-width:0}
+.sm-site-header-left{min-width:0}
+@media(max-width:390px){.sm-campaign-logo-badge{max-width:73px;font-size:8px;padding:3px 5px}}

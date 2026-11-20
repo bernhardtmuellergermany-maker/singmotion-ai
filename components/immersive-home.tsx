@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import Link from "next/link";
 import {ArrowRight,Music2,ImagePlus,Sparkles,Play,Volume2,VolumeX,ChevronDown,ChevronLeft,ChevronRight,RotateCw} from "lucide-react";
 import {SiteHeader} from "./site-header";
+import {CampaignOfferLine} from "./campaign-display";
 import {showcase} from "@/lib/showcase";
 
 /** Home-only visual presentation of the existing public, owner-approved showcase.
@@ -526,6 +527,7 @@ export function ImmersiveHome(){
     <div className="sm-immersive-desktop-intro">
      <h1>Turn your song into a <span>music video.</span></h1>
      <p>With SingMotion AI — your song, your performance.</p>
+     <CampaignOfferLine/>
      <Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>
     </div>
     <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
@@ -547,6 +549,7 @@ export function ImmersiveHome(){
     <div className="sm-mobile-reel-content">
      <h1>Turn your song into a music video.</h1>
      <p>Make your music come alive with SingMotion AI.</p>
+     <CampaignOfferLine/>
      <Link className="sm-immersive-cta" href="/studio?new=1">Create your music video <ArrowRight size={20}/></Link>
     </div>
     {currentClip===0&&clips.length>1&&<div className="sm-mobile-swipe-hint" aria-hidden="true"><span>↑</span><small>Nach oben wischen</small></div>}

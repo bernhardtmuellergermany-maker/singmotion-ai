@@ -20,11 +20,11 @@ test("25 Credits per started original audio second, never slowed output or provi
  }
  const wizard=read("components/studio-wizard.tsx");
  const dialog=read("components/generation-dialog.tsx");
- assert.match(wizard,/quoteVideoCredits\(selection\.start,selection\.end\)/);
+ assert.match(wizard,/quoteVideoCredits\(selection\.start,selection\.end,activeTariff\.creditsPerSecond\)/);
  assert.match(wizard,/Playback slow-down and longer provider output do not increase/);
  assert.match(wizard,/startedSeconds/);
  assert.doesNotMatch(wizard,/reviewQuote|api\/customer-quote/);
- assert.match(dialog,/creditQuote=quoteVideoCredits\(selection\.start,selection\.end\)/);
+ assert.match(dialog,/quoteVideoCredits\(selection\.start,selection\.end,activeTariff\.creditsPerSecond\)/);
  assert.match(dialog,/Estimated video cost/);
  assert.doesNotMatch(dialog,/BytePlus-Basispreis|USD \$\{|0\.07\)\.toFixed/);
  const admin=read("components/admin.tsx");
@@ -201,7 +201,7 @@ test("Studio video status uses customer Credits and per-job verified reservation
  assert.match(status,/Credits released/);
  assert.doesNotMatch(status,/providerEstimate|\$0\.07|providerSeconds|USD 0\./);
  assert.match(admin,/creditCharge=\{project\?\.creditCharge\}/);
- assert.match(workflow,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits\)/);
+ assert.match(workflow,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits,/);
  assert.match(workflow,/this\.requirePrepaidCredits/);
  assert.match(api,/videoReservations/);
  assert.match(api,/videoReserved/);

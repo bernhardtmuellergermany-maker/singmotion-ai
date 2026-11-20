@@ -1,0 +1,59 @@
+name: STAGING Marketing and Credit Ledger Safety
+on:
+  pull_request:
+    branches:
+      - staging
+    paths:
+      - 'lib/commerce/campaign-pricing.ts'
+      - 'lib/commerce/manual-credit-gifts.ts'
+      - 'lib/commerce/credit-wallet.ts'
+      - 'lib/commerce/video-credit-quote.ts'
+      - 'app/(site)/api/admin-credit-gifts/**'
+      - 'app/(site)/api/admin-campaigns/**'
+      - 'app/(site)/api/credit-tariff/**'
+      - 'components/cms/customer-credit-gift.tsx'
+      - 'components/cms/campaigns-*'
+      - 'components/studio-wizard.tsx'
+      - 'components/credit-amount-picker.tsx'
+      - 'tests/manual-credit-gifts.test.ts'
+      - 'tests/campaign-pricing.test.ts'
+      - '.github/workflows/staging-marketing-credits.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - name: Type check all connected clients and APIs
+        run: npm run typecheck
+      - name: Manual gifts, campaign tariffs and existing financial regression tests
+        run: node --experimental-strip-types --test --test-concurrency=1 tests/manual-credit-gifts.test.ts tests/campaign-pricing.test.ts tests/credit-wallet.test.ts tests/customer-insights.test.ts tests/credit-help-legal-refresh.test.ts tests/prepaid-credit-ui.test.ts
+
+  full-regression:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - name: Install ffmpeg and ffprobe needed by offline media and export tests
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Install FFmpeg for offline video regression fixtures
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: All offline TypeScript regression tests
+        run: npm test
+      - name: Release parity and Next.js production build
+        if: success() || failure()
+        run: npm run build
