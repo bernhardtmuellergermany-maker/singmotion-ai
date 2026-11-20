@@ -41,7 +41,7 @@ export function creditedVideoProject(
 
 
 /** Account-scoped inbox; source payment ledger remains immutable when a notice is deleted. */
-export type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement";href:string};
+export type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement"|"gift";href:string};
 export class NotificationInbox {
  private readonly db:DatabaseSync;
  private readonly live:DatabaseSync|null;
@@ -61,11 +61,21 @@ export class NotificationInbox {
  }
  private rows(subject:string):Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>{
   const ledger=this.db.prepare(`SELECT id,kind,delta,created,reference FROM credit_wallet_ledger
-   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund')
+   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','manual-gift','manual-gift-correction')
    ORDER BY created DESC LIMIT 150`).all(subject) as Array<{id:string;kind:string;delta:number;created:number;reference:string}>;
   const items:Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>=ledger.map(row=>{
    const n=Math.abs(row.delta).toLocaleString("en-GB");
    if(row.kind==="purchase")return {id:"wallet:"+row.id,title:"Credits purchased",message:n+" credits added to your wallet.",created:row.created,kind:"payment" as const,href:"/credits#usage"};
+   if(row.kind==="manual-gift")return {
+    id:"wallet:"+row.id,title:"Gift Credits received",
+    message:n+" gift Credits have been added to your wallet.",
+    created:row.created,kind:"gift" as const,href:"/credits#usage"
+   };
+   if(row.kind==="manual-gift-correction")return {
+    id:"wallet:"+row.id,title:"Gift Credits adjusted",
+    message:n+" gift Credits removed after an account correction.",
+    created:row.created,kind:"payment" as const,href:"/credits#usage"
+   };
    if(row.kind==="refund")return {id:"wallet:"+row.id,title:"Refund completed",message:n+" credits reversed following a refunded payment.",created:row.created,kind:"payment" as const,href:"/credits#usage"};
    if(row.kind==="dispute")return {id:"wallet:"+row.id,title:"Payment reversed",message:n+" credits reversed after a payment dispute.",created:row.created,kind:"payment" as const,href:"/credits#usage"};
    if(row.kind==="video"){

@@ -42,3 +42,11 @@
 .sm-notifications-footnote{color:#91859f;font-size:12px;margin-top:20px}
 .sm-notifications-error{background:#3a1e30;color:#ffd2db;padding:12px 20px;margin:0}
 @media(max-width:600px){.sm-notifications-page{padding:86px 13px 60px}.sm-notifications-list li{padding:16px 12px;gap:10px}.sm-notice-icon{flex-basis:31px;width:31px;height:31px}.sm-notifications-toolbar{padding:12px}.sm-notice-actions{gap:3px}.sm-notice-actions button{width:31px;height:31px}.sm-notice-body a{display:block;margin:8px 0 0}}
+
+/* Gift notices are distinguished from paid credit purchases. */
+.sm-notice-icon-gift{background:#163929;color:#87ffa4}
+.sm-notice-dot-gift{background:#81ff97;box-shadow:0 0 9px #68f784a6}
+.sm-notice-gift-open{border:0;padding:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}
+.sm-notice-gift-open:hover{text-decoration:underline;text-decoration-color:#80ff9a;text-underline-offset:3px}
+.sm-notice-gift-open:focus-visible{outline:2px solid #8dffa9;outline-offset:4px;border-radius:3px}
+.sm-notice-gift-open:disabled{cursor:wait}

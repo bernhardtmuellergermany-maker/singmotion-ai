@@ -16,6 +16,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  const [error,setError]=useState("");
  const [availableCredits,setAvailableCredits]=useState<number|null>(null);
  const [unreadNotices,setUnreadNotices]=useState(0);
+ const [unreadGifts,setUnreadGifts]=useState(0);
  const [creditState,setCreditState]=useState<"loading"|"ready"|"unavailable">("loading");
  useEffect(()=>{
   let active=true;
@@ -66,19 +67,27 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("credit-balance-updated",refresh);current?.removeEventListener("toggle",onToggle)};
  },[identity]);
  useEffect(()=>{
-  if(identity!=="customer"&&identity!=="super-admin"){setUnreadNotices(0);return;}
+  if(identity!=="customer"&&identity!=="super-admin"){setUnreadNotices(0);setUnreadGifts(0);return;}
   let active=true;
   const refresh=()=>{void fetch("/api/notifications",{cache:"no-store",credentials:"same-origin"})
-   .then(async r=>{if(!r.ok)throw Error("Unavailable");return r.json() as Promise<{unread?:number}>})
-   .then(data=>{if(active)setUnreadNotices(typeof data.unread==="number"?Math.max(0,data.unread):0)})
-   .catch(()=>{if(active)setUnreadNotices(0)});};
+   .then(async r=>{if(!r.ok)throw Error("Unavailable");return r.json() as Promise<{
+    unread?:number;notifications?:Array<{kind?:string;read?:boolean}>
+   }>})
+   .then(data=>{if(active){
+    setUnreadNotices(typeof data.unread==="number"?Math.max(0,data.unread):0);
+    setUnreadGifts(Array.isArray(data.notifications)
+     ?data.notifications.filter(item=>item.kind==="gift"&&item.read===false).length:0);
+   }})
+   .catch(()=>{if(active){setUnreadNotices(0);setUnreadGifts(0)}});};
   const onToggle=()=>{if(menu.current?.open)refresh()};
   refresh();
   window.addEventListener("notifications-changed",refresh);
   window.addEventListener("focus",refresh);
   const current=menu.current;
   current?.addEventListener("toggle",onToggle);
-  return()=>{active=false;window.removeEventListener("notifications-changed",refresh);window.removeEventListener("focus",refresh);current?.removeEventListener("toggle",onToggle)};
+  // Refresh while the signed-in account is in use so new gifts appear without a reload.
+  const interval=window.setInterval(()=>{if(document.visibilityState==="visible")refresh()},45_000);
+  return()=>{active=false;window.clearInterval(interval);window.removeEventListener("notifications-changed",refresh);window.removeEventListener("focus",refresh);current?.removeEventListener("toggle",onToggle)};
  },[identity]);
  async function logout(){
   if(busy)return;
@@ -93,7 +102,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  }
  const logoutStaff=logout;
  return <details ref={menu} className="sm-global-menu sm-account-menu">
-  <summary aria-label="Account menu" title="Account menu"><UserRound size={21}/></summary>
+  <summary aria-label={unreadGifts>0?"Account menu, unread gift Credits":"Account menu"} title="Account menu"><UserRound size={21}/>{unreadGifts>0&&<span className="sm-account-gift-dot" aria-hidden="true"/>}</summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
    {email&&(identity==="customer"||identity==="super-admin"||identity==="staff")&&
     <div className="sm-account-signed-in">

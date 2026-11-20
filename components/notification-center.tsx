@@ -1,9 +1,9 @@
 "use client";
 import {useCallback,useEffect,useState} from "react";
 import Link from "next/link";
-import {Bell,CheckCheck,Mail,MailOpen,Trash2,CheckCircle2,Film,Wallet,PlayCircle} from "lucide-react";
+import {Bell,CheckCheck,Mail,MailOpen,Trash2,CheckCircle2,Film,Wallet,PlayCircle,Gift} from "lucide-react";
 import "./notifications.css";
-type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement";href:string};
+type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement"|"gift";href:string};
 type Inbox={notifications:Notice[];unread:number};
 export default function NotificationCenter(){
  const [inbox,setInbox]=useState<Inbox>({notifications:[],unread:0});
@@ -46,9 +46,13 @@ export default function NotificationCenter(){
     {loading?<p className="sm-notifications-empty">Loading notifications…</p>:
      inbox.notifications.length===0?<div className="sm-notifications-empty"><CheckCircle2 size={27}/><p>You're all caught up.</p><small>New account and video updates will appear here.</small></div>:
      <ul className="sm-notifications-list">{inbox.notifications.map(item=><li key={item.id} className={item.read?"sm-notice-read":"sm-notice-unread"}>
-      <div className="sm-notice-icon">{item.kind==="video"?<Film size={18}/>:item.kind==="payment"?<Wallet size={18}/>:<Bell size={18}/>}</div>
+      <div className={"sm-notice-icon"+(item.kind==="gift"?" sm-notice-icon-gift":"")}>{item.kind==="gift"?<Gift size={18}/>:item.kind==="video"?<Film size={18}/>:item.kind==="payment"?<Wallet size={18}/>:<Bell size={18}/>}</div>
       <div className="sm-notice-body">
-       <div className="sm-notice-title">{!item.read&&<span className="sm-notice-dot" aria-label="Unread"/>}<strong>{item.title}</strong></div>
+       <div className="sm-notice-title">{!item.read&&<span className={"sm-notice-dot"+(item.kind==="gift"?" sm-notice-dot-gift":"")} aria-label="Unread"/>}
+        {item.kind==="gift"&&!item.read
+         ?<button type="button" className="sm-notice-gift-open" disabled={busy}
+           onClick={()=>void apply("read",item.id)} aria-label={"Read gift notification: "+item.title}><strong>{item.title}</strong></button>
+         :<strong>{item.title}</strong>}</div>
        <p>{item.message}</p>
        {item.kind==="video"&&/^\/(?:videos|projects)\/live_[a-f0-9-]{36}$/i.test(item.href)&&
         <Link href={item.href.replace(/^\/projects\//,"/videos/")} className="sm-notice-video-link" aria-label={"Open video for "+item.message}>
