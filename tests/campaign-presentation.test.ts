@@ -101,7 +101,7 @@ test("credits campaign uses the existing offer design and shared versioned tarif
  const jsx=read("components/campaign-display.tsx");
  const css=read("components/campaign-display.css");
  const cms=read("components/cms/campaigns-client.tsx");
- assert.match(jsx,/<Rocket size={20} strokeWidth={2.3}/);
+ assert.match(jsx,/<Rocket size=\{20\} strokeWidth=\{2\.3\}/);
  assert.doesNotMatch(jsx,/placement==="credits"&&<Rocket/);
  assert.match(jsx,/<span className="sm-campaign-pricing-light-sweep"/);
  assert.match(jsx,/sm-campaign-rate-regular/);
