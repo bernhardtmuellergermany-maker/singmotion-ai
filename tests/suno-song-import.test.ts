@@ -84,6 +84,10 @@ test("MCP first checks download entitlement, then requires explicit one-credit c
 test("download accepts only provider-controlled HTTPS hosts and bounded MP3 payloads",async()=>{
  assert.equal(isAllowedSunoDownloadUrl("https://cdn-o.suno.com/file.mp3"),true);
  assert.equal(isAllowedSunoDownloadUrl("https://cdn1.suno.ai/file.mp3"),true);
+ assert.equal(isAllowedSunoDownloadUrl("https://suno-data-uploads.s3.amazonaws.com/studio/uploads/song.mp3?Signature=redacted"),true);
+ assert.equal(isAllowedSunoDownloadUrl("https://other-bucket.s3.amazonaws.com/song.mp3"),false);
+ assert.equal(isAllowedSunoDownloadUrl("https://suno-data-uploads.s3.amazonaws.com.evil.net/song.mp3"),false);
+ assert.equal(isAllowedSunoDownloadUrl("http://suno-data-uploads.s3.amazonaws.com/song.mp3"),false);
  for(const url of ["http://cdn1.suno.ai/file.mp3","https://suno.com.evil.net/file.mp3",
   "https://localhost/file.mp3","https://127.0.0.1/file.mp3","https://cdn1.suno.ai:8080/file.mp3"]){
   assert.equal(isAllowedSunoDownloadUrl(url),false,url);
@@ -94,6 +98,25 @@ test("download accepts only provider-controlled HTTPS hosts and bounded MP3 payl
  assert.equal(content.byteLength,2048);
  const oversized:typeof fetch=async()=>new Response(bytes,{headers:{"content-length":String(50*1024*1024+1)}});
  await assert.rejects(downloadAuthorizedSunoMp3("https://cdn-o.suno.com/file.mp3",oversized),/50 MB/);
+});
+test("unapproved MCP download hosts are rejected and diagnostics never expose signed URLs",async()=>{
+ const hostileUrl="https://downloads.example.net/private/song.mp3?signature=secret-value&token=very-sensitive";
+ const originalWarn=console.warn;
+ const warnings:unknown[][]=[];
+ console.warn=(...args:unknown[])=>{warnings.push(args)};
+ try{
+  const mock:typeof fetch=async (_url,init)=>{
+   const body=JSON.parse(String(init?.body)) as {method:string};
+   if(body.method==="initialize")return Response.json({jsonrpc:"2.0",id:1,result:{protocolVersion:"2025-06-18"}});
+   if(body.method==="notifications/initialized")return new Response(null,{status:202});
+   return Response.json({jsonrpc:"2.0",id:1,result:{structuredContent:{status:"ready",url:hostileUrl}}});
+  };
+  await assert.rejects(sunoMcpDownload("user-authorization",id,true,mock),/unapproved audio download host/);
+  assert.equal(warnings.length,1);
+  const diagnostic=JSON.stringify(warnings);
+  assert.match(diagnostic,/downloads\\.example\\.net/);
+  assert.doesNotMatch(diagnostic,/secret-value|very-sensitive|signature|private\\/song/);
+ }finally{console.warn=originalWarn}
 });
 test("Studio integrates direct official download into the existing validated private audio upload",()=>{
  assert.match(wizard,/onImportFile=\{file=>add\(file,"audio"\)\}/);
