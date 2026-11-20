@@ -20,7 +20,7 @@ test("25 Credits per started original audio second, never slowed output or provi
  }
  const wizard=read("components/studio-wizard.tsx");
  const dialog=read("components/generation-dialog.tsx");
- assert.match(wizard,/quoteVideoCredits\(selection\.start,selection\.end\)/);
+ assert.match(wizard,/quoteVideoCredits\(selection\.start,selection\.end,activeTariff\.creditsPerSecond\)/);
  assert.match(wizard,/Playback slow-down and longer provider output do not increase/);
  assert.match(wizard,/startedSeconds/);
  assert.doesNotMatch(wizard,/reviewQuote|api\/customer-quote/);
