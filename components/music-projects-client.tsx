@@ -27,7 +27,14 @@ export function MusicProjectsClient(){
     catch(e){setError(e instanceof Error?e.message:"Projects unavailable.");}
     finally{setLoading(false);}
   },[]);
-  useEffect(()=>{void refresh();},[refresh]);
+  useEffect(()=>{
+    let active=true;
+    void api<Payload>("/api/music-video")
+      .then(data=>{if(active){setProjects(data.projects||[]);setError("");}})
+      .catch(error=>{if(active)setError(error instanceof Error?error.message:"Projects unavailable.");})
+      .finally(()=>{if(active)setLoading(false);});
+    return()=>{active=false;};
+  },[]);
   async function create(e:React.FormEvent){
     e.preventDefault();
     if(!song||!name.trim()||busy)return;
