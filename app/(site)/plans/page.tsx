@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Check, Music2, Sparkles, ShieldCheck, ArrowRight, Clock3, Wallet, Film } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { CreditAmountPicker } from "@/components/credit-amount-picker";
+import {CampaignPricingBanner,CurrentVideoRate} from "@/components/campaign-display";
 import "./plans.css";
 
 export const metadata: Metadata = {
@@ -21,18 +22,13 @@ export default function PlansPage() {
     <h1>Pricing<span className="sm-plans-accent">.</span></h1>
     <p>Create AI music performance videos with simple prepaid credits. Understand your costs before you create, choose a credit amount that suits your project, and skip monthly subscriptions.</p>
    </section>
+   <CampaignPricingBanner placement="pricing"/>
    <section className="sm-plans-grid sm-plans-grid-single" aria-label="AI music video credit pricing">
     <article className="sm-plan-card sm-plan-featured sm-plan-single">
      <div className="sm-plan-top"><span className="sm-plan-icon"><Music2 size={24}/></span><span className="sm-plan-status sm-plan-soon">Pay as you go</span></div>
      <h2>Bring your music to life. Pay only for what you create.</h2>
      <p className="sm-plan-caption">Turn your music and visuals into an AI-powered performance video. Choose how many credits to add to your wallet — with no monthly plan to manage.</p>
-     <div className="sm-plan-price">25 Credits <span>per started second of source audio · planned rate</span></div>
-     <p className="sm-plan-price-note">At the planned rate, 1 Credit = €0.01. Your video price is based on the duration of your original audio, not the playback speed.</p>
-     <div className="sm-plan-examples" aria-label="Example video credit costs">
-      <div><Clock3 size={17}/><span>10 seconds</span><strong>250 Credits <small>€2.50</small></strong></div>
-      <div><Clock3 size={17}/><span>30 seconds</span><strong>750 Credits <small>€7.50</small></strong></div>
-      <div><Clock3 size={17}/><span>60 seconds</span><strong>1,500 Credits <small>€15.00</small></strong></div>
-     </div>
+     <CurrentVideoRate/>
      <div className="sm-plan-rule"/>
      <ul>
       <li><Check size={18}/><span><strong>Know your cost before you create.</strong> Review the credit amount for your selected audio before processing begins.</span></li>
@@ -80,12 +76,12 @@ export default function PlansPage() {
     <div className="sm-plans-section-heading"><span className="sm-plans-section-eyebrow">GOOD TO KNOW</span><h2 id="sm-pricing-faq-title">Pricing questions, answered</h2></div>
     <div className="sm-plans-faq-list">
      <details><summary>Do I need a subscription to use SingMotion AI?</summary><p>No. The planned credit model is prepaid: you choose how much to add to your account. Automatic top-ups are not active.</p></details>
-     <details><summary>How is the price of an AI music video calculated?</summary><p>The planned rate is 25 Credits for every started second of original source audio. For example, 10 seconds cost 250 Credits. Slowing down playback does not change the original-audio duration used for the quote.</p></details>
+     <details><summary>How is the price of an AI music video calculated?</summary><p>The active rate per started second is shown in the pricing card above. For a 10-second excerpt, multiply that rate by 10. Studio confirms the current server-side price before generation. Slowing playback does not change the priced original audio duration.</p></details>
      <details><summary>Can I choose my own credit amount?</summary><p>Yes. The planned wallet supports custom whole-credit amounts from 500 to 100,000, alongside popular packages. The credit selector above shows an estimate before checkout.</p></details>
      <details><summary>What happens if video generation fails?</summary><p>Credits are initially reserved. A verified nonbillable failure releases the reservation. When the provider outcome is uncertain, the reservation remains on hold while it is reviewed rather than being charged twice.</p></details>
     </div>
    </section>
-   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Credits are account-bound and cannot be exchanged for cash or transferred. The example prices are provisional, and checkout is subject to availability and applicable consumer protections.</div>
+   <div className="sm-plans-footnote"><ShieldCheck size={18}/> Credits are account-bound and cannot be exchanged for cash or transferred. Displayed generation costs use the verified active rate. Checkout remains subject to eligibility and applicable consumer protections.</div>
   </main>
  </div>;
 }
