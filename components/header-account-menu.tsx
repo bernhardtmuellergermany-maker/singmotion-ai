@@ -102,7 +102,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
  }
  const logoutStaff=logout;
  return <details ref={menu} className="sm-global-menu sm-account-menu">
-  <summary aria-label={unreadGifts>0?"Account menu, unread gift Credits":"Account menu"} title="Account menu"><UserRound size={21}/>{unreadGifts>0&&<span className="sm-account-gift-dot" aria-hidden="true"/>}</summary>
+  <summary aria-label={unreadGifts>0?`Account menu, ${unreadGifts} unread gift notifications`:"Account menu"} title="Account menu"><UserRound size={21}/>{unreadGifts>0&&<span className="sm-account-gift-badge" aria-hidden="true">{unreadGifts>99?"99+":unreadGifts}</span>}</summary>
   <nav className="sm-global-menu-list" aria-label="Account options">
    {email&&(identity==="customer"||identity==="super-admin"||identity==="staff")&&
     <div className="sm-account-signed-in">
