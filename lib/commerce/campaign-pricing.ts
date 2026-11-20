@@ -201,9 +201,10 @@ export class CampaignPricing{
    JOIN credit_video_reservations r ON r.project_id=t.project_id
    WHERE t.campaign_id=? AND r.state='settled'`).get(campaignId) as
    {generations:number;seconds:number;discount_credits:number};
-  const gifts=this.db.prepare("SELECT COALESCE(SUM(credits),0) total FROM admin_credit_gifts WHERE campaign_id=?")
-   .get(campaignId) as {total:number};
+  const giftsTable=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_credit_gifts'").get();
+  const gifts=giftsTable?this.db.prepare("SELECT COALESCE(SUM(credits),0) total FROM admin_credit_gifts WHERE campaign_id=?")
+   .get(campaignId) as {total:number}:{total:0};
   return {settledGenerations:r.generations,settledSeconds:r.seconds,
-   discountCredits:r.discount_credits,giftCredits:gifts.total};
+   discountCredits:Math.max(0,r.discount_credits),giftCredits:gifts.total};
  }
 }
