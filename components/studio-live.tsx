@@ -8,6 +8,7 @@ import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
 import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
 import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
+import {MAX_VIDEO_SELECTION_SECONDS} from "@/lib/domain";
 import {providerFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
 import {CustomerFeedback} from "./customer-feedback";
 import { StudioRecordingReview } from "./studio-recording-review";
@@ -371,7 +372,7 @@ export function StudioLiveControl({
           disabled ||
           !selection ||
           selection.end - selection.start < 4 ||
-          selection.end - selection.start > 300 ||
+          selection.end - selection.start > MAX_VIDEO_SELECTION_SECONDS ||
           !consent ||
           !english
         }

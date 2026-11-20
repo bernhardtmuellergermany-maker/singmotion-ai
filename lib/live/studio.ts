@@ -11,6 +11,7 @@ import {CommerceStore} from "../commerce/store.ts";
 import {CreditWallet,type VideoReservation} from "../commerce/credit-wallet.ts";
 import {SupportCases} from "../commerce/support-cases.ts";
 import {quoteVideoCredits} from "../commerce/video-credit-quote.ts";
+import {MAX_VIDEO_SELECTION_SECONDS} from "../domain.ts";
 import {PlanLedger} from "../commerce/plans.ts";
 import { mkdir, realpath, stat, unlink } from "node:fs/promises";
 import {ensureLiveTrash,PROJECT_TRASH_MS,trashDeadline} from "../project-trash.ts";
@@ -740,11 +741,11 @@ export class StudioWorkflow {
     if (
       selection.owner !== owner ||
       selection.end - selection.start < 5 ||
-      selection.end - selection.start > 300
+      selection.end - selection.start > MAX_VIDEO_SELECTION_SECONDS
     )
       throw new StudioLiveError(
         "SELECTION_INVALID",
-        "Select your own image/audio and an excerpt of 5–300 seconds.",
+        `Select your own image/audio and an excerpt of 5–${MAX_VIDEO_SELECTION_SECONDS} seconds.`,
       );
     const tempo = await tracedStudioPrepare("tempo-authorization", () => tempoAuthorization(
       this.root,
@@ -1003,7 +1004,7 @@ export class StudioWorkflow {
         throw new StudioLiveError("CREDIT_IDENTITY_REQUIRED","Verified account required before generating a paid video.",403);
       const selection=JSON.parse(row.selection_json) as StudioDraftExport;
       const quote=quoteVideoCredits(selection.start,selection.end,confirmedPricing?.creditsPerSecond??25);
-      if(!quote)throw new StudioLiveError("CREDIT_QUOTE_INVALID","Select a valid 5–300-second audio excerpt.",400);
+      if(!quote)throw new StudioLiveError("CREDIT_QUOTE_INVALID",`Select a valid 5–${MAX_VIDEO_SELECTION_SECONDS}-second audio excerpt.`,400);
       const commerce=new CommerceStore(path.join(this.root,"commerce.sqlite"));
       try {
         const wallet=new CreditWallet(commerce.db);

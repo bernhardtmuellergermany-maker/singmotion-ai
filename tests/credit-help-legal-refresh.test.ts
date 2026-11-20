@@ -8,13 +8,13 @@ const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 test("25 Credits per started original audio second, never slowed output or provider markup",()=>{
  assert.equal(VIDEO_CREDITS_PER_STARTED_SECOND,25);
  for(const [end,seconds,credits] of [[5,5,125],[5.2,6,150],[6,6,150],
-   [6.001,7,175],[6.1,7,175],[10,10,250],[300,300,7500]] as const){
+   [6.001,7,175],[6.1,7,175],[10,10,250],[250,250,6250]] as const){
    const quote=quoteVideoCredits(0,end);
    assert.equal(quote?.startedSeconds,seconds);
    assert.equal(quote?.credits,credits);
  }
  assert.equal(quoteVideoCredits(5,10.2)?.credits,150);
- for(const [start,end] of [[0,4.999],[0,300.001],[10,10],[20,15],[-1,10],
+ for(const [start,end] of [[0,4.999],[0,250.001],[0,300],[10,10],[20,15],[-1,10],
     [NaN,10],[0,Infinity]]){
    assert.equal(quoteVideoCredits(start,end),null);
  }

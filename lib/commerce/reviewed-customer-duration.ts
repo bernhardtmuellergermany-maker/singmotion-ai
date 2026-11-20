@@ -4,6 +4,7 @@
  */
 import {loadCustomerWorkerPolicy} from "./customer-paid-worker.ts";
 import {ownerConfirmedBytePlusPolicy} from "./owner-confirmed-provider-policy.ts";
+import {MAX_VIDEO_SELECTION_SECONDS} from "../domain.ts";
 
 export async function reviewedCustomerOrderMaxSeconds(
  root:string,
@@ -15,7 +16,7 @@ export async function reviewedCustomerOrderMaxSeconds(
     bound.maxInputSeconds<5||bound.maxInputSeconds>300||
     bound.maxInputSeconds+bound.maxAdditionalSeconds>300)
   throw Error("Reviewed BytePlus duration envelope unavailable");
- return bound.maxInputSeconds;
+ return Math.min(bound.maxInputSeconds,MAX_VIDEO_SELECTION_SECONDS);
 }
 
 /** Read-only estimate must not advertise an unreviewed interval. */
