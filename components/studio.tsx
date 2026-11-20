@@ -26,6 +26,7 @@ import {
   cameraHelp,
   composePrompt,
   validateSelection,
+  MAX_VIDEO_SELECTION_SECONDS,
   validateFile,
   type Asset,
   type Job,
@@ -374,8 +375,7 @@ export function Studio() {
             )}
             {song && !validSegment && (
               <p className="error">
-                Choose valid start and end times within the song (up to 300
-                seconds).
+                Choose valid start and end times within the song (up to {MAX_VIDEO_SELECTION_SECONDS} seconds).
               </p>
             )}
           </section>

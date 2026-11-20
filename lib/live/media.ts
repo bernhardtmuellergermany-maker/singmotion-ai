@@ -9,7 +9,7 @@ import { stat, realpath, mkdir, copyFile, unlink, chmod } from "node:fs/promises
 import path from "node:path";
 import sharp from "sharp";
 import { trimAudio, validateAudio } from "../media.ts";
-import { IMAGE_LIMIT, composePrompt } from "../domain.ts";
+import { IMAGE_LIMIT, composePrompt, MAX_VIDEO_SELECTION_SECONDS } from "../domain.ts";
 import { parseStudioDraft, type StudioDraftExport } from "../studio-draft.ts";
 import {ensureLocalAsset,ensureLocalMediaPath} from "../cloud-hydration.ts";
 import {customerR2Enabled,mirrorPrivateSource,validCloudRecord,readMirroredPrivateSource} from "../cloud-media.ts";
@@ -127,7 +127,7 @@ async function prepareOwnedSelection(
   if (
     !Number.isFinite(maxSeconds) ||
     maxSeconds <= 0 ||
-    selected.end - selected.start > Math.min(300, maxSeconds)
+    selected.end - selected.start > Math.min(MAX_VIDEO_SELECTION_SECONDS, maxSeconds)
   )
     throw new Error("Selected segment exceeds the live-test duration limit.");
   const source = asset(selected.songId, owner),

@@ -1,6 +1,8 @@
 export const AUDIO_LIMIT = 50 * 1024 * 1024;
 export const IMAGE_LIMIT = 30 * 1024 * 1024;
 export const PROVIDER_AUDIO_LIMIT = 15 * 1024 * 1024;
+/** Maximum user-selected video excerpt; provider's technical limit stays unchanged. */
+export const MAX_VIDEO_SELECTION_SECONDS = 250;
 export const performances = [
   "Natural",
   "Emotional",
@@ -109,10 +111,10 @@ export function validateSelection(
     start < 0 ||
     end - start < 5 - 0.00001 ||
     end > duration + 0.02 ||
-    end - start > 300 + 0.00001
+    end - start > MAX_VIDEO_SELECTION_SECONDS
   )
     throw new AppError(
-      "Select an audio segment between 5 and 300 seconds within the song.",
+      `Select an audio segment between 5 and ${MAX_VIDEO_SELECTION_SECONDS} seconds within the song.`,
     );
   return Math.round((end - start) * 1000) / 1000;
 }
@@ -122,9 +124,9 @@ export function quote(
     process.env.CUSTOMER_CENTS_PER_TEN_SECONDS || 299,
   ),
 ) {
-  if (!Number.isFinite(duration) || duration <= 0 || duration > 300)
+  if (!Number.isFinite(duration) || duration <= 0 || duration > MAX_VIDEO_SELECTION_SECONDS)
     throw new AppError(
-      "Duration must be greater than zero and at most 300 seconds.",
+      `Duration must be greater than zero and at most ${MAX_VIDEO_SELECTION_SECONDS} seconds.`,
     );
   if (!Number.isSafeInteger(centsPerTenSeconds) || centsPerTenSeconds <= 0)
     throw new AppError("Pricing is unavailable.", 503);

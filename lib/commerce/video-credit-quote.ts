@@ -4,6 +4,7 @@
  * slow-down, provider output-duration uplift or internal provider cost markup.
  * Server-side generation settlement remains independently gated.
  */
+import {MAX_VIDEO_SELECTION_SECONDS} from "../domain.ts";
 export const VIDEO_CREDITS_PER_STARTED_SECOND=25;
 
 export type VideoCreditQuote={
@@ -18,7 +19,7 @@ export function quoteVideoCredits(start:number,end:number,creditsPerSecond=VIDEO
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start)return null;
  const startMs=Math.round(start*1000),endMs=Math.round(end*1000);
  const selectionMs=endMs-startMs;
- if(!Number.isSafeInteger(selectionMs)||selectionMs<5000||selectionMs>300000)return null;
+ if(!Number.isSafeInteger(selectionMs)||selectionMs<5000||selectionMs>MAX_VIDEO_SELECTION_SECONDS*1000)return null;
  const startedSeconds=Math.ceil(selectionMs/1000);
  return {sourceSeconds:selectionMs/1000,startedSeconds,
   credits:startedSeconds*creditsPerSecond};

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useMemo, type CSSProperties } from "react"
 import { Play, Pause, RotateCcw, Minus, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import {panWaveViewport,pinchWaveViewport,dragWaveHandleTime} from "@/lib/studio-wave-navigation";
 import { moveSelection } from "@/lib/studio-editor";
+import {MAX_VIDEO_SELECTION_SECONDS} from "@/lib/domain";
 import { anchoredWaveBars } from "@/lib/studio-wave-bars";
 export default function Waveform({
   url,
@@ -286,11 +287,11 @@ export default function Waveform({
     if(!grab||grab.pointerId!==e.pointerId)return;
     const val=dragWaveHandleTime(grab.time,e.clientX-grab.x,rect.width,viewSpan,duration);
     if (handle === "start")
-      onChange(Math.max(0, end - 300, Math.min(val, end - 5)), end);
+      onChange(Math.max(0, end - MAX_VIDEO_SELECTION_SECONDS, Math.min(val, end - 5)), end);
     else
       onChange(
         start,
-        Math.max(start + 5, Math.min(val, start + 300, duration)),
+        Math.max(start + 5, Math.min(val, start + MAX_VIDEO_SELECTION_SECONDS, duration)),
       );
   }
   // An interrupted play() promise is expected when a user quickly taps Pause
@@ -358,7 +359,7 @@ export default function Waveform({
       return;
     }
     lockViewport();
-    const clipLength = Math.max(minimumClipSeconds, Math.min(300, end - start));
+    const clipLength = Math.max(minimumClipSeconds, Math.min(MAX_VIDEO_SELECTION_SECONDS, end - start));
     if (editingTime === "start") {
       if (value > duration - minimumClipSeconds + 0.0001) {
         setTimeInputError("Start must be at least 5 seconds before the end of the audio.");
@@ -372,7 +373,7 @@ export default function Waveform({
         return;
       }
       // Keep Start when possible. Otherwise shift the window so End is exact.
-      const nextStart = value - start >= minimumClipSeconds && value - start <= 300
+      const nextStart = value - start >= minimumClipSeconds && value - start <= MAX_VIDEO_SELECTION_SECONDS
         ? start
         : Math.max(0, Math.round((value - clipLength) * 1000) / 1000);
       onChange(nextStart, value);
@@ -540,7 +541,7 @@ export default function Waveform({
               aria-label={`${handle === "start" ? "Start" : "End"} of selection`}
               aria-valuemin={handle === "start" ? 0 : start + 5}
               aria-valuemax={
-                handle === "start" ? end - 5 : Math.min(duration, start + 300)
+                handle === "start" ? end - 5 : Math.min(duration, start + MAX_VIDEO_SELECTION_SECONDS)
               }
               aria-valuenow={handle === "start" ? start : end}
               key={handle}
@@ -564,7 +565,7 @@ export default function Waveform({
                   (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 1 : 0.01);
                 if (handle === "start")
                   onChange(
-                    Math.max(0, end - 300, Math.min(end - 5, start + delta)),
+                    Math.max(0, end - MAX_VIDEO_SELECTION_SECONDS, Math.min(end - 5, start + delta)),
                     end,
                   );
                 else
@@ -572,7 +573,7 @@ export default function Waveform({
                     start,
                     Math.max(
                       start + 5,
-                      Math.min(duration, start + 300, end + delta),
+                      Math.min(duration, start + MAX_VIDEO_SELECTION_SECONDS, end + delta),
                     ),
                   );
               }}
@@ -657,7 +658,7 @@ export default function Waveform({
         }}
       />
       <small className="quiet">
-        Recommended: 5–10 seconds with clear lead vocals. Selected audio is
+        Recommended: 5–10 seconds with clear lead vocals. Maximum clip length: {MAX_VIDEO_SELECTION_SECONDS} seconds (4:10). Selected audio is
         trimmed for the final generation.
       </small>
       {error && <p className="notice">{error}</p>}

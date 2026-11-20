@@ -15,7 +15,7 @@ test("customer checkout duration remains 30s without a new independently reviewe
     CUSTOMER_BYTEPLUS_OWNER_CONFIRMED_PRICING:"true"}),30);
  }finally{await rm(dir,{recursive:true,force:true})}
 });
-test("guest and account paid preparation can reach 300s with a validated worker policy, not a UI flag",async()=>{
+test("a reviewed 300s provider policy still caps new customer preparation at 250s",async()=>{
  const dir=await mkdtemp(path.join(tmpdir(),"sm-reviewed-300-"));
  try{
   // The standalone customer-order worker fixture exercises its own
@@ -36,7 +36,7 @@ test("guest and account paid preparation can reach 300s with a validated worker 
   policy.dailyCapMicroUsd=25_000_000;
   policy.lifetimeCapMicroUsd=100_000_000;
   await writeFile(path.join(dir,"customer-byteplus-policy.json"),JSON.stringify(policy));
-  assert.equal(await reviewedCustomerOrderMaxSeconds(dir,{RAILWAY_ENVIRONMENT_ID:staging}),300);
+  assert.equal(await reviewedCustomerOrderMaxSeconds(dir,{RAILWAY_ENVIRONMENT_ID:staging}),250);
   await assert.rejects(reviewedCustomerOrderMaxSeconds(dir,{RAILWAY_ENVIRONMENT_ID:production}),
    /production customer provider policy review/i);
  }finally{await rm(dir,{recursive:true,force:true})}

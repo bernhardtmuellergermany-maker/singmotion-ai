@@ -43,6 +43,7 @@ import { api, ensureSession, upload, uploadWithProgress } from "@/lib/client";
 import {
   composePrompt,
   validateSelection,
+  MAX_VIDEO_SELECTION_SECONDS,
   validateFile,
   performances,
   cameras,
@@ -1111,7 +1112,7 @@ export function StudioWizard({
               <div className="sm-review-expanded">
                 {creditQuote?<div aria-label="Video Credit calculation" className="sm-review-credit-breakdown">
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
-                </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
+                </div>:<p>Select a valid audio clip between 5 and {MAX_VIDEO_SELECTION_SECONDS} seconds to see its credit cost.</p>}
               </div>
             </details>
           </div>

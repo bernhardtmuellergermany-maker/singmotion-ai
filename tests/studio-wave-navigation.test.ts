@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {boundWaveViewport,panWaveViewport,pinchWaveViewport,dragWaveHandleTime} from "../lib/studio-wave-navigation.ts";
 import {anchoredWaveBars} from "../lib/studio-wave-bars.ts";
+import {MAX_VIDEO_SELECTION_SECONDS,validateSelection,AppError} from "../lib/domain.ts";
+import {quoteVideoCredits} from "../lib/commerce/video-credit-quote.ts";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 
 test("one-finger drag pans only the audio viewport and respects bounds",()=>{
@@ -146,4 +148,31 @@ test("waveform keeps the trim gestures above a clipped, GPU-shifted bar row",()=
  assert.match(css,/\.wave-bars\.wave-bars-anchored\{/);
  assert.match(css,/transform:translate3d\(var\(--sm-wave-translate-x\),0,0\)/);
  assert.match(css,/\.wave-bars-window\{[\s\S]*?overflow:hidden/);
+});
+
+// Shared customer duration cap covers pointer, keyboard, manual time,
+// restored drafts, server requests and prepaid quotes in both environments.
+test("250-second clip is valid and 250.001s is rejected before quoting or generation",()=>{
+ assert.equal(MAX_VIDEO_SELECTION_SECONDS,250);
+ assert.equal(validateSelection(30,280,400),250);
+ assert.throws(()=>validateSelection(30,280.001,400),(err:unknown)=>
+  err instanceof AppError&&/250 seconds/.test(err.message));
+ assert.deepEqual(quoteVideoCredits(0,250,25),{sourceSeconds:250,startedSeconds:250,credits:6250});
+ assert.equal(quoteVideoCredits(0,250.001,25),null);
+ assert.equal(quoteVideoCredits(125,375,10)?.startedSeconds,250);
+ const wave=read("components/waveform.tsx");
+ assert.match(wave,/end - MAX_VIDEO_SELECTION_SECONDS/);
+ assert.match(wave,/start \+ MAX_VIDEO_SELECTION_SECONDS/);
+ assert.match(wave,/value - start <= MAX_VIDEO_SELECTION_SECONDS/);
+ assert.doesNotMatch(wave,/end - 300|start \+ 300|Math\.min\(300, end - start\)/);
+ const wizard=read("components/studio-wizard.tsx");
+ const legacy=read("components/studio.tsx");
+ const control=read("components/studio-live.tsx");
+ const service=read("lib/live/studio.ts");
+ const media=read("lib/live/media.ts");
+ assert.match(wizard,/Select a valid audio clip between 5 and \{MAX_VIDEO_SELECTION_SECONDS\} seconds/);
+ assert.match(legacy,/MAX_VIDEO_SELECTION_SECONDS\} seconds/);
+ assert.match(control,/selection\.end - selection\.start > MAX_VIDEO_SELECTION_SECONDS/);
+ assert.match(service,/selection\.end - selection\.start > MAX_VIDEO_SELECTION_SECONDS/);
+ assert.match(media,/Math\.min\(MAX_VIDEO_SELECTION_SECONDS, maxSeconds\)/);
 });
