@@ -84,6 +84,10 @@ test("MCP first checks download entitlement, then requires explicit one-credit c
 test("download accepts only provider-controlled HTTPS hosts and bounded MP3 payloads",async()=>{
  assert.equal(isAllowedSunoDownloadUrl("https://cdn-o.suno.com/file.mp3"),true);
  assert.equal(isAllowedSunoDownloadUrl("https://cdn1.suno.ai/file.mp3"),true);
+ assert.equal(isAllowedSunoDownloadUrl("https://suno-data-uploads.s3.amazonaws.com/studio/uploads/song.mp3?Signature=redacted"),true);
+ assert.equal(isAllowedSunoDownloadUrl("https://other-bucket.s3.amazonaws.com/song.mp3"),false);
+ assert.equal(isAllowedSunoDownloadUrl("https://suno-data-uploads.s3.amazonaws.com.evil.net/song.mp3"),false);
+ assert.equal(isAllowedSunoDownloadUrl("http://suno-data-uploads.s3.amazonaws.com/song.mp3"),false);
  for(const url of ["http://cdn1.suno.ai/file.mp3","https://suno.com.evil.net/file.mp3",
   "https://localhost/file.mp3","https://127.0.0.1/file.mp3","https://cdn1.suno.ai:8080/file.mp3"]){
   assert.equal(isAllowedSunoDownloadUrl(url),false,url);
