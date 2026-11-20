@@ -46,7 +46,8 @@ test("both mobile and desktop step circles are buttons with visible focus and la
  assert.match(jsx,/onClick=\{\(\)=>void jumpToStudioStep\(index\)\}/);
  assert.match(jsx,/if\(target>1&&step===1&&\(cropPending\|\|!appliedImageReady\)\)/);
  assert.match(jsx,/await continueFromPhoto\(target as 2\|3\)/);
- assert.match(jsx,/if\(busy\|\|generating\|\|generationProjectId\)/);
+ assert.match(jsx,/generationStarted:!!generationProjectId/);
+ assert.match(read("lib/studio-step-navigation.ts"),/if\(!ready\|\|busy\|\|generating\|\|generationStarted\)return false/);
  assert.match(css,/\.sm-new-step-dot:focus-visible/);
  assert.match(css,/\.sm-new-step-dot::after/);
  assert.match(css,/@media\(max-width:700px\)/);
