@@ -598,7 +598,9 @@ try {
   });
 
   await page.goto(origin + `/admin/collections/pages/${draft.id}`);
-  await page.locator(".sm-cms-sidebar-intro").getByRole("link",{name:"Übersicht"}).waitFor();
+  // Wait for the actual editor after navigation. The duplicate legacy CMS
+  // sidebar was intentionally hidden; its visibility is not an auth gate.
+  await page.locator('input[name="title"]').waitFor({state:"visible"});
   await page.locator('input[name="title"]').fill("Published browser test");
   await page.getByRole("button", { name: /publish changes/i }).click();
   await page
