@@ -62,6 +62,18 @@ export function SunoSongImport({disabled,onImportFile}:{
   try{if(canonical)sessionStorage.setItem("sm-suno-pending-link",canonical)}catch{}
   window.location.assign("/api/suno-import/connect");
  }
+ async function disconnect(){
+  if(disabled||working)return;
+  setWorking(true);
+  try{
+   const response=await fetch("/api/suno-import",{method:"DELETE",cache:"no-store"});
+   if(!response.ok)throw Error("Could not disconnect Suno. Please try again.");
+   setConnected(false);
+   setNeedsCredit(false);
+   setNotice("Suno disconnected. Connect again to import a song.");
+  }catch(e){setNotice(e instanceof Error?e.message:"Could not disconnect Suno.");}
+  finally{setWorking(false);}
+ }
  async function importSong(confirmCredit:boolean){
   if(!canonical||disabled||working)return;
   setWorking(true);setNotice("");
@@ -104,7 +116,11 @@ export function SunoSongImport({disabled,onImportFile}:{
    <span aria-hidden="true" className={styles.plus}>+</span>
   </summary>
   <div className={styles.body}>
-   {connected===true&&<p className={styles.connected} role="status"><CheckCircle2 size={18} aria-hidden="true"/> Suno connected — ready to import your song</p>}
+   {connected===true&&<div className={styles.connected} role="group" aria-label="Suno connection status">
+    <span className={styles.connectedLabel} role="status"><CheckCircle2 size={18} aria-hidden="true"/> Suno connected — ready to import your song</span>
+    <button type="button" className={styles.disconnect} disabled={disabled||working}
+     onClick={()=>void disconnect()}>Disconnect</button>
+   </div>}
    <p className={styles.description}>Connect your own Suno account to import a song directly. Suno may charge one of your download credits for a first-time download; SingMotion will ask you before approving it.</p>
    <label className={styles.label} htmlFor={id}>Suno song link</label>
    <input ref={linkInput} id={id} className={styles.input} type="url" inputMode="url" autoCapitalize="off"
