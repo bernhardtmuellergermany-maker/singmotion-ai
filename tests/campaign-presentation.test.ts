@@ -153,3 +153,19 @@ test("offer link navigates to Credits only after login; Studio cost hides intern
  assert.doesNotMatch(studio,/Playback slow-down and longer provider output/);
  assert.doesNotMatch(offer,/Credits \/ started sec<\/span>/);
 });
+
+test("short desktop and landscape mobile hero keep CTA/offer clear and hide the overlapping scroll mouse",()=>{
+ const homeCss=read("app/(site)/home-immersive.css");
+ const offerCss=read("components/campaign-display.css");
+ const hero=read("components/immersive-home.tsx");
+ assert.match(homeCss,/@media\(min-width:761px\) and \(max-height:900px\)/);
+ assert.match(homeCss,/\.sm-immersive-home \.sm-immersive-scroll-cue\{display:none!important\}/);
+ assert.match(homeCss,/@media\(min-width:761px\) and \(max-height:690px\)/);
+ assert.match(homeCss,/padding-top:clamp\(68px,16svh,110px\)/);
+ assert.match(homeCss,/@media\(max-width:760px\) and \(max-height:680px\)/);
+ assert.match(homeCss,/\.sm-immersive-home \.sm-mobile-reel-content/);
+ assert.match(offerCss,/\.sm-immersive-home \.sm-immersive-desktop-intro \.sm-campaign-offer-block\{\s*margin-top:7px;gap:5px/);
+ assert.match(offerCss,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-campaign-offer-block\{\s*gap:5px/);
+ assert.match(hero,/<CampaignOfferLine\/>/);
+ assert.match(hero,/className="sm-immersive-cta"/);
+});
