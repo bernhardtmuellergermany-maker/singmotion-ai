@@ -30,8 +30,26 @@ export async function POST(req:NextRequest){
     const link=canonical+"/account/reset-password?token="+encodeURIComponent(token);
     try{
      const response=await fetch("https://api.resend.com/emails",{method:"POST",headers:{"Authorization":"Bearer "+process.env.RESEND_API_KEY,"Content-Type":"application/json"},body:JSON.stringify({from:process.env.ACCOUNT_EMAIL_FROM,to:[input.email.trim().toLowerCase()],subject:"Reset your SingMotion AI password",text:"Use this link within 30 minutes to reset your SingMotion AI password:\n"+link+"\n\nIf you did not request this, ignore this email."}),signal:AbortSignal.timeout(10000)});
-     if(!response.ok)store.invalidatePasswordReset(token);
-    }catch{store.invalidatePasswordReset(token);}
+     if(!response.ok){
+      store.invalidatePasswordReset(token);
+      // Only fixed event codes and status: no email, address, token, link,
+      // IP, provider response body or credential in operational logs.
+      console.warn(JSON.stringify({event:"PASSWORD_RESET_MAIL_REJECTED",provider:"resend",status:response.status}));
+     }else{
+      const payload:unknown=await response.json().catch(()=>null);
+      const candidate=payload&&typeof payload==="object"&&"id" in payload?(payload as {id?:unknown}).id:null;
+      const messageId=typeof candidate==="string"&&/^[a-zA-Z0-9_-]{8,128}$/.test(candidate)?candidate:null;
+      console.info(JSON.stringify({event:"PASSWORD_RESET_MAIL_ACCEPTED",provider:"resend",status:response.status,
+       ...(messageId?{messageId}:{})}));
+     }
+    }catch{
+     store.invalidatePasswordReset(token);
+     console.error(JSON.stringify({event:"PASSWORD_RESET_MAIL_TRANSPORT_ERROR",provider:"resend"}));
+    }
+   }else{
+    // Same public response for unknown and Google-only accounts.
+    // Never log the submitted email or which of these cases applies.
+    console.info(JSON.stringify({event:"PASSWORD_RESET_NO_PASSWORD_ACCOUNT"}));
    }
    return reply({message:"If a password account exists, a reset email will be sent."});
   }
