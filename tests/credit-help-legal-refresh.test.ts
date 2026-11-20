@@ -201,7 +201,7 @@ test("Studio video status uses customer Credits and per-job verified reservation
  assert.match(status,/Credits released/);
  assert.doesNotMatch(status,/providerEstimate|\$0\.07|providerSeconds|USD 0\./);
  assert.match(admin,/creditCharge=\{project\?\.creditCharge\}/);
- assert.match(workflow,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits\)/);
+ assert.match(workflow,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits,/);
  assert.match(workflow,/this\.requirePrepaidCredits/);
  assert.match(api,/videoReservations/);
  assert.match(api,/videoReserved/);
