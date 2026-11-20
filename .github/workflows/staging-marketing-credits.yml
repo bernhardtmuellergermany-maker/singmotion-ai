@@ -36,3 +36,19 @@ jobs:
         run: npm run typecheck
       - name: Manual gifts, campaign tariffs and existing financial regression tests
         run: node --experimental-strip-types --test --test-concurrency=1 tests/manual-credit-gifts.test.ts tests/campaign-pricing.test.ts tests/credit-wallet.test.ts tests/customer-insights.test.ts tests/credit-help-legal-refresh.test.ts tests/prepaid-credit-ui.test.ts
+
+  full-regression:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - name: All offline TypeScript regression tests
+        run: npm test
+      - name: Release parity and Next.js production build
+        run: npm run build
