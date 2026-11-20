@@ -114,8 +114,10 @@ test("unapproved MCP download hosts are rejected and diagnostics never expose si
   await assert.rejects(sunoMcpDownload("user-authorization",id,true,mock),/unapproved audio download host/);
   assert.equal(warnings.length,1);
   const diagnostic=JSON.stringify(warnings);
-  assert.match(diagnostic,/downloads\\.example\\.net/);
-  assert.doesNotMatch(diagnostic,/secret-value|very-sensitive|signature|private\\/song/);
+  assert.ok(diagnostic.includes("downloads.example.net"));
+  for(const secret of ["secret-value","very-sensitive","signature","private/song"]){
+   assert.ok(!diagnostic.includes(secret));
+  }
  }finally{console.warn=originalWarn}
 });
 test("Studio integrates direct official download into the existing validated private audio upload",()=>{
