@@ -69,6 +69,12 @@ export class CreditWallet {
     kind TEXT NOT NULL,reference TEXT UNIQUE NOT NULL,created INTEGER NOT NULL
    );
    CREATE INDEX IF NOT EXISTS credit_wallet_subject_idx ON credit_wallet_ledger(subject,created DESC);
+   CREATE TABLE IF NOT EXISTS credit_video_tariffs(
+    project_id TEXT PRIMARY KEY,
+    price_version TEXT NOT NULL,credits_per_second INTEGER NOT NULL,
+    started_seconds INTEGER NOT NULL,campaign_id TEXT,created INTEGER NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS credit_video_tariffs_campaign_idx ON credit_video_tariffs(campaign_id);
    CREATE TABLE IF NOT EXISTS credit_video_reservations(
     project_id TEXT PRIMARY KEY,subject TEXT NOT NULL,
     credits INTEGER NOT NULL CHECK(credits>0),
@@ -217,7 +223,14 @@ export class CreditWallet {
   return Number(r.total);
  }
  available(subject:string):number {return this.total(subject)-this.reserved(subject);}
- reserveVideo(projectId:string,subject:string,credits:number):VideoReservation {
+ reserveVideo(projectId:string,subject:string,credits:number,
+  pricing?:{version:string;creditsPerSecond:number;startedSeconds:number;campaignId:string|null}):VideoReservation {
+  if(pricing&&(!/^(?:regular-v1|campaign:[0-9a-f-]{36}:v[1-9][0-9]*)$/.test(pricing.version)||
+    !Number.isSafeInteger(pricing.creditsPerSecond)||pricing.creditsPerSecond<1||
+    pricing.creditsPerSecond>1000||!Number.isSafeInteger(pricing.startedSeconds)||
+    pricing.startedSeconds<5||pricing.startedSeconds>300||
+    pricing.creditsPerSecond*pricing.startedSeconds!==credits))
+   throw Error("Invalid confirmed campaign price");
   if(!/^[a-f0-9-]{36}$/i.test(projectId)||
      !/^(?:customer|super-admin):[A-Za-z0-9_-]{1,100}$/.test(subject)||
      !Number.isSafeInteger(credits)||credits<=0||credits>7500)
@@ -226,13 +239,49 @@ export class CreditWallet {
    const prior=this.videoReservation(projectId);
    if(prior){
     if(prior.subject!==subject||prior.credits!==credits)throw Error("Video reservation owner/price conflict");
+    const oldPricing=this.db.prepare("SELECT price_version FROM credit_video_tariffs WHERE project_id=?")
+     .get(projectId) as {price_version:string}|undefined;
+    if(pricing&&oldPricing?.price_version!==pricing.version)
+     throw Error("Confirmed video price version conflict");
     if(prior.state==="settled"||prior.state==="released")throw Error("Video reservation is final");
     return prior;
    }
    if(this.available(subject)<credits)throw Error("Insufficient video credits");
+   if(pricing?.campaignId){
+    const campaign=this.db.prepare("SELECT id,revision,credits_per_second,start_utc,end_utc,status,max_customer_generations,max_campaign_credits FROM marketing_campaigns WHERE id=?")
+     .get(pricing.campaignId) as
+     {id:string;revision:number;credits_per_second:number;start_utc:number;end_utc:number;status:string;
+      max_customer_generations:number|null;max_campaign_credits:number|null}|undefined;
+    const now=Date.now();
+    if(!campaign||!["active","scheduled"].includes(campaign.status)||
+       now<campaign.start_utc||now>=campaign.end_utc||
+       pricing.version!=="campaign:"+campaign.id+":v"+campaign.revision||
+       pricing.creditsPerSecond!==campaign.credits_per_second)
+     throw Error("Campaign tariff expired or changed; confirm the current price");
+    if(campaign.max_customer_generations!==null){
+     const r=this.db.prepare(`SELECT COUNT(*) n FROM credit_video_tariffs t
+       JOIN credit_video_reservations v ON v.project_id=t.project_id
+       WHERE t.campaign_id=? AND v.subject=? AND v.state<>'released'`)
+      .get(campaign.id,subject) as {n:number};
+     if(r.n>=campaign.max_customer_generations)throw Error("Customer campaign usage limit reached");
+    }
+    if(campaign.max_campaign_credits!==null){
+     const r=this.db.prepare(`SELECT COALESCE(SUM(v.credits),0) n FROM credit_video_tariffs t
+       JOIN credit_video_reservations v ON v.project_id=t.project_id
+       WHERE t.campaign_id=? AND v.state<>'released'`)
+      .get(campaign.id) as {n:number};
+     if(r.n+credits>campaign.max_campaign_credits)throw Error("Campaign budget exhausted");
+    }
+   }else if(pricing&&(pricing.version!=="regular-v1"||pricing.creditsPerSecond!==25)){
+    throw Error("Invalid regular price version");
+   }
    const now=Date.now();
    this.db.prepare("INSERT INTO credit_video_reservations VALUES(?,?,?,'reserved',?,?)")
     .run(projectId,subject,credits,now,now);
+   if(pricing)this.db.prepare(`INSERT INTO credit_video_tariffs
+     (project_id,price_version,credits_per_second,started_seconds,campaign_id,created)
+     VALUES(?,?,?,?,?,?)`).run(projectId,pricing.version,pricing.creditsPerSecond,
+      pricing.startedSeconds,pricing.campaignId,now);
    return this.videoReservation(projectId)!;
   });
  }
