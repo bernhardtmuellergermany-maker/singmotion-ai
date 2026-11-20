@@ -160,7 +160,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
    </div>}
   <div className="sm-credit-amount-total" aria-live="polite">
    <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
-   <div><span>Estimated payment (tax determined at checkout)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
+   <div><span>Estimated payment</span><strong>{cents===null?"—":euro(cents)}</strong></div>
    <div><span>Estimated AI Video Seconds</span><strong>{estimatedVideoSeconds===null?"—":num(estimatedVideoSeconds)+" s"}</strong></div>
    <p className="sm-credit-amount-seconds-note">Total source-audio time at {creditsPerSecond===null?"a currently unverified rate":creditsPerSecond+" Credits per started second"}. Individual video limits apply.</p>
   </div>
