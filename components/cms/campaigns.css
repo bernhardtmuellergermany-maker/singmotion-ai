@@ -52,3 +52,89 @@
 .sm-marketing-history li{padding:7px 0;border-bottom:1px solid #352c42}
 @media(max-width:960px){.sm-marketing-layout{grid-template-columns:1fr}.sm-marketing-campaign-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:330px}}
 @media(max-width:620px){.sm-marketing-form,.sm-marketing-campaign-items{grid-template-columns:1fr}.sm-marketing-preview-mobile{min-height:330px}.sm-marketing{padding-top:5px}}
+
+/* 2026-11 campaign editor: full desktop and portrait previews, with every
+ * editable CMS field rendered. Do not re-use the old logo-only mock. */
+.sm-marketing-edit-note{font-size:13px;color:#c2b3d5;line-height:1.6;margin:0 0 19px}
+.sm-marketing-preview-title>div:first-child{flex:1 1 220px}
+.sm-marketing-preview-title p{margin:5px 0 0;font-size:12px;color:#bcb0d0;line-height:1.5}
+.sm-marketing-preview-controls{display:flex;align-items:center;flex-wrap:wrap;gap:8px}
+.sm-marketing-preview-controls button{font-size:12px;white-space:nowrap}
+.sm-marketing-preview-controls button[aria-pressed="true"]{border-color:#f3c7ff;background:#693a89}
+.sm-marketing-preview-pages{margin:15px 0}
+.sm-marketing-preview-stage{background:#100d1a;border-radius:15px;min-width:0;padding:clamp(9px,2vw,18px);overflow:auto}
+.sm-marketing .sm-marketing-preview{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+ gap:0;width:100%;max-width:100%;min-height:340px;box-sizing:border-box;overflow:hidden;
+ padding:0;margin:0 auto;text-align:initial;color:#fff;
+ background:radial-gradient(ellipse at 50% 42%,#432465,#0f0c20 75%);border-color:#594268}
+.sm-marketing .sm-marketing-preview-mobile{width:min(390px,100%);max-width:390px;min-height:560px;border-radius:23px}
+.sm-marketing .sm-marketing-preview-desktop{width:100%;max-width:none;min-height:385px;border-radius:13px}
+.sm-marketing-preview-header{display:flex;align-items:center;gap:0;min-width:0;min-height:56px;
+ padding:0 clamp(11px,2vw,22px);flex:0 0 auto}
+.sm-marketing-preview-brand{flex:0 0 auto;white-space:nowrap;font-weight:850;font-size:clamp(14px,1.8vw,19px);letter-spacing:-.05em}
+.sm-marketing-preview-brand strong{color:#e043f8}
+.sm-marketing-preview-badge{display:inline-flex;align-items:center;justify-content:center;min-height:22px;
+ margin-left:clamp(12px,1.5vw,20px);border:1px solid var(--campaign-accent,#af65ef);
+ border-radius:999px;padding:3px 9px;max-width:115px;overflow:hidden;
+ text-overflow:ellipsis;white-space:nowrap;font-size:9px;font-style:normal;
+ font-weight:850;letter-spacing:.06em;color:var(--campaign-accent,#af65ef);background:#2c1b3c}
+.sm-marketing-preview-badge[data-theme="beta"]{color:#f0ddff;border-color:#b48aff;
+ background:linear-gradient(105deg,#63358b,#281a50)}
+.sm-marketing-preview-badge[data-theme="beta"]::before{content:"";height:5px;width:5px;border-radius:50%;
+ background:#d7a4ff;margin-right:6px;flex-shrink:0}
+.sm-marketing-preview-menu{font-size:20px;line-height:1;margin-left:auto;color:#c7b0e0}
+.sm-marketing-preview-hero{flex:1;display:flex;flex-direction:column;align-items:center;
+ justify-content:center;gap:10px;padding:35px 22px 43px;text-align:center}
+.sm-marketing-preview-hero-head{font-size:clamp(21px,3vw,38px);line-height:1.13;
+ letter-spacing:-.045em;max-width:490px;font-weight:850}
+.sm-marketing-preview-hero-head span{color:#e043f8}
+.sm-marketing-preview-hero>p{font-size:13px;color:#e2d5ef;margin:0}
+.sm-marketing-preview-offer{box-sizing:border-box;display:grid;place-items:center;gap:6px;
+ width:100%;max-width:540px;padding:11px 13px;margin:6px 0 4px;
+ background:rgba(21,9,38,.76);border:1px solid var(--campaign-accent,#af65ef);
+ border-radius:14px;text-align:center;overflow-wrap:anywhere;
+ box-shadow:0 5px 20px rgba(11,4,19,.15)}
+.sm-marketing-preview-offer-top{display:flex;align-items:center;justify-content:center;gap:7px;
+ flex-wrap:wrap;font-size:11px}
+.sm-marketing-preview-offer-top>strong{color:var(--campaign-accent,#af65ef);font-weight:850}
+.sm-marketing-preview-offer-top b{font-size:10px;background:rgba(112,57,145,.7);padding:3px 7px;border-radius:999px}
+.sm-marketing-preview-offer>strong{font-size:13px}
+.sm-marketing-preview-offer>p{margin:0;color:#dccfe9;font-size:11px;line-height:1.45}
+.sm-marketing-preview-offer>small{font-size:10px;color:#d2c1e3}
+.sm-marketing-preview-offer-cta{display:inline-flex;justify-content:center;align-items:center;
+ padding:7px 12px;font-size:11px;font-weight:800;background:rgba(92,48,137,.8);
+ border:1px solid var(--campaign-accent,#af65ef);border-radius:999px;max-width:100%}
+.sm-marketing-preview-primary{padding:12px 19px;border-radius:99px;font-weight:800;
+ font-size:12px;background:linear-gradient(105deg,#bb38df,#7c34d9)}
+.sm-marketing-preview-info{padding:clamp(18px,3.5vw,42px);
+ display:flex;flex-direction:column;align-items:center;gap:13px;justify-content:flex-start;text-align:center}
+.sm-marketing-preview-eyebrow{font-size:10px;letter-spacing:.12em;color:#d0a0ef}
+.sm-marketing-preview-info-title{font-size:clamp(28px,4vw,48px);letter-spacing:-.04em}
+.sm-marketing-preview-info>p{font-size:12px;color:#c4b7d3;margin:0}
+.sm-marketing-preview-info-offer{max-width:600px;width:100%;text-align:left;place-items:start;
+ padding:17px 20px;gap:8px;background:linear-gradient(110deg,#3b2357,#1c172d)}
+.sm-marketing-preview-info-offer>strong:first-child{font-size:10px;color:var(--campaign-accent,#af65ef);letter-spacing:.08em}
+.sm-marketing-preview-info-offer>.sm-marketing-preview-campaign-title{font-size:clamp(17px,2vw,24px)}
+.sm-marketing-preview-info-offer>b{font-size:16px}
+.sm-marketing-preview-info-offer .sm-marketing-preview-offer-cta{border-radius:10px}
+.sm-marketing-preview-pricecard{display:flex;align-items:center;gap:13px;flex-wrap:wrap;
+ width:min(100%,600px);padding:13px;margin:3px 0;border-radius:12px;
+ border:1px solid #6b507d;background:#171225;justify-content:space-between}
+.sm-marketing-preview-pricecard strong{font-size:14px}
+.sm-marketing-preview-pricecard p{font-size:11px;color:#d8c6e7;margin:0}
+.sm-marketing-preview-mobile .sm-marketing-preview-header{padding:0 14px}
+.sm-marketing-preview-mobile .sm-marketing-preview-brand{font-size:15px}
+.sm-marketing-preview-mobile .sm-marketing-preview-badge{font-size:8px;margin-left:11px;padding:3px 7px;max-width:82px}
+.sm-marketing-preview-mobile .sm-marketing-preview-hero{padding:15px 14px 35px;gap:10px}
+.sm-marketing-preview-mobile .sm-marketing-preview-hero-head{font-size:24px}
+.sm-marketing-preview-mobile .sm-marketing-preview-offer{padding:10px 11px}
+.sm-marketing-preview-mobile .sm-marketing-preview-info{padding:20px 13px;gap:11px}
+.sm-marketing-preview-mobile .sm-marketing-preview-info-offer{padding:15px}
+.sm-marketing-preview-mobile .sm-marketing-preview-pricecard{flex-direction:column;align-items:flex-start;gap:5px}
+.sm-marketing-preview-note{font-size:11px;color:#b4aac5;line-height:1.6;margin:12px 0 2px}
+@media(max-width:390px){
+ .sm-marketing-preview-controls button{white-space:normal}
+ .sm-marketing-preview-mobile .sm-marketing-preview-badge{margin-left:8px;max-width:65px}
+ .sm-marketing-preview-mobile .sm-marketing-preview-brand{font-size:14px}
+ .sm-marketing-preview-mobile .sm-marketing-preview-hero-head{font-size:22px}
+}
