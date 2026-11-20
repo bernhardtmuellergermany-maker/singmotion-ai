@@ -19,7 +19,8 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const actorPattern=/^[a-zA-Z0-9_-]{1,100}$/;
 const keyPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export class GiftError extends Error{
- constructor(message:string,public readonly status=409){super(message);}
+ readonly status:number;
+ constructor(message:string,status=409){super(message);this.status=status;}
 }
 function cap(env:Record<string,string|undefined>,name:string,fallback:number){
  const value=env[name];
@@ -40,7 +41,10 @@ export function manualGiftEnabled(env:Record<string,string|undefined>):boolean{
 
 export class ManualCreditGifts{
  private readonly wallet:CreditWallet;
- constructor(private readonly db:DatabaseSync,private readonly env:Record<string,string|undefined>){
+ private readonly db:DatabaseSync;
+ private readonly env:Record<string,string|undefined>;
+ constructor(db:DatabaseSync,env:Record<string,string|undefined>){
+  this.db=db;this.env=env;
   this.wallet=new CreditWallet(db);
   db.exec(`
    CREATE TABLE IF NOT EXISTS admin_credit_gifts(
