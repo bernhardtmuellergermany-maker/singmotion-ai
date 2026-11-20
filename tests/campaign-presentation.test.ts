@@ -69,8 +69,8 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.match(banner,/discounted&&tariff.showDiscountPercent&&/);
  assert.match(banner,/discounted&&tariff.showRegularPrice&&/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
- assert.match(css,/padding:11px 12px/);
- assert.match(css,/width:min\(560px,100%\)/);
+ assert.match(css,/padding:7px 9px/);
+ assert.match(css,/width:max-content;max-width:min\(560px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
  assert.ok(banner.indexOf('</Link>')<banner.indexOf('className="sm-campaign-offer-meta"'));
@@ -130,7 +130,7 @@ test("Pricing and Credits reuse the exact same versioned neon offer styles",()=>
  assert.match(css,/\.sm-campaign-pricing-banner \.sm-campaign-pricing-price/);
  assert.match(previewCss,/\.sm-marketing-preview:is\(\.sm-marketing-preview-credits,\.sm-marketing-preview-pricing\)/);
  assert.doesNotMatch(css,/width:min\(300px,100%\)/);
- assert.match(css,/width:min\(560px,100%\)/);
+ assert.match(css,/width:max-content;max-width:min\(560px,100%\)/);
 });
 
 test("offer link navigates to Credits only after login; Studio cost hides internal details",()=>{
@@ -161,11 +161,25 @@ test("short desktop and landscape mobile hero keep CTA/offer clear and hide the 
  assert.match(homeCss,/@media\(min-width:761px\) and \(max-height:900px\)/);
  assert.match(homeCss,/\.sm-immersive-home \.sm-immersive-scroll-cue\{display:none!important\}/);
  assert.match(homeCss,/@media\(min-width:761px\) and \(max-height:690px\)/);
- assert.match(homeCss,/padding-top:clamp\(68px,16svh,110px\)/);
+ assert.match(homeCss,/padding-top:clamp\(128px,27svh,195px\)/);
  assert.match(homeCss,/@media\(max-width:760px\) and \(max-height:680px\)/);
  assert.match(homeCss,/\.sm-immersive-home \.sm-mobile-reel-content/);
- assert.match(offerCss,/\.sm-immersive-home \.sm-immersive-desktop-intro \.sm-campaign-offer-block\{\s*margin-top:7px;gap:5px/);
- assert.match(offerCss,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-campaign-offer-block\{\s*gap:5px/);
+ assert.match(offerCss,/\.sm-immersive-home \.sm-immersive-desktop-intro \.sm-campaign-offer-block\{\s*margin-top:11px;gap:7px/);
+ assert.match(offerCss,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-campaign-offer-block\{\s*gap:7px/);
  assert.match(hero,/<CampaignOfferLine\/>/);
  assert.match(hero,/className="sm-immersive-cta"/);
+});
+
+test("short-height hero is lower with breathing room while offer pill tracks its contents",()=>{
+ const home=read("app/(site)/home-immersive.css");
+ const offer=read("components/campaign-display.css");
+ assert.match(home,/padding-top:clamp\(155px,31svh,300px\)/);
+ assert.match(home,/padding-top:clamp\(128px,27svh,195px\)/);
+ assert.match(home,/margin-top:15px;margin-bottom:17px/);
+ assert.match(home,/font-size:clamp\(43px,5vw,66px\)/);
+ assert.match(home,/\.sm-immersive-home \.sm-immersive-scroll-cue\{display:none!important\}/);
+ assert.match(offer,/width:max-content;max-width:min\(560px,100%\)/);
+ assert.match(offer,/min-height:50px;margin:0;padding:7px 9px/);
+ assert.match(offer,/min-height:50px;gap:7px 9px;margin:0;padding:7px 8px/);
+ assert.doesNotMatch(home,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-immersive-cta\{\s*min-height:48px/);
 });
