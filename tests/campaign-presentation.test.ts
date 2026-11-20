@@ -70,7 +70,7 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.match(banner,/discounted&&tariff.showRegularPrice&&/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
  assert.match(css,/padding:11px 20px/);
- assert.match(css,/width:min\(560px,100%\)/);
+ assert.match(css,/width:min\(300px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
  assert.ok(banner.indexOf('</aside>')<banner.indexOf('className="sm-campaign-offer-meta"'));
@@ -89,4 +89,25 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.doesNotMatch(banner,/sm-campaign-offer-details/);
  assert.doesNotMatch(css,/\[data-theme="beta"\]::before/);
  assert.match(previewCss,/\.sm-marketing-preview-mobile\.sm-marketing-preview-home \.sm-marketing-preview-offer/);
+});
+
+test("pricing example tiles never squeeze seconds into a 20px track on phones",()=>{
+ const css=read("app/(site)/plans/plans.css");
+ assert.doesNotMatch(css,/grid-template-columns:20px 1fr auto/);
+ assert.match(css,/\.sm-plan-single \.sm-plan-examples>div\{\s*grid-template-columns:minmax\(0,1fr\) minmax\(0,max-content\)/);
+ assert.match(css,/\.sm-plan-single \.sm-plan-examples strong\{[^}]*text-align:right/);
+});
+test("credits campaign uses the existing offer design and shared versioned tariff",()=>{
+ const jsx=read("components/campaign-display.tsx");
+ const css=read("components/campaign-display.css");
+ const cms=read("components/cms/campaigns-client.tsx");
+ assert.match(jsx,/placement==="credits"&&<Rocket/);
+ assert.match(jsx,/placement==="credits"&&<span className="sm-campaign-pricing-light-sweep"/);
+ assert.match(jsx,/sm-campaign-rate-regular/);
+ assert.match(jsx,/tariff.showRegularPrice&&tariff.discountPercent!==null&&/);
+ assert.match(css,/\.sm-credits-main>\.sm-campaign-pricing-credits/);
+ assert.match(css,/\.sm-campaign-pricing-credits \.sm-campaign-rate-line>em/);
+ assert.match(css,/\.sm-campaign-pricing-credits \.sm-campaign-rate-regular/);
+ assert.match(cms,/sm-marketing-preview-credits-rate/);
+ assert.match(cms,/selected.showRegularPrice&&percent!==null&&<del>/);
 });
