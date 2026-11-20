@@ -2,7 +2,8 @@ name: Customer generation feedback safety
 on:
   pull_request:
     branches:
-      - design/studio-audio-redesign-20261111
+      - staging
+      - production
     paths:
       - 'components/customer-feedback.*'
       - 'components/feedback-preview.*'
@@ -17,7 +18,6 @@ on:
       - 'tests/superadmin-project-sync-401.test.ts'
       - 'tests/cross-device-project-name-sync.test.ts'
       - 'components/my-projects-gallery.css'
-      - 'components/my-projects-gallery.tsx'
       - 'components/project-header-name.tsx'
       - 'app/(site)/api/studio-live/route.ts'
       - 'app/(site)/api/customer-orders/route.ts'
@@ -42,6 +42,7 @@ on:
       - 'package.json'
       - '.github/workflows/customer-generation-feedback.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
 concurrency:

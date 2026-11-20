@@ -1,9 +1,11 @@
 name: Launch checkout regression gate
 on:
-  push:
+  pull_request:
     branches:
-      - launch/checkout-webhook-hardening-20261106
+      - staging
+      - production
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

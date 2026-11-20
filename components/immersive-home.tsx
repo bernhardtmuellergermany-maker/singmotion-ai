@@ -568,7 +568,7 @@ export function ImmersiveHome(){
    <section className="sm-immersive-seo-links" aria-labelledby="sm-discover-title">
     <div className="sm-immersive-seo-shell">
      <header className="sm-immersive-seo-heading">
-      <span className="sm-immersive-seo-eyebrow"><span className="sm-immersive-seo-dot" aria-hidden="true"/>THE CREATOR'S GUIDE</span>
+      <span className="sm-immersive-seo-eyebrow"><span className="sm-immersive-seo-dot" aria-hidden="true"/>THE CREATOR&apos;S GUIDE</span>
       <h2 id="sm-discover-title">Make your music <em>move.</em></h2>
       <p>From a single photo to a cinematic performance. Explore practical guides for AI music videos and short-form content.</p>
      </header>

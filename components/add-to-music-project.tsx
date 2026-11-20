@@ -11,13 +11,13 @@ export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
   const [projects,setProjects]=useState<Target[]>([]),[error,setError]=useState("");
   const [busy,setBusy]=useState(false),[complete,setComplete]=useState(false);
   useEffect(()=>{
-    if(enabled!==undefined){setAllowed(enabled);return;}
+    if(enabled!==undefined)return;
     let active=true;
     void fetch("/api/music-video",{credentials:"same-origin",cache:"no-store"})
       .then(r=>{if(active)setAllowed(r.ok);}).catch(()=>{});
     return()=>{active=false;};
   },[enabled]);
-  if(!allowed)return null;
+  if(!(enabled??allowed))return null;
   async function show(){
     setError("");setComplete(false);setOpen(true);
     try{
@@ -48,7 +48,7 @@ export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
       <div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
         <div className="mv-dialog" role="dialog" aria-modal="true" aria-label="Add video to music project">
           <h2>Add to Project</h2>
-          {complete?<p role="status">Video added to the selected project's Library. It has not been placed on the timeline.</p>:
+          {complete?<p role="status">Video added to the selected project&apos;s Library. It has not been placed on the timeline.</p>:
             projects.length?<div style={{display:"grid",gap:9,maxHeight:350,overflowY:"auto"}}>
               {projects.map(p=><button type="button" key={p.id} disabled={busy} onClick={()=>void add(p.id)}
                 style={{display:"flex",alignItems:"center",gap:9,padding:12,border:"1px solid #8952aa",borderRadius:10,background:"#2a173e",textAlign:"left",color:"#fff"}}>

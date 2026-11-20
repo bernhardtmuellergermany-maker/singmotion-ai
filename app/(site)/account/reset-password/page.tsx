@@ -20,10 +20,10 @@ export default function ResetPassword(){
  const [error,setError]=useState(false);
  useEffect(()=>{
   const controller=new AbortController();
-  setToken(new URLSearchParams(window.location.search).get("token")||"");
+  const candidateToken=new URLSearchParams(window.location.search).get("token")||"";
   void fetch("/api/customer-password-reset",{cache:"no-store",signal:controller.signal})
    .then(async r=>r.ok?await r.json():null)
-   .then(d=>{if(!controller.signal.aborted)setReady(d?.enabled===true);})
+   .then(d=>{if(!controller.signal.aborted){setToken(candidateToken);setReady(d?.enabled===true);}})
    .catch(()=>{})
    .finally(()=>{if(!controller.signal.aborted)setChecking(false);});
   return()=>controller.abort();
@@ -56,7 +56,7 @@ export default function ResetPassword(){
       ?"Secure your private AI music-video studio with a new password."
       :"Get back to creating AI music videos. We'll send a secure reset link to your account email."}</p>
      {checking?<p className="sm-reset-muted" role="status">Checking password recovery…</p>:
-      !ready?<p className="sm-reset-notice" role="status">Email password recovery isn't available right now. Contact support to regain access to your account.</p>:
+      !ready?<p className="sm-reset-notice" role="status">Email password recovery isn&apos;t available right now. Contact support to regain access to your account.</p>:
       <form className="sm-account-form" onSubmit={e=>void submit(e)}>
        {token?<><label className="sm-account-label">New password
          <input type="password" required minLength={8} maxLength={256}

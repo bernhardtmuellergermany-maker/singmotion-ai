@@ -1,9 +1,6 @@
 name: Build staging container outside Railway
 
 on:
-  push:
-    branches:
-      - feat/byteplus-omni20-documented-api
   workflow_dispatch:
 
 permissions:
@@ -16,6 +13,7 @@ concurrency:
 
 jobs:
   build-and-push:
+    if: github.ref == 'refs/heads/staging'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

@@ -3,7 +3,8 @@ name: CMS isolated PostgreSQL integration
 on:
   pull_request:
     branches:
-      - feat/super-admin-promo-codes-20261103
+      - staging
+      - production
     paths:
       - ".github/workflows/cms-isolated.yml"
       - "app/(payload)/**"
@@ -15,19 +16,8 @@ on:
       - "tests/cms-dashboard-metrics.test.ts"
       - "package.json"
       - "package-lock.json"
-  push:
-    branches:
-      - fix/tempo-distinguish-provider-errors-20261028
-    paths:
-      - ".github/workflows/cms-isolated.yml"
-      - "cms/**"
-      - "payload.config.ts"
-      - "tests/cms.integration.ts"
-      - "tests/cms.browser.ts"
       - "tests/cms-database-guard.test.mjs"
       - "scripts/test-cms-isolated.mjs"
-      - "package.json"
-      - "package-lock.json"
   workflow_dispatch:
 
 permissions:

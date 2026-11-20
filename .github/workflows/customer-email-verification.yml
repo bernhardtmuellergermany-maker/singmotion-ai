@@ -1,9 +1,11 @@
 name: Customer email verification release checks
 on:
-  push:
+  pull_request:
     branches:
-      - phase4/customer-email-verification-20261106
+      - staging
+      - production
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

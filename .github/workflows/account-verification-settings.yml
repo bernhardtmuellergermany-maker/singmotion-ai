@@ -1,8 +1,11 @@
 name: Account verification status release checks
 on:
-  push:
-    branches: [fix/settings-email-verification-status-20261106]
+  pull_request:
+    branches:
+      - staging
+      - production
   workflow_dispatch:
+
 permissions:
   contents: read
 jobs:

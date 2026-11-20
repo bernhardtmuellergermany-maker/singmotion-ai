@@ -1,9 +1,10 @@
 name: Verify promotion feature in isolation
 
 on:
-  push:
+  pull_request:
     branches:
-      - feat/super-admin-promo-codes-20261103
+      - staging
+      - production
   workflow_dispatch:
 
 permissions:

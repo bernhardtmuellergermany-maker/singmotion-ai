@@ -369,15 +369,28 @@ try {
     /^Basic /,
   );
   assert.equal(unauthenticatedLogin.headers.get("x-singmotion-cms-code"), null);
-  const rejected = await context.request.post(origin + "/api/cms/staff/login", {
+  // With valid private-gate Basic credentials, the CMS handler rejects the
+  // cross-origin POST and emits its fixed diagnostic. Cookie-only mutations
+  // may already be denied by the outer private gate without that header.
+  const rejected = await fetch(origin + "/api/cms/staff/login", {
+    method: "POST",
+    headers: {
+      authorization: basic,
+      origin: "https://evil.example",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ email: admin.email, password }),
+  });
+  assert.equal(rejected.status, 403);
+  assert.equal(
+    rejected.headers.get("x-singmotion-cms-code"),
+    "CMS_ORIGIN_REJECTED",
+  );
+  const cookieOnlyRejected = await context.request.post(origin + "/api/cms/staff/login", {
     headers: { origin: "https://evil.example" },
     data: { email: admin.email, password },
   });
-  assert.equal(rejected.status(), 403);
-  assert.equal(
-    rejected.headers()["x-singmotion-cms-code"],
-    "CMS_ORIGIN_REJECTED",
-  );
+  assert.equal(cookieOnlyRejected.status(), 403);
   const missing = await fetch(origin + "/api/cms/staff/login", {
     method: "POST",
     headers: { authorization: basic, "content-type": "application/json" },
@@ -408,10 +421,13 @@ try {
   const sidebar=page.getByRole("navigation").filter({has:page.locator(".sm-cms-sidebar-intro")});
   await sidebar.getByRole("link",{name:"Übersicht"}).waitFor();
   assert.equal(await sidebar.getByRole("link",{name:"Übersicht"}).getAttribute("href"),"/admin");
-  for(const label of ["Team & Zugriffsrechte","Seiten bearbeiten","Medienbibliothek",
-    "Navigation & Footer","Kundenservice","Studio-Inhalte"]){
-    await sidebar.getByText(label,{exact:true}).first().waitFor();
-  }
+  // The slim sidebar now deliberately contains only role-authorized
+  // shortcuts. The full collection tools live on the dedicated dashboard,
+  // not in duplicate native sidebar group headings.
+  await sidebar.getByRole("link",{name:"Kunden & Credits"}).waitFor();
+  await sidebar.getByRole("link",{name:"Support"}).waitFor();
+  assert.equal(await sidebar.getByRole("link",{name:"Kunden & Credits"}).count(),1);
+  assert.equal(await sidebar.getByRole("link",{name:"Support"}).count(),1);
   assert.equal(await sidebar.getByText("E-Mail-Vorlagen",{exact:true}).count(),0);
   assert.equal(await sidebar.getByText("Aktivitätsprotokoll",{exact:true}).count(),0);
   const clean=page.locator(".sm-cms-clean");
@@ -516,6 +532,8 @@ try {
   assert.equal(state.plan.state, "prepared");
   assert.equal(state.plan.costDigest, null);
   assert.ok(!JSON.stringify(state).includes(directory));
+  // With provider/generation disabled, even a logged-in operator must not
+  // reach the first-test start action: the authorization layer returns 403.
   assert.equal(
     (
       await context.request.post(adminTest, {
@@ -528,7 +546,7 @@ try {
         },
       })
     ).status(),
-    400,
+    403,
   );
   for (const role of ["editor", "support", "super-admin"] as const) {
     const other = await payload.create({
@@ -580,7 +598,9 @@ try {
   });
 
   await page.goto(origin + `/admin/collections/pages/${draft.id}`);
-  await page.locator(".sm-cms-sidebar-intro").getByRole("link",{name:"Übersicht"}).waitFor();
+  // Wait for the actual editor after navigation. The duplicate legacy CMS
+  // sidebar was intentionally hidden; its visibility is not an auth gate.
+  await page.locator('input[name="title"]').waitFor({state:"visible"});
   await page.locator('input[name="title"]').fill("Published browser test");
   await page.getByRole("button", { name: /publish changes/i }).click();
   await page

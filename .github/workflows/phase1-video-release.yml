@@ -1,12 +1,10 @@
 name: Phase 1 video export release checks
 
 on:
-  push:
-    branches:
-      - phase1/release-export-gates-20261106
   pull_request:
     branches:
-      - fix/super-admin-visible-provider-quote-20261105
+      - staging
+      - production
   workflow_dispatch:
 
 permissions:

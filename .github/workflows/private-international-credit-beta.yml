@@ -3,7 +3,8 @@ name: Verify password-protected worldwide LIVE Credits beta
 on:
   pull_request:
     branches:
-      - release/production-promoted-20261114
+      - staging
+      - production
     paths:
       - 'lib/commerce/private-international-credit-beta.ts'
       - 'lib/staging.ts'

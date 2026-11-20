@@ -28,7 +28,11 @@ export function CompletedVideoDetails({data,measuredDurationSeconds}:{
  const [editing,setEditing]=useState(false),[saving,setSaving]=useState(false);
  const [error,setError]=useState("");
  const [copied,setCopied]=useState<"prompt"|"id"|null>(null);
- useEffect(()=>{if(!editing&&!saving)setName(data.name?.trim()||"Untitled video")},[data.name,editing,saving]);
+ useEffect(()=>{
+   let active=true;
+   void Promise.resolve().then(()=>{if(active&&!editing&&!saving)setName(data.name?.trim()||"Untitled video");});
+   return()=>{active=false};
+  },[data.name,editing,saving]);
  const canRename=(!!data.renameId&&/^[a-f0-9-]{36}$/i.test(data.renameId))||
   (!!data.renameOrderId&&/^[a-f0-9-]{36}$/i.test(data.renameOrderId));
  const created=projectCreatedLabel(data.createdAt);

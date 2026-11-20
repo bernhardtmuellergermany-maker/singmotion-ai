@@ -80,7 +80,7 @@ export function StudioAccountGate({draftId,requiredCredits,onClose}:{
     required minLength={8} maxLength={256} value={confirm} onChange={e=>setConfirm(e.target.value)}/></label>}
    <label className="sm-review-rights" style={{display:"flex",alignItems:"flex-start",gap:10}}>
     <input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)}/>
-    <span>Transfer the guest projects and uploads saved in this browser to my account. Only this browser's verified guest workspace can be transferred.</span>
+    <span>Transfer the guest projects and uploads saved in this browser to my account. Only this browser&apos;s verified guest workspace can be transferred.</span>
    </label>
    <button type="submit" className="product-primary" disabled={busy||!consent||!returnTo||accountEnabled===false}>
     {busy?"Signing in…":mode==="register"?"Create free account & continue":"Sign in & continue"}
