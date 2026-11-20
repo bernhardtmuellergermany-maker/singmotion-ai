@@ -5,9 +5,9 @@ import Link from "next/link";
 import {CustomerFeedback} from "@/components/customer-feedback";
 import {requestErrorFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,parseCreditTopup,proposedTopupCents} from "@/lib/commerce/credit-topup-quote";
-import {VIDEO_CREDITS_PER_STARTED_SECOND} from "@/lib/commerce/video-credit-quote";
+
 import "./credit-amount-picker.css";
-const presets=[2000,4000,10000] as const;
+const presets=[500,2000,4000,10000] as const;
 const countryDisplay=new Intl.DisplayNames(["en"],{type:"region"});
 const countries="AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ")
  .map(code=>({code,label:countryDisplay.of(code)||code}))
@@ -60,14 +60,28 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  const selectableCountries=moRCountries?countries.filter(x=>moRCountries.includes(x.code)):countries;
  const [billingCountry,setBillingCountry]=useState("");
  const [buyerType,setBuyerType]=useState<"consumer"|"business">("consumer");
- const [raw,setRaw]=useState("2000");
+ const [raw,setRaw]=useState("500");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
  const requestKey=useRef<string|null>(null);
  const [status,setStatus]=useState<CustomerNotice|null>(null);
  const inputId=useId();
+ const [creditsPerSecond,setCreditsPerSecond]=useState<number|null>(null);
+ useEffect(()=>{
+  let active=true;
+  const load=()=>void fetch("/api/credit-tariff",{cache:"no-store"})
+   .then(async response=>{
+    if(!response.ok)throw Error("Video tariff unavailable");
+    return await response.json() as {creditsPerSecond?:number};
+   }).then(data=>{
+    if(active)setCreditsPerSecond(typeof data.creditsPerSecond==="number"&&
+     Number.isSafeInteger(data.creditsPerSecond)&&data.creditsPerSecond>=1?data.creditsPerSecond:null);
+   }).catch(()=>{if(active)setCreditsPerSecond(null)});
+  load();window.addEventListener("focus",load);
+  return()=>{active=false;window.removeEventListener("focus",load)};
+ },[]);
  const credits=parseCreditTopup(raw),cents=credits===null?null:proposedTopupCents(credits);
- const estimatedVideoSeconds=credits===null?null:Math.floor(credits/VIDEO_CREDITS_PER_STARTED_SECOND);
+ const estimatedVideoSeconds=credits===null||creditsPerSecond===null?null:Math.floor(credits/creditsPerSecond);
  const begin=async()=>{
   if(!canPurchase||credits===null||busy||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry)))))return;
   setBusy(true);setError("");setStatus(null);
@@ -148,7 +162,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
    <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
    <div><span>Estimated payment (tax determined at checkout)</span><strong>{cents===null?"—":euro(cents)}</strong></div>
    <div><span>Estimated AI Video Seconds</span><strong>{estimatedVideoSeconds===null?"—":num(estimatedVideoSeconds)+" s"}</strong></div>
-   <p className="sm-credit-amount-seconds-note">Total source-audio time at {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second. Individual video limits apply.</p>
+   <p className="sm-credit-amount-seconds-note">Total source-audio time at {creditsPerSecond===null?"a currently unverified rate":creditsPerSecond+" Credits per started second"}. Individual video limits apply.</p>
   </div>
   {canPurchase?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry))))} onClick={()=>void begin()}>
    {busy?"Opening Stripe…":checkoutTestMode?"Test purchase with Stripe":"Buy securely with Stripe"}

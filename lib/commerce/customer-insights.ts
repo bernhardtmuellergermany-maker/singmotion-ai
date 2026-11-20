@@ -13,7 +13,7 @@ import path from "node:path";
 export type CustomerInsight={
  id:string;email:string;joinedAt:number;verification:"verified"|"pending"|"legacy";
  orders:number;unpaidOrders:number;videos:number;creditVideos:number;historicalVideos:number;
- boughtCredits:number;promotionalCredits:number;availableCredits:number;
+ boughtCredits:number;promotionalCredits:number;manualGiftCredits:number;availableCredits:number;
  reservedCredits:number;creditsSpent:number;paidTopups:number;
  topupCents:number;legacyGrossCents:number;knownRefundCents:number;
  lastTransactionAt:number|null;pendingTopups:number;reviewVideos:number;
@@ -120,7 +120,9 @@ export function customerInsight(db:DatabaseSync,id:string):CustomerInsight|null{
  const ledger=hasTable(db,"credit_wallet_ledger")?single(db,`SELECT
    COALESCE(SUM(delta),0) total,
    COALESCE(SUM(CASE WHEN kind='video' AND delta<0 THEN -delta ELSE 0 END),0) spent,
-   COALESCE(SUM(CASE WHEN kind='beta-welcome' THEN delta ELSE 0 END),0) gift
+   COALESCE(SUM(CASE WHEN kind IN ('beta-welcome','manual-gift','manual-gift-correction') THEN delta ELSE 0 END),0) gift,
+   COALESCE(SUM(CASE WHEN kind='manual-gift' THEN delta ELSE 0 END),0) manual_gifts,
+   MAX(created) last
    FROM credit_wallet_ledger WHERE subject=?`,subject):{};
  const video=hasTable(db,"credit_video_reservations")?single(db,`SELECT
    COALESCE(SUM(CASE WHEN state='settled' THEN 1 ELSE 0 END),0) settled,
@@ -141,13 +143,13 @@ export function customerInsight(db:DatabaseSync,id:string):CustomerInsight|null{
   historicalVideos+=count(db,`SELECT COUNT(DISTINCT f.order_id) n FROM free_promo_video_deliveries f
     JOIN customer_orders o ON o.id=f.order_id WHERE o.account_id=?
     AND NOT EXISTS(SELECT 1 FROM customer_video_deliveries d WHERE d.order_id=f.order_id)`,id);
- const last=Math.max(n(orders.last),n(video.last),n(topups.last));
+ const last=Math.max(n(orders.last),n(video.last),n(topups.last),n(ledger.last));
  return {
   id:row.id,email:row.email,joinedAt:n(row.created),
   verification:!verification?"legacy":verification.verified_at?"verified":"pending",
   orders:n(orders.orders),unpaidOrders:n(orders.unpaid),
   videos:n(video.settled)+historicalVideos,creditVideos:n(video.settled),historicalVideos,
-  boughtCredits:n(topups.bought),promotionalCredits:n(ledger.gift),
+  boughtCredits:n(topups.bought),promotionalCredits:n(ledger.gift),manualGiftCredits:n(ledger.manual_gifts),
   availableCredits:Math.max(0,n(ledger.total)-n(video.reserved)),
   reservedCredits:n(video.reserved),creditsSpent:n(ledger.spent),
   paidTopups:n(topups.purchases),topupCents:n(topups.cents),
@@ -199,7 +201,7 @@ export function customerInsightProfile(db:DatabaseSync,id:string):CustomerInsigh
  }
  if(hasTable(db,"credit_wallet_ledger")){
   const wallet=db.prepare(`SELECT id,kind,delta,created FROM credit_wallet_ledger
-    WHERE subject=? AND kind IN ('beta-welcome','support-video-refund','refund','dispute')
+    WHERE subject=? AND kind IN ('beta-welcome','manual-gift','manual-gift-correction','support-video-refund','refund','dispute')
     ORDER BY created DESC LIMIT 25`).all(subject) as
     Array<{id:string;kind:string;delta:number;created:number}>;
   for(const v of wallet)events.push({id:"wallet:"+v.id,kind:"wallet",

@@ -88,3 +88,35 @@
  .sm-insights-hero{padding:19px 15px}
  .sm-insights-stat{min-height:112px}
 }
+
+/* Manual gifts: keep controls usable at 360px and avoid long-email overflow. */
+.sm-admin-gifts{margin:18px 0;padding:17px;border:1px solid rgba(202,149,255,.3);border-radius:14px;background:#19142b}
+.sm-admin-gifts-heading{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.sm-admin-gifts-heading h3{margin:0 0 5px}
+.sm-admin-gifts-heading p,.sm-admin-gifts>p{font-size:12px;color:#c9bfd6;margin:0}
+.sm-admin-gifts-meta{display:flex;flex-wrap:wrap;gap:14px;margin:14px 0;font-size:12px}
+.sm-admin-gifts-success{color:#aaf0cc!important;margin-top:14px!important}
+.sm-admin-gifts-history{margin-top:14px}
+.sm-admin-gifts-history ul{list-style:none;padding:0;margin:9px 0 0;max-height:250px;overflow:auto}
+.sm-admin-gifts-history li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid #423255;overflow-wrap:anywhere;font-size:12px}
+.sm-admin-gifts-history li>span{min-width:0}
+.sm-admin-gifts-history small{display:block}
+.sm-gift-modal-backdrop{position:fixed;inset:0;z-index:1300;background:rgba(5,4,16,.83);display:flex;justify-content:center;align-items:center;padding:12px;overflow:auto}
+.sm-gift-dialog{width:min(100%,560px);max-height:calc(100dvh - 24px);overflow-y:auto;background:#181228;color:#f9f2ff;border:1px solid #9a69b5;border-radius:16px;padding:clamp(14px,3vw,25px);box-shadow:0 18px 70px #0009}
+.sm-gift-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.sm-gift-dialog-head h3{margin:0}
+.sm-gift-dialog-head button{font-size:22px;min-width:40px}
+.sm-gift-dialog p{font-size:13px;margin:8px 0;color:#e4d6f2;overflow-wrap:anywhere}
+.sm-gift-email{overflow-wrap:anywhere}
+.sm-gift-dialog label{display:grid;min-width:0;gap:7px;margin:13px 0}
+.sm-gift-dialog input:not([type=checkbox]),.sm-gift-dialog select,.sm-gift-dialog textarea{box-sizing:border-box;min-width:0;width:100%;background:#211a36;color:#fff;border:1px solid #77638e;border-radius:9px;padding:10px;font:inherit;font-size:15px}
+.sm-gift-quick-amounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.sm-gift-quick-amounts button{padding:8px 3px;min-height:40px}
+.sm-gift-quick-amounts button[aria-pressed=true]{border-color:#edb9ff;background:#64398b}
+.sm-gift-preview{display:grid;gap:8px;margin:15px 0;padding:13px;border:1px solid #795591;border-radius:10px;background:#241936;font-size:13px}
+.sm-gift-preview strong{color:#e9c6ff}
+.sm-gift-preview small{color:#c6bad8;line-height:1.5}
+.sm-gift-dialog .sm-gift-confirm{display:flex;align-items:flex-start;flex-direction:row;font-size:12px;line-height:1.5}
+.sm-gift-confirm input{flex-shrink:0;margin-top:2px}
+.sm-gift-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+@media(max-width:390px){.sm-gift-quick-amounts{grid-template-columns:repeat(2,minmax(0,1fr))}.sm-gift-actions button{flex:1}}

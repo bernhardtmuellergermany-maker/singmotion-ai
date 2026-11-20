@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { api, ensureSession } from "@/lib/client";
 import type { StudioDraftExport } from "@/lib/studio-draft";
 import type { StudioProject } from "@/lib/live/studio";
+import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
+import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
 import {providerFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
 import {CustomerFeedback} from "./customer-feedback";
 import { StudioRecordingReview } from "./studio-recording-review";
@@ -70,8 +72,18 @@ export function StudioLiveControl({
     [recordingNotice, setRecordingNotice] = useState(""),
     [busy, setBusy] = useState(false),
     [english, setEnglish] = useState(false),
-    [confirmed, setConfirmed] = useState<string | null>(null);
+    [confirmed, setConfirmed] = useState<string | null>(null),
+    [activeTariff,setActiveTariff] = useState<PublicTariff|null>(null);
   const router = useRouter();
+  useEffect(()=>{
+   let active=true;
+   const reload=()=>void fetch("/api/credit-tariff",{cache:"no-store"})
+    .then(async response=>{if(!response.ok)throw Error("Tariff unavailable");return await response.json() as PublicTariff})
+    .then(value=>{if(active)setActiveTariff(value)})
+    .catch(()=>{if(active)setActiveTariff(null)});
+   reload();window.addEventListener("focus",reload);
+   return()=>{active=false;window.removeEventListener("focus",reload)};
+  },[]);
   const selectionKey = selectionIdentity(selection);
   const currentSelection = useRef(selectionKey);
   const reviewRevision = useRef(0);
@@ -162,6 +174,7 @@ export function StudioLiveControl({
   // This is the model's nominal USD 0.07 per generated second, not a quote
   // for actual generated length, tax, minimums, processing or provider fees.
   const excerptSeconds = selection ? Math.max(0, selection.end - selection.start) : 0;
+  const creditQuote=selection&&activeTariff?quoteVideoCredits(selection.start,selection.end,activeTariff.creditsPerSecond):null;
   const nominalProviderMicroUsd =
     Number.isFinite(excerptSeconds) && excerptSeconds > 0
       ? Math.ceil(excerptSeconds * 70000)
@@ -173,6 +186,7 @@ export function StudioLiveControl({
   const approvalKey = plan ? reviewIdentity(plan, termsVersion) : null;
   const isConfirmed = approvalKey !== null && confirmed === approvalKey;
   const generateReasons = [
+    !activeTariff && "Current Credit tariff could not be verified. Do not submit.",
     busy && "A Studio operation is still running. Wait for it to finish.",
     !available &&
       (blockers.join(" ") ||
@@ -255,12 +269,13 @@ export function StudioLiveControl({
       setPlan(result);
       setConfirmed(approval);
       saveReceipt(result, approval);
-      if (superAdmin && !repeatOf && result.state === "prepared" &&
+      if (superAdmin && activeTariff && !repeatOf && result.state === "prepared" &&
           !result.providerJobId && result.digest &&
           result.ceilingMicroUsd !== null && result.ceilingMicroUsd > 0) {
         await api("studio-live", {
           method: "POST",
           body: JSON.stringify({
+            priceVersion:activeTariff.version,
             action: "submit", consent, termsVersion,
             id: result.id, digest: result.digest,
             ceilingMicroUsd: result.ceilingMicroUsd,
@@ -276,7 +291,7 @@ export function StudioLiveControl({
     }
   }
   async function submit() {
-    if (!plan || generateReasons.length) return;
+    if (!plan || generateReasons.length || !activeTariff) return;
     ++reviewRevision.current;
     setBusy(true);
     setError("");
@@ -284,7 +299,8 @@ export function StudioLiveControl({
       await api("studio-live", {
         method: "POST",
         body: JSON.stringify({
-          action: "submit",
+          priceVersion:activeTariff.version,
+            action: "submit",
           consent,
           termsVersion,
           id: plan.id,
@@ -305,6 +321,8 @@ export function StudioLiveControl({
   return (
     <section aria-label="Real video pilot" className="prompt-preview">
       <h3>{superAdmin ? "OmniHuman 2.0 · Super Admin Studio" : "OmniHuman 2.0 · private Studio"}</h3>
+      <p role="status">Active video Credit tariff: <strong>{creditQuote?creditQuote.credits+" Credits for "+creditQuote.startedSeconds+" started seconds ("+activeTariff?.creditsPerSecond+" Credits/sec)":"unavailable"}</strong>
+       {activeTariff&&<> · Version <code>{activeTariff.version}</code></>}</p>
       <p>
         {superAdmin ? "Super Admin generation: no internal test budget or duration-band approval. BytePlus charges still apply. Media and task safety checks remain active." : "Real provider charges. Use a reviewed duration band and the server-approved limit. Customer payment is separate."}
       </p>
