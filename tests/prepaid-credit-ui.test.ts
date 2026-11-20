@@ -1,5 +1,5 @@
 import test from "node:test";import assert from "node:assert/strict";import {readFileSync} from "node:fs";
-import {creditTone} from "../lib/commerce/credit-display.ts";
+import {creditTone,estimatedRemainingVideoSeconds} from "../lib/commerce/credit-display.ts";
 const read=(p:string)=>readFileSync(new URL(`../${p}`,import.meta.url),"utf8");
 test("real account colors",()=>{assert.equal(creditTone(null),"unknown");assert.equal(creditTone(0),"critical");assert.equal(creditTone(249),"critical");assert.equal(creditTone(250),"low");assert.equal(creditTone(999),"low");assert.equal(creditTone(1000),"healthy");});
 test("authenticated, account-scoped, read-only balance",()=>{
@@ -105,4 +105,25 @@ test("abandoned Stripe checkouts remain persisted but are absent from customer p
  assert.match(wallet,/credit_topup_purchases WHERE subject=\? AND status IN \('paid','reversed'\)/);
  assert.match(dashboard,/settledPurchases=balance\?\.purchases\.filter\(p=>p\.status==="paid"\|\|p\.status==="reversed"\)/);
  assert.doesNotMatch(dashboard,/Payment pending/);
+});
+
+test("account menu estimates affordable whole video seconds using the live campaign tariff",()=>{
+ const menu=read("components/header-account-menu.tsx");
+ const css=read("components/header-account-menu.css");
+ const api=read("app/(site)/api/credit-tariff/route.ts");
+ assert.match(menu,/fetch\("\/api\/credit-tariff",\{cache:"no-store",credentials:"same-origin"\}\)/);
+ assert.match(api,/CampaignPricing\(store\.db\)\.active\(\)/);
+ assert.match(menu,/estimatedRemainingVideoSeconds/);
+ assert.match(menu,/title=\{creditsPerSecond\+" Credits per started video second"\}/);
+ assert.match(menu,/≈ \{new Intl\.NumberFormat\("en-GB"\)\.format\(remainingSeconds\)\} s left/);
+ assert.match(css,/\.sm-account-credit-amount\{display:flex;align-items:baseline;flex-wrap:wrap/);
+ assert.match(css,/\.sm-account-credit-seconds\{font-size:12px/);
+ assert.match(menu,/window\.setInterval\(\(\)=>\{if\(document\.visibilityState==="visible"\)refresh\(\)\},60_000\)/);
+ assert.equal(estimatedRemainingVideoSeconds(525,9),58,"beta campaign at 9 credits/sec");
+ assert.equal(estimatedRemainingVideoSeconds(525,25),21,"regular tariff at 25 credits/sec");
+ assert.equal(estimatedRemainingVideoSeconds(9,9),1);
+ assert.equal(estimatedRemainingVideoSeconds(8,9),0);
+ assert.equal(estimatedRemainingVideoSeconds(0,9),0);
+ for(const [credits,rate] of [[525,null],[null,9],[-1,9],[525,0],[525,1001],[1.5,9],[525,9.5]] as const)
+  assert.equal(estimatedRemainingVideoSeconds(credits,rate),null,"invalid or unavailable price/balance");
 });
