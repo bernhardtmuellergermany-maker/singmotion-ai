@@ -51,4 +51,5 @@ jobs:
       - name: All offline TypeScript regression tests
         run: npm test
       - name: Release parity and Next.js production build
+        if: success() || failure()
         run: npm run build
