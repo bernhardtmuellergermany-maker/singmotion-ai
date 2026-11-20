@@ -58,8 +58,8 @@ test("camera and performance selections never inject provider prompt instruction
   assert.equal(composePrompt("Energetic", "Orbit left", "Sing passionately"), "Sing passionately");
   const literal = "  Sing gently with a static camera.  ";
   assert.equal(composePrompt("Natural", "Slow Push-In", literal), literal);
-  assert.throws(() => composePrompt("Custom", "Static camera", ""));
-  assert.throws(() => composePrompt("Natural", "Orbit", ""));
+  assert.throws(() => composePrompt("Unsupported performance", "Static camera", ""));
+  assert.throws(() => composePrompt("Natural", "Unsupported camera", ""));
   assert.throws(() => composePrompt("Natural", "Static camera", "x".repeat(1501)));
 });
 
