@@ -2,6 +2,9 @@ name: Customer inactivity session policy
 
 on:
   pull_request:
+    branches:
+      - staging
+      - production
     paths:
       - "lib/commerce/store.ts"
       - "app/(site)/api/customer-session-activity/route.ts"
@@ -13,9 +16,7 @@ on:
       - "tests/customer-erasure.browser.ts"
       - "tests/customer-session-idle.test.ts"
       - ".github/workflows/customer-idle-policy-ci.yml"
-  push:
-    branches:
-      - "feat/customer-idle-session-policy-20261119"
+  workflow_dispatch:
 
 permissions:
   contents: read

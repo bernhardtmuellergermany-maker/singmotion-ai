@@ -1,29 +1,14 @@
 name: Customer launch release verification
 
 on:
-  push:
-    branches:
-      - phase2/customer-launch-safety-20261106
-      - fix/require-production-stripe-product-20261109
-      - test/p0-paid-ambiguous-submission-20261110
-      - feat/guest-paid-video-no-account-20261110
-      - feat/video-ready-email-guest-claim-20261110
-      - fix/p0-guest-checkout-session-and-links-20261110
-      - fix/enable-reviewed-300s-orders-20261110
-      - fix/p0-studio-checkout-diagnostics-20261110
-      - fix/p0-r2-nonblocking-prod-canary-20261110
-      - fix/p0-production-private-mp4-canary-20261110
-      - fix/p0-byteplus-readonly-access-probe-20261110
-      - fix/consumer-withdrawal-template-20261109
-      - fix/verified-legal-operator-imprint-20261109
-      - fix/production-customer-byteplus-policy-railway-20261109
-      - fix/hobby-revocation-survives-checkout-stop-20261109
-      - fix/stripe-reversal-after-checkout-pause-20261109
-      - fix/contact-turnstile-action-bound-20261109
-      - fix/hobby-live-checkout-production-product-20261109
   pull_request:
     branches:
-      - phase1/release-export-gates-20261106
+      - staging
+      - production
+  push:
+    branches:
+      - staging
+      - production
   workflow_dispatch:
 
 permissions:

@@ -3,10 +3,12 @@ name: Verify encrypted backup framework and offline restore
 on:
   push:
     branches:
-      - feat/cloud-backup-230
+      - staging
+      - production
   pull_request:
     branches:
-      - release/production-promoted-20261114
+      - staging
+      - production
   workflow_dispatch:
 
 permissions:

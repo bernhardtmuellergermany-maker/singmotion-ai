@@ -3,7 +3,8 @@ name: Verify global credit buyer-country behavior
 on:
   pull_request:
     branches:
-      - release/production-promoted-20261114
+      - staging
+      - production
     paths:
       - 'lib/commerce/managed-credit-payments.ts'
       - 'app/(site)/api/credit-balance/route.ts'

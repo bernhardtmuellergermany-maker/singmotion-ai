@@ -1,7 +1,9 @@
 name: Super Admin recovery safety
 on:
   pull_request:
-    branches: [design/studio-audio-redesign-20261111]
+    branches:
+      - staging
+      - production
     paths:
       - 'app/(site)/api/support-admin/**'
       - 'app/(site)/support-admin/**'
@@ -23,11 +25,11 @@ on:
       - 'lib/commerce/credit-wallet.ts'
       - 'lib/commerce/store.ts'
       - 'app/(site)/api/stripe-webhook/route.ts'
-      - 'scripts/worker.ts'
       - 'tests/support-cases.test.ts'
       - 'package.json'
       - '.github/workflows/support-admin-recovery.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
 concurrency:
