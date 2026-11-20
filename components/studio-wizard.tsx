@@ -60,6 +60,7 @@ import {
 import {hasFirstStudioUpload, type StudioDraftExport} from "@/lib/studio-draft";
 import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
 import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
+import {canNavigateStudioStep} from "@/lib/studio-step-navigation";
 const Waveform = dynamic(() => import("./waveform"), {
   ssr: false,
   loading: () => <p role="status">Preparing waveform…</p>,
@@ -603,12 +604,12 @@ export function StudioWizard({
   }
   /** Continue is the only save action for the photo step. Do not advance if
    * the exact selected image has not been uploaded successfully. */
-  async function continueFromPhoto(){
+  async function continueFromPhoto(target:2|3=2){
     if(busy||!draft.imageId||!frameValid)return;
     if(cropPending||!appliedImageReady){
       if(!imageReady||!await applyPhotoFraming())return;
     }
-    setStep(2);
+    setStep(target);
   }
   let audioValid = false,
     prompt = "";
@@ -820,6 +821,23 @@ export function StudioWizard({
     document.addEventListener("keydown", escape);
     return () => { document.removeEventListener("pointerdown", dismiss); document.removeEventListener("keydown", escape); };
   }, []);
+  /** The circles use the existing Step-2 photo framing path instead of
+   * bypassing its upload. Backward travel never deletes draft content.
+   */
+  const navigationFor=(targetStep:number)=>({
+    currentStep:step,targetStep,ready,busy,generating,
+    generationStarted:!!generationProjectId,audioValid,hasPhoto:!!draft.imageId,
+    frameValid,imageReady,photoPending:cropPending,photoApplied:appliedImageReady,
+  });
+  async function jumpToStudioStep(target:number){
+    if(target===step||!canNavigateStudioStep(navigationFor(target)))return;
+    if(target>1&&step===1&&(cropPending||!appliedImageReady)){
+      await continueFromPhoto(target as 2|3);
+      return;
+    }
+    setError("");
+    setStep(target);
+  }
   const wizardNotice:CustomerNotice|null=error?
     step<=1?requestErrorFeedback(error,"upload"):
     /prompt|overlap|source project|audio|photo|permission|selection/i.test(error)?{key:"studio-input-error",kind:"warning",title:"Please check your video inputs",message:error.slice(0,240)}:
@@ -832,8 +850,14 @@ export function StudioWizard({
         <div className="sm-new-stepper sm-new-stepper-animated" style={{"--sm-step-progress":String(step/3),"--sm-step-index":String(step)} as React.CSSProperties} aria-label="Video creation progress">
           <div className="sm-stepper-rail" aria-hidden="true"><span className="sm-stepper-fill"/><span className="sm-stepper-moving-glow"/></div>
           {["Audio", "Photo", "Performance", "Generate"].map((label,index)=>(
-            <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`} aria-current={index===step?"step":undefined}>
-              <span className="sm-new-step-dot">{index<step?<Check size={20}/>:index+1}</span>
+            <div key={label} className={`sm-new-step ${index===step?"is-current":""} ${index<step?"is-complete":""}`}>
+              <button type="button" className="sm-new-step-dot"
+                aria-label={index===step?`Current step ${index+1} of 4: ${label}`:`Go to step ${index+1} of 4: ${label}`}
+                aria-current={index===step?"step":undefined}
+                disabled={!canNavigateStudioStep(navigationFor(index))}
+                onClick={()=>void jumpToStudioStep(index)}>
+                {index<step?<Check size={20} aria-hidden="true"/>:index+1}
+              </button>
               <span className="sm-new-step-label">{label}</span>
             </div>
           ))}
