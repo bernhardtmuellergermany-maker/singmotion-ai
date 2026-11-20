@@ -138,3 +138,51 @@
  .sm-marketing-preview-mobile .sm-marketing-preview-brand{font-size:14px}
  .sm-marketing-preview-mobile .sm-marketing-preview-hero-head{font-size:22px}
 }
+
+
+/* Preview mirrors the offer above the existing, UNRESIZED main CTA. */
+.sm-marketing-preview-home .sm-marketing-preview-offer{
+ border:1.5px solid color-mix(in srgb,var(--campaign-accent,#b84fff) 75%,#f0d0ff);
+ border-radius:24px;padding:15px 19px;margin:10px 0 7px;
+ background:linear-gradient(105deg,rgba(53,21,81,.89),rgba(24,13,49,.92) 56%,rgba(70,27,86,.86));
+ box-shadow:inset 0 1px 0 #ffffff28,0 0 20px #9b29e333;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-top{
+ display:flex;align-items:center;justify-content:center;
+ width:100%;gap:8px 15px;flex-wrap:wrap;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-name{
+ color:#fff;font-size:clamp(12px,1.5vw,15px);
+ font-weight:850;white-space:normal;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-price{
+ color:#ffea54;font-size:clamp(19px,2.2vw,26px);
+ font-weight:900;line-height:1.2;white-space:nowrap;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-credits{
+ color:#f2dcfa;font-size:11px;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-top>b{
+ color:#081008;background:#9bf988;
+ padding:5px 9px;border-radius:999px;font-weight:900;
+}
+.sm-marketing-preview-home .sm-marketing-preview-offer-cta{
+ background:transparent;border:0;padding:2px 4px;
+ text-decoration:underline;text-underline-offset:3px;
+ color:#f0d3ff;font-weight:700;
+}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer{
+ border-radius:18px;padding:11px 13px;
+}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-top{
+ justify-content:space-between;text-align:left;
+}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-name{
+ width:100%;text-align:left;font-size:13px;
+}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-price{
+ font-size:21px;
+}
+.sm-marketing-preview-mobile.sm-marketing-preview-home .sm-marketing-preview-offer-credits{
+ order:3;flex-basis:100%;text-align:left;font-size:10px;
+}

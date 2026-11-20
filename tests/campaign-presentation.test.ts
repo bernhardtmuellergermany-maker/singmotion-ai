@@ -46,3 +46,22 @@ test("actual homepage, Pricing and Credits show live CMS fields and never a stal
  assert.match(credits,/<CampaignPricingBanner placement="credits"\/>/);
  assert.match(banner,/seconds\*tariff\.creditsPerSecond/);
 });
+
+
+test("decorated campaign offer occupies its own hero row without resizing the original CTA",()=>{
+ const banner=read("components/campaign-display.tsx");
+ const campaignCss=read("components/campaign-display.css");
+ const hero=read("components/immersive-home.tsx");
+ const heroCss=read("app/(site)/home-immersive.css");
+ const preview=read("components/cms/campaigns-client.tsx");
+ const previewCss=read("components/cms/campaigns.css");
+ assert.match(hero,/<CampaignOfferLine\/>\s*<Link className="sm-immersive-cta"/);
+ assert.match(campaignCss,/\.sm-immersive-home \.sm-immersive-desktop-intro>\.sm-campaign-offer-line\{\s*display:flex;/);
+ assert.match(campaignCss,/\.sm-immersive-home \.sm-campaign-offer-line\{\s*display:flex;flex-direction:column/);
+ assert.match(campaignCss,/\.sm-immersive-home \.sm-mobile-reel-content \.sm-campaign-offer-line/);
+ assert.match(heroCss,/\.sm-immersive-cta\{[^}]*min-height:54px;min-width:min\(320px,100%\)/);
+ assert.match(banner,/<Rocket size=\{20\}/);
+ assert.match(banner,/tariff\.discountPercent!==null&&<em>/);
+ assert.match(preview,/sm-marketing-preview-offer-price/);
+ assert.match(previewCss,/\.sm-marketing-preview-mobile\.sm-marketing-preview-home \.sm-marketing-preview-offer/);
+});

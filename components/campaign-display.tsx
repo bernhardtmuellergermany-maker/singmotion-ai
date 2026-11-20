@@ -2,6 +2,7 @@
 import {useEffect,useState} from "react";
 import type {CSSProperties} from "react";
 import Link from "next/link";
+import {Rocket} from "lucide-react";
 import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
 import "./campaign-display.css";
 
@@ -54,7 +55,10 @@ export function CampaignOfferLine(){
    style={palette(tariff)} aria-label={tariff.heading||"Current video offer"}>
    <div className="sm-campaign-offer-copy">
     <div className="sm-campaign-offer-top">
-     <strong className="sm-campaign-offer-name">{tariff.badgeText||"SPECIAL"}</strong>
+     <span className="sm-campaign-offer-identity">
+      <Rocket size={20} strokeWidth={2.3} aria-hidden="true"/>
+      <strong className="sm-campaign-offer-name">{tariff.badgeText||"SPECIAL"} Offer</strong>
+     </span>
      <CampaignPriceLine tariff={tariff}/>
     </div>
     {tariff.heading&&<strong className="sm-campaign-offer-heading">{tariff.heading}</strong>}
