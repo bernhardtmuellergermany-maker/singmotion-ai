@@ -128,7 +128,7 @@ export function SunoSongImport({disabled,onImportFile}:{
    {canonical&&<a className={styles.link} href={canonical} target="_blank" rel="noopener noreferrer">
      <ExternalLink size={16} aria-hidden="true"/> Open song in Suno
     </a>}
-   <p className={styles.note}>Only music you are authorized to download and use. Imported MP3s pass the normal private audio validation and 250-second selection limit. Suno connection expires automatically; nothing is generated or charged in SingMotion by importing audio.</p>
+   <p className={styles.note}>Only music you are authorized to download and use.</p>
   </div>
  </details>;
 }
