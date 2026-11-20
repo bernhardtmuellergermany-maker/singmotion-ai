@@ -38,7 +38,7 @@ function CampaignPriceLine({tariff}:{tariff:PublicTariff}){
  return <span className="sm-campaign-rate-line">
   <strong>{euro(tariff.creditsPerSecond)} / sec</strong>
   <span>· {tariff.creditsPerSecond} Credits / started sec</span>
-  {tariff.discountPercent!==null&&<em>{tariff.discountPercent}% OFF</em>}
+  {tariff.showDiscountPercent&&tariff.discountPercent!==null&&<em>{tariff.discountPercent}% OFF</em>}
  </span>;
 }
 export function CampaignLogoBadge(){
@@ -64,10 +64,10 @@ export function CampaignOfferLine(){
    </span>
    <span className="sm-campaign-offer-divider" aria-hidden="true"/>
    <strong className="sm-campaign-offer-current">{euro(tariff.creditsPerSecond)} / sec</strong>
-   {discounted&&<>
-    <span className="sm-campaign-offer-discount">{tariff.discountPercent}% OFF</span>
-    <del className="sm-campaign-offer-regular" aria-label="Regular price">{euro(tariff.regularCreditsPerSecond)} / sec</del>
-   </>}
+   {discounted&&tariff.showDiscountPercent&&
+    <span className="sm-campaign-offer-discount">{tariff.discountPercent}% OFF</span>}
+   {discounted&&tariff.showRegularPrice&&
+    <del className="sm-campaign-offer-regular" aria-label="Regular price">{euro(tariff.regularCreditsPerSecond)} / sec</del>}
   </aside>
   <div className="sm-campaign-offer-meta">
    <small className="sm-campaign-offer-hint"><Clock3 size={15} strokeWidth={2} aria-hidden="true"/>
