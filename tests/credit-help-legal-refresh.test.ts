@@ -24,7 +24,7 @@ test("25 Credits per started original audio second, never slowed output or provi
  assert.match(wizard,/Playback slow-down and longer provider output do not increase/);
  assert.match(wizard,/startedSeconds/);
  assert.doesNotMatch(wizard,/reviewQuote|api\/customer-quote/);
- assert.match(dialog,/creditQuote=quoteVideoCredits\(selection\.start,selection\.end\)/);
+ assert.match(dialog,/quoteVideoCredits\(selection\.start,selection\.end,activeTariff\.creditsPerSecond\)/);
  assert.match(dialog,/Estimated video cost/);
  assert.doesNotMatch(dialog,/BytePlus-Basispreis|USD \$\{|0\.07\)\.toFixed/);
  const admin=read("components/admin.tsx");
