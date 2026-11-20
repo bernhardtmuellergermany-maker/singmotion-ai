@@ -2,39 +2,109 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {normalizeSunoSongLink} from "../lib/suno-song-link.ts";
+import {sunoStagingOnly,pkcePair,authorizationUrl,oauthClientRegistration,
+ SUNO_STAGING_ORIGIN,signSunoAccessToken,verifySunoAccessToken,isAllowedSunoDownloadUrl,
+ extractSunoSongId,resolveSunoSongId,sunoMcpDownload,downloadAuthorizedSunoMp3}
+ from "../lib/suno-mcp-import.ts";
 
+const sample="9NgKJGqKoraKou62",id="abcdef01-2345-6789-abcd-001122334455";
 const wizard=readFileSync(new URL("../components/studio-wizard.tsx",import.meta.url),"utf8");
 const ui=readFileSync(new URL("../components/suno-song-import.tsx",import.meta.url),"utf8");
+const api=readFileSync(new URL("../app/(site)/api/suno-import/route.ts",import.meta.url),"utf8");
+const callback=readFileSync(new URL("../app/(site)/api/suno-import/callback/route.ts",import.meta.url),"utf8");
 
-test("Suno official share links are recognized and canonicalized without network fetching",()=>{
- assert.equal(normalizeSunoSongLink("https://suno.com/s/9NgKJGqKoraKou62"),"https://suno.com/s/9NgKJGqKoraKou62");
- assert.equal(normalizeSunoSongLink("  https://www.suno.com/s/9NgKJGqKoraKou62/?utm_source=test#track  "),"https://suno.com/s/9NgKJGqKoraKou62");
- assert.equal(normalizeSunoSongLink("https://suno.com/song/abcdef01-2345-6789-abcd-001122334455"),"https://suno.com/song/abcdef01-2345-6789-abcd-001122334455");
+test("only the actual Railway Staging environment can enable Suno import",()=>{
+ assert.equal(sunoStagingOnly({RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"}),true);
+ assert.equal(sunoStagingOnly({RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d"}),false);
+ assert.equal(sunoStagingOnly({}),false);
+ for(const code of [api,callback])assert.match(code,/sunoStagingOnly\(\)/);
 });
-
-test("Suno link validation rejects off-domain destinations and anything other than share pages",()=>{
- for(const url of [
-   "", "https://suno.com.evil.test/s/9NgKJGqKoraKou62",
-   "http://suno.com/s/9NgKJGqKoraKou62",
-   "https://evil.test/s/9NgKJGqKoraKou62",
-   "https://suno.com@evil.test/s/9NgKJGqKoraKou62",
-   "https://suno.com/s/%2F%2Fevil.test",
-   "https://suno.com/api/clip/9NgKJGqKoraKou62",
-   "https://cdn1.suno.ai/9NgKJGqKoraKou62.mp3",
-   "javascript:alert(1)",
-   "https://suno.com/s/bad",
-   "https://suno.com/song/bad",
-   "https://suno.com/s/9NgKJGqKoraKou62/path",
-   "https://suno.com:9999/s/9NgKJGqKoraKou62",
- ])assert.equal(normalizeSunoSongLink(url),null,url);
+test("Suno share and canonical links are normalized and untrusted targets are rejected",()=>{
+ assert.equal(normalizeSunoSongLink("https://suno.com/s/"+sample),"https://suno.com/s/"+sample);
+ assert.equal(normalizeSunoSongLink("https://www.suno.com/s/"+sample+"/?x=1#foo"),"https://suno.com/s/"+sample);
+ assert.equal(extractSunoSongId("https://suno.com/song/"+id),id);
+ for(const value of ["http://suno.com/s/"+sample,"https://suno.com.evil.net/s/"+sample,
+ "https://evil.net/s/"+sample,"https://suno.com@evil.net/s/"+sample,
+ "https://suno.com/api/clip/"+sample,"https://suno.com/s/%2F%2Fevil.net",
+ "https://cdn1.suno.ai/"+id+".mp3","javascript:alert(1)",
+ "https://suno.com:1337/s/"+sample,"https://suno.com/song/bad"]){
+  assert.equal(normalizeSunoSongLink(value),null,value);
+ }
 });
-
-test("Studio uses the existing protected upload pipeline with an official Suno download handoff",()=>{
- assert.match(wizard,/import \{SunoSongImport\} from "\.\/suno-song-import";/);
- assert.match(wizard,/!draft\.song&&<SunoSongImport disabled=\{!ready\|\|busy\} onChooseFile=\{\(\)=>audioFileInput\.current\?\.click\(\)\}\/>/);
+test("share link resolves only through Suno's own normal HTTP redirect",async()=>{
+ const redirects:typeof fetch=async (_input,init)=>{
+  assert.equal(init?.method,"HEAD");
+  return new Response(null,{status:302,headers:{Location:"https://suno.com/song/"+id+"?sh=1"}});
+ };
+ assert.equal(await resolveSunoSongId("https://suno.com/s/"+sample,redirects),id);
+ const hostile:typeof fetch=async()=>new Response(null,{status:302,headers:{Location:"https://evil.net/song/"+id}});
+ assert.equal(await resolveSunoSongId("https://suno.com/s/"+sample,hostile),null);
+ assert.equal(await resolveSunoSongId("https://suno.com/song/"+id,hostile),id);
+});
+test("OAuth PKCE uses random state, narrow capabilities, and the own callback URL",()=>{
+ const one=pkcePair(),two=pkcePair();
+ assert.notEqual(one.state,two.state);assert.notEqual(one.verifier,two.verifier);
+ const uri=authorizationUrl("client-id-123",SUNO_STAGING_ORIGIN+"/api/suno-import/callback",one);
+ const parsed=new URL(uri);
+ assert.equal(parsed.searchParams.get("code_challenge_method"),"S256");
+ assert.notEqual(parsed.searchParams.get("code_challenge"),one.verifier);
+ assert.equal(parsed.searchParams.get("resource"),"https://api.suno.com/mcp");
+ assert.equal(parsed.searchParams.get("scope")?.includes("credits:spend"),false);
+ assert.equal(oauthClientRegistration(SUNO_STAGING_ORIGIN+"/api/suno-import/callback").token_endpoint_auth_method,"none");
+});
+test("Suno OAuth access is time-limited and cryptographically bound to the original private session",()=>{
+ const mediaToken="a".repeat(75);
+ const bound=signSunoAccessToken(mediaToken,"customer-abc","some-suno-oauth-access-token",900);
+ assert.ok(bound.ttl<=780);
+ assert.equal(verifySunoAccessToken(bound.cookie,mediaToken,"customer-abc"),"some-suno-oauth-access-token");
+ assert.equal(verifySunoAccessToken(bound.cookie,"b".repeat(75),"customer-abc"),null);
+ assert.equal(verifySunoAccessToken(bound.cookie,mediaToken,"customer-other"),null);
+ assert.equal(verifySunoAccessToken(bound.cookie,mediaToken,"customer-abc",Date.now()+20*60*1000),null);
+ assert.equal(verifySunoAccessToken(bound.cookie.slice(0,-2)+"ab",mediaToken,"customer-abc"),null);
+});
+test("MCP first checks download entitlement, then requires explicit one-credit consent",async()=>{
+ let calls:Record<string,unknown>[]=[];
+ const mock:typeof fetch=async (url,init)=>{
+  assert.equal(String(url),"https://api.suno.com/mcp");
+  const body=JSON.parse(String(init?.body)) as {method:string;params?:Record<string,unknown>};
+  calls.push(body);
+  if(body.method==="initialize")return Response.json({jsonrpc:"2.0",id:1,result:{protocolVersion:"2025-06-18"}});
+  if(body.method==="notifications/initialized")return new Response(null,{status:202});
+  if(body.method==="tools/call")return Response.json({jsonrpc:"2.0",id:1,
+   result:{content:[{type:"text",text:JSON.stringify({status:"requires_credit"})}]}});
+  throw Error("unexpected RPC");
+ };
+ const first=await sunoMcpDownload("user-authorization",id,false,mock);
+ assert.equal(first.status,"requires_credit");
+ assert.deepEqual((calls.at(-1)?.params as {arguments:object}).arguments,{id,format:"mp3"});
+ calls=[];
+ await sunoMcpDownload("user-authorization",id,true,mock);
+ assert.deepEqual((calls.at(-1)?.params as {arguments:object}).arguments,{id,format:"mp3",confirm:true});
+});
+test("download accepts only provider-controlled HTTPS hosts and bounded MP3 payloads",async()=>{
+ assert.equal(isAllowedSunoDownloadUrl("https://cdn-o.suno.com/file.mp3"),true);
+ assert.equal(isAllowedSunoDownloadUrl("https://cdn1.suno.ai/file.mp3"),true);
+ for(const url of ["http://cdn1.suno.ai/file.mp3","https://suno.com.evil.net/file.mp3",
+  "https://localhost/file.mp3","https://127.0.0.1/file.mp3","https://cdn1.suno.ai:8080/file.mp3"]){
+  assert.equal(isAllowedSunoDownloadUrl(url),false,url);
+ }
+ const bytes=new Uint8Array(2048);bytes.set([73,68,51]);
+ const mock:typeof fetch=async()=>new Response(bytes,{headers:{"content-type":"audio/mpeg"}});
+ const content=await downloadAuthorizedSunoMp3("https://cdn-o.suno.com/file.mp3",mock);
+ assert.equal(content.byteLength,2048);
+ const oversized:typeof fetch=async()=>new Response(bytes,{headers:{"content-length":String(50*1024*1024+1)}});
+ await assert.rejects(downloadAuthorizedSunoMp3("https://cdn-o.suno.com/file.mp3",oversized),/50 MB/);
+});
+test("Studio integrates direct official download into the existing validated private audio upload",()=>{
+ assert.match(wizard,/onImportFile=\{file=>add\(file,"audio"\)\}/);
  assert.match(wizard,/uploadWithProgress\(file, kind,/);
- assert.match(ui,/Suno’s official Download option/);
- assert.match(ui,/target="_blank" rel="noopener noreferrer"/);
- assert.match(ui,/250-second clip limit/);
- assert.doesNotMatch(ui,/\bfetch\(|\bXMLHttpRequest\b|cdn1\.suno\.ai/i);
+ assert.match(ui,/Import song directly/);
+ assert.match(ui,/Connect Suno to import/);
+ assert.match(ui,/Confirm 1 Suno download credit/);
+ assert.match(ui,/new File\(\[blob\],name/);
+ assert.match(api,/downloadAuthorizedSunoMp3/);
+ assert.match(api,/sunoMcpDownload/);
+ assert.match(api,/req.headers.get\("origin"\)!==SUNO_STAGING_ORIGIN/);
+ assert.match(api,/session\(mediaToken\)/);
+ assert.doesNotMatch(ui,/cdn1\.suno\.ai|stream-rip|window\.open\(.*cdn/);
 });

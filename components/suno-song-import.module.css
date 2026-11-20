@@ -14,13 +14,14 @@
 .input{display:block;width:100%;height:44px;padding:9px 12px;border:1px solid #695b83;border-radius:9px;background:#0c1020;color:#fff;font-size:14px;min-width:0}
 .input::placeholder{color:#938ba6}
 .error{color:#ffb7b7;font-size:12px}
-.steps{display:grid;gap:10px}
 .ready{font-size:12px;color:#b9e9ce}
 .open,.choose{min-height:44px;display:flex;align-items:center;justify-content:center;gap:9px;padding:10px 15px;text-align:center;border:1px solid #b77af3;border-radius:11px;font-size:13px;font-weight:700}
-.open{background:#8d46c1;color:#fff;text-decoration:none}
-.open:hover{background:#a05bd5}
+.open{background:#8d46c1;color:#fff}
+.open:hover:not(:disabled){background:#a05bd5}
 .choose{background:#1a2132;color:#f1e5fc}
 .choose:hover:not(:disabled){background:#2a3046}
-.choose:disabled{opacity:.5;cursor:not-allowed}
+.open:disabled,.choose:disabled{opacity:.5;cursor:not-allowed}
+.link{display:flex;align-items:center;justify-content:center;gap:8px;color:#d7b5ff;font-weight:600;font-size:12px;text-decoration:underline}
+.fallback{padding-top:15px;border-top:1px solid #3a304f;display:grid;gap:9px;color:#bdb0cb;font-size:12px}
 .note{font-size:12px;line-height:1.6;color:#afa6bf}
 @media(max-width:480px){.summary{padding:13px}.body{padding:1px 13px 14px}.open,.choose{font-size:12px;padding:10px}}
