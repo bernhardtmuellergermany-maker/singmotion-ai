@@ -1,0 +1,54 @@
+/* Marketing management lives within the existing Payload CMS, not a separate console. */
+.sm-marketing{--sm-mkt-border:rgba(200,154,238,.24);max-width:1440px;width:100%;color:#f5f0fb;padding:14px 0 65px}
+.sm-marketing *{box-sizing:border-box}
+.sm-marketing-heading{padding:clamp(18px,3vw,30px);background:#151123;border:1px solid var(--sm-mkt-border);border-radius:18px;margin:0 0 18px}
+.sm-marketing-heading>span{font-size:11px;color:#dda6fa;letter-spacing:.12em;font-weight:800}
+.sm-marketing-heading h1{font-size:clamp(28px,4vw,40px);margin:8px 0}
+.sm-marketing-heading p{font-size:13px;color:#c9c0d6;line-height:1.55;max-width:790px}
+.sm-marketing-alert,.sm-marketing-error,.sm-marketing-ok{padding:13px;border-radius:10px;margin:12px 0;font-size:13px}
+.sm-marketing-alert{border:1px solid #aa8551;background:#3b2d1a}
+.sm-marketing-error{border:1px solid #ab507a;background:#3d1830}
+.sm-marketing-ok{border:1px solid #4b966e;background:#19352a}
+.sm-marketing-summary{display:flex;flex-wrap:wrap;gap:12px;padding:13px;border:1px solid var(--sm-mkt-border);border-radius:11px;background:#1b162b;font-size:12px;margin:14px 0}
+.sm-marketing-summary span{overflow-wrap:anywhere}
+.sm-marketing-summary code{overflow-wrap:anywhere;font-size:11px}
+.sm-marketing-layout{display:grid;grid-template-columns:minmax(210px,310px) minmax(0,1fr);align-items:start;gap:18px}
+.sm-marketing-list,.sm-marketing-editor{border:1px solid var(--sm-mkt-border);background:#151123;border-radius:14px;padding:clamp(14px,2vw,22px);min-width:0}
+.sm-marketing h2{font-size:20px;margin:0 0 10px}
+.sm-marketing h3{font-size:16px;margin:0 0 12px}
+.sm-marketing-list-header{display:grid;gap:11px}
+.sm-marketing button{color:#f8f2ff;background:#34234c;border:1px solid #8b62ac;cursor:pointer;border-radius:9px;padding:10px 12px;font:inherit;font-size:13px}
+.sm-marketing button:focus-visible,.sm-marketing input:focus-visible,.sm-marketing select:focus-visible,.sm-marketing textarea:focus-visible{outline:2px solid #e1afff;outline-offset:2px}
+.sm-marketing button:disabled{opacity:.45;cursor:not-allowed}
+.sm-marketing-campaign-items{display:grid;gap:8px;margin-top:15px;max-height:750px;overflow-y:auto}
+.sm-marketing-campaign-items button{display:grid;gap:6px;text-align:left;min-width:0;overflow-wrap:anywhere}
+.sm-marketing-campaign-items button[aria-pressed=true]{background:#583376;border-color:#d09cff}
+.sm-marketing-campaign-items span,.sm-marketing-campaign-items small{color:#d8cee1;font-size:11px}
+.sm-marketing-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.sm-marketing-form label{display:flex;flex-direction:column;gap:8px;font-weight:650;font-size:12px;color:#ded0e8;min-width:0}
+.sm-marketing-form input:not([type=checkbox]),.sm-marketing-form select,.sm-marketing-form textarea{width:100%;min-width:0;background:#211b34;border:1px solid #766184;border-radius:8px;padding:11px;color:#fff;font:inherit;font-size:14px}
+.sm-marketing-form textarea{resize:vertical}
+.sm-marketing-form .sm-marketing-full{grid-column:1/-1}
+.sm-marketing-form .sm-marketing-check{flex-direction:row;align-items:center;line-height:1.5}
+.sm-marketing-form small{font-weight:400;color:#b9afc6}
+.sm-marketing-actions{display:flex;flex-wrap:wrap;gap:9px;margin:18px 0}
+.sm-marketing-actions button:first-child{background:#8746c6;border-color:#ab73d7;font-weight:750}
+.sm-marketing-preview-area,.sm-marketing-metrics,.sm-marketing-history{border-top:1px solid var(--sm-mkt-border);padding-top:17px;margin-top:16px}
+.sm-marketing-preview-title{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.sm-marketing-preview-title>div{display:flex;gap:5px}
+.sm-marketing-preview-title button[aria-pressed=true]{border-color:#e2b4fa;background:#633384}
+.sm-marketing-preview{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+ min-height:250px;width:100%;margin:0 auto;padding:20px;background:radial-gradient(ellipse at center,#321c4e,#0c0a17 76%);
+ border:1px solid #604c73;border-radius:13px;text-align:center;overflow:hidden}
+.sm-marketing-preview-mobile{max-width:360px;min-height:400px}
+.sm-marketing-sample-logo{font-size:16px;font-weight:700;display:flex;align-items:center;flex-wrap:wrap;gap:9px;justify-content:center}
+.sm-marketing-sample-logo strong{color:#cc8af5}
+.sm-marketing-sample-logo em{font-size:9px;font-style:normal;border:1px solid;border-radius:999px;padding:4px 7px;letter-spacing:.03em}
+.sm-marketing-preview h3{font-size:clamp(17px,2vw,25px);max-width:310px;margin:6px 0}
+.sm-marketing-sample-bar{border:1px solid;border-radius:999px;background:#160f23c9;backdrop-filter:blur(8px);max-width:100%;overflow-wrap:anywhere;padding:9px 13px;font-size:12px}
+.sm-marketing-sample-cta{padding:11px 18px;border-radius:999px;background:linear-gradient(105deg,#be30ec,#8628ef);font-size:12px}
+.sm-marketing-metrics p,.sm-marketing-history li{font-size:13px;line-height:1.6;color:#d0c6dc}
+.sm-marketing-history ul{list-style:none;padding:0;max-height:190px;overflow:auto}
+.sm-marketing-history li{padding:7px 0;border-bottom:1px solid #352c42}
+@media(max-width:960px){.sm-marketing-layout{grid-template-columns:1fr}.sm-marketing-campaign-items{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));max-height:330px}}
+@media(max-width:620px){.sm-marketing-form,.sm-marketing-campaign-items{grid-template-columns:1fr}.sm-marketing-preview-mobile{min-height:330px}.sm-marketing{padding-top:5px}}
