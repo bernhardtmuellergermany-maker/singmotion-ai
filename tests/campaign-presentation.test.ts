@@ -73,7 +73,7 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  assert.match(css,/width:min\(560px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
- assert.ok(banner.indexOf('</aside>')<banner.indexOf('className="sm-campaign-offer-meta"'));
+ assert.ok(banner.indexOf('</Link>')<banner.indexOf('className="sm-campaign-offer-meta"'));
  assert.ok(preview.indexOf('sm-marketing-preview-primary')<preview.indexOf('sm-marketing-preview-offer-block'));
  assert.match(preview,/sm-marketing-preview-offer-regular/);
  assert.match(preview,/selected.showDiscountPercent&&percent!==null&&/);
@@ -131,4 +131,25 @@ test("Pricing and Credits reuse the exact same versioned neon offer styles",()=>
  assert.match(previewCss,/\.sm-marketing-preview:is\(\.sm-marketing-preview-credits,\.sm-marketing-preview-pricing\)/);
  assert.doesNotMatch(css,/width:min\(300px,100%\)/);
  assert.match(css,/width:min\(560px,100%\)/);
+});
+
+test("offer link navigates to Credits only after login; Studio cost hides internal details",()=>{
+ const offer=read("components/campaign-display.tsx");
+ const panel=read("components/account-panel.tsx");
+ const google=read("app/(site)/api/google-auth/route.ts");
+ const callback=read("app/(site)/api/google-auth/callback/route.ts");
+ const studio=read("components/studio-wizard.tsx");
+ assert.match(offer,/readCustomerAuthStatus\(\)/);
+ assert.match(offer,/status\.kind==="customer"/);
+ assert.match(offer,/href=\{loginHref\}/);
+ assert.match(offer,/window\.location\.assign\(loginHref\)/);
+ assert.match(panel,/search\.get\("returnTo"\)===CREDIT_BUY_RETURN/);
+ assert.match(panel,/window\.location\.assign\(loginReturn\)/);
+ assert.match(google,/parseAccountReturn/);
+ assert.match(callback,/parseAccountReturn/);
+ assert.match(callback,/destination\.searchParams\.set\("auth_changed","1"\)/);
+ assert.match(studio,/<strong>Estimated cost:<\/strong> \{reviewPrice\}/);
+ assert.doesNotMatch(studio,/<strong>Price version:<\/strong>/);
+ assert.doesNotMatch(studio,/Playback slow-down and longer provider output/);
+ assert.doesNotMatch(offer,/Credits \/ started sec<\/span>/);
 });
