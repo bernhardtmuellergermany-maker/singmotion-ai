@@ -421,10 +421,13 @@ try {
   const sidebar=page.getByRole("navigation").filter({has:page.locator(".sm-cms-sidebar-intro")});
   await sidebar.getByRole("link",{name:"Übersicht"}).waitFor();
   assert.equal(await sidebar.getByRole("link",{name:"Übersicht"}).getAttribute("href"),"/admin");
-  for(const label of ["Team & Zugriffsrechte","Seiten bearbeiten","Medienbibliothek",
-    "Navigation & Footer","Kundenservice","Studio-Inhalte"]){
-    await sidebar.getByText(label,{exact:true}).first().waitFor();
-  }
+  // The slim sidebar now deliberately contains only role-authorized
+  // shortcuts. The full collection tools live on the dedicated dashboard,
+  // not in duplicate native sidebar group headings.
+  await sidebar.getByRole("link",{name:"Kunden & Credits"}).waitFor();
+  await sidebar.getByRole("link",{name:"Support"}).waitFor();
+  assert.equal(await sidebar.getByRole("link",{name:"Kunden & Credits"}).count(),1);
+  assert.equal(await sidebar.getByRole("link",{name:"Support"}).count(),1);
   assert.equal(await sidebar.getByText("E-Mail-Vorlagen",{exact:true}).count(),0);
   assert.equal(await sidebar.getByText("Aktivitätsprotokoll",{exact:true}).count(),0);
   const clean=page.locator(".sm-cms-clean");
