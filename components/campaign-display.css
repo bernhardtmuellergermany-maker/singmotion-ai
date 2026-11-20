@@ -113,7 +113,7 @@
 }
 .sm-immersive-home .sm-campaign-offer-line{
  box-sizing:border-box;display:flex;flex-direction:row;align-items:center;justify-content:center;
- flex-wrap:nowrap;width:max-content;max-width:100%;min-height:50px;margin:0;padding:7px 6px;
+ flex-wrap:nowrap;width:max-content;max-width:100%;min-height:50px;margin:0;padding:7px 12px;
  gap:clamp(4px,.6vw,8px);border:1.5px solid #c63ff6;border-radius:999px;
  background:linear-gradient(105deg,#270d43e8,#170b32e8 55%,#39104fe0);
  box-shadow:inset 0 1px 0 #ffffff46,0 0 25px #ab32ed69,0 8px 22px #09021277;
@@ -180,12 +180,12 @@
 .sm-immersive-home .sm-campaign-offer-link:focus-visible{outline:2px solid #fff;outline-offset:3px}
 @media(max-width:760px){
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-block{
-  width:max-content;max-width:100%;margin:0;gap:7px;align-self:center;pointer-events:auto;
+  width:100%;max-width:100%;margin:0;gap:7px;align-self:stretch;pointer-events:auto;
  }
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-line{
   display:flex!important;flex-direction:row;flex-wrap:nowrap;
-  align-items:center;justify-content:center;width:max-content;max-width:100%;
-  min-height:50px;gap:5px;margin:0;padding:6px 5px;
+  align-items:center;justify-content:center;width:100%;max-width:100%;
+  min-height:50px;gap:5px;margin:0;padding:6px 10px;
   border-radius:999px;text-align:center;pointer-events:auto;
  }
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-identity{
@@ -200,7 +200,7 @@
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-hint{font-size:11px!important}
 }
 @media(max-width:410px){
- .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-line{gap:4px;padding:5px 4px}
+ .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-line{gap:4px;padding:5px 7px}
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-identity svg{width:16px;height:16px}
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-name{font-size:11px!important}
 }
