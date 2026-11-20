@@ -3057,3 +3057,29 @@
     gap:8px 12px;
   }
 }
+
+/* Round step navigation: keep the original neon geometry on all viewports.
+ * Pseudo-element expands each phone tap target without changing rail alignment. */
+.singmotion-flow .sm-new-stepper-animated .sm-new-step-dot{
+ appearance:none;-webkit-appearance:none;font-family:inherit;padding:0;
+ position:relative;cursor:pointer;touch-action:manipulation;
+ -webkit-tap-highlight-color:transparent;
+}
+.singmotion-flow .sm-new-stepper-animated .sm-new-step-dot::after{
+ content:"";position:absolute;inset:-6px;border-radius:50%;
+}
+.singmotion-flow .sm-new-stepper-animated .sm-new-step-dot:focus-visible{
+ outline:3px solid #fff;outline-offset:4px;
+}
+.singmotion-flow .sm-new-stepper-animated .sm-new-step:not(.is-current) .sm-new-step-dot:disabled{
+ opacity:.55;cursor:not-allowed;filter:grayscale(.3);
+}
+.singmotion-flow .sm-new-stepper-animated .sm-new-step-dot:not(:disabled):hover{
+ border-color:#fff;box-shadow:0 0 0 3px #aa40f13b,0 0 24px #c151ffad;
+}
+@media(max-width:700px){
+ .singmotion-flow .sm-new-stepper-animated .sm-new-step-dot::after{inset:-7px}
+}
+@media(prefers-reduced-motion:reduce){
+ .singmotion-flow .sm-new-stepper-animated .sm-new-step-dot{transition:none}
+}
