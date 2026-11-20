@@ -54,7 +54,7 @@ test("Completed paid credit Studio video sends only verified private link and re
   const another="c3eedab6-1170-45f5-9b10-62f0c76af8bc";
   updateCustomerVideoReadyEmailPreference(f.commerce,account,false);
   await f.completed(id,account,Date.now());
-  let emails:Array<{to:string[];text:string}>=[];
+  const emails:Array<{to:string[];text:string}>=[];
   const sender=async (url:RequestInfo|URL,options?:RequestInit)=>{
    assert.equal(String(url),"https://api.resend.com/emails");
    const email=JSON.parse(String(options?.body)) as {to:string[];text:string};

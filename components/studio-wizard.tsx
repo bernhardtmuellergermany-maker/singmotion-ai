@@ -945,7 +945,7 @@ export function StudioWizard({
         </section>}
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
-            <label className="sr-only" htmlFor="flow-performance-prompt">Describe your artist's movement, emotion, and camera style</label>
+            <label className="sr-only" htmlFor="flow-performance-prompt">Describe your artist&apos;s movement, emotion, and camera style</label>
             <textarea ref={performanceInput} id="flow-performance-prompt" className="sm-performance-textarea" maxLength={500} rows={4}
               placeholder="Enter your performance prompt..."
               value={draft.customPrompt}
@@ -1042,7 +1042,7 @@ export function StudioWizard({
                 <p><strong>Performance instructions</strong></p>
                 <p className="sm-review-prompt">{prompt || "No prompt will be sent to the video generation model."}</p>
                 <p>Only the text you enter above is sent as a prompt to the video generation model. If you leave it blank, the prompt field is omitted. Model-generated movement is not guaranteed.</p>
-                <p>The uploaded photo guides the scene; The video generation model determines the generated video's native aspect ratio. SingMotion does not convert it to the reference image's orientation.</p>
+                <p>The uploaded photo guides the scene; The video generation model determines the generated video&apos;s native aspect ratio. SingMotion does not convert it to the reference image&apos;s orientation.</p>
               </div>
             </details>
             <details className="sm-review-item">
@@ -1069,7 +1069,7 @@ export function StudioWizard({
                   <p><strong>Started seconds billed:</strong> {creditQuote.startedSeconds} (rounded up)</p>
                   <p><strong>Rate:</strong> {VIDEO_CREDITS_PER_STARTED_SECOND} Credits per started second</p>
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
-                  <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
+                  <p>Playback slow-down and longer provider output do not increase the customer&apos;s credit amount. Example: 5.2 seconds = 6 × 25 = 150 Credits.</p>
                   <p className="sm-review-credit-disclaimer">{creditStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
                 </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>
