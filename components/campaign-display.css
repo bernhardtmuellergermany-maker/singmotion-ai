@@ -20,10 +20,6 @@
  background:linear-gradient(110deg,rgba(79,34,131,.78),rgba(28,14,60,.85))!important;
  box-shadow:inset 0 0 0 1px rgba(210,175,255,.15),0 0 14px rgba(159,87,232,.15)!important
 }
-.sm-site-header .sm-site-header-left>.sm-campaign-logo-badge[data-theme="beta"]::before{
- content:"";display:inline-block;width:5px;height:5px;flex:none;border-radius:50%;
- margin-right:6px;background:#d9b2ff;box-shadow:0 0 7px #ca84ff
-}
 @media(max-width:430px){
  .sm-site-header .sm-site-header-left>.sm-campaign-logo-badge{
   margin-left:10px!important;padding:4px 8px!important;min-height:22px!important;
@@ -112,13 +108,13 @@
 
 /* Reference-inspired offer pill UNDER the ORIGINAL untouched hero CTA. */
 .sm-immersive-home .sm-campaign-offer-block{
- box-sizing:border-box;width:min(740px,100%);max-width:100%;margin:16px auto 0;
+ box-sizing:border-box;width:min(560px,100%);max-width:100%;margin:15px auto 0;
  display:flex;flex-direction:column;align-items:center;gap:9px;text-align:center;color:#fff;
 }
 .sm-immersive-home .sm-campaign-offer-line{
  box-sizing:border-box;display:flex;flex-direction:row;align-items:center;justify-content:center;
- flex-wrap:wrap;width:100%;min-height:54px;margin:0;padding:12px 26px;
- gap:clamp(10px,1.5vw,22px);border:1.5px solid #c63ff6;border-radius:999px;
+ flex-wrap:wrap;width:100%;min-height:54px;margin:0;padding:11px 20px;
+ gap:clamp(8px,1vw,15px);border:1.5px solid #c63ff6;border-radius:999px;
  background:linear-gradient(105deg,#270d43e8,#170b32e8 55%,#39104fe0);
  box-shadow:inset 0 1px 0 #ffffff46,0 0 25px #ab32ed69,0 8px 22px #09021277;
  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
@@ -136,10 +132,10 @@
  font-weight:780;letter-spacing:0;white-space:nowrap;
 }
 .sm-immersive-home .sm-campaign-offer-divider{
- display:block;flex:none;height:26px;width:1px;background:#e1c3efa8;
+ display:block;flex:none;height:23px;width:1px;background:#e1c3efa8;
 }
 .sm-immersive-home .sm-campaign-offer-current{
- color:#ffe629!important;font-size:clamp(20px,2.1vw,29px)!important;
+ color:#ffe629!important;font-size:clamp(20px,2vw,25px)!important;
  font-weight:900;letter-spacing:-.025em;white-space:nowrap;text-shadow:0 0 10px #ffe00033;
 }
 .sm-immersive-home .sm-campaign-offer-discount{
@@ -182,7 +178,7 @@
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-line{
   display:flex!important;flex-direction:row;flex-wrap:wrap;
   align-items:center;justify-content:center;width:100%;max-width:100%;
-  min-height:54px;gap:7px 12px;margin:0;padding:12px 18px;
+  min-height:54px;gap:7px 11px;margin:0;padding:11px 17px;
   border-radius:999px;text-align:center;pointer-events:auto;
  }
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-identity{
