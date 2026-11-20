@@ -378,7 +378,6 @@ export class StudioWorkflow {
     actor: string,
     confirmation: unknown,
     verifiedCreditSubject?: string,
-    confirmedPricing?:{version:string;creditsPerSecond:number;campaignId:string|null},
   ) {
     const row = this.row(id, owner),
       a = this.store.get(id);
@@ -936,6 +935,7 @@ export class StudioWorkflow {
     ceiling: unknown,
     confirmation: unknown,
     verifiedCreditSubject?: string,
+    confirmedPricing?:{version:string;creditsPerSecond:number;campaignId:string|null},
   ) {
     const row = this.row(id, owner),
       a = this.store.get(id);
