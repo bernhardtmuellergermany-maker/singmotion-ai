@@ -61,6 +61,9 @@ test("protected prelaunch HTML explicitly sets noindex even in Production",()=>{
  for(const filename of ["app/(site)/layout.tsx","app/(site)/page.tsx"]){
   const source=read(filename);
   assert.match(source,/robots: seoPrelaunchMetadataRobots\(\)/);
+  assert.match(source,/export async function generateMetadata\(\):Promise<Metadata>/);
+  assert.match(source,/await connection\(\)/);
+  assert.doesNotMatch(source,/export const metadata: Metadata/);
   assert.doesNotMatch(source,/RAILWAY_ENVIRONMENT_ID === "dfaeabed-/);
  }
 });

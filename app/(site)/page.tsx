@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import {connection} from "next/server";
 import {redirect} from "next/navigation";
 import {seoPrelaunchMetadataRobots} from "@/lib/seo/search-pages";
 import { ImmersiveHome } from "@/components/immersive-home";
@@ -6,7 +7,10 @@ import { CarouselExperience } from "@/components/carousel-experience";
 import "./home-immersive.css";
 // The public carousel shell contains no server-personalized data;
 // allow Next.js to cache it while private projects load client-side.
-export const metadata: Metadata = {
+/** Runtime metadata: private Staging is noindex; public Production can be indexed. */
+export async function generateMetadata():Promise<Metadata>{
+  await connection();
+  return {
   title: { absolute: "AI Music Video Maker – Turn Your Song into Video | SingMotion AI" },
   description: "Create AI singing and music performance videos from your own song and photo. Explore artist videos, vertical Reels, Shorts and TikTok concepts with SingMotion AI.",
   alternates: { canonical: "/" },
@@ -18,7 +22,8 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary_large_image" },
   robots: seoPrelaunchMetadataRobots(),
-};
+  };
+}
 export default async function Home({searchParams}:{searchParams:Promise<{card?:string}>}) {
   const params=await searchParams;
   // Existing /login redirects, account links and private project carousel

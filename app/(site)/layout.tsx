@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import {connection} from "next/server";
 import {CustomerIdleGuard} from "@/components/customer-idle-guard";
 import {seoPrelaunchMetadataRobots} from "@/lib/seo/search-pages";
 import "./globals.css";
@@ -12,7 +13,12 @@ import "./login-brand.css";
 import "./carousel.css";
 import "./site-navigation.css";
 import "./seo-discovery.css";
-export const metadata: Metadata = {
+/** Read release state at REQUEST time, not during a private Beta image build.
+ * Metadata must never bake a permanent noindex into public guide HTML.
+ */
+export async function generateMetadata():Promise<Metadata>{
+  await connection();
+  return {
   metadataBase: new URL("https://www.singmotion.ai"),
   title: {
     default: "SingMotion AI — Your music. Your performance.",
@@ -23,7 +29,8 @@ export const metadata: Metadata = {
   // Never advertise protected Production as indexable before full public approval.
   robots: seoPrelaunchMetadataRobots(),
   icons: { icon: [{ url: "/api/brand-favicon?v=20261101", type: "image/png", sizes: "32x32" }], shortcut: "/api/brand-favicon?v=20261101", apple: "/api/brand-favicon?v=20261101" },
-};
+  };
+}
 export default function RootLayout({
   children,
 }: {
