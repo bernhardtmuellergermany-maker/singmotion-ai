@@ -20,10 +20,10 @@ export default function ResetPassword(){
  const [error,setError]=useState(false);
  useEffect(()=>{
   const controller=new AbortController();
-  setToken(new URLSearchParams(window.location.search).get("token")||"");
+  const candidateToken=new URLSearchParams(window.location.search).get("token")||"";
   void fetch("/api/customer-password-reset",{cache:"no-store",signal:controller.signal})
    .then(async r=>r.ok?await r.json():null)
-   .then(d=>{if(!controller.signal.aborted)setReady(d?.enabled===true);})
+   .then(d=>{if(!controller.signal.aborted){setToken(candidateToken);setReady(d?.enabled===true);}})
    .catch(()=>{})
    .finally(()=>{if(!controller.signal.aborted)setChecking(false);});
   return()=>controller.abort();

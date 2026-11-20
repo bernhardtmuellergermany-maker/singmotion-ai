@@ -101,7 +101,8 @@ export function MyProjectsGallery(){
  useEffect(()=>{
   try{
    const saved=JSON.parse(localStorage.getItem("sm-gallery-labels")||"{}");
-   if(saved&&typeof saved==="object"&&!Array.isArray(saved))setLabels(saved);
+   if(saved&&typeof saved==="object"&&!Array.isArray(saved))
+     void Promise.resolve().then(()=>setLabels(saved));
   }catch{}
  },[]);
  // Only one project menu can be open. Clicking/tapping outside, focusing

@@ -25,7 +25,7 @@ export function AccountPanel({active}:{active:boolean}){
  const [staff,setStaff]=useState(false),[superAdmin,setSuperAdmin]=useState(false); const [mode,setMode]=useState<"login"|"register">("login"),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[account,setAccount]=useState<string|null>(null),[error,setError]=useState(""),[busy,setBusy]=useState(false);
  useEffect(()=>{if(!active)return;fetch("/api/google-auth",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(d=>setGoogleAvailable(d?.enabled===true)).catch(()=>{});const search=new URLSearchParams(window.location.search);
   const allowedReturn=parseStudioAccountReturn(search.get("returnTo"));
-  setStudioReturn(allowedReturn?studioAccountReturn(allowedReturn.draftId,allowedReturn.requiredCredits):null);
+  void Promise.resolve().then(()=>{if(active)setStudioReturn(allowedReturn?studioAccountReturn(allowedReturn.draftId,allowedReturn.requiredCredits):null);});
   const reason=search.get("google_error");
   const expired=search.get("session")==="expired";
   if(reason)void Promise.resolve().then(()=>setError(reason.slice(0,240)));
