@@ -1,6 +1,7 @@
 "use client";
 
 import {useCallback,useEffect,useState} from "react";
+import {Rocket,Clock3} from "lucide-react";
 import type {Campaign,CampaignStatus,CampaignTheme,PublicTariff} from "@/lib/commerce/campaign-pricing";
 import "./campaigns.css";
 
@@ -194,19 +195,28 @@ export function CampaignsClient(){
        {previewPage==="home"?<div className="sm-marketing-preview-hero">
         <strong className="sm-marketing-preview-hero-head">Turn your song into a <span>music video.</span></strong>
         <p>With SingMotion AI — your song, your performance.</p>
-        {selected.showBanner&&<div className="sm-marketing-preview-offer">
-         <div className="sm-marketing-preview-offer-top">
-          <strong className="sm-marketing-preview-offer-name">🚀 {label} Offer</strong>
-          <span className="sm-marketing-preview-offer-price">{euro} / sec</span>
-          <span className="sm-marketing-preview-offer-credits">{rate} Credits / started sec</span>
-          {percent!==null&&<b>{percent}% OFF</b>}
-         </div>
-         {selected.heading&&<strong>{selected.heading}</strong>}
-         {selected.description&&<p>{selected.description}</p>}
-         {selected.actionHint&&<small>{selected.actionHint}</small>}
-         {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
-        </div>}
         <span className="sm-marketing-preview-primary">Create your music video</span>
+        {selected.showBanner&&<div className="sm-marketing-preview-offer-block">
+         <div className="sm-marketing-preview-offer">
+          <div className="sm-marketing-preview-offer-top">
+           <strong className="sm-marketing-preview-offer-name"><Rocket size={17} aria-hidden="true"/>{label} Offer</strong>
+           <span className="sm-marketing-preview-offer-divider" aria-hidden="true"/>
+           <span className="sm-marketing-preview-offer-price">{euro} / sec</span>
+           {percent!==null&&<>
+            <b className="sm-marketing-preview-offer-discount">{percent}% OFF</b>
+            <del className="sm-marketing-preview-offer-regular">0,25 € / sec</del>
+           </>}
+          </div>
+         </div>
+         <div className="sm-marketing-preview-offer-meta">
+          {(selected.heading||selected.description)&&<span className="sm-marketing-preview-offer-detail">
+           {selected.heading&&<strong>{selected.heading}</strong>}
+           {selected.description&&<span>{selected.description}</span>}
+          </span>}
+          <small className="sm-marketing-preview-offer-hint"><Clock3 size={14} aria-hidden="true"/>{selected.actionHint||"Limited-time offer"}</small>
+          {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
+         </div>
+        </div>}
        </div>:<div className="sm-marketing-preview-info">
         <span className="sm-marketing-preview-eyebrow">{previewPage==="pricing"?"YOUR MUSIC. YOUR PERFORMANCE.":"SINGMOTION AI · ACCOUNT"}</span>
         <strong className="sm-marketing-preview-info-title">{previewPage==="pricing"?"Pricing.":"Your credits."}</strong>
