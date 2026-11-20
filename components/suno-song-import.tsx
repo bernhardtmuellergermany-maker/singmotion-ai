@@ -33,7 +33,7 @@ export function SunoSongImport({disabled,onImportFile}:{
     const reason=url.searchParams.get("suno_error");
     setNotice(reason==="cancelled"?"Suno sign-in was cancelled.":"Suno sign-in could not be completed. Try connecting again.");
    }else if(url.searchParams.has("suno_connected")){
-    setNotice("Connection successful. Paste your Suno song link below and select Import song directly.");
+    setNotice(""); // The connected status banner already confirms the successful sign-in.
     setFocusAfterConnect(true);
    }
    if(url.searchParams.has("suno_connected")||url.searchParams.has("suno_error")){
@@ -112,7 +112,7 @@ export function SunoSongImport({disabled,onImportFile}:{
  }
  return <details id="suno-import" className={styles.panel} open={expanded}
   onToggle={event=>setExpanded(event.currentTarget.open)}>
-  <summary className={styles.summary}><Image src="/suno-mark.svg" width={20} height={20} alt="" aria-hidden="true" className={styles.sunoIcon}/>
+  <summary className={styles.summary}><Image src="/suno-uploaded-logo.svg" width={30} height={30} alt="" aria-hidden="true" className={styles.sunoIcon}/>
    <span><strong>Import your Suno song</strong><small>Paste a Suno share link</small></span>
    <span aria-hidden="true" className={styles.plus}>+</span>
   </summary>
@@ -122,7 +122,7 @@ export function SunoSongImport({disabled,onImportFile}:{
     <button type="button" className={styles.disconnect} disabled={disabled||working}
      onClick={()=>void disconnect()}>Disconnect</button>
    </div>}
-   <label className={styles.label} htmlFor={id}>Suno song link</label>
+   <label className={styles.srOnly} htmlFor={id}>Suno song link</label>
    <input ref={linkInput} id={id} className={styles.input} type="url" inputMode="url" autoCapitalize="off"
     autoComplete="off" spellCheck={false} placeholder="https://suno.com/s/..."
     value={link} disabled={disabled||working} onChange={e=>{setLink(e.target.value.slice(0,501));setNeedsCredit(false);setNotice("");}}/>
@@ -134,11 +134,11 @@ export function SunoSongImport({disabled,onImportFile}:{
     </button>}
    {connected===true&&canonical&&!needsCredit&&
     <button type="button" className={styles.open} disabled={disabled||working} onClick={()=>void importSong(false)}>
-     <Image src="/suno-mark.svg" width={17} height={17} alt="" aria-hidden="true" className={styles.sunoIcon}/> {working?"Importing from Suno…":"Import song directly"}
+     <Image src="/suno-uploaded-logo.svg" width={23} height={23} alt="" aria-hidden="true" className={styles.sunoIcon}/> {working?"Importing from Suno…":"Import song directly"}
     </button>}
    {connected===true&&canonical&&needsCredit&&
     <button type="button" className={styles.open} disabled={disabled||working} onClick={()=>void importSong(true)}>
-     <Image src="/suno-mark.svg" width={17} height={17} alt="" aria-hidden="true" className={styles.sunoIcon}/> {working?"Requesting Suno download…":"Confirm 1 Suno download credit & import"}
+     <Image src="/suno-uploaded-logo.svg" width={23} height={23} alt="" aria-hidden="true" className={styles.sunoIcon}/> {working?"Requesting Suno download…":"Confirm 1 Suno download credit & import"}
     </button>}
    {notice&&<p className={styles.note} role="status">{notice}</p>}
    {canonical&&<a className={styles.link} href={canonical} target="_blank" rel="noopener noreferrer">
