@@ -4,6 +4,8 @@ import type {CSSProperties} from "react";
 import Link from "next/link";
 import {Rocket,Clock3} from "lucide-react";
 import type {PublicTariff} from "@/lib/commerce/campaign-pricing";
+import {readCustomerAuthStatus} from "@/lib/client-auth-status";
+import {CREDIT_BUY_RETURN} from "@/lib/studio-account-handoff";
 import "./campaign-display.css";
 
 /** All campaign copy and prices originate from the same server-side versioned tariff.
@@ -37,7 +39,6 @@ function palette(tariff:PublicTariff):CSSProperties{
 function CampaignPriceLine({tariff}:{tariff:PublicTariff}){
  return <span className="sm-campaign-rate-line">
   <strong>{euro(tariff.creditsPerSecond)} / sec</strong>
-  <span>· {tariff.creditsPerSecond} Credits / started sec</span>
   {tariff.showDiscountPercent&&tariff.discountPercent!==null&&<em>{tariff.discountPercent}% OFF</em>}
   {tariff.showRegularPrice&&tariff.discountPercent!==null&&
    <del className="sm-campaign-rate-regular">{euro(tariff.regularCreditsPerSecond)} / sec</del>}
@@ -58,8 +59,19 @@ export function CampaignOfferLine(){
   tariff.creditsPerSecond<tariff.regularCreditsPerSecond;
  const badge=tariff.badgeText||"SPECIAL";
  const offerLabel=/\boffer$/i.test(badge)?badge:badge+" Offer";
+ const loginHref="/login?returnTo="+encodeURIComponent(CREDIT_BUY_RETURN);
+ const buyCredits=(event:import("react").MouseEvent<HTMLAnchorElement>)=>{
+  event.preventDefault();
+  // Never trust cached identity or navigate around the customer login check.
+  void readCustomerAuthStatus().then(status=>{
+   window.location.assign(status?.authenticated===true&&(status.kind==="customer"||status.kind==="staff")
+    ?CREDIT_BUY_RETURN:loginHref);
+  }).catch(()=>window.location.assign(loginHref));
+ };
  return <div className="sm-campaign-offer-block" data-theme={tariff.theme} style={palette(tariff)}>
-  <aside className="sm-campaign-offer-line" aria-label={tariff.heading||"Current video offer"}>
+  <Link className="sm-campaign-offer-line" href={loginHref}
+   aria-label={(tariff.heading||"Current video offer")+". Buy Credits"}
+   onClick={buyCredits}>
    <span className="sm-campaign-offer-identity">
     <Rocket size={20} strokeWidth={2.5} aria-hidden="true"/>
     <strong className="sm-campaign-offer-name">{offerLabel}</strong>
@@ -70,7 +82,7 @@ export function CampaignOfferLine(){
     <span className="sm-campaign-offer-discount">{tariff.discountPercent}% OFF</span>}
    {discounted&&tariff.showRegularPrice&&
     <del className="sm-campaign-offer-regular" aria-label="Regular price">{euro(tariff.regularCreditsPerSecond)} / sec</del>}
-  </aside>
+  </Link>
   <div className="sm-campaign-offer-meta">
    <small className="sm-campaign-offer-hint"><Clock3 size={15} strokeWidth={2} aria-hidden="true"/>
     {tariff.actionHint||"Limited-time offer"}</small>

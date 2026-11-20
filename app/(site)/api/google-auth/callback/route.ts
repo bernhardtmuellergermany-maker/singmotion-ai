@@ -4,7 +4,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,createAccountMediaSession,session,revokeMediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
-import {parseStudioAccountReturn} from "@/lib/studio-account-handoff";
+import {parseStudioAccountReturn,parseAccountReturn} from "@/lib/studio-account-handoff";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
@@ -23,7 +23,7 @@ export async function GET(req:NextRequest){
  if(!googleLoginReady(process.env))return go("Google sign-in unavailable");
  let saved:{state:string;verifier:string;nonce:string;returnTo?:string;guestToken?:string};
  try{saved=JSON.parse(req.cookies.get("sm_google_oauth")?.value||"");}catch{return go("Sign-in session expired");}
- savedReturn=parseStudioAccountReturn(saved.returnTo||null)?saved.returnTo!:null;
+ savedReturn=parseAccountReturn(saved.returnTo||null);
  const state=req.nextUrl.searchParams.get("state"),code=req.nextUrl.searchParams.get("code");
  if(!saved?.state||!saved.verifier||!saved.nonce||!state||saved.state!==state||!code)return go("Google sign-in cancelled or expired");
  try{
@@ -45,7 +45,7 @@ export async function GET(req:NextRequest){
   // Strict cookies do not accompany Google's cross-origin callback. The
   // short-lived, state-bound OAuth cookie carries the original verified guest
   // session from the first-party OAuth start; it is never a URL parameter.
-  const carried=savedReturn&&typeof saved.guestToken==="string"&&
+  const carried=parseStudioAccountReturn(savedReturn)!==null&&typeof saved.guestToken==="string"&&
     /^[A-Za-z0-9_-]{40,128}$/.test(saved.guestToken)?saved.guestToken:null;
   const carriedOwner=carried?session(carried)?.owner:null;
   const verifiedGuest=carried&&carriedOwner&&
@@ -53,7 +53,9 @@ export async function GET(req:NextRequest){
     ?carried:null;
   if(old&&owner&&(owner.startsWith("customer-")||owner.startsWith("cms-staff-")))
     revokeMediaSession(old);
-  const response=clear(NextResponse.redirect(trustedOrigin+(savedReturn?savedReturn+"&auth_changed=1":"/?card=login&auth_changed=1")));
+  const destination=new URL(savedReturn||"/?card=login",trustedOrigin);
+  destination.searchParams.set("auth_changed","1");
+  const response=clear(NextResponse.redirect(destination));
   response.cookies.delete("payload-token"); // OAuth customer login replaces a prior CMS staff session.
   const guest=verifiedGuest||(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-")?old:null);
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});

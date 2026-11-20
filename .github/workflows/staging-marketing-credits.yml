@@ -20,6 +20,10 @@ on:
       - 'tests/campaign-presentation.test.ts'
       - 'components/campaign-display.tsx'
       - 'components/campaign-display.css'
+      - 'components/account-panel.tsx'
+      - 'lib/studio-account-handoff.ts'
+      - 'app/(site)/api/google-auth/**'
+      - 'tests/account-credit-offer-return.test.ts'
       - 'app/(site)/plans/**'
       - 'app/(site)/credits/**'
       - '.github/workflows/staging-marketing-credits.yml'
@@ -40,7 +44,7 @@ jobs:
       - name: Type check all connected clients and APIs
         run: npm run typecheck
       - name: Manual gifts, campaign tariffs and existing financial regression tests
-        run: node --experimental-strip-types --test --test-concurrency=1 tests/manual-credit-gifts.test.ts tests/campaign-pricing.test.ts tests/campaign-presentation.test.ts tests/credit-wallet.test.ts tests/customer-insights.test.ts tests/credit-help-legal-refresh.test.ts tests/prepaid-credit-ui.test.ts
+        run: node --experimental-strip-types --test --test-concurrency=1 tests/manual-credit-gifts.test.ts tests/campaign-pricing.test.ts tests/campaign-presentation.test.ts tests/account-credit-offer-return.test.ts tests/credit-wallet.test.ts tests/customer-insights.test.ts tests/credit-help-legal-refresh.test.ts tests/prepaid-credit-ui.test.ts
 
   full-regression:
     needs: verify
