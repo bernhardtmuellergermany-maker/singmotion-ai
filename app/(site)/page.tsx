@@ -11,8 +11,8 @@ import "./home-immersive.css";
 export async function generateMetadata():Promise<Metadata>{
   await connection();
   return {
-  title: { absolute: "AI Music Video Maker – Turn Your Song into Video | SingMotion AI" },
-  description: "Create AI singing and music performance videos from your own song and photo. Explore artist videos, vertical Reels, Shorts and TikTok concepts with SingMotion AI.",
+  title: { absolute: "AI Music Video Maker from Your Song | SingMotion AI" },
+  description: "Create AI singing and performance videos from your song and photo. Explore music videos, Reels, Shorts and TikTok concepts with SingMotion AI.",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website", siteName: "SingMotion AI", locale: "en_US", url: "/",
