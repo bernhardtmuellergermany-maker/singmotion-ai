@@ -83,9 +83,9 @@ export function CampaignPricingBanner({placement}:{placement:"pricing"|"credits"
  if(!tariff?.campaignId||!tariff.showBanner)return null;
  return <aside className={"sm-campaign-pricing-banner sm-campaign-pricing-"+placement}
    data-theme={tariff.theme} style={palette(tariff)} aria-label={tariff.heading||"Video credit offer"}>
-   {placement==="credits"&&<span className="sm-campaign-pricing-light-sweep" aria-hidden="true"/>}
+   <span className="sm-campaign-pricing-light-sweep" aria-hidden="true"/>
    <div className="sm-campaign-pricing-copy">
-    <span className="sm-campaign-pricing-eyebrow">{placement==="credits"&&<Rocket size={20} strokeWidth={2.3} aria-hidden="true"/>}{tariff.badgeText||"SPECIAL"} · LIMITED VIDEO RATE</span>
+    <span className="sm-campaign-pricing-eyebrow"><Rocket size={20} strokeWidth={2.3} aria-hidden="true"/>{tariff.badgeText||"SPECIAL"} · LIMITED VIDEO RATE</span>
     {tariff.heading&&<h2>{tariff.heading}</h2>}
     {tariff.description&&<p>{tariff.description}</p>}
     <div className="sm-campaign-pricing-price"><CampaignPriceLine tariff={tariff}/></div>
