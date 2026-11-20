@@ -131,6 +131,19 @@ test("Suno OAuth return opens direct import, confirms connection, and excludes m
  assert.doesNotMatch(wizard,/onChooseFile=\{\(\)=>audioFileInput/);
  assert.match(ui,/Import song directly/);
 });
+test("Suno disconnect only clears the scoped OAuth cookies after authentication and origin checks",()=>{
+ assert.match(api,/export async function DELETE\(req:NextRequest\)/);
+ assert.match(api,/req\.headers\.get\("origin"\)!==SUNO_STAGING_ORIGIN/);
+ assert.match(api,/if\(!session\(mediaToken\)\)/);
+ assert.match(api,/response\.cookies\.set\("sm_suno_access",""/);
+ assert.match(api,/response\.cookies\.set\("sm_suno_oauth",""/);
+ assert.match(api,/path:"\/api\/suno-import",maxAge:0/);
+ assert.doesNotMatch(api,/response\.cookies\.set\("sm_session"/);
+ assert.match(ui,/method:"DELETE"/);
+ assert.match(ui,/setConnected\(false\)/);
+ assert.match(ui,/className=\{styles\.disconnect\}/);
+ assert.match(ui,/disabled=\{disabled\|\|working\}/);
+});
 test("Studio integrates direct official download into the existing validated private audio upload",()=>{
  assert.match(wizard,/onImportFile=\{file=>add\(file,"audio"\)\}/);
  assert.match(wizard,/uploadWithProgress\(file, kind,/);
