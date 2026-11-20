@@ -1,7 +1,7 @@
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
 import { CreditWallet } from "./credit-wallet.ts";
 import {erasureInProgress} from "./customer-erasure-job.ts";
-import { betaWelcomeCreditsEnabled, grantBetaWelcomeCredits } from "./beta-welcome-credits.ts";
+import {publicWelcomeCreditsEnabled,grantPublicWelcomeCredits} from "./public-welcome-credits.ts";
 import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
 /** Server-only payment/account groundwork. No production adapter or automatic provider dispatch. */
 import { DatabaseSync } from "node:sqlite";
@@ -102,15 +102,13 @@ export class CommerceStore {
       )
       .run(actor, action, record, Date.now());
   }
-  /** The free Beta gift is a real, immutable wallet entry. It can be issued
-   * only inside the same transaction that first creates a customer account.
-   * Returning customers, normal login and staff accounts are never re-granted.
+  /** Called inside the new-account transaction. The 50-award counter
+   * survives account deletions, with no personal data retained in the counter.
    */
-  private awardBetaWelcomeOnAccountCreation(id:string){
-    if(!betaWelcomeCreditsEnabled(this.runtimeEnv))return;
-    // Idempotent schema setup; the wallet and paid Checkout share this ledger.
+  private awardPublicWelcomeOnAccountCreation(id:string){
+    if(!publicWelcomeCreditsEnabled(this.runtimeEnv))return;
     new CreditWallet(this.db);
-    grantBetaWelcomeCredits(this.db,id);
+    grantPublicWelcomeCredits(this.db,id);
   }
   register(email: string, password: string) {
     email = email.trim().toLowerCase();
@@ -129,7 +127,7 @@ export class CommerceStore {
       // New password accounts must confirm ownership before future paid orders.
       // Missing rows belong to existing pre-migration accounts and retain access.
       this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,NULL,0)").run(id);
-      this.awardBetaWelcomeOnAccountCreation(id);
+      this.awardPublicWelcomeOnAccountCreation(id);
     });
     return id;
   }
@@ -145,7 +143,7 @@ export class CommerceStore {
         id=randomUUID();
         this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());
         this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,id);
-        this.awardBetaWelcomeOnAccountCreation(id);
+        this.awardPublicWelcomeOnAccountCreation(id);
       }
       // Google email_verified was validated by the OAuth callback, including
       // audience, issuer, subject and nonce. Never infer it from an email alone.

@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import {LiveTestStore,confirmationPhrase} from "../lib/live/store.ts";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
-import {betaWelcomeCreditsEnabled,BETA_WELCOME_CREDITS,grantBetaWelcomeCredits} from "../lib/commerce/beta-welcome-credits.ts";
+import {betaWelcomeCreditsEnabled,grantBetaWelcomeCredits} from "../lib/commerce/beta-welcome-credits.ts";
 import {loadRuntimeStudioPolicy,studioRuntime} from "../lib/live/studio-runtime.ts";
 import {customerCreditStudioBetaEnabled,exactCustomerCreditSubject} from "../lib/commerce/customer-credit-studio-beta.ts";
 
@@ -115,64 +115,16 @@ test("Customer beta uses only its independently reviewed expiring contract; lega
  await assert.rejects(loadRuntimeStudioPolicy(fakeRoot,{...env(),CUSTOMER_CREDIT_STUDIO_TEST_ENABLED:"false"},false,true),/Customer Credit Studio testing is not enabled/);
 });
 
-test("new private Beta password accounts get exactly 250 spendable Credits and never again on login",()=>{
- const runtime={...env(),CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"true"};
- assert.equal(betaWelcomeCreditsEnabled(runtime),true);
- const store=new CommerceStore(":memory:",runtime);
+test("legacy private Beta welcome bonus is retired for password and Google signups",()=>{
+ const e={...env(),CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"true"};
+ assert.equal(betaWelcomeCreditsEnabled(e),false);
+ const store=new CommerceStore(":memory:",e);
  try{
-  const id=store.register("beta-new@example.test","some-strong-password");
-  const subject="customer:"+id;
-  const wallet=new CreditWallet(store.db);
-  assert.equal(BETA_WELCOME_CREDITS,250);
-  assert.equal(wallet.total(subject),250);
-  assert.equal(wallet.available(subject),250);
-  assert.deepEqual(wallet.entries(subject).map(e=>[e.type,e.credits]),[["beta-welcome",250]]);
-  const token=store.login("beta-new@example.test","some-strong-password");
-  assert.equal(store.session(token),id);
-  assert.equal(wallet.available(subject),250,"login cannot award additional Credits");
-  assert.equal(grantBetaWelcomeCredits(store.db,id),false,"unique wallet reference blocks duplicate grants");
-  assert.throws(()=>store.register("beta-new@example.test","some-strong-password"));
-  assert.equal(wallet.entries(subject).length,1);
-  const video=crypto.randomUUID();
-  wallet.reserveVideo(video,subject,250);
-  assert.equal(wallet.available(subject),0,"held Credits cannot be spent twice");
-  wallet.reconcileVideo(video,"completed");
-  assert.equal(wallet.total(subject),0,"gift is actually consumed by a validated video");
-  assert.throws(()=>wallet.reserveVideo(crypto.randomUUID(),subject,1),/Insufficient video credits/);
-  const topup=wallet.pending({subject,email:"beta-new@example.test",customerId:id},500,crypto.randomUUID());
-  wallet.bind(topup.id,"cs_test_betaTopup123","https://checkout.stripe.com/c/pay/beta");
-  assert.equal(wallet.settle({id:topup.id,sessionId:"cs_test_betaTopup123",amount:topup.cents,currency:"eur",paymentStatus:"paid",livemode:false}),true);
-  assert.equal(wallet.available(subject),500,"verified payment restores spendable balance");
- }finally{store.close();}
-});
-
-test("Beta Google registration receives the same one-time gift, but returning Google login does not",()=>{
- const runtime={...env(),CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"true"};
- const store=new CommerceStore(":memory:",runtime);
- try{
-  const first=store.googleLogin("123456789012","google-beta@example.test");
-  const wallet=new CreditWallet(store.db);
-  assert.equal(wallet.total("customer:"+first.id),250);
-  const again=store.googleLogin("123456789012","google-beta@example.test");
-  assert.equal(again.id,first.id);
-  assert.equal(wallet.total("customer:"+first.id),250);
-  assert.equal(wallet.entries("customer:"+first.id).length,1);
- }finally{store.close();}
-});
-
-test("Beta gift is opt-in and never applies to public, disabled or unmatched environments",()=>{
- const good={...env(),CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"true"};
- for(const change of [
-  {CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"false"},
-  {CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:undefined},
-  {CUSTOMER_CREDIT_STUDIO_TEST_ENABLED:"false"},
-  {RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d"},
-  {STRIPE_CREDIT_TOPUPS_TEST_ENABLED:"false"},
- ])assert.equal(betaWelcomeCreditsEnabled({...good,...change}),false,JSON.stringify(change));
- const store=new CommerceStore(":memory:",{...good,CUSTOMER_BETA_WELCOME_CREDITS_ENABLED:"false"});
- try{
-  const id=store.register("ordinary@example.test","some-strong-password");
+  const id=store.register("retired-beta@example.test","securepassword123");
+  const google=store.googleLogin("123456789012","retired-google@example.test");
   const wallet=new CreditWallet(store.db);
   assert.equal(wallet.total("customer:"+id),0);
- }finally{store.close();}
+  assert.equal(wallet.total("customer:"+google.id),0);
+  assert.equal(grantBetaWelcomeCredits(store.db,id),false);
+ }finally{store.close()}
 });
