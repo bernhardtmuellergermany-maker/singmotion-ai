@@ -159,7 +159,12 @@ test("Studio integrates direct official download into the existing validated pri
 });
 
 test("Suno import uses the local brand logo and concise copy",()=>{
- assert.match(ui,/suno-mark/);
+ assert.match(ui,/suno-uploaded-logo/);
+ assert.doesNotMatch(ui,/src="\/suno-mark\.svg"/);
+ assert.doesNotMatch(ui,/Connection successful\. Paste your Suno song link below/);
+ assert.match(ui,/setNotice\(""\); \/\/ The connected status banner/);
+ assert.match(ui,/className=\{styles\.srOnly\} htmlFor=\{id\}>Suno song link<\/label>/);
+ assert.doesNotMatch(ui,/className=\{styles\.label\} htmlFor=\{id\}>Suno song link/);
  assert.match(ui,/Paste a Suno share link/);
  assert.doesNotMatch(ui,/no manual MP3 download/);
  assert.doesNotMatch(ui,/Connect your own Suno account to import a song directly/);
