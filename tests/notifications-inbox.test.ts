@@ -107,17 +107,21 @@ test("gift credit ledger events create private unread notifications and reading 
   assert.match(corrected.notifications.find(n=>n.title==="Gift Credits adjusted")?.message??"",/500 gift Credits removed/);
  }finally{store.close()}
 });
-test("small purple gift-count badge sits on account-icon rim and clears when the notice is read",()=>{
+test("small round purple account badge shows all unread notifications and caps display at 9+",()=>{
  const root=new URL("../",import.meta.url);
  const header=readFileSync(new URL("components/header-account-menu.tsx",root),"utf8");
  const css=readFileSync(new URL("components/header-account-menu.css",root),"utf8");
  const center=readFileSync(new URL("components/notification-center.tsx",root),"utf8");
- assert.match(header,/item\.kind==="gift"&&item\.read===false/);
- assert.match(header,/unreadGifts>0&&<span className="sm-account-gift-badge"/);
- assert.match(header,/unreadGifts>99\?"99\+":unreadGifts/);
+ assert.doesNotMatch(header,/unreadGifts|setUnreadGifts/);
+ assert.match(header,/unreadNotices>0&&<span className="sm-account-gift-badge"/);
+ assert.match(header,/unreadNotices>9\?"9\+":unreadNotices/);
+ assert.match(header,/\$\{unreadNotices\} unread notifications/);
+ assert.match(header,/setUnreadNotices\(typeof data\.unread/);
  assert.match(css,/\.sm-account-menu \.sm-account-gift-badge/);
  assert.match(css,/top:15%;right:15%;transform:translate\(50%,-50%\)/);
  assert.match(css,/background:#8547bd/);
+ assert.match(css,/width:19px;min-width:19px;max-width:19px;height:19px;padding:0/);
+ assert.match(css,/border-radius:50%/);
  assert.match(center,/className="sm-notice-gift-open"/);
  assert.match(center,/onClick=\{\(\)=>void apply\("read",item\.id\)\}/);
  assert.match(center,/notifications-changed/);
