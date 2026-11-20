@@ -11,13 +11,13 @@ export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
   const [projects,setProjects]=useState<Target[]>([]),[error,setError]=useState("");
   const [busy,setBusy]=useState(false),[complete,setComplete]=useState(false);
   useEffect(()=>{
-    if(enabled!==undefined){setAllowed(enabled);return;}
+    if(enabled!==undefined)return;
     let active=true;
     void fetch("/api/music-video",{credentials:"same-origin",cache:"no-store"})
       .then(r=>{if(active)setAllowed(r.ok);}).catch(()=>{});
     return()=>{active=false;};
   },[enabled]);
-  if(!allowed)return null;
+  if(!(enabled??allowed))return null;
   async function show(){
     setError("");setComplete(false);setOpen(true);
     try{

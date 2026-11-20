@@ -369,15 +369,28 @@ try {
     /^Basic /,
   );
   assert.equal(unauthenticatedLogin.headers.get("x-singmotion-cms-code"), null);
-  const rejected = await context.request.post(origin + "/api/cms/staff/login", {
+  // With valid private-gate Basic credentials, the CMS handler rejects the
+  // cross-origin POST and emits its fixed diagnostic. Cookie-only mutations
+  // may already be denied by the outer private gate without that header.
+  const rejected = await fetch(origin + "/api/cms/staff/login", {
+    method: "POST",
+    headers: {
+      authorization: basic,
+      origin: "https://evil.example",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({ email: admin.email, password }),
+  });
+  assert.equal(rejected.status, 403);
+  assert.equal(
+    rejected.headers.get("x-singmotion-cms-code"),
+    "CMS_ORIGIN_REJECTED",
+  );
+  const cookieOnlyRejected = await context.request.post(origin + "/api/cms/staff/login", {
     headers: { origin: "https://evil.example" },
     data: { email: admin.email, password },
   });
-  assert.equal(rejected.status(), 403);
-  assert.equal(
-    rejected.headers()["x-singmotion-cms-code"],
-    "CMS_ORIGIN_REJECTED",
-  );
+  assert.equal(cookieOnlyRejected.status(), 403);
   const missing = await fetch(origin + "/api/cms/staff/login", {
     method: "POST",
     headers: { authorization: basic, "content-type": "application/json" },
