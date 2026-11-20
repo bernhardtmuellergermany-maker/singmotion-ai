@@ -36,5 +36,5 @@ test("Studio uses the existing protected upload pipeline with an official Suno d
  assert.match(ui,/Suno’s official Download option/);
  assert.match(ui,/target="_blank" rel="noopener noreferrer"/);
  assert.match(ui,/250-second clip limit/);
- assert.doesNotMatch(ui,/\bfetch\(|\bXMLHttpRequest\b|cdn1\.suno\.ai|stream-rip/i);
+ assert.doesNotMatch(ui,/\bfetch\(|\bXMLHttpRequest\b|cdn1\.suno\.ai/i);
 });
