@@ -132,7 +132,9 @@ export default function Waveform({
     const player=audio.current;
     if (!player) return;
     if (player.currentTime < start || player.currentTime > end) {
-      ++playRequest.current;
+      // pause() rejects any pending play() with AbortError; the playback
+      // rejection handler already ignores it. Keep token mutations in
+      // user-event handlers, not inside a selection synchronization effect.
       player.pause();
       player.currentTime=start;
       setPosition(start);
