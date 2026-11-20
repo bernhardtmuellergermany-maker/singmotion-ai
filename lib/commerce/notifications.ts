@@ -61,11 +61,16 @@ export class NotificationInbox {
  }
  private rows(subject:string):Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>{
   const ledger=this.db.prepare(`SELECT id,kind,delta,created,reference FROM credit_wallet_ledger
-   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','manual-gift','manual-gift-correction')
+   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','manual-gift','manual-gift-correction','public-welcome')
    ORDER BY created DESC LIMIT 150`).all(subject) as Array<{id:string;kind:string;delta:number;created:number;reference:string}>;
   const items:Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>=ledger.map(row=>{
    const n=Math.abs(row.delta).toLocaleString("en-GB");
    if(row.kind==="purchase")return {id:"wallet:"+row.id,title:"Credits purchased",message:n+" credits added to your wallet.",created:row.created,kind:"payment" as const,href:"/credits#usage"};
+   if(row.kind==="public-welcome")return {
+    id:"wallet:"+row.id,title:"Welcome Credits received",
+    message:n+" free welcome Credits have been added to your wallet.",
+    created:row.created,kind:"gift" as const,href:"/credits#usage"
+   };
    if(row.kind==="manual-gift")return {
     id:"wallet:"+row.id,title:"Gift Credits received",
     message:n+" gift Credits have been added to your wallet.",
