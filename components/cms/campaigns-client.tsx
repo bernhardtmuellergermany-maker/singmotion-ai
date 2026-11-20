@@ -46,7 +46,8 @@ function newCampaign():FormCampaign{
   startUtc:start,endUtc:start+7*86400000,creditsPerSecond:12,
   badgeText:"SPECIAL",heading:"SingMotion Special",description:"",
   actionHint:"Limited-time offer",ctaText:"Create your video",theme:"purple",accent:"#af65ef",
-  showBadge:true,showBanner:true,comparisonEvidence:null,
+  showBadge:true,showBanner:true,showDiscountPercent:true,showRegularPrice:true,
+  comparisonEvidence:null,
   maxCustomerGenerations:null,maxCampaignCredits:null};
 }
 export function CampaignsClient(){
@@ -168,6 +169,10 @@ export function CampaignsClient(){
       onChange={e=>edit("showBadge",e.target.checked)}/> Logo-Badge anzeigen</label>
      <label className="sm-marketing-check"><input type="checkbox" checked={selected.showBanner}
       onChange={e=>edit("showBanner",e.target.checked)}/> Angebotsleiste anzeigen</label>
+     <label className="sm-marketing-check"><input type="checkbox" checked={selected.showDiscountPercent}
+      onChange={e=>edit("showDiscountPercent",e.target.checked)}/> Rabatt-Prozent anzeigen (grün)</label>
+     <label className="sm-marketing-check"><input type="checkbox" checked={selected.showRegularPrice}
+      onChange={e=>edit("showRegularPrice",e.target.checked)}/> Regulären Preis durchgestrichen anzeigen</label>
     </div>
     <div className="sm-marketing-actions"><button type="button" disabled={busy||!enabled}
      onClick={()=>void command("save")}>{busy?"Prüfung läuft…":"Version speichern"}</button>
@@ -204,10 +209,10 @@ export function CampaignsClient(){
            <strong className="sm-marketing-preview-offer-name"><Rocket size={17} aria-hidden="true"/>{offerLabel}</strong>
            <span className="sm-marketing-preview-offer-divider" aria-hidden="true"/>
            <span className="sm-marketing-preview-offer-price">{euro} / sec</span>
-           {percent!==null&&<>
-            <b className="sm-marketing-preview-offer-discount">{percent}% OFF</b>
-            <del className="sm-marketing-preview-offer-regular">0,25 € / sec</del>
-           </>}
+           {selected.showDiscountPercent&&percent!==null&&
+            <b className="sm-marketing-preview-offer-discount">{percent}% OFF</b>}
+           {selected.showRegularPrice&&percent!==null&&
+            <del className="sm-marketing-preview-offer-regular">0,25 € / sec</del>}
           </div>
          </div>
          <div className="sm-marketing-preview-offer-meta">
@@ -223,7 +228,7 @@ export function CampaignsClient(){
          {selected.heading&&<strong className="sm-marketing-preview-campaign-title">{selected.heading}</strong>}
          {selected.description&&<p>{selected.description}</p>}
          <b>{euro} / sec · {rate} Credits</b>
-         {percent!==null&&<span>{percent}% OFF</span>}
+         {selected.showDiscountPercent&&percent!==null&&<span>{percent}% OFF</span>}
          {selected.actionHint&&<small>{selected.actionHint}</small>}
          {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
         </div>}
