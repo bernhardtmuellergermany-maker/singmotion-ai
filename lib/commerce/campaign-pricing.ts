@@ -24,7 +24,8 @@ const accents=["#af65ef","#ff6ea8","#ffd166","#72c3ed","#76d7af"] as const;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const validActor=/^[A-Za-z0-9_-]{1,100}$/;
 export class CampaignError extends Error{
- constructor(message:string,public readonly status=409){super(message)}
+ readonly status:number;
+ constructor(message:string,status=409){super(message);this.status=status}
 }
 export function campaignsEnabled(env:Record<string,string|undefined>){
  return env.CMS_ENABLED==="true"&&env.ADMIN_CAMPAIGNS_ENABLED==="true"&&(
@@ -56,7 +57,9 @@ export function regularTariff():PublicTariff {
   showBadge:false,showBanner:false,expiresUtc:null};
 }
 export class CampaignPricing{
- constructor(private readonly db:DatabaseSync){
+ private readonly db:DatabaseSync;
+ constructor(db:DatabaseSync){
+  this.db=db;
   db.exec(`
    CREATE TABLE IF NOT EXISTS marketing_campaigns(
     id TEXT PRIMARY KEY,identifier TEXT NOT NULL UNIQUE,
