@@ -489,6 +489,14 @@ export function StudioLiveControl({
 }
 export function LiveProject({ id }: { id: string }) {
   const router = useRouter();
+  // Render-pure time source; updates only from a timer, not during React render.
+  const [statusNowMs,setStatusNowMs]=useState(0);
+  useEffect(()=>{
+    let active=true;
+    void Promise.resolve().then(()=>{if(active)setStatusNowMs(Date.now());});
+    const timer=window.setInterval(()=>setStatusNowMs(Date.now()),30000);
+    return()=>{active=false;window.clearInterval(timer);};
+  },[]);
   const [project, setProject] = useState<StudioProject | null>(null),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
@@ -614,7 +622,7 @@ export function LiveProject({ id }: { id: string }) {
   const failed = project?.state === "failed";
   const editHref=project&&/^[a-f0-9-]{36}$/i.test(project.id)
     ?"/studio?copy=live_"+encodeURIComponent(project.id):null;
-  const notice = project ? providerFeedback(project.state,project.stage,project.creditCharge,project.createdAt,Date.now(),editHref) : null;
+  const notice = project ? providerFeedback(project.state,project.stage,project.creditCharge,project.createdAt,statusNowMs||project.createdAt,editHref) : null;
   const visibleNotice=error?requestErrorFeedback(error,"generation"):notice;
   const statusLabel = complete ? "Completed" : failed ? "Failed" : project?.state === "prepared" ? "Ready to submit" : project?.state === "submitted" ? "Queued with provider" : project?.state === "processing" ? "Video status pending" : "Preparing project";
   return (
