@@ -15,8 +15,13 @@
 .input::placeholder{color:#938ba6}
 .error{color:#ffb7b7;font-size:12px}
 .ready{font-size:12px;color:#b9e9ce}
-.connected{display:flex;align-items:center;gap:9px;padding:10px 12px;border:1px solid #477e65;border-radius:10px;background:#173025;color:#c7f6da;font-size:13px;font-weight:700;line-height:1.35;margin:10px 0 0}
-.connected svg{flex:none}
+.connected{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 12px;border:1px solid #477e65;border-radius:10px;background:#173025;color:#c7f6da;font-size:13px;font-weight:700;line-height:1.35;margin:10px 0 0}
+.connectedLabel{display:flex;align-items:center;gap:9px;min-width:0}
+.connectedLabel svg{flex:none}
+.disconnect{flex:none;min-height:32px;padding:4px 7px;border:0;border-radius:6px;background:transparent;color:#b6cbbf;font:inherit;font-size:11px;font-weight:500;cursor:pointer;text-decoration:underline;text-decoration-color:transparent;text-underline-offset:3px}
+.disconnect:hover:not(:disabled){color:#fff;text-decoration-color:currentColor;background:#ffffff12}
+.disconnect:focus-visible{outline:2px solid #d6afff;outline-offset:2px}
+.disconnect:disabled{opacity:.5;cursor:not-allowed}
 .open{min-height:44px;display:flex;align-items:center;justify-content:center;gap:9px;padding:10px 15px;text-align:center;border:1px solid #b77af3;border-radius:11px;font-size:13px;font-weight:700}
 .open{background:#8d46c1;color:#fff}
 .open:hover:not(:disabled){background:#a05bd5}
