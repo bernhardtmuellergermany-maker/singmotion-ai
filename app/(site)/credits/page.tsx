@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 import { CreditsDashboard } from "@/components/credits-dashboard";
+import {CampaignPricingBanner} from "@/components/campaign-display";
 import "./credits.css";
 
 export const metadata: Metadata = {
@@ -16,6 +17,7 @@ export default function CreditsPage() {
         <h1>Your credits<span>.</span></h1>
         <p>Track your balance, purchase credits when available, review every transaction. No new monthly subscription.</p>
       </header>
+      <CampaignPricingBanner placement="credits"/>
       <CreditsDashboard mode="buy"/>
     </main>
   </div>;

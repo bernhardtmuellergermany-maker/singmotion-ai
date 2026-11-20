@@ -23,7 +23,8 @@ test("Pricing opens Stripe only for the authenticated, server-approved credit bu
  const balance=read("app/(site)/api/credit-balance/route.ts");
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
  assert.match(plans,/CreditAmountPicker discoverAvailability/);
- assert.match(plans,/25 Credits/);
+ assert.match(plans,/<CurrentVideoRate\/>/);
+ assert.match(plans,/<CampaignPricingBanner placement="pricing"\/>/);
  assert.doesNotMatch(plans,/Live credit purchasing is not available yet/);
  assert.match(picker,/fetch\("\/api\/credit-balance",\{cache:"no-store",credentials:"same-origin"\}\)/);
  assert.match(picker,/const canPurchase=discoverAvailability\?checkoutAccess\.state==="ready"&&checkoutAccess\.purchaseEnabled:purchaseEnabled/);

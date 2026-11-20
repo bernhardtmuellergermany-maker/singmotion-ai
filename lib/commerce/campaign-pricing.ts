@@ -3,7 +3,7 @@ import type {DatabaseSync} from "node:sqlite";
 
 export const REGULAR_VIDEO_RATE=25;
 export type CampaignStatus="draft"|"scheduled"|"active"|"paused"|"expired"|"archived";
-export type CampaignTheme="purple"|"rose"|"gold"|"ice"|"emerald";
+export type CampaignTheme="purple"|"rose"|"gold"|"ice"|"emerald"|"beta";
 export type Campaign={
  id:string;identifier:string;status:CampaignStatus;startUtc:number;endUtc:number;
  creditsPerSecond:number;badgeText:string;heading:string;description:string;
@@ -19,8 +19,8 @@ export type PublicTariff={
  ctaText:string;theme:CampaignTheme;accent:string;showBadge:boolean;showBanner:boolean;
  expiresUtc:number|null;
 };
-const themes=["purple","rose","gold","ice","emerald"] as const;
-const accents=["#af65ef","#ff6ea8","#ffd166","#72c3ed","#76d7af"] as const;
+const themes=["purple","rose","gold","ice","emerald","beta"] as const;
+const accents=["#af65ef","#ff6ea8","#ffd166","#72c3ed","#76d7af","#b48aff"] as const;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const validActor=/^[A-Za-z0-9_-]{1,100}$/;
 export class CampaignError extends Error{

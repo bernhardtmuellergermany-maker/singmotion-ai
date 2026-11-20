@@ -13,6 +13,7 @@ const presets:{theme:CampaignTheme;accent:string;name:string}[]=[
  {theme:"gold",accent:"#ffd166",name:"Gold"},
  {theme:"ice",accent:"#72c3ed",name:"Ice Blue"},
  {theme:"emerald",accent:"#76d7af",name:"Emerald"},
+ {theme:"beta",accent:"#b48aff",name:"BETA · Lilac Glow (Badge-Vorlage)"},
 ];
 const states:{value:CampaignStatus;label:string}[]=[
  {value:"draft",label:"Entwurf"},{value:"scheduled",label:"Geplant / automatisch"},
@@ -51,7 +52,8 @@ export function CampaignsClient(){
  const [enabled,setEnabled]=useState<boolean|null>(null);
  const [campaigns,setCampaigns]=useState<ListedCampaign[]>([]);
  const [selected,setSelected]=useState<FormCampaign|null>(null);
- const [preview,setPreview]=useState<"mobile"|"desktop">("mobile");
+ const [preview,setPreview]=useState<"mobile"|"desktop">("desktop");
+ const [previewPage,setPreviewPage]=useState<"home"|"pricing"|"credits">("home");
  const [tariff,setTariff]=useState<PublicTariff|null>(null);
  const [summary,setSummary]=useState<Summary|null>(null);
  const [versions,setVersions]=useState<Array<{revision:number;actor:string;created:number}>>([]);
@@ -78,8 +80,9 @@ export function CampaignsClient(){
    setSummary(body.stats);setVersions(body.versions);
   }catch{setSummary(null);setVersions([])}
  };
- const edit=<K extends keyof FormCampaign>(field:K,value:FormCampaign[K])=>
-  setSelected(c=>c?{...c,[field]:value}:c);
+ const edit=<K extends keyof FormCampaign>(field:K,value:FormCampaign[K])=>{
+  setMessage("");setSelected(c=>c?{...c,[field]:value}:c);
+ };
  const command=async(action:"save"|"duplicate"|"pause"|"archive")=>{
   if(!selected||busy)return;
   setError("");setMessage("");
@@ -125,6 +128,7 @@ export function CampaignsClient(){
    </section>
    {selected&&<section className="sm-marketing-editor" aria-label="Kampagne bearbeiten">
     <h2>{selected.id?"Kampagne bearbeiten":"Neue Kampagne"}</h2>
+    <p className="sm-marketing-edit-note">Ändere jeden Text direkt hier. Die Vorschau aktualisiert sich sofort, ohne Veröffentlichung. Speichern erzeugt eine neue Tarifversion.</p>
     <div className="sm-marketing-form">
      <label>Identifier <input maxLength={50} value={selected.identifier}
       onChange={e=>edit("identifier",e.target.value)}/></label>
@@ -134,17 +138,17 @@ export function CampaignsClient(){
       onChange={e=>setStartInput(e.target.value)}/></label>
      <label>Ende · Europe/Berlin <input type="datetime-local" value={endInput}
       onChange={e=>setEndInput(e.target.value)}/></label>
-     <label>Credits pro angefangene Sekunde <input type="number" min={1} max={1000} step={1}
+     <label>Credits pro angefangene Sekunde <input type="number" min={1} max={25} step={1}
       value={selected.creditsPerSecond} onChange={e=>edit("creditsPerSecond",Number(e.target.value))}/></label>
-     <label>Badge-Text <input maxLength={32} value={selected.badgeText}
+     <label>Badge-Text (z. B. BETA, BLACK WEEK) <input maxLength={32} value={selected.badgeText}
       onChange={e=>edit("badgeText",e.target.value)}/></label>
-     <label>Überschrift <input maxLength={120} value={selected.heading}
+     <label>Kampagnenüberschrift · Homepage, Pricing, Credits <input maxLength={120} value={selected.heading}
       onChange={e=>edit("heading",e.target.value)}/></label>
-     <label>Kurzbeschreibung <textarea rows={2} maxLength={220} value={selected.description}
+     <label>Beschreibung · Homepage, Pricing, Credits <textarea rows={2} maxLength={220} value={selected.description}
       onChange={e=>edit("description",e.target.value)}/></label>
-     <label>Aktionshinweis <input maxLength={160} value={selected.actionHint}
+     <label>Aktionshinweis · Homepage, Pricing, Credits <input maxLength={160} value={selected.actionHint}
       onChange={e=>edit("actionHint",e.target.value)}/></label>
-     <label>CTA-Text im Banner <input maxLength={60} value={selected.ctaText}
+     <label>CTA-Text · Angebot / Kaufen <input maxLength={60} value={selected.ctaText}
       onChange={e=>edit("ctaText",e.target.value)}/></label>
      <label>Geprüfte Designvorlage <select value={selected.theme}
       onChange={e=>{const preset=presets.find(p=>p.theme===e.target.value);if(preset)setSelected(c=>c?{...c,theme:preset.theme,accent:preset.accent}:c)}}>
@@ -167,17 +171,59 @@ export function CampaignsClient(){
      {selected.id&&<><button disabled={busy} type="button" onClick={()=>void command("duplicate")}>Duplizieren</button>
      <button disabled={busy} type="button" onClick={()=>void command("pause")}>Pausieren</button>
      <button disabled={busy} type="button" onClick={()=>void command("archive")}>Archivieren</button></>}</div>
-    <section className="sm-marketing-preview-area"><div className="sm-marketing-preview-title"><h3>Live-Designvorschau</h3>
-     <div><button type="button" aria-pressed={preview==="mobile"} onClick={()=>setPreview("mobile")}>Mobile</button>
-      <button type="button" aria-pressed={preview==="desktop"} onClick={()=>setPreview("desktop")}>Desktop</button></div></div>
-     <div className={"sm-marketing-preview sm-marketing-preview-"+preview}>
-      <div className="sm-marketing-sample-logo">SingMotion <strong>AI</strong>
-       {selected.showBadge&&<em style={{borderColor:selected.accent,color:selected.accent}}>{label}</em>}</div>
-      <h3>Turn your song into a music video.</h3>
-      {selected.showBanner&&<div className="sm-marketing-sample-bar" style={{borderColor:selected.accent}}>
-       {label} · {euro} / sec {percent!==null&&<strong>· {percent}% OFF</strong>}</div>}
-      <div className="sm-marketing-sample-cta">Create your music video</div>
+    <section className="sm-marketing-preview-area" aria-label="Kampagnenvorschau">
+     <div className="sm-marketing-preview-title"><div><h3>Live-Vorschau</h3>
+      <p>Alle Werbetexte, das BETA-Badge und die Preisberechnung sind in beiden Ansichten sichtbar.</p></div>
+      <div className="sm-marketing-preview-controls" role="group" aria-label="Displaygröße">
+       <button type="button" aria-pressed={preview==="mobile"} onClick={()=>setPreview("mobile")}>Mobile · 390 px</button>
+       <button type="button" aria-pressed={preview==="desktop"} onClick={()=>setPreview("desktop")}>Desktop · 1440 px</button>
+      </div></div>
+     <div className="sm-marketing-preview-controls sm-marketing-preview-pages" role="group" aria-label="Vorschauseite">
+      <button type="button" aria-pressed={previewPage==="home"} onClick={()=>setPreviewPage("home")}>Homepage</button>
+      <button type="button" aria-pressed={previewPage==="pricing"} onClick={()=>setPreviewPage("pricing")}>Pricing</button>
+      <button type="button" aria-pressed={previewPage==="credits"} onClick={()=>setPreviewPage("credits")}>Credits kaufen</button>
      </div>
+     <div className="sm-marketing-preview-stage">
+      <div className={"sm-marketing-preview sm-marketing-preview-"+preview+" sm-marketing-preview-"+previewPage}
+       data-theme={selected.theme} style={{"--campaign-accent":selected.accent} as React.CSSProperties}>
+       <div className="sm-marketing-preview-header">
+        <span className="sm-marketing-preview-brand">SingMotion <strong>AI</strong></span>
+        {selected.showBadge&&selected.badgeText&&<em className="sm-marketing-preview-badge" data-theme={selected.theme}>{selected.badgeText}</em>}
+        <span className="sm-marketing-preview-menu" aria-hidden="true">☰</span>
+       </div>
+       {previewPage==="home"?<div className="sm-marketing-preview-hero">
+        <strong className="sm-marketing-preview-hero-head">Turn your song into a <span>music video.</span></strong>
+        <p>With SingMotion AI — your song, your performance.</p>
+        {selected.showBanner&&<div className="sm-marketing-preview-offer">
+         <div className="sm-marketing-preview-offer-top">
+          <strong>{label}</strong><span>{euro} / sec · {rate} Credits / sec</span>
+          {percent!==null&&<b>{percent}% OFF</b>}
+         </div>
+         {selected.heading&&<strong>{selected.heading}</strong>}
+         {selected.description&&<p>{selected.description}</p>}
+         {selected.actionHint&&<small>{selected.actionHint}</small>}
+         {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
+        </div>}
+        <span className="sm-marketing-preview-primary">Create your music video</span>
+       </div>:<div className="sm-marketing-preview-info">
+        <span className="sm-marketing-preview-eyebrow">{previewPage==="pricing"?"YOUR MUSIC. YOUR PERFORMANCE.":"SINGMOTION AI · ACCOUNT"}</span>
+        <strong className="sm-marketing-preview-info-title">{previewPage==="pricing"?"Pricing.":"Your credits."}</strong>
+        <p>{previewPage==="pricing"?"Simple prepaid credits. No monthly subscription.":"Your wallet, your balance and credit history."}</p>
+        {selected.showBanner&&<div className="sm-marketing-preview-offer sm-marketing-preview-info-offer">
+         <strong>{label} · LIMITED VIDEO RATE</strong>
+         {selected.heading&&<strong className="sm-marketing-preview-campaign-title">{selected.heading}</strong>}
+         {selected.description&&<p>{selected.description}</p>}
+         <b>{euro} / sec · {rate} Credits</b>
+         {percent!==null&&<span>{percent}% OFF</span>}
+         {selected.actionHint&&<small>{selected.actionHint}</small>}
+         {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
+        </div>}
+        <div className="sm-marketing-preview-pricecard"><strong>{rate} Credits / sec</strong>
+         <p>10 sec · {10*rate} Credits</p><p>30 sec · {30*rate} Credits</p></div>
+       </div>}
+      </div>
+     </div>
+     <p className="sm-marketing-preview-note">Vorschau ist eine responsive Darstellung, kein Veröffentlichungs-Button. Das gespeicherte Angebot erscheint auf Homepage, Pricing und Credits nur während seiner gültigen Laufzeit.</p>
     </section>
     {summary&&<section className="sm-marketing-metrics"><h3>Kampagnenstatistik · verifizierte Buchungen</h3>
      <p>{n(summary.settledGenerations)} abgeschlossene Generationen · {n(summary.settledSeconds)} Sekunden ·
