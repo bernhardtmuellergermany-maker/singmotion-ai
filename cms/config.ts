@@ -494,6 +494,12 @@ export default buildConfig({
           exact: true,
           meta: {title: "Customer Insights · SingMotion AI"},
         },
+        marketingActions: {
+          Component: "/components/cms/campaigns-view.tsx#CampaignsCmsView",
+          path: "/marketing-actions",
+          exact: true,
+          meta: {title: "Marketing & Aktionen · SingMotion AI"},
+        },
       },
     },
   },
