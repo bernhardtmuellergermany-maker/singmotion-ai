@@ -51,30 +51,27 @@ export function CampaignLogoBadge(){
 export function CampaignOfferLine(){
  const tariff=useVideoTariff();
  if(!tariff?.campaignId||!tariff.showBanner)return null;
- // The API only returns a discount percentage when comparative-price evidence exists.
- const verifiedDiscount=tariff.discountPercent!==null&&
+ // Compare the confirmed regular tariff, not an asserted historical price.
+ const discounted=tariff.discountPercent!==null&&
   tariff.creditsPerSecond<tariff.regularCreditsPerSecond;
+ const badge=tariff.badgeText||"SPECIAL";
+ const offerLabel=/\boffer$/i.test(badge)?badge:badge+" Offer";
  return <div className="sm-campaign-offer-block" data-theme={tariff.theme} style={palette(tariff)}>
   <aside className="sm-campaign-offer-line" aria-label={tariff.heading||"Current video offer"}>
    <span className="sm-campaign-offer-identity">
     <Rocket size={20} strokeWidth={2.5} aria-hidden="true"/>
-    <strong className="sm-campaign-offer-name">{tariff.badgeText||"SPECIAL"} Offer</strong>
+    <strong className="sm-campaign-offer-name">{offerLabel}</strong>
    </span>
    <span className="sm-campaign-offer-divider" aria-hidden="true"/>
    <strong className="sm-campaign-offer-current">{euro(tariff.creditsPerSecond)} / sec</strong>
-   {verifiedDiscount&&<>
+   {discounted&&<>
     <span className="sm-campaign-offer-discount">{tariff.discountPercent}% OFF</span>
     <del className="sm-campaign-offer-regular" aria-label="Regular price">{euro(tariff.regularCreditsPerSecond)} / sec</del>
    </>}
   </aside>
   <div className="sm-campaign-offer-meta">
-   {(tariff.heading||tariff.description)&&<span className="sm-campaign-offer-details">
-    {tariff.heading&&<strong>{tariff.heading}</strong>}
-    {tariff.description&&<span>{tariff.description}</span>}
-   </span>}
    <small className="sm-campaign-offer-hint"><Clock3 size={15} strokeWidth={2} aria-hidden="true"/>
     {tariff.actionHint||"Limited-time offer"}</small>
-   {tariff.ctaText&&<Link className="sm-campaign-offer-link" href="/credits#buy-credits">{tariff.ctaText}</Link>}
   </div>
  </div>;
 }

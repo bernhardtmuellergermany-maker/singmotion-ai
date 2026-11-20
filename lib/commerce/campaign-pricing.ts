@@ -184,10 +184,10 @@ export class CampaignPricing{
   if(rows.length>1)throw new CampaignError("Mehrere aktive Tarife. Preisreservierung blockiert.",503);
   if(!rows.length)return regularTariff();
   const c=this.row(rows[0]);
-  // A comparison claim needs specific dated legal evidence; otherwise no discount shown.
-  const discountPercent=c.creditsPerSecond<REGULAR_VIDEO_RATE&&
-   (c.comparisonEvidence?.length??0)>=20
-    ?Math.round((1-c.creditsPerSecond/REGULAR_VIDEO_RATE)*100):null;
+  // Compare the confirmed regular tariff (€0.25 per started second), not a
+  // historically lowest/previous price. Operator must verify legal claims.
+  const discountPercent=c.creditsPerSecond<REGULAR_VIDEO_RATE
+   ?Math.round((1-c.creditsPerSecond/REGULAR_VIDEO_RATE)*100):null;
   return {version:"campaign:"+c.id+":v"+c.revision,campaignId:c.id,
    identifier:c.identifier,creditsPerSecond:c.creditsPerSecond,
    regularCreditsPerSecond:25,discountPercent,badgeText:c.badgeText,

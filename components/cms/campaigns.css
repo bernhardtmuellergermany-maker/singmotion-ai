@@ -80,8 +80,6 @@
  font-weight:850;letter-spacing:.06em;color:var(--campaign-accent,#af65ef);background:#2c1b3c}
 .sm-marketing-preview-badge[data-theme="beta"]{color:#f0ddff;border-color:#b48aff;
  background:linear-gradient(105deg,#63358b,#281a50)}
-.sm-marketing-preview-badge[data-theme="beta"]::before{content:"";height:5px;width:5px;border-radius:50%;
- background:#d7a4ff;margin-right:6px;flex-shrink:0}
 .sm-marketing-preview-menu{font-size:20px;line-height:1;margin-left:auto;color:#c7b0e0}
 .sm-marketing-preview-hero{flex:1;display:flex;flex-direction:column;align-items:center;
  justify-content:center;gap:10px;padding:35px 22px 43px;text-align:center}
@@ -144,7 +142,7 @@
 /* CMS homepage preview mirrors the live pill, positioned BELOW the unchanged CTA. */
 .sm-marketing-preview-home .sm-marketing-preview-offer-block{
  display:flex;flex-direction:column;align-items:center;gap:7px;
- width:100%;max-width:610px;margin:8px 0 0;
+ width:min(560px,100%);max-width:100%;margin:8px 0 0;
 }
 .sm-marketing-preview-home .sm-marketing-preview-offer{
  display:flex;align-items:center;justify-content:center;
