@@ -74,7 +74,9 @@ export function isAllowedSunoDownloadUrl(raw:string){
   const u=new URL(raw);
   return u.protocol==="https:"&&!u.username&&!u.password&&!u.port&&
    (u.hostname==="suno.com"||u.hostname.endsWith(".suno.com")||
-    u.hostname==="suno.ai"||u.hostname.endsWith(".suno.ai"));
+    u.hostname==="suno.ai"||u.hostname.endsWith(".suno.ai")||
+    // Suno's own presigned S3 download bucket. Never allow generic amazonaws.com.
+    u.hostname==="suno-data-uploads.s3.amazonaws.com");
  }catch{return false;}
 }
 export function extractSunoSongId(url:string):string|null{
