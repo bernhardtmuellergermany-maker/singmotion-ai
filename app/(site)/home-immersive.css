@@ -1178,3 +1178,16 @@
   animation:none!important;
  }
 }
+
+/* Marketing offer: translucent inline text, not a new card or a hero resize. */
+.sm-campaign-offer-line{display:inline-flex;align-items:center;justify-content:center;
+ flex-wrap:wrap;gap:5px;max-width:min(100%,560px);
+ margin:6px auto 8px;padding:8px 13px;
+ border:1px solid color-mix(in srgb,var(--campaign-accent,#af65ef) 60%,transparent);
+ background:rgba(13,8,28,.55);border-radius:999px;
+ backdrop-filter:blur(8px);color:#faf6ff;font-size:clamp(10px,1.1vw,13px);
+ font-weight:600;line-height:1.35;letter-spacing:.01em;text-align:center}
+.sm-campaign-offer-line strong{color:var(--campaign-accent,#af65ef);font-weight:800}
+.sm-campaign-offer-line small{font-size:10px;max-width:100%;flex-basis:100%;color:#d9cbe8}
+.sm-mobile-reel-content .sm-campaign-offer-line{margin:4px 0;align-self:stretch;max-width:100%;padding:7px 8px;pointer-events:none}
+@media(max-width:390px){.sm-mobile-reel-content .sm-campaign-offer-line{font-size:10px;gap:4px}}

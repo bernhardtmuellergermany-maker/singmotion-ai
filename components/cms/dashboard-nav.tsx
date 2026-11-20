@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LayoutDashboard, AudioLines, UsersRound, LifeBuoy } from "lucide-react";
+import { LayoutDashboard, AudioLines, UsersRound, LifeBuoy, Megaphone } from "lucide-react";
 import type {AdminViewServerProps} from "payload";
 import {hasRole} from "../../cms/policy";
 
@@ -16,6 +16,9 @@ export function DashboardNav({user}:Pick<AdminViewServerProps,"user">){
   </Link>
   {superAdmin&&<Link href="/admin/customer-insights" className="sm-cms-sidebar-dashboard">
    <UsersRound size={18} strokeWidth={1.8}/><span>Kunden & Credits</span>
+  </Link>}
+  {superAdmin&&<Link href="/admin/marketing-actions" className="sm-cms-sidebar-dashboard">
+   <Megaphone size={18} strokeWidth={1.8}/><span>Marketing & Aktionen</span>
   </Link>}
   {support&&<Link href={superAdmin?"/support-admin":"/admin/collections/support-cases"} className="sm-cms-sidebar-dashboard">
    <LifeBuoy size={18} strokeWidth={1.8}/><span>Support</span>

@@ -8,6 +8,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
+import {CampaignPricing,campaignsEnabled,regularTariff} from "@/lib/commerce/campaign-pricing";
 import {customerCreditStudioBetaEnabled} from "@/lib/commerce/customer-credit-studio-beta";
 import {applicationOrigin} from "@/lib/request-origin";
 import { NextRequest } from "next/server";
@@ -364,6 +365,18 @@ async function handler(req: NextRequest) {
           record: body.id,
         },
       });
+      // A browser cannot authorize its own price. Compare the immutable version
+      // shown at Step 4 with the currently effective server-side campaign.
+      // The wallet checks the same revision AGAIN inside its BEGIN IMMEDIATE hold.
+      const pricingStore=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+      let pricing;
+      try{
+        pricing=campaignsEnabled(process.env)
+          ?new CampaignPricing(pricingStore.db).active():regularTariff();
+      }finally{pricingStore.close();}
+      if(typeof body.priceVersion!=="string"||body.priceVersion!==pricing.version)
+        throw new StudioLiveError("CREDIT_PRICE_VERSION_STALE",
+          "The active Credit rate changed. Refresh Step 4 and confirm the new price before generating.",409);
       return json(
         await service.submit(
           body.id,
@@ -372,6 +385,7 @@ async function handler(req: NextRequest) {
           body.ceilingMicroUsd,
           body.confirmation,
           creditSubject,
+          {version:pricing.version,creditsPerSecond:pricing.creditsPerSecond,campaignId:pricing.campaignId},
         ),
       );
     }

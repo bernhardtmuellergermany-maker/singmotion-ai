@@ -59,7 +59,7 @@ test("Customer Studio route uses verified email, private media session, CSRF and
  assert.match(api,/req\.headers\.get\("origin"\)!==origin/);
  assert.match(api,/expectedSubject=customerBeta\?"customer:"\+actor/);
  assert.match(wallet,/matchedCustomer/);
- assert.match(wallet,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits\)/);
+ assert.match(wallet,/wallet\.reserveVideo\(id,verifiedCreditSubject,quote\.credits,/);
  assert.match(wallet,/!this\.requirePrepaidCredits && !this\.superAdmin/);
  const wizard=read("components/studio-wizard.tsx");
  assert.match(wizard,/const creditStudio=operatorStudio\|\|owner\.startsWith\("customer-"\)/);

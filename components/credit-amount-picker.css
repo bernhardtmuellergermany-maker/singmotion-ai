@@ -7,7 +7,7 @@
 .sm-credit-amount-heading h2{font-size:24px;letter-spacing:-.04em;margin:0 0 7px}
 .sm-credit-amount-heading p,.sm-credit-amount-helper,.sm-credit-amount-footer{font-size:13px;color:#bbb1ce;line-height:1.65;margin:0}
 .sm-credit-amount-tag{white-space:nowrap;font-size:11px;font-weight:750;color:#e9c5ff;background:#7d459849;border:1px solid #9865b4;border-radius:30px;padding:7px 11px}
-.sm-credit-presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:25px 0}
+.sm-credit-presets{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:25px 0}
 .sm-credit-preset{
  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
  padding:17px 8px;min-height:113px;background:#1a1b2d;color:#f6efff;
@@ -40,7 +40,7 @@
 .sm-credit-amount-disabled{padding:14px;text-align:center;border-radius:11px;background:#664782;color:#e8d3f8;font-size:13px;font-weight:750;opacity:.75;cursor:not-allowed}
 .sm-credit-amount-footer{margin:14px 0 0}
 @media(max-width:620px){
- .sm-credit-presets{gap:7px}
+ .sm-credit-presets{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
  .sm-credit-preset{padding:12px 5px;min-height:97px}
  .sm-credit-preset strong{font-size:19px}
  .sm-credit-amount-total{grid-template-columns:1fr}

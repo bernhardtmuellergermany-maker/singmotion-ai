@@ -13,12 +13,13 @@ export type VideoCreditQuote={
 };
 
 /** Source timestamps in Studio are rounded to the nearest millisecond. */
-export function quoteVideoCredits(start:number,end:number):VideoCreditQuote|null {
+export function quoteVideoCredits(start:number,end:number,creditsPerSecond=VIDEO_CREDITS_PER_STARTED_SECOND):VideoCreditQuote|null {
+ if(!Number.isSafeInteger(creditsPerSecond)||creditsPerSecond<1||creditsPerSecond>1000)return null;
  if(!Number.isFinite(start)||!Number.isFinite(end)||start<0||end<=start)return null;
  const startMs=Math.round(start*1000),endMs=Math.round(end*1000);
  const selectionMs=endMs-startMs;
  if(!Number.isSafeInteger(selectionMs)||selectionMs<5000||selectionMs>300000)return null;
  const startedSeconds=Math.ceil(selectionMs/1000);
  return {sourceSeconds:selectionMs/1000,startedSeconds,
-  credits:startedSeconds*VIDEO_CREDITS_PER_STARTED_SECOND};
+  credits:startedSeconds*creditsPerSecond};
 }
