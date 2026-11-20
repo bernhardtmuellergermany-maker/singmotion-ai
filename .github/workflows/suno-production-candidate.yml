@@ -24,6 +24,8 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      - name: Install media tooling for existing MP4 release tests
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - name: Verify Suno auth, download, disconnect and strict Production origin
         run: node --experimental-strip-types --test tests/suno-song-import.test.ts
       - name: Verify full release build and TypeScript
