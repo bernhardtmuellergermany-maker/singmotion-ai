@@ -532,6 +532,8 @@ try {
   assert.equal(state.plan.state, "prepared");
   assert.equal(state.plan.costDigest, null);
   assert.ok(!JSON.stringify(state).includes(directory));
+  // With provider/generation disabled, even a logged-in operator must not
+  // reach the first-test start action: the authorization layer returns 403.
   assert.equal(
     (
       await context.request.post(adminTest, {
@@ -544,7 +546,7 @@ try {
         },
       })
     ).status(),
-    400,
+    403,
   );
   for (const role of ["editor", "support", "super-admin"] as const) {
     const other = await payload.create({
