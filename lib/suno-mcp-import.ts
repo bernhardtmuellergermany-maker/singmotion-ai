@@ -169,7 +169,17 @@ export async function sunoMcpDownload(accessToken:string,id:string,confirm:boole
  const status=String(data.status||"");
  const url=typeof data.url==="string"?data.url:"";
  if(url){
-  if(!isAllowedSunoDownloadUrl(url))throw Error("Suno returned an unapproved audio download host");
+  if(!isAllowedSunoDownloadUrl(url)){
+   // Provider-generated signed URLs may use a delegated CDN. Record only its
+   // hostname for verification; never log signed query strings or access tokens.
+   // Do not automatically trust arbitrary CDN domains (SSRF boundary).
+   let rejectedHost="invalid-url";
+   try{rejectedHost=new URL(url).hostname}catch{/* no URL to inspect */}
+   console.warn("[suno-import] rejected provider audio download host",{
+    hostname:rejectedHost,
+   });
+   throw Error("Suno returned an unapproved audio download host");
+  }
   return {status:"ready" as const,url};
  }
  if(status==="requires_credit")return {status:"requires_credit" as const,url:null};
