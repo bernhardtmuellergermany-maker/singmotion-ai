@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {randomUUID} from "node:crypto";
 import {CommerceStore} from "../lib/commerce/store.ts";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
+import {NotificationInbox} from "../lib/commerce/notifications.ts";
 import {ManualCreditGifts,manualGiftEnabled} from "../lib/commerce/manual-credit-gifts.ts";
 const staging={
  CMS_ENABLED:"true",RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
@@ -33,6 +34,10 @@ test("single customer gifts are atomic, idempotent, audited and never Stripe top
   assert.equal(gifts.grant(grant).replayed,true);
   assert.throws(()=>gifts.grant({...grant,credits:500}),/Idempotenzkonflikt/);
   assert.throws(()=>gifts.grant({...grant,customerId:bob}),/Idempotenzkonflikt/);
+  const inbox=new NotificationInbox(store.db);
+  assert.equal(inbox.list("customer:"+alice).unread,1);
+  assert.equal(inbox.list("customer:"+alice).notifications[0].kind,"gift");
+  assert.equal(inbox.list("customer:"+bob).unread,0);
   assert.equal(wallet.total("customer:"+alice),1000);
   assert.equal(wallet.total("customer:"+bob),0);
   assert.equal(wallet.entries("customer:"+alice).filter(x=>x.type==="manual-gift").length,1);

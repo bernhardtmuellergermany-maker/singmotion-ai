@@ -92,3 +92,18 @@
 /* Quiet, account-only notification affordance. */
 .sm-account-menu .sm-account-notifications-link{display:flex!important;align-items:center;gap:9px}
 .sm-account-notifications-link .sm-account-unread-count{margin-left:auto;min-width:21px;height:21px;box-sizing:border-box;display:grid;place-items:center;padding:0 5px;border-radius:15px;background:#8547bd;color:#fff;font-size:11px;font-weight:750}
+
+/* Green gift marker: only for unread, account-scoped gift notices. */
+.sm-site-header .sm-account-menu>summary{position:relative!important}
+.sm-account-menu .sm-account-gift-dot{
+ position:absolute;top:3px;right:3px;width:11px;height:11px;
+ box-sizing:border-box;border:1.5px solid #163122;border-radius:50%;
+ background:#86ff8d;pointer-events:none;
+ box-shadow:0 0 0 1px #88ff9490,0 0 11px 3px #5eff77b8;
+ animation:sm-account-gift-glow 2.4s ease-in-out infinite;
+}
+@keyframes sm-account-gift-glow{
+ 0%,100%{box-shadow:0 0 0 1px #88ff9490,0 0 8px 2px #5eff7799}
+ 50%{box-shadow:0 0 0 2px #88ff94bb,0 0 13px 4px #5eff77d9}
+}
+@media(prefers-reduced-motion:reduce){.sm-account-menu .sm-account-gift-dot{animation:none}}

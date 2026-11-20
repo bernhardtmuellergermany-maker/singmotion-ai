@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
+import {randomUUID} from "node:crypto";
+import {CommerceStore} from "../lib/commerce/store.ts";
+import {ManualCreditGifts} from "../lib/commerce/manual-credit-gifts.ts";
 import {readFileSync} from "node:fs";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 import {NotificationInbox} from "../lib/commerce/notifications.ts";
@@ -73,4 +76,46 @@ test("Notifications shares the site-wide transparent header and background with 
  assert.match(styles,/\.sm-notifications-page\{[^}]*background:#0b0b16/);
  assert.match(navigation,/\.sm-site-header\s*\{[^}]*background:transparent!important/);
  assert.doesNotMatch(styles,/\.sm-site-header\s*\{/);
+});
+
+test("gift credit ledger events create private unread notifications and reading clears the gift hint",()=>{
+ const env={CMS_ENABLED:"true",RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",ADMIN_MANUAL_CREDITS_ENABLED:"true"};
+ const store=new CommerceStore(":memory:",env);
+ try{
+  const customerId=store.register("gift-notice@example.test","securepassword123");
+  const otherId=store.register("other-notice@example.test","securepassword456");
+  const grants=new ManualCreditGifts(store.db,env);
+  const request={customerId,credits:500,reason:"welcome" as const,actor:"owner",requestKey:randomUUID()};
+  const gift=grants.grant(request);
+  assert.equal(grants.grant(request).replayed,true);
+  const inbox=new NotificationInbox(store.db);
+  const subject="customer:"+customerId;
+  const received=inbox.list(subject);
+  assert.equal(received.unread,1);
+  assert.equal(received.notifications.length,1,"idempotent grant produces one notice");
+  assert.equal(received.notifications[0].kind,"gift");
+  assert.match(received.notifications[0].title,/Gift Credits received/);
+  assert.match(received.notifications[0].message,/500 gift Credits/);
+  assert.equal(received.notifications[0].href,"/credits#usage");
+  assert.equal(inbox.list("customer:"+otherId).unread,0,"other account sees no gift");
+  inbox.mutate(subject,"read",received.notifications[0].id);
+  assert.equal(new NotificationInbox(store.db).list(subject).unread,0);
+  grants.correct({giftId:gift.gift.id,actor:"owner",reason:"Correction requested after documented duplicate grant",requestKey:randomUUID()});
+  const corrected=inbox.list(subject);
+  assert.equal(corrected.unread,1,"correction has its own notice");
+  assert.equal(corrected.notifications.filter(n=>n.kind==="gift").length,1);
+  assert.match(corrected.notifications.find(n=>n.title==="Gift Credits adjusted")?.message??"",/500 gift Credits removed/);
+ }finally{store.close()}
+});
+test("green header marker follows unread gift notices and gift-title clicks mark them read",()=>{
+ const root=new URL("../",import.meta.url);
+ const header=readFileSync(new URL("components/header-account-menu.tsx",root),"utf8");
+ const css=readFileSync(new URL("components/header-account-menu.css",root),"utf8");
+ const center=readFileSync(new URL("components/notification-center.tsx",root),"utf8");
+ assert.match(header,/item\.kind==="gift"&&item\.read===false/);
+ assert.match(header,/unreadGifts>0&&<span className="sm-account-gift-dot"/);
+ assert.match(css,/\.sm-account-menu \.sm-account-gift-dot/);
+ assert.match(center,/className="sm-notice-gift-open"/);
+ assert.match(center,/onClick=\{\(\)=>void apply\("read",item\.id\)\}/);
+ assert.match(center,/notifications-changed/);
 });
