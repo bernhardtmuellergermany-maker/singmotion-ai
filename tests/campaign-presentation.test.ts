@@ -11,7 +11,7 @@ test("badge has real spacing from the existing wordmark at mobile and desktop si
  assert.match(css,/@media\(max-width:430px\)/);
  assert.match(css,/margin-left:10px!important/);
  assert.match(css,/data-theme="beta"/);
- assert.match(css,/\[data-theme="beta"\]::before/);
+ assert.doesNotMatch(css,/\[data-theme="beta"\]::before/);
 });
 test("marketing editor binds every text field to 3 page previews and 2 distinct viewport widths",()=>{
  const editor=read("components/cms/campaigns-client.tsx");
@@ -66,14 +66,19 @@ test("reference pill follows original CTA and aligns with evidence-backed pricin
  }
  assert.match(banner,/tariff\.discountPercent!==null&&/);
  assert.match(banner,/tariff\.creditsPerSecond<tariff\.regularCreditsPerSecond/);
- assert.match(banner,/verifiedDiscount&&<>/);
+ assert.match(banner,/discounted&&<>/);
  assert.match(css,/\.sm-immersive-home \.sm-campaign-offer-line\{/);
- assert.match(css,/padding:12px 26px/);
+ assert.match(css,/padding:11px 20px/);
+ assert.match(css,/width:min\(560px,100%\)/);
  assert.match(css,/border-radius:999px/);
  assert.match(css,/sm-mobile-reel-content \.sm-campaign-offer-block/);
  assert.ok(banner.indexOf('</aside>')<banner.indexOf('className="sm-campaign-offer-meta"'));
  assert.ok(preview.indexOf('sm-marketing-preview-primary')<preview.indexOf('sm-marketing-preview-offer-block'));
  assert.match(preview,/sm-marketing-preview-offer-regular/);
  assert.match(preview,/sm-marketing-preview-offer-hint/);
+ assert.match(preview,/Uhr-Hinweis unter der Angebotsleiste/);
+ assert.doesNotMatch(preview,/sm-marketing-preview-offer-detail/);
+ assert.doesNotMatch(banner,/sm-campaign-offer-details/);
+ assert.doesNotMatch(css,/\[data-theme="beta"\]::before/);
  assert.match(previewCss,/\.sm-marketing-preview-mobile\.sm-marketing-preview-home \.sm-marketing-preview-offer/);
 });

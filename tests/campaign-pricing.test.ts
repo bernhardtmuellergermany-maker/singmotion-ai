@@ -32,7 +32,7 @@ test("pricing is versioned, scheduled, exclusive, correct and safely returns to 
   assert.equal(pricing.active().creditsPerSecond,12);
   assert.equal(quoteVideoCredits(0,5.1,pricing.active().creditsPerSecond)?.credits,72);
   assert.equal(quoteVideoCredits(0,5.1)?.credits,150);
-  assert.equal(pricing.active().discountPercent,null,"do not show unsupported comparative claims");
+  assert.equal(pricing.active().discountPercent,52,"12 vs 25 Credits is 52% below the regular tariff");
   assert.throws(()=>pricing.save(valid("holiday-sale"),"admin"),/überschneiden/);
   assert.throws(()=>pricing.save({...valid(),id:first.id,creditsPerSecond:9},"admin",5),/inzwischen geändert/);
   const revised=pricing.save({...first,creditsPerSecond:9},"admin",first.revision);
@@ -40,6 +40,8 @@ test("pricing is versioned, scheduled, exclusive, correct and safely returns to 
   assert.equal(pricing.versions(first.id).length,2);
   assert.equal(pricing.active().version,"campaign:"+first.id+":v2");
   assert.equal(pricing.active().creditsPerSecond,9);
+  assert.equal(pricing.active().discountPercent,64);
+  assert.equal(pricing.active().regularCreditsPerSecond,25);
   pricing.save({...revised,status:"paused"},"admin",revised.revision);
   assert.deepEqual(pricing.active(),regularTariff());
   assert.equal(pricing.list()[0].effectiveStatus,"paused");
