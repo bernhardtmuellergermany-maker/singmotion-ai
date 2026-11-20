@@ -3,7 +3,7 @@ import {randomBytes,createHash} from "node:crypto";
 import {stagingDenial} from "@/lib/staging";
 import {session} from "@/lib/db";
 import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
-import {parseStudioAccountReturn,studioAccountReturn} from "@/lib/studio-account-handoff";
+import {parseStudioAccountReturn,parseAccountReturn} from "@/lib/studio-account-handoff";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 
 export async function GET(req:NextRequest){
@@ -12,8 +12,8 @@ export async function GET(req:NextRequest){
  if(!trustedOrigin||!trustedIdentityHost(req.headers.get("host"),trustedOrigin))return NextResponse.json({error:"Invalid OAuth origin"},{status:403});
  if(!googleLoginReady(process.env))return NextResponse.json({enabled:false},{headers:{"Cache-Control":"no-store"}});
  if(req.nextUrl.searchParams.get("start")!=="1")return NextResponse.json({enabled:true},{headers:{"Cache-Control":"no-store"}});
- const allowedReturn=parseStudioAccountReturn(req.nextUrl.searchParams.get("returnTo"));
- const returnTo=allowedReturn?studioAccountReturn(allowedReturn.draftId,allowedReturn.requiredCredits):undefined;
+ const returnTo=parseAccountReturn(req.nextUrl.searchParams.get("returnTo"))||undefined;
+ const studioContinuation=parseStudioAccountReturn(returnTo||null)!==null;
  // The guest's original sm_session is SameSite=Strict and therefore not
  // available on Google's cross-site OAuth callback. Seal the verified guest
  // token in the short-lived HttpOnly, SameSite=Lax OAuth transaction cookie so
@@ -29,6 +29,6 @@ export async function GET(req:NextRequest){
  const url=new URL("https://accounts.google.com/o/oauth2/v2/auth");
  for(const [key,value] of Object.entries({client_id:process.env.GOOGLE_OAUTH_CLIENT_ID!,redirect_uri:redirectUri,response_type:"code",scope:"openid email profile",state,nonce,code_challenge:challenge,code_challenge_method:"S256",prompt:"select_account"}))url.searchParams.set(key,value);
  const response=NextResponse.redirect(url);
- response.cookies.set("sm_google_oauth",JSON.stringify({state,verifier,nonce,...(returnTo?{returnTo}:{}),...(returnTo&&guestToken?{guestToken}:{})}),{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:300});
+ response.cookies.set("sm_google_oauth",JSON.stringify({state,verifier,nonce,...(returnTo?{returnTo}:{}),...(studioContinuation&&guestToken?{guestToken}:{})}),{httpOnly:true,secure:true,sameSite:"lax",path:"/api/google-auth",maxAge:300});
  return response;
 }

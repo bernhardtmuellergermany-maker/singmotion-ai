@@ -1086,13 +1086,7 @@ export function StudioWizard({
               <summary><ReceiptText size={20}/><strong>Costs</strong><span className="sm-review-item-value">{reviewPrice}</span><ChevronDown size={17}/></summary>
               <div className="sm-review-expanded">
                 {creditQuote?<div aria-label="Video Credit calculation" className="sm-review-credit-breakdown">
-                  <p><strong>Original selected audio:</strong> {creditQuote.sourceSeconds.toFixed(3)} seconds</p>
-                  <p><strong>Started seconds billed:</strong> {creditQuote.startedSeconds} (rounded up)</p>
-                  <p><strong>Rate:</strong> {activeTariff?.creditsPerSecond} Credits per started second</p>
-                  <p><strong>Price version:</strong> {activeTariff?.version}</p>
                   <p><strong>Estimated cost:</strong> {reviewPrice}</p>
-                  <p>Playback slow-down and longer provider output do not increase the customer's credit amount. Example: 5.2 seconds = 6 × {activeTariff?.creditsPerSecond} = {6*(activeTariff?.creditsPerSecond??0)} Credits.</p>
-                  <p className="sm-review-credit-disclaimer">{creditStudio?"Your own account Credits are reserved before BytePlus submission, charged once after a validated finished video, or released after a confirmed non-billable rejection. Uncertain results stay reserved for review.":"Customer credit-paid video generation is not yet enabled. This preview does not reserve or deduct Credits."}</p>
                 </div>:<p>Select a valid audio clip between 5 and 300 seconds to see its credit cost.</p>}
               </div>
             </details>

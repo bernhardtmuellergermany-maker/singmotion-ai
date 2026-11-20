@@ -227,8 +227,12 @@ export function CampaignsClient(){
          <strong>{label} · LIMITED VIDEO RATE</strong>
          {selected.heading&&<strong className="sm-marketing-preview-campaign-title">{selected.heading}</strong>}
          {selected.description&&<p>{selected.description}</p>}
-         <b>{euro} / sec · {rate} Credits</b>
-         {selected.showDiscountPercent&&percent!==null&&<span>{percent}% OFF</span>}
+         <div className="sm-marketing-preview-credits-rate">
+          <b>{euro} / sec</b>
+          <span>{rate} Credits / started sec</span>
+          {selected.showDiscountPercent&&percent!==null&&<em>{percent}% OFF</em>}
+          {selected.showRegularPrice&&percent!==null&&<del>0,25 € / sec</del>}
+         </div>
          {selected.actionHint&&<small>{selected.actionHint}</small>}
          {selected.ctaText&&<span className="sm-marketing-preview-offer-cta">{selected.ctaText}</span>}
         </div>}

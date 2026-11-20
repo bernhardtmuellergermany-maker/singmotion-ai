@@ -113,12 +113,19 @@
 }
 .sm-immersive-home .sm-campaign-offer-line{
  box-sizing:border-box;display:flex;flex-direction:row;align-items:center;justify-content:center;
- flex-wrap:wrap;width:100%;min-height:54px;margin:0;padding:11px 20px;
+ flex-wrap:wrap;width:100%;min-height:54px;margin:0;padding:11px 12px;
  gap:clamp(8px,1vw,15px);border:1.5px solid #c63ff6;border-radius:999px;
  background:linear-gradient(105deg,#270d43e8,#170b32e8 55%,#39104fe0);
  box-shadow:inset 0 1px 0 #ffffff46,0 0 25px #ab32ed69,0 8px 22px #09021277;
  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
- line-height:1.25;color:#fff;
+ line-height:1.25;color:#fff;text-decoration:none;cursor:pointer;
+ transition:box-shadow .18s ease,border-color .18s ease;
+}
+.sm-immersive-home .sm-campaign-offer-line:hover{
+ border-color:#ef8bff;box-shadow:inset 0 1px 0 #ffffff5a,0 0 31px #b43cf184,0 8px 22px #09021277;
+}
+.sm-immersive-home .sm-campaign-offer-line:focus-visible{
+ outline:3px solid #fff;outline-offset:3px;
 }
 .sm-immersive-home .sm-campaign-offer-identity{
  display:inline-flex;align-items:center;justify-content:center;gap:10px;
@@ -178,7 +185,7 @@
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-line{
   display:flex!important;flex-direction:row;flex-wrap:wrap;
   align-items:center;justify-content:center;width:100%;max-width:100%;
-  min-height:54px;gap:7px 11px;margin:0;padding:11px 17px;
+  min-height:54px;gap:7px 11px;margin:0;padding:11px 12px;
   border-radius:999px;text-align:center;pointer-events:auto;
  }
  .sm-immersive-home .sm-mobile-reel-content .sm-campaign-offer-identity{
@@ -199,4 +206,82 @@
 }
 @media(prefers-reduced-motion:reduce){
  .sm-immersive-home .sm-campaign-offer-line{backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+
+/* Credits marketing offer inherits the existing homepage neon palette,
+ * but keeps its original full card width and placement. */
+.sm-campaign-pricing-banner{
+ --sm-campaign-glow:#ab32ed69;
+ position:relative;isolation:isolate;overflow:hidden;
+ border:1.5px solid #c63ff6;border-radius:21px;
+ background:linear-gradient(105deg,#270d43e8,#170b32ed 55%,#39104fe8);
+ box-shadow:inset 0 1px 0 #ffffff46,0 0 25px var(--sm-campaign-glow),0 8px 22px #09021277;
+ backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.sm-campaign-pricing-banner::before{
+ content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+ background:radial-gradient(ellipse 42% 110% at 98% 108%,rgba(220,54,255,.33),transparent 80%);
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-light-sweep{
+ position:absolute;right:-10%;bottom:-235%;width:75%;height:320%;z-index:0;
+ border-top:2px solid rgba(238,91,255,.85);border-radius:50%;
+ transform:rotate(-24deg);pointer-events:none;opacity:.7;
+ box-shadow:0 -10px 23px rgba(194,41,244,.36);
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-copy{
+ position:relative;z-index:1;gap:9px;min-width:0;
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-eyebrow{
+ display:inline-flex;align-items:center;gap:10px;flex-wrap:wrap;
+ color:#d6a8fc;font-size:12px;letter-spacing:.12em;
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-eyebrow svg{
+ flex:none;color:#fbeaff;filter:drop-shadow(0 0 5px #d887ffac);
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-copy h2{
+ color:#fff;font-size:clamp(22px,3.4vw,33px);font-weight:850;
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-copy p,
+.sm-campaign-pricing-banner .sm-campaign-pricing-copy small{color:#dccbe9}
+.sm-campaign-pricing-banner .sm-campaign-pricing-price{
+ padding-top:2px;min-width:0;
+}
+.sm-campaign-pricing-banner .sm-campaign-rate-line{
+ display:flex;align-items:center;justify-content:flex-start;flex-wrap:wrap;
+ gap:10px 18px;min-width:0;
+}
+.sm-campaign-pricing-banner .sm-campaign-rate-line>strong{
+ color:#ffe629;font-size:clamp(24px,3vw,33px);font-weight:900;
+ line-height:1.2;letter-spacing:-.02em;white-space:nowrap;
+}
+.sm-campaign-pricing-banner .sm-campaign-rate-line>span{
+ color:#e9dcf1;font-size:12px;white-space:normal;
+}
+.sm-campaign-pricing-banner .sm-campaign-rate-line>em{
+ background:#90fb7c;color:#081a08;border:0;border-radius:999px;
+ padding:7px 14px;font-size:12px;font-weight:900;font-style:normal;
+ white-space:nowrap;box-shadow:0 0 12px #64f75466;
+}
+.sm-campaign-pricing-banner .sm-campaign-rate-regular{
+ color:#e5d7e8;font-size:13px;font-weight:650;
+ text-decoration:line-through;text-decoration-thickness:1.5px;
+ white-space:nowrap;opacity:.83;
+}
+.sm-campaign-pricing-banner .sm-campaign-pricing-link{
+ position:relative;z-index:1;border-radius:999px;
+ background:linear-gradient(105deg,#be30ec,#8628ef 85%);
+ border:1px solid #ef70ff;color:#fff!important;
+ box-shadow:0 8px 24px #9d2de75e,inset 0 1px 0 #ffffff55;
+}
+@media(max-width:620px){
+ .sm-campaign-pricing-banner{
+  padding:19px 18px;border-radius:20px;gap:12px;
+ }
+ .sm-campaign-pricing-banner .sm-campaign-pricing-copy{gap:8px}
+ .sm-campaign-pricing-banner .sm-campaign-pricing-eyebrow{font-size:10px}
+ .sm-campaign-pricing-banner .sm-campaign-rate-line{gap:8px 12px}
+ .sm-campaign-pricing-banner .sm-campaign-rate-line>strong{font-size:clamp(23px,6vw,30px)}
+ .sm-campaign-pricing-banner .sm-campaign-rate-line>span{width:100%;font-size:11px}
+ .sm-campaign-pricing-banner .sm-campaign-rate-line>em{padding:6px 11px;font-size:11px}
+ .sm-campaign-pricing-banner .sm-campaign-rate-regular{font-size:11px}
 }

@@ -45,25 +45,25 @@ test("guest Step 4 saves media and prompt then opens standard login without a re
  assert.match(account,/mode==="login"\?"Sign in"/);
  assert.match(account,/mode==="login"\?"Create account"/);
  assert.match(account,/parseStudioAccountReturn\(search\.get\("returnTo"\)\)/);
- assert.match(account,/if\(studioReturn\)\{window\.location\.assign\(studioReturn\);return;\}/);
+ assert.match(account,/if\(loginReturn\)\{window\.location\.assign\(loginReturn\);return;\}/);
  assert.match(account,/d\.kind==="customer"\|\|d\.kind==="staff"/);
- assert.match(account,/studioReturn\?"\/api\/google-auth\?start=1&returnTo="/);
+ assert.match(account,/loginReturn\?"\/api\/google-auth\?start=1&returnTo="/);
  const guestOnly=wizard.slice(wizard.indexOf("async function openGuestAccount()"),
   wizard.indexOf("async function continueToCreditPurchase()"));
  assert.doesNotMatch(guestOnly,/api\/stripe|action:"submit"|\/api\/credit-checkout/);
 });
 
-test("Google OAuth redirects back to only the validated server-bound Studio return",()=>{
+test("Google OAuth redirects only to validated Studio or exact Credits returns",()=>{
  const oauth=read("app/(site)/api/google-auth/route.ts");
  const callback=read("app/(site)/api/google-auth/callback/route.ts");
- assert.match(oauth,/parseStudioAccountReturn\(req\.nextUrl\.searchParams\.get\("returnTo"\)\)/);
+ assert.match(oauth,/parseAccountReturn\(req\.nextUrl\.searchParams\.get\("returnTo"\)\)/);
  assert.match(oauth,/returnTo\?\{returnTo\}:\{\}/);
- assert.match(oauth,/studioAccountReturn\(allowedReturn\.draftId,allowedReturn\.requiredCredits\)/);
- assert.match(callback,/savedReturn=parseStudioAccountReturn\(saved\.returnTo\|\|null\)/);
- assert.match(callback,/savedReturn\?savedReturn\+"&auth_changed=1"/);
+ assert.match(oauth,/studioContinuation=parseStudioAccountReturn\(returnTo\|\|null\)/);
+ assert.match(callback,/savedReturn=parseAccountReturn\(saved\.returnTo\|\|null\)/);
+ assert.match(callback,/destination\.searchParams\.set\("auth_changed","1"\)/);
  assert.match(callback,/sm_guest_session/);
  assert.match(oauth,/session\(mediaToken\)\?\.owner/);
- assert.match(oauth,/returnTo&&guestToken\?\{guestToken\}/);
+ assert.match(oauth,/studioContinuation&&guestToken\?\{guestToken\}/);
  assert.match(callback,/verifiedGuest/);
  assert.match(callback,/saved\.guestToken/);
  assert.match(callback,/guest=verifiedGuest/);
