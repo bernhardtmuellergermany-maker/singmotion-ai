@@ -33,7 +33,7 @@ export function campaignsEnabled(env:Record<string,string|undefined>){
  env.ADMIN_CAMPAIGNS_PRODUCTION_APPROVED==="true"));
 }
 export function effectiveCampaignStatus(c:Campaign,now=Date.now()):CampaignStatus{
- if(c.status==="archived"||c.status==="paused"||c.status==="draft")return c.status;
+ if(c.status==="archived"||c.status==="paused"||c.status==="draft"||c.status==="expired")return c.status;
  if(now>=c.endUtc)return "expired";
  if(now<c.startUtc)return "scheduled";
  return "active";
@@ -117,7 +117,7 @@ export class CampaignPricing{
    identifier:string(input.identifier,50,true).toLowerCase(),
    status,startUtc:integer(input.startUtc,0,4102444800000),
    endUtc:integer(input.endUtc,0,4102444800000),
-   creditsPerSecond:integer(input.creditsPerSecond,1,1000),
+   creditsPerSecond:integer(input.creditsPerSecond,1,25),
    badgeText:string(input.badgeText??"",32),heading:string(input.heading??"",120),
    description:string(input.description??"",220),actionHint:string(input.actionHint??"",160),
    ctaText:string(input.ctaText??"",60),theme:input.theme??"purple",
@@ -194,13 +194,14 @@ export class CampaignPricing{
  }
  stats(campaignId:string){
   if(!uuid.test(campaignId))throw new CampaignError("Ungültige Kampagnen-ID",400);
-  const r=this.db.prepare(`SELECT COUNT(*) generations,
+  const hasTariffs=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='credit_video_tariffs'").get();
+  const r=hasTariffs?this.db.prepare(`SELECT COUNT(*) generations,
    COALESCE(SUM(t.started_seconds),0) seconds,
    COALESCE(SUM((25-t.credits_per_second)*t.started_seconds),0) discount_credits
    FROM credit_video_tariffs t
    JOIN credit_video_reservations r ON r.project_id=t.project_id
    WHERE t.campaign_id=? AND r.state='settled'`).get(campaignId) as
-   {generations:number;seconds:number;discount_credits:number};
+   {generations:number;seconds:number;discount_credits:number}:{generations:0,seconds:0,discount_credits:0};
   const giftsTable=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='admin_credit_gifts'").get();
   const gifts=giftsTable?this.db.prepare("SELECT COALESCE(SUM(credits),0) total FROM admin_credit_gifts WHERE campaign_id=?")
    .get(campaignId) as {total:number}:{total:0};
