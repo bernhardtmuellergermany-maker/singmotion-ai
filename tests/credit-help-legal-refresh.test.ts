@@ -24,7 +24,7 @@ test("25 Credits per started original audio second, never slowed output or provi
  assert.doesNotMatch(wizard,/Playback slow-down and longer provider output do not increase/);
  assert.match(wizard,/<strong>Estimated cost:<\/strong> \{reviewPrice\}/);
  assert.doesNotMatch(wizard,/<strong>Price version:<\/strong>/);
- assert.match(wizard,/startedSeconds/);
+ assert.doesNotMatch(wizard,/<strong>Started seconds billed:<\/strong>/);
  assert.doesNotMatch(wizard,/reviewQuote|api\/customer-quote/);
  assert.match(dialog,/quoteVideoCredits\(selection\.start,selection\.end,activeTariff\.creditsPerSecond\)/);
  assert.match(dialog,/Estimated video cost/);
