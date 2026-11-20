@@ -157,3 +157,14 @@ test("Studio integrates direct official download into the existing validated pri
  assert.match(api,/session\(mediaToken\)/);
  assert.doesNotMatch(ui,/cdn1\.suno\.ai|stream-rip|window\.open\(.*cdn/);
 });
+
+test("Suno import uses the local brand logo and concise copy",()=>{
+ assert.match(ui,/src="\\/suno-mark\\.svg"/);
+ assert.match(ui,/Paste a Suno share link/);
+ assert.doesNotMatch(ui,/no manual MP3 download/);
+ assert.doesNotMatch(ui,/Connect your own Suno account to import a song directly/);
+ assert.doesNotMatch(ui,/Suno may charge one of your download credits for a first-time download/);
+ assert.doesNotMatch(ui,/<Music2/);
+ assert.match(ui,/Confirm 1 Suno download credit & import/);
+ assert.match(ui,/Disconnect/);
+});
