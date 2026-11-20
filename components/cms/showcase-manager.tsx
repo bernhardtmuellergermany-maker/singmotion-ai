@@ -37,7 +37,7 @@ export function ShowcaseManager(){
    const data=await res.json() as {url?:string;error?:string};
    if(!res.ok||!data.url)throw Error(data.error||"Vorschaubild konnte nicht gespeichert werden");
    setAvailable(items=>items.map(item=>item.id===id?{...item,posterUrl:data.url}:item));
-   setBackgroundRevision(Date.now());
+   setBackgroundRevision(previous=>previous+1);
    setUploadMessage("Vorschaubild gespeichert. Es erscheint direkt bei diesem veröffentlichten Video.");
   }catch(e){setUploadMessage((e as Error).message)}
   finally{setPosterSaving(null)}
@@ -51,7 +51,7 @@ export function ShowcaseManager(){
    const data=await res.json() as {ok?:boolean;error?:string};
    if(!res.ok||data.ok!==true)throw Error(data.error||"Vorschaubild konnte nicht entfernt werden");
    setAvailable(items=>items.map(item=>item.id===id?{...item,posterUrl:null}:item));
-   setBackgroundRevision(Date.now());
+   setBackgroundRevision(previous=>previous+1);
    setUploadMessage("Vorschaubild entfernt. Das Video bleibt unverändert veröffentlicht.");
   }catch(e){setUploadMessage((e as Error).message)}
   finally{setPosterSaving(null)}
@@ -77,7 +77,7 @@ export function ShowcaseManager(){
     if(videoInput.current)videoInput.current.value="";
     setUploadMessage("Video hochgeladen. Wähle es unten für einen oder mehrere Bereiche aus und klicke auf Veröffentlichen.");
    }else{
-    setBackgroundRevision(Date.now());
+    setBackgroundRevision(previous=>previous+1);
     setUploadMessage(kind==="desktop-bg"?"Desktop-Hintergrund aktualisiert.":kind==="final-cta-bg"?"CTA-Hintergrund aktualisiert.":"Mobiles Fallback-Bild aktualisiert.");
    }
   }catch(e){setUploadMessage((e as Error).message);}

@@ -3,7 +3,8 @@ name: Verify production dependency CVE remediation
 on:
   pull_request:
     branches:
-      - release/production-promoted-20261114
+      - staging
+      - production
     paths:
       - .github/workflows/security-dependency-remediation.yml
       - package.json

@@ -92,7 +92,10 @@ export function GenerationDialog({
   useEffect(() => {
     let active = true;
     const seconds = selection.end - selection.start;
-    if(operatorFlow){setQuotePending(false);setCustomerQuote(null);return ()=>{active=false};}
+    if(operatorFlow){
+      void Promise.resolve().then(()=>{if(active){setQuotePending(false);setCustomerQuote(null);}});
+      return ()=>{active=false};
+    }
     void Promise.resolve().then(()=>{if(active){setQuotePending(true);setCustomerQuote(null);}});
     const query = new URLSearchParams({seconds:seconds.toFixed(3)});
     if(appliedPromo)query.set("promo",appliedPromo);

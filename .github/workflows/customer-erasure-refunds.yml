@@ -2,7 +2,8 @@ name: Verify customer account erasure refund plan
 on:
   pull_request:
     branches:
-      - fix/customer-facing-copy-cleanup-20261118
+      - staging
+      - production
     paths:
       - "lib/commerce/customer-erasure-refund-*.ts"
       - "lib/commerce/customer-erasure-job.ts"
@@ -26,6 +27,7 @@ on:
       - "package.json"
       - ".github/workflows/customer-erasure-refunds.yml"
   workflow_dispatch:
+
 jobs:
   verify:
     runs-on: ubuntu-latest

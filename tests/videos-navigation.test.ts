@@ -12,13 +12,20 @@ test("video navigation has one public-facing name and canonical route",()=>{
  assert.match(gallery,/<h1>Videos<\/h1>/);
  assert.match(page,/title:"Videos \| SingMotion AI"/);
  assert.match(page,/robots:\{index:false,follow:false\}/);
- assert.doesNotMatch(menu,/My Projects|href: "\/projects"/);
+ assert.doesNotMatch(menu,/My Projects/);
+ assert.match(menu,/musicEnabled&&<Link href="\/projects"/);
  assert.doesNotMatch(gallery,/My Projects|\/projects\/live_/);
 });
 
-test("historical overview and video-detail links permanently redirect",()=>{
- assert.match(read("app/(site)/projects/page.tsx"),/permanentRedirect\("\/videos"\)/);
- assert.match(read("app/(site)/projects/[id]/page.tsx"),/permanentRedirect\("\/videos\/"\+encodeURIComponent\(id\)\)/);
+test("Videos and authenticated Music Video Projects are distinct private libraries",()=>{
+ const list=read("app/(site)/projects/page.tsx");
+ const editor=read("app/(site)/projects/[id]/page.tsx");
+ assert.match(list,/musicPrincipal\(/);
+ assert.match(list,/if\(!principal\)notFound\(\)/);
+ assert.match(list,/MusicProjectsClient/);
+ assert.match(editor,/musicPrincipal\(/);
+ assert.match(editor,/requireMusicProject\(id,principal\)/);
+ assert.match(editor,/MusicVideoEditor id=\{id\}/);
  const video=read("app/(site)/videos/[id]/page.tsx");
  assert.match(video,/<Shell hideWorkspaceNav projectId=\{id\}>/);
  assert.match(video,/<Project id=\{id\} \/>/);
@@ -28,7 +35,6 @@ test("studio, home, account and email links point to canonical Videos",()=>{
  for(const file of [
   "components/carousel-experience.tsx",
   "components/customer-paid-orders.tsx",
-  "components/global-menu.tsx",
   "components/home-collection.tsx",
   "components/my-projects-gallery.tsx",
   "components/projects.tsx",
@@ -42,7 +48,7 @@ test("studio, home, account and email links point to canonical Videos",()=>{
  ]){
   const source=read(file);
   assert.doesNotMatch(source,/\/projects(?:\/|["'`])/,
-    file+" must not generate new legacy project URLs");
+    file+" must not generate legacy project URLs outside the authenticated Music Video menu");
  }
  assert.match(read("lib/commerce/notifications.ts"),/href:"\/videos\/live_"/);
  assert.match(read("lib/commerce/video-ready-notifications.ts"),/origin\+"\/videos\/live_"/);

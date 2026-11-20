@@ -1,18 +1,15 @@
 name: Compose verified release candidate without touching production
 
+# Retired one-time release candidate writer. Kept for audit; manual dispatch skips the job.
 on:
-  pull_request:
-    branches:
-      - release/production-promoted-20261114
-    paths:
-      - .github/workflows/release-candidate-compose.yml
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
   merge-feature-branches:
-    if: ${{ github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'release/candidate-all-20261118' }}
+    if: false # retired, never push changes to a historical release branch
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

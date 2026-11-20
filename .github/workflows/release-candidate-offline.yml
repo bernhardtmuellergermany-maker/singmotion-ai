@@ -3,7 +3,8 @@ name: Review combined release candidate offline
 on:
   pull_request:
     branches:
-      - release/production-promoted-20261114
+      - staging
+      - production
     paths:
       - .github/workflows/release-candidate-offline.yml
       - package.json
@@ -12,6 +13,7 @@ on:
       - lib/commerce/**
       - app/(site)/videos/**
       - tests/**
+  workflow_dispatch:
 
 permissions:
   contents: read

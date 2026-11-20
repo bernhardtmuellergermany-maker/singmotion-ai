@@ -47,9 +47,9 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     ?{draftId,requiredCredits:required,created:Date.now()}
     :readCreditResume();
   if(resumeCandidate)sessionStorage.setItem(RESUME_KEY,JSON.stringify(resumeCandidate));
-  setResume(resumeCandidate);
+  void Promise.resolve().then(()=>{if(active)setResume(resumeCandidate);});
   let returnTimer:number|null=null,returnScheduled=false;
-  setCheckoutNotice(checkoutFeedback(checkoutResult));
+  void Promise.resolve().then(()=>{if(active)setCheckoutNotice(checkoutFeedback(checkoutResult));});
   const refresh=()=>{
    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
     .then(async response=>{

@@ -10,7 +10,7 @@ test("generated projects save display-only names via owner-scoped server action"
  const gallery=load("components/my-projects-gallery.tsx");
  const header=load("components/project-header-name.tsx");
  assert.match(route,/body\.action === "rename"/);
- assert.match(route,/service\.renameProject\(body\.id,owner,String\(user!\.id\),body\.name\)/);
+ assert.match(route,/service\.renameProject\(body\.id,owner,actor,body\.name\)/);
  assert.match(studio,/this\.row\(id,owner\)/);
  assert.match(studio,/UPDATE live_studio_projects SET display_name=\? WHERE attempt_id=\? AND owner=\?/);
  assert.match(gallery,/action:"rename",id,name:next/);

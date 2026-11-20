@@ -1519,16 +1519,21 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
             }),
             plan.id,
           );
-        await assert.rejects(
-          restarted.prepare(
-            { ...selection, customPrompt: "Forbidden retry" },
-            owner,
-            "Singer",
-            true,
-            true,
-          ),
-          /previous provider failure/,
+        // A historical rejection is retained, but not a permanent ban on
+        // a later, independently priced request. Prepare never resubmits the
+        // rejected provider task; every new task has its own provider filter.
+        const followup = await restarted.prepare(
+          { ...selection, customPrompt: "Fresh review of recording" },
+          owner,
+          "Singer",
+          true,
+          true,
         );
+        assert.notEqual(followup.id, plan.id);
+        assert.equal(f.store.get(followup.id).state, "prepared");
+        assert.equal(f.store.get(followup.id).providerJobId, null);
+        assert.equal(f.store.get(plan.id).failureCode, "CONTENT_PREFILTER_REJECTED");
+        assert.equal(submits, i + 1);
       }
       reserved += plan.ceilingMicroUsd!;
       assert.equal(

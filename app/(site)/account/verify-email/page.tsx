@@ -24,8 +24,10 @@ export default function VerifyEmail(){
  const [resume,setResume]=useState<Resume|null>(null);
  useEffect(()=>{
   let active=true;
-  setToken(new URLSearchParams(window.location.search).get("token")||"");
-  setResume(savedStudioResume());
+  void Promise.resolve().then(()=>{if(active){
+   setToken(new URLSearchParams(window.location.search).get("token")||"");
+   setResume(savedStudioResume());
+  }});
   const refresh=async()=>{
    try{
     const response=await fetch("/api/customer-auth",{credentials:"same-origin",cache:"no-store"});
@@ -92,7 +94,7 @@ export default function VerifyEmail(){
   {resume&&<div style={{border:"1px solid #69468c",background:"#382347",borderRadius:12,padding:14,margin:"15px 0"}}>
    <strong>Your video is saved</strong>
    <p style={{margin:"6px 0 0",fontSize:13,color:"#dbc8e8"}}>
-    You need {resume.requiredCredits.toLocaleString("en-GB")} Credits. After your verified purchase, you'll return to Step 4 to click Generate Video.
+    You need {resume.requiredCredits.toLocaleString("en-GB")} Credits. After your verified purchase, you&apos;ll return to Step 4 to click Generate Video.
    </p>
   </div>}
   {!confirmed&&token&&<button type="button" disabled={busy} onClick={()=>void confirm()}

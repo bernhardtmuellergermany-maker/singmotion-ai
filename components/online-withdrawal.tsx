@@ -21,7 +21,7 @@ export function OnlineWithdrawal(){
   {result?.accepted ? <div role="status"><p><strong>{result.message}</strong></p><p>Reference number: <strong>{result.id}</strong></p><p>Received at (UTC): <strong>{result.receivedAt}</strong></p>
    {!result.confirmationSent&&<p>Please keep this reference and contact <a href="mailto:support@singmotion.ai">support@singmotion.ai</a>, if you do not receive an email receipt.</p>}</div>:
    <form onSubmit={e=>{e.preventDefault();if(step===1)setStep(2);else void submit();}} style={{display:"grid",gap:"0.8rem"}}>
-    <label>Consumer's name <input required minLength={2} maxLength={150} autoComplete="name" value={name} onChange={e=>{setName(e.target.value);setStep(1);}}/></label>
+    <label>Consumer&apos;s name <input required minLength={2} maxLength={150} autoComplete="name" value={name} onChange={e=>{setName(e.target.value);setStep(1);}}/></label>
     <label>Contract / order number <input required minLength={2} maxLength={150} value={orderReference} onChange={e=>{setOrderReference(e.target.value);setStep(1);}}/></label>
     <label>Email address for confirmation <input required type="email" maxLength={254} autoComplete="email" value={email} onChange={e=>{setEmail(e.target.value);setStep(1);}}/></label>
     {step===2&&<p role="status">Please confirm: I withdraw from the contract <strong>{orderReference}</strong>. Please send the receipt to <strong>{email}</strong>.</p>}
