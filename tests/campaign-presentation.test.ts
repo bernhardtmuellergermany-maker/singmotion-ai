@@ -169,3 +169,17 @@ test("short desktop and landscape mobile hero keep CTA/offer clear and hide the 
  assert.match(hero,/<CampaignOfferLine\/>/);
  assert.match(hero,/className="sm-immersive-cta"/);
 });
+
+test("compact phone offer fits two rows while retaining the existing short-screen CTA fixes",()=>{
+ const hero=read("app/(site)/home-immersive.css");
+ const css=read("components/campaign-display.css");
+ const addition=hero.slice(hero.indexOf("/* Complement the height-aware hero:"));
+ assert.ok(addition.includes("@media(min-width:761px) and (max-width:1199px)"));
+ assert.ok(addition.includes(".sm-immersive-scroll-cue{display:none!important}"));
+ assert.ok(addition.includes(".sm-mobile-swipe-hint{display:none!important}"));
+ assert.ok(addition.includes("@media(max-width:760px) and (max-height:550px)"));
+ assert.ok(!addition.includes(".sm-immersive-cta"),"Do not resize the primary CTA");
+ assert.ok(css.includes("margin-top:7px;gap:5px"));
+ assert.ok(css.includes("grid-template-columns:minmax(0,1fr) 1px minmax(0,1fr)"));
+ assert.ok(css.includes("grid-column:3;grid-row:2;font-size:10px"));
+});
