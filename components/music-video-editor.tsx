@@ -36,12 +36,23 @@ export function MusicVideoEditor({id}:{id:string}){
   const revision=useRef(0),latest=useRef<MusicClip[]>([]),dirty=useRef(false),inFlight=useRef<Promise<void>|null>(null);
   const saveTimer=useRef<ReturnType<typeof setTimeout>|null>(null),past=useRef<MusicClip[][]>([]),future=useRef<MusicClip[][]>([]);
   const detailRef=useRef<Detail|null>(null);
+  const [canUndo,setCanUndo]=useState(false),[canRedo,setCanRedo]=useState(false);
   const load=useCallback(async()=>{
     const data=await request<Detail>(endpoint+id);
     detailRef.current=data;revision.current=data.project.revision;latest.current=data.clips;dirty.current=false;
     setDetail(data);setClips(data.clips);setNewName(data.project.name);setError("");
   },[id]);
-  useEffect(()=>{void load().catch(e=>setError(e instanceof Error?e.message:"Project unavailable."));},[load]);
+  useEffect(()=>{
+    let active=true;
+    void request<Detail>(endpoint+id)
+      .then(data=>{
+        if(!active)return;
+        detailRef.current=data;revision.current=data.project.revision;latest.current=data.clips;dirty.current=false;
+        setDetail(data);setClips(data.clips);setNewName(data.project.name);setError("");
+      })
+      .catch(error=>{if(active)setError(error instanceof Error?error.message:"Project unavailable.");});
+    return()=>{active=false;};
+  },[id]);
   // Generate downsampled waveform from the actual project audio. No beat detection.
   useEffect(()=>{
     if(!detail)return;
@@ -88,7 +99,8 @@ export function MusicVideoEditor({id}:{id:string}){
   useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
   function apply(next:MusicClip[],record=true){
     if(record){past.current.push(latest.current);if(past.current.length>40)past.current.shift();future.current=[];}
-    latest.current=next;setClips(next);setError("");queue();
+    latest.current=next;setClips(next);setError("");
+    setCanUndo(past.current.length>0);setCanRedo(future.current.length>0);queue();
   }
   function undo(){
     const previous=past.current.pop();if(!previous)return;
@@ -310,8 +322,8 @@ export function MusicVideoEditor({id}:{id:string}){
     </section>
     <section className="mv-timeline" aria-label="Timeline editor">
       <div className="mv-timeline-toolbar">
-        <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
-          <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
+        <div><button aria-label="Undo" disabled={!canUndo} onClick={undo}><Undo2 size={17}/></button>
+          <button aria-label="Redo" disabled={!canRedo} onClick={redo}><Redo2 size={17}/></button>
           <button onClick={split} disabled={!selectedClip}><Scissors size={17}/> Split</button>
           <button onClick={deleteClip} disabled={!selectedClip}><Trash2 size={17}/> Delete</button>
           {selectedAsset?.kind==="lip-sync"&&<button onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}

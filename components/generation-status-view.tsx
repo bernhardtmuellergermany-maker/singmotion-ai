@@ -48,9 +48,9 @@ export function GenerationStatusView({
   reuseBlank?:boolean;
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
-  const [measuredVideoSeconds,setMeasuredVideoSeconds]=useState<number|null>(null);
+  const [measurement,setMeasurement]=useState<{url:string|null;seconds:number|null}>({url:null,seconds:null});
+  const measuredVideoSeconds=measurement.url===(videoUrl??null)?measurement.seconds:null;
   const [waitMessageIndex,setWaitMessageIndex]=useState(0);
-  useEffect(()=>{setMeasuredVideoSeconds(null)},[videoUrl]);
   useEffect(()=>{
     if(progress!=="processing")return;
     const interval=window.setInterval(()=>{
@@ -74,7 +74,7 @@ export function GenerationStatusView({
   const customerNotice=statusNotice??previewNotice??(note&&/network|failed to fetch|connection interrupted|timed out/i.test(note)
     ?requestErrorFeedback(note,"generation")
     :failed&&/\[[A-Z][A-Z0-9_]{2,79}\]/.test(note??"")
-      ?providerFeedback("failed",note??"",creditCharge,undefined,Date.now(),editHref)
+      ?providerFeedback("failed",note??"",creditCharge,undefined,0,editHref)
       :generationFeedback(progress,creditCharge,availableCredits,editHref));
   const stages=[
     {title:"Audio & assets prepared",description:"Selected audio and reference image were prepared",state:progress==="unavailable"?"pending" as const:"done" as const},
@@ -123,7 +123,7 @@ export function GenerationStatusView({
           {ready?<video src={videoUrl!} controls playsInline preload="metadata"
             onLoadedMetadata={event=>{
               const duration=event.currentTarget.duration;
-              if(Number.isFinite(duration)&&duration>0)setMeasuredVideoSeconds(duration);
+              if(Number.isFinite(duration)&&duration>0)setMeasurement({url:videoUrl??null,seconds:duration});
             }}
             aria-label="Your finished SingMotion video"/>:
             <div className="sm-gen-preview-placeholder">

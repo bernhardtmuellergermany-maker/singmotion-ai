@@ -26,8 +26,9 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
     const verifiedEmail=typeof v?.email==="string"&&v.email.includes("@")?v.email:null;
     setIdentity(authenticated?(v.kind==="staff"?(v.staffRole==="super-admin"?"super-admin":"staff"):"customer"):"guest");
     setEmail(authenticated?verifiedEmail:null);
+    if(!authenticated||v.kind==="staff"&&v.staffRole!=="super-admin")setUnreadNotices(0);
    })
-   .catch(()=>{if(active){setIdentity("guest");setEmail(null);}})};
+   .catch(()=>{if(active){setIdentity("guest");setEmail(null);setUnreadNotices(0);}})};
   refresh();
   const outside=(e:PointerEvent)=>{if(menu.current&&!menu.current.contains(e.target as Node))menu.current.open=false};
   const escape=(e:KeyboardEvent)=>{if(e.key==="Escape"&&menu.current)menu.current.open=false};
@@ -66,7 +67,7 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
   return()=>{active=false;window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("credit-balance-updated",refresh);current?.removeEventListener("toggle",onToggle)};
  },[identity]);
  useEffect(()=>{
-  if(identity!=="customer"&&identity!=="super-admin"){setUnreadNotices(0);return;}
+  if(identity!=="customer"&&identity!=="super-admin")return;
   let active=true;
   const refresh=()=>{void fetch("/api/notifications",{cache:"no-store",credentials:"same-origin"})
    .then(async r=>{if(!r.ok)throw Error("Unavailable");return r.json() as Promise<{unread?:number}>})
