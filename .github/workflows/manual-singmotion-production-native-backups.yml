@@ -1,0 +1,69 @@
+name: Manual SingMotion Production volume snapshots
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'Plan reads only. Create requests one native Railway snapshot per approved Production volume.'
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - create
+      approval:
+        description: 'Only for create: type CREATE_TWO_NATIVE_PRODUCTION_VOLUME_SNAPSHOTS'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: singmotion-production-native-volume-backup
+  cancel-in-progress: false
+
+jobs:
+  native-volume-backup:
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout permanent Production branch
+        uses: actions/checkout@v4
+        with:
+          ref: production
+          persist-credentials: false
+      - name: Configure Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.1'
+      - name: Run offline snapshot safety tests
+        run: node --test tests/railway-production-native-snapshots.test.mjs
+      - name: Run explicit Railway snapshot action (never restore)
+        env:
+          RAILWAY_TOKEN: ${{ secrets.SINGMOTION_RAILWAY_PRODUCTION_TOKEN }}
+          SINGMOTION_NATIVE_SNAPSHOT_APPROVAL: ${{ inputs.approval }}
+          OPERATION: ${{ inputs.operation }}
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          if [[ -z "${RAILWAY_TOKEN}" ]]; then
+            echo 'Missing Production-scoped Railway project token secret; no snapshot requested.'
+            exit 1
+          fi
+          mode='--plan'
+          if [[ "${OPERATION}" == 'create' ]]; then
+            if [[ "${SINGMOTION_NATIVE_SNAPSHOT_APPROVAL}" != 'CREATE_TWO_NATIVE_PRODUCTION_VOLUME_SNAPSHOTS' ]]; then
+              echo 'Explicit typed approval missing; no snapshot requested.'
+              exit 1
+            fi
+            mode='--create'
+          elif [[ "${OPERATION}" != 'plan' ]]; then
+            echo 'Unexpected operation; no snapshot requested.'
+            exit 1
+          fi
+          node scripts/railway-production-native-snapshots.mjs "${mode}" > "${RUNNER_TEMP}/native-backup.json"
+          # Do not expose snapshot/instance identifiers in a public repository job log.
+          node --input-type=module -e 'import fs from "node:fs"; const value=JSON.parse(fs.readFileSync(process.argv[1],"utf8").replace(/^RAILWAY_NATIVE_BACKUP /,"")); console.log(JSON.stringify({status:value.status, verifiedVolumes:value.volumes?.length??value.backups?.length, independentOffsiteRestoreVerified:value.independentOffsiteRestoreVerified??false}));' "${RUNNER_TEMP}/native-backup.json"
+          rm -f "${RUNNER_TEMP}/native-backup.json"
