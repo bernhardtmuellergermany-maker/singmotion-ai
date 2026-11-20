@@ -1,17 +1,19 @@
 "use client";
 
-import {useEffect,useId,useState} from "react";
-import {ExternalLink,FileMusic,Link2,Music2} from "lucide-react";
+import {useEffect,useId,useRef,useState} from "react";
+import {CheckCircle2,ExternalLink,Link2,Music2} from "lucide-react";
 import {normalizeSunoSongLink} from "@/lib/suno-song-link";
 import styles from "./suno-song-import.module.css";
 
 type SunoResult={status?:string;error?:string;message?:string;connected?:boolean};
-export function SunoSongImport({disabled,onChooseFile,onImportFile}:{
+export function SunoSongImport({disabled,onImportFile}:{
  disabled:boolean;
- onChooseFile:()=>void;
  onImportFile:(file:File)=>Promise<void>;
 }){
  const id=useId();
+ const linkInput=useRef<HTMLInputElement>(null);
+ const [expanded,setExpanded]=useState(false);
+ const [focusAfterConnect,setFocusAfterConnect]=useState(false);
  const [link,setLink]=useState("");
  const [connected,setConnected]=useState<boolean|null>(null);
  const [working,setWorking]=useState(false);
@@ -25,10 +27,14 @@ export function SunoSongImport({disabled,onChooseFile,onImportFile}:{
    const saved=sessionStorage.getItem("sm-suno-pending-link");
    if(saved){sessionStorage.removeItem("sm-suno-pending-link");if(normalizeSunoSongLink(saved))setLink(saved);}
    const url=new URL(window.location.href);
+   if(url.searchParams.has("suno_connected")||url.searchParams.has("suno_error"))setExpanded(true);
    if(url.searchParams.has("suno_error")){
     const reason=url.searchParams.get("suno_error");
     setNotice(reason==="cancelled"?"Suno sign-in was cancelled.":"Suno sign-in could not be completed. Try connecting again.");
-   }else if(url.searchParams.has("suno_connected"))setNotice("Suno account connected. Import your song directly.");
+   }else if(url.searchParams.has("suno_connected")){
+    setNotice("Connection successful. Paste your Suno song link below and select Import song directly.");
+    setFocusAfterConnect(true);
+   }
    if(url.searchParams.has("suno_connected")||url.searchParams.has("suno_error")){
     url.searchParams.delete("suno_connected");url.searchParams.delete("suno_error");
     window.history.replaceState(window.history.state,"",url.pathname+url.search+url.hash);
@@ -44,6 +50,12 @@ export function SunoSongImport({disabled,onChooseFile,onImportFile}:{
    .catch(()=>{if(live)setConnected(false)});
   return()=>{live=false};
  },[disabled]);
+ useEffect(()=>{
+  if(connected===true&&focusAfterConnect&&expanded&&!disabled){
+   linkInput.current?.focus();
+   setFocusAfterConnect(false);
+  }
+ },[connected,focusAfterConnect,expanded,disabled]);
 
  function connect(){
   if(disabled||working)return;
@@ -85,15 +97,17 @@ export function SunoSongImport({disabled,onChooseFile,onImportFile}:{
   }catch(e){setNotice(e instanceof Error?e.message:"Suno import was interrupted.");}
   finally{setWorking(false);}
  }
- return <details className={styles.panel}>
+ return <details id="suno-import" className={styles.panel} open={expanded}
+  onToggle={event=>setExpanded(event.currentTarget.open)}>
   <summary className={styles.summary}><Music2 size={20} aria-hidden="true"/>
    <span><strong>Import your Suno song</strong><small>Paste a Suno share link — no manual MP3 download</small></span>
    <span aria-hidden="true" className={styles.plus}>+</span>
   </summary>
   <div className={styles.body}>
+   {connected===true&&<p className={styles.connected} role="status"><CheckCircle2 size={18} aria-hidden="true"/> Suno connected — ready to import your song</p>}
    <p className={styles.description}>Connect your own Suno account to import a song directly. Suno may charge one of your download credits for a first-time download; SingMotion will ask you before approving it.</p>
    <label className={styles.label} htmlFor={id}>Suno song link</label>
-   <input id={id} className={styles.input} type="url" inputMode="url" autoCapitalize="off"
+   <input ref={linkInput} id={id} className={styles.input} type="url" inputMode="url" autoCapitalize="off"
     autoComplete="off" spellCheck={false} placeholder="https://suno.com/s/..."
     value={link} disabled={disabled||working} onChange={e=>{setLink(e.target.value.slice(0,501));setNeedsCredit(false);setNotice("");}}/>
    {invalid&&<p className={styles.error} role="alert">Enter a valid suno.com/s/… or suno.com/song/… link.</p>}
@@ -114,12 +128,6 @@ export function SunoSongImport({disabled,onChooseFile,onImportFile}:{
    {canonical&&<a className={styles.link} href={canonical} target="_blank" rel="noopener noreferrer">
      <ExternalLink size={16} aria-hidden="true"/> Open song in Suno
     </a>}
-   <div className={styles.fallback}>
-    <span>Or download the song through Suno and upload the MP3, WAV or M4A yourself.</span>
-    <button type="button" className={styles.choose} disabled={disabled||working} onClick={onChooseFile}>
-      <FileMusic size={17} aria-hidden="true"/> Choose downloaded audio
-    </button>
-   </div>
    <p className={styles.note}>Only music you are authorized to download and use. Imported MP3s pass the normal private audio validation and 250-second selection limit. Suno connection expires automatically; nothing is generated or charged in SingMotion by importing audio.</p>
   </div>
  </details>;
