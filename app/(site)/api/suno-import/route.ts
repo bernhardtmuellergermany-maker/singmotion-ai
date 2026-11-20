@@ -27,6 +27,20 @@ export async function GET(req:NextRequest){
  const {owner,token}=authenticated(req);
  return json({connected:!!owner&&!!token});
 }
+export async function DELETE(req:NextRequest){
+ const denied=gate(req);if(denied)return denied;
+ if(req.headers.get("origin")!==SUNO_STAGING_ORIGIN)
+  return json({error:"Request origin not allowed."},403);
+ const mediaToken=req.cookies.get("sm_session")?.value||"";
+ if(!session(mediaToken))return json({error:"Sign in to disconnect Suno."},401);
+ const response=json({connected:false,message:"Suno disconnected."});
+ response.cookies.set("sm_suno_access","",{httpOnly:true,secure:true,sameSite:"strict",
+  path:"/api/suno-import",maxAge:0});
+ response.cookies.set("sm_suno_oauth","",{httpOnly:true,secure:true,sameSite:"lax",
+  path:"/api/suno-import",maxAge:0});
+ return response;
+}
+
 export async function POST(req:NextRequest){
  const denied=gate(req);if(denied)return denied;
  if(req.headers.get("origin")!==SUNO_STAGING_ORIGIN)return json({error:"Request origin not allowed."},403);
