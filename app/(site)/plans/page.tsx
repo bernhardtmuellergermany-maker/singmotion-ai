@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Check, Music2, Sparkles, ShieldCheck, ArrowRight, Clock3, Wallet, Film } from "lucide-react";
+import { Check, Music2, Sparkles, ShieldCheck, ArrowRight, Wallet, Film } from "lucide-react";
 import { SiteHeader } from "@/components/site-header";
 import { CreditAmountPicker } from "@/components/credit-amount-picker";
 import {CampaignPricingBanner,CurrentVideoRate} from "@/components/campaign-display";
