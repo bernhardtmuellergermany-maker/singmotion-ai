@@ -105,6 +105,12 @@ export class ManualCreditGifts{
      throw new GiftError("Idempotenzkonflikt: Buchungsreferenz wurde bereits anders verwendet.");
     return {gift,availableCredits:this.wallet.available("customer:"+account.id),replayed:true};
    }
+   if(input.campaignId){
+    const table=this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='marketing_campaigns'").get();
+    const matched=table?this.db.prepare("SELECT id FROM marketing_campaigns WHERE id=?")
+     .get(input.campaignId):null;
+    if(!matched)throw new GiftError("Zugehörige Kampagne existiert nicht.",400);
+   }
    const earliest=Date.now()-86400000;
    const actorTotal=this.db.prepare("SELECT COALESCE(SUM(credits),0) sum FROM admin_credit_gifts WHERE actor=? AND created>=?")
     .get(input.actor,earliest) as {sum:number};
