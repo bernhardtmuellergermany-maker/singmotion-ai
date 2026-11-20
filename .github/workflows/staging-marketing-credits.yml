@@ -48,6 +48,8 @@ jobs:
           node-version: '24.22.3'
           cache: npm
       - run: npm ci
+      - name: Install FFmpeg for offline video regression fixtures
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
       - name: All offline TypeScript regression tests
         run: npm test
       - name: Release parity and Next.js production build
