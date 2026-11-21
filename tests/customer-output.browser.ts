@@ -55,6 +55,13 @@ try{
   headers:{origin},data:{action:"register",email:buyer,password},
  });
  assert.equal(register.status(),200,"real account registration over HTTP");
+ // The unfinished Projects/Music Builder must remain server-side Super Admin
+ // only, even when customer feature flags accidentally become enabled.
+ assert.equal((await context.request.get(origin+"/api/music-video")).status(),403,
+  "regular customers must not be able to list or modify Music Projects");
+ assert.equal((await context.request.get(origin+"/projects")).status(),404,
+  "unreleased Projects page must not render for customers");
+ console.log("PASS: regular customer is forbidden from unreleased Projects page and API.");
  store=new CommerceStore(path.join(root,"commerce.sqlite"));
  const account=(store.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(buyer) as {id:string}).id;
  const id=store.preparedVideoOrder({
