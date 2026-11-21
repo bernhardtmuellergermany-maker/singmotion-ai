@@ -3130,3 +3130,15 @@
  .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-crop-corner{touch-action:none}
  .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-overlay-trash{touch-action:manipulation}
 }
+
+/* Keep portrait photos large yet short enough to reach tools on a phone. */
+@media(max-width:700px){
+ .product-theme.singmotion-flow .sm-photo-editor-stage.is-portrait{
+   width:min(100%, calc(60dvh * 9 / 16), 340px);
+   max-width:100%;
+   max-height:60dvh;
+   height:auto;
+   margin-inline:auto;
+   aspect-ratio:9 / 16;
+ }
+}
