@@ -10,9 +10,10 @@ test("dashboard uses one Payload root and only real internal destinations",()=>{
  assert.match(dashboard,/initPageResult\.req\.user/);
  assert.match(map,/dashboard-view\.tsx#CleanDashboardView/);
  for(const href of ["/admin/customer-insights","/admin/support","/admin/marketing-actions",
-  "/admin/promotions","/admin/showcase","/admin/collections/staff"])
+  "/admin/promotions","/admin/showcase"])
   assert.ok(operations.includes('href:"'+href+'"'),href);
  assert.doesNotMatch(operations,/href:"\/support-admin"|href:"\/promo-admin"/);
+ assert.doesNotMatch(operations,/Team & Rechte|href:"\/admin\/collections\/staff"/);
  for(const unused of ["Seiten & Texte","Bilder & Medien","Navigation & Footer","Studio-Texte"])
   assert.ok(!operations.includes(unused),unused);
  assert.doesNotMatch(dashboard,/<DefaultTemplate/);
@@ -42,4 +43,25 @@ test("support, coupons and campaigns are native CMS views",()=>{
   assert.ok(config.includes('path: "'+key+'"'),key);
   assert.ok(map.includes("#"+name),name);
  }
+});
+
+
+test("SingMotion CMS uses one dark page design and hides the empty mobile menu",()=>{
+ const css=read("app/(payload)/cms-unified-dark.css");
+ const layout=read("app/(payload)/layout.tsx");
+ const operations=read("components/cms/operations.tsx");
+ const promotion=read("components/promotion-admin.tsx");
+ const showcase=read("components/cms/showcase-view.tsx");
+ const advanced=read("components/cms/advanced-view.tsx");
+ assert.ok(layout.includes('import "./cms-unified-dark.css"'));
+ assert.match(css,/html:has\(\.payload-admin\) body/);
+ assert.match(css,/background:#0d0a17!important/);
+ assert.match(css,/html:has\(\.payload-admin\) \.nav-toggler/);
+ assert.match(css,/button\[aria-label="Toggle navigation"\]/);
+ for(const className of ["sm-cms-clean-hero","sm-cms-page-hero","sm-insights-hero","sm-marketing-heading","sm-support-heading"])
+  assert.ok(css.includes("."+className),className);
+ assert.doesNotMatch(operations,/Team & Rechte|\/admin\/collections\/staff/);
+ assert.match(promotion,/className="sm-cms-page-hero"/);
+ assert.match(showcase,/className="sm-cms-page-hero"/);
+ assert.match(advanced,/className="sm-cms-page-hero"/);
 });

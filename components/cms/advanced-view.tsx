@@ -1,7 +1,6 @@
 import type {AdminViewServerProps} from "payload";
 import {Gutter} from "@payloadcms/ui";
 import {hasRole} from "../../cms/policy";
-import Link from "next/link";
 import {PrivateLedger} from "./private-ledger";
 import {StudioActivation} from "./studio-activation";
 import {FirstTestPanel} from "./first-test-panel";
@@ -16,10 +15,11 @@ export async function AdvancedCmsView({initPageResult}:AdminViewServerProps){
  // RootPage already owns the Admin header and sidebar. Rendering another
  // DefaultTemplate here produces duplicate mobile toolbars.
  return <Gutter><main className="sm-cms-tool-view sm-cms-advanced-view">
- <Link href="/admin" className="sm-cms-tool-back">← Zur Übersicht</Link>
- <span className="sm-cms-clean-eyebrow">NUR SUPER-ADMIN</span>
- <h1>Technische Werkzeuge</h1>
- <p>Prüf- und Diagnosefunktionen, die nicht zur alltäglichen CMS-Bedienung gehören. Bestehende Freigaben und Schutzmaßnahmen bleiben erhalten.</p>
+ <header className="sm-cms-page-hero">
+  <span className="sm-cms-clean-eyebrow">SINGMOTION AI · ADMIN</span>
+  <h1>Technische Werkzeuge</h1>
+  <p>Prüf- und Diagnosefunktionen mit bestehenden Berechtigungen und Schutzmaßnahmen.</p>
+ </header>
  <section><h2>Protokolle</h2>
   <p>Änderungen und Anmeldungen im CMS werden weiter erfasst.</p>
   {!logs?<p>Protokoll derzeit nicht verfügbar.</p>:

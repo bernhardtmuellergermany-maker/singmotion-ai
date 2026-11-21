@@ -93,11 +93,12 @@ export function PromotionAdmin(){
     link.href=href;link.download="singmotion-promo-"+report.summary.code+".csv";
     document.body.appendChild(link);link.click();link.remove();URL.revokeObjectURL(href);
   }
-  return <section style={{maxWidth:1050,margin:"2rem auto",padding:"1.5rem"}}>
-    <h1>Promotion codes</h1>
-    <p>Create time-limited promotional codes and monitor reservations, redemptions and releases.
-      Free-video codes allow three videos per customer, each up to 10 seconds. They do not
-      bypass the currently disabled customer payment and generation gates.</p>
+  return <section className="sm-promo-cms">
+    <header className="sm-cms-page-hero">
+      <span className="sm-cms-clean-eyebrow">SINGMOTION AI · MARKETING</span>
+      <h1>Gutscheine &amp; Codes</h1>
+      <p>Verwalte Aktionscodes, Einlösungen und Zeiträume. Die bestehenden Freigabe- und Zahlungsschutzregeln bleiben unverändert.</p>
+    </header>
     {error&&<p role="alert" style={{color:"crimson"}}>{error}</p>}
     {message&&<p role="status">{message}</p>}
     {allowed&&<>
