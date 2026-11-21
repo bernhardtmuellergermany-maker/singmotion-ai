@@ -134,3 +134,23 @@ test("account menu estimates affordable whole video seconds using the live campa
  for(const [credits,rate] of [[525,null],[null,9],[-1,9],[525,0],[525,1001],[1.5,9],[525,9.5]] as const)
   assert.equal(estimatedRemainingVideoSeconds(credits,rate),null,"invalid or unavailable price/balance");
 });
+
+
+test("Credits overview discreetly estimates usable seconds at the current campaign rate",()=>{
+ const board=read("components/credits-dashboard.tsx");
+ const api=read("app/(site)/api/credit-balance/route.ts");
+ const css=read("app/(site)/credits/credits.css");
+ assert.match(api,/campaignsEnabled\(process\.env\)/);
+ assert.match(api,/new CampaignPricing\(store\.db\)\.active\(\):regularTariff\(\)/);
+ assert.match(api,/creditsPerSecond,\s*tariffExpiresUtc/);
+ assert.match(api,/console\.warn\("Credit balance video seconds estimate unavailable\."\)/);
+ assert.match(board,/estimatedRemainingVideoSeconds\(balance\.availableCredits,balance\.creditsPerSecond\)/);
+ assert.match(board,/balance\.tariffExpiresUtc>Date\.now\(\)/);
+ assert.match(board,/window\.setTimeout\(refresh/);
+ assert.match(board,/remainingVideoSeconds!==null&&<span className="sm-credits-video-seconds"/);
+ assert.ok(board.indexOf("sm-credits-video-seconds")<board.indexOf('<span className="sm-credits-reserved">'));
+ assert.match(css,/\.sm-credits-video-seconds\{/);
+ assert.equal(estimatedRemainingVideoSeconds(730,9),81);
+ assert.equal(estimatedRemainingVideoSeconds(730,25),29);
+ assert.equal(estimatedRemainingVideoSeconds(730,null),null);
+});

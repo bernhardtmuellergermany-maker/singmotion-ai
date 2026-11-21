@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import {useEffect,useRef,useState} from "react";
-import {creditTone} from "@/lib/commerce/credit-display";
+import {creditTone,estimatedRemainingVideoSeconds} from "@/lib/commerce/credit-display";
 import {CreditAmountPicker} from "@/components/credit-amount-picker";
 import {CustomerFeedback} from "@/components/customer-feedback";
 import {checkoutFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
@@ -12,6 +12,7 @@ type Order={id:string;projectId:string;credits:number;euros:number;created:numbe
 type Purchase={id:string;credits:number;cents:number;status:string;created:number};
 type VideoReservation={projectId:string;credits:number;state:"reserved"|"review";created:number};
 type Balance={videoReservations?:VideoReservation[];availableCredits:number;reservedCredits:number;outstandingCredits:number;
+ creditsPerSecond:number|null;tariffExpiresUtc:number|null;
  purchaseEnabled:boolean;testMode:boolean;globalCountrySelection?:boolean;approvedBillingCountries?:string[]|null;emailVerification?:"pending"|"verified"|"legacy"|null;entries:Ledger[];legacyOrders:Order[];purchases:Purchase[]};
 type View="loading"|"signed-out"|"unavailable"|"ready";
 type CreditResume={draftId:string;requiredCredits:number;created:number};
@@ -48,7 +49,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
     :readCreditResume();
   if(resumeCandidate)sessionStorage.setItem(RESUME_KEY,JSON.stringify(resumeCandidate));
   setResume(resumeCandidate);
-  let returnTimer:number|null=null,returnScheduled=false;
+  let returnTimer:number|null=null,tariffTimer:number|null=null,returnScheduled=false;
   setCheckoutNotice(checkoutFeedback(checkoutResult));
   const refresh=()=>{
    void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
@@ -62,6 +63,13 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
       throw Error("Invalid account balance");
      if(active){
       setBalance(data);setView("ready");
+      if(tariffTimer!==null){window.clearTimeout(tariffTimer);tariffTimer=null;}
+      // Refresh when a campaign ends, even if the Credits page stays open.
+      if(Number.isSafeInteger(data.tariffExpiresUtc)&&data.tariffExpiresUtc!==null){
+       const untilExpiry=data.tariffExpiresUtc-Date.now();
+       if(untilExpiry>0)tariffTimer=window.setTimeout(refresh,
+        Math.min(untilExpiry+1000,86_400_000));
+      }
       // Synchronize the header's credit counter after Stripe fulfillment.
       // Use a different event than the dashboard's own refresh trigger to avoid loops.
       if(lastBroadcastBalance.current!==data.availableCredits){
@@ -91,9 +99,13 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
   window.addEventListener("focus",refresh);
   window.addEventListener("credits-changed",refresh);
   window.addEventListener("pageshow",refresh);
-  return()=>{active=false;if(timer!==null)window.clearInterval(timer);if(returnTimer!==null)window.clearTimeout(returnTimer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("pageshow",refresh)};
+  return()=>{active=false;if(timer!==null)window.clearInterval(timer);if(tariffTimer!==null)window.clearTimeout(tariffTimer);if(returnTimer!==null)window.clearTimeout(returnTimer);window.removeEventListener("focus",refresh);window.removeEventListener("credits-changed",refresh);window.removeEventListener("pageshow",refresh)};
  },[]);
  const tone=creditTone(view==="ready"?balance?.availableCredits??null:null);
+ const remainingVideoSeconds=balance&&view==="ready"&&
+  (balance.tariffExpiresUtc===null||
+   (Number.isSafeInteger(balance.tariffExpiresUtc)&&balance.tariffExpiresUtc>Date.now()))
+  ?estimatedRemainingVideoSeconds(balance.availableCredits,balance.creditsPerSecond):null;
  const settledPurchases=balance?.purchases.filter(p=>p.status==="paid"||p.status==="reversed")??[];
  return <div className="sm-credits-layout">
   <CustomerFeedback notice={checkoutNotice} context="payment"/>
@@ -109,6 +121,10 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
    <section className="sm-credits-summary" aria-label="Current credit balance">
     <div><span className="sm-credits-eyebrow">Available credits</span>
      <strong className={`sm-credits-balance sm-credits-${tone}`} aria-live="polite">{num(balance.availableCredits)}</strong>
+     {remainingVideoSeconds!==null&&<span className="sm-credits-video-seconds"
+       title={`Estimated total source-audio time at ${balance.creditsPerSecond} Credits per started second. Individual video limits apply.`}>
+       ≈ {num(remainingVideoSeconds)} {remainingVideoSeconds===1?"second":"seconds"} of video
+     </span>}
      <span className="sm-credits-reserved">{num(balance.reservedCredits)} credits reserved</span>
      {balance.outstandingCredits>0&&<span className="sm-credits-muted">Outstanding reversal: {num(balance.outstandingCredits)} Credits</span>}
     </div>
