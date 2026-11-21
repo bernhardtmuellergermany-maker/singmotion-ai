@@ -57,8 +57,11 @@ test("unreleased Projects stays CMS Super Admin only across page/API/menu",()=>{
  const detail=read("app/(site)/projects/[id]/page.tsx");
  const api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
  assert.match(auth,/hasRole\(user,\["super-admin"\]\)/);
+ assert.match(auth,/if\(store\.session\(customerToken\)\)return null/);
+ assert.match(menu,/setMusicEnabled\(false\)/);
+ assert.match(menu,/current===serial/);
  assert.match(auth,/CMS_ENABLED!=="true"/);
- assert.doesNotMatch(auth,/MUSIC_VIDEO_CUSTOMER_ENABLED|customerToken\)|store\.session\(/);
+ assert.doesNotMatch(auth,/MUSIC_VIDEO_CUSTOMER_ENABLED|return "customer:"/);
  assert.match(menu,/fetch\("\/api\/music-video"/);
  assert.doesNotMatch(menu,/auth\?\.authenticated&&auth\.kind==="customer"|staffRole==="super-admin"/);
  assert.match(menu,/musicEnabled&&<Link href="\/projects"/);

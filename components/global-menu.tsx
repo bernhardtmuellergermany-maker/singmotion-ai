@@ -6,12 +6,16 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
   const menu = useRef<HTMLDetailsElement>(null);
   const [musicEnabled,setMusicEnabled]=useState(false);
   useEffect(()=>{
-    let active=true;
+    let active=true,serial=0;
     // Only the protected music-video API can prove CMS Super Admin access.
     // Customer authentication is independent and must never expose Projects.
-    const check=()=>{void fetch("/api/music-video",{credentials:"same-origin",cache:"no-store"})
-      .then(r=>{if(active)setMusicEnabled(r.ok);})
-      .catch(()=>{if(active)setMusicEnabled(false);});};
+    const check=()=>{
+      const current=++serial;
+      setMusicEnabled(false);
+      void fetch("/api/music-video",{credentials:"same-origin",cache:"no-store"})
+       .then(r=>{if(active&&current===serial)setMusicEnabled(r.ok);})
+       .catch(()=>{if(active&&current===serial)setMusicEnabled(false);});
+    };
     check();
     window.addEventListener("focus",check);
     window.addEventListener("sm-auth-changed",check);

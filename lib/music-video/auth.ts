@@ -1,11 +1,21 @@
 import {hasRole} from "@/cms/policy";
+import {CommerceStore} from "@/lib/commerce/store";
+import {dataDir} from "@/lib/db";
+import path from "node:path";
 
 /** Private, unreleased Projects feature.
  * A customer cookie or an accidentally enabled customer rollout flag
  * must NEVER grant access to pages or any music-video API operation.
  * Super Admin CMS authentication is a separate, server-verified session.
  */
-export async function musicPrincipal(headers:Headers,_customerToken:string):Promise<string|null>{
+export async function musicPrincipal(headers:Headers,customerToken:string):Promise<string|null>{
+  // Public Studio/customer identity takes precedence when both independent
+  // cookies coexist. Never display the unreleased Projects experiment while
+  // the browser is actively signed in as a regular customer.
+  if(customerToken){
+    const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+    try{if(store.session(customerToken))return null;}finally{store.close();}
+  }
   if(process.env.CMS_ENABLED!=="true")return null;
   const {getPayload}=await import("payload");
   const {default:config}=await import("@payload-config");
