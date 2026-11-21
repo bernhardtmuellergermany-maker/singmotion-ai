@@ -329,3 +329,26 @@ html:has(.payload-admin) { color-scheme: dark; }
    outline:2px solid #d1b6fc!important;outline-offset:2px;
  }
 }
+
+/* Dashboard-first CMS: remove the native sidebar without disabling the
+   original permission-checked collection routes. This file is CMS-only. */
+.payload-admin{--nav-width:0px!important;}
+.payload-admin .nav,.payload-admin .nav-toggler,
+.payload-admin .app-header__menu-button{display:none!important;}
+.payload-admin .template-default,.payload-admin .dashboard,
+.payload-admin .template-default__wrap,.payload-admin .dashboard__wrap{
+ margin-left:0!important;width:100%!important;max-width:100%!important;
+}
+.sm-cms-back-to-overview{
+ position:sticky;top:0;z-index:80;display:flex;justify-content:flex-end;
+ padding:8px clamp(12px,3vw,30px);min-height:51px;
+ background:#111020;border-bottom:1px solid rgba(190,166,255,.18);
+}
+.sm-cms-back-to-overview a{
+ display:inline-flex;align-items:center;gap:8px;min-height:35px;
+ padding:6px 13px;border:1px solid rgba(210,188,255,.33);
+ border-radius:10px;background:#2c2342;color:#f8eeff!important;
+ font-weight:700;font-size:13px;text-decoration:none;
+}
+.sm-cms-back-to-overview a:hover{background:#433258;border-color:#e0c7ff}
+.sm-cms-back-to-overview a:focus-visible{outline:2px solid #e2c9ff;outline-offset:3px}
