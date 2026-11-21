@@ -5,7 +5,7 @@ html.sm-cms-root,
 html.sm-cms-root body{
   color-scheme:dark;
   min-height:100%;
-  background:#0d0a17!important;
+  background:#191526!important;
   color:#f7f1ff;
 }
 html.sm-cms-root body::before{
@@ -13,23 +13,23 @@ html.sm-cms-root body::before{
   background:radial-gradient(ellipse 75% 55% at 50% -18%,rgba(129,63,179,.24),transparent 72%);
 }
 .sm-cms-root{
- --sm-surface:#171223;
- --sm-surface-raised:#1f1830;
- --sm-surface-muted:#211a34;
+ --sm-surface:#282136;
+ --sm-surface-raised:#332a44;
+ --sm-surface-muted:#312741;
  --sm-ink:#f7f1ff;
  --sm-ink-muted:#c8bad6;
  --sm-outline:rgba(201,166,242,.23);
  --sm-accent:#cd9dff;
  --sm-radius:18px;
- --theme-bg:#0d0a17;
- --theme-elevation-0:#0d0a17;
- --theme-elevation-50:#120e1d;
- --theme-elevation-100:#171223;
- --theme-elevation-150:#1f1830;
- --theme-elevation-200:#241c36;
- --theme-input-bg:#211a34;
+ --theme-bg:#191526;
+ --theme-elevation-0:#191526;
+ --theme-elevation-50:#221b31;
+ --theme-elevation-100:#282136;
+ --theme-elevation-150:#332a44;
+ --theme-elevation-200:#3a304d;
+ --theme-input-bg:#312741;
  min-height:100vh;
- background:#0d0a17!important;
+ background:#191526!important;
  color:var(--sm-ink)!important;
 }
 .sm-cms-root .app,
@@ -94,11 +94,11 @@ html.sm-cms-root button[aria-label="Menu"]{
 .sm-cms-root .app__content,.sm-cms-root .dashboard,
 .sm-cms-root .template-default{margin-left:0!important}
 .sm-cms-back-to-overview{
- background:#110d1d;border-bottom:1px solid var(--sm-outline,#3c2e4d);
+ background:#211a30;border-bottom:1px solid var(--sm-outline,#3c2e4d);
 }
 .sm-cms-back-to-overview a,
 .sm-cms-back-to-overview button{
- background:#281b3c;color:#f8eeff!important;
+ background:#403153;color:#f8eeff!important;
  border-color:rgba(207,165,255,.33);
 }
 /* Unified page width and hero: dashboard, customer, support, coupons,
@@ -273,22 +273,22 @@ html.sm-cms-root button[aria-label="Menu"]{
    Overrides must also beat Payload's --nav-open grid columns. */
 html.sm-cms-root[data-theme]{
   color-scheme:dark!important;
-  --theme-bg:#0d0a17!important;
-  --theme-bg-color:#0d0a17!important;
+  --theme-bg:#191526!important;
+  --theme-bg-color:#191526!important;
   --theme-text:#f7f1ff!important;
-  --theme-elevation-0:#0d0a17!important;
-  --theme-elevation-50:#120e1d!important;
-  --theme-elevation-100:#171223!important;
-  --theme-elevation-150:#1f1830!important;
-  --theme-elevation-200:#241c36!important;
-  --theme-input-bg:#211a34!important;
+  --theme-elevation-0:#191526!important;
+  --theme-elevation-50:#221b31!important;
+  --theme-elevation-100:#282136!important;
+  --theme-elevation-150:#332a44!important;
+  --theme-elevation-200:#3a304d!important;
+  --theme-input-bg:#312741!important;
   --nav-width:0px!important;
   --app-header-height:0px!important;
-  background:#0d0a17!important;
+  background:#191526!important;
   color:#f7f1ff!important;
 }
 html.sm-cms-root body{
-  background:#0d0a17!important;
+  background:#191526!important;
   color:#f7f1ff!important;
   min-height:100vh!important;
   margin:0;
@@ -300,7 +300,7 @@ html.sm-cms-root .template-default--nav-open,
 html.sm-cms-root .template-default--nav-hydrated.template-default--nav-open{
   display:grid!important;
   grid-template-columns:minmax(0,1fr)!important;
-  background:#0d0a17!important;
+  background:#191526!important;
   min-height:100vh;
   width:100%;
   margin:0!important;
@@ -312,8 +312,9 @@ html.sm-cms-root .template-default__wrap{
   width:100%!important;
   max-width:100%!important;
   margin:0!important;
-  padding:0!important;
-  background:#0d0a17!important;
+  padding:clamp(28px,3.2vw,44px) clamp(14px,2.5vw,32px) 40px!important;
+  box-sizing:border-box;
+  background:#191526!important;
   color:#f7f1ff!important;
 }
 html.sm-cms-root .template-default .nav,
@@ -341,4 +342,156 @@ html.sm-cms-root .sm-cms-back-to-overview{
   html.sm-cms-root .template-default--nav-hydrated.template-default--nav-open{
     grid-template-columns:minmax(0,1fr)!important;
   }
+}
+
+
+/* The overview is one containing surface: title, both groups of links and
+   technical tools belong to it. Inner link tiles are not separate panels. */
+html.sm-cms-root .sm-cms-clean{
+  margin:0 auto 36px;
+  padding:clamp(20px,3vw,36px)!important;
+  background:var(--sm-surface)!important;
+  border:1px solid var(--sm-outline);
+  border-radius:22px;
+  box-shadow:0 16px 40px rgba(9,5,20,.12);
+}
+html.sm-cms-root .sm-cms-clean-hero{
+  padding:0 0 24px;
+  margin:0 0 24px;
+  background:transparent;
+  border:0;
+  border-bottom:1px solid var(--sm-outline);
+  border-radius:0;
+  box-shadow:none;
+}
+html.sm-cms-root .sm-cms-clean-section{
+  margin-top:24px;
+}
+html.sm-cms-root .sm-cms-clean-section:first-of-type{margin-top:0}
+html.sm-cms-root .sm-cms-clean .sm-cms-quick-link{
+  background:var(--sm-surface-raised)!important;
+  border-color:rgba(201,166,242,.24);
+}
+html.sm-cms-root .sm-cms-clean .sm-cms-quick-link:hover{
+  background:#443554!important;
+  border-color:rgba(218,182,255,.55);
+}
+html.sm-cms-root .sm-cms-clean-advanced{margin-top:26px}
+html.sm-cms-root .dashboard__wrap{padding:0!important}
+
+/* Payload may retain its default LIGHT data-theme. Override the complete
+   elevation ramp so native text, SVG logos and button states have contrast. */
+html.sm-cms-root[data-theme]{
+  --theme-elevation-250:#443953!important;
+  --theme-elevation-300:#514362!important;
+  --theme-elevation-350:#605171!important;
+  --theme-elevation-400:#756487!important;
+  --theme-elevation-450:#89789b!important;
+  --theme-elevation-500:#a291b4!important;
+  --theme-elevation-550:#ae9fbe!important;
+  --theme-elevation-600:#c1b3d1!important;
+  --theme-elevation-650:#cbbddd!important;
+  --theme-elevation-700:#d8cce8!important;
+  --theme-elevation-750:#e1d6ec!important;
+  --theme-elevation-800:#ebe1f8!important;
+  --theme-elevation-850:#efe7fa!important;
+  --theme-elevation-900:#f5edff!important;
+  --theme-elevation-950:#f9f4ff!important;
+  --theme-elevation-1000:#ffffff!important;
+}
+html.sm-cms-root .sm-cms-back-to-overview a:hover,
+html.sm-cms-root .sm-cms-back-to-overview button:hover{background:#514064}
+html.sm-cms-root .sm-cms-back-to-overview a:focus-visible,
+html.sm-cms-root .sm-cms-back-to-overview button:focus-visible{
+  outline:2px solid #d9bcff;outline-offset:3px;
+}
+
+/* Actual Payload 3.94 MinimalTemplate, LoginView, Logo and FormSubmit.
+   This is the independent CMS login, not the customer's public login. */
+html.sm-cms-root .template-minimal{
+  background:radial-gradient(ellipse at 50% 12%,#352745 0%,#211a31 58%,#191526 100%)!important;
+  color:#f7f1ff;
+  min-height:100svh;
+  padding:clamp(28px,5vw,64px) 18px;
+  box-sizing:border-box;
+}
+html.sm-cms-root .template-minimal--width-normal .template-minimal__wrap{
+  width:100%;
+  max-width:480px;
+}
+html.sm-cms-root .login__brand{
+  margin-bottom:28px;
+  color:#f7f1ff;
+}
+html.sm-cms-root .template-minimal .graphic-logo path{fill:#f4ebff!important}
+html.sm-cms-root .template-minimal .graphic-logo{
+  color:#f4ebff;
+  opacity:1;
+  max-width:100%;
+}
+html.sm-cms-root .login__form{
+  padding:clamp(22px,4vw,36px);
+  background:#30263f!important;
+  border:1px solid rgba(216,183,252,.32);
+  border-radius:22px;
+  box-shadow:0 18px 48px rgba(8,5,18,.18);
+}
+html.sm-cms-root .template-minimal label,
+html.sm-cms-root .template-minimal .field-label{color:#f6ecff!important}
+html.sm-cms-root .template-minimal input{
+  background:#3b304e!important;
+  border:1px solid #79648f!important;
+  color:#fff!important;
+  min-height:46px;
+  border-radius:10px;
+}
+html.sm-cms-root .template-minimal input::placeholder{color:#c9bad8}
+html.sm-cms-root .template-minimal input:focus{
+  border-color:#d7b6ff!important;
+  outline:2px solid #b997e6;
+  outline-offset:2px;
+}
+html.sm-cms-root .template-minimal a:not(.btn){color:#e0c6ff!important}
+html.sm-cms-root .template-minimal .btn--style-primary:not(.btn--disabled):not(:disabled){
+  --color:#21172f;
+  --bg-color:#cbb1f6;
+  --hover-bg:#e0ccff;
+  --hover-color:#21172f;
+  color:var(--color)!important;
+  background:var(--bg-color)!important;
+  border:1px solid #dfc8ff;
+  border-radius:11px;
+  font-weight:700;
+}
+html.sm-cms-root .template-minimal .btn--style-primary:not(.btn--disabled):not(:disabled):hover,
+html.sm-cms-root .template-minimal .btn--style-primary:not(.btn--disabled):not(:disabled):focus-visible{
+  background:var(--hover-bg)!important;
+}
+html.sm-cms-root .template-minimal .btn--style-primary:focus-visible{
+  outline:2px solid #fff;outline-offset:3px;
+}
+html.sm-cms-root .template-minimal .btn--style-primary:disabled,
+html.sm-cms-root .template-minimal .btn--style-primary.btn--disabled{
+  background:#524464!important;color:#d6c8e7!important;
+}
+html.sm-cms-root .template-minimal .btn--style-secondary{
+  background:#49395d;
+  color:#f7f1ff;
+  border-color:#a58abd;
+  border-radius:10px;
+}
+@media(max-width:680px){
+  html.sm-cms-root .template-default__wrap{
+    padding:24px 12px 28px!important;
+  }
+  html.sm-cms-root .sm-cms-clean{
+    padding:18px 14px 22px!important;
+    border-radius:16px;
+  }
+  html.sm-cms-root .sm-cms-clean-hero{
+    padding:0 0 18px;
+    margin-bottom:18px;
+  }
+  html.sm-cms-root .sm-cms-clean-section{margin-top:22px}
+  html.sm-cms-root .login__form{padding:22px 18px}
 }
