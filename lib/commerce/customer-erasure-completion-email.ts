@@ -32,8 +32,7 @@ export async function retryCustomerErasureCompletionEmails(
    JOIN customer_erasure_jobs j ON j.account_id=m.account_id
    WHERE j.state='completed' AND m.sent_at IS NULL AND m.recipient IS NOT NULL
      AND (m.last_attempt_at IS NULL OR m.last_attempt_at<=?)
-   ORDER BY j.completed_at,m.created_at LIMIT 4`).all(Date.now()-60_000)
-   as {accountId:string;recipient:string}[];
+   ORDER BY j.completed_at,m.created_at LIMIT 4`).all(Date.now()-60_000) as {accountId:string;recipient:string}[];
   const intentsExist=!!db.prepare(
    "SELECT 1 FROM sqlite_master WHERE type='table' AND name='customer_erasure_refund_intents'").get();
   for(const entry of entries){
