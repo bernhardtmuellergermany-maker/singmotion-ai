@@ -1,18 +1,18 @@
 /* SingMotion CMS design system. This file is loaded last by the Payload
    root layout and intentionally never applies to public SingMotion pages.
    Keep Payload authentication, fields and protected routes unchanged. */
-html:has(.payload-admin),
-html:has(.payload-admin) body{
+html.sm-cms-root,
+html.sm-cms-root body{
   color-scheme:dark;
   min-height:100%;
   background:#0d0a17!important;
   color:#f7f1ff;
 }
-html:has(.payload-admin) body::before{
+html.sm-cms-root body::before{
   content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
   background:radial-gradient(ellipse 75% 55% at 50% -18%,rgba(129,63,179,.24),transparent 72%);
 }
-.payload-admin{
+.sm-cms-root{
  --sm-surface:#171223;
  --sm-surface-raised:#1f1830;
  --sm-surface-muted:#211a34;
@@ -32,67 +32,67 @@ html:has(.payload-admin) body::before{
  background:#0d0a17!important;
  color:var(--sm-ink)!important;
 }
-.payload-admin .app,
-.payload-admin .app__content,
-.payload-admin .app-header,
-.payload-admin .dashboard,
-.payload-admin .dashboard__wrap,
-.payload-admin .template-default,
-.payload-admin .template-default__wrap,
-.payload-admin .template-default__content,
-.payload-admin .template-default__header,
-.payload-admin .collections,
-.payload-admin .collection-list__wrap,
-.payload-admin .root{
+.sm-cms-root .app,
+.sm-cms-root .app__content,
+.sm-cms-root .app-header,
+.sm-cms-root .dashboard,
+.sm-cms-root .dashboard__wrap,
+.sm-cms-root .template-default,
+.sm-cms-root .template-default__wrap,
+.sm-cms-root .template-default__content,
+.sm-cms-root .template-default__header,
+.sm-cms-root .collections,
+.sm-cms-root .collection-list__wrap,
+.sm-cms-root .root{
  background-color:transparent!important;
  color:var(--sm-ink);
 }
-.payload-admin .dashboard__wrap,
-.payload-admin .template-default__wrap{
+.sm-cms-root .dashboard__wrap,
+.sm-cms-root .template-default__wrap{
  width:min(100%,1376px)!important;
  max-width:1376px!important;
  padding:clamp(14px,2.4vw,30px)!important;
  margin-inline:auto!important;
  box-sizing:border-box;
 }
-.payload-admin .gutter,
-.payload-admin .gutter--left,
-.payload-admin .gutter--right{background:transparent}
-.payload-admin h1{color:#fff}
-.payload-admin h2,.payload-admin h3{color:#f6ecff}
-.payload-admin p,.payload-admin label{color:inherit}
-.payload-admin .card,
-.payload-admin .collection-list,
-.payload-admin .render-fields,
-.payload-admin .collapsible,
-.payload-admin .tabs-field,
-.payload-admin .table,
-.payload-admin .auth-form,
-.payload-admin .list-controls{
+.sm-cms-root .gutter,
+.sm-cms-root .gutter--left,
+.sm-cms-root .gutter--right{background:transparent}
+.sm-cms-root h1{color:#fff}
+.sm-cms-root h2,.sm-cms-root h3{color:#f6ecff}
+.sm-cms-root p,.sm-cms-root label{color:inherit}
+.sm-cms-root .card,
+.sm-cms-root .collection-list,
+.sm-cms-root .render-fields,
+.sm-cms-root .collapsible,
+.sm-cms-root .tabs-field,
+.sm-cms-root .table,
+.sm-cms-root .auth-form,
+.sm-cms-root .list-controls{
  background:var(--sm-surface)!important;
  border:1px solid var(--sm-outline)!important;
  border-radius:var(--sm-radius);
  color:var(--sm-ink);
 }
-.payload-admin .table thead{background:var(--sm-surface-muted)}
-.payload-admin .table tbody tr:hover{background:rgba(190,128,247,.08)}
-/* Payload can portal the mobile drawer and hamburger outside .payload-admin.
+.sm-cms-root .table thead{background:var(--sm-surface-muted)}
+.sm-cms-root .table tbody tr:hover{background:rgba(190,128,247,.08)}
+/* Payload can portal the mobile drawer and hamburger outside .sm-cms-root.
    Only pages containing the CMS root receive these rules. */
-html:has(.payload-admin) .nav,
-html:has(.payload-admin) .nav-toggler,
-html:has(.payload-admin) .app-header__menu-button,
-html:has(.payload-admin) .app-header__nav-toggle,
-html:has(.payload-admin) .hamburger,
-html:has(.payload-admin) button[aria-label="Open menu"],
-html:has(.payload-admin) button[aria-label="Toggle menu"],
-html:has(.payload-admin) button[aria-label="Open navigation"],
-html:has(.payload-admin) button[aria-label="Toggle navigation"],
-html:has(.payload-admin) button[aria-label="Menu"]{
+html.sm-cms-root .nav,
+html.sm-cms-root .nav-toggler,
+html.sm-cms-root .app-header__menu-button,
+html.sm-cms-root .app-header__nav-toggle,
+html.sm-cms-root .hamburger,
+html.sm-cms-root button[aria-label="Open menu"],
+html.sm-cms-root button[aria-label="Toggle menu"],
+html.sm-cms-root button[aria-label="Open navigation"],
+html.sm-cms-root button[aria-label="Toggle navigation"],
+html.sm-cms-root button[aria-label="Menu"]{
  display:none!important;
 }
-.payload-admin{--nav-width:0px!important}
-.payload-admin .app__content,.payload-admin .dashboard,
-.payload-admin .template-default{margin-left:0!important}
+.sm-cms-root{--nav-width:0px!important}
+.sm-cms-root .app__content,.sm-cms-root .dashboard,
+.sm-cms-root .template-default{margin-left:0!important}
 .sm-cms-back-to-overview{
  background:#110d1d;border-bottom:1px solid var(--sm-outline,#3c2e4d);
 }
@@ -103,11 +103,11 @@ html:has(.payload-admin) button[aria-label="Menu"]{
 }
 /* Unified page width and hero: dashboard, customer, support, coupons,
    marketing, showcase and technical tools use one dark layout system. */
-.payload-admin .sm-cms-clean,
-.payload-admin .sm-cms-tool-view,
-.payload-admin .sm-insights,
-.payload-admin .sm-marketing,
-.payload-admin .sm-promo-cms{
+.sm-cms-root .sm-cms-clean,
+.sm-cms-root .sm-cms-tool-view,
+.sm-cms-root .sm-insights,
+.sm-cms-root .sm-marketing,
+.sm-cms-root .sm-promo-cms{
  max-width:1260px;width:100%;
  margin:0 auto 36px;
  padding:0 0 48px;
@@ -118,11 +118,11 @@ html:has(.payload-admin) button[aria-label="Menu"]{
  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
  box-sizing:border-box;
 }
-.payload-admin .sm-cms-clean-hero,
-.payload-admin .sm-cms-page-hero,
-.payload-admin .sm-insights-hero,
-.payload-admin .sm-marketing-heading,
-.payload-admin .sm-support-heading{
+.sm-cms-root .sm-cms-clean-hero,
+.sm-cms-root .sm-cms-page-hero,
+.sm-cms-root .sm-insights-hero,
+.sm-cms-root .sm-marketing-heading,
+.sm-cms-root .sm-support-heading{
  display:block;
  width:100%;max-width:none;
  margin:0 0 22px;
@@ -134,82 +134,82 @@ html:has(.payload-admin) button[aria-label="Menu"]{
  color:var(--sm-ink);
  box-sizing:border-box;
 }
-.payload-admin .sm-cms-clean-hero h1,
-.payload-admin .sm-cms-page-hero h1,
-.payload-admin .sm-insights-hero h1,
-.payload-admin .sm-marketing-heading h1,
-.payload-admin .sm-support-heading h1{
+.sm-cms-root .sm-cms-clean-hero h1,
+.sm-cms-root .sm-cms-page-hero h1,
+.sm-cms-root .sm-insights-hero h1,
+.sm-cms-root .sm-marketing-heading h1,
+.sm-cms-root .sm-support-heading h1{
  margin:8px 0 8px;
  font-size:clamp(27px,3.7vw,38px)!important;
  line-height:1.16;
  letter-spacing:-.035em;
  color:#fff;
 }
-.payload-admin .sm-cms-page-hero p,
-.payload-admin .sm-cms-clean-hero p,
-.payload-admin .sm-insights-hero p,
-.payload-admin .sm-marketing-heading p,
-.payload-admin .sm-support-heading p:not(.sm-support-kicker){
+.sm-cms-root .sm-cms-page-hero p,
+.sm-cms-root .sm-cms-clean-hero p,
+.sm-cms-root .sm-insights-hero p,
+.sm-cms-root .sm-marketing-heading p,
+.sm-cms-root .sm-support-heading p:not(.sm-support-kicker){
  color:var(--sm-ink-muted);
  font-size:clamp(13px,1.4vw,15px);
  line-height:1.6;
  margin:0;
  max-width:920px;
 }
-.payload-admin .sm-cms-clean-eyebrow,
-.payload-admin .sm-insights-kicker,
-.payload-admin .sm-marketing-heading>span,
-.payload-admin .sm-support-kicker{
+.sm-cms-root .sm-cms-clean-eyebrow,
+.sm-cms-root .sm-insights-kicker,
+.sm-cms-root .sm-marketing-heading>span,
+.sm-cms-root .sm-support-kicker{
  color:var(--sm-accent);
  font-size:11px;
  letter-spacing:.12em;
  font-weight:800;
 }
-.payload-admin .sm-cms-quick-link,
-.payload-admin .sm-insights-stat,
-.payload-admin .sm-insights-area,
-.payload-admin .sm-insights-detail,
-.payload-admin .sm-marketing-list,
-.payload-admin .sm-marketing-editor,
-.payload-admin .sm-marketing-summary,
-.payload-admin .sm-cms-tool-view section:not(.sm-support-admin),
-.payload-admin .sm-cms-tool-details,
-.payload-admin .sm-support-search,
-.payload-admin .sm-support-details,
-.payload-admin .sm-promo-cms form,
-.payload-admin .sm-promo-cms>div,
-.payload-admin .sm-promo-cms>section{
+.sm-cms-root .sm-cms-quick-link,
+.sm-cms-root .sm-insights-stat,
+.sm-cms-root .sm-insights-area,
+.sm-cms-root .sm-insights-detail,
+.sm-cms-root .sm-marketing-list,
+.sm-cms-root .sm-marketing-editor,
+.sm-cms-root .sm-marketing-summary,
+.sm-cms-root .sm-cms-tool-view section:not(.sm-support-admin),
+.sm-cms-root .sm-cms-tool-details,
+.sm-cms-root .sm-support-search,
+.sm-cms-root .sm-support-details,
+.sm-cms-root .sm-promo-cms form,
+.sm-cms-root .sm-promo-cms>div,
+.sm-cms-root .sm-promo-cms>section{
  background:var(--sm-surface)!important;
  border:1px solid var(--sm-outline);
  border-radius:var(--sm-radius);
  box-shadow:0 10px 30px rgba(5,3,14,.12);
  color:var(--sm-ink);
 }
-.payload-admin .sm-cms-quick-link:hover{background:var(--sm-surface-raised)!important}
-.payload-admin .sm-support-admin{
+.sm-cms-root .sm-cms-quick-link:hover{background:var(--sm-surface-raised)!important}
+.sm-cms-root .sm-support-admin{
  width:100%;max-width:none;
  padding:0!important;margin:0;
  background:transparent!important;
 }
-.payload-admin .sm-promo-cms{max-width:1260px!important}
-.payload-admin .sm-promo-cms>header{max-width:none}
-.payload-admin .sm-promo-cms form{padding:clamp(15px,2vw,23px)}
-.payload-admin .sm-promo-cms label{
+.sm-cms-root .sm-promo-cms{max-width:1260px!important}
+.sm-cms-root .sm-promo-cms>header{max-width:none}
+.sm-cms-root .sm-promo-cms form{padding:clamp(15px,2vw,23px)}
+.sm-cms-root .sm-promo-cms label{
  color:var(--sm-ink-muted);font-weight:650;font-size:13px;
 }
-.payload-admin .sm-promo-cms input,
-.payload-admin .sm-promo-cms select,
-.payload-admin .sm-promo-cms textarea{
+.sm-cms-root .sm-promo-cms input,
+.sm-cms-root .sm-promo-cms select,
+.sm-cms-root .sm-promo-cms textarea{
  background:var(--sm-surface-muted)!important;
  color:#fff!important;
  border:1px solid rgba(202,161,242,.43)!important;
  border-radius:10px;padding:10px 12px;min-height:43px;
 }
-.payload-admin .sm-promo-cms button,
-.payload-admin .sm-support-admin button,
-.payload-admin .sm-marketing button,
-.payload-admin .sm-insights button,
-.payload-admin .sm-showcase-cms-manager button{
+.sm-cms-root .sm-promo-cms button,
+.sm-cms-root .sm-support-admin button,
+.sm-cms-root .sm-marketing button,
+.sm-cms-root .sm-insights button,
+.sm-cms-root .sm-showcase-cms-manager button{
  border:1px solid rgba(205,160,247,.49);
  border-radius:10px;
  background:#39244e;
@@ -217,49 +217,128 @@ html:has(.payload-admin) button[aria-label="Menu"]{
  min-height:40px;
  font-weight:650;
 }
-.payload-admin .sm-promo-cms button:hover,
-.payload-admin .sm-support-admin button:hover,
-.payload-admin .sm-marketing button:hover,
-.payload-admin .sm-insights button:hover{background:#52316f}
-.payload-admin .sm-promo-cms button:disabled,
-.payload-admin .sm-support-admin button:disabled{opacity:.5;cursor:not-allowed}
-.payload-admin .sm-promo-cms table{width:100%;background:var(--sm-surface)}
-.payload-admin .sm-promo-cms th,
-.payload-admin .sm-promo-cms td{
+.sm-cms-root .sm-promo-cms button:hover,
+.sm-cms-root .sm-support-admin button:hover,
+.sm-cms-root .sm-marketing button:hover,
+.sm-cms-root .sm-insights button:hover{background:#52316f}
+.sm-cms-root .sm-promo-cms button:disabled,
+.sm-cms-root .sm-support-admin button:disabled{opacity:.5;cursor:not-allowed}
+.sm-cms-root .sm-promo-cms table{width:100%;background:var(--sm-surface)}
+.sm-cms-root .sm-promo-cms th,
+.sm-cms-root .sm-promo-cms td{
  padding:10px 12px!important;
  border-bottom:1px solid var(--sm-outline)!important;
  text-align:left;
  color:var(--sm-ink);
 }
-.payload-admin .sm-promo-cms thead{background:var(--sm-surface-muted)}
-.payload-admin .sm-promo-cms tr:hover{background:rgba(190,128,247,.07)}
-.payload-admin .sm-promo-cms>div{padding:clamp(12px,2vw,22px)}
-.payload-admin .sm-showcase-cms-manager{
+.sm-cms-root .sm-promo-cms thead{background:var(--sm-surface-muted)}
+.sm-cms-root .sm-promo-cms tr:hover{background:rgba(190,128,247,.07)}
+.sm-cms-root .sm-promo-cms>div{padding:clamp(12px,2vw,22px)}
+.sm-cms-root .sm-showcase-cms-manager{
  width:100%;max-width:none;
  margin:12px 0;
  background:var(--sm-surface)!important;
  border:1px solid var(--sm-outline);
  border-radius:var(--sm-radius);
 }
-.payload-admin .sm-cms-tool-view>section{margin-bottom:16px}
-.payload-admin .sm-cms-tool-view .sm-cms-page-hero{margin-bottom:20px}
-.payload-admin .sm-cms-tool-view .sm-support-admin{border:0!important;box-shadow:none!important}
+.sm-cms-root .sm-cms-tool-view>section{margin-bottom:16px}
+.sm-cms-root .sm-cms-tool-view .sm-cms-page-hero{margin-bottom:20px}
+.sm-cms-root .sm-cms-tool-view .sm-support-admin{border:0!important;box-shadow:none!important}
 @media(max-width:680px){
- .payload-admin .dashboard__wrap,.payload-admin .template-default__wrap{
+ .sm-cms-root .dashboard__wrap,.sm-cms-root .template-default__wrap{
   padding:12px!important;
  }
- .payload-admin .sm-cms-clean,
- .payload-admin .sm-cms-tool-view,
- .payload-admin .sm-insights,
- .payload-admin .sm-marketing,
- .payload-admin .sm-promo-cms{padding:0 0 24px}
- .payload-admin .sm-cms-clean-hero,
- .payload-admin .sm-cms-page-hero,
- .payload-admin .sm-insights-hero,
- .payload-admin .sm-marketing-heading,
- .payload-admin .sm-support-heading{
+ .sm-cms-root .sm-cms-clean,
+ .sm-cms-root .sm-cms-tool-view,
+ .sm-cms-root .sm-insights,
+ .sm-cms-root .sm-marketing,
+ .sm-cms-root .sm-promo-cms{padding:0 0 24px}
+ .sm-cms-root .sm-cms-clean-hero,
+ .sm-cms-root .sm-cms-page-hero,
+ .sm-cms-root .sm-insights-hero,
+ .sm-cms-root .sm-marketing-heading,
+ .sm-cms-root .sm-support-heading{
   padding:20px 16px;border-radius:14px;
  }
- .payload-admin .sm-support-search,.payload-admin .sm-support-details,
- .payload-admin .sm-promo-cms form{padding:15px}
+ .sm-cms-root .sm-support-search,.sm-cms-root .sm-support-details,
+ .sm-cms-root .sm-promo-cms form{padding:15px}
+}
+
+
+/* v3.94 Payload's RootLayout writes <html data-theme=...> and its
+   DefaultTemplate renders its own sidebar/grid, fixed top-header and
+   hamburger OUTSIDE the custom Dashboard. There is no .payload-admin
+   DOM class. The explicit htmlProps on our RootLayout supplies this
+   genuine root class; these rules cannot affect the public website.
+   Overrides must also beat Payload's --nav-open grid columns. */
+html.sm-cms-root[data-theme]{
+  color-scheme:dark!important;
+  --theme-bg:#0d0a17!important;
+  --theme-bg-color:#0d0a17!important;
+  --theme-text:#f7f1ff!important;
+  --theme-elevation-0:#0d0a17!important;
+  --theme-elevation-50:#120e1d!important;
+  --theme-elevation-100:#171223!important;
+  --theme-elevation-150:#1f1830!important;
+  --theme-elevation-200:#241c36!important;
+  --theme-input-bg:#211a34!important;
+  --nav-width:0px!important;
+  --app-header-height:0px!important;
+  background:#0d0a17!important;
+  color:#f7f1ff!important;
+}
+html.sm-cms-root body{
+  background:#0d0a17!important;
+  color:#f7f1ff!important;
+  min-height:100vh!important;
+  margin:0;
+}
+/* No invisible first grid column: Payload retains navOpen after hiding aside.
+   Override its responsive grid directly, regardless of that preference. */
+html.sm-cms-root .template-default,
+html.sm-cms-root .template-default--nav-open,
+html.sm-cms-root .template-default--nav-hydrated.template-default--nav-open{
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr)!important;
+  background:#0d0a17!important;
+  min-height:100vh;
+  width:100%;
+  margin:0!important;
+  padding:0!important;
+}
+html.sm-cms-root .template-default__wrap{
+  grid-column:1/-1!important;
+  min-width:0!important;
+  width:100%!important;
+  max-width:100%!important;
+  margin:0!important;
+  padding:0!important;
+  background:#0d0a17!important;
+  color:#f7f1ff!important;
+}
+html.sm-cms-root .template-default .nav,
+html.sm-cms-root .template-default .nav--nav-open,
+html.sm-cms-root .template-default__nav-toggler-wrapper,
+html.sm-cms-root .template-default__nav-toggler-container,
+html.sm-cms-root .template-default__nav-toggler,
+html.sm-cms-root .app-header,
+html.sm-cms-root .app-header__mobile-nav-toggler{
+  display:none!important;
+}
+html.sm-cms-root .dashboard,
+html.sm-cms-root .dashboard__wrap,
+html.sm-cms-root .gutter,
+html.sm-cms-root .template-default__content,
+html.sm-cms-root .template-default__header{
+  background:transparent!important;
+}
+html.sm-cms-root .sm-cms-back-to-overview{
+  z-index:95;
+  position:sticky;
+  top:0;
+}
+@media(max-width:1440px){
+  html.sm-cms-root .template-default--nav-hydrated.template-default--nav-open{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
 }
