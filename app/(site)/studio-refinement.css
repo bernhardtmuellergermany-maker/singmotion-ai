@@ -3123,3 +3123,17 @@
     padding:6px;
   }
 }
+
+/* On touch screens, swiping the large photo scrolls the page. Only the four
+ * crop handles intercept touch gestures; desktop mouse dragging is unchanged. */
+@media(pointer:coarse){
+ .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-crop-viewport{
+   touch-action:pan-y;cursor:default;
+ }
+ .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-crop-corner{
+   touch-action:none;
+ }
+ .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-overlay-trash{
+   touch-action:manipulation;
+ }
+}
