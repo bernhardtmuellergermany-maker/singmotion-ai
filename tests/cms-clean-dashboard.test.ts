@@ -54,9 +54,16 @@ test("SingMotion CMS uses one dark page design and hides the empty mobile menu",
  const showcase=read("components/cms/showcase-view.tsx");
  const advanced=read("components/cms/advanced-view.tsx");
  assert.ok(layout.includes('import "./cms-unified-dark.css"'));
- assert.match(css,/html:has\(\.payload-admin\) body/);
+ assert.match(layout,/htmlProps=\{\{className:"sm-cms-root"\}\}/);
+ assert.match(css,/html\.sm-cms-root\[data-theme\]/);
+ assert.match(css,/\.template-default--nav-hydrated\.template-default--nav-open/);
+ assert.match(css,/grid-template-columns:minmax\(0,1fr\)!important/);
+ assert.match(css,/\.template-default__nav-toggler-wrapper/);
+ assert.match(css,/\.app-header/);
+ assert.doesNotMatch(css,/:has\(\.payload-admin\)/);
+ assert.match(css,/html\.sm-cms-root body/);
  assert.match(css,/background:#0d0a17!important/);
- assert.match(css,/html:has\(\.payload-admin\) \.nav-toggler/);
+ assert.match(css,/html\.sm-cms-root \.nav-toggler/);
  assert.match(css,/button\[aria-label="Toggle navigation"\]/);
  for(const className of ["sm-cms-clean-hero","sm-cms-page-hero","sm-insights-hero","sm-marketing-heading","sm-support-heading"])
   assert.ok(css.includes("."+className),className);

@@ -21,6 +21,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     );
   return (
     <RootLayout
+      htmlProps={{className:"sm-cms-root"}}
       config={config}
       importMap={importMap}
       serverFunction={serverFunction}
