@@ -22,9 +22,11 @@ export async function POST(req:NextRequest){
   try{store.logout(customerToken)}finally{store.close()}
  }
  const media=req.cookies.get("sm_session")?.value;
- if(media&&session(media))revokeMediaSession(media);
+ const mediaOwner=media?session(media)?.owner:null;
+ // A public logout must not revoke an independently authenticated operator.
+ if(media&&mediaOwner&&!mediaOwner.startsWith("cms-staff-"))revokeMediaSession(media);
  const response=NextResponse.json({signedOut:true},{headers:{"Cache-Control":"no-store"}});
  response.cookies.delete("sm_customer");
- response.cookies.delete("sm_session");
+ if(!mediaOwner?.startsWith("cms-staff-"))response.cookies.delete("sm_session");
  return response;
 }
