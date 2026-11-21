@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {ArrowUpRight, UsersRound, LifeBuoy, Film, Gift, Settings, Megaphone} from "lucide-react";
+import {ArrowUpRight, UsersRound, LifeBuoy, Film, Gift, Settings, Megaphone, Music2} from "lucide-react";
 import {hasRole} from "../../cms/policy";
 
 type Entry={label:string;description:string;href:string;icon:typeof UsersRound};
@@ -30,6 +30,7 @@ export function Operations({user}:{user:unknown}){
  const management:Entry[]=superAdmin?[
   {label:"Marketing & Aktionen",description:"Kampagnen und Aktionspreise",href:"/admin/marketing-actions",icon:Megaphone},
   {label:"Gutscheine",description:"Rabattcodes verwalten",href:"/admin/promotions",icon:Gift},
+  {label:"Audio Quick Tips",description:"Audio-Vorlagen für den Studio-Upload verwalten",href:"/admin/audio-quick-tips",icon:Music2},
   {label:"Showcase-Videos",description:"Videos auf der Startseite auswählen",href:"/admin/showcase",icon:Film},
  ]:[];
  return <main className="sm-cms-clean" aria-label="SingMotion CMS Übersicht">

@@ -29,3 +29,19 @@ test("signed-in balance comes from private wallet and correctly distinguishes sh
  assert.match(balance,/availableCredits:Math\.max\(0,rawBalance\)/);
  assert.match(wizard,/window\.addEventListener\("credits-changed",refresh\)/);
 });
+
+test("audio quick tips use the same private upload and existing waveform",()=>{
+ const wizard=read("components/studio-wizard.tsx");
+ const tips=read("components/audio-quick-tips.tsx");
+ const api=read("app/(site)/api/audio-quick-tips/route.ts");
+ const ops=read("components/cms/operations.tsx");
+ assert.ok(wizard.indexOf("<AudioQuickTips")>wizard.indexOf("<SunoSongImport"));
+ assert.match(wizard,/add\(undefined,"audio",\(\)=>downloadAudioQuickTip\(tip\)\)/);
+ assert.match(wizard,/uploadWithProgress\(file, kind,/);
+ assert.match(wizard,/<Waveform key=\{draft.song.id\}/);
+ assert.match(tips,/new File\(\[blob\],tip.filename/);
+ assert.match(api,/await mutationAllowed\(req\)/);
+ assert.match(api,/await validateAudio\(source\)/);
+ assert.match(api,/AND active=1/);
+ assert.match(ops,/href:"\/admin\/audio-quick-tips"/);
+});
