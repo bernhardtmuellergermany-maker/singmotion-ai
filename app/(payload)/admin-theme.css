@@ -364,3 +364,11 @@ html:has(.payload-admin) { color-scheme: dark; }
 .sm-cms-back-to-overview button:focus-visible{outline:2px solid #e2c9ff;outline-offset:3px}
 .sm-cms-back-to-overview button:disabled{opacity:.55;cursor:wait}
 .sm-cms-back-to-overview [role=alert]{color:#ffc3d4;font-size:12px;align-self:center}
+
+/* On narrow screens Payload portals its drawer outside .payload-admin.
+   Hide that drawer too, while keeping the public site's navigation intact. */
+html:has(.payload-admin) .nav,
+html:has(.payload-admin) .nav-toggler,
+html:has(.payload-admin) .app-header__menu-button{
+ display:none!important;
+}

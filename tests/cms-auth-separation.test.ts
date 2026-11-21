@@ -15,3 +15,14 @@ test("Customer login never attempts CMS staff authentication",()=>{
  assert.match(read("app/(site)/api/customer-auth/route.ts"),/kind:"customer"/);
  assert.match(read("app/(site)/api/[...path]/route.ts"),/Public account wins when CMS and customer cookies coexist/);
 });
+
+test("customer sign-outs do not revoke a staff-owned Studio media session",()=>{
+ const logout=read("app/(site)/api/unified-logout/route.ts");
+ const customer=read("app/(site)/api/customer-auth/route.ts");
+ const google=read("app/(site)/api/google-auth/callback/route.ts");
+ assert.match(logout,/mediaOwner\.startsWith\("cms-staff-"\)/);
+ assert.match(logout,/!mediaOwner\?\.startsWith\("cms-staff-"\)/);
+ assert.match(customer,/mediaOwner\?\.startsWith\("customer-"\)/);
+ assert.match(customer,/!mediaOwner\?\.startsWith\("cms-staff-"\)/);
+ assert.doesNotMatch(google,/owner\.startsWith\("customer-"\)\|\|owner\.startsWith\("cms-staff-"\)/);
+});

@@ -66,12 +66,13 @@ export async function POST(req:NextRequest){
    const response=json({authenticated:false});
    response.cookies.delete("sm_customer");
    const media=req.cookies.get("sm_session")?.value;
-   if(media && session(media) && (session(media)?.owner.startsWith("customer-")||session(media)?.owner.startsWith("cms-staff-")))revokeMediaSession(media);
+   const mediaOwner=media?session(media)?.owner:null;
+   if(media && mediaOwner?.startsWith("customer-"))revokeMediaSession(media);
    const guest=req.cookies.get("sm_guest_session")?.value;
    if(guest && session(guest) && !session(guest)?.owner.startsWith("customer-") && !session(guest)?.owner.startsWith("cms-staff-")){
     response.cookies.set("sm_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
     response.cookies.delete("sm_guest_session");
-   }else response.cookies.delete("sm_session");
+   }else if(!mediaOwner?.startsWith("cms-staff-"))response.cookies.delete("sm_session");
    return response;
   }
   if(!["login","register"].includes(input.action||"")||typeof input.email!=="string"||typeof input.password!=="string")return json({error:"Invalid request"},400);
