@@ -66,3 +66,9 @@
 .sm-credit-country-fields select:focus-visible{outline:2px solid #b779ee;outline-offset:2px}
 .sm-credit-country-fields p{grid-column:1/-1;color:#bbb1ce;font-size:12px;line-height:1.5;margin:3px 0 0}
 @media(max-width:620px){.sm-credit-country-fields{grid-template-columns:1fr}}
+
+.sm-credit-payment-choice{display:grid;gap:10px;margin:20px 0 0;padding:15px;border:1px solid #695783;border-radius:11px}
+.sm-credit-payment-choice legend{font-size:14px;font-weight:700;color:#f4ebff;padding:0 6px}
+.sm-credit-payment-choice label{display:flex;align-items:center;gap:10px;font-size:13px;line-height:1.5;color:#f4ebff;cursor:pointer}
+.sm-credit-payment-choice input{width:18px;height:18px;accent-color:#bd82ff;flex:none}
+.sm-credit-payment-choice p{margin:2px 0 0;font-size:12px;line-height:1.5;color:#bcb1d1}

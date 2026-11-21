@@ -10,6 +10,7 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 import {managedCreditMoRApproved,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
+import {selectAlternativeCreditCheckout} from "@/lib/commerce/alternative-credit-checkout";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 
@@ -33,7 +34,7 @@ export async function POST(req:NextRequest){
   limit("credit-test-checkout",12,60000);
   if(Number(req.headers.get("content-length"))>1024)return json({error:"Request too large."},413);
   const raw=await req.text();if(Buffer.byteLength(raw)>1024)return json({error:"Request too large."},413);
-  const body=JSON.parse(raw) as {credits?:unknown;requestKey?:unknown;billingCountry?:unknown;buyerType?:unknown;resumeDraft?:unknown;requiredCredits?:unknown};
+  const body=JSON.parse(raw) as {credits?:unknown;requestKey?:unknown;billingCountry?:unknown;buyerType?:unknown;paymentRoute?:unknown;resumeDraft?:unknown;requiredCredits?:unknown};
   if(typeof body.credits!=="string"||typeof body.requestKey!=="string")
    return json({error:"Enter a valid credit amount."},400);
   const credits=parseCreditTopup(body.credits);
@@ -47,7 +48,9 @@ export async function POST(req:NextRequest){
     ?`&resumeDraft=${encodeURIComponent(body.resumeDraft)}&requiredCredits=${body.requiredCredits}`:"";
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
-  const useMoR=liveMode&&managedCreditMoRApproved(process.env);
+  const route=selectAlternativeCreditCheckout(process.env,body.paymentRoute,liveMode);
+  if(!route.allowed)return json({error:"Alternative payment methods are not yet approved for this Credit purchase."},422);
+  const useMoR=liveMode&&managedCreditMoRApproved(process.env)&&!route.alternative;
   // Stripe MoR collects billing country only on its hosted Checkout.
   // The signed webhook verifies the actual Stripe country before Credits accrue.
   const tax=liveMode&&!useMoR?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
@@ -85,6 +88,7 @@ export async function POST(req:NextRequest){
     customer_email:identity.email,
     "metadata[creditTopupId]":purchase.id,
     "metadata[flow]":"singmotion_credit_topup",
+    ...(route.alternative?{"metadata[creditPaymentRoute]":"reviewed-seller-stripe"}:{}),
     ...(useMoR?{"metadata[creditTaxFlow]":"stripe-collected"}:{}),
     ...(liveMode&&tax?.decision?{
       "metadata[creditTaxCountry]":tax.decision.country,
@@ -158,6 +162,7 @@ export async function POST(req:NextRequest){
    }
    const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string;managed_payments?:{enabled?:boolean}};
    if((useMoR&&session.managed_payments?.enabled!==true)||
+      (route.alternative&&session.managed_payments?.enabled!==false)||
       session.livemode!==liveMode||session.mode!=="payment"||session.amount_total!==purchase.cents||
       session.currency!=="eur"||!session.id||!session.url)
     return json({error:"Stripe Checkout verification failed."},502);
