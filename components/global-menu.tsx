@@ -1,6 +1,5 @@
 "use client";
 import {useEffect,useRef,useState} from "react";
-import {readCustomerAuthStatus} from "@/lib/client-auth-status";
 import Link from "next/link";
 import {MoreVertical} from "lucide-react";
 export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } = {}) {
@@ -8,14 +7,16 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
   const [musicEnabled,setMusicEnabled]=useState(false);
   useEffect(()=>{
     let active=true;
-    void readCustomerAuthStatus().then(async auth=>{
-      if(auth?.staffRole==="super-admin"){if(active)setMusicEnabled(true);return;}
-      if(auth?.authenticated&&auth.kind==="customer"){
-        const r=await fetch("/api/music-video",{credentials:"same-origin",cache:"no-store"}).catch(()=>null);
-        if(active)setMusicEnabled(!!r?.ok);
-      }
-    });
-    return()=>{active=false;};
+    // Only the protected music-video API can prove CMS Super Admin access.
+    // Customer authentication is independent and must never expose Projects.
+    const check=()=>{void fetch("/api/music-video",{credentials:"same-origin",cache:"no-store"})
+      .then(r=>{if(active)setMusicEnabled(r.ok);})
+      .catch(()=>{if(active)setMusicEnabled(false);});};
+    check();
+    window.addEventListener("focus",check);
+    window.addEventListener("sm-auth-changed",check);
+    return()=>{active=false;window.removeEventListener("focus",check);
+      window.removeEventListener("sm-auth-changed",check);};
   },[]);
   useEffect(() => {
     const closeOutside = (event: PointerEvent) => {
