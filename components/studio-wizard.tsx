@@ -650,7 +650,7 @@ export function StudioWizard({
   const operatorStudio=owner.startsWith("cms-staff-");
   const creditStudio=operatorStudio||owner.startsWith("customer-");
   useEffect(()=>{
-    if(step!==3)return;
+    if(step!==0&&step!==3)return;
     let active=true;
     const load=()=>void fetch("/api/credit-tariff",{cache:"no-store"})
       .then(async response=>{if(!response.ok)throw Error("Tariff unavailable");
@@ -665,9 +665,15 @@ export function StudioWizard({
   const reviewPrice=creditQuote
     ?new Intl.NumberFormat("en-GB").format(creditQuote.credits)+" Credits"
     :"Unavailable";
+  // Step 1 shows the same server-tariff quote used for the final Step 4 review.
+  // A photo or final Studio selection is not required to price an audio excerpt.
+  const clipCreditQuote=draft.song&&activeTariff
+    ?quoteVideoCredits(draft.start,draft.end,activeTariff.creditsPerSecond):null;
+  const formatCredits=(value:number)=>new Intl.NumberFormat("en-GB").format(value);
   useEffect(()=>{
-    if(step!==3||!creditStudio)return;
+    if((step!==0&&step!==3)||!creditStudio)return;
     let active=true;
+    setReviewBalance(null);
     const refresh=()=>{
       void fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"})
         .then(async response=>{
@@ -893,7 +899,20 @@ export function StudioWizard({
             <>
               <div className="sm-new-file-card">
                 <span className="sm-new-file-icon"><Music2 size={27}/></span>
-                <div className="sm-new-file-info"><strong>{draft.song.name}</strong><span>{sourceTimestamp(draft.song.duration||0)} · Selected clip {sourceTimestamp(draft.start)}–{sourceTimestamp(draft.end)} ({sourceTimestamp(Math.max(0,draft.end-draft.start))})</span></div>
+                <div className="sm-new-file-info"><strong>{draft.song.name}</strong>
+                  <div className="sm-new-file-credits" aria-label="Selected audio credit estimate">
+                    <span className="sm-new-file-credits-cost">{clipCreditQuote
+                      ?`Selection: ${formatCredits(clipCreditQuote.credits)} Credits`
+                      :activeTariff?"Choose a clip of at least 5 seconds":"Calculating Credits…"}</span>
+                    {creditStudio&&clipCreditQuote&&reviewBalance!==null&&
+                      <span className={reviewBalance<clipCreditQuote.credits
+                        ?"sm-new-file-credits-balance is-short":"sm-new-file-credits-balance"}>
+                        {reviewBalance<clipCreditQuote.credits
+                          ?`Available: ${formatCredits(reviewBalance)} · Need ${formatCredits(clipCreditQuote.credits-reviewBalance)} more`
+                          :`Available: ${formatCredits(reviewBalance)} · After: ${formatCredits(reviewBalance-clipCreditQuote.credits)} Credits`}
+                      </span>}
+                  </div>
+                </div>
                 <button className="sm-new-file-delete" type="button" aria-label="Delete audio" title="Delete audio" disabled={busy} onClick={()=>update({song:null,start:0,end:10})}><Trash2 size={20}/></button>
               </div>
               <div className="sm-new-wave-card">
