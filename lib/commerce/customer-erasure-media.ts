@@ -125,7 +125,7 @@ const liveKnown=new Set(["live_attempts","live_studio_projects","live_studio_act
  "live_first_test_results","live_output_reviews","live_operator_actions",
  "live_output_checks","live_export_attempts","live_studio_credit_video_ready_outbox"]);
 const commerceKnown=new Set(["customer_accounts","customer_sessions","customer_erasure_jobs",
- "customer_erasure_refund_intents","customer_session_policies","customer_email_verifications",
+ "customer_erasure_refund_intents","customer_erasure_completion_emails","customer_session_policies","customer_email_verifications",
  "customer_google_identities","customer_password_resets","customer_email_preferences",
  "credit_topup_purchases","credit_purchase_tax_context","credit_wallet_ledger",
  "credit_video_reservations","customer_orders","customer_credits","customer_holds",

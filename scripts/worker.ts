@@ -8,6 +8,7 @@ import {auditCreditLedgerFile} from "./audit-credit-ledger.ts";
 import {retryPendingWithdrawalReceipts} from "../lib/commerce/consumer-rights.ts";
 import {retryVideoReadyNotifications,retryStudioCreditVideoReadyNotifications} from "../lib/commerce/video-ready-notifications.ts";
 import {retrySupportCaseEmails,queueFailedOutputSupportEmails} from "../lib/commerce/support-notifications.ts";
+import {retryCustomerErasureCompletionEmails} from "../lib/commerce/customer-erasure-completion-email.ts";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { copyFile, unlink, writeFile } from "node:fs/promises";
@@ -174,6 +175,10 @@ while (!stopping) {
         path.join(dataDir,"live-test.sqlite"),process.env.CONTACT_EMAIL_TO||"support@singmotion.ai");
       await retrySupportCaseEmails(path.join(dataDir,"commerce.sqlite"));
     }catch{console.warn("Support case mail outbox retry unavailable");}
+    try{
+      const result=await retryCustomerErasureCompletionEmails(path.join(dataDir,"commerce.sqlite"));
+      if(result.attempted)console.info("ACCOUNT_ERASURE_COMPLETION_MAIL",{attempted:result.attempted,sent:result.sent});
+    }catch{console.warn("Account erasure completion email retry unavailable");}
   }
   // Physical media purging is separately approved only after verified volume
   // backups and private R2 recovery. UI trash/restore works while disabled.

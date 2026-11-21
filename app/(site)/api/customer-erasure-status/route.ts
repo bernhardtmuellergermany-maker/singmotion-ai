@@ -14,8 +14,6 @@ export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));
  if(denied)return denied;
  const headers={"Cache-Control":"private, no-store","Vary":"Cookie","Referrer-Policy":"no-referrer"};
- if(process.env.CUSTOMER_AUTOMATED_ERASURE_ENABLED!=="true")
-  return NextResponse.json({error:"Account erasure status is unavailable."},{status:404,headers});
  const token=req.cookies.get("sm_erasure_status")?.value||"";
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
