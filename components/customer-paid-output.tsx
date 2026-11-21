@@ -71,7 +71,9 @@ export function CustomerPaidOutput({orderId,guest=false,amountCents=null}:{
       selectedDurationSeconds:order?.durationSeconds,
       renameOrderId:guest?null:orderId,
     }:null}
-    amount={amountCents} photoUrl={order?.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(orderId)}`:null} videoUrl={ready?order?.videoUrl:null}
+    amount={amountCents} photoUrl={order?.status==="paid"?`/api/customer-generation-photo?orderId=${encodeURIComponent(orderId)}`:null}
+    editHref={(fulfillment==="failed"||order?.status==="refunded")?editDraftHref:null}
+    videoUrl={ready?order?.videoUrl:null}
     downloadUrl={ready?order?.downloadUrl:null}
     reuseHref={ready?(order?.projectId?`/studio?copy=draft_${encodeURIComponent(order.projectId)}`:"/studio?new=1"):null}
     reuseBlank={ready&&!order?.projectId}/>}
