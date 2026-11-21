@@ -102,7 +102,7 @@ test("expired customer session cleans HttpOnly identities before showing sign-in
  assert.match(activity,/expiredSession:Boolean\(token\)/);
  assert.match(activity,/response\.cookies\.delete\("sm_customer"\)/);
  assert.match(activity,/response\.cookies\.delete\("sm_session"\)/);
- assert.match(activity,/response\.cookies\.delete\("payload-token"\)/);
+ assert.doesNotMatch(activity,/response\.cookies\.delete\("payload-token"\)/);
  assert.match(activity,/if\(token\)\{/);
  assert.match(guard,/await fetch\("\/api\/unified-logout"/);
  assert.match(guard,/window\.location\.replace\("\/login\?session=expired"\)/);

@@ -46,7 +46,7 @@ test("guest Step 4 saves media and prompt then opens standard login without a re
  assert.match(account,/mode==="login"\?"Create account"/);
  assert.match(account,/parseStudioAccountReturn\(search\.get\("returnTo"\)\)/);
  assert.match(account,/if\(loginReturn\)\{window\.location\.assign\(loginReturn\);return;\}/);
- assert.match(account,/d\.kind==="customer"\|\|d\.kind==="staff"/);
+ assert.match(account,/d\.kind==="customer"/);
  assert.match(account,/loginReturn\?"\/api\/google-auth\?start=1&returnTo="/);
  const guestOnly=wizard.slice(wizard.indexOf("async function openGuestAccount()"),
   wizard.indexOf("async function continueToCreditPurchase()"));
@@ -159,16 +159,11 @@ test("login, registration and Google OAuth all return the same server-verified d
  assert.doesNotMatch(resume,/action:"submit"|\/api\/credit-checkout/);
 });
 
-test("authorized staff login preserves an owner-verified guest Step 4 handoff",()=>{
+test("CMS login remains independent; staff guest transfers require operator authorization",()=>{
  const cms=read("app/(payload)/api/cms/[...slug]/route.ts");
  const importer=read("app/(site)/api/customer-guest-import/route.ts");
- const resume=read("components/studio-account-resume.tsx");
- assert.match(cms,/mediaOwner\?\.startsWith\("customer-"\)/);
- assert.match(cms,/mediaOwner\?\.startsWith\("cms-staff-"\)/);
- assert.match(cms,/exclusive\.cookies\.set\("sm_guest_session",media/);
+ assert.doesNotMatch(cms,/cookies\.delete\("sm_customer"\)/);
+ assert.doesNotMatch(cms,/store\.logout\(token\)/);
  assert.match(importer,/studioStaff\(identity\.user,req\.method,req\.headers,process\.env\)/);
- assert.match(importer,/session\(req\.cookies\.get\("sm_session"\)\?\.value\)\?\.owner!==accountOwner/);
- assert.match(importer,/guestOwner=session\(guestToken\)\?\.owner/);
- assert.match(resume,/expectedOwnerPrefix=identity\.kind==="staff"\?"cms-staff-":"customer-"/);
- assert.doesNotMatch(resume,/\/api\/credit-checkout|\/api\/stripe-checkout/);
+ assert.match(importer,/guestToken=req\.cookies\.get\("sm_guest_session"\)\?\.value/);
 });

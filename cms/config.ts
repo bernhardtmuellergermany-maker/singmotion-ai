@@ -471,7 +471,6 @@ export default buildConfig({
     user: "staff",
     importMap: { baseDir: path.resolve(".") },
     components: {
-      beforeNavLinks: ["/components/cms/dashboard-nav.tsx#DashboardNav"],
       views: {
         dashboard: {
           Component: "/components/cms/dashboard-view.tsx#CleanDashboardView",
@@ -493,6 +492,18 @@ export default buildConfig({
           path: "/customer-insights",
           exact: true,
           meta: {title: "Customer Insights · SingMotion AI"},
+        },
+        supportConsole: {
+          Component: "/components/cms/support-view.tsx#SupportCmsView",
+          path: "/support",
+          exact: true,
+          meta: {title: "Kundensupport · SingMotion AI"},
+        },
+        promotionConsole: {
+          Component: "/components/cms/promotions-view.tsx#PromotionsCmsView",
+          path: "/promotions",
+          exact: true,
+          meta: {title: "Gutscheine · SingMotion AI"},
         },
         marketingActions: {
           Component: "/components/cms/campaigns-view.tsx#CampaignsCmsView",

@@ -2,17 +2,15 @@ import type {NextRequest} from "next/server";
 import type {CommerceStore} from "./store.ts";
 import type {WalletIdentity} from "./credit-wallet.ts";
 
-/** The account header already gives a verified Payload staff session precedence
- * over a still-valid customer cookie. Credit Checkout and balance MUST make the
- * same choice; otherwise Super Admin purchases can fund a different wallet.
- * A verified editor must not inherit a customer wallet from a stale cookie.
+/** Independently authenticated customer sessions always own public Credit operations.
+ * Staff-only wallets remain available if no customer session is active.
  */
 export function selectWalletPrincipal(
  customerId:string|null,staffRole:"super-admin"|"editor"|null
 ):"customer"|"super-admin"|null{
- if(staffRole==="editor")return null;
+ if(customerId)return "customer";
  if(staffRole==="super-admin")return "super-admin";
- return customerId?"customer":null;
+ return null;
 }
 
 /** User-controlled email text is never an account-authorization key. */
@@ -21,10 +19,9 @@ export async function resolveCreditWalletIdentity(req:NextRequest,store:Commerce
  let staffRole:"super-admin"|"editor"|null=null;
  let staffId:unknown=null;
  let staffEmail:unknown=null;
- // Payload authentication is necessary when no customer exists OR when a
- // Payload cookie coexists with a customer cookie. In the latter case, staff
- // wins exactly as in /api/customer-auth, preventing a cross-principal top-up.
- if(process.env.CMS_ENABLED==="true"&&(!id||req.cookies.has("payload-token"))){
+ // The separate CMS credential is consulted only for a staff-only wallet.
+ // It may not override a valid customer token in the same browser.
+ if(process.env.CMS_ENABLED==="true"&&!id){
   const {getPayload}=await import("payload");
   const {default:config}=await import("@payload-config");
   const {hasRole}=await import("@/cms/policy");

@@ -60,7 +60,7 @@ function Detail({data,onClose,onBooked}:{data:CustomerInsightsProfile;onClose:()
    {data.events.map(item=><ActivityItem item={item} key={item.id}/>)}
   </ul>}
   <p className="sm-insights-support">Für Erstattungen, Rechteanfragen oder Support nutze weiterhin
-   die <a href="/support-admin">geschützte Support-Konsole</a>. Korrekturbuchungen und Rückerstattungen sind ausdrücklich getrennte, geschützte Vorgänge.</p>
+   die <a href="/admin/support">geschützte Support-Konsole</a>. Korrekturbuchungen und Rückerstattungen sind ausdrücklich getrennte, geschützte Vorgänge.</p>
  </section>;
 }
 

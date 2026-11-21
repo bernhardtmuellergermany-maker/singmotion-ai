@@ -140,7 +140,7 @@ async function handler(
       }finally{commerce.close()}
     }else if(auth?.owner.startsWith("cms-staff-")){
       let valid=false;
-      if(process.env.CMS_ENABLED==="true"){
+      if(process.env.CMS_ENABLED==="true"&&!req.cookies.has("sm_customer")){
         const {getPayload}=await import("payload");
         const {default:payloadConfig}=await import("@payload-config");
         const {studioStaff}=await import("@/cms/studio-access");
@@ -175,24 +175,8 @@ async function handler(
       // Only verified account cookies may activate a durable account workspace.
       // Existing guest workspaces are never silently claimed or reassigned.
       let accountOwner: string | null = null;
-      // A verified, explicitly allowlisted CMS operator takes precedence over
-      // any stale customer cookie in the same browser. Never use the customer
-      // workspace for private paid Studio review, and never infer staff access
-      // from the sm_session cookie alone.
-      if (process.env.CMS_ENABLED === "true") {
-        const { getPayload } = await import("payload");
-        const { default: payloadConfig } = await import("@payload-config");
-        const { studioStaff } = await import("@/cms/studio-access");
-        const payload = await getPayload({ config: payloadConfig });
-        const identity = await payload.auth({ headers: req.headers });
-        try {
-          accountOwner = studioStaff(identity.user, method, req.headers, process.env);
-        } catch {
-          // An absent/unauthorized staff cookie never escalates a customer.
-          accountOwner = null;
-        }
-      }
-      if (!accountOwner && process.env.CUSTOMER_ACCOUNTS_ENABLED === "true") {
+      // Public account wins when CMS and customer cookies coexist.
+      if (process.env.CUSTOMER_ACCOUNTS_ENABLED === "true") {
         const customerToken = req.cookies.get("sm_customer")?.value;
         if (customerToken) {
           const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
@@ -201,6 +185,18 @@ async function handler(
             if (accountId) accountOwner = "customer-" + accountId;
           } finally { store.close(); }
         }
+      }
+      // Operator identity is separately authorized and never masquerades as
+      // a customer. It can be selected only without an active customer login.
+      if (!accountOwner && process.env.CMS_ENABLED === "true") {
+        const { getPayload } = await import("payload");
+        const { default: payloadConfig } = await import("@payload-config");
+        const { studioStaff } = await import("@/cms/studio-access");
+        const payload = await getPayload({ config: payloadConfig });
+        const identity = await payload.auth({ headers: req.headers });
+        try {
+          accountOwner = studioStaff(identity.user, method, req.headers, process.env);
+        } catch { accountOwner = null; }
       }
       if (accountOwner && auth?.owner !== accountOwner) {
         // Save the guest session cookie until an explicit migration exists.

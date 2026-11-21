@@ -45,7 +45,7 @@ test("customers and super-admins can access their OWN real test wallet via the s
  assert.match(auth,/subject:"super-admin:"\+userId/);
  assert.match(auth,/hasRole\(user,\["super-admin"\]\)/);
  assert.match(panel,/\/api\/customer-auth/);
- assert.match(panel,/\/api\/cms\/staff\/login/);
+ assert.doesNotMatch(panel,/\/api\/cms\/staff\/login/);
  assert.match(checkout,/resolveCreditWalletIdentity\(req,store\)/);
  assert.match(checkout,/identity\.customerId && !store\.emailVerified/);
  assert.match(checkout,/stripeCreditTopupsTestEnabled\(process\.env\)/);

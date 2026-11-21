@@ -127,8 +127,8 @@ try{
  assert.equal(withoutToken.status,401,"anonymous visitor cannot read somebody else's erasure status");
  console.log("PASS: real HTTP Chromium password confirmation, account freeze, private cookie receipt, worker completion and login deletion.");
  // Regression for a customer who reopens the browser after 30 minutes:
- // the first GET is already expired; a leftover Payload cookie and private
- // media cookie must not make the login page look authenticated.
+ // the first GET is already expired; an independent Payload cookie must
+ // remain intact without making the customer login look authenticated.
  const idleContext=await browser.newContext();
  try{
   const idleEmail="idle-browser-"+randomUUID()+"@example.test";
@@ -154,12 +154,14 @@ try{
   assert.equal(await idlePage.getByRole("button",{name:"Sign out"}).count(),0);
   assert.equal(await idlePage.getByText(idleEmail,{exact:true}).count(),0);
   const cookies=await idleContext.cookies(origin);
-  for(const name of ["sm_customer","sm_session","payload-token"])
+  for(const name of ["sm_customer","sm_session"])
    assert.equal(cookies.some(c=>c.name===name),false,
-    name+" must be removed automatically after the timeout");
+    name+" must be removed automatically after the customer timeout");
+  assert.equal(cookies.some(c=>c.name==="payload-token"),true,
+   "The independent CMS cookie must survive customer inactivity.");
   assert.equal(store.db.prepare("SELECT COUNT(*) AS n FROM customer_sessions WHERE account_id=?")
    .get(idleAccount.id)?.n,0);
-  console.log("PASS: expired first-load customer token, stale Payload cookie and media session are cleared; login form replaces account actions without an extra click.");
+  console.log("PASS: expired customer and media sessions clear, CMS cookie remains; customer form stays unauthenticated.");
  }finally{await idleContext.close()}
 
 }finally{

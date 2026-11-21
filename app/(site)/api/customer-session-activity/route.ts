@@ -32,14 +32,13 @@ async function handler(req:NextRequest){
     // A staff-only or anonymous browser must not be signed out by this route.
     expiredSession:Boolean(token)},401);
    if(token){
-    // Cookie expiry accompanies the server-side 30-minute revocation: do not
-    // leave an orphaned media or legacy Payload identity behind in the browser.
+    // Do not disturb an unrelated CMS staff login or staff-owned workspace.
     const mediaToken=req.cookies.get("sm_session")?.value;
-    if(mediaToken&&session(mediaToken)?.owner.startsWith("customer-"))
+    if(mediaToken&&session(mediaToken)?.owner.startsWith("customer-")){
      revokeMediaSession(mediaToken);
+     response.cookies.delete("sm_session");
+    }
     response.cookies.delete("sm_customer");
-    response.cookies.delete("sm_session");
-    response.cookies.delete("payload-token");
    }
    return response;
   }
@@ -49,11 +48,11 @@ async function handler(req:NextRequest){
    if(policy)return json(shape(policy));
    const response=json({authenticated:false,error:"Session expired",expiredSession:true},401);
    response.cookies.delete("sm_customer");
-   response.cookies.delete("sm_session");
-   response.cookies.delete("payload-token");
    const mediaToken=req.cookies.get("sm_session")?.value;
-   if(mediaToken&&session(mediaToken)?.owner.startsWith("customer-"))
+   if(mediaToken&&session(mediaToken)?.owner.startsWith("customer-")){
     revokeMediaSession(mediaToken);
+    response.cookies.delete("sm_session");
+   }
    return response;
   }
   if(req.method==="PATCH"){

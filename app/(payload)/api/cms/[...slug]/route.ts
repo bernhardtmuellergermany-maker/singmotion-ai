@@ -1,7 +1,4 @@
-import { NextRequest,NextResponse } from "next/server";
-import {CommerceStore} from "@/lib/commerce/store";
-import {dataDir,session,revokeMediaSession} from "@/lib/db";
-import path from "node:path";
+import { NextRequest } from "next/server";
 import config from "@payload-config";
 import {
   REST_GET,
@@ -85,32 +82,7 @@ function protect(
       });
     }
     const response = await handler(request, args);
-    // A verified CMS staff login replaces the customer identity on this
-    // browser. Never let two valid principals coexist in separate tabs.
-    if(slug[0]==="staff"&&slug[1]==="login"&&request.method==="POST"&&response.ok){
-      const incoming=new NextRequest(request.url,{headers:request.headers});
-      const token=incoming.cookies.get("sm_customer")?.value;
-      const media=incoming.cookies.get("sm_session")?.value;
-      if(token){
-        const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
-        try{store.logout(token)}finally{store.close()}
-      }
-      const mediaOwner=media?session(media)?.owner:null;
-      // Preserve a verified anonymous workspace until its owner explicitly
-      // transfers it; only revoke an earlier authenticated account session.
-      if(media&&(mediaOwner?.startsWith("customer-")||mediaOwner?.startsWith("cms-staff-")))
-        revokeMediaSession(media);
-      const exclusive=new NextResponse(response.body,{status:response.status,headers:response.headers});
-      exclusive.cookies.delete("sm_customer");
-      exclusive.cookies.delete("sm_session");
-      if(media&&mediaOwner&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(mediaOwner))
-        exclusive.cookies.set("sm_guest_session",media,{
-          httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400,
-        });
-      exclusive.headers.set("Cache-Control","private, no-store");
-      exclusive.headers.set("X-Content-Type-Options","nosniff");
-      return exclusive;
-    }
+    // Staff login intentionally does not touch public customer cookies.
     if (slug[0] === "staff" && slug[1] === "login") {
       const code = cmsLoginDiagnostic(response.status);
       if (code) annotateCmsFailure(response, code);
