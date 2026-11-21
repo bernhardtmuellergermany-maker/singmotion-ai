@@ -24,9 +24,9 @@ test("native sidebar is hidden; every custom view preserves staff role checks",(
  assert.match(css,/\.payload-admin \.nav/);
  assert.match(css,/display:none!important/);
  assert.match(layout,/<CmsBackToOverview/);
- assert.match(back,/pathname!=="\\/admin"/);
- assert.match(back,/\\/api\\/cms\\/staff\\/logout/);
- assert.doesNotMatch(back,/\\/api\\/unified-logout/);
+ assert.ok(back.includes('pathname!=="/admin"'));
+ assert.ok(back.includes('/api/cms/staff/logout'));
+ assert.ok(!back.includes('/api/unified-logout'));
  for(const path of ["support-view.tsx","promotions-view.tsx","advanced-view.tsx","showcase-view.tsx","customer-insights-view.tsx"]){
   const source=read("components/cms/"+path);
   assert.match(source,/hasRole\(initPageResult\.req\.user/);
