@@ -290,7 +290,7 @@ export default function AccountSettings(){
              <p>Für die Löschung deines Google-Kontos bestätige deine Identität durch eine erneute Google-Anmeldung. Nach der Rückkehr kannst du die Löschung endgültig bestätigen.</p>
              {erasure.googleReauthenticated?
                <p role="status">Google-Anmeldung bestätigt. Du kannst die Löschung jetzt abschließen.</p>:
-               <a className="sm-settings-secondary" href="/api/google-auth?start=1&returnTo=%2Faccount%2Fsettings">Mit Google erneut anmelden</a>}
+               <a className="sm-settings-secondary" href="/api/google-auth?start=1&returnTo=%2Faccount%2Fsettings%23privacy">Mit Google erneut anmelden</a>}
            </div>:
            <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>}
          <label>Type DELETE MY ACCOUNT<input type="text" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE MY ACCOUNT"/></label>

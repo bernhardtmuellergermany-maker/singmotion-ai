@@ -29,6 +29,9 @@ test("Google deletion UI requires explicit reauthentication and confirmation",()
  const ui=readFileSync(new URL("../app/(site)/account/settings/page.tsx",import.meta.url),"utf8");
  const route=readFileSync(new URL("../app/(site)/api/customer-account-erasure/route.ts",import.meta.url),"utf8");
  assert.match(ui,/Mit Google erneut anmelden/);
+ const handoff=readFileSync(new URL("../lib/studio-account-handoff.ts",import.meta.url),"utf8");
+ assert.match(handoff,/raw==="/);
+ assert.match(ui,/returnTo=%2Faccount%2Fsettings%23privacy/);
  assert.match(ui,/googleReauthenticated/);
  assert.match(route,/GOOGLE_REAUTH_REQUIRED/);
  assert.match(route,/recentlyVerifiedGoogleDeletion/);
