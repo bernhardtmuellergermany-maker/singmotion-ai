@@ -495,3 +495,20 @@ html.sm-cms-root .template-minimal .btn--style-secondary{
   html.sm-cms-root .sm-cms-clean-section{margin-top:22px}
   html.sm-cms-root .login__form{padding:22px 18px}
 }
+
+/* The shared CMS navigation precedes both native Payload templates and
+   custom root views. Keep the dashboard's original responsive gap here
+   so every admin route starts at the same distance below the navigation. */
+html.sm-cms-root .sm-cms-back-to-overview{
+  --sm-cms-page-gap:clamp(28px,3.2vw,44px);
+  margin-block-end:var(--sm-cms-page-gap)!important;
+}
+html.sm-cms-root:has(.sm-cms-back-to-overview) .template-default__wrap{
+  /* The navigation now supplies this space; do not double it on the dashboard. */
+  padding-top:0!important;
+}
+@media(max-width:680px){
+  html.sm-cms-root .sm-cms-back-to-overview{
+    --sm-cms-page-gap:24px;
+  }
+}
