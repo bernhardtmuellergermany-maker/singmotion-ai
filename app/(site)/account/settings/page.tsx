@@ -16,7 +16,7 @@ export default function AccountSettings(){
  const [removePassword,setRemovePassword]=useState("");
  const [removeBusy,setRemoveBusy]=useState(false);
  const [removeNotice,setRemoveNotice]=useState("");
- const [erasure,setErasure]=useState<{eligible:boolean;automatic?:boolean;code:string;message:string}|null>(null);
+ const [erasure,setErasure]=useState<{eligible:boolean;automatic?:boolean;googleOnly?:boolean;googleReauthenticated?:boolean;code:string;message:string}|null>(null);
  const [erasureLoading,setErasureLoading]=useState(false);
  const [deleteOpen,setDeleteOpen]=useState(false),[deleteBusy,setDeleteBusy]=useState(false);
  const [deletePassword,setDeletePassword]=useState(""),[deleteConfirmation,setDeleteConfirmation]=useState("");
@@ -126,20 +126,20 @@ export default function AccountSettings(){
   let active=true;
   setErasureLoading(true);
   fetch("/api/customer-account-erasure",{cache:"no-store",credentials:"same-origin"})
-   .then(async r=>{const result=await r.json() as {eligible?:boolean;automatic?:boolean;code?:string;message?:string};if(!r.ok)throw Error(result.message||"Deletion eligibility unavailable.");return result;})
-   .then(result=>{if(active)setErasure({eligible:result.eligible===true,automatic:result.automatic===true,code:result.code||"",message:result.message||""});})
+   .then(async r=>{const result=await r.json() as {eligible?:boolean;automatic?:boolean;googleOnly?:boolean;googleReauthenticated?:boolean;code?:string;message?:string};if(!r.ok)throw Error(result.message||"Deletion eligibility unavailable.");return result;})
+   .then(result=>{if(active)setErasure({eligible:result.eligible===true,automatic:result.automatic===true,googleOnly:result.googleOnly===true,googleReauthenticated:result.googleReauthenticated===true,code:result.code||"",message:result.message||""});})
    .catch(()=>{if(active)setErasure({eligible:true,automatic:true,code:"CHECK_PENDING",message:"You can still request deletion. Verification of outstanding transactions follows your request."});})
    .finally(()=>{if(active)setErasureLoading(false);});
   return()=>{active=false;};
  },[data?.profile.email,data?.staffPreview]);
  async function deleteMyAccount(){
-  if(deleteBusy||deleteConfirmation!=="DELETE MY ACCOUNT"||!deletePassword)return;
+  if(deleteBusy||deleteConfirmation!=="DELETE MY ACCOUNT"||(!erasure?.googleOnly&&!deletePassword)|| (erasure?.googleOnly&&!erasure?.googleReauthenticated))return;
   if(!window.confirm("Permanently delete your SingMotion customer account? This cannot be undone."))return;
   setDeleteBusy(true);setDeleteNotice("");
   try{
    const response=await fetch("/api/customer-account-erasure",{
     method:"POST",credentials:"same-origin",cache:"no-store",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({password:deletePassword,confirmation:deleteConfirmation})
+    body:JSON.stringify({password:erasure?.googleOnly?"":deletePassword,confirmation:deleteConfirmation})
    });
    const result=await response.json() as {deleted?:boolean;pending?:boolean;error?:string;message?:string;eligible?:boolean;code?:string};
    if(response.ok&&result.pending===true){
@@ -285,9 +285,16 @@ export default function AccountSettings(){
         <summary>Delete account permanently</summary>
         <form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void deleteMyAccount();}}>
          <p className="sm-settings-muted sm-settings-delete-warning"><strong>This cannot be undone.</strong> You can request deletion even while payment or file verification is still pending. Account access is frozen immediately. Verified unused purchased Credits are refunded to the original payment method before data removal. A confirmation email follows successful completion. Required financial records are retained as required.</p>
-         <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>
+         {erasure?.googleOnly?
+           <div className="sm-settings-deletion-google">
+             <p>Für die Löschung deines Google-Kontos bestätige deine Identität durch eine erneute Google-Anmeldung. Nach der Rückkehr kannst du die Löschung endgültig bestätigen.</p>
+             {erasure.googleReauthenticated?
+               <p role="status">Google-Anmeldung bestätigt. Du kannst die Löschung jetzt abschließen.</p>:
+               <a className="sm-settings-secondary" href="/api/google-auth?start=1&returnTo=%2Faccount%2Fsettings">Mit Google erneut anmelden</a>}
+           </div>:
+           <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>}
          <label>Type DELETE MY ACCOUNT<input type="text" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE MY ACCOUNT"/></label>
-         <button className="sm-settings-danger" type="submit" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Submitting deletion request…":"Permanently delete my account"}</button>
+         <button className="sm-settings-danger" type="submit" disabled={deleteBusy||(!erasure?.googleOnly&&!deletePassword)||(erasure?.googleOnly&&!erasure?.googleReauthenticated)||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Submitting deletion request…":"Permanently delete my account"}</button>
          {deleteNotice&&<p role="alert" className="sm-settings-muted">{deleteNotice}</p>}
         </form>
        </details>
