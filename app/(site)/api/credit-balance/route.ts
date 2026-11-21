@@ -9,6 +9,7 @@ import {managedCreditMoRApproved} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
+import {CampaignPricing,campaignsEnabled,regularTariff} from "@/lib/commerce/campaign-pricing";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -52,6 +53,18 @@ export async function GET(req:NextRequest){
   // They are NOT Credit Wallet purchases or spendable deposits.
   const entries=wallet.entries(identity.subject);
   const rawBalance=purchased-reserved;
+  // Display-only: the video-seconds estimate must follow the same active,
+  // server-verified campaign tariff as Studio, not a hardcoded price.
+  // An unavailable or conflicting tariff must not hide a valid wallet balance.
+  let creditsPerSecond:number|null=null,tariffExpiresUtc:number|null=null;
+  try{
+   const tariff=campaignsEnabled(process.env)
+    ?new CampaignPricing(store.db).active():regularTariff();
+   creditsPerSecond=tariff.creditsPerSecond;
+   tariffExpiresUtc=tariff.expiresUtc;
+  }catch{
+   console.warn("Credit balance video seconds estimate unavailable.");
+  }
   const testCheckout=stripeCreditTopupsTestEnabled(process.env);
   const liveCheckout=stripeCreditTopupsLiveEnabled(process.env)&&
     (privateInternationalCreditBetaEnabled(process.env)||publicCreditReleaseApproved(process.env));
@@ -59,6 +72,8 @@ export async function GET(req:NextRequest){
    availableCredits:Math.max(0,rawBalance),
    reservedCredits:Math.max(0,reserved),
    outstandingCredits:Math.max(0,-rawBalance),
+   creditsPerSecond,
+   tariffExpiresUtc,
    currency:"EUR",
    // The purchase button must mirror the server's existing verification
    // requirement, not offer a checkout that will inevitably return 403.
