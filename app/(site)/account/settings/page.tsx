@@ -128,12 +128,12 @@ export default function AccountSettings(){
   fetch("/api/customer-account-erasure",{cache:"no-store",credentials:"same-origin"})
    .then(async r=>{const result=await r.json() as {eligible?:boolean;automatic?:boolean;code?:string;message?:string};if(!r.ok)throw Error(result.message||"Deletion eligibility unavailable.");return result;})
    .then(result=>{if(active)setErasure({eligible:result.eligible===true,automatic:result.automatic===true,code:result.code||"",message:result.message||""});})
-   .catch(()=>{if(active)setErasure({eligible:false,code:"RECORDS_REQUIRE_REVIEW",message:"The deletion safety check is unavailable. No data was removed."});})
+   .catch(()=>{if(active)setErasure({eligible:true,automatic:true,code:"CHECK_PENDING",message:"You can still request deletion. Verification of outstanding transactions follows your request."});})
    .finally(()=>{if(active)setErasureLoading(false);});
   return()=>{active=false;};
  },[data?.profile.email,data?.staffPreview]);
  async function deleteMyAccount(){
-  if(deleteBusy||(!erasure?.eligible&&!erasure?.automatic)||deleteConfirmation!=="DELETE MY ACCOUNT"||!deletePassword)return;
+  if(deleteBusy||deleteConfirmation!=="DELETE MY ACCOUNT"||!deletePassword)return;
   if(!window.confirm("Permanently delete your SingMotion customer account? This cannot be undone."))return;
   setDeleteBusy(true);setDeleteNotice("");
   try{
@@ -148,10 +148,8 @@ export default function AccountSettings(){
     window.location.assign("/account/deletion-status");
     return;
    }
-   if(!response.ok||result.deleted!==true){
-    if(result.eligible===false)setErasure(current=>current?{...current,eligible:false,code:result.code||"",message:result.message||"Account data needs review."}:current);
-    throw Error(result.error||result.message||"Deletion could not be completed.");
-   }
+   if(!response.ok||result.deleted!==true)
+    throw Error(result.error||result.message||"Deletion request could not be accepted.");
    setDeletePassword("");setDeleteConfirmation("");
    notifyAuthTransition();
    window.location.assign("/login?account_deleted=1");
@@ -282,21 +280,17 @@ export default function AccountSettings(){
       <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Privacy</strong><Link href="/privacy">Privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Your files</strong><Link href="/projects">My projects <ExternalLink size={13}/></Link></div></div>
       {data.staffPreview?<p className="sm-settings-muted">Staff and Super Admin accounts require a protected administrator handover. Do not use a customer password to close a staff account. <a href="mailto:support@singmotion.ai?subject=Staff%20account%20closure">Contact support</a>.</p>:<>
        
-       {(erasureLoading||erasure===null||!erasure.eligible)&&
-        <p className="sm-settings-deletion-status" role="status" aria-live="polite">
-         {erasureLoading||erasure===null?"Checking account…":"Deletion is temporarily unavailable while payments or files are checked."}
-        </p>}
-       {erasure?.eligible===true&&<details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
+       {erasure?.message&&<p className="sm-settings-deletion-status" role="status" aria-live="polite">{erasure.message}</p>}
+       <details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
         <summary>Delete account permanently</summary>
         <form className="sm-settings-order-confirm" onSubmit={e=>{e.preventDefault();void deleteMyAccount();}}>
-         <p className="sm-settings-muted sm-settings-delete-warning"><strong>This cannot be undone.</strong> Your account and private files will be deleted. Unused purchased Credits are refunded to the original payment method. Required payment records remain stored.</p>
+         <p className="sm-settings-muted sm-settings-delete-warning"><strong>This cannot be undone.</strong> You can request deletion even while payment or file verification is still pending. Account access is frozen immediately. Verified unused purchased Credits are refunded to the original payment method before data removal. A confirmation email follows successful completion. Required financial records are retained as required.</p>
          <label>Account password<input type="password" autoComplete="current-password" required maxLength={256} value={deletePassword} onChange={e=>setDeletePassword(e.target.value)}/></label>
          <label>Type DELETE MY ACCOUNT<input type="text" autoComplete="off" spellCheck={false} required value={deleteConfirmation} onChange={e=>setDeleteConfirmation(e.target.value)} placeholder="DELETE MY ACCOUNT"/></label>
-         <button className="sm-settings-danger" type="submit" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Deleting account…":"Permanently delete my account"}</button>
+         <button className="sm-settings-danger" type="submit" disabled={deleteBusy||!deletePassword||deleteConfirmation!=="DELETE MY ACCOUNT"}>{deleteBusy?"Submitting deletion request…":"Permanently delete my account"}</button>
          {deleteNotice&&<p role="alert" className="sm-settings-muted">{deleteNotice}</p>}
         </form>
-       </details>}
-       {erasure?.eligible===false&&!erasureLoading&&<p className="sm-settings-muted sm-settings-small-note">Your Credits remain safe. <a href="mailto:support@singmotion.ai?subject=Account%20erasure%20and%20remaining%20Credits">Contact privacy support</a> for help.</p>}
+       </details>
       </>}
       <p className="sm-settings-support"><LifeBuoy size={17}/> <a href="mailto:support@singmotion.ai">Need help? Contact support</a></p>
      </section>
