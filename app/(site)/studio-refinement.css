@@ -3083,3 +3083,13 @@
 @media(prefers-reduced-motion:reduce){
  .singmotion-flow .sm-new-stepper-animated .sm-new-step-dot{transition:none}
 }
+
+/* Quiet, live tariff estimate beside the uploaded song (desktop and mobile). */
+.singmotion-flow .sm-new-file-credits{display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-width:0}
+.singmotion-flow .sm-new-file-info .sm-new-file-credits-cost{font-size:13px;font-weight:650;line-height:1.4;color:#e7d7ff}
+.singmotion-flow .sm-new-file-info .sm-new-file-credits-balance{font-size:11px;line-height:1.45;color:#aea5c8}
+.singmotion-flow .sm-new-file-info .sm-new-file-credits-balance.is-short{color:#f4b6bb}
+@media(max-width:620px){
+ .singmotion-flow .sm-new-file-info .sm-new-file-credits-cost{font-size:12px}
+ .singmotion-flow .sm-new-file-info .sm-new-file-credits-balance{font-size:11px}
+}
