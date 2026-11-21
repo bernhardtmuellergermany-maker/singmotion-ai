@@ -948,7 +948,7 @@ export function StudioWizard({
                 <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
                   onClick={()=>{update({imageId:"",sourceImageId:"",editedImageId:"",appliedOutputFormat:undefined});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
                 <div className="sm-photo-crop-viewport" style={{aspectRatio:String(frameWidth/frameHeight)}}
-                  onPointerDown={e=>{if(busy||!imageReady)return;cropDrag.current={x:e.clientX,y:e.clientY,startX:cropX,startY:cropY};e.currentTarget.setPointerCapture(e.pointerId);}}
+                  onPointerDown={e=>{if(busy||!imageReady||e.pointerType==="touch")return;cropDrag.current={x:e.clientX,y:e.clientY,startX:cropX,startY:cropY};e.currentTarget.setPointerCapture(e.pointerId);}}
                   onPointerMove={e=>{const drag=cropDrag.current;if(!drag||!e.currentTarget.hasPointerCapture(e.pointerId))return;
                     const rect=e.currentTarget.getBoundingClientRect();
                     if(cropExcessX>0.00001)setCropX(Math.max(0,Math.min(100,drag.startX-(e.clientX-drag.x)/Math.max(rect.width,1)/cropExcessX*100)));
