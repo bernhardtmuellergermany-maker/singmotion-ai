@@ -3142,9 +3142,9 @@
 /* A portrait preview should stay usable without filling the entire phone screen. */
 @media(max-width:700px){
  .product-theme.singmotion-flow .sm-photo-editor-stage.is-portrait{
-   width:min(100%, calc(60dvh * 9 / 16), 340px);
+   width:min(100%, calc(60svh * 9 / 16), 340px);
    max-width:100%;
-   max-height:60dvh;
+   max-height:60svh;
    height:auto;
    margin-inline:auto;
    aspect-ratio:9 / 16;
