@@ -17,8 +17,8 @@ test("9:16 uploaded photo has its own responsive preview, without changing 16:9 
 
 test("portrait photo height is capped on phones so the editor can scroll to its controls",()=>{
  const css=read("app/(site)/studio-refinement.css");
- assert.match(css,/width:min\(100%, calc\(60dvh \* 9 \/ 16\), 340px\)/);
- assert.match(css,/max-height:60dvh/);
+ assert.match(css,/width:min\(100%, calc\(60svh \* 9 \/ 16\), 340px\)/);
+ assert.match(css,/max-height:60svh/);
  assert.match(css,/\.sm-photo-crop-viewport\{[\s\S]*?touch-action:pan-y/);
  assert.match(css,/\.sm-photo-crop-corner\{[\s\S]*?touch-action:none/);
 });
