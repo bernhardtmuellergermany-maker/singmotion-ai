@@ -9,6 +9,7 @@ import {managedCreditMoRApproved} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
+import {alternativeCreditCheckoutApproved} from "@/lib/commerce/alternative-credit-checkout";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -71,6 +72,7 @@ export async function GET(req:NextRequest){
    globalCountrySelection:liveCheckout&&!managedCreditMoRApproved(process.env)&&
      worldwideTaxPolicyAvailable(process.env),
    approvedBillingCountries:null,
+   alternativeCheckoutEnabled:liveCheckout&&alternativeCreditCheckoutApproved(process.env),
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
