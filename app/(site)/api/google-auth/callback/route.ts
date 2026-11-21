@@ -51,7 +51,7 @@ export async function GET(req:NextRequest){
   const verifiedGuest=carried&&carriedOwner&&
     !carriedOwner.startsWith("customer-")&&!carriedOwner.startsWith("cms-staff-")
     ?carried:null;
-  if(old&&owner.startsWith("customer-"))
+  if(old&&owner?.startsWith("customer-"))
     revokeMediaSession(old);
   const destination=new URL(savedReturn||"/?card=login",trustedOrigin);
   destination.searchParams.set("auth_changed","1");
