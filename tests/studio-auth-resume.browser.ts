@@ -153,8 +153,15 @@ try{
    const user=commerce.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email) as {id:string}|undefined;
    assert.ok(user);
    const customerOwner="customer-"+user.id;
-   const restored=db.prepare("SELECT owner,selection,step,project_name FROM studio_drafts WHERE id=?").get(id) as
-    {owner:string;selection:string;step:number;project_name:string}|undefined;
+   // Navigation commits Studio drafts asynchronously. Verify the persisted
+   // Step 4 after the write settles; still fail if it never becomes durable.
+   const savedStepDeadline=Date.now()+10000;
+   let restored:{owner:string;selection:string;step:number;project_name:string}|undefined;
+   do{
+    restored=db.prepare("SELECT owner,selection,step,project_name FROM studio_drafts WHERE id=?").get(id) as typeof restored;
+    if(restored?.step===3)break;
+    await new Promise<void>(resolve=>setTimeout(resolve,100));
+   }while(Date.now()<savedStepDeadline);
    assert.ok(restored);
    assert.equal(restored.owner,customerOwner);
    assert.equal(restored.step,3);
