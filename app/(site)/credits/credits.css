@@ -14,6 +14,9 @@
 .sm-credits-balance{font-size:clamp(33px,6vw,52px);letter-spacing:-.055em;line-height:1.1}
 .sm-credits-healthy{color:#5ee09a}.sm-credits-low{color:#ffcf6a}.sm-credits-critical{color:#ff8491}.sm-credits-unknown{color:#aaa6b7}
 .sm-credits-reserved,.sm-credits-muted{color:#aca8be;font-size:13px;line-height:1.65}
+.sm-credits-video-seconds{display:inline-block;color:#cbb8de;font-size:13px;
+ font-weight:500;line-height:1.5;letter-spacing:.005em}
+@media(max-width:500px){.sm-credits-video-seconds{font-size:12px}}
 .sm-credits-summary-links{display:flex;flex-direction:column;gap:9px}
 .sm-credits-summary-links a,.sm-credits-notice a{color:#e7d3ff;text-underline-offset:4px}
 .sm-credits-section-head{display:flex;gap:14px;justify-content:space-between;align-items:center}
