@@ -55,21 +55,17 @@ test("Showcase generated videos can be hidden from every public feed but are nev
  assert.match(cms,/Upload löschen/);
  assert.match(cms,/Ausgeblendete generierte Videos/);
 });
-test("Customer, Payload staff, and private Studio sessions are exclusive and sign out from shared header",()=>{
+test("CMS and customer sessions are independent across tabs",()=>{
  const logout=read("app/(site)/api/unified-logout/route.ts");
- const login=read("app/(payload)/api/cms/[...slug]/route.ts");
+ const cms=read("app/(payload)/api/cms/[...slug]/route.ts");
  const customer=read("app/(site)/api/customer-auth/route.ts");
  const media=read("app/(site)/api/[...path]/route.ts");
- const menu=read("components/header-account-menu.tsx");
  const account=read("components/account-panel.tsx");
  assert.match(logout,/store\.logout\(customerToken\)/);
  assert.match(logout,/revokeMediaSession\(media\)/);
- assert.match(logout,/response\.cookies\.delete\("payload-token"\)/);
- assert.match(login,/response\.ok/);
- assert.match(login,/store\.logout\(token\)/);
- assert.match(customer,/response\.cookies\.delete\("payload-token"\)/);
- assert.match(media,/commerce\.session\(req\.cookies\.get\("sm_customer"\)/);
- assert.match(media,/if\(!valid\)auth=undefined/);
- assert.match(menu,/\/api\/unified-logout/);
- assert.match(account,/\/api\/unified-logout/);
+ assert.doesNotMatch(logout,/cookies\.delete\("payload-token"\)/);
+ assert.doesNotMatch(cms,/cookies\.delete\("sm_customer"\)/);
+ assert.doesNotMatch(customer,/cookies\.delete\("payload-token"\)/);
+ assert.doesNotMatch(account,/\/api\/cms\/staff\/login/);
+ assert.match(media,/Public account wins when CMS and customer cookies coexist/);
 });

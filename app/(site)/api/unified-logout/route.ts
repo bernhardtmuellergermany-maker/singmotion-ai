@@ -5,11 +5,8 @@ import {dataDir,session,revokeMediaSession,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 
-/** One browser = one authenticated principal.
- * Clearing both HTTP-only auth cookies immediately signs all tabs out. Revoking
- * customer & media sessions also invalidates any reused private workspace token.
- * Payload staff tokens are removed from the browser (the staff session table is
- * not modified; CMS administrators can manage global device sessions there).
+/** Public SingMotion logout only: CMS staff tokens are independent.
+ * Revoke only customer and Studio media sessions.
  */
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -29,6 +26,5 @@ export async function POST(req:NextRequest){
  const response=NextResponse.json({signedOut:true},{headers:{"Cache-Control":"no-store"}});
  response.cookies.delete("sm_customer");
  response.cookies.delete("sm_session");
- response.cookies.delete("payload-token");
  return response;
 }

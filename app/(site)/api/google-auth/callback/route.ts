@@ -56,7 +56,6 @@ export async function GET(req:NextRequest){
   const destination=new URL(savedReturn||"/?card=login",trustedOrigin);
   destination.searchParams.set("auth_changed","1");
   const response=clear(NextResponse.redirect(destination));
-  response.cookies.delete("payload-token"); // OAuth customer login replaces a prior CMS staff session.
   const guest=verifiedGuest||(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-")?old:null);
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   response.cookies.set("sm_customer",account.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});

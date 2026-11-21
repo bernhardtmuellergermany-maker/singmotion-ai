@@ -9,10 +9,8 @@ export function CustomerIdleGuard(){
   const expired=()=>{
    if(signedOut||!alive)return;
    signedOut=true;
-   // The customer token has expired on the server, but an HttpOnly media
-   // cookie or older Payload staff cookie may still authenticate the browser.
-   // Use exactly the same server-side logout as the explicit Sign out button.
-   // Clear cookies BEFORE changing tabs or navigating to the login page.
+   // Customer expiry clears only customer credentials and owned media.
+   // A simultaneous CMS staff session remains intact.
    void (async()=>{
     try{
      await fetch("/api/unified-logout",{

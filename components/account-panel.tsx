@@ -60,7 +60,7 @@ export function AccountPanel({active}:{active:boolean}){
      // An expired cookie or a failed identity verification must never leave
      // the old email and its account actions rendered on the login page.
      setAccount(d?.authenticated===true?d.email??null:null);
-     if(loginReturn&&d?.authenticated===true&&(d.kind==="customer"||d.kind==="staff"))
+     if(loginReturn&&d?.authenticated===true&&d.kind==="customer")
       window.location.replace(loginReturn);
      setStaff(d?.authenticated===true&&d.kind==="staff");
      setSuperAdmin(d?.authenticated===true&&d.kind==="staff"&&d.staffRole==="super-admin");
@@ -99,15 +99,7 @@ export function AccountPanel({active}:{active:boolean}){
    }
    const res=await fetch("/api/customer-auth",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,email,password})});
    const d=await res.json();
-   if(!res.ok){
-    if(action==="login" && [401,403,503].includes(res.status)){
-     const staffRes=await fetch("/api/cms/staff/login",{method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,password})});
-     if(staffRes.ok){notifyAuthTransition();setPassword("");
-      if(loginReturn){window.location.assign(loginReturn);return;}
-      window.location.reload();return;}
-    }
-    throw Error(d.error||"Sign-in failed");
-   }
+   if(!res.ok)throw Error(d.error||"Sign-in failed");
    notifyAuthTransition();setPassword("");setAccount(d.email);
    if(loginReturn){window.location.assign(loginReturn);return;}
    window.location.reload();
