@@ -3123,3 +3123,10 @@
     padding:6px;
   }
 }
+
+/* Allow page scrolling from the photo on touch devices; corner grips still crop. */
+@media(pointer:coarse){
+ .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-crop-viewport{touch-action:pan-y;cursor:default}
+ .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-crop-corner{touch-action:none}
+ .product-theme.singmotion-flow .sm-photo-editor-stage .sm-photo-overlay-trash{touch-action:manipulation}
+}
