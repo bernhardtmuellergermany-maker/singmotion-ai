@@ -22,8 +22,8 @@ test("touch swipes on mobile photo scroll the page, while crop handles keep drag
  assert.match(css,/@media \(pointer:coarse\)/);
  assert.match(css,/\.sm-photo-crop-viewport\{touch-action:pan-y\}/);
  assert.match(css,/\.sm-photo-crop-corner\{touch-action:none\}/);
- assert.match(css,/width:min\(100%, calc\(60dvh \* 9 \/ 16\), 340px\)/);
- assert.match(css,/max-height:60dvh/);
+ assert.match(css,/width:min\(100%, calc\(60svh \* 9 \/ 16\), 340px\)/);
+ assert.match(css,/max-height:60svh/);
  assert.match(ui,/onPointerDown=\{e=>startCropHandle\(e,"tl"\)\}/);
  assert.match(ui,/aria-label="Delete artist photo"/);
 });
