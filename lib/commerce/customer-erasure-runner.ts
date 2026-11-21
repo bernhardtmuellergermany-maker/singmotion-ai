@@ -96,7 +96,7 @@ export async function runCustomerErasureJobs(
    }catch(e){
     const code=safe(issue(e));
     // Diagnostic contains only an allowlisted error code and workflow state.
-    console.warn("ACCOUNT_ERASURE_DEFERRED",{code,state:job?.state||"unknown"});
+    console.warn("ACCOUNT_ERASURE_DEFERRED",{code,state:row.state});
     if(["ACTIVE_MEDIA_JOB","ACTIVE_PAID_PROVIDER_JOB","ACTIVE_OR_UNKNOWN_PROVIDER_JOB",
         "PROVIDER_INPUT_LEASE_ACTIVE","LIVE_PROVIDER_INPUT_LEASE_ACTIVE"].includes(code)){
      result.deferred++;continue; // still processing: retry later, without freezing progress indefinitely
