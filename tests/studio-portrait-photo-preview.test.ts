@@ -14,3 +14,11 @@ test("9:16 uploaded photo has its own responsive preview, without changing 16:9 
  assert.match(css,/\.sm-photo-editor-stage\.is-landscape\{/);
  assert.match(css,/\.sm-photo-one-row\{/);
 });
+
+test("portrait preview is capped on mobile while keeping native touch scroll",()=>{
+ const css=read("app/(site)/studio-refinement.css");
+ assert.match(css,/width:min\(100%, calc\(60dvh \* 9 \/ 16\), 340px\)/);
+ assert.match(css,/max-height:60dvh/);
+ assert.match(css,/touch-action:pan-y/);
+ assert.match(css,/\.sm-photo-crop-corner\{touch-action:none\}/);
+});
