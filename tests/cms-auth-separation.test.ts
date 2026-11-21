@@ -25,4 +25,5 @@ test("customer sign-outs do not revoke a staff-owned Studio media session",()=>{
  assert.match(customer,/mediaOwner\?\.startsWith\("customer-"\)/);
  assert.match(customer,/!mediaOwner\?\.startsWith\("cms-staff-"\)/);
  assert.doesNotMatch(google,/owner\.startsWith\("customer-"\)\|\|owner\.startsWith\("cms-staff-"\)/);
+ assert.doesNotMatch(customer,/previousOwner\?\.startsWith\("customer-"\)\|\|previousOwner\?\.startsWith\("cms-staff-"\)/);
 });

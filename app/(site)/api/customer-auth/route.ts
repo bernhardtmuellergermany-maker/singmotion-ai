@@ -85,7 +85,7 @@ export async function POST(req:NextRequest){
   const previous=req.cookies.get("sm_session")?.value;
   const previousOwner=session(previous)?.owner;
   const guest=previousOwner && !previousOwner.startsWith("customer-") && !previousOwner.startsWith("cms-staff-") ? previous : null;
-  if(previous && (previousOwner?.startsWith("customer-")||previousOwner?.startsWith("cms-staff-")))revokeMediaSession(previous);
+  if(previous && previousOwner?.startsWith("customer-"))revokeMediaSession(previous);
   let verificationEmailSent=false;
   if(registrationId){
    const pending=store.issueEmailVerification(registrationId);
