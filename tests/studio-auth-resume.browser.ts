@@ -153,8 +153,15 @@ try{
    const user=commerce.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email) as {id:string}|undefined;
    assert.ok(user);
    const customerOwner="customer-"+user.id;
-   const restored=db.prepare("SELECT owner,selection,step,project_name FROM studio_drafts WHERE id=?").get(id) as
-    {owner:string;selection:string;step:number;project_name:string}|undefined;
+   // The editor saves draft navigation asynchronously. Wait for durable Step 4
+   // persistence rather than racing the browser's final heading transition.
+   let restored:{owner:string;selection:string;step:number;project_name:string}|undefined;
+   for(let attempt=0;attempt<50;attempt++){
+    restored=db.prepare("SELECT owner,selection,step,project_name FROM studio_drafts WHERE id=?").get(id) as
+      {owner:string;selection:string;step:number;project_name:string}|undefined;
+    if(restored?.step===3)break;
+    await new Promise(resolve=>setTimeout(resolve,100));
+   }
    assert.ok(restored);
    assert.equal(restored.owner,customerOwner);
    assert.equal(restored.step,3);
