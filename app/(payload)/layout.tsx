@@ -5,6 +5,7 @@ import config from "@payload-config";
 import { RootLayout, handleServerFunctions } from "@payloadcms/next/layouts";
 import type { ServerFunctionClient } from "payload";
 import { importMap } from "./admin/importMap";
+import {CmsBackToOverview} from "@/components/cms/back-to-overview";
 const serverFunction: ServerFunctionClient = async (args) => {
   "use server";
   if (process.env.CMS_ENABLED !== "true") throw new Error("CMS disabled.");
@@ -23,6 +24,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       importMap={importMap}
       serverFunction={serverFunction}
     >
+      <CmsBackToOverview />
       {children}
     </RootLayout>
   );

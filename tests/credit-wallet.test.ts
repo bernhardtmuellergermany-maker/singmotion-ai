@@ -182,19 +182,19 @@ test("terminal provider failure returns reserved Credits as goodwill exactly onc
 });
 
 
-test("wallet credit checkout follows verified staff precedence when both browser identities are present",()=>{
- assert.equal(selectWalletPrincipal("customer-A","super-admin"),"super-admin");
+test("verified customer wallet wins even when a CMS admin is logged in",()=>{
+ assert.equal(selectWalletPrincipal("customer-A","super-admin"),"customer");
  assert.equal(selectWalletPrincipal(null,"super-admin"),"super-admin");
- assert.equal(selectWalletPrincipal("customer-A","editor"),null,"editor cannot spend old customer wallet");
+ assert.equal(selectWalletPrincipal("customer-A","editor"),"customer");
  assert.equal(selectWalletPrincipal(null,"editor"),null);
  assert.equal(selectWalletPrincipal("customer-A",null),"customer");
  assert.equal(selectWalletPrincipal(null,null),null);
  const identity=readFileSync(new URL("../lib/commerce/credit-wallet-auth.ts",import.meta.url),"utf8");
- const account=readFileSync(new URL("../app/(site)/api/customer-auth/route.ts",import.meta.url),"utf8");
+ const customer=readFileSync(new URL("../app/(site)/api/customer-auth/route.ts",import.meta.url),"utf8");
  const creditBalance=readFileSync(new URL("../app/(site)/api/credit-balance/route.ts",import.meta.url),"utf8");
  const creditCheckout=readFileSync(new URL("../app/(site)/api/credit-checkout/route.ts",import.meta.url),"utf8");
- assert.match(account,/id&&req\.cookies\.has\("payload-token"\)/);
- assert.match(identity,/!id\|\|req\.cookies\.has\("payload-token"\)/);
+ assert.ok(identity.includes('if(process.env.CMS_ENABLED==="true"&&!id)'));
+ assert.doesNotMatch(customer,/payload\.auth\(/);
  assert.match(identity,/selectWalletPrincipal\(id,staffRole\)/);
  assert.match(creditBalance,/resolveCreditWalletIdentity\(req,store\)/);
  assert.match(creditCheckout,/resolveCreditWalletIdentity\(req,store\)/);
