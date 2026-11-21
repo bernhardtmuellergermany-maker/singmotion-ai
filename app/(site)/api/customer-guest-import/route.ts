@@ -18,10 +18,16 @@ export async function POST(req:NextRequest){
  if(req.headers.get("origin")!==applicationOrigin(req.url,req.headers.get("host")))return json({error:"Invalid origin"},403);
  const customer=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
-  // Require the exact same server-verified, allowlisted Studio operator
-  // identity as /api/session. Staff login alone never grants import rights.
+  // Match /api/session: a verified public customer takes precedence over
+  // the independent CMS login, without granting staff privileges to customers.
   let accountOwner:string|null=null;
-  if(process.env.CMS_ENABLED==="true"){
+  if(customerEnabled){
+   const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
+   if(accountId)accountOwner="customer-"+accountId;
+  }
+  // Only an explicitly allowlisted Studio operator may access this route
+  // without a customer session. CMS login alone grants no project ownership.
+  if(!accountOwner&&process.env.CMS_ENABLED==="true"){
    const {getPayload}=await import("payload");
    const {default:config}=await import("@payload-config");
    const {studioStaff}=await import("@/cms/studio-access");
@@ -29,10 +35,6 @@ export async function POST(req:NextRequest){
    const identity=await payload.auth({headers:req.headers});
    try{accountOwner=studioStaff(identity.user,req.method,req.headers,process.env)}
    catch{/* No authorization without an allowlisted operator identity. */}
-  }
-  if(!accountOwner&&customerEnabled){
-   const accountId=customer.session(req.cookies.get("sm_customer")?.value||"");
-   if(accountId)accountOwner="customer-"+accountId;
   }
   if(!accountOwner)return json({error:"Sign in as a customer or authorized Studio operator first"},401);
   if(session(req.cookies.get("sm_session")?.value)?.owner!==accountOwner)return json({error:"Account workspace mismatch"},403);
