@@ -27,3 +27,12 @@ test("customer sign-outs do not revoke a staff-owned Studio media session",()=>{
  assert.doesNotMatch(google,/owner\.startsWith\("customer-"\)\|\|owner\.startsWith\("cms-staff-"\)/);
  assert.doesNotMatch(customer,/previousOwner\?\.startsWith\("customer-"\)\|\|previousOwner\?\.startsWith\("cms-staff-"\)/);
 });
+
+test("guest handoff uses the customer before any independent CMS operator",()=>{
+ const source=read("app/(site)/api/customer-guest-import/route.ts");
+ const customer=source.indexOf('if(customerEnabled){');
+ const staff=source.indexOf('if(!accountOwner&&process.env.CMS_ENABLED==="true"){');
+ assert.ok(customer>0&&staff>customer);
+ assert.match(source,/studioStaff\(identity\.user,req\.method,req\.headers,process\.env\)/);
+ assert.match(source,/session\(req\.cookies\.get\("sm_session"\)\?\.value\)\?\.owner!==accountOwner/);
+});
