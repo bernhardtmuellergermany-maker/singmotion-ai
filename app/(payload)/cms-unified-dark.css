@@ -1,0 +1,265 @@
+/* SingMotion CMS design system. This file is loaded last by the Payload
+   root layout and intentionally never applies to public SingMotion pages.
+   Keep Payload authentication, fields and protected routes unchanged. */
+html:has(.payload-admin),
+html:has(.payload-admin) body{
+  color-scheme:dark;
+  min-height:100%;
+  background:#0d0a17!important;
+  color:#f7f1ff;
+}
+html:has(.payload-admin) body::before{
+  content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(ellipse 75% 55% at 50% -18%,rgba(129,63,179,.24),transparent 72%);
+}
+.payload-admin{
+ --sm-surface:#171223;
+ --sm-surface-raised:#1f1830;
+ --sm-surface-muted:#211a34;
+ --sm-ink:#f7f1ff;
+ --sm-ink-muted:#c8bad6;
+ --sm-outline:rgba(201,166,242,.23);
+ --sm-accent:#cd9dff;
+ --sm-radius:18px;
+ --theme-bg:#0d0a17;
+ --theme-elevation-0:#0d0a17;
+ --theme-elevation-50:#120e1d;
+ --theme-elevation-100:#171223;
+ --theme-elevation-150:#1f1830;
+ --theme-elevation-200:#241c36;
+ --theme-input-bg:#211a34;
+ min-height:100vh;
+ background:#0d0a17!important;
+ color:var(--sm-ink)!important;
+}
+.payload-admin .app,
+.payload-admin .app__content,
+.payload-admin .app-header,
+.payload-admin .dashboard,
+.payload-admin .dashboard__wrap,
+.payload-admin .template-default,
+.payload-admin .template-default__wrap,
+.payload-admin .template-default__content,
+.payload-admin .template-default__header,
+.payload-admin .collections,
+.payload-admin .collection-list__wrap,
+.payload-admin .root{
+ background-color:transparent!important;
+ color:var(--sm-ink);
+}
+.payload-admin .dashboard__wrap,
+.payload-admin .template-default__wrap{
+ width:min(100%,1376px)!important;
+ max-width:1376px!important;
+ padding:clamp(14px,2.4vw,30px)!important;
+ margin-inline:auto!important;
+ box-sizing:border-box;
+}
+.payload-admin .gutter,
+.payload-admin .gutter--left,
+.payload-admin .gutter--right{background:transparent}
+.payload-admin h1{color:#fff}
+.payload-admin h2,.payload-admin h3{color:#f6ecff}
+.payload-admin p,.payload-admin label{color:inherit}
+.payload-admin .card,
+.payload-admin .collection-list,
+.payload-admin .render-fields,
+.payload-admin .collapsible,
+.payload-admin .tabs-field,
+.payload-admin .table,
+.payload-admin .auth-form,
+.payload-admin .list-controls{
+ background:var(--sm-surface)!important;
+ border:1px solid var(--sm-outline)!important;
+ border-radius:var(--sm-radius);
+ color:var(--sm-ink);
+}
+.payload-admin .table thead{background:var(--sm-surface-muted)}
+.payload-admin .table tbody tr:hover{background:rgba(190,128,247,.08)}
+/* Payload can portal the mobile drawer and hamburger outside .payload-admin.
+   Only pages containing the CMS root receive these rules. */
+html:has(.payload-admin) .nav,
+html:has(.payload-admin) .nav-toggler,
+html:has(.payload-admin) .app-header__menu-button,
+html:has(.payload-admin) .app-header__nav-toggle,
+html:has(.payload-admin) .hamburger,
+html:has(.payload-admin) button[aria-label="Open menu"],
+html:has(.payload-admin) button[aria-label="Toggle menu"],
+html:has(.payload-admin) button[aria-label="Open navigation"],
+html:has(.payload-admin) button[aria-label="Toggle navigation"],
+html:has(.payload-admin) button[aria-label="Menu"]{
+ display:none!important;
+}
+.payload-admin{--nav-width:0px!important}
+.payload-admin .app__content,.payload-admin .dashboard,
+.payload-admin .template-default{margin-left:0!important}
+.sm-cms-back-to-overview{
+ background:#110d1d;border-bottom:1px solid var(--sm-outline,#3c2e4d);
+}
+.sm-cms-back-to-overview a,
+.sm-cms-back-to-overview button{
+ background:#281b3c;color:#f8eeff!important;
+ border-color:rgba(207,165,255,.33);
+}
+/* Unified page width and hero: dashboard, customer, support, coupons,
+   marketing, showcase and technical tools use one dark layout system. */
+.payload-admin .sm-cms-clean,
+.payload-admin .sm-cms-tool-view,
+.payload-admin .sm-insights,
+.payload-admin .sm-marketing,
+.payload-admin .sm-promo-cms{
+ max-width:1260px;width:100%;
+ margin:0 auto 36px;
+ padding:0 0 48px;
+ color:var(--sm-ink);
+ background:transparent!important;
+ border:0;
+ border-radius:0;
+ font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+ box-sizing:border-box;
+}
+.payload-admin .sm-cms-clean-hero,
+.payload-admin .sm-cms-page-hero,
+.payload-admin .sm-insights-hero,
+.payload-admin .sm-marketing-heading,
+.payload-admin .sm-support-heading{
+ display:block;
+ width:100%;max-width:none;
+ margin:0 0 22px;
+ padding:clamp(22px,3vw,36px);
+ border:1px solid var(--sm-outline);
+ border-radius:var(--sm-radius);
+ background:radial-gradient(ellipse 75% 120% at 95% -30%,rgba(179,90,228,.18),transparent 70%),var(--sm-surface);
+ box-shadow:0 12px 36px rgba(4,2,11,.14);
+ color:var(--sm-ink);
+ box-sizing:border-box;
+}
+.payload-admin .sm-cms-clean-hero h1,
+.payload-admin .sm-cms-page-hero h1,
+.payload-admin .sm-insights-hero h1,
+.payload-admin .sm-marketing-heading h1,
+.payload-admin .sm-support-heading h1{
+ margin:8px 0 8px;
+ font-size:clamp(27px,3.7vw,38px)!important;
+ line-height:1.16;
+ letter-spacing:-.035em;
+ color:#fff;
+}
+.payload-admin .sm-cms-page-hero p,
+.payload-admin .sm-cms-clean-hero p,
+.payload-admin .sm-insights-hero p,
+.payload-admin .sm-marketing-heading p,
+.payload-admin .sm-support-heading p:not(.sm-support-kicker){
+ color:var(--sm-ink-muted);
+ font-size:clamp(13px,1.4vw,15px);
+ line-height:1.6;
+ margin:0;
+ max-width:920px;
+}
+.payload-admin .sm-cms-clean-eyebrow,
+.payload-admin .sm-insights-kicker,
+.payload-admin .sm-marketing-heading>span,
+.payload-admin .sm-support-kicker{
+ color:var(--sm-accent);
+ font-size:11px;
+ letter-spacing:.12em;
+ font-weight:800;
+}
+.payload-admin .sm-cms-quick-link,
+.payload-admin .sm-insights-stat,
+.payload-admin .sm-insights-area,
+.payload-admin .sm-insights-detail,
+.payload-admin .sm-marketing-list,
+.payload-admin .sm-marketing-editor,
+.payload-admin .sm-marketing-summary,
+.payload-admin .sm-cms-tool-view section:not(.sm-support-admin),
+.payload-admin .sm-cms-tool-details,
+.payload-admin .sm-support-search,
+.payload-admin .sm-support-details,
+.payload-admin .sm-promo-cms form,
+.payload-admin .sm-promo-cms>div,
+.payload-admin .sm-promo-cms>section{
+ background:var(--sm-surface)!important;
+ border:1px solid var(--sm-outline);
+ border-radius:var(--sm-radius);
+ box-shadow:0 10px 30px rgba(5,3,14,.12);
+ color:var(--sm-ink);
+}
+.payload-admin .sm-cms-quick-link:hover{background:var(--sm-surface-raised)!important}
+.payload-admin .sm-support-admin{
+ width:100%;max-width:none;
+ padding:0!important;margin:0;
+ background:transparent!important;
+}
+.payload-admin .sm-promo-cms{max-width:1260px!important}
+.payload-admin .sm-promo-cms>header{max-width:none}
+.payload-admin .sm-promo-cms form{padding:clamp(15px,2vw,23px)}
+.payload-admin .sm-promo-cms label{
+ color:var(--sm-ink-muted);font-weight:650;font-size:13px;
+}
+.payload-admin .sm-promo-cms input,
+.payload-admin .sm-promo-cms select,
+.payload-admin .sm-promo-cms textarea{
+ background:var(--sm-surface-muted)!important;
+ color:#fff!important;
+ border:1px solid rgba(202,161,242,.43)!important;
+ border-radius:10px;padding:10px 12px;min-height:43px;
+}
+.payload-admin .sm-promo-cms button,
+.payload-admin .sm-support-admin button,
+.payload-admin .sm-marketing button,
+.payload-admin .sm-insights button,
+.payload-admin .sm-showcase-cms-manager button{
+ border:1px solid rgba(205,160,247,.49);
+ border-radius:10px;
+ background:#39244e;
+ color:#fff;
+ min-height:40px;
+ font-weight:650;
+}
+.payload-admin .sm-promo-cms button:hover,
+.payload-admin .sm-support-admin button:hover,
+.payload-admin .sm-marketing button:hover,
+.payload-admin .sm-insights button:hover{background:#52316f}
+.payload-admin .sm-promo-cms button:disabled,
+.payload-admin .sm-support-admin button:disabled{opacity:.5;cursor:not-allowed}
+.payload-admin .sm-promo-cms table{width:100%;background:var(--sm-surface)}
+.payload-admin .sm-promo-cms th,
+.payload-admin .sm-promo-cms td{
+ padding:10px 12px!important;
+ border-bottom:1px solid var(--sm-outline)!important;
+ text-align:left;
+ color:var(--sm-ink);
+}
+.payload-admin .sm-promo-cms thead{background:var(--sm-surface-muted)}
+.payload-admin .sm-promo-cms tr:hover{background:rgba(190,128,247,.07)}
+.payload-admin .sm-promo-cms>div{padding:clamp(12px,2vw,22px)}
+.payload-admin .sm-showcase-cms-manager{
+ width:100%;max-width:none;
+ margin:12px 0;
+ background:var(--sm-surface)!important;
+ border:1px solid var(--sm-outline);
+ border-radius:var(--sm-radius);
+}
+.payload-admin .sm-cms-tool-view>section{margin-bottom:16px}
+.payload-admin .sm-cms-tool-view .sm-cms-page-hero{margin-bottom:20px}
+.payload-admin .sm-cms-tool-view .sm-support-admin{border:0!important;box-shadow:none!important}
+@media(max-width:680px){
+ .payload-admin .dashboard__wrap,.payload-admin .template-default__wrap{
+  padding:12px!important;
+ }
+ .payload-admin .sm-cms-clean,
+ .payload-admin .sm-cms-tool-view,
+ .payload-admin .sm-insights,
+ .payload-admin .sm-marketing,
+ .payload-admin .sm-promo-cms{padding:0 0 24px}
+ .payload-admin .sm-cms-clean-hero,
+ .payload-admin .sm-cms-page-hero,
+ .payload-admin .sm-insights-hero,
+ .payload-admin .sm-marketing-heading,
+ .payload-admin .sm-support-heading{
+  padding:20px 16px;border-radius:14px;
+ }
+ .payload-admin .sm-support-search,.payload-admin .sm-support-details,
+ .payload-admin .sm-promo-cms form{padding:15px}
+}
