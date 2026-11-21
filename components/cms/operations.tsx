@@ -1,5 +1,5 @@
 import Link from "next/link";
-import {ArrowUpRight, UsersRound, LifeBuoy, Film, UserRoundCog, Gift, Settings, Megaphone} from "lucide-react";
+import {ArrowUpRight, UsersRound, LifeBuoy, Film, Gift, Settings, Megaphone} from "lucide-react";
 import {hasRole} from "../../cms/policy";
 
 type Entry={label:string;description:string;href:string;icon:typeof UsersRound};
@@ -31,7 +31,6 @@ export function Operations({user}:{user:unknown}){
   {label:"Marketing & Aktionen",description:"Kampagnen und Aktionspreise",href:"/admin/marketing-actions",icon:Megaphone},
   {label:"Gutscheine",description:"Rabattcodes verwalten",href:"/admin/promotions",icon:Gift},
   {label:"Showcase-Videos",description:"Videos auf der Startseite auswählen",href:"/admin/showcase",icon:Film},
-  {label:"Team & Rechte",description:"CMS-Zugriffsrechte verwalten",href:"/admin/collections/staff",icon:UserRoundCog},
  ]:[];
  return <main className="sm-cms-clean" aria-label="SingMotion CMS Übersicht">
   <header className="sm-cms-clean-hero">

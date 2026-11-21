@@ -10,9 +10,10 @@ test("dashboard uses one Payload root and only real internal destinations",()=>{
  assert.match(dashboard,/initPageResult\.req\.user/);
  assert.match(map,/dashboard-view\.tsx#CleanDashboardView/);
  for(const href of ["/admin/customer-insights","/admin/support","/admin/marketing-actions",
-  "/admin/promotions","/admin/showcase","/admin/collections/staff"])
+  "/admin/promotions","/admin/showcase"])
   assert.ok(operations.includes('href:"'+href+'"'),href);
  assert.doesNotMatch(operations,/href:"\/support-admin"|href:"\/promo-admin"/);
+ assert.doesNotMatch(operations,/Team & Rechte|href:"\/admin\/collections\/staff"/);
  for(const unused of ["Seiten & Texte","Bilder & Medien","Navigation & Footer","Studio-Texte"])
   assert.ok(!operations.includes(unused),unused);
  assert.doesNotMatch(dashboard,/<DefaultTemplate/);

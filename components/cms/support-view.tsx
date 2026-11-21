@@ -6,7 +6,7 @@ import {SupportAdmin} from "../support-admin";
 export function SupportCmsView({initPageResult}:AdminViewServerProps){
  if(!hasRole(initPageResult.req.user,["super-admin"]))
   return <p role="alert">Super-Admin-Zugang erforderlich.</p>;
- return <Gutter><main className="sm-cms-tool-view">
-  <h1>Kundensupport</h1><SupportAdmin/>
+ return <Gutter><main className="sm-cms-tool-view sm-cms-uniform-page">
+  <SupportAdmin/>
  </main></Gutter>;
 }
