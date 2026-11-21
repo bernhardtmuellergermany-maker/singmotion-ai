@@ -33,7 +33,7 @@ test("terminal failure exposes a new owned editable draft, without replaying a p
  assert.match(output,/id:draftId,selection:project\.selection/);
  assert.match(output,/step:0/);
  assert.match(output,/router\.push\("\/studio\?draft="\+encodeURIComponent\(draftId\)\)/);
- assert.match(paid,/editHref=\{\(fulfillment==="failed"\|\|order\?\.status==="refunded"\)/);
+ assert.match(paid,/editHref=\{\(fulfillment==="failed"\|\|fulfillment==="requires-review"/);
  assert.match(status,/canEditRejected/);
  assert.match(status,/Edit audio, photo & prompt/);
  assert.match(wizard,/if\(copy && !requested\)/);
