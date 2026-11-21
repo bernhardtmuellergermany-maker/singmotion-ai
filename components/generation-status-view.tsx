@@ -67,6 +67,9 @@ export function GenerationStatusView({
   const ready=progress==="ready"&&!!videoUrl&&!!downloadUrl;
   const review=progress==="review";
   const failed=progress==="failed";
+  const canEditRejected=typeof editHref==="string"&&
+    /^\/studio\?copy=(?:live|draft)_[A-Za-z0-9_-]{1,80}$/.test(editHref)&&
+    (failed||review||paymentRefunded)&&!paymentDisputed;
   const inputRejected=failed&&(
     /\[CONTENT_PREFILTER_REJECTED\]/.test(note??"")||
     previewNotice?.key.startsWith("provider-prefilter-")===true);
@@ -159,6 +162,11 @@ export function GenerationStatusView({
         </>}
         {(progress==="prepared"||progress==="credits-needed")&&editHref&&
           <a className="sm-gen-reuse" href={editHref}><RotateCcw size={16}/> Return to Studio · Step 4</a>}
+        {canEditRejected&&<div className="sm-gen-credit-help">
+          <strong>Change the rejected inputs</strong>
+          <p>Open a new draft with the previous audio, photo and prompt. Replace only what is necessary, for example copyrighted audio. The old order, refund and Credit checks stay unchanged. No new generation or payment starts from this button.</p>
+          <a className="sm-gen-reuse" href={editHref}><RotateCcw size={16}/> Edit audio, photo & prompt</a>
+        </div>}
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
           <button className="sm-gen-download" type="button" disabled><LockKeyhole size={17}/> Download video</button>}
         {ready&&reuseHref&&<a className="sm-gen-reuse" href={reuseHref}><RotateCcw size={16}/> {reuseBlank?"Create another video":"Create another version"}</a>}

@@ -36,6 +36,7 @@ export function studioAccountLoginHref(draftId:string,requiredCredits:number):st
  */
 export const CREDIT_BUY_RETURN="/credits#buy-credits";
 export function parseAccountReturn(raw:string|null):string|null{
+ if(raw==="/account/settings#privacy")return raw;
  if(raw===CREDIT_BUY_RETURN)return CREDIT_BUY_RETURN;
  const studio=parseStudioAccountReturn(raw);
  return studio?studioAccountReturn(studio.draftId,studio.requiredCredits):null;

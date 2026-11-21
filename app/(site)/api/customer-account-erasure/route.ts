@@ -1,10 +1,9 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
-import {assessCustomerErasure,eraseEmptyCustomerAccount} from "@/lib/commerce/customer-account-erasure";
 import {quoteCustomerErasureRefund} from "@/lib/commerce/customer-erasure-refund-quote";
 import {beginCustomerErasure} from "@/lib/commerce/customer-erasure-job";
-import {assessCustomerMediaErasure,assertCustomerMediaErasureReady,CustomerMediaErasureBlocked} from "@/lib/commerce/customer-erasure-media";
+import {googleOnlyDeletionAccount,recentlyVerifiedGoogleDeletion} from "@/lib/commerce/customer-deletion-reauth";
 import {dataDir,limit} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
@@ -12,7 +11,6 @@ import {customerAccountSettingsAccessible} from "@/lib/commerce/customer-live-co
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
-const automationEnabled=()=>process.env.CUSTOMER_AUTOMATED_ERASURE_ENABLED==="true";
 const reply=(body:unknown,status=200)=>NextResponse.json(body,{status,headers:{
  "Cache-Control":"private, no-store","Vary":"Cookie","Referrer-Policy":"no-referrer",
  "X-Content-Type-Options":"nosniff"
@@ -29,18 +27,22 @@ export async function GET(req:NextRequest){
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
   if(!id)return reply({error:"Customer sign-in required."},401);
-  if(automationEnabled()){
-   const quote=quoteCustomerErasureRefund(store.db,id);
-   const cents=quote.refundableCents;
-   return reply({automatic:true,eligible:quote.ready,code:quote.reason,
-    refundableCents:cents,refundableCredits:quote.refundableCredits,
-    message:quote.ready?
-     "Delete your account yourself after entering your password. Your unused purchased Credits are estimated at €"+(cents/100).toFixed(2)+
-     " and will be refunded automatically to the original payment method. All your projects and private media will then be removed. You can track progress after confirmation.":
-     "Some payment or video-credit transactions are still being reconciled. Their completion must be verified before account deletion can start; no Credits will be forfeited."});
-  }
-  const assessment=assessCustomerErasure(store,dataDir,id);
-  return reply(assessment);
+  // Request availability is independent of a financial quote or media preflight.
+  // Only the worker may issue an idempotent refund or erase confirmed assets.
+  let quote:ReturnType<typeof quoteCustomerErasureRefund>|null=null;
+  try{quote=quoteCustomerErasureRefund(store.db,id)}catch{/* verification can follow the request */}
+  const googleOnly=googleOnlyDeletionAccount(store.db,id);
+  const googleReauthenticated=googleOnly&&recentlyVerifiedGoogleDeletion(
+   store.db,id,req.cookies.get("sm_customer")?.value||"");
+  return reply({automatic:true,eligible:true,googleOnly,googleReauthenticated,
+   code:quote?.ready?"READY":"RECONCILIATION_PENDING",
+   refundableCents:quote?.ready?quote.refundableCents:null,
+   refundableCredits:quote?.ready?quote.refundableCredits:null,
+   message:quote?.ready?
+    "You can request account deletion now. Your unused purchased Credits are provisionally estimated at €"+
+     (quote.refundableCents/100).toFixed(2)+
+     ". We will verify the final refund to your original payment method before completing deletion.":
+    "You can request deletion now while payments and private files are checked. Your account will be frozen immediately; the verified refund and data removal will continue afterward."});
  }catch{
   return reply({eligible:false,code:"RECORDS_REQUIRE_REVIEW",
    message:"Account deletion safety checks are temporarily unavailable. No data has been deleted."},503);
@@ -61,48 +63,35 @@ export async function POST(req:NextRequest){
   return reply({error:"Invalid request."},400);
  const input=body as {password?:unknown;confirmation?:unknown};
  if(input.confirmation!=="DELETE MY ACCOUNT"||
-    typeof input.password!=="string"||input.password.length<1||input.password.length>256)
-  return reply({error:"Enter your account password and the exact confirmation phrase."},400);
+    (input.password!==undefined&&(typeof input.password!=="string"||input.password.length>256)))
+  return reply({error:"Confirm deletion with the exact phrase and the required account verification."},400);
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
   if(!id)return reply({error:"Customer sign-in required."},401);
   try{limit("customer-erasure:"+id,5,15*60*1000);}
   catch{return reply({error:"Too many attempts. Try again later."},429);}
-  if(!store.verifyCustomerPassword(id,input.password))
-   return reply({error:"Incorrect password. Google-only accounts need a verified re-authentication flow before self-service deletion."},403);
-  if(automationEnabled()){
-   const quote=quoteCustomerErasureRefund(store.db,id);
-   if(!quote.ready)
-    return reply({eligible:false,code:quote.reason,
-     message:"Your payments or Credit balance are not yet reconciled. No deletion or refund was started."},409);
-   try{assertCustomerMediaErasureReady(assessCustomerMediaErasure(dataDir,id));}
-   catch(e){
-    const code=e instanceof CustomerMediaErasureBlocked?e.code:"MEDIA_ERASURE_NOT_VERIFIED";
-    // A provider currently processing can be allowed to finish; the async
-    // erasure runner will wait without issuing a refund or removing inputs.
-    if(!["ACTIVE_MEDIA_JOB","ACTIVE_PAID_PROVIDER_JOB","ACTIVE_OR_UNKNOWN_PROVIDER_JOB",
-          "PROVIDER_INPUT_LEASE_ACTIVE","LIVE_PROVIDER_INPUT_LEASE_ACTIVE"].includes(code))
-     return reply({eligible:false,code,
-      message:"Private media cannot yet be safely removed. No account deletion or Stripe refund was started."},409);
-   }
-   const started=beginCustomerErasure(store,id);
-   const response=reply({pending:true,state:started.job.state,
-    refundableCents:quote.refundableCents,
-    message:"Account deletion has been requested. Login sessions were revoked. Refund and media removal will be verified automatically before completion."},202);
-   response.cookies.set("sm_erasure_status",started.token,{
-    httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",
-    path:"/",maxAge:30*24*60*60
-   });
-   response.cookies.delete("sm_customer");
-   response.cookies.delete("sm_session");
-   response.cookies.delete("sm_guest_session");
-   return response;
-  }
-  const result=eraseEmptyCustomerAccount(store,dataDir,id);
-  if(!result.eligible)return reply(result,result.code==="ACCOUNT_MISSING"?404:409);
-  const response=reply({deleted:true,
-   message:"Your empty customer account and sessions have been removed. No purchase or media records were present. Backups follow their documented retention cycles."});
+  const googleOnly=googleOnlyDeletionAccount(store.db,id);
+  if(googleOnly){
+   // Deleting an OAuth-only account requires a fresh Google consent/login
+   // challenge, not a password that does not exist.
+   if(!recentlyVerifiedGoogleDeletion(store.db,id,req.cookies.get("sm_customer")?.value||""))
+    return reply({error:"Please sign in again with Google before deleting your account.",code:"GOOGLE_REAUTH_REQUIRED"},403);
+  }else if(typeof input.password!=="string"||!store.verifyCustomerPassword(id,input.password))
+   return reply({error:"Incorrect account password."},403);
+  // The customer's verified request cannot be refused because a Stripe
+  // payment, provider task, or private object needs further reconciliation.
+  let estimate:number|null=null;
+  try{const quote=quoteCustomerErasureRefund(store.db,id);
+      if(quote.ready)estimate=quote.refundableCents;}catch{/* no quote is not a refusal */}
+  const started=beginCustomerErasure(store,id);
+  const response=reply({pending:true,state:started.job.state,
+   refundableCents:estimate,
+   message:"Your deletion request was accepted. Customer login sessions are revoked. Purchased Credit refunds and private files will be independently verified before completion. We will email you after the process succeeds."},202);
+  response.cookies.set("sm_erasure_status",started.token,{
+   httpOnly:true,secure:process.env.NODE_ENV==="production",sameSite:"strict",
+   path:"/",maxAge:30*24*60*60
+  });
   response.cookies.delete("sm_customer");
   response.cookies.delete("sm_session");
   response.cookies.delete("sm_guest_session");
