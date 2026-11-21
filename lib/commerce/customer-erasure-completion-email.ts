@@ -12,7 +12,7 @@ export function ensureCustomerErasureCompletionEmail(db:DatabaseSync){
 }
 /** Call inside the transaction inserting the frozen erasure job. */
 export function queueCustomerErasureCompletionEmail(db:DatabaseSync,accountId:string,email:string){
- if(!/^[a-f0-9-]{36}$/i.test(accountId)||!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email))
+ if(!/^[a-f0-9-]{36}$/i.test(accountId)||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
   throw Error("Invalid completion email recipient");
  ensureCustomerErasureCompletionEmail(db);
  db.prepare("INSERT OR IGNORE INTO customer_erasure_completion_emails(account_id,recipient,created_at) VALUES(?,?,?)")

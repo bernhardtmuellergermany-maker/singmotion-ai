@@ -8,6 +8,7 @@
 import {createHash,randomBytes} from "node:crypto";
 import type {DatabaseSync} from "node:sqlite";
 import type {CommerceStore} from "./store.ts";
+import {queueCustomerErasureCompletionEmail} from "./customer-erasure-completion-email.ts";
 
 export type ErasureJobState="requested"|"refunding"|"removing-media"|"removing-data"|"completed"|"needs-attention";
 export type ErasureJob={
@@ -66,14 +67,15 @@ export function beginCustomerErasure(store:CommerceStore,accountId:string):{
  store.db.exec("BEGIN IMMEDIATE");
  try{
   ensureCustomerErasureJobs(store.db);
-  const account=store.db.prepare("SELECT id FROM customer_accounts WHERE id=?")
-   .get(accountId);
+  const account=store.db.prepare("SELECT id,email FROM customer_accounts WHERE id=?")
+   .get(accountId) as {id:string;email:string}|undefined;
   if(!account)throw Error("Customer account missing");
   const existing=readErasureJob(store.db,accountId);
   if(existing)throw Error("Erasure already requested; use your existing deletion status link");
   store.db.prepare(`INSERT INTO customer_erasure_jobs
     (account_id,token_hash,state,created_at,updated_at)
     VALUES(?,?,'requested',?,?)`).run(accountId,hash(token),now,now);
+  queueCustomerErasureCompletionEmail(store.db,accountId,account.email);
   // Immediately invalidate all known customer login tokens. The shared
   // session and login methods also deny access while a job is pending.
   store.db.prepare("DELETE FROM customer_sessions WHERE account_id=?").run(accountId);
