@@ -56,7 +56,10 @@ test("privacy promise remains truthful about unresolved processor terms and dele
  const erasure=source("app/(site)/api/customer-account-erasure/route.ts");
  assert.match(account,/mailto:support@singmotion\.ai/);
  assert.match(policy,/without administrator approval/); // Legal disclosure stays complete; compact UI avoids repeated long explanations.
- assert.match(account,/The deletion safety check is unavailable/);
+ assert.doesNotMatch(account,/Deletion is temporarily unavailable while payments or files are checked/);
+ assert.match(account,/Permanently delete my account/);
  assert.match(erasure,/verifyCustomerPassword\(id,input.password\)/);
- assert.match(erasure,/eraseEmptyCustomerAccount\(store,dataDir,id\)/);
+ assert.match(erasure,/recentlyVerifiedGoogleDeletion/);
+ assert.match(erasure,/beginCustomerErasure\(store,id\)/);
+ assert.doesNotMatch(erasure,/eraseEmptyCustomerAccount\(/);
 });
