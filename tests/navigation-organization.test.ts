@@ -48,3 +48,23 @@ test("homepage navigation dropdown stays outside isolated video viewport and abo
  assert.match(styles,/background:#181427!important/);
  assert.match(styles,/position:fixed!important/);
 });
+
+
+test("unreleased Projects stays CMS Super Admin only across page/API/menu",()=>{
+ const auth=read("lib/music-video/auth.ts");
+ const menu=read("components/global-menu.tsx");
+ const page=read("app/(site)/projects/page.tsx");
+ const detail=read("app/(site)/projects/[id]/page.tsx");
+ const api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.match(auth,/hasRole\(user,\["super-admin"\]\)/);
+ assert.match(auth,/if\(store\.session\(customerToken\)\)return null/);
+ assert.match(menu,/setMusicEnabled\(false\)/);
+ assert.match(menu,/current===serial/);
+ assert.match(auth,/CMS_ENABLED!=="true"/);
+ assert.doesNotMatch(auth,/MUSIC_VIDEO_CUSTOMER_ENABLED|return "customer:"/);
+ assert.match(menu,/fetch\("\/api\/music-video"/);
+ assert.doesNotMatch(menu,/auth\?\.authenticated&&auth\.kind==="customer"|staffRole==="super-admin"/);
+ assert.match(menu,/musicEnabled&&<Link href="\/projects"/);
+ for(const s of [page,detail,api])assert.match(s,/musicPrincipal\(/);
+ assert.match(api,/if\(!owner\)throw new MusicError\("Music Video Builder access denied\.",403\)/);
+});
