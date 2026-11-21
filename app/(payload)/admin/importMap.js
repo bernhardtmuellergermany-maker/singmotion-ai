@@ -7,8 +7,11 @@ import { SupportCmsView as SupportCmsView_sm20261121 } from "../../../components
 import { PromotionsCmsView as PromotionsCmsView_sm20261121 } from "../../../components/cms/promotions-view.tsx";
 import { CollectionCards as CollectionCards_f9c02e79a4aed9a3924487c0cd4cafb1 } from "@payloadcms/next/rsc";
 
+import { AudioQuickTipsCmsView } from "../../../components/cms/audio-quick-tips-view.tsx";
+
 /** @type import('payload').ImportMap */
 export const importMap = {
+  "/components/cms/audio-quick-tips-view.tsx#AudioQuickTipsCmsView": AudioQuickTipsCmsView,
   "/components/cms/dashboard-view.tsx#CleanDashboardView":
     CleanDashboardView_sm20261118,
   "/components/cms/showcase-view.tsx#ShowcaseCmsView":

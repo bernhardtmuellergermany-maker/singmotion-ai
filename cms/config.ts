@@ -475,6 +475,12 @@ export default buildConfig({
         dashboard: {
           Component: "/components/cms/dashboard-view.tsx#CleanDashboardView",
         },
+        audioQuickTips: {
+          Component: "/components/cms/audio-quick-tips-view.tsx#AudioQuickTipsCmsView",
+          path: "/audio-quick-tips",
+          exact: true,
+          meta: {title:"Audio Quick Tips · SingMotion AI"},
+        },
         showcase: {
           Component: "/components/cms/showcase-view.tsx#ShowcaseCmsView",
           path: "/showcase",

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "./site-header";
 import {SunoSongImport} from "./suno-song-import";
+import {AudioQuickTips,downloadAudioQuickTip} from "./audio-quick-tips";
 import {
   ArrowLeft,
   ArrowRight,
@@ -519,17 +520,19 @@ export function StudioWizard({
     update({customPrompt:next,performance:"Custom"});
     performanceInput.current?.focus();
   }
-  async function add(file: File | undefined, kind: "audio" | "image") {
-    if (!file || busy || !ready) return;
+  async function add(file: File | undefined, kind: "audio" | "image", loadFile?:()=>Promise<File>) {
+    if ((!file&&!loadFile) || busy || !ready) return;
     setBusy(true);
     setError("");
-    if (kind === "image") {setPhotoUploadingName(file.name);setPhotoUploadProgress(0);setPhotoUploadPhase("uploading");}
-    if (kind === "audio") {
-      setAudioUploadingName(file.name);
-      setAudioUploadProgress(0);
-      setAudioUploadPhase("uploading");
-    }
     try {
+      if(loadFile){setAudioUploadingName("Audio sample");setAudioUploadPhase("uploading");file=await loadFile();}
+      if(!file)return;
+      if (kind === "image") {setPhotoUploadingName(file.name);setPhotoUploadProgress(0);setPhotoUploadPhase("uploading");}
+      if (kind === "audio") {
+        setAudioUploadingName(file.name);
+        setAudioUploadProgress(0);
+        setAudioUploadPhase("uploading");
+      }
       validateFile(file.name, file.size, kind);
       const asset = kind === "audio"
         ? await uploadWithProgress(file, kind, percent => {
@@ -921,6 +924,7 @@ export function StudioWizard({
             </>
           )}
           {!draft.song&&<SunoSongImport disabled={!ready||busy} onImportFile={file=>add(file,"audio")}/>}
+          {!draft.song&&<AudioQuickTips disabled={!ready||busy} onSelect={tip=>add(undefined,"audio",()=>downloadAudioQuickTip(tip))}/> }
         </div>}
         {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
           <input ref={photoFileInput} type="file" className="sr-only" accept=".jpg,.jpeg,.png,image/jpeg,image/png"
