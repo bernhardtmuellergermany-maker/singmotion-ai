@@ -44,3 +44,24 @@ test("support, coupons and campaigns are native CMS views",()=>{
   assert.ok(map.includes("#"+name),name);
  }
 });
+
+
+test("SingMotion CMS uses one dark page design and hides the empty mobile menu",()=>{
+ const css=read("app/(payload)/cms-unified-dark.css");
+ const layout=read("app/(payload)/layout.tsx");
+ const operations=read("components/cms/operations.tsx");
+ const promotion=read("components/promotion-admin.tsx");
+ const showcase=read("components/cms/showcase-view.tsx");
+ const advanced=read("components/cms/advanced-view.tsx");
+ assert.ok(layout.includes('import "./cms-unified-dark.css"'));
+ assert.match(css,/html:has\(\.payload-admin\) body/);
+ assert.match(css,/background:#0d0a17!important/);
+ assert.match(css,/html:has\(\.payload-admin\) \.nav-toggler/);
+ assert.match(css,/button\[aria-label="Toggle navigation"\]/);
+ for(const className of ["sm-cms-clean-hero","sm-cms-page-hero","sm-insights-hero","sm-marketing-heading","sm-support-heading"])
+  assert.ok(css.includes("."+className),className);
+ assert.doesNotMatch(operations,/Team & Rechte|\/admin\/collections\/staff/);
+ assert.match(promotion,/className="sm-cms-page-hero"/);
+ assert.match(showcase,/className="sm-cms-page-hero"/);
+ assert.match(advanced,/className="sm-cms-page-hero"/);
+});
