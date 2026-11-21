@@ -280,6 +280,7 @@ export default function AccountSettings(){
       <div className="sm-settings-info-grid"><div><LockKeyhole size={20}/><strong>Privacy</strong><Link href="/privacy">Privacy policy <ExternalLink size={13}/></Link></div><div><HardDrive size={20}/><strong>Your files</strong><Link href="/projects">My projects <ExternalLink size={13}/></Link></div></div>
       {data.staffPreview?<p className="sm-settings-muted">Staff and Super Admin accounts require a protected administrator handover. Do not use a customer password to close a staff account. <a href="mailto:support@singmotion.ai?subject=Staff%20account%20closure">Contact support</a>.</p>:<>
        
+       {erasureLoading&&<p className="sm-settings-deletion-status" role="status">Rückerstattungsstatus wird geprüft…</p>}
        {erasure?.message&&<p className="sm-settings-deletion-status" role="status" aria-live="polite">{erasure.message}</p>}
        <details open={deleteOpen} onToggle={e=>setDeleteOpen(e.currentTarget.open)} className="sm-settings-deletion-disclosure">
         <summary>Delete account permanently</summary>
