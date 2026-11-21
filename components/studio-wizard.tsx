@@ -943,7 +943,7 @@ export function StudioWizard({
             </button>
           ) : (
             <>
-              <div className={`sm-photo-editor-stage ${!customMode&&draft.outputFormat==="16:9"?"is-landscape":""}`}> 
+              <div className={`sm-photo-editor-stage ${!customMode?(draft.outputFormat==="16:9"?"is-landscape":"is-portrait"):""}`}> 
                 <span className="sm-photo-added"><Check size={13}/> Photo added</span>
                 <button type="button" className="sm-photo-overlay-trash" disabled={busy} aria-label="Delete artist photo" title="Delete artist photo"
                   onClick={()=>{update({imageId:"",sourceImageId:"",editedImageId:"",appliedOutputFormat:undefined});cropReset();setCropPending(false);}}><Trash2 size={18}/></button>
