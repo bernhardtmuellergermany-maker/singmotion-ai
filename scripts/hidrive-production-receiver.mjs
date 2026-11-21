@@ -13,6 +13,7 @@ import path from "node:path";
 import { createPrivateReceiver, listenPrivate, isPrivateNetworkAddress } from "../lib/ops/private-backup-worker.mjs";
 import { hidriveCiphertextSink } from "../lib/ops/hidrive-ciphertext-sink.mjs";
 import { MAX_SEGMENT_BYTES, MAX_SEGMENTS } from "../lib/ops/backup-segmented-archive.mjs";
+import { weeklyBackupSlot, weeklyBackupEnabled, parseWeeklyPkiBundle } from "../lib/ops/weekly-hidrive-schedule.mjs";
 
 const PRODUCTION = "36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -71,6 +72,8 @@ export function productionReceiverConfig(env, now = Date.now()) {
     cert = new X509Certificate(certBytes);
     key = createPrivateKey(keyBytes);
   } catch { refused("RECEIVER_MTLS_CERTIFICATE_INVALID"); }
+  const weekly=env.BACKUP_WEEKLY_EXECUTION_CONTEXT==="YES";
+  const maxCertRemainingMs=(weekly?366:7)*24*60*60*1000;
   if (!ca.ca || !cert.verify(ca.publicKey) ||
       !cert.checkPrivateKey(key) ||
       !cert.subjectAltName?.split(",").map(x=>x.trim()).includes(
@@ -79,7 +82,7 @@ export function productionReceiverConfig(env, now = Date.now()) {
       Date.parse(cert.validFrom) > now ||
       Date.parse(ca.validTo) <= expiration ||
       Date.parse(cert.validTo) <= expiration ||
-      Date.parse(cert.validTo)-now > 7*24*60*60*1000)
+      Date.parse(cert.validTo)-now > maxCertRemainingMs)
     refused("RECEIVER_MTLS_CERTIFICATE_INVALID");
   return {
     run:env.BACKUP_RUN_ID, expiry:expiration,
@@ -106,6 +109,29 @@ export async function runProductionCiphertextReceiver(env,{
   onReady = () => {},
   onPhase = () => {},
 }={}) {
+  const weekly=env.BACKUP_MODE==="PRODUCTION_WEEKLY_CIPHERTEXT_RECEIVER";
+  if (weekly) {
+    if(!weeklyBackupEnabled(env,true))
+      refused("RECEIVER_WEEKLY_APPROVAL_REQUIRED");
+    const identity=parseWeeklyPkiBundle(env.WEEKLY_BACKUP_PKI_BUNDLE_GZ_B64,"receiver");
+    const slot=weeklyBackupSlot(now(),identity.writerFingerprint);
+    if (!slot.receiverOpen)
+      refused("RECEIVER_WEEKLY_WINDOW_CLOSED");
+    env={
+      ...env,
+      BACKUP_WEEKLY_EXECUTION_CONTEXT:"YES",
+      // Weekly TLS identity remains separate from historical one-shot identity.
+      BACKUP_RECEIVER_CA_B64:identity["ca.crt"],
+      BACKUP_RECEIVER_CERT_B64:identity["server.crt"],
+      BACKUP_RECEIVER_KEY_B64:identity["server.key"],
+      BACKUP_RECEIVER_WRITER_FP:identity.writerFingerprint,
+      BACKUP_RECEIVER_READER_FP:undefined,
+      BACKUP_MODE:"PRODUCTION_CIPHERTEXT_ONLY_RECEIVER",
+      BACKUP_REAL_TRANSFER_APPROVED:"YES",
+      BACKUP_RUN_ID:slot.run,
+      BACKUP_RECEIVER_EXPIRES_AT:new Date(slot.expiresAt).toISOString(),
+    };
+  }
   const config=productionReceiverConfig(env,now());
   onPhase("HIDRIVE_RECEIVER_CONFIG_VALIDATED");
   if (typeof sessionFactory !== "function")
@@ -131,6 +157,7 @@ export async function runProductionCiphertextReceiver(env,{
       tls:config.tls,clientFingerprint:config.clientFingerprint,
       readerFingerprint:config.readerFingerprint,
       allowedRun:config.run,
+      closeAfterCommit:weekly,
       sink,maxBytes:MAX_SEGMENT_BYTES+8192+20,
       maxFiles:MAX_SEGMENTS+1,
       report:onPhase,
