@@ -76,8 +76,11 @@ export class ReferralProgram{
   const existing=this.db.prepare("SELECT code FROM referral_codes WHERE customer_id=?").get(id) as {code:string}|undefined;
   if(existing)return existing.code;
   const code=randomBytes(12).toString("base64url");
-  this.db.prepare("INSERT INTO referral_codes VALUES(?,?,?)").run(id,code,Date.now());
-  return code;
+  this.db.prepare("INSERT OR IGNORE INTO referral_codes VALUES(?,?,?)").run(id,code,Date.now());
+  // Concurrent GET requests for the same account must return the canonical code.
+  const persisted=this.db.prepare("SELECT code FROM referral_codes WHERE customer_id=?").get(id) as {code:string}|undefined;
+  if(!persisted)throw Error("Referral code conflict");
+  return persisted.code;
  }
  /** Only called in the SAME transaction as a freshly created customer account. */
  bindNewCustomer(referredId:string,code:string|undefined):boolean{
@@ -101,7 +104,7 @@ export class ReferralProgram{
    return {enabled:false};
   const code=this.codeFor(customerId);
   const stats=this.db.prepare(
-   "SELECT COUNT(*) total,COALESCE(SUM(CASE WHEN status='awarded' THEN referrer_credits ELSE 0 END),0) earned FROM referral_rewards WHERE referrer_id=?"
+   "SELECT COUNT(*) total,COALESCE(SUM(CASE WHEN status IN('awarded','review') THEN referrer_credits ELSE 0 END),0) earned FROM referral_rewards WHERE referrer_id=?"
   ).get(customerId) as {total:number;earned:number};
   return {enabled:true,code,referrerCredits:config.referrerCredits,
    friendCredits:config.friendCredits,minimumPurchaseCredits:config.minimumPurchaseCredits,
@@ -109,7 +112,7 @@ export class ReferralProgram{
  }
  adminStats(){
   return this.db.prepare(
-   "SELECT COUNT(*) rewards,COALESCE(SUM(CASE WHEN status IN('pending','awarded','review') THEN referrer_credits+friend_credits ELSE 0 END),0) committedCredits,COALESCE(SUM(CASE WHEN status='awarded' THEN 1 ELSE 0 END),0) paid,COALESCE(SUM(CASE WHEN status='review' THEN 1 ELSE 0 END),0) reviews FROM referral_rewards"
+   "SELECT COUNT(*) rewards,COALESCE(SUM(CASE WHEN status IN('pending','awarded','review') THEN referrer_credits+friend_credits ELSE 0 END),0) committedCredits,COALESCE(SUM(CASE WHEN status IN('awarded','review') THEN 1 ELSE 0 END),0) paid,COALESCE(SUM(CASE WHEN status='review' THEN 1 ELSE 0 END),0) reviews FROM referral_rewards"
   ).get();
  }
  /** Run on the existing private worker, never from a public HTTP write endpoint.
