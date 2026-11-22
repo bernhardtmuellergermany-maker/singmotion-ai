@@ -46,7 +46,8 @@ const videoEventsSQL=`
   SELECT v.state,
    (SELECT COUNT(*) FROM credit_wallet_ledger l WHERE l.reference IN (
     'video-charge:'||v.project_id,'video-release:'||v.project_id,
-    'video-service-refund:'||v.project_id,'support-video-refund:'||v.project_id
+    'video-service-refund:'||v.project_id,'support-video-refund:'||v.project_id,
+    'support-video-goodwill:'||v.project_id,'auto-video-return:'||v.project_id
    )) AS events_n,
    (SELECT COUNT(*) FROM credit_wallet_ledger l
     WHERE l.reference='video-charge:'||v.project_id
@@ -61,6 +62,15 @@ const videoEventsSQL=`
     WHERE l.reference='support-video-refund:'||v.project_id
       AND l.subject=v.subject AND l.kind='support-video-refund' AND l.delta=0) AS support_zero_ok,
    (SELECT COUNT(*) FROM credit_wallet_ledger l
+    WHERE l.subject=v.subject AND l.delta=0 AND (
+     (l.reference='support-video-goodwill:'||v.project_id AND l.kind='support-video-goodwill')
+     OR (l.reference='auto-video-return:'||v.project_id AND l.kind='auto-video-credit-return')
+    )) AS goodwill_zero_ok,
+   (SELECT COUNT(*) FROM credit_wallet_ledger l
+    WHERE l.reference='auto-video-return:'||v.project_id
+      AND l.subject=v.subject AND l.kind='auto-video-credit-return'
+      AND l.delta=v.credits) AS automated_positive_ok,
+   (SELECT COUNT(*) FROM credit_wallet_ledger l
     WHERE l.reference='support-video-refund:'||v.project_id
       AND l.subject=v.subject AND l.kind='support-video-refund'
       AND l.delta=v.credits) AS support_positive_ok
@@ -70,8 +80,9 @@ const videoEventsSQL=`
   (state IN ('reserved','review') AND events_n=0) OR
   (state='settled' AND events_n=1 AND charge_ok=1) OR
   (state='released' AND events_n=1 AND
-    (release_ok=1 OR support_zero_ok=1)) OR
-  (state='released' AND events_n=2 AND charge_ok=1 AND support_positive_ok=1)
+    (release_ok=1 OR support_zero_ok=1 OR goodwill_zero_ok=1)) OR
+  (state='released' AND events_n=2 AND charge_ok=1 AND
+    (support_positive_ok=1 OR automated_positive_ok=1))
  )
 `;
 
@@ -84,12 +95,14 @@ const orphanEventsSQL=`
     WHERE l.reference='credit-topup:'||p.id OR l.reference='credit-reversal:'||p.id
    )
  ) OR (
-   l.kind IN ('video','video-release','video-service-refund','support-video-refund')
+   l.kind IN ('video','video-release','video-service-refund','support-video-refund',
+    'support-video-goodwill','auto-video-credit-return')
    AND NOT EXISTS (
     SELECT 1 FROM credit_video_reservations v
     WHERE l.reference IN (
       'video-charge:'||v.project_id,'video-release:'||v.project_id,
-      'video-service-refund:'||v.project_id,'support-video-refund:'||v.project_id
+      'video-service-refund:'||v.project_id,'support-video-refund:'||v.project_id,
+      'support-video-goodwill:'||v.project_id,'auto-video-return:'||v.project_id
     )
    )
  )
