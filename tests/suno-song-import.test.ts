@@ -145,7 +145,7 @@ test("Suno disconnect only clears the scoped OAuth cookies after authentication 
  assert.match(ui,/disabled=\{disabled\|\|working\}/);
 });
 test("Studio integrates direct official download into the existing validated private audio upload",()=>{
- assert.match(wizard,/onImportFile=\{file=>add\(file,"audio"\)\}/);
+ assert.match(wizard,/onImportFile=\{importSunoAsNewDraft\}/);
  assert.match(wizard,/uploadWithProgress\(file, kind,/);
  assert.match(ui,/Import song directly/);
  assert.match(ui,/Connect Suno to import/);
@@ -172,4 +172,19 @@ test("Suno import uses the local brand logo and concise copy",()=>{
  assert.doesNotMatch(ui,/<Music2/);
  assert.match(ui,/Confirm 1 Suno download credit & import/);
  assert.match(ui,/Disconnect/);
+});
+
+test("every successful Suno import opens a new video draft with isolated state",()=>{
+ assert.match(wizard,/onImportFile=\{importSunoAsNewDraft\}/);
+ assert.match(wizard,/async function importSunoAsNewDraft\(file: File\)/);
+ const isolated=wizard.split("async function importSunoAsNewDraft")[1].split("async function add(")[0];
+ assert.match(isolated,/uploadWithProgress\(file, "audio"/);
+ assert.match(isolated,/sessionStorage\.setItem\("singmotion-home-audio-handoff"/);
+ assert.match(isolated,/window\.location\.assign\("\/studio\?new=1&audio=1"\)/);
+ assert.doesNotMatch(isolated,/update\(\{/);
+ assert.match(wizard,/const createNew = params\.get\("new"\) === "1" && !requested && !copy/);
+ assert.match(wizard,/createNew \|\| copy \|\| ownerChanged/);
+ assert.match(wizard,/if \(createNew \|\| ownerChanged \|\| unscopedOperatorDraft\)/);
+ assert.match(wizard,/sessionStorage\.removeItem\("singmotion-home-audio-handoff"\)/);
+ assert.match(wizard,/fresh = \{ \.\.\.initial, song, start: 0/);
 });
