@@ -1,0 +1,22 @@
+name: Verify CMS Super Admin sign-out
+on:
+  pull_request:
+    branches: [production, staging]
+    paths:
+      - 'app/(site)/api/unified-logout/route.ts'
+      - 'tests/cms-auth-separation.test.ts'
+      - '.github/workflows/verify-staff-logout.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/cms-auth-separation.test.ts tests/unified-site-staff-login.test.ts tests/account-menu-identity.test.ts
+      - run: npm run typecheck
