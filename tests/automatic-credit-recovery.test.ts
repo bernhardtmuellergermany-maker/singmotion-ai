@@ -29,7 +29,7 @@ function seed(f:ReturnType<typeof fixture>,input:{
 }={},now=Date.now()){
  const id=randomUUID(),customer=randomUUID(),subject=input.subject??"customer:"+customer;
  f.store.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)")
-  .run(customer,"auto@example.test","test-password-hash",now-4*HOUR);
+  .run(customer,customer+"@example.test","test-password-hash",now-4*HOUR);
  f.store.db.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
   .run("initial-"+id,subject,500,"topup","initial-"+id,now-4*HOUR);
  f.wallet.reserveVideo(id,subject,45);
