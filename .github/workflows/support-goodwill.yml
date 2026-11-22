@@ -1,0 +1,25 @@
+name: Verify uncertain Credit goodwill
+on:
+  pull_request:
+    branches: [production]
+    paths:
+      - 'lib/commerce/credit-wallet.ts'
+      - 'lib/commerce/support-cases.ts'
+      - 'app/(site)/api/support-admin/route.ts'
+      - 'components/support-admin.tsx'
+      - 'tests/support-cases.test.ts'
+      - '.github/workflows/support-goodwill.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/support-cases.test.ts tests/credit-wallet.test.ts
+      - run: npm run typecheck
