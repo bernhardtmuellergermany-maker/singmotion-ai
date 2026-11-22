@@ -49,12 +49,31 @@ export function recoverVideoCredits(
   commerce=new CommerceStore(commerceFile,env);
   const wallet=new CreditWallet(commerce.db);
   const support=new SupportCases(commerce.db);
-  const reservations=commerce.db.prepare(`SELECT project_id,subject,credits,state,created
+  // Rotate a durable scan cursor, so ancient active/invalid reservations
+  // cannot starve later failed videos forever. No concurrent worker assumes
+  // that the cursor itself is a financial authorization.
+  commerce.db.exec(`CREATE TABLE IF NOT EXISTS auto_video_credit_scan_cursor(
+   slot INTEGER PRIMARY KEY CHECK(slot=1),last_created INTEGER NOT NULL,last_id TEXT NOT NULL)`);
+  const saved=commerce.db.prepare("SELECT last_created,last_id FROM auto_video_credit_scan_cursor WHERE slot=1")
+    .get() as {last_created:number;last_id:string}|undefined;
+  const select=commerce.db.prepare(`SELECT project_id,subject,credits,state,created
      FROM credit_video_reservations
      WHERE state IN ('reserved','review','settled')
        AND subject LIKE 'customer:%' AND created<=?
-     ORDER BY created ASC LIMIT ?`).all(now-MINUTE,limit) as
-     {project_id:string;subject:string;credits:number;state:string;created:number}[];
+       AND (created>? OR (created=? AND project_id>?))
+     ORDER BY created,project_id LIMIT ?`);
+  type Row={project_id:string;subject:string;credits:number;state:string;created:number};
+  let reservations=select.all(now-MINUTE,saved?.last_created??0,saved?.last_created??0,
+    saved?.last_id??"",limit) as Row[];
+  if(!reservations.length && saved)
+    reservations=select.all(now-MINUTE,0,0,"",limit) as Row[];
+  if(reservations.length){
+    const last=reservations[reservations.length-1];
+    commerce.db.prepare(`INSERT INTO auto_video_credit_scan_cursor(slot,last_created,last_id)
+      VALUES(1,?,?) ON CONFLICT(slot) DO UPDATE SET
+      last_created=excluded.last_created,last_id=excluded.last_id`)
+      .run(last.created,last.project_id);
+  }
   for(const row of reservations){
    result.checked++;
    if(!UUID.test(row.project_id)||!/^customer:[a-f0-9-]{36}$/.test(row.subject)||
