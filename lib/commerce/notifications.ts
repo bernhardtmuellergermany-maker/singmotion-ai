@@ -61,7 +61,7 @@ export class NotificationInbox {
  }
  private rows(subject:string):Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>{
   const ledger=this.db.prepare(`SELECT id,kind,delta,created,reference FROM credit_wallet_ledger
-   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','manual-gift','manual-gift-correction','public-welcome')
+   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','support-video-goodwill','auto-video-credit-return','manual-gift','manual-gift-correction','public-welcome')
    ORDER BY created DESC LIMIT 150`).all(subject) as Array<{id:string;kind:string;delta:number;created:number;reference:string}>;
   const items:Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>=ledger.map(row=>{
    const n=Math.abs(row.delta).toLocaleString("en-GB");
