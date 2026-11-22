@@ -167,3 +167,24 @@ test("CMS login remains independent; staff guest transfers require operator auth
  assert.match(importer,/studioStaff\(identity\.user,req\.method,req\.headers,process\.env\)/);
  assert.match(importer,/guestToken=req\.cookies\.get\("sm_guest_session"\)\?\.value/);
 });
+
+test("staging website offers explicit verified CMS sign-in without mixing customer credentials",()=>{
+ const login=read("app/(site)/login/page.tsx");
+ const staff=read("components/staging-staff-signin.tsx");
+ const status=read("app/(site)/api/staff-website-session/route.ts");
+ const client=read("lib/client-auth-status.ts");
+ const account=read("components/account-panel.tsx");
+ const header=read("components/header-account-menu.tsx");
+ assert.match(login,/RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"/);
+ assert.match(login,/Super Admin\? Mit dem CMS-Konto anmelden/);
+ assert.match(staff,/fetch\("\/api\/cms\/staff\/login"/);
+ assert.match(staff,/data\.staffRole!=="super-admin"/);
+ assert.match(staff,/window\.location\.assign\("\/studio\?new=1"\)/);
+ assert.match(status,/hasRole\(user,\["super-admin"\]\)/);
+ assert.match(status,/await cms\.auth\(\{headers:req\.headers\}\)/);
+ assert.match(client,/if\(customer\?\.authenticated\)return customer/);
+ assert.match(client,/fetch\("\/api\/staff-website-session"/);
+ assert.match(account,/staff\?"\/api\/cms\/staff\/logout":"\/api\/unified-logout"/);
+ assert.match(header,/async function logoutStaff\(\)/);
+ assert.doesNotMatch(account,/\/api\/cms\/staff\/login/);
+});

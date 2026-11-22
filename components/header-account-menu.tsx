@@ -116,7 +116,18 @@ export function HeaderAccountMenu({onLoginClick}:{onLoginClick?:()=>void}){
    window.location.assign("/");
   }catch(e){setError(e instanceof Error?e.message:"Sign out failed");setBusy(false)}
  }
- const logoutStaff=logout;
+ async function logoutStaff(){
+  if(busy)return;
+  setBusy(true);setError("");
+  try{
+   const response=await fetch("/api/cms/staff/logout",{
+    method:"POST",headers:{"Content-Type":"application/json"},body:"{}",
+    credentials:"same-origin",cache:"no-store"
+   });
+   if(!response.ok)throw Error("CMS sign out failed. Please retry.");
+   notifyAuthTransition();menu.current?.removeAttribute("open");window.location.assign("/");
+  }catch(e){setError(e instanceof Error?e.message:"CMS sign out failed");setBusy(false)}
+ }
  const remainingSeconds=estimatedRemainingVideoSeconds(
   creditState==="ready"?availableCredits:null,creditsPerSecond);
  return <details ref={menu} className="sm-global-menu sm-account-menu">

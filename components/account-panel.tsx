@@ -93,7 +93,10 @@ export function AccountPanel({active}:{active:boolean}){
   setBusy(true);setError("");
   try{
    if(action==="logout"){
-    const reply=await fetch("/api/unified-logout",{method:"POST",credentials:"same-origin"});
+    const reply=await fetch(staff?"/api/cms/staff/logout":"/api/unified-logout",{
+     method:"POST",credentials:"same-origin",
+     ...(staff?{headers:{"Content-Type":"application/json"},body:"{}"}:{})
+    });
     if(!reply.ok)throw Error("Sign out failed");
     notifyAuthTransition();setAccount(null);window.location.reload();return;
    }
@@ -120,7 +123,8 @@ export function AccountPanel({active}:{active:boolean}){
     <div className="sm-account-quick-actions">
       <Link href="/credits#buy-credits" className="sm-account-action sm-account-action-buy">Buy Credits</Link>
       <Link href={studioReturn||"/studio?new=1"} className="sm-account-action sm-account-action-create">{studioReturn?"Continue to Step 4":"Create video"}</Link>
-      <Link href="/account/settings" className="sm-account-settings-link">Account settings</Link>
+      {staff?<Link href="/admin" className="sm-account-settings-link">Open CMS</Link>:
+      <Link href="/account/settings" className="sm-account-settings-link">Account settings</Link>}
       <button type="button" className="sm-account-signout" disabled={busy} onClick={()=>void act("logout")}>Sign out</button>
     </div>
     {!staff&&<details className="sm-account-advanced">
