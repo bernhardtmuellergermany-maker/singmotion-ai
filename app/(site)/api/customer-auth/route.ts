@@ -10,18 +10,22 @@ import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-pro
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
 import {applicationOrigin} from "@/lib/request-origin";
 import {sendCustomerVerificationEmail} from "@/lib/commerce/verification-email";
+import {siteStaffStatus,tryExistingSuperAdminLogin} from "@/lib/site-staff-auth";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const accountsEnvironment=()=> (process.env.SINGMOTION_ISOLATED_ERASURE_TEST==="true" && customerAccountSettingsAccessible(process.env)) || process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env) || publicCreditReleaseApproved(process.env) || productionPrivateCustomerPreviewEnabled(process.env) || assessProductionSandboxPilot(process.env).ready || protectedProductionLivePilotApproved(process.env) || privateInternationalCreditBetaEnabled(process.env);
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(!accountsEnvironment())return json({error:"Accounts unavailable"},403);
+ if(!accountsEnvironment()){
+  const staff=await siteStaffStatus(req.headers);
+  return staff?json(staff):json({error:"Accounts unavailable"},403);
+ }
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   // Customer sign-in is determined only by the verified customer cookie.
   // An independent CMS staff token is never a fallback customer identity.
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
-  if(!id)return json({authenticated:false});
+  if(!id)return json((await siteStaffStatus(req.headers))??{authenticated:false});
   const row=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(id) as {email:string}|undefined;
   return json({authenticated:!!row,email:row?.email||null,kind:"customer",emailVerification:store.verificationState(id)});
  }finally{store.close()}
@@ -78,7 +82,17 @@ export async function POST(req:NextRequest){
   if(!["login","register"].includes(input.action||"")||typeof input.email!=="string"||typeof input.password!=="string")return json({error:"Invalid request"},400);
   let registrationId:string|undefined;
   if(input.action==="register")registrationId=store.register(input.email,input.password);
-  const token=store.login(input.email,input.password);
+  let token:string;
+  try{token=store.login(input.email,input.password);}
+  catch(error){
+   // Preserve customer-first identity, but recognize the already configured
+   // CMS Super Admin using the SAME login form. No new public login route.
+   if(input.action==="login"){
+    const staff=await tryExistingSuperAdminLogin(req,input.email,input.password);
+    if(staff)return staff;
+   }
+   throw error;
+  }
   const id=store.session(token);
   if(!id)throw Error("Account session unavailable");
   const media=createAccountMediaSession("customer-"+id);
