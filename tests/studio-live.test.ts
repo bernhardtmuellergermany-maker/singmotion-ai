@@ -1529,6 +1529,8 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
           true,
         );
         assert.notEqual(independentReview.id, plan.id);
+        // This additional private review reserves its own budget, but does not submit.
+        reserved += independentReview.ceilingMicroUsd!;
         assert.equal(f.store.get(plan.id).failureCode, "CONTENT_PREFILTER_REJECTED");
         assert.equal(submits, i + 1);
       }
