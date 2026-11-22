@@ -9,6 +9,7 @@ import {CommerceStore} from "../lib/commerce/store.ts";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 import {SupportCases} from "../lib/commerce/support-cases.ts";
 import {automaticCreditRecoveryPolicy,recoverVideoCredits} from "../lib/commerce/automatic-credit-recovery.ts";
+import {auditCreditLedger} from "../lib/commerce/credit-ledger-integrity.ts";
 
 const env={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",
  AUTO_VIDEO_CREDIT_RECOVERY_ENABLED:"true",AUTO_VIDEO_CREDIT_RECOVERY_TIMEOUT_MINUTES:"120"};
@@ -60,6 +61,7 @@ test("old unknown submission releases held Credits exactly once, logs audit and 
   assert.equal(first.uncertain,1);
   assert.equal(f.wallet.available(subject),500);
   assert.equal(f.wallet.videoReservation(id)?.state,"released");
+  assert.deepEqual(auditCreditLedger(f.store.db),{ok:true,failed:[]});
   assert.equal(f.store.db.prepare("SELECT COUNT(*) n FROM credit_wallet_ledger WHERE kind='auto-video-credit-return'").get()!.n,1);
   assert.equal(f.store.db.prepare("SELECT COUNT(*) n FROM support_case_events WHERE event_key=?")
     .get("auto-video-return:"+id)!.n,1);
@@ -114,6 +116,7 @@ test("settled debit is reversed only once when terminal provider error is verifi
   assert.equal(first.returned,1);
   assert.equal(f.wallet.available(subject),500);
   assert.equal(f.wallet.videoReservation(id)?.state,"released");
+  assert.deepEqual(auditCreditLedger(f.store.db),{ok:true,failed:[]});
   assert.equal(recoverVideoCredits(f.root,{env,now:now+60000}).returned,0);
   assert.equal(f.wallet.available(subject),500);
  }finally{f.close()}
