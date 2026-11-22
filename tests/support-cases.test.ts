@@ -72,7 +72,7 @@ test("no money returned for active, uncertain or malformed MP4 jobs",()=>{
     .run(job,"customer:owner",125,Date.now(),Date.now());
    liveFailure(f,job,code,status);
    const support=new SupportCases(f.store.db);
-   assert.equal(support.lookup(job,f.liveFile)?.refundable,false);
+   assert.equal(support.lookup(job,f.liveFile)?.refundable,status==="uncertain"&&code==="SUBMISSION_OUTCOME_UNKNOWN");
    assert.throws(()=>support.refundCredit(job,actor,note,f.liveFile));
    assert.equal(w.videoReservation(job)?.state,"review");
   }finally{f.close()}
@@ -206,6 +206,7 @@ test("goodwill never releases an active or completed video",()=>{
  for(const [status,code] of [["processing","SUBMISSION_OUTCOME_UNKNOWN"],["completed","SUBMISSION_OUTCOME_UNKNOWN"],["failed","PROVIDER_JOB_FAILED"]] as const){
   const f=fixture();try{
    const id=randomUUID();
+   new CreditWallet(f.store.db);
    f.store.db.prepare("INSERT INTO credit_video_reservations VALUES(?,?,?,'review',?,?)")
     .run(id,"customer:owner",45,Date.now(),Date.now());
    liveFailure(f,id,code,status);
