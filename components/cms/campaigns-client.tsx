@@ -2,6 +2,7 @@
 
 import {useCallback,useEffect,useState} from "react";
 import {Rocket,Clock3} from "lucide-react";
+import {ReferralSettingsPanel} from "./referral-settings";
 import type {Campaign,CampaignStatus,CampaignTheme,PublicTariff} from "@/lib/commerce/campaign-pricing";
 import "./campaigns.css";
 
@@ -113,6 +114,7 @@ export function CampaignsClient(){
   <header className="sm-marketing-heading"><span>SUPER ADMIN · VERSIONIERTE TARIFE</span><h1>Marketing & Aktionen</h1>
    <p>Kampagnen, Aktionspreise, Badge-Texte und Laufzeiten verwalten. Speicherung in UTC, Anzeige in Europe/Berlin. Nur eine veröffentlichte Aktion je Zeitraum.</p>
   </header>
+  <ReferralSettingsPanel/>
   {error&&<p role="alert" className="sm-marketing-error">{error}</p>}
   {message&&<p role="status" className="sm-marketing-ok">{message}</p>}
   {enabled===false&&<p role="status" className="sm-marketing-alert">Kampagnen-Freigabe ist auf dieser Umgebung gesperrt. Vor Aktivierung sind Staging-Tests erforderlich.</p>}
