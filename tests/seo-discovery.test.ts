@@ -110,3 +110,12 @@ test("search guides live only under Help; no German pages or added navigation en
  assert.doesNotMatch(component,/Deutsche Version|Deutsch|german|locale==="de"/i);
  assert.doesNotMatch(read("lib/seo/search-pages.ts"),/SeoLocale|seoAlternates|slug:"ki-video-erstellen"/);
 });
+
+test("SEO guide hub includes original preparation advice and useful cross-links",()=>{
+ const content=read("components/seo/search-landing.tsx");
+ assert.match(content,/Prepare your music performance/);
+ assert.match(content,/Choose the next guide for your project/);
+ assert.ok(content.includes('href="/help/camera-movements"'));
+ assert.match(content,/AI video generator guide/);
+ assert.match(content,/permission/i);
+});

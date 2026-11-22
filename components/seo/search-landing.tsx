@@ -108,6 +108,28 @@ export function SearchHub(){
     <h2>The SingMotion approach</h2>
     <p>Bring your song, upload a permitted performer image, direct the scene, review the credit quote and access your video in your own project. SingMotion specializes in musical performances, not generic text-to-video or automatic social-media posting.</p>
    </section>
+   <section className="sm-seo-section" aria-labelledby="sm-seo-hub-preparation">
+    <h2 id="sm-seo-hub-preparation">Prepare your music performance</h2>
+    <div className="sm-seo-grid">
+     <article className="sm-seo-panel">
+      <h3>Use audio you can license</h3>
+      <p>Start with an existing song, instrumental or spoken recording you are allowed to process. A clear lead vocal is useful when the intended result is a singing performance. SingMotion does not compose a new track for you.</p>
+     </article>
+     <article className="sm-seo-panel">
+      <h3>Choose a permitted portrait</h3>
+      <p>Pick a photo with a visible performer and check the image, identity and voice permissions before upload. An AI video is a synthetic interpretation, not footage of that person actually performing.</p>
+     </article>
+     <article className="sm-seo-panel">
+      <h3>Write one focused scene prompt</h3>
+      <p>Specify the location, mood and camera framing before trying complex movements. Keep the first concept simple and review the resulting MP4 for motion, timing and suitability before sharing it.</p>
+     </article>
+    </div>
+   </section>
+   <section className="sm-seo-section" aria-labelledby="sm-seo-hub-next-guide">
+    <h2 id="sm-seo-hub-next-guide">Choose the next guide for your project</h2>
+    <p>New to photo-and-audio generation? Begin with the <Link href={seoPagePath("video")}>AI video generator guide</Link>. If your goal is a singer-led visual for a finished track, follow the <Link href={seoPagePath("music")}>AI music video workflow</Link>. For a mobile-first edit, consult the <Link href={seoPagePath("shorts")}>vertical Reels, Shorts and TikTok guide</Link>. Read the <Link href={seoPagePath("omnihuman")}>OmniHuman explanation</Link> if you want to understand the external performance technology.</p>
+    <p>Need help writing natural movement instructions? The <Link href="/help/camera-movements">camera movement and prompt guide</Link> provides examples. Actual video generation and credit checkout remain subject to account and country availability.</p>
+   </section>
   </main>
   <footer className="sm-seo-footer"><Link href="/">Home</Link><Link href="/help">Help</Link><Link href="/legal">Legal</Link><Link href="/contact">Contact</Link></footer>
  </div>;
