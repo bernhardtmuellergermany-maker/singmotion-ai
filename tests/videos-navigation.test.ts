@@ -16,9 +16,11 @@ test("video navigation has one public-facing name and canonical route",()=>{
  assert.doesNotMatch(gallery,/My Projects|\/projects\/live_/);
 });
 
-test("historical overview and video-detail links permanently redirect",()=>{
- assert.match(read("app/(site)/projects/page.tsx"),/permanentRedirect\("\/videos"\)/);
- assert.match(read("app/(site)/projects/[id]/page.tsx"),/permanentRedirect\("\/videos\/"\+encodeURIComponent\(id\)\)/);
+test("customer music video projects remain separate from finished Videos",()=>{
+ assert.match(read("app/(site)/projects/page.tsx"),/musicPrincipal/);
+ assert.match(read("app/(site)/projects/page.tsx"),/<MusicProjectsClient\/>/);
+ assert.match(read("app/(site)/projects/[id]/page.tsx"),/requireMusicProject\(id,principal\)/);
+ assert.match(read("app/(site)/projects/[id]/page.tsx"),/<MusicVideoEditor id=\{id\}\/>/);
  const video=read("app/(site)/videos/[id]/page.tsx");
  assert.match(video,/<Shell hideWorkspaceNav projectId=\{id\}>/);
  assert.match(video,/<Project id=\{id\} \/>/);
@@ -28,7 +30,7 @@ test("studio, home, account and email links point to canonical Videos",()=>{
  for(const file of [
   "components/carousel-experience.tsx",
   "components/customer-paid-orders.tsx",
-  "components/global-menu.tsx",
+  // Music video builder has its own authenticated /projects route.
   "components/home-collection.tsx",
   "components/my-projects-gallery.tsx",
   "components/projects.tsx",
