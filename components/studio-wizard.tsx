@@ -520,6 +520,30 @@ export function StudioWizard({
     update({customPrompt:next,performance:"Custom"});
     performanceInput.current?.focus();
   }
+  async function importSunoAsNewDraft(file: File): Promise<void> {
+    if (busy || !ready) return;
+    setBusy(true);
+    setError("");
+    setAudioUploadingName(file.name);
+    setAudioUploadProgress(0);
+    setAudioUploadPhase("uploading");
+    try {
+      validateFile(file.name, file.size, "audio");
+      // Upload into the current private session, but never modify the current
+      // draft. A new editor instance owns the imported audio and its new ID.
+      const asset = await uploadWithProgress(file, "audio", percent => {
+        setAudioUploadProgress(percent);
+        if (percent === 100) setAudioUploadPhase("processing");
+      });
+      sessionStorage.setItem("singmotion-home-audio-handoff", JSON.stringify(asset));
+      window.location.assign("/studio?new=1&audio=1");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Could not import Suno song.");
+      setAudioUploadPhase("idle");
+    } finally {
+      setBusy(false);
+    }
+  }
   async function add(file: File | undefined, kind: "audio" | "image", loadFile?:()=>Promise<File>) {
     if ((!file&&!loadFile) || busy || !ready) return;
     setBusy(true);
@@ -923,7 +947,7 @@ export function StudioWizard({
               </div>
             </>
           )}
-          {!draft.song&&<SunoSongImport disabled={!ready||busy} onImportFile={file=>add(file,"audio")}/>}
+          {!draft.song&&<SunoSongImport disabled={!ready||busy} onImportFile={importSunoAsNewDraft}/>}
           {!draft.song&&<AudioQuickTips disabled={!ready||busy} onSelect={tip=>add(undefined,"audio",()=>downloadAudioQuickTip(tip))}/> }
         </div>}
         {step===1&&<section className="sm-photo-step" aria-label="Artist photo and video format">
