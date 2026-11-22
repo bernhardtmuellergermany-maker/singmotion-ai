@@ -5,6 +5,8 @@ on:
     paths:
       - 'lib/commerce/automatic-credit-recovery.ts'
       - 'scripts/worker.ts'
+      - 'lib/commerce/credit-ledger-integrity.ts'
+      - 'lib/commerce/notifications.ts'
       - 'tests/automatic-credit-recovery.test.ts'
       - '.github/workflows/verify-automatic-credit-recovery.yml'
   workflow_dispatch:
@@ -19,5 +21,5 @@ jobs:
           node-version: '24.22.3'
           cache: npm
       - run: npm ci
-      - run: node --experimental-strip-types --test tests/automatic-credit-recovery.test.ts tests/support-cases.test.ts tests/credit-wallet.test.ts
+      - run: node --experimental-strip-types --test tests/automatic-credit-recovery.test.ts tests/support-cases.test.ts tests/credit-wallet.test.ts tests/credit-ledger-integrity.test.ts
       - run: npm run typecheck
