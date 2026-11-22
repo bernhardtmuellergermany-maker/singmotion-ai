@@ -1,0 +1,23 @@
+name: Verify existing Super Admin website login
+on:
+  pull_request:
+    branches: [production, staging]
+    paths:
+      - 'lib/site-staff-auth.ts'
+      - 'app/(site)/api/customer-auth/route.ts'
+      - 'tests/unified-site-staff-login.test.ts'
+      - '.github/workflows/verify-site-staff-login.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/unified-site-staff-login.test.ts tests/cms-auth-separation.test.ts tests/account-menu-identity.test.ts
+      - run: npm run typecheck
