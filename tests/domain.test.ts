@@ -19,10 +19,10 @@ test("server pricing uses exact selected duration, rounds up cents, and assumes 
   assert.equal(quote(10, 299).cents, 299);
   assert.equal(quote(5, 299).cents, 150);
   assert.equal(quote(0.1, 299).cents, 3);
-  assert.equal(quote(300, 299).cents, 8970);
+  assert.equal(quote(250, 299).cents, 7475);
   assert.equal(quote(10, 450).cents, 450);
   assert.equal(quote(10).minimum, null);
-  for (const d of [0, -1, 301, NaN, Infinity]) assert.throws(() => quote(d));
+  for (const d of [0, -1, 251, NaN, Infinity]) assert.throws(() => quote(d));
   assert.throws(() => quote(10, -20));
 });
 test("selection rejects reversed, out-of-range, non-finite and overlong segments", () => {
@@ -53,14 +53,11 @@ test("file extension and size limits are enforced before expensive decoding", ()
     assert.throws(() => validateFile(name, size, kind));
 });
 test("camera presets are composed with optional custom directions", () => {
-  const baseline = composePrompt("Natural", "Static camera", "");
-  assert.match(baseline, /camera fixed/);
-  const custom = composePrompt("Energetic", "Orbit left", "Sing passionately");
-  assert.match(custom, /Energetic singing performance/);
-  assert.match(custom, /arc to the left/);
-  assert.match(custom, /Sing passionately/);
-  assert.match(composePrompt("Natural", "Static Close-Up", ""), /Camera direction/);
-  assert.throws(() => composePrompt("Custom", "Static camera", ""));
+  // Presets never silently inject provider instructions. Only approved literal user text is sent.
+  assert.equal(composePrompt("Natural", "Static camera", ""), "");
+  assert.equal(composePrompt("Energetic", "Orbit left", "Sing passionately"), "Sing passionately");
+  assert.equal(composePrompt("Natural", "Static Close-Up", ""), "");
+  assert.equal(composePrompt("Custom", "Static camera", ""), "");
   assert.throws(() => composePrompt("Natural", "Orbit", ""));
   assert.throws(() => composePrompt("Natural", "Static camera", "x".repeat(1501)));
 });
