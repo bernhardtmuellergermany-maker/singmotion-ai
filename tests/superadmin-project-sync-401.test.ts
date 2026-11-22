@@ -12,7 +12,7 @@ test("Super Admin project sync must never query the customer-only order endpoint
 });
 
 test("account project requests still fail visibly when a real customer sync fails",()=>{
- assert.match(gallery,/if\(!r\.ok\)throw Error\("Customer projects unavailable"\)/);
+ assert.match(gallery,/if\(!r\.ok\)throw Error\("Customer videos unavailable"\)/);
  assert.match(gallery,/d\.status==="rejected"\|\|o\.status==="rejected"\|\|l\.status==="rejected"/);
  assert.match(gallery,/api<SavedDraft\[\]>\("studio-drafts",\{cache:"no-store"\}\)/);
  assert.match(gallery,/api<\{projects:StudioProject\[\]\}>\("studio-live",\{cache:"no-store"\}\)/);
