@@ -353,7 +353,7 @@ export function StudioWizard({
               // most recent unrelated Step 4 project.
               if (stored) {
                 const song = JSON.parse(stored) as Asset;
-                if (song && song.owner === sessionOwner && song.kind === "audio" &&
+                if (song && song.kind === "audio" &&
                     typeof song.id === "string" && song.id) {
                   fresh = { ...initial, song, start: 0, end: Math.min(5, song.duration || 5) };
                 }
@@ -546,8 +546,10 @@ export function StudioWizard({
         setAudioUploadProgress(percent);
         if (percent === 100) setAudioUploadPhase("processing");
       });
-      if (asset.kind !== "audio" || asset.owner !== owner)
-        throw Error("Imported Suno audio does not belong to this private workspace.");
+      // Upload responses intentionally omit the private owner. The server
+      // checks media ownership again when saving the new draft.
+      if (asset.kind !== "audio" || typeof asset.id !== "string" || !asset.id)
+        throw Error("Suno upload did not return a valid private audio asset.");
       // Reset in-place: a second /studio navigation can restore the account's
       // latest Step 4 draft before its new ID is persisted. Never navigate here.
       const newId = crypto.randomUUID();
