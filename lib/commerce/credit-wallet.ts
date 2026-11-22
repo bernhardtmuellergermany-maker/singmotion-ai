@@ -310,6 +310,29 @@ export class CreditWallet {
   * terminal evidence is independently checked in the privileged API.
   * Supports the two DIFFERENT financial states: release a hold (delta=0)
   * or reverse a settled video Credit debit (delta=+credits), exactly once. */
+ /** Operator-approved goodwill release for an unverified submission. This records
+  * our financial liability without pretending that BytePlus did not bill.
+  * Never produces a second provider request or an extra customer credit.
+  */
+ supportGoodwillUncertainVideo(projectId:string,actor:string,reason:string):VideoReservation{
+  if(!/^[a-f0-9-]{36}$/i.test(projectId)||!/^[A-Za-z0-9_-]{1,110}$/.test(actor)||
+     reason.trim().length<20||reason.length>1200)
+   throw Error("Protected Super Admin goodwill authorization required");
+  return this.tx(()=>{
+   const hold=this.videoReservation(projectId);
+   if(!hold)throw Error("Video reservation not found");
+   if(hold.state==="released")return hold;
+   if(!["reserved","review"].includes(hold.state))
+    throw Error("Goodwill release requires an outstanding reservation");
+   const eventId="support-video-goodwill:"+projectId;
+   this.db.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)")
+    .run(eventId,hold.subject,0,"support-video-goodwill",eventId,Date.now());
+   const changed=this.db.prepare("UPDATE credit_video_reservations SET state='released',updated=? WHERE project_id=? AND state=?")
+    .run(Date.now(),projectId,hold.state);
+   if(changed.changes!==1)throw Error("Concurrent Credit reservation change");
+   return this.videoReservation(projectId)!;
+  });
+ }
  supportRefundVideo(projectId:string,actor:string,reason:string,failureCode:string):VideoReservation{
   if(!/^[a-f0-9-]{36}$/i.test(projectId)||!/^[A-Za-z0-9_-]{1,110}$/.test(actor)||
      reason.trim().length<20||reason.length>1200||
