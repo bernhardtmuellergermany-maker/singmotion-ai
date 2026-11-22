@@ -61,7 +61,7 @@ export class NotificationInbox {
  }
  private rows(subject:string):Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>{
   const ledger=this.db.prepare(`SELECT id,kind,delta,created,reference FROM credit_wallet_ledger
-   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','manual-gift','manual-gift-correction','public-welcome')
+   WHERE subject=? AND kind IN ('purchase','refund','dispute','video','video-service-refund','support-video-refund','support-video-goodwill','auto-video-credit-return','manual-gift','manual-gift-correction','public-welcome')
    ORDER BY created DESC LIMIT 150`).all(subject) as Array<{id:string;kind:string;delta:number;created:number;reference:string}>;
   const items:Array<{id:string;title:string;message:string;created:number;kind:Notice["kind"];href:string}>=ledger.map(row=>{
    const n=Math.abs(row.delta).toLocaleString("en-GB");
@@ -89,7 +89,13 @@ export class NotificationInbox {
       message:project?n+" credits used for “"+project.name+"”.":n+" credits used for your video.",
       created:row.created,kind:"video" as const,href:project?.href||"/credits#usage"};
    }
-   return {id:"wallet:"+row.id,title:"Video credits returned",message:n+" credits returned to your wallet.",created:row.created,kind:"video" as const,href:"/credits#usage"};
+   // A released reservation has a zero-delta event: the customer regains
+   // spendable reserved Credits, not an extra positive ledger top-up.
+   const refundId=/^(?:auto-video-return|support-video-goodwill|support-video-refund|video-release|video-service-refund):([a-f0-9-]{36})$/i.exec(row.reference)?.[1];
+   const reservation=refundId?this.db.prepare("SELECT credits FROM credit_video_reservations WHERE project_id=? AND subject=? AND state='released'")
+     .get(refundId,subject) as {credits:number}|undefined:undefined;
+   const returned=row.delta>0?row.delta:reservation?.credits??0;
+   return {id:"wallet:"+row.id,title:"Video credits returned",message:returned.toLocaleString("en-GB")+" credits returned to your available wallet.",created:row.created,kind:"video" as const,href:"/credits#usage"};
   });
   const global=this.db.prepare(`SELECT id,title,message,published_at,audience FROM notification_announcements
     WHERE published_at<=? AND (expires_at IS NULL OR expires_at>?)
