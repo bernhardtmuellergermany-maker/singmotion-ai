@@ -35,7 +35,7 @@ test("restricted Live key does not bypass private webhook or vendor preflight",a
   assert.equal(init.method,"GET");
   return new Response(JSON.stringify({error:{message:"Restricted key lacks read access"}}),{status:403});
  });
- assert.equal(calls.length,3);
+ assert.equal(calls.length,5);
  assert.equal(result.stripeConfigurationVerified,false);
  assert.equal(result.paidOrdersEnabled,false);
  assert.equal(JSON.stringify(result).includes(live.STRIPE_SECRET_KEY),false);
