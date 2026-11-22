@@ -281,7 +281,7 @@ test("real WAV trim, immutable owned image/MP3, prompts, review and duplicate pr
       true,
       true,
     ),
-    /between 5 and 300 seconds/,
+    /between 5 and 250 seconds/,
   );
   await assert.rejects(
     f.service.prepare(f.selection, owner, "Singer", false, true),
@@ -1519,16 +1519,18 @@ test("flag-only tempo projects run success, success, rejection, then new recordi
             }),
             plan.id,
           );
-        await assert.rejects(
-          restarted.prepare(
-            { ...selection, customPrompt: "Forbidden retry" },
-            owner,
-            "Singer",
-            true,
-            true,
-          ),
-          /previous provider failure/,
+        // Historical rejections remain attached to their original task. A
+        // separate fresh cost review must not silently retry that task.
+        const independentReview = await restarted.prepare(
+          { ...selection, customPrompt: "Independent cost review" },
+          owner,
+          "Singer",
+          true,
+          true,
         );
+        assert.notEqual(independentReview.id, plan.id);
+        assert.equal(f.store.get(plan.id).failureCode, "CONTENT_PREFILTER_REJECTED");
+        assert.equal(submits, i + 1);
       }
       reserved += plan.ceilingMicroUsd!;
       assert.equal(
