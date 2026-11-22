@@ -145,7 +145,7 @@ test("Suno disconnect only clears the scoped OAuth cookies after authentication 
  assert.match(ui,/disabled=\{disabled\|\|working\}/);
 });
 test("Studio integrates direct official download into the existing validated private audio upload",()=>{
- assert.match(wizard,/onImportFile=\{file=>add\(file,"audio"\)\}/);
+ assert.match(wizard,/onImportFile=\{importSunoAsNewDraft\}/);
  assert.match(wizard,/uploadWithProgress\(file, kind,/);
  assert.match(ui,/Import song directly/);
  assert.match(ui,/Connect Suno to import/);
