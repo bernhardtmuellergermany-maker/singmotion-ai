@@ -4,7 +4,9 @@ import { mkdtemp, readFile, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { X509Certificate } from "node:crypto";
-export async function createTestPKI(host) {
+export async function createTestPKI(host, days=2) {
+  if (!Number.isSafeInteger(days) || days<1 || days>7)
+    throw Error("TEST_CERTIFICATE_LIFETIME_INVALID");
   if (!/^[a-z0-9-]+\.railway\.internal$/.test(host) && host !== "localhost")
     throw Error("PRIVATE_HOST_REQUIRED");
   const root = await mkdtemp(path.join(tmpdir(), "sm-network-pki-"));
@@ -23,7 +25,7 @@ export async function createTestPKI(host) {
         "-out",
         name + ".crt",
         "-days",
-        "2",
+        String(days),
         "-subj",
         "/CN=singmotion-fixture-" + name,
       ]);
@@ -68,7 +70,7 @@ export async function createTestPKI(host) {
         "-out",
         role + ".crt",
         "-days",
-        "2",
+        String(days),
         "-extfile",
         role + ".ext",
       ]);
