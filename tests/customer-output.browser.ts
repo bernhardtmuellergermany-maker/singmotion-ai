@@ -309,7 +309,7 @@ try{
  await guestPage.goto(origin+"/videos");
  await guestPage.getByRole("heading",{name:"Videos"}).waitFor({timeout:15000});
  await guestPage.getByRole("link",{name:/New video/}).click();
- await guestPage.waitForURL(origin+"/studio");
+ await guestPage.waitForURL(origin+"/studio?new=1");
  await guestPage.getByRole("heading",{name:/Upload your audio/}).waitFor({timeout:15000});
  assert.equal((await listGuestDrafts()).length,1,
   "second new Studio visit must not create another empty guest draft");
