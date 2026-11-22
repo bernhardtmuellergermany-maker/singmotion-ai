@@ -104,6 +104,7 @@ test("after payout a chargeback is flagged for human review, not silently debite
   assert.equal(f.referral.reconcile(now+16*86400000).review,1);
   assert.equal(f.referral.reconcile(now+17*86400000).review,0);
   assert.equal(f.wallet.total("customer:"+owner),125);
+  assert.equal((f.referral.customerView(owner) as {earnedCredits:number}).earnedCredits,125);
   assert.equal(f.store.db.prepare("SELECT status FROM referral_rewards WHERE purchase_id=?").get(id)!.status,"review");
  }finally{f.close();}
 });
@@ -149,5 +150,20 @@ test("unverified or deleted referrer cannot obtain automatic credit rewards",()=
   assert.equal(f.store.db.prepare("SELECT COUNT(*) n FROM referral_attributions WHERE referred_id=?").get(friend)!.n,0);
   f.purchase(friend);
   assert.equal(f.referral.reconcile().queued,0);
+ }finally{f.close();}
+});
+
+test("Google OAuth creates attribution only for a genuinely new verified identity",()=>{
+ const f=fixture();try{
+  const referrer=f.create("owner");f.enable();
+  const code=(f.referral.customerView(referrer) as {code:string}).code;
+  const newcomer=f.store.googleLogin("1234567890123","new-google@example.test",code);
+  assert.equal(f.store.db.prepare("SELECT referrer_id FROM referral_attributions WHERE referred_id=?").get(newcomer.id)!.referrer_id,referrer);
+  assert.equal(f.store.emailVerified(newcomer.id),true);
+  const second=f.create("other");
+  const otherCode=(f.referral.customerView(second) as {code:string}).code;
+  const returning=f.store.googleLogin("1234567890123","new-google@example.test",otherCode);
+  assert.equal(returning.id,newcomer.id);
+  assert.equal(f.store.db.prepare("SELECT referrer_id FROM referral_attributions WHERE referred_id=?").get(newcomer.id)!.referrer_id,referrer);
  }finally{f.close();}
 });
