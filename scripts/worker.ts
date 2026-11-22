@@ -37,6 +37,7 @@ let nextAccountErasurePoll=0;
 let nextWithdrawalReceiptRetry=0;
 let nextVideoReadyEmailRetry=0;
 let nextSupportMailRetry=0;
+let nextAutomaticCreditRecovery=0;
 let nextProjectTrashCleanup=0;
 let stopping = false;
 process.on("SIGTERM", () => {
@@ -139,6 +140,17 @@ if (process.env.PRODUCTION_POSTGRES_ROOT_CA_PROBE_EXPIRES_AT) {
 while (!stopping) {
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
+  if(Date.now()>=nextAutomaticCreditRecovery){
+    nextAutomaticCreditRecovery=Date.now()+60_000;
+    try{
+      const {recoverVideoCredits,automaticCreditRecoveryPolicy}=await import("../lib/commerce/automatic-credit-recovery.ts");
+      if(automaticCreditRecoveryPolicy(process.env).enabled){
+        const summary=recoverVideoCredits(dataDir);
+        if(summary.returned||summary.deferred)
+          console.info("AUTOMATIC_CREDIT_RECOVERY",summary);
+      }
+    }catch{console.warn("AUTOMATIC_CREDIT_RECOVERY_UNAVAILABLE");}
+  }
  // Explicit kill switch: no refunds or deletion requests are processed
  // until the same tested release is independently enabled per environment.
  if(process.env.CUSTOMER_AUTOMATED_ERASURE_ENABLED==="true"&&
