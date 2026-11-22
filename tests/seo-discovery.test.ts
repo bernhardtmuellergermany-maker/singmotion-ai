@@ -115,7 +115,7 @@ test("SEO guide hub includes original preparation advice and useful cross-links"
  const content=read("components/seo/search-landing.tsx");
  assert.match(content,/Prepare your music performance/);
  assert.match(content,/Choose the next guide for your project/);
- assert.match(content,/href="\\/help\\/camera-movements"/);
+ assert.ok(content.includes('href="/help/camera-movements"'));
  assert.match(content,/AI video generator guide/);
  assert.match(content,/permission/i);
 });
