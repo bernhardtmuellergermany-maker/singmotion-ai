@@ -133,3 +133,16 @@ test("never creates databases when there is no original evidence",()=>{
   assert.equal(existsSync(path.join(root,"commerce.sqlite")),false);
  }finally{rmSync(root,{recursive:true,force:true})}
 });
+
+test("durable scan cursor reaches later refunds past a page of active jobs",()=>{
+ const f=fixture();try{
+  const now=Date.now();
+  for(let i=0;i<12;i++)seed(f,{state:"processing",code:null,ageHours:10,providerJobId:"working_"+i},now);
+  const target=seed(f,{state:"uncertain",ageHours:3},now);
+  const first=recoverVideoCredits(f.root,{env,now,limit:5});
+  const second=recoverVideoCredits(f.root,{env,now,limit:5});
+  const third=recoverVideoCredits(f.root,{env,now,limit:5});
+  assert.equal(first.returned+second.returned+third.returned,1);
+  assert.equal(f.wallet.videoReservation(target.id)?.state,"released");
+ }finally{f.close()}
+});
