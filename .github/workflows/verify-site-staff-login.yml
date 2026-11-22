@@ -1,7 +1,7 @@
 name: Verify existing Super Admin website login
 on:
   pull_request:
-    branches: [production]
+    branches: [production, staging]
     paths:
       - 'lib/site-staff-auth.ts'
       - 'app/(site)/api/customer-auth/route.ts'
