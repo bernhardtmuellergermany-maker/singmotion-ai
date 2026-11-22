@@ -100,11 +100,11 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
       created: Date.now(),
     });
     const selection = validateSelection(2, 7, duration);
-    const prompt = composePrompt("Natural", "Slow Push-In", "");
-    assert.match(prompt, /Natural singing performance.*Camera direction: Slow Push-In/);
+    const prompt = composePrompt("Natural", "Slow Push-In", "Sing gently in English.");
+    assert.equal(prompt, "Sing gently in English.");
     assert.match(
       composePrompt("Natural", "Slow Push-In", "  Sing gently with a static camera.  "),
-      /Camera direction: Slow Push-In.*Additional performance direction: Sing gently with a static camera/,
+      /^  Sing gently with a static camera\.  $/,
     );
     const job: Job = {
       id: randomUUID(),
@@ -329,7 +329,7 @@ test("offline studio selection to real preflight CLI, immutable snapshots and mo
     );
     await assert.rejects(
       prepareStudioDraft({ ...exported, end: 4 }, owner, 6),
-      /Select an audio segment between 5 and 300 seconds/,
+      /Select an audio segment between 5 and 250 seconds/,
     );
     const rejected = spawnSync(
       process.execPath,
