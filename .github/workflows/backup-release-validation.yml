@@ -40,6 +40,14 @@ jobs:
         run: node --test tests/backup-segmented-archive.test.mjs
       - name: Recover encrypted HiDrive archive via durable receipt after worker restart
         run: node --test tests/hidrive-committed-reader.test.mjs
+      - name: Validate pinned independent read-only HiDrive ciphertext preflight (fixtures only)
+        run: node --test tests/hidrive-readonly-commit-preflight.test.mjs
+      - name: Reject old HiDrive RW OAuth grants via tokeninfo (fixtures only)
+        run: node --test tests/hidrive-ro-grant-attestation.test.mjs
+      - name: Refuse unsafe independent HiDrive CLI startup without any network contact
+        run: node --test tests/hidrive-readonly-cli-safety.test.mjs
+      - name: Verify encrypted HiDrive receipt and manifest downloaded in owner browser (fixtures only)
+        run: node --test tests/hidrive-local-receipt-preflight.test.mjs
       - name: Single committed encrypted SQLite Postgres and paginated R2 full restore
         run: node --experimental-strip-types --test tests/multistore-segmented-backup.test.mjs
       - name: Verify encrypted backup network and restore (no external credentials)
@@ -58,6 +66,16 @@ jobs:
         run: node --test tests/hidrive-production-receiver.test.mjs
       - name: Build minimal private HiDrive worker image without app data access
         run: DOCKER_BUILDKIT=1 docker build -f Dockerfile.backup -t singmotion-hidrive-private-receiver:ci .
+      - name: Build isolated nonroot HiDrive GET-only preflight image
+        run: |
+          DOCKER_BUILDKIT=1 docker build -f Dockerfile.restore-readonly -t singmotion-hidrive-restore-readonly:ci .
+          test "$(docker run --rm --network none --entrypoint id singmotion-hidrive-restore-readonly:ci -u)" = "10001"
+          if docker run --rm --network none --entrypoint node -e RAILWAY_PROJECT_ID=277416f6-c5bc-4f93-95cf-040fe551875b singmotion-hidrive-restore-readonly:ci /opt/singmotion/scripts/hidrive-readonly-commit-preflight.mjs --manifest-only > /tmp/hidrive-restore-out 2> /tmp/hidrive-restore-errors; then
+            echo "Expected missing-config fail-closed exit"
+            exit 1
+          fi
+          grep -q PRIVATE_CONFIG_PATH_REQUIRED /tmp/hidrive-restore-errors
+          test ! -s /tmp/hidrive-restore-out
       - name: Verify packaged PostgreSQL 18 native dump client and dependencies
         run: DOCKER_BUILDKIT=1 docker build --target runtime-base -f Dockerfile -t singmotion-pg18-client:ci .
       - name: Verify native PostgreSQL SQLite and paginated R2 full synthetic recovery
