@@ -173,3 +173,15 @@ test("Suno import uses the local brand logo and concise copy",()=>{
  assert.match(ui,/Confirm 1 Suno download credit & import/);
  assert.match(ui,/Disconnect/);
 });
+
+test("new Suno imports never overwrite the currently open video draft",()=>{
+ assert.match(wizard,/onImportFile=\{importSunoAsNewDraft\}/);
+ assert.match(wizard,/async function importSunoAsNewDraft\(file: File\)/);
+ const isolated=wizard.split("async function importSunoAsNewDraft")[1].split("async function add(")[0];
+ assert.match(isolated,/uploadWithProgress\(file, "audio"/);
+ assert.match(isolated,/sessionStorage\.setItem\("singmotion-home-audio-handoff"/);
+ assert.match(isolated,/window\.location\.assign\("\/studio\?new=1&audio=1"\)/);
+ assert.doesNotMatch(isolated,/update\(\{/);
+ assert.match(wizard,/if \(createNew \|\| ownerChanged \|\| unscopedOperatorDraft\)/);
+ assert.match(wizard,/sessionStorage\.removeItem\("singmotion-home-audio-handoff"\)/);
+});
