@@ -103,14 +103,18 @@ export class SupportCases{
     if(hold){
       const allowed=live?.state==="failed"&&!live.outputReady&&
         ["CONTENT_PREFILTER_REJECTED","PROVIDER_JOB_FAILED","PROVIDER_TASK_CANCELED"].includes(live.failureCode??"");
-      const refundable=allowed&&hold.state!=="released";
+      const goodwill=live?.state==="uncertain"&&live.failureCode==="SUBMISSION_OUTCOME_UNKNOWN"&&
+        !live.outputReady&&["reserved","review"].includes(hold.state);
+      const refundable=(allowed||goodwill)&&hold.state!=="released";
       return {id,type:"credit-video",customerEmail:this.customerEmail(hold.subject),state:live?.state??"unverified",
         projectId:id,created:hold.created,caseStatus:c?.status??"open",resolvedAt:c?.resolved_at??null,
         details:{creditReservation:hold.state,reservedCredits:hold.credits,
           providerFailureCode:live?.failureCode??null,outputReady:live?.outputReady??false,
+          goodwillEligible:goodwill,
           customerSubject:hold.subject},
         refundable,refundReason:hold.state==="released"?"Credits already released.":
           !live?"Provider evidence unavailable; no safe release.":
+          goodwill?"Super Admin may release the reservation as goodwill despite an unknown provider outcome; SingMotion bears possible BytePlus costs.":
           live.state!=="failed"?"Original provider task is not terminal; no refund.":
           !allowed?"Output errors and uncertain billing require provider reconciliation.":
           "Super Admin may return the reservation as a goodwill refund; this is a business cost if BytePlus billed the task."};
@@ -227,6 +231,24 @@ export class SupportCases{
       this.enqueue(target.id,"resolved",target.customerEmail,actor,note);
       this.db.exec("COMMIT");
     }catch(e){this.db.exec("ROLLBACK");throw e}
+    return this.lookup(target.id,liveFile)!;
+  }
+  goodwillUncertainCredit(value:string,actor:string,note:string,liveFile:string):SupportLookup {
+    const target=this.lookup(value,liveFile);
+    if(!target||target.type!=="credit-video"||target.details.goodwillEligible!==true||
+       target.details.outputReady!==false)
+      throw Error("Goodwill release requires an uncertain undelivered Credit video");
+    if(!/^[A-Za-z0-9_-]{1,110}$/.test(actor)||note.trim().length<20||note.length>1200)
+      throw Error("Protected Super Admin goodwill authorization required");
+    // Recheck authoritative live attempt before the wallet transaction. No provider submission.
+    const evidence=readStudioEvidence(target.id,liveFile);
+    if(evidence?.state!=="uncertain"||evidence.failureCode!=="SUBMISSION_OUTCOME_UNKNOWN"||
+       evidence.outputReady)throw Error("Original provider task outcome changed; recheck before refund");
+    const wallet=new CreditWallet(this.db);
+    wallet.supportGoodwillUncertainVideo(target.id,actor,note);
+    this.db.prepare("INSERT OR IGNORE INTO support_case_events VALUES(?,?,?,?,?,?)")
+      .run("goodwill-credit:"+target.id,target.id,"credits-returned",actor,note.trim(),Date.now());
+    this.enqueue(target.id,"credits-returned",target.customerEmail,actor,note);
     return this.lookup(target.id,liveFile)!;
   }
   refundCredit(value:string,actor:string,note:string,liveFile:string):SupportLookup {
