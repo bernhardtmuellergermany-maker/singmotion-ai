@@ -81,7 +81,7 @@ export async function POST(req:NextRequest){
   }
   if(!["login","register"].includes(input.action||"")||typeof input.email!=="string"||typeof input.password!=="string")return json({error:"Invalid request"},400);
   let registrationId:string|undefined;
-  if(input.action==="register")registrationId=store.register(input.email,input.password);
+  if(input.action==="register")registrationId=store.register(input.email,input.password,req.cookies.get("sm_referral")?.value);
   let token:string;
   try{token=store.login(input.email,input.password);}
   catch(error){
@@ -110,6 +110,7 @@ export async function POST(req:NextRequest){
   }
   const response=json({authenticated:true,email:input.email.trim().toLowerCase(),owner:media.owner,
    emailVerification:store.verificationState(id),verificationEmailSent});
+  if(registrationId)response.cookies.delete("sm_referral");
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   for(const [name,value] of [["sm_customer",token],["sm_session",media.token]]){
    // Stripe Checkout returns via cross-site top-level GET. The customer

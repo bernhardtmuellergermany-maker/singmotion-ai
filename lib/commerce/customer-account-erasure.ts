@@ -58,8 +58,11 @@ const removableCommerce=new Set([
  "customer_accounts","customer_sessions","customer_session_policies",
  "customer_email_verifications","customer_google_identities",
  "customer_password_resets","customer_email_preferences","credit_wallet_ledger",
+ "referral_codes","referral_attributions",
 ]);
 function checkCommerce(db:DatabaseSync,id:string,email:string):ErasureAssessment{
+ if(hasTable(db,"referral_rewards")&&db.prepare("SELECT 1 FROM referral_rewards WHERE referrer_id=? OR referred_id=? LIMIT 1").get(id,id))
+  return denied("CREDITS_OR_PAYMENTS","Referral rewards require financial reconciliation before deletion.");
  if(!ownGiftOnly(db,id))return denied("CREDITS_OR_PAYMENTS",
   "Credits or their financial ledger require resolution before account deletion. Purchased Credits are not automatically forfeited or refunded.");
  // Every recorded top-up is financially relevant, including pending Checkout
@@ -144,6 +147,11 @@ export function eraseEmptyCustomerAccount(store:CommerceStore,root:string,id:str
      "customer_password_resets","customer_email_preferences"]){
    if(hasTable(store.db,table))store.db.prepare("DELETE FROM "+safeTable(table)+" WHERE account_id=?").run(id);
   }
+  // Remove unused invite codes and referral ties without erasing financial evidence.
+  if(hasTable(store.db,"referral_attributions"))
+   store.db.prepare("DELETE FROM referral_attributions WHERE referrer_id=? OR referred_id=?").run(id,id);
+  if(hasTable(store.db,"referral_codes"))
+   store.db.prepare("DELETE FROM referral_codes WHERE customer_id=?").run(id);
   // Prevent any remaining authenticated media cookie from opening files.
   demo.prepare("DELETE FROM sessions WHERE owner=?").run("customer-"+id);
   const removed=store.db.prepare("DELETE FROM customer_accounts WHERE id=?").run(id);

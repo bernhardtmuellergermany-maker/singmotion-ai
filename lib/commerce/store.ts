@@ -1,5 +1,6 @@
 import { PlanLedger, quotePlanSeconds } from "./plans.ts";
 import { CreditWallet } from "./credit-wallet.ts";
+import {ReferralProgram} from "./referral-program.ts";
 import {erasureInProgress} from "./customer-erasure-job.ts";
 import {publicWelcomeCreditsEnabled,grantPublicWelcomeCredits} from "./public-welcome-credits.ts";
 import { PromotionLedger, normalizePromoCode } from "./promotions.ts";
@@ -110,7 +111,7 @@ export class CommerceStore {
     new CreditWallet(this.db);
     grantPublicWelcomeCredits(this.db,id);
   }
-  register(email: string, password: string) {
+  register(email: string, password: string, referralCode?:string) {
     email = email.trim().toLowerCase();
     if (
       !/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(email) ||
@@ -128,10 +129,11 @@ export class CommerceStore {
       // Missing rows belong to existing pre-migration accounts and retain access.
       this.db.prepare("INSERT INTO customer_email_verifications(account_id,verified_at,sent_at) VALUES(?,NULL,0)").run(id);
       this.awardPublicWelcomeOnAccountCreation(id);
+      new ReferralProgram(this.db).bindNewCustomer(id,referralCode);
     });
     return id;
   }
-  googleLogin(subject:string,email:string){
+  googleLogin(subject:string,email:string,referralCode?:string){
     email=email.trim().toLowerCase();
     if(!/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(email)||!/^\d{8,32}$/.test(subject))throw Error("Invalid Google account");
     return this.tx(()=>{
@@ -144,6 +146,7 @@ export class CommerceStore {
         this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());
         this.db.prepare("INSERT INTO customer_google_identities VALUES(?,?)").run(subject,id);
         this.awardPublicWelcomeOnAccountCreation(id);
+        new ReferralProgram(this.db).bindNewCustomer(id,referralCode);
       }
       // Google email_verified was validated by the OAuth callback, including
       // audience, issuer, subject and nonce. Never infer it from an email alone.
