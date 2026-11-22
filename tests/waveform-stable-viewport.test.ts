@@ -14,8 +14,10 @@ test("waveform viewport remains fixed during selection and handle drags",()=>{
  assert.match(waveform,/lockViewport\(\);\s*onChange\(/);
 });
 
-test("only explicit zoom resets the locked waveform window",()=>{
- assert.match(waveform,/const zoomIn = \(\) => \{setLockedView\(null\);setZoomLevel/);
- assert.match(waveform,/const zoomOut = \(\) => \{setLockedView\(null\);setZoomLevel/);
- assert.doesNotMatch(waveform,/onPointerMove[^]*?setLockedView\(null\)/);
+test("explicit zoom pans a locked window and pointer release restores selection-aware viewport",()=>{
+ assert.match(waveform,/const zoomIn=\(\)=>zoomBy\(1\.45\)/);
+ assert.match(waveform,/const zoomOut=\(\)=>zoomBy\(1\/1\.45\)/);
+ assert.match(waveform,/setLockedView\(\{\.\.\.next,freePan:true\}\)/);
+ assert.match(waveform,/onPointerUp=\{e=>\{[^\n]*setDragging\(false\);setLockedView\(null\)/);
+ assert.match(waveform,/Math\.max\(end - viewSpan, Math\.min\(start, preferredViewStart\)\)/);
 });
