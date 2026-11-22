@@ -17,10 +17,13 @@ const DAY=86400000;
 const settingsColumns="enabled,referrer_credits,friend_credits,minimum_purchase_credits,hold_days,max_total_credits,max_per_referrer,revision";
 type Row={enabled:number;referrer_credits:number;friend_credits:number;minimum_purchase_credits:number;hold_days:number;max_total_credits:number;max_per_referrer:number;revision:number};
 export class ReferralError extends Error{
- constructor(message:string,readonly status=400){super(message);}
+ readonly status:number;
+ constructor(message:string,status=400){super(message);this.status=status;}
 }
 export class ReferralProgram{
- constructor(private readonly db:DatabaseSync){
+ private readonly db:DatabaseSync;
+ constructor(db:DatabaseSync){
+  this.db=db;
   db.exec([
    "CREATE TABLE IF NOT EXISTS referral_settings(id INTEGER PRIMARY KEY CHECK(id=1),enabled INTEGER NOT NULL CHECK(enabled IN(0,1)),referrer_credits INTEGER NOT NULL,friend_credits INTEGER NOT NULL,minimum_purchase_credits INTEGER NOT NULL,hold_days INTEGER NOT NULL,max_total_credits INTEGER NOT NULL,max_per_referrer INTEGER NOT NULL,revision INTEGER NOT NULL)",
    "CREATE TABLE IF NOT EXISTS referral_codes(customer_id TEXT PRIMARY KEY,code TEXT NOT NULL UNIQUE,created INTEGER NOT NULL)",
