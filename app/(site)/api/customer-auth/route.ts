@@ -16,14 +16,16 @@ const accountsEnvironment=()=> (process.env.SINGMOTION_ISOLATED_ERASURE_TEST==="
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- const staff=await siteStaffStatus(req.headers);
- if(!accountsEnvironment())return staff?json(staff):json({error:"Accounts unavailable"},403);
+ if(!accountsEnvironment()){
+  const staff=await siteStaffStatus(req.headers);
+  return staff?json(staff):json({error:"Accounts unavailable"},403);
+ }
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   // Customer sign-in is determined only by the verified customer cookie.
   // An independent CMS staff token is never a fallback customer identity.
   const id=store.session(req.cookies.get("sm_customer")?.value||"");
-  if(!id)return json(staff??{authenticated:false});
+  if(!id)return json((await siteStaffStatus(req.headers))??{authenticated:false});
   const row=store.db.prepare("SELECT email FROM customer_accounts WHERE id=?").get(id) as {email:string}|undefined;
   return json({authenticated:!!row,email:row?.email||null,kind:"customer",emailVerification:store.verificationState(id)});
  }finally{store.close()}
