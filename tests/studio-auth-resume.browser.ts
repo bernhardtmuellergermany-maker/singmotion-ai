@@ -217,9 +217,19 @@ try{
        "https://suno.com/song/abcdef01-2345-6789-abcd-001122334455"
      );
      await page.getByRole("button",{name:"Import song directly"}).click();
-     await page.locator(".sm-new-file-info strong",{
-       hasText:"new-suno-"+i+".mp3"
-     }).waitFor({timeout:30000});
+     try {
+       await page.locator(".sm-new-file-info strong",{
+         hasText:"new-suno-"+i+".mp3"
+       }).waitFor({timeout:30000});
+     } catch (cause) {
+       // Synthetic test-only diagnostics; no credentials or actual Suno URLs.
+       console.error("SUNO_BROWSER_IMPORT_FAILURE",{
+         attempt:i,pathname:new URL(page.url()).pathname,
+         notice:(await page.locator("#suno-import [role='status']").allTextContents()).slice(0,5),
+         feedback:(await page.locator("main").innerText()).slice(0,800)
+       });
+       throw cause;
+     }
      await page.getByText("Step 1 of 4 · Audio",{exact:true}).waitFor();
      await page.waitForURL(url=>url.pathname==="/studio"&&
        !!url.searchParams.get("draft")&&url.searchParams.get("draft")!==id&&
