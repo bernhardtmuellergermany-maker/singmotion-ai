@@ -4,10 +4,10 @@
  * No real Stripe, BytePlus or R2 calls and never accesses a deployed database.
  */
 import assert from "node:assert/strict";
-import {spawn} from "node:child_process";
+import {spawn,execFileSync} from "node:child_process";
 import {createServer} from "node:net";
 import {randomUUID} from "node:crypto";
-import {mkdtemp,mkdir,writeFile,rm} from "node:fs/promises";
+import {mkdtemp,mkdir,writeFile,readFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {DatabaseSync} from "node:sqlite";
@@ -173,6 +173,93 @@ try{
     "sign-in does not create an order");
    const cookies=await context.cookies(origin);
    assert.ok(cookies.some(x=>x.name==="sm_customer"),"customer has a verified login");
+   // Reproduce the real signed-in failure: existing Step 4, Videos -> New
+   // video, then two new Suno imports. Suno OAuth/MCP is mocked, but MP3
+   // upload, account-owned storage and navigation run through real Next.js.
+   const mockMp3Path=path.join(root,"suno-browser-"+randomUUID()+".mp3");
+   execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i",
+     "sine=frequency=620:duration=9","-c:a","libmp3lame",mockMp3Path]);
+   const mockMp3=await readFile(mockMp3Path);
+   let sunoImportCount=0;
+   await page.route("**/api/suno-import",async route=>{
+     if(route.request().method()==="GET"){
+       await route.fulfill({status:200,contentType:"application/json",body:JSON.stringify({connected:true})});
+       return;
+     }
+     if(route.request().method()==="POST"){
+       sunoImportCount++;
+       await route.fulfill({status:200,
+         headers:{"content-type":"audio/mpeg",
+                  "x-suno-audio-filename":"new-suno-"+sunoImportCount+".mp3"},
+         body:mockMp3});
+       return;
+     }
+     await route.abort();
+   });
+   await page.goto(origin+"/videos");
+   await page.getByRole("link",{name:"New video"}).click();
+   await page.getByText("Step 1 of 4 · Audio",{exact:true}).waitFor({timeout:15000});
+   assert.equal(await page.getByRole("heading",{name:"Ready to generate?"}).count(),0,
+     "New video cannot resume the last Step 4");
+   const createdIds:string[]=[];
+   for(let i=1;i<=2;i++){
+     // The second import explicitly replaces the audio from the first, while
+     // preserving the first independent saved draft on the server.
+     if(i===2){
+       await page.getByRole("button",{name:"Delete audio"}).click();
+       await page.locator("#suno-import").waitFor({timeout:10000});
+     }
+     const panel=page.locator("#suno-import");
+     if(!(await panel.evaluate(el=>(el as HTMLDetailsElement).open)))
+       await panel.locator("summary").click();
+     await page.getByRole("textbox",{name:"Suno song link"}).fill(
+       i===1?"https://suno.com/s/9NgKJGqKoraKou62":
+       "https://suno.com/song/abcdef01-2345-6789-abcd-001122334455"
+     );
+     await page.getByRole("button",{name:"Import song directly"}).click();
+     await page.locator(".sm-new-file-info strong",{
+       hasText:"new-suno-"+i+".mp3"
+     }).waitFor({timeout:30000});
+     await page.getByText("Step 1 of 4 · Audio",{exact:true}).waitFor();
+     await page.waitForURL(url=>url.pathname==="/studio"&&
+       !!url.searchParams.get("draft")&&url.searchParams.get("draft")!==id&&
+       !createdIds.includes(url.searchParams.get("draft")||""),{timeout:20000});
+     const newId=new URL(page.url()).searchParams.get("draft")!;
+     assert.ok(newId&&newId!==id&&!createdIds.includes(newId),
+       "every explicit Suno import must create a new project ID");
+     createdIds.push(newId);
+     const savedNew=db.prepare(
+       "SELECT owner,selection,step FROM studio_drafts WHERE id=?"
+     ).get(newId) as {owner:string;selection:string;step:number}|undefined;
+     assert.ok(savedNew,"newly uploaded Suno song must be saved under its own ID");
+     assert.equal(savedNew.owner,customerOwner);
+     assert.equal(savedNew.step,0);
+     const fresh=JSON.parse(savedNew.selection);
+     assert.equal(fresh.songId!==audioId,true,"new song must not be previous recording");
+     assert.equal(fresh.imageId,"","new Suno project must not inherit artist photo");
+     assert.equal(fresh.customPrompt,"","new Suno project must not inherit old prompt");
+     assert.equal(fresh.performance,"Natural");
+     assert.equal(fresh.camera,"Static camera");
+     assert.equal(fresh.start,0);
+     const original=db.prepare("SELECT owner,selection,step FROM studio_drafts WHERE id=?"
+     ).get(id) as {owner:string;selection:string;step:number}|undefined;
+     assert.ok(original,"original Step 4 must remain available");
+     assert.equal(original.step,3);
+     assert.deepEqual(JSON.parse(original.selection),{...selection,owner:customerOwner});
+     await page.reload();
+     await page.locator(".sm-new-file-info strong",{
+       hasText:"new-suno-"+i+".mp3"
+     }).waitFor({timeout:15000});
+     assert.equal(await page.getByRole("heading",{name:"Ready to generate?"}).count(),0,
+       "a reload must not reopen the old Step 4");
+   }
+   assert.equal(sunoImportCount,2);
+   const firstNew=db.prepare("SELECT selection FROM studio_drafts WHERE id=?"
+   ).get(createdIds[0]) as {selection:string}|undefined;
+   assert.ok(firstNew,"first imported draft stays saved after second import");
+   assert.ok(JSON.parse(firstNew.selection).songId,
+     "first imported song persists independently of the second");
+   console.log("PASS: signed-in New video + two mocked Suno MP3 imports create separate blank Step 1 drafts, preserve previous Step 4 and survive reload.");
    console.log("PASS: "+(registration?"standard account creation":"standard sign in")+
     " returns original audio, image, crop, 5-second selection and prompt to Step 4 without a purchase.");
   }finally{await context.close()}
