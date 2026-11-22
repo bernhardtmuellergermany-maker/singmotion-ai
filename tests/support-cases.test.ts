@@ -72,7 +72,7 @@ test("no money returned for active, uncertain or malformed MP4 jobs",()=>{
     .run(job,"customer:owner",125,Date.now(),Date.now());
    liveFailure(f,job,code,status);
    const support=new SupportCases(f.store.db);
-   assert.equal(support.lookup(job,f.liveFile)?.refundable,false);
+   assert.equal(support.lookup(job,f.liveFile)?.refundable,status==="uncertain"&&code==="SUBMISSION_OUTCOME_UNKNOWN");
    assert.throws(()=>support.refundCredit(job,actor,note,f.liveFile));
    assert.equal(w.videoReservation(job)?.state,"review");
   }finally{f.close()}
@@ -175,4 +175,44 @@ test("a failed charged video cannot be marked resolved before refund verificatio
   assert.throws(()=>support.markResolved(id,actor,note,f.liveFile),/cannot be closed/);
   assert.equal(f.store.db.prepare("SELECT count(*) n FROM support_cases").get()!.n,0);
  }finally{f.close()}
+});
+
+test("Super Admin goodwill releases uncertain Credit hold exactly once without provider submission",()=>{
+ const f=fixture();try{
+  const id=randomUUID(),subject="customer:goodwill-owner";
+  const w=new CreditWallet(f.store.db);
+  const p=w.pending({subject,email:"goodwill@example.test",customerId:"goodwill-owner"},500,randomUUID());
+  w.bind(p.id,"cs_test_goodwill_case","https://checkout.stripe.com/c/test");
+  w.settle({id:p.id,sessionId:"cs_test_goodwill_case",amount:500,currency:"eur",paymentStatus:"paid",livemode:false});
+  w.reserveVideo(id,subject,45);
+  liveFailure(f,id,"SUBMISSION_OUTCOME_UNKNOWN","uncertain");
+  w.reconcileVideo(id,"review");
+  const support=new SupportCases(f.store.db);
+  assert.equal(w.available(subject),455);
+  assert.equal(support.lookup(id,f.liveFile)?.details.goodwillEligible,true);
+  assert.throws(()=>support.refundCredit(id,actor,note,f.liveFile));
+  const after=support.goodwillUncertainCredit(id,actor,
+   "Owner authorizes goodwill refund after uncertain BytePlus submission.",f.liveFile);
+  assert.equal(after.details.creditReservation,"released");
+  assert.equal(w.available(subject),500);
+  assert.equal(w.reconcileVideo(id,"completed")?.state,"released","later completion cannot debit again");
+  assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM credit_wallet_ledger WHERE kind='support-video-goodwill'").get()!.n,1);
+  assert.equal(f.store.db.prepare("SELECT count(*) AS n FROM support_case_mail_outbox").get()!.n,0,
+   "No unverified email address means no customer notification");
+  assert.throws(()=>support.goodwillUncertainCredit(id,actor,note,f.liveFile),/Goodwill release/);
+ }finally{f.close()}
+});
+test("goodwill never releases an active or completed video",()=>{
+ for(const [status,code] of [["processing","SUBMISSION_OUTCOME_UNKNOWN"],["completed","SUBMISSION_OUTCOME_UNKNOWN"],["failed","PROVIDER_JOB_FAILED"]] as const){
+  const f=fixture();try{
+   const id=randomUUID();
+   new CreditWallet(f.store.db);
+   f.store.db.prepare("INSERT INTO credit_video_reservations VALUES(?,?,?,'review',?,?)")
+    .run(id,"customer:owner",45,Date.now(),Date.now());
+   liveFailure(f,id,code,status);
+   const support=new SupportCases(f.store.db);
+   assert.throws(()=>support.goodwillUncertainCredit(id,actor,note,f.liveFile));
+   assert.equal(new CreditWallet(f.store.db).videoReservation(id)?.state,"review");
+  }finally{f.close()}
+ }
 });
