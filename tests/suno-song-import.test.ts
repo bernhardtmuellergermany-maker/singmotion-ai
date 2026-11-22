@@ -174,17 +174,37 @@ test("Suno import uses the local brand logo and concise copy",()=>{
  assert.match(ui,/Disconnect/);
 });
 
-test("every successful Suno import opens a new video draft with isolated state",()=>{
+test("importing Suno from a signed-in workspace resets state in place, not by reopening a previous draft",()=>{
  assert.match(wizard,/onImportFile=\{importSunoAsNewDraft\}/);
- assert.match(wizard,/async function importSunoAsNewDraft\(file: File\)/);
  const isolated=wizard.split("async function importSunoAsNewDraft")[1].split("async function add(")[0];
  assert.match(isolated,/uploadWithProgress\(file, "audio"/);
+ assert.match(isolated,/if \(asset.kind !== "audio" \|\| asset.owner !== owner\)/);
+ assert.match(isolated,/const newId = crypto\.randomUUID\(\)/);
+ assert.match(isolated,/const fresh = \{ \.\.\.initial, song: asset, start: 0/);
+ assert.match(isolated,/draftId\.current = newId/);
+ assert.match(isolated,/setProjectKey\(newId\)/);
+ assert.match(isolated,/setDraft\(fresh\)/);
+ assert.match(isolated,/setStep\(0\)/);
+ assert.match(isolated,/setTimeline\(\[\]\)/);
+ assert.match(isolated,/setProjectName\(new Date\(\)/);
+ assert.match(isolated,/setImageReady\(false\)/);
+ assert.match(isolated,/setReviewRights\(false\)/);
+ assert.match(isolated,/setGenerationProjectId\(""\)/);
+ assert.match(isolated,/setSaved\(false\)/);
+ assert.match(isolated,/firstDraftSave\.current = true/);
  assert.match(isolated,/sessionStorage\.setItem\("singmotion-home-audio-handoff"/);
- assert.match(isolated,/window\.location\.assign\("\/studio\?new=1&audio=1"\)/);
+ assert.match(isolated,/window\.history\.replaceState\(window\.history\.state, "", "\/studio\?new=1&audio=1"\)/);
+ assert.doesNotMatch(isolated,/window\.location\.assign\(/);
  assert.doesNotMatch(isolated,/update\(\{/);
+ assert.match(isolated,/throw Error\(message\)/);
+});
+test("new intent survives remounts until its own owner-scoped draft saves, never selecting the last Step 4",()=>{
  assert.match(wizard,/const createNew = params\.get\("new"\) === "1" && !requested && !copy/);
  assert.match(wizard,/createNew \|\| copy \|\| ownerChanged/);
- assert.match(wizard,/if \(createNew \|\| ownerChanged \|\| unscopedOperatorDraft\)/);
+ assert.match(wizard,/song\.owner === sessionOwner/);
+ assert.match(wizard,/if \(!createNew\) window\.history\.replaceState\(window\.history\.state, "", "\/studio"\)/);
+ assert.match(wizard,/draftId\.current === id/);
+ assert.match(wizard,/location\.searchParams\.get\("new"\) === "1"/);
+ assert.match(wizard,/window\.history\.replaceState\(window\.history\.state, "", "\/studio\?draft=" \+ encodeURIComponent\(id\)\)/);
  assert.match(wizard,/sessionStorage\.removeItem\("singmotion-home-audio-handoff"\)/);
- assert.match(wizard,/fresh = \{ \.\.\.initial, song, start: 0/);
 });
