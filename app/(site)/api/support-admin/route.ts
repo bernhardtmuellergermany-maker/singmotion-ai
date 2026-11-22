@@ -68,9 +68,9 @@ export async function POST(req:NextRequest){
  try{reference=supportReference(input.id)}catch{return json({error:"Invalid order or project ID"},400)}
  if(input.reason.trim().length<20||input.reason.length>1200)
   return json({error:"A specific reason of 20–1200 characters is required."},400);
- if(!["refund-credits","refund-stripe","resolve"].includes(input.action||""))
+ if(!["refund-credits","goodwill-credits","refund-stripe","resolve"].includes(input.action||""))
   return json({error:"Unsupported support action."},400);
- const expected=(input.action==="refund-credits"?"RETURN":input.action==="refund-stripe"?"REFUND":"RESOLVE")+" "+reference.toUpperCase();
+ const expected=(input.action==="refund-credits"?"RETURN":input.action==="goodwill-credits"?"GOODWILL":input.action==="refund-stripe"?"REFUND":"RESOLVE")+" "+reference.toUpperCase();
  if(input.confirmation!==expected)return json({error:"Type the exact confirmation phrase: "+expected},409);
  const file=path.join(dataDir,"commerce.sqlite");
  let response:unknown;
@@ -81,6 +81,9 @@ export async function POST(req:NextRequest){
   if(input.action==="refund-credits"){
     response={case:cases.refundCredit(reference,actor,input.reason,path.join(dataDir,"live-test.sqlite")),
       message:"Verified failed video reservation refunded. Customer email queued if an account email is available."};
+  }else if(input.action==="goodwill-credits"){
+    response={case:cases.goodwillUncertainCredit(reference,actor,input.reason,path.join(dataDir,"live-test.sqlite")),
+      message:"Uncertain video Credit reservation released once as goodwill. Customer notification queued; provider costs may still apply."};
   }else if(input.action==="refund-stripe"){
     const result=await requestSupportStripeRefund(store,reference,actor,input.reason,input.confirmation);
     response={refund:result,case:cases.lookup(reference,path.join(dataDir,"live-test.sqlite")),
