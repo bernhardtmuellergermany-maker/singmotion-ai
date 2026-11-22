@@ -21,7 +21,7 @@ async function loadCase(value:string):Promise<Case>{
  return json.case;
 }
 const confirmFor=(action:string,id:string)=>{
- const prefix=action==="refund-credits"?"RETURN":action==="refund-stripe"?"REFUND":"RESOLVE";
+ const prefix=action==="refund-credits"?"RETURN":action==="goodwill-credits"?"GOODWILL":action==="refund-stripe"?"REFUND":"RESOLVE";
  return prefix+" "+id.toUpperCase();
 };
 export function SupportAdmin(){
@@ -29,7 +29,7 @@ export function SupportAdmin(){
  const [record,setRecord]=useState<Case|null>(null);
  const [reason,setReason]=useState("");
  const [confirm,setConfirm]=useState("");
- const [action,setAction]=useState<"refund-credits"|"refund-stripe"|"resolve"|null>(null);
+ const [action,setAction]=useState<"refund-credits"|"goodwill-credits"|"refund-stripe"|"resolve"|null>(null);
  const [error,setError]=useState("");
  const [message,setMessage]=useState("");
  const [busy,setBusy]=useState(false);
@@ -115,8 +115,8 @@ export function SupportAdmin(){
     </p>
     <div className="sm-support-actions">
      {actionAvailable&&<button type="button" disabled={busy}
-      onClick={()=>{setAction(record.type==="credit-video"?"refund-credits":"refund-stripe");setReason("");setConfirm("");setError("");}}>
-       {record.type==="credit-video"?"Return video Credits":"Refund original Stripe payment"}
+      onClick={()=>{setAction(record.type==="credit-video"?(record.details.goodwillEligible===true?"goodwill-credits":"refund-credits"):"refund-stripe");setReason("");setConfirm("");setError("");}}>
+       {record.type==="credit-video"?(record.details.goodwillEligible===true?"Return  Credits as goodwill":"Return video Credits"):"Refund original Stripe payment"}
       </button>}
      <button type="button" disabled={busy||record.caseStatus==="resolved"}
       onClick={()=>{setAction("resolve");setReason("");setConfirm("");setError("");}}>Mark case resolved</button>
@@ -124,11 +124,13 @@ export function SupportAdmin(){
     </div>
     {action&&<form onSubmit={execute} className="sm-support-confirm">
       <h3>{action==="refund-stripe"?"Confirm full Stripe refund":
-        action==="refund-credits"?"Confirm Credit refund":"Confirm case resolution"}</h3>
+        action==="refund-credits"?"Confirm Credit refund":action==="goodwill-credits"?"Confirm goodwill Credit release":"Confirm case resolution"}</h3>
       <p>{action==="refund-stripe"?
         "This action can refund actual money to the original payment method. No new generation or payment will be started. If Stripe is pending, the case stays open until verified.":
         action==="refund-credits"?
          "Returns the video's Credit reservation or reverses a recorded Credit debit only after a verified terminal failed provider job. The original project remains saved.":
+        action==="goodwill-credits"?
+         "Explicit business-funded goodwill: returns this uncertain video's reserved Credits exactly once. BytePlus may still bill SingMotion. No second video is submitted; the original project remains saved.":
          "Customer notification is queued after the case is marked resolved. Do not mark an unresolved payment or video failure as solved."}</p>
       <label>Reason / resolution evidence (minimum 20 characters)
        <textarea required minLength={20} maxLength={1200} rows={3} value={reason}
@@ -141,7 +143,7 @@ export function SupportAdmin(){
       </label>
       <div className="sm-support-actions">
        <button type="submit" disabled={busy||confirm!==confirmFor(action,record.id)||reason.trim().length<20}>
-        {busy?"Processing…":action==="refund-stripe"?"Issue verified Stripe refund":action==="refund-credits"?"Refund Credits once":"Resolve and notify"}
+        {busy?"Processing…":action==="refund-stripe"?"Issue verified Stripe refund":action==="refund-credits"?"Refund Credits once":action==="goodwill-credits"?"Release reserved Credits once":"Resolve and notify"}
        </button>
        <button type="button" onClick={()=>{setAction(null);setConfirm("");setReason("");}}>Cancel</button>
       </div>
