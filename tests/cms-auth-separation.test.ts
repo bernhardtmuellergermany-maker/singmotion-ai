@@ -49,6 +49,6 @@ test("site Super Admin logout clears CMS session only for verified staff without
  assert.match(logout,/if\(mediaOwner\?\.startsWith\("cms-staff-"\)\)response\.cookies\.delete\("sm_session"\)/);
  const normal=read("components/account-panel.tsx");
  const menu=read("components/header-account-menu.tsx");
- assert.match(normal,/fetch\("\/api\/unified-logout"/);
+ assert.match(normal,/staff\?"\/api\/cms\/staff\/logout":"\/api\/unified-logout"/);
  assert.match(menu,/fetch\("\/api\/unified-logout"/);
 });
