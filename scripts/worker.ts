@@ -38,6 +38,7 @@ let nextWithdrawalReceiptRetry=0;
 let nextVideoReadyEmailRetry=0;
 let nextSupportMailRetry=0;
 let nextAutomaticCreditRecovery=0;
+let nextReferralRecovery=0;
 let nextProjectTrashCleanup=0;
 let stopping = false;
 process.on("SIGTERM", () => {
@@ -151,6 +152,22 @@ while (!stopping) {
       }
     }catch{console.warn("AUTOMATIC_CREDIT_RECOVERY_UNAVAILABLE");}
   }
+ // Owner-managed referral marketing: OFF by default. No Stripe or BytePlus calls.
+ if(Date.now()>=nextReferralRecovery){
+   nextReferralRecovery=Date.now()+60_000;
+   try{
+     const [{CommerceStore},{ReferralProgram}]=await Promise.all([
+       import("../lib/commerce/store.ts"),import("../lib/commerce/referral-program.ts")
+     ]);
+     const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+     try{
+       const referrals=new ReferralProgram(commerce.db);
+       const outcome=referrals.reconcile();
+       if(outcome.queued||outcome.awarded||outcome.cancelled||outcome.review)
+         console.info("REFERRAL_RECONCILIATION",outcome);
+     }finally{commerce.close();}
+   }catch{console.warn("REFERRAL_RECONCILIATION_UNAVAILABLE");}
+ }
  // Explicit kill switch: no refunds or deletion requests are processed
  // until the same tested release is independently enabled per environment.
  if(process.env.CUSTOMER_AUTOMATED_ERASURE_ENABLED==="true"&&

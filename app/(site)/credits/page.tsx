@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SiteHeader } from "@/components/site-header";
 import { CreditsDashboard } from "@/components/credits-dashboard";
+import {ReferralInvite} from "@/components/referral-invite";
 import {CampaignPricingBanner} from "@/components/campaign-display";
 import "./credits.css";
 
@@ -19,6 +20,7 @@ export default function CreditsPage() {
       </header>
       <CampaignPricingBanner placement="credits"/>
       <CreditsDashboard mode="buy"/>
+      <ReferralInvite/>
     </main>
   </div>;
 }

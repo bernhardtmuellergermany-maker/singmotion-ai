@@ -1,0 +1,29 @@
+name: Verify referral rewards
+on:
+  pull_request:
+    branches: [staging, production]
+    paths:
+      - 'lib/commerce/referral-program.ts'
+      - 'lib/commerce/store.ts'
+      - 'app/(site)/api/admin-referrals/route.ts'
+      - 'app/(site)/api/referrals/route.ts'
+      - 'app/(site)/r/**'
+      - 'app/(site)/api/customer-auth/route.ts'
+      - 'app/(site)/api/google-auth/callback/route.ts'
+      - 'scripts/worker.ts'
+      - 'tests/referral-program.test.ts'
+      - '.github/workflows/referral-rewards.yml'
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - run: node --experimental-strip-types --test tests/referral-program.test.ts tests/credit-wallet.test.ts tests/customer-account-erasure.test.ts
+      - run: npm run typecheck

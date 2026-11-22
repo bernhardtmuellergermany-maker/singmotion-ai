@@ -38,7 +38,7 @@ export async function GET(req:NextRequest){
   if(identity.aud!==process.env.GOOGLE_OAUTH_CLIENT_ID||!["accounts.google.com","https://accounts.google.com"].includes(identity.iss||"")||identity.nonce!==saved.nonce||identity.email_verified!=="true"||!identity.sub||!identity.email||Number(identity.exp)*1000<Date.now())return go("Google identity verification failed");
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
   let account:{id:string;token:string};
-  try{account=store.googleLogin(identity.sub,identity.email);}finally{store.close();}
+  try{account=store.googleLogin(identity.sub,identity.email,req.cookies.get("sm_referral")?.value);}finally{store.close();}
   const media=createAccountMediaSession("customer-"+account.id);
   const old=req.cookies.get("sm_session")?.value;
   const owner=old?session(old)?.owner:null;
@@ -56,6 +56,7 @@ export async function GET(req:NextRequest){
   const destination=new URL(savedReturn||"/?card=login",trustedOrigin);
   destination.searchParams.set("auth_changed","1");
   const response=clear(NextResponse.redirect(destination));
+ response.cookies.delete("sm_referral");
   const guest=verifiedGuest||(old&&owner&&!owner.startsWith("customer-")&&!owner.startsWith("cms-staff-")?old:null);
   if(guest)response.cookies.set("sm_guest_session",guest,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:30*86400});
   response.cookies.set("sm_customer",account.token,{httpOnly:true,secure:true,sameSite:"strict",path:"/",maxAge:86400});
