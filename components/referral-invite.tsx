@@ -24,6 +24,6 @@ export function ReferralInvite(){
    <code style={{overflowWrap:"anywhere"}}>{path}</code>
    <button type="button" className="sm-plan-action sm-plan-action-outline" onClick={copy}>{copied?"Link copied":"Copy invite link"}</button>
   </div>
-  <p className="sm-credits-muted">Rewards are reviewed for {data.holdDays} days after the verified purchase. Qualifying referrals: {data.qualified}. Credits earned: {data.earnedCredits}. No cash payout; unused or refunded purchases do not qualify.</p>
+  <p className="sm-credits-muted">Rewards are reviewed for {data.holdDays} days after the verified purchase. Qualifying referrals: {data.qualified}. Credits earned: {data.earnedCredits}. No cash payout; refunded or disputed payments do not qualify.</p>
  </section>;
 }
