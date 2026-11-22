@@ -178,7 +178,8 @@ test("importing Suno from a signed-in workspace resets state in place, not by re
  assert.match(wizard,/onImportFile=\{importSunoAsNewDraft\}/);
  const isolated=wizard.split("async function importSunoAsNewDraft")[1].split("async function add(")[0];
  assert.match(isolated,/uploadWithProgress\(file, "audio"/);
- assert.match(isolated,/if \(asset.kind !== "audio" \|\| asset.owner !== owner\)/);
+ assert.match(isolated,/if \(asset.kind !== "audio" \|\| typeof asset.id !== "string" \|\| !asset.id\)/);
+ assert.doesNotMatch(isolated,/asset\.owner/);
  assert.match(isolated,/const newId = crypto\.randomUUID\(\)/);
  assert.match(isolated,/const fresh = \{ \.\.\.initial, song: asset, start: 0/);
  assert.match(isolated,/draftId\.current = newId/);
@@ -201,7 +202,7 @@ test("importing Suno from a signed-in workspace resets state in place, not by re
 test("new intent survives remounts until its own owner-scoped draft saves, never selecting the last Step 4",()=>{
  assert.match(wizard,/const createNew = params\.get\("new"\) === "1" && !requested && !copy/);
  assert.match(wizard,/createNew \|\| copy \|\| ownerChanged/);
- assert.match(wizard,/song\.owner === sessionOwner/);
+ assert.doesNotMatch(wizard,/song\.owner === sessionOwner/);
  assert.match(wizard,/if \(!createNew\) window\.history\.replaceState\(window\.history\.state, "", "\/studio"\)/);
  assert.match(wizard,/draftId\.current === id/);
  assert.match(wizard,/location\.searchParams\.get\("new"\) === "1"/);
