@@ -348,10 +348,13 @@ export function StudioWizard({
           if (!ownerChanged && !unscopedOperatorDraft && params.get("audio") === "1") {
             try {
               const stored = sessionStorage.getItem("singmotion-home-audio-handoff");
-              sessionStorage.removeItem("singmotion-home-audio-handoff");
+              // Keep the handoff until the first server save succeeds. A
+              // remount during account initialization must not revive the
+              // most recent unrelated Step 4 project.
               if (stored) {
                 const song = JSON.parse(stored) as Asset;
-                if (song && song.kind === "audio" && typeof song.id === "string" && song.id) {
+                if (song && song.owner === sessionOwner && song.kind === "audio" &&
+                    typeof song.id === "string" && song.id) {
                   fresh = { ...initial, song, start: 0, end: Math.min(5, song.duration || 5) };
                 }
               }
@@ -361,7 +364,9 @@ export function StudioWizard({
           setStep(0);
           setDetectedFormat("9:16");
           if(!accountWorkspace)localStorage.setItem("singmotion-studio", JSON.stringify(fresh));
-          window.history.replaceState(window.history.state, "", "/studio");
+          // Do not erase ?new=1 before the new draft has actually been saved.
+          // A re-render/remount must not fall through to the latest account draft.
+          if (!createNew) window.history.replaceState(window.history.state, "", "/studio");
           setReady(true);
           return;
         }
@@ -465,7 +470,15 @@ export function StudioWizard({
           }),
         )
         .then(() => {
-          if (current) setSaved(true);
+          if (current && draftId.current === id) {
+            setSaved(true);
+            // Only a completed, owner-scoped server save can make the new
+            // draft URL authoritative. Never resume an unrelated old draft.
+            const location = new URL(window.location.href);
+            if (location.pathname === "/studio" && location.searchParams.get("new") === "1")
+              window.history.replaceState(window.history.state, "", "/studio?draft=" + encodeURIComponent(id));
+            sessionStorage.removeItem("singmotion-home-audio-handoff");
+          }
         })
         .catch((cause) => {
           if (current)
@@ -521,7 +534,7 @@ export function StudioWizard({
     performanceInput.current?.focus();
   }
   async function importSunoAsNewDraft(file: File): Promise<void> {
-    if (busy || !ready) return;
+    if (busy || !ready || !owner) throw Error("Studio is not ready for another import.");
     setBusy(true);
     setError("");
     setAudioUploadingName(file.name);
@@ -529,19 +542,60 @@ export function StudioWizard({
     setAudioUploadPhase("uploading");
     try {
       validateFile(file.name, file.size, "audio");
-      // Upload into the current private session, but never modify the current
-      // draft. A new editor instance owns the imported audio and its new ID.
       const asset = await uploadWithProgress(file, "audio", percent => {
         setAudioUploadProgress(percent);
         if (percent === 100) setAudioUploadPhase("processing");
       });
+      if (asset.kind !== "audio" || asset.owner !== owner)
+        throw Error("Imported Suno audio does not belong to this private workspace.");
+      // Reset in-place: a second /studio navigation can restore the account's
+      // latest Step 4 draft before its new ID is persisted. Never navigate here.
+      const newId = crypto.randomUUID();
+      const fresh = { ...initial, song: asset, start: 0, end: Math.min(5, asset.duration || 5) };
+      // Retain a same-owner handoff only for unexpected remounts before autosave.
       sessionStorage.setItem("singmotion-home-audio-handoff", JSON.stringify(asset));
-      window.location.assign("/studio?new=1&audio=1");
+      sessionStorage.removeItem(STUDIO_ACCOUNT_RESUME_KEY);
+      sessionStorage.removeItem("sm-credit-checkout-resume");
+      firstDraftSave.current = true;
+      draftId.current = newId;
+      setProjectKey(newId);
+      setProjectName(new Date().toLocaleString("en-US", {
+        month: "short", day: "numeric", year: "numeric",
+        hour: "2-digit", minute: "2-digit", hour12: false,
+      }));
+      setDraft(fresh);
+      setStep(0);
+      setTimeline([]);
+      setSaved(false);
+      setDetectedFormat("9:16");
+      setImageReady(false);
+      setPhotoSize({width:1,height:1});
+      setCropPending(false);
+      cropReset();
+      setCustomWidth(720);
+      setCustomHeight(1280);
+      setLockRatio(true);
+      setReviewRights(false);
+      setConfirm(false);
+      setReviewBalance(null);
+      setGenerationProjectId("");
+      setGenerating(false);
+      setCameraMovesExpanded(false);
+      if (!owner.startsWith("customer-") && !owner.startsWith("cms-staff-")) {
+        localStorage.setItem("singmotion-draft-id", newId);
+        localStorage.setItem("singmotion-studio", JSON.stringify(fresh));
+      }
+      // Keep the new intent visible until its first successful server save.
+      window.history.replaceState(window.history.state, "", "/studio?new=1&audio=1");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not import Suno song.");
-      setAudioUploadPhase("idle");
+      const message = cause instanceof Error ? cause.message : "Could not import Suno song.";
+      setError(message);
+      throw Error(message);
     } finally {
       setBusy(false);
+      setAudioUploadPhase("idle");
+      setAudioUploadProgress(null);
+      setAudioUploadingName("");
     }
   }
   async function add(file: File | undefined, kind: "audio" | "image", loadFile?:()=>Promise<File>) {
