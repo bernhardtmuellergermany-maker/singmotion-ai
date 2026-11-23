@@ -40,6 +40,7 @@ test("selection rejects reversed, out-of-range, non-finite and overlong segments
     );
 });
 test("file extension and size limits are enforced before expensive decoding", () => {
+  assert.equal(AUDIO_LIMIT, 70 * 1024 * 1024);
   validateFile("track.MP3", 100, "audio");
   validateFile("track.wav", AUDIO_LIMIT, "audio");
   validateFile("artist.png", IMAGE_LIMIT, "image");
