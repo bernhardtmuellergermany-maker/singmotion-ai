@@ -3,7 +3,7 @@ export default withPayload({
   experimental: {
     // Next.js proxy clones upload requests. Its 10MB default truncates larger
     // WAV/M4A multipart bodies before /api/assets can parse them.
-    // Files remain capped at 50MB by validateFile and 51MB by boundedBody.
-    proxyClientMaxBodySize: "52mb",
+    // Audio files remain capped at 70 MiB by validateFile and 71 MiB (including multipart) by boundedBody.
+    proxyClientMaxBodySize: "72mb",
   },
 });
