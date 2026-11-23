@@ -976,7 +976,7 @@ export function StudioWizard({
                     : audioUploadProgress === null ? "Sending file…"
                     : audioUploadProgress + "% uploaded"}</span>
                 </div>
-              ) : <span>MP3, WAV, M4A · up to 50 MB</span>}
+              ) : <span>MP3, WAV, M4A · up to 70 MB</span>}
             </button>
           ):(
             <>
