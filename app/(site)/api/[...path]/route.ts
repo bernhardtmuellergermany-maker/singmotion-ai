@@ -1,6 +1,6 @@
 import { CommerceStore } from "@/lib/commerce/store";
 import { reserveUploadStorage, commitUploadedAsset, releaseUploadStorage } from "@/lib/upload-storage";
-import {customerR2Enabled,mirrorPrivateSource, readMirroredPrivateSource, type CloudMediaRecord} from "@/lib/cloud-media";
+import {customerR2Enabled,mirrorPrivateSource, readMirroredPrivateSource, sourceAssetLimit, type CloudMediaRecord} from "@/lib/cloud-media";
 import {ensureLocalAsset} from "@/lib/cloud-hydration";
 import { parseSavedStudioDraft, hasFirstStudioUpload } from "@/lib/studio-draft";
 import {ensureDraftTrash,deleteDraftToTrash,restoreDraftFromTrash,listDraftTrash} from "@/lib/project-trash";
@@ -36,6 +36,7 @@ import {
 } from "@/lib/db";
 import {
   AppError,
+  AUDIO_LIMIT,
   validateFile,
   validateSelection,
   quote,
@@ -348,7 +349,7 @@ async function handler(
     if (route === "assets" && method === "POST") {
       limit(`${owner}:upload`, 15);
       const form = await new Response(
-        await boundedBody(req, 51 * 1024 * 1024),
+        await boundedBody(req, AUDIO_LIMIT + 1024 * 1024),
         { headers: { "Content-Type": req.headers.get("content-type") || "" } },
       ).formData();
       const file = form.get("file"),
@@ -433,7 +434,7 @@ async function handler(
         let mirrored:CloudMediaRecord|null;
         try{
           mirrored=await mirrorPrivateSource(a);
-          if(mirrored)await readMirroredPrivateSource(owner,assetId,mirrored,a.kind==="video"?256*1024*1024:51*1024*1024);
+          if(mirrored)await readMirroredPrivateSource(owner,assetId,mirrored,sourceAssetLimit(a.kind));
         }catch{throw new AppError("Private cloud storage is temporarily unavailable. Please retry the upload later.",503)}
         commitUploadedAsset(db,a,mirrored);
         if(mirrored){
@@ -473,7 +474,7 @@ async function handler(
           if(!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='cloud_source_media'").get())throw error;
           const row=db.prepare("SELECT key,sha256,bytes FROM cloud_source_media WHERE asset_id=? AND owner=?").get(a.id,owner) as CloudMediaRecord|undefined;
           if(!row)throw error;
-          content=await readMirroredPrivateSource(owner,a.id,row,a.kind==="video"?256*1024*1024:51*1024*1024);
+          content=await readMirroredPrivateSource(owner,a.id,row,sourceAssetLimit(a.kind));
         }
       }
       // Private My Projects previews use a bounded WebP instead of returning
