@@ -1,12 +1,19 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
-import {privateSourceKey,validCloudRecord,customerR2Enabled} from "../lib/cloud-media.ts";
+import {privateSourceKey,validCloudRecord,customerR2Enabled,sourceAssetLimit} from "../lib/cloud-media.ts";
+import {AUDIO_LIMIT,IMAGE_LIMIT} from "../lib/domain.ts";
 import {privatePaidVideoKey,validPaidCloudRecord,mirrorPrivatePaidVideo} from "../lib/cloud-paid-video.ts";
 
 const customer="11111111-1111-4111-8111-111111111111";
 const order="22222222-2222-4222-8222-222222222222";
 const digest=createHash("sha256").update("private material").digest("hex");
+test("private R2 source bound accepts 70 MiB audio but keeps image and video caps",()=>{
+ assert.equal(AUDIO_LIMIT,70*1024*1024);
+ assert.equal(sourceAssetLimit("audio"),AUDIO_LIMIT);
+ assert.equal(sourceAssetLimit("image"),IMAGE_LIMIT);
+ assert.equal(sourceAssetLimit("video"),256*1024*1024);
+});
 test("R2 private input key never embeds customer ID or raw account path",()=>{
  const key=privateSourceKey("customer-"+customer,order,digest);
  assert.match(key,/^customer-sources\/v1\/[a-f0-9]{64}\/[a-f0-9-]{36}\/[a-f0-9]{64}$/);
