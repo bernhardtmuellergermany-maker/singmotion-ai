@@ -1,4 +1,4 @@
-export const AUDIO_LIMIT = 50 * 1024 * 1024;
+export const AUDIO_LIMIT = 70 * 1024 * 1024;
 export const IMAGE_LIMIT = 30 * 1024 * 1024;
 export const PROVIDER_AUDIO_LIMIT = 15 * 1024 * 1024;
 /** Maximum user-selected video excerpt; provider's technical limit stays unchanged. */
@@ -143,7 +143,7 @@ export function validateFile(name: string, size: number, kind: string) {
   if (!size || size > (kind === "audio" ? AUDIO_LIMIT : IMAGE_LIMIT))
     throw new AppError(
       kind === "audio"
-        ? "Choose an audio file up to 50 MB."
+        ? "Choose an audio file up to 70 MB."
         : "Choose an image up to 30 MB.",
     );
   if (!(kind === "audio" ? /\.(mp3|wav|m4a)$/i : /\.(png|jpe?g)$/i).test(name))
