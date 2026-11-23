@@ -1,3 +1,4 @@
+import { uploadRequestTimeoutMs } from "./upload-timeout";
 export async function api<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`/api/${url}`, {
     ...init,
@@ -30,7 +31,7 @@ export async function upload(file: File, kind: "audio" | "image", onProgress?: (
   return new Promise<import("./domain").Asset>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open("POST", "/api/assets");
-    xhr.timeout = 180000;
+    xhr.timeout = uploadRequestTimeoutMs(file.size);
     xhr.upload.onprogress = event => {
       if (event.lengthComputable && event.total > 0) {
         onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
@@ -47,7 +48,7 @@ export async function upload(file: File, kind: "audio" | "image", onProgress?: (
       resolve(response as import("./domain").Asset);
     };
     xhr.onerror = () => reject(new Error("Network connection interrupted. Please try uploading again."));
-    xhr.ontimeout = () => reject(new Error("Upload timed out. Please try again."));
+    xhr.ontimeout = () => reject(new Error("Upload timed out while transferring or checking the file. Please retry on a stable connection."));
     xhr.onabort = () => reject(new Error("Upload was interrupted. Please try again."));
     xhr.send(form);
   });
@@ -91,7 +92,7 @@ export function uploadWithProgress(
     form.set("kind", kind);
     const request = new XMLHttpRequest();
     request.open("POST", "/api/assets");
-    request.timeout = 180000;
+    request.timeout = uploadRequestTimeoutMs(file.size);
     request.upload.addEventListener("progress", event => {
       onProgress(event.lengthComputable && event.total > 0
         ? Math.min(100, Math.round((event.loaded / event.total) * 100))
@@ -113,7 +114,7 @@ export function uploadWithProgress(
       resolve(data as import("./domain").Asset);
     });
     request.addEventListener("error", () => reject(new Error("Upload interrupted. Check your connection and try again.")));
-    request.addEventListener("timeout", () => reject(new Error("Upload timed out. Please try again.")));
+    request.addEventListener("timeout", () => reject(new Error("Upload timed out while transferring or checking the file. Please retry on a stable connection.")));
     request.addEventListener("abort", () => reject(new Error("Upload cancelled.")));
     request.send(form);
   });
