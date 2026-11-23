@@ -48,7 +48,7 @@ Use port 3000 in your local development browser. The cloud onboarding UI does no
 
 ### What to try
 
-1. Open `/studio`, upload an actual MP3 or WAV (50 MB maximum), and wait for validation.
+1. Open `/studio`, upload an actual MP3 or WAV (70 MB maximum), and wait for validation.
 2. Drag or keyboard-adjust waveform handles, or enter exact start/end seconds. Preview the selection. Recommended length: 5–10 seconds; maximum selected length: 300 seconds.
 3. Add an artist and upload a JPEG/PNG reference. Name it, choose view labels, and optionally add more views. Select **one** primary image.
 4. Choose performance/camera guidance. An optional English custom prompt **fully replaces** presets; the composed prompt is visible before submission.
@@ -63,7 +63,7 @@ The sample MP4 was created locally with FFmpeg from a plain background, text, an
 - Demo files are stored outside `public`, in `.data/media`, with session ownership checked on each read. URLs are not public share links.
 - SQLite WAL persists jobs, artists, sessions, a simulated credit ledger, and rate limits across web/worker restarts. Sessions use random HttpOnly, SameSite=Strict cookies; only token hashes are stored. HTTPS makes cookies Secure.
 - A session is valid for 30 days. This is **not** a recoverable production user account. Clearing cookies loses access; do not put important personal content into the demonstration.
-- Audio: MP3/WAV, max. 50 MB; server decodes with FFprobe. Selected provider-ready MP3: max. 15 MB and 300 seconds; FFmpeg duration tolerance accounts for codec padding.
+- Audio: MP3/WAV/M4A, max. 70 MB; server decodes with FFprobe. Selected provider-ready MP3: max. 15 MB and 300 seconds; FFmpeg duration tolerance accounts for codec padding.
 - Images: still JPEG/PNG only, max. 30 MB, max. 4096 × 4096. Sharp decodes and validates; originals are retained. No invented provider minimum dimensions.
 - Per-session storage is capped at 250 MB; active jobs at two. Writes, uploads, session creation, and submissions are rate limited. This is local-demo abuse protection, not a public-launch security claim.
 - Rights consent and expected price are checked server-side. Jobs have user-scoped idempotency keys. One transaction reserves simulated credits. Completion records capture; technical failure or queued cancellation restores exactly once.

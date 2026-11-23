@@ -330,7 +330,7 @@ export function Studio() {
                 <span>
                   or <u>browse files</u> to find your sound
                 </span>
-                <small>MP3 or WAV · up to 50 MB</small>
+                <small>MP3 or WAV · up to 70 MB</small>
               </button>
             )}
             {uploading && song && (

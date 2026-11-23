@@ -8,6 +8,7 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {dataDir,session} from "@/lib/db";
 import {validateAudio,createAudioPreview,probe} from "@/lib/media";
+import {AUDIO_LIMIT} from "@/lib/domain";
 import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
@@ -103,7 +104,7 @@ async function handler(req:NextRequest,context:Context){
     if(!id){
       if(req.method==="GET")return json({projects:listMusicProjects(owner)});
       if(req.method!=="POST")throw new MusicError("Unsupported method.",405);
-      const {form,file}=await fileForm(req,40*1024*1024,"song");
+      const {form,file}=await fileForm(req,AUDIO_LIMIT,"song");
       const title=form.get("name");
       if(typeof title!=="string")throw new MusicError("Project name required.");
       const extension=file.name.toLowerCase().endsWith(".mp3")?"mp3":file.name.toLowerCase().endsWith(".wav")?"wav":file.name.toLowerCase().endsWith(".m4a")?"m4a":null;

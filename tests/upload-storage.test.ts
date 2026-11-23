@@ -4,7 +4,7 @@ import {DatabaseSync} from "node:sqlite";
 import {readFileSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import {uploadedBytes,reserveUploadStorage,releaseUploadStorage,commitUploadedAsset} from "../lib/upload-storage.ts";
-import type {Asset} from "../lib/domain.ts";
+import {AUDIO_LIMIT,type Asset} from "../lib/domain.ts";
 import {privateSourceKey,validCloudRecord,customerR2Enabled} from "../lib/cloud-media.ts";
 import {createHash} from "node:crypto";
 function make(){
@@ -118,7 +118,10 @@ test("generated immutable Studio snapshots do not reduce customers' upload stora
 
 test("a single upload above the supported per-file bound is refused without a quota",()=>{
  const db=make();
- assert.throws(()=>reserveUploadStorage(db,"customer-test",randomUUID(),50*1024*1024+1),/file size/);
+ const accepted=randomUUID();
+ reserveUploadStorage(db,"customer-test",accepted,AUDIO_LIMIT);
+ releaseUploadStorage(db,"customer-test",accepted);
+ assert.throws(()=>reserveUploadStorage(db,"customer-test",randomUUID(),AUDIO_LIMIT+1),/file size/);
  assert.throws(()=>reserveUploadStorage(db,"customer-test",randomUUID(),0),/reservation/);
  db.close();
 });

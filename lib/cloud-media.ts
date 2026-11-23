@@ -7,7 +7,7 @@ import {createHash} from "node:crypto";
 import {readFile,stat} from "node:fs/promises";
 import {S3Client,PutObjectCommand,HeadObjectCommand,GetObjectCommand,DeleteObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "./live/r2-config.ts";
-import type {Asset} from "./domain.ts";
+import {AUDIO_LIMIT,IMAGE_LIMIT,type Asset} from "./domain.ts";
 
 export interface CloudMediaRecord {
  key:string; sha256:string; bytes:number;
@@ -17,7 +17,7 @@ const validId=(s:string)=>/^[a-zA-Z0-9_-]{1,180}$/.test(s);
 const validOwner=(s:string)=>/^(?:[a-f0-9-]{36}|customer-[a-f0-9-]{36}|cms-staff-[a-zA-Z0-9_-]{1,100})$/.test(s);
 const idComponent=(id:string)=>/^[a-f0-9-]{36}$/.test(id)?id:sha(id);
 export function sourceAssetLimit(kind:Asset["kind"]):number{
- return kind==="video"?256*1024*1024:50*1024*1024;
+ return kind==="video"?256*1024*1024:kind==="audio"?AUDIO_LIMIT:IMAGE_LIMIT;
 }
 export const customerR2Enabled=()=>{
  if(process.env.CUSTOMER_R2_STORAGE_ENABLED!=="true")return false;

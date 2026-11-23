@@ -4,7 +4,7 @@
  */
 import {DatabaseSync} from "node:sqlite";
 import type {Asset} from "./domain.ts";
-import {AppError} from "./domain.ts";
+import {AppError,AUDIO_LIMIT} from "./domain.ts";
 import {validCloudRecord, type CloudMediaRecord} from "./cloud-media.ts";
 
 function ensureReservations(db:DatabaseSync){
@@ -33,7 +33,7 @@ export function reserveUploadStorage(
  scratch?:UploadScratchBudget,
 ):void{
  if(!/^[a-f0-9-]{36}$/.test(id)||!Number.isSafeInteger(bytes)||bytes<=0||
-    bytes>50*1024*1024||typeof owner!=="string"||owner.length<1)
+    bytes>AUDIO_LIMIT||typeof owner!=="string"||owner.length<1)
   throw new AppError("Invalid upload reservation or file size.",400);
  ensureReservations(db);
  db.exec("BEGIN IMMEDIATE");
