@@ -1,4 +1,4 @@
-import {worldwideTaxPolicyAvailable} from "./worldwide-credit-tax.ts";
+import {worldwideTaxPolicyAvailable,assessWorldwideCreditTax} from "./worldwide-credit-tax.ts";
 
 /**
  * A second, seller-of-record Stripe Checkout can use the normal account's
@@ -19,10 +19,11 @@ export function alternativeCreditCheckoutApproved(env:Record<string,string|undef
 
 /** Never turn this on in the TEST sandbox or by a client-supplied flag. */
 export function selectAlternativeCreditCheckout(
- env:Record<string,string|undefined>,requested:unknown,liveMode:boolean
+ env:Record<string,string|undefined>,requested:unknown,liveMode:boolean,country?:unknown,buyerType?:unknown
 ):{allowed:boolean;alternative:boolean}{
- if(requested===undefined||requested==="managed")
-  return {allowed:true,alternative:false};
+ if(requested===undefined)
+  return {allowed:true,alternative:liveMode&&alternativeCreditCheckoutApproved(env)&&assessWorldwideCreditTax(env,country,buyerType).ready};
+ if(requested==="managed")return {allowed:true,alternative:false};
  if(requested!=="alternative"||!liveMode||!alternativeCreditCheckoutApproved(env))
   return {allowed:false,alternative:false};
  return {allowed:true,alternative:true};

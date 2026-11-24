@@ -48,12 +48,12 @@ export async function POST(req:NextRequest){
     ?`&resumeDraft=${encodeURIComponent(body.resumeDraft)}&requiredCredits=${body.requiredCredits}`:"";
   // Never infer overseas tax exemption from the German Kleinunternehmer status.
   // Actual billing country is independently checked against Stripe's paid session.
-  const route=selectAlternativeCreditCheckout(process.env,body.paymentRoute,liveMode);
+  let route=selectAlternativeCreditCheckout(process.env,body.paymentRoute,liveMode,body.billingCountry,body.buyerType);
   if(!route.allowed)return json({error:"Alternative payment methods are not yet approved for this Credit purchase."},422);
-  const useMoR=liveMode&&managedCreditMoRApproved(process.env)&&!route.alternative;
+  let useMoR=liveMode&&managedCreditMoRApproved(process.env)&&!route.alternative;
   // Stripe MoR collects billing country only on its hosted Checkout.
   // The signed webhook verifies the actual Stripe country before Credits accrue.
-  const tax=liveMode&&!useMoR?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
+  let tax=liveMode&&!useMoR?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
   if(liveMode&&!useMoR&&!tax?.ready)
    return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
@@ -69,9 +69,13 @@ export async function POST(req:NextRequest){
     return json({error:"Payment option changed. Start a new purchase."},409);
    if(liveMode&&tax?.decision){
     try{wallet.bindTaxContext(purchase.id,tax.decision)}catch(error){
-     if(error instanceof Error&&error.message==="CREDIT_TAX_THRESHOLD_LIMIT")
-      return json({error:"This payment option has reached its reviewed sales limit. Please use standard checkout."},422);
-     throw error;
+     if(error instanceof Error&&error.message==="CREDIT_TAX_THRESHOLD_LIMIT"){
+      // No tax context was reserved on failure. Auto-route to the existing MoR
+      // checkout rather than presenting a second payment selection to the buyer.
+      if(body.paymentRoute===undefined&&route.alternative&&managedCreditMoRApproved(process.env)&&!wallet.taxContext(purchase.id)&&!purchase.sessionId){
+       route={allowed:true,alternative:false};useMoR=true;tax=null;
+      }else return json({error:"This purchase has reached its reviewed sales limit. Please start a new purchase."},422);
+     }else throw error;
     }
    }
    if(purchase.status==="paid"||purchase.status==="reversed")
