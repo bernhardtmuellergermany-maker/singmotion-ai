@@ -26,9 +26,27 @@ export function videoRenderSpans(clips:MusicClip[],durationMs:number):RenderSpan
  }
  return spans;
 }
-type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;progress:number;folder?:string;error?:string};
+/** Select one landscape canvas from the actual visible source videos, independent of orientation. */
+export type ExportResolution={width:1280;height:720}|{width:1920;height:1080};
+export function chooseExportResolution(sources:readonly {width:number;height:number}[]):ExportResolution{
+ if(!sources.length||sources.some(s=>!Number.isSafeInteger(s.width)||!Number.isSafeInteger(s.height)||s.width<=0||s.height<=0))
+  throw new Error("Could not determine source video resolution.");
+ return sources.some(s=>Math.min(s.width,s.height)>720)?{width:1920,height:1080}:{width:1280,height:720};
+}
+async function inspectExportResolution(spans:RenderSpan[],files:Map<string,string>):Promise<ExportResolution>{
+ const dimensions:{width:number;height:number}[]=[];
+ const ids=new Set(spans.flatMap(s=>s.clip?[s.clip.assetId]:[]));
+ for(const id of ids){
+  const file=files.get(id);if(!file)throw new Error("Source video missing.");
+  const {stdout}=await exec("ffprobe",["-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","json",file],{timeout:15000,maxBuffer:16384});
+  const stream=JSON.parse(stdout).streams?.[0];
+  dimensions.push({width:Number(stream?.width),height:Number(stream?.height)});
+ }
+ return chooseExportResolution(dimensions);
+}
+type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;progress:number;resolution?:ExportResolution;folder?:string;error?:string};
 const jobs=new Map<string,Job>();
-const publicJob=(j:Job)=>({id:j.id,state:j.state,progress:j.progress,error:j.error});
+const publicJob=(j:Job)=>({id:j.id,state:j.state,progress:j.progress,resolution:j.resolution,error:j.error});
 function expire(job:Job){const timer=setTimeout(()=>{jobs.delete(job.id);if(job.folder)void rm(job.folder,{recursive:true,force:true}).catch(()=>{});},30*60*1000);timer.unref();}
 async function cleanup(){
  for(const [id,j] of jobs)if(j.state!=="rendering"&&Date.now()-j.created>30*60*1000){jobs.delete(id);if(j.folder)await rm(j.folder,{recursive:true,force:true});}
@@ -41,15 +59,17 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
  const parts=effectiveSongParts(range,project.songParts);
  const duration=Math.max(songPartsEnd(range,project.songParts),...clips.map(clipEnd));
  const spans=videoRenderSpans(clips,duration);
+ const resolution=await inspectExportResolution(spans,files);job.resolution=resolution;
+ const {width,height}=resolution;
  const folder=await mkdtemp(path.join(tmpdir(),"sm-music-export-"));job.folder=folder;
  const started=Date.now(),remaining=()=>Math.max(1,Math.min(180000,20*60*1000-(Date.now()-started)));
  const names:string[]=[];
  for(const [i,span] of spans.entries()){
   if(Date.now()-started>20*60*1000)throw new Error("render timeout");
   const frames=span.endFrame-span.startFrame,name="part-"+i+".mp4",out=path.join(folder,name);
-  const input=span.clip?["-ss",seconds(span.sourceMs),"-i",files.get(span.clip.assetId)!]:["-f","lavfi","-i","color=c=black:s=1920x1080:r=30"];
+  const input=span.clip?["-ss",seconds(span.sourceMs),"-i",files.get(span.clip.assetId)!]:["-f","lavfi","-i","color=c=black:s="+width+"x"+height+":r=30"];
   await ffmpeg([...input,"-map","0:v:0","-an","-sn","-dn","-filter_threads","1",
-   "-vf","scale=1920:1080:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,pad=1920:1080:(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=1",
+   "-vf","scale="+width+":"+height+":force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,pad="+width+":"+height+":(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=1",
    "-frames:v",String(frames),"-c:v","libx264","-threads","2","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-video_track_timescale","30000",out],remaining());
   const {stdout}=await exec("ffprobe",["-v","error","-select_streams","v:0","-show_entries","stream=nb_frames","-of","default=nw=1:nk=1",out],{timeout:15000,maxBuffer:1024});
   if(Number(stdout.trim())!==frames)throw new Error("incomplete video span");
