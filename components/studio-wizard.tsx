@@ -522,6 +522,8 @@ export function StudioWizard({
     setSaved(false);
   }
   function addCameraMovement(move:CameraMovement) {
+    // Quick tips insert text without opening the mobile keyboard. Editing is opt-in.
+    if(document.activeElement===performanceInput.current)performanceInput.current?.blur();
     setCameraPreview(move);
     const lines=draft.customPrompt.split("\n").map(line=>line.trim()).filter(Boolean);
     // Keep existing performance instructions; selecting another camera option
@@ -534,7 +536,6 @@ export function StudioWizard({
       return;
     }
     update({customPrompt:next,performance:"Custom"});
-    performanceInput.current?.focus({preventScroll:true});
   }
   async function importSunoAsNewDraft(file: File): Promise<void> {
     if (busy || !ready || !owner) throw Error("Studio is not ready for another import.");
