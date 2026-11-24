@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
-import {assessWorldwideCreditTax,worldwideTaxPolicyAvailable} from "../lib/commerce/worldwide-credit-tax.ts";
+import {assessWorldwideCreditTax,worldwideTaxPolicyAvailable,approvedAlternativeBillingCountries} from "../lib/commerce/worldwide-credit-tax.ts";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 
 const policy=(entries:unknown[])=>({
@@ -65,4 +65,38 @@ test("each paid credit request retains its immutable tax decision before checkou
  wallet.bindTaxContext(purchase.id,decision);
  assert.throws(()=>wallet.bindTaxContext(purchase.id,{...decision,country:"US"}),/conflict/);
  db.close();
+});
+
+const at={...de,country:"AT",mode:"de-small-business-eu-threshold"};
+const ch={...de,country:"CH",mode:"foreign-threshold-no-tax"};
+const thresholdEnv={...policy([at,ch]),CREDIT_TAX_THRESHOLD_BASELINE_APPROVED:"true",CREDIT_TAX_EU_ORIGIN_THRESHOLD_APPROVED:"true",CREDIT_TAX_THRESHOLD_CHECKOUT_CAP_CENTS:"1000"};
+test("threshold countries require baseline evidence, correct scope and a bounded ceiling",()=>{
+ for(const k of ["CREDIT_TAX_THRESHOLD_BASELINE_APPROVED","CREDIT_TAX_THRESHOLD_CHECKOUT_CAP_CENTS","CREDIT_TAX_EU_ORIGIN_THRESHOLD_APPROVED"]){
+  assert.equal(assessWorldwideCreditTax({...thresholdEnv,[k]:""},"AT","consumer").ready,false,k);
+ }
+ assert.equal(assessWorldwideCreditTax(thresholdEnv,"AT","consumer").decision?.thresholdCapCents,1000);
+ assert.equal(assessWorldwideCreditTax(thresholdEnv,"CH","consumer").ready,true);
+ assert.equal(worldwideTaxPolicyAvailable(policy([{...at,country:"US"}])),false);
+ assert.equal(worldwideTaxPolicyAvailable(policy([{...ch,country:"CA"}])),false);
+ assert.equal(worldwideTaxPolicyAvailable(policy([{...at,buyerType:"business"}])),false);
+ assert.equal(assessWorldwideCreditTax({...thresholdEnv,CREDIT_TAX_THRESHOLD_CHECKOUT_CAP_CENTS:"100001"},"CH","consumer").ready,false);
+});
+test("threshold reservations share a ceiling across countries, retries and policy revisions",()=>{
+ const db=new DatabaseSync(":memory:");try{
+  const w=new CreditWallet(db),identity={subject:"customer:test",customerId:"test",email:"test@example.test"};
+  const atDecision=assessWorldwideCreditTax(thresholdEnv,"AT","consumer").decision!;
+  const chDecision=assessWorldwideCreditTax(thresholdEnv,"CH","consumer").decision!;
+  const a=w.pending(identity,500,"00000000-0000-4000-8000-000000000021");
+  const b=w.pending(identity,500,"00000000-0000-4000-8000-000000000022");
+  const c=w.pending(identity,500,"00000000-0000-4000-8000-000000000023");
+  w.bindTaxContext(a.id,atDecision);w.bindTaxContext(a.id,atDecision);
+  w.bindTaxContext(b.id,chDecision);
+  assert.throws(()=>w.bindTaxContext(c.id,{...atDecision,revision:"new-review"}),/CREDIT_TAX_THRESHOLD_LIMIT/);
+  assert.equal(w.taxContext(c.id),null);
+ }finally{db.close()}
+});
+
+test("alternative country selection mirrors actual buyer type policy",()=>{
+ assert.deepEqual(approvedAlternativeBillingCountries(thresholdEnv),{consumer:["AT","CH"],business:[]});
+ assert.deepEqual(approvedAlternativeBillingCountries({...thresholdEnv,CREDIT_TAX_THRESHOLD_BASELINE_APPROVED:"false"}),{consumer:[],business:[]});
 });

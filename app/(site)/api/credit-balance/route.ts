@@ -8,7 +8,7 @@ import {stagingDenial} from "@/lib/staging";
 import {managedCreditMoRApproved} from "@/lib/commerce/managed-credit-payments";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
-import {worldwideTaxPolicyAvailable} from "@/lib/commerce/worldwide-credit-tax";
+import {worldwideTaxPolicyAvailable,approvedAlternativeBillingCountries} from "@/lib/commerce/worldwide-credit-tax";
 import {alternativeCreditCheckoutApproved} from "@/lib/commerce/alternative-credit-checkout";
 import {CampaignPricing,campaignsEnabled,regularTariff} from "@/lib/commerce/campaign-pricing";
 
@@ -88,6 +88,7 @@ export async function GET(req:NextRequest){
      worldwideTaxPolicyAvailable(process.env),
    approvedBillingCountries:null,
    alternativeCheckoutEnabled:liveCheckout&&alternativeCreditCheckoutApproved(process.env),
+   alternativeBillingCountries:liveCheckout&&alternativeCreditCheckoutApproved(process.env)?approvedAlternativeBillingCountries(process.env):null,
    entries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),

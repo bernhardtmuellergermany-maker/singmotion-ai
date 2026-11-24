@@ -137,6 +137,14 @@ export class CreditWallet {
    if(!purchase||purchase.status!=="pending"||
       (verifiedSessionId?purchase.sessionId!==verifiedSessionId:purchase.sessionId!==null))
     throw Error("Tax decision must precede Checkout or match a verified Stripe session");
+   if(decision.mode==="de-small-business-eu-threshold"||decision.mode==="foreign-threshold-no-tax"){
+    const cap=decision.thresholdCapCents;
+    if(cap===undefined||!Number.isSafeInteger(cap)||cap<500||cap>100000)
+     throw Error("CREDIT_TAX_THRESHOLD_LIMIT");
+    // Count all reservations, including expired or reversed purchases, across policy revisions.
+    const used=this.db.prepare("SELECT COALESCE(SUM(p.cents),0) AS cents FROM credit_topup_purchases p JOIN credit_purchase_tax_context t ON t.purchase_id=p.id WHERE t.tax_mode IN ('de-small-business-eu-threshold','foreign-threshold-no-tax')").get() as {cents:number};
+    if(Number(used.cents)+purchase.cents>cap)throw Error("CREDIT_TAX_THRESHOLD_LIMIT");
+   }
    this.db.prepare(`INSERT INTO credit_purchase_tax_context
      (purchase_id,country,buyer_type,voucher_kind,tax_mode,policy_revision,created)
      VALUES(?,?,?,?,?,?,?)`).run(id,decision.country,decision.buyerType,
