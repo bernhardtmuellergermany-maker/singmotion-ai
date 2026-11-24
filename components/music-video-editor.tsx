@@ -55,6 +55,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const [mobileRetry,setMobileRetry]=useState(0);
   const mobileFailures=useRef(new Map<string,number>());
   const mobileUnavailableRef=useRef(new Set<string>());
+  const mobileOriginalRef=useRef(new Set<string>());
+  const mobilePrepareAttempts=useRef(new Map<string,number>());
   const mobileSongStarting=useRef(false);
   useEffect(()=>{const value=window.matchMedia("(pointer: coarse)").matches||/iPhone|iPad|Android|Mobile/i.test(navigator.userAgent);mobileRef.current=value;setMobile(value);},[]);
   const lastFollowerSeek=useRef(new WeakMap<HTMLMediaElement,number>());
@@ -470,7 +472,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const previewPlan=previewMediaPlan(playhead<timelineEnd?clips:[],playhead,trackMutes);
   const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2;
   const readyForPlayback=playing?playingPreviewRef.current:previewReady;
-  const source=(a:MusicAsset)=>mobile?endpoint+id+"/preview/"+a.id+"?mobile=1":endpoint+id+(readyForPlayback.has(a.id)?"/preview/":"/assets/")+a.id;
+  const mobileSource=(assetId:string)=>endpoint+id+(mobileOriginalRef.current.has(assetId)?"/assets/"+assetId:"/preview/"+assetId+"?mobile=1");
+  const source=(a:MusicAsset)=>mobile?mobileSource(a.id):endpoint+id+(readyForPlayback.has(a.id)?"/preview/":"/assets/")+a.id;
   const mediaBoundaries=useMemo(()=>[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t<timelineEnd).sort((a,b)=>a-b),[clips,timelineEnd]);
   const nextClip=useMemo(()=>{
     const boundaries=mediaBoundaries.filter(t=>t>playhead);
@@ -508,9 +511,11 @@ export function MusicVideoEditor({id}:{id:string}){
         try{
           const data=await request<{ready:boolean;unsupported?:boolean}>(endpoint+id+"/preview/"+assetId+"?mobile=1",{method:"POST",signal:controller.signal});
           if(controller.signal.aborted)return;
-          if(data.ready){mobileReadyRef.current=new Set([...mobileReadyRef.current,assetId]);setMobileReady(mobileReadyRef.current);}
-          else if(data.unsupported){mobileUnavailableRef.current.add(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));}
-        }catch{}
+          if(data.ready){mobilePrepareAttempts.current.delete(assetId);mobileReadyRef.current=new Set([...mobileReadyRef.current,assetId]);setMobileReady(mobileReadyRef.current);continue;}
+          if(data.unsupported){mobileUnavailableRef.current.add(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));continue;}
+        }catch{if(controller.signal.aborted)return;}
+        const attempts=(mobilePrepareAttempts.current.get(assetId)??0)+1;mobilePrepareAttempts.current.set(assetId,attempts);
+        if(attempts>=8){mobileUnavailableRef.current.add(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));}
       }
       if(!controller.signal.aborted&&ids.some(a=>!mobileReadyRef.current.has(a)&&!mobileUnavailableRef.current.has(a)))timer=setTimeout(()=>void prepare(),2000);
     };
@@ -519,6 +524,7 @@ export function MusicVideoEditor({id}:{id:string}){
   },[id,mobile,activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id,mobileRetry]);
   function mobilePreviewFailed(assetId:string){
     if(!mobileRef.current)return;
+    if(mobileOriginalRef.current.has(assetId)){stopPlayback();setError("Original video could not be loaded.");return;}
     const next=new Set(mobileReadyRef.current);next.delete(assetId);mobileReadyRef.current=next;setMobileReady(next);
     const count=(mobileFailures.current.get(assetId)??0)+1;mobileFailures.current.set(assetId,count);
     if(count>=2){mobileUnavailableRef.current.add(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));stopPlayback();setError("Mobile preview could not be loaded. Retry the preview.");}
@@ -526,7 +532,11 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   const mobilePreparing=mobile===true&&!!activeAsset&&!mobileReady.has(activeAsset.id);
   const mobileUnsupported=mobilePreparing&&!!activeAsset&&mobileUnavailable.has(activeAsset.id);
-  function retryMobilePreview(assetId:string){mobileFailures.current.delete(assetId);mobileUnavailableRef.current.delete(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));setMobileRetry(n=>n+1);setError("");}
+  function retryMobilePreview(assetId:string){mobileFailures.current.delete(assetId);mobilePrepareAttempts.current.delete(assetId);mobileUnavailableRef.current.delete(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));setMobileRetry(n=>n+1);setError("");}
+  function useOriginalOnMobile(assetId:string){
+    stopPlayback();mobileOriginalRef.current.add(assetId);mobileUnavailableRef.current.delete(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));
+    mobileReadyRef.current=new Set([...mobileReadyRef.current,assetId]);setMobileReady(mobileReadyRef.current);setError("");
+  }
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
@@ -1044,7 +1054,7 @@ export function MusicVideoEditor({id}:{id:string}){
     <section className="mv-preview" aria-label="Music video preview">
       <div className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
         {!activeAsset&&<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
-        {mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"Mobile preview unavailable.":"Preparing mobile preview…"}</span>{mobileUnsupported&&<button type="button" onClick={()=>retryMobilePreview(activeAsset.id)}>Retry</button>}</div>}
+        {mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"Mobile preview unavailable.":"Preparing mobile preview…"}</span>{mobileUnsupported&&<><button type="button" onClick={()=>retryMobilePreview(activeAsset.id)}>Retry</button><button type="button" onClick={()=>useOriginalOnMobile(activeAsset.id)}>Use original</button></>}</div>}
         {(mobile===null?[]:mobile?(activeClip&&mobileReady.has(activeClip.assetId)?[activeClip]:[]):[activeClip,nextClip&&nextAsset&&readyForPlayback.has(nextAsset.id)&&nextClip.timelineStartMs-playhead<=5000?nextClip:undefined]).filter((c):c is MusicClip=>!!c).map(c=>{
           const a=byId.get(c.assetId);if(!a)return null;
           const visible=c.id===activeClip?.id;
@@ -1055,8 +1065,8 @@ export function MusicVideoEditor({id}:{id:string}){
       </div>
       <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload={trackMutes.song?"none":"metadata"}
         onLoadedMetadata={()=>{if(!playingRef.current&&!mutesRef.current.song)setAt(playheadRef.current);}} onWaiting={pauseFollowers} onSeeking={pauseFollowers} onPlaying={syncFollowers}/>
-      {activeAudio1&&mobile!==null&&(!mobile||mobileReady.has(activeAudio1.assetId))&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} data-clip-id={activeAudio1.id} src={mobile?endpoint+id+"/preview/"+activeAudio1.assetId+"?mobile=1":endpoint+id+(readyForPlayback.has(activeAudio1.assetId)?"/preview/":"/assets/")+activeAudio1.assetId} onError={()=>{if(mobile)mobilePreviewFailed(activeAudio1.assetId);}} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
-      {activeAudio2&&mobile!==null&&(!mobile||mobileReady.has(activeAudio2.assetId))&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} data-clip-id={activeAudio2.id} src={mobile?endpoint+id+"/preview/"+activeAudio2.assetId+"?mobile=1":endpoint+id+(readyForPlayback.has(activeAudio2.assetId)?"/preview/":"/assets/")+activeAudio2.assetId} onError={()=>{if(mobile)mobilePreviewFailed(activeAudio2.assetId);}} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
+      {activeAudio1&&mobile!==null&&(!mobile||mobileReady.has(activeAudio1.assetId))&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} data-clip-id={activeAudio1.id} src={mobile?mobileSource(activeAudio1.assetId):endpoint+id+(readyForPlayback.has(activeAudio1.assetId)?"/preview/":"/assets/")+activeAudio1.assetId} onError={()=>{if(mobile)mobilePreviewFailed(activeAudio1.assetId);}} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
+      {activeAudio2&&mobile!==null&&(!mobile||mobileReady.has(activeAudio2.assetId))&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} data-clip-id={activeAudio2.id} src={mobile?mobileSource(activeAudio2.assetId):endpoint+id+(readyForPlayback.has(activeAudio2.assetId)?"/preview/":"/assets/")+activeAudio2.assetId} onError={()=>{if(mobile)mobilePreviewFailed(activeAudio2.assetId);}} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
       <div className="mv-format-controls" role="group" aria-label="Project video format">
         <span>Format</span>
         {(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} title={ratio==="auto"?"Use the first visible video’s format":ratio==="9:16"?"Portrait":"Landscape"} disabled={importing} onClick={()=>changeAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}
