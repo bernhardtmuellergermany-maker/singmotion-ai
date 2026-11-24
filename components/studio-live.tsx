@@ -11,6 +11,7 @@ import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
 import {MAX_VIDEO_SELECTION_SECONDS} from "@/lib/domain";
 import {providerFeedback,requestErrorFeedback} from "@/lib/live/customer-feedback";
 import {CustomerFeedback} from "./customer-feedback";
+import {NextAudioSegmentButton} from "./next-audio-segment-button";
 import { StudioRecordingReview } from "./studio-recording-review";
 import { StudioBudgetReview } from "./studio-budget";
 import "./studio-live-preview.css";
@@ -675,7 +676,7 @@ export function LiveProject({ id }: { id: string }) {
             </dl>
             <details className="sm-live-instructions"><summary>Performance instructions <span aria-hidden="true">ⓘ</span></summary><p className="sm-live-prompt">{project.prompt}</p></details>
             {project.experimental && <p className="sm-live-small" role="alert">Experimental planning policy: duration, fees and output properties are uncertain. No automatic paid retries.</p>}
-            {(complete||failed) && <div className="sm-live-final-actions">{complete&&<a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a>}<button type="button" className="button outline" disabled={busy} onClick={e=>{e.stopPropagation();void createAnotherVersion()}}>{busy?"Preparing…":failed?"Edit and try again":"Create another version"}</button></div>}
+            {(complete||failed) && <div className="sm-live-final-actions">{complete&&<a className="button primary" href={`/api/studio-live?id=${encodeURIComponent(id)}&video=1&download=1`} download>Download MP4</a>}{complete&&<NextAudioSegmentButton key={project.id} id={project.id} className="button outline"/>}<button type="button" className="button outline" disabled={busy} onClick={e=>{e.stopPropagation();void createAnotherVersion()}}>{busy?"Preparing…":failed?"Edit and try again":"Create another version"}</button></div>}
           </aside>
         </div>
         </>
