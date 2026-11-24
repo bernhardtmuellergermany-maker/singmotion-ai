@@ -276,3 +276,19 @@ test("timeline zoom is visibly separate from playback progress",()=>{
  assert.ok(editor.includes('value={progress.positionMs}'));
  assert.ok(css.includes(".mv-timeline-zoom .mv-zoom-buttons"));
 });
+
+test("timeline adds stay on the right and the song shares a single selection inspector",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(editor.includes('const songSelected=!selectedClip||!selectedAsset'));
+ assert.ok(editor.includes('function selectSong(){setSelected(null);setAddMenu(null);}'));
+ assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e),selectSong)'));
+ assert.ok(editor.includes('aria-label="Select song" aria-pressed={songSelected}'));
+ assert.ok(editor.includes('!songSelected&&selectedClip&&selectedAsset?<form'));
+ assert.ok(editor.includes('</form>:\n      <form className="mv-song-trim mv-song-position"'));
+ const scroll=editor.indexOf('<div className="mv-scroll"');
+ const adds=editor.indexOf('<div className="mv-track-adds"');
+ assert.ok(scroll>=0&&adds>scroll);
+ assert.ok(editor.indexOf('aria-label={"Add video to track "+track}')>adds);
+ assert.ok(css.includes('.mv-track-adds .mv-add-menu{left:auto;right:3px'));
+ assert.ok(css.includes('.mv-song-block.is-selected'));
+});
