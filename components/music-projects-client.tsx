@@ -32,6 +32,23 @@ export function MusicProjectsClient(){
     finally{setLoading(false);setRefreshing(false);}
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
+  useEffect(()=>{
+    const opened=()=>document.querySelectorAll<HTMLDetailsElement>('.mv-projects .mv-card-more[open]');
+    const outside=(event:Event)=>{
+      const target=event.target;
+      if(!(target instanceof Node))return;
+      opened().forEach(menu=>{if(!menu.contains(target))menu.open=false;});
+    };
+    const escape=(event:KeyboardEvent)=>{
+      if(event.key!=="Escape")return;
+      opened().forEach(menu=>{const focused=menu.contains(document.activeElement);menu.open=false;if(focused)menu.querySelector("summary")?.focus();});
+    };
+    document.addEventListener("pointerdown",outside,true);
+    document.addEventListener("click",outside,true);
+    document.addEventListener("keydown",escape);
+    return()=>{document.removeEventListener("pointerdown",outside,true);document.removeEventListener("click",outside,true);document.removeEventListener("keydown",escape);};
+  },[]);
+
   async function create(e:React.FormEvent){
     e.preventDefault();
     if(!song||!name.trim()||busy)return;
