@@ -45,7 +45,9 @@ test("Studio camera picker only replaces previous Camera line and expands 25 exp
  assert.match(wizard,/const kept=lines\.filter\(line=>!\/\^Camera:/);
  assert.match(wizard,/kept\.push\(move\.direction\)/);
  assert.match(wizard,/if\(next\.length>500\)/);
- assert.match(wizard,/performanceInput\.current\?\.focus\(\{preventScroll:true\}\)/);
+ assert.doesNotMatch(wizard,/performanceInput\.current\??\.focus\s*\(/);
+ assert.match(wizard,/if\(document\.activeElement===performanceInput\.current\)performanceInput\.current\?\.blur\(\)/);
+ assert.doesNotMatch(wizard,/<textarea[^>]*\bautoFocus\b/);
  assert.doesNotMatch(wizard,/Quick ideas|Add performance ideas/);
 });
 
