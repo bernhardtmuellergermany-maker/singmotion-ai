@@ -47,3 +47,9 @@ test("alternative Credit Checkout cannot replace Merchant-of-Record without tax 
  assert.match(webhook,/if\(session\.payment_status!=="paid"\)/);
  assert.match(webhook,/CREDIT_TAX_LOCATION_OR_BUSINESS_PROOF_MISMATCH/);
 });
+
+
+test("wallet and pricing pages both discover checkout payment eligibility",()=>{
+ for(const file of ["components/credits-dashboard.tsx","app/(site)/plans/page.tsx"])
+  assert.match(read(file),/<CreditAmountPicker discoverAvailability\s*\/>/);
+});
