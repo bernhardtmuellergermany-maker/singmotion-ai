@@ -1,7 +1,7 @@
 import {NextRequest} from "next/server";
 import {createReadStream} from "node:fs";
 import {Readable} from "node:stream";
-import {mkdir,writeFile,rename,rm,stat,unlink} from "node:fs/promises";
+import {mkdir,writeFile,rename,rm,stat,unlink,realpath} from "node:fs/promises";
 import path from "node:path";
 import {randomUUID} from "node:crypto";
 import {stagingDenial} from "@/lib/staging";
@@ -13,6 +13,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
+import {startMusicExport,musicExportStatus,musicExportFile} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,removeMusicProject,
@@ -95,6 +96,30 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
   }
   throw new MusicError("Source video access denied.",403);
 }
+async function exportSources(req:NextRequest,owner:string,id:string,detail:ReturnType<typeof musicDetail>){
+  const files=new Map<string,string>(),assets=new Map(detail.assets.map(a=>[a.id,a]));
+  for(const aid of new Set(detail.clips.map(c=>c.assetId))){
+    const a=assets.get(aid);
+    if(!a)throw new MusicError("A source video is missing.",409);
+    if(a.sourceKind==="uploaded"){
+      if(a.sourceId!=="mp4"&&a.sourceId!=="webm")throw new MusicError("Invalid source video.",409);
+      const root=await realpath(projectFolder(id)),file=await realpath(path.join(/*turbopackIgnore: true*/ root,a.id+"."+a.sourceId));
+      if(!file.startsWith(root+path.sep)||!(await stat(file)).isFile())throw new MusicError("Source video unavailable.",409);
+      files.set(aid,file);
+    }else if(a.sourceKind==="live"&&a.sourceId&&owner.startsWith("staff:")){
+      const logged=session(req.cookies.get("sm_session")?.value);
+      if(logged?.owner!=="cms-staff-"+owner.slice(6))throw new MusicError("Open Videos to establish your private media session.",403);
+      const live=await openStudioStore(dataDir);
+      try{
+        const service=studioRuntime(live,dataDir,process.env,true,false).service;
+        const p=service.view(a.sourceId,logged.owner);
+        if(!p.outputReady||p.hidden||service.trashedAt(a.sourceId,logged.owner)!==null)throw new MusicError("A SingMotion source video is unavailable.",409);
+        files.set(aid,await service.output(a.sourceId,logged.owner));
+      }finally{live.db.close();}
+    }else throw new MusicError("This source cannot be exported in the private editor.",409);
+  }
+  return files;
+}
 async function handler(req:NextRequest,context:Context){
   const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
   try{
@@ -146,6 +171,30 @@ async function handler(req:NextRequest,context:Context){
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
       return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts));
+    }
+    if(section==="export"){
+      if(!assetId&&req.method==="POST"){
+        const body=await jsonBody(req),detail=musicDetail(id,owner);
+        if(body.revision!==detail.project.revision)throw new MusicError("Save your latest changes before exporting.",409);
+        const files=await exportSources(req,owner,id,detail);
+        const folder=projectFolder(id);
+        let songFile=path.join(folder,"song.mp3");
+        for(const ext of ["wav","m4a","mp3"]){const candidate=path.join(/*turbopackIgnore: true*/ folder,"song-original."+ext);if(await stat(candidate).then(s=>s.isFile()).catch(()=>false)){songFile=candidate;break;}}
+        try{return json(await startMusicExport(owner,detail.project,detail.clips,files,songFile),202);}
+        catch(e){throw new MusicError(e instanceof Error?e.message:"Export unavailable.",409);}
+      }
+      if(assetId&&validId(assetId)&&req.method==="GET"){
+        if(req.nextUrl.searchParams.has("download")){
+          const result=await musicExportFile(owner,id,assetId);
+          if(!result)throw new MusicError("Export is not ready or has expired.",404);
+          const size=(await stat(result.file)).size;
+          const name=result.name.replace(/[^A-Za-z0-9_. -]/g,"_").trim()||"music-video";
+          return new Response(Readable.toWeb(createReadStream(result.file)) as ReadableStream,{headers:{...common,"Content-Type":"video/mp4","Content-Length":String(size),"Content-Disposition":'attachment; filename="'+name+'.mp4"'}});
+        }
+        const job=await musicExportStatus(owner,id,assetId);
+        if(!job)throw new MusicError("Export has expired or the server restarted. Start a new export.",404);
+        return json(job);
+      }
     }
     if(section==="lip-sync"&&!assetId&&req.method==="GET"){
       const logged=session(req.cookies.get("sm_session")?.value);
