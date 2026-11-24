@@ -264,3 +264,15 @@ test("library role is distinct from immutable media provenance and source timing
  assert.ok(editor.includes('a.role==="lip-sync"?1:2'));
  assert.ok(editor.includes('persistAssetRole(existing,"lip-sync")'));
 });
+
+test("timeline zoom is visibly separate from playback progress",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(editor.includes('role="group" aria-label="Timeline zoom"'));
+ assert.ok(editor.includes('aria-label="Zoom out timeline"'));
+ assert.ok(editor.includes('aria-label="Zoom in timeline"'));
+ assert.ok(editor.includes('setZoom(z=>Math.max(20,z-12))'));
+ assert.ok(editor.includes('setZoom(z=>Math.min(140,z+12))'));
+ assert.ok(!editor.includes('aria-label="Timeline zoom" type="range"'));
+ assert.ok(editor.includes('value={progress.positionMs}'));
+ assert.ok(css.includes(".mv-timeline-zoom .mv-zoom-buttons"));
+});
