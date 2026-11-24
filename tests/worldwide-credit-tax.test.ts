@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
-import {assessWorldwideCreditTax,worldwideTaxPolicyAvailable} from "../lib/commerce/worldwide-credit-tax.ts";
+import {assessWorldwideCreditTax,worldwideTaxPolicyAvailable,approvedAlternativeBillingCountries} from "../lib/commerce/worldwide-credit-tax.ts";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
 
 const policy=(entries:unknown[])=>({
@@ -94,4 +94,9 @@ test("threshold reservations share a ceiling across countries, retries and polic
   assert.throws(()=>w.bindTaxContext(c.id,{...atDecision,revision:"new-review"}),/CREDIT_TAX_THRESHOLD_LIMIT/);
   assert.equal(w.taxContext(c.id),null);
  }finally{db.close()}
+});
+
+test("alternative country selection mirrors actual buyer type policy",()=>{
+ assert.deepEqual(approvedAlternativeBillingCountries(thresholdEnv),{consumer:["AT","CH"],business:[]});
+ assert.deepEqual(approvedAlternativeBillingCountries({...thresholdEnv,CREDIT_TAX_THRESHOLD_BASELINE_APPROVED:"false"}),{consumer:[],business:[]});
 });

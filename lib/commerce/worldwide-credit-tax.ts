@@ -97,3 +97,10 @@ export function assessWorldwideCreditTax(
 export function worldwideTaxPolicyAvailable(env:Record<string,string|undefined>){
  return readPolicy(env)!==null;
 }
+
+/** Public allowlist reflects actual reviewed buyer-type eligibility, not all ISO countries. */
+export function approvedAlternativeBillingCountries(env:Record<string,string|undefined>):Record<BuyerType,string[]>{
+ const entries=readPolicy(env)?.entries||[];
+ const ready=(buyerType:BuyerType)=>entries.filter(e=>e.buyerType===buyerType&&assessWorldwideCreditTax(env,e.country,buyerType).ready).map(e=>e.country).sort();
+ return {consumer:ready("consumer"),business:ready("business")};
+}

@@ -17,11 +17,18 @@ const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const euro=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
 
 /** UI quote only; the server decides if this account may create a Stripe Checkout. */
-type CheckoutAccess={state:"checking"|"ready"|"signed-out"|"unavailable";purchaseEnabled:boolean;testMode:boolean;emailVerification:string|null;globalCountrySelection:boolean;approvedBillingCountries:string[]|null;alternativeCheckoutEnabled:boolean};
+type AlternativeCountries={consumer:string[];business:string[]};
+function parseAlternativeCountries(raw:unknown):AlternativeCountries|null{
+ if(!raw||typeof raw!=="object")return null;
+ const x=raw as Partial<AlternativeCountries>;
+ const valid=(list:unknown):list is string[]=>Array.isArray(list)&&list.length<=250&&list.every(s=>typeof s==="string"&&/^[A-Z]{2}$/.test(s));
+ return valid(x.consumer)&&valid(x.business)?{consumer:x.consumer,business:x.business}:null;
+}
+type CheckoutAccess={state:"checking"|"ready"|"signed-out"|"unavailable";purchaseEnabled:boolean;testMode:boolean;emailVerification:string|null;globalCountrySelection:boolean;approvedBillingCountries:string[]|null;alternativeCheckoutEnabled:boolean;alternativeBillingCountries:AlternativeCountries|null};
 export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discoverAvailability=false,globalCountrySelection=false,approvedBillingCountries=null}:
  {purchaseEnabled?:boolean;testMode?:boolean;discoverAvailability?:boolean;globalCountrySelection?:boolean;approvedBillingCountries?:string[]|null}){
  const [checkoutAccess,setCheckoutAccess]=useState<CheckoutAccess>({
-  state:"checking",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false
+  state:"checking",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false,alternativeBillingCountries:null
  });
  useEffect(()=>{
   if(!discoverAvailability)return;
@@ -30,23 +37,24 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
    try{
     const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
     if(response.status===401){
-     if(active)setCheckoutAccess({state:"signed-out",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false});
+     if(active)setCheckoutAccess({state:"signed-out",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false,alternativeBillingCountries:null});
      return;
     }
     if(!response.ok)throw Error("Credit eligibility unavailable");
-    const info=await response.json() as {purchaseEnabled?:unknown;testMode?:unknown;emailVerification?:unknown;globalCountrySelection?:unknown;approvedBillingCountries?:unknown;alternativeCheckoutEnabled?:unknown};
+    const info=await response.json() as {purchaseEnabled?:unknown;testMode?:unknown;emailVerification?:unknown;globalCountrySelection?:unknown;approvedBillingCountries?:unknown;alternativeCheckoutEnabled?:unknown;alternativeBillingCountries?:unknown};
     if(typeof info.purchaseEnabled!=="boolean"||typeof info.testMode!=="boolean")
      throw Error("Invalid Credit eligibility response");
     if(active)setCheckoutAccess({state:"ready",purchaseEnabled:info.purchaseEnabled,
      testMode:info.testMode,emailVerification:typeof info.emailVerification==="string"?info.emailVerification:null,
      globalCountrySelection:info.globalCountrySelection===true,
      alternativeCheckoutEnabled:info.alternativeCheckoutEnabled===true,
+     alternativeBillingCountries:parseAlternativeCountries(info.alternativeBillingCountries),
      approvedBillingCountries:Array.isArray(info.approvedBillingCountries)&&
       info.approvedBillingCountries.length<=250&&
       info.approvedBillingCountries.every(x=>typeof x==="string"&&/^[A-Z]{2}$/.test(x))
       ?info.approvedBillingCountries:null});
    }catch{
-    if(active)setCheckoutAccess({state:"unavailable",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false});
+    if(active)setCheckoutAccess({state:"unavailable",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false,alternativeBillingCountries:null});
    }
   };
   void refresh();
@@ -56,14 +64,14 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  },[discoverAvailability]);
  const canPurchase=discoverAvailability?checkoutAccess.state==="ready"&&checkoutAccess.purchaseEnabled:purchaseEnabled;
  const checkoutTestMode=discoverAvailability?checkoutAccess.testMode:testMode;
- const alternativesEnabled=discoverAvailability&&checkoutAccess.alternativeCheckoutEnabled&&checkoutAccess.state==="ready";
+ const alternativesEnabled=discoverAvailability&&checkoutAccess.alternativeCheckoutEnabled&&checkoutAccess.state==="ready"&&checkoutAccess.alternativeBillingCountries!==null;
  const [paymentRoute,setPaymentRoute]=useState<"managed"|"alternative">("managed");
  const needsBillingCountry=(discoverAvailability?checkoutAccess.globalCountrySelection:globalCountrySelection)||
    (alternativesEnabled&&paymentRoute==="alternative");
- const moRCountries=discoverAvailability?checkoutAccess.approvedBillingCountries:approvedBillingCountries;
- const selectableCountries=moRCountries?countries.filter(x=>moRCountries.includes(x.code)):countries;
  const [billingCountry,setBillingCountry]=useState("");
  const [buyerType,setBuyerType]=useState<"consumer"|"business">("consumer");
+ const moRCountries=paymentRoute==="alternative"?(checkoutAccess.alternativeBillingCountries?.[buyerType]??[]):(discoverAvailability?checkoutAccess.approvedBillingCountries:approvedBillingCountries);
+ const selectableCountries=moRCountries?countries.filter(x=>moRCountries.includes(x.code)):countries;
  const [raw,setRaw]=useState("500");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -159,7 +167,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
     </select>
     <label htmlFor={inputId+"-buyer"}>Customer type</label>
     <select id={inputId+"-buyer"} value={buyerType}
-     onChange={e=>{setBuyerType(e.target.value as "consumer"|"business");requestKey.current=null;setError("");}}>
+     onChange={e=>{setBuyerType(e.target.value as "consumer"|"business");setBillingCountry("");requestKey.current=null;setError("");}}>
      <option value="consumer">Individual</option><option value="business">Business</option>
     </select>
     <p>Your billing country and customer type must be eligible for this purchase. Stripe verifies the billing address at Checkout.</p>
@@ -167,10 +175,10 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
   {alternativesEnabled&&canPurchase&&<fieldset className="sm-credit-payment-choice">
    <legend>Payment options</legend>
    <label><input type="radio" name="credit-payment-route" checked={paymentRoute==="managed"}
-    onChange={()=>{setPaymentRoute("managed");requestKey.current=null;setError("");}}/>
+    onChange={()=>{setPaymentRoute("managed");setBillingCountry("");requestKey.current=null;setError("");}}/>
     Standard checkout (card and supported wallets)</label>
    <label><input type="radio" name="credit-payment-route" checked={paymentRoute==="alternative"}
-    onChange={()=>{setPaymentRoute("alternative");requestKey.current=null;setError("");}}/>
+    onChange={()=>{setPaymentRoute("alternative");setBillingCountry("");requestKey.current=null;setError("");}}/>
     More payment methods (PayPal / Klarna where eligible)</label>
    <p>These methods depend on your billing country and Stripe eligibility. Credits are issued only after confirmed payment.</p>
   </fieldset>}
