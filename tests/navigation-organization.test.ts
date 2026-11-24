@@ -413,7 +413,7 @@ test("muted song uses one native clip clock without duplicate visible audio",asy
  assert.ok(editor.includes("at=advanceMutedClock(at,elapsed,timelineEnd)"));
  assert.ok(editor.includes("if(current&&!current.paused)current.pause()"));
  assert.ok(editor.includes("mutedPreviewClock(at).element===element"));
- assert.ok(editor.includes("muted={!activeClip||trackMutes[activeClip.track]}"));
+ assert.ok(editor.includes("muted={!visible||trackMutes[c.track]}"));
  assert.ok(editor.includes("audio.current.pause();startMutedClock(at);syncFollowers()"));
  assert.ok(editor.includes("const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2"));
 });
@@ -427,7 +427,7 @@ test("desktop mouse starts editing immediately; touch retains long-press scrolli
  assert.ok(!gesture.includes("immediate&&"));
 });
 
-test("preview and render share exact source time, and playback corrects drift within frame-scale tolerances",async()=>{
+test("preview and render share exact source time and correct drift without seek storms",async()=>{
  const {clipSourceTimeMs,mediaSyncDecision}=await import("../lib/music-video/song-range.ts");
  const clip={timelineStartMs:2804,sourceInMs:715,sourceOutMs:5000};
  assert.equal(clipSourceTimeMs(clip,2804),715);
@@ -435,7 +435,10 @@ test("preview and render share exact source time, and playback corrects drift wi
  assert.equal(clipSourceTimeMs(clip,0),715);
  assert.equal(clipSourceTimeMs(clip,9000),5000);
  assert.equal(mediaSyncDecision(1,0.8,true,false,false).seek,true);
- assert.equal(mediaSyncDecision(1,0.94,true,false,false).seek,true);
+ assert.equal(mediaSyncDecision(1,0.94,true,false,false).seek,false);
+ assert.ok(mediaSyncDecision(1,0.94,true,false,false).rate>1);
+ assert.equal(mediaSyncDecision(1,0.87,true,false,false).seek,true);
+ assert.equal(mediaSyncDecision(1,0.998,false,true,true).seek,false);
  assert.equal(mediaSyncDecision(1,0.975,true,false,false).seek,false);
  assert.ok(mediaSyncDecision(1,0.975,true,false,false).rate>1);
  assert.ok(mediaSyncDecision(1,1.025,true,false,false).rate<1);
@@ -611,4 +614,34 @@ test("the timeline and export stop at the last retained song part, not the sourc
  assert.ok(editor.includes("songTimelineEnd(candidate)<=songPlacementLimit"));
  assert.ok(!editor.includes("Math.max(songPartsEnd("));
  assert.equal(renderer.split("const duration=songPartsEnd(range,project.songParts);").length,3);
+});
+
+test("Projects preview throttles React renders, keeps the exact clock and does not decode the whole song on the client",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes("now-lastPaint>=100"));
+ assert.ok(editor.includes("playheadRef.current=at"));
+ assert.ok(editor.includes("if(crossed||now-lastPaint>=100)"));
+ assert.ok(editor.includes('playheadLine.current.style.left=x+"px"'));
+ assert.ok(editor.includes("const SongWaveform=memo("));
+ assert.ok(editor.includes('endpoint+id+"/waveform"'));
+ assert.ok(!editor.includes("decodeAudioData("));
+ assert.ok(api.includes('song.wave-v1.json'));
+ assert.ok(api.includes('length:240'));
+ assert.ok(editor.includes("lastFollowerSeek.current.get(element)"));
+ assert.ok(editor.includes("if(!run&&playingRef.current){element.pause();return;}"));
+});
+test("preview proxies are authorized, bounded and do not replace export originals",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),renderer=read("lib/music-video/export.ts");
+ assert.ok(api.includes('const project=requireMusicProject(id,owner)'));
+ assert.ok(api.includes('const asset=musicAsset(id,owner,assetId)'));
+ assert.ok(api.includes('if(durationMs>180000)return false'));
+ assert.ok(api.includes('if(previewJobs.size)return false'));
+ assert.ok(api.includes('while(old.length>=6)'));
+ assert.ok(api.includes('24*1024*1024'));
+ assert.ok(api.includes('"private, no-cache"'));
+ assert.ok(api.includes('"Vary":"Cookie, Authorization"'));
+ assert.ok(editor.includes('preload={visible?"auto":"metadata"}'));
+ assert.ok(editor.includes('playingPreviewRef.current=new Set(previewReadyRef.current)'));
+ assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile)'));
+ assert.ok(!renderer.includes('preview-v1'));
 });
