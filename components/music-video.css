@@ -277,3 +277,30 @@
  .mv-track-add-row{height:50px}
  .mv-root .mv-track-add-button{width:26px;height:30px}
 }
+
+/* Single-line project header. Name shrinks, status and export remain visible. */
+.mv-top{flex-wrap:nowrap}
+.mv-top .mv-name{flex:1 1 auto;min-width:0}
+.mv-top .mv-name>a{flex:none}
+.mv-top .mv-project-name-button{min-width:0;max-width:100%;flex:0 1 auto;overflow:hidden}
+.mv-project-name-button>svg,.mv-export-button>svg{flex:none}
+.mv-project-name-button>span{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv-top .mv-name form{flex:1 1 auto;min-width:0;align-items:center}
+.mv-top .mv-name form input{flex:1 1 auto;min-width:0}
+.mv-top .mv-name form button,.mv-top .mv-top-actions{flex:none}
+.mv-top .mv-status{white-space:nowrap}
+@media(max-width:760px){
+ .mv-top{min-height:44px;padding:6px 8px;gap:7px;flex-wrap:nowrap}
+ .mv-top .mv-name{gap:5px}
+ .mv-top .mv-name>a{font-size:21px}
+ .mv-top .mv-project-name-button{padding:5px 7px;gap:5px;border-radius:8px;font-size:13px;min-height:32px}
+ .mv-top .mv-project-name-button>svg{width:13px;height:13px}
+ .mv-top .mv-top-actions{gap:7px}
+ .mv-top .mv-status{font-size:10px}
+ .mv-top .mv-export-button{min-height:32px;padding:5px 7px;gap:4px;border-radius:8px;font-size:11px}
+ .mv-top .mv-export-button>svg{width:13px;height:13px}
+ .mv-top .mv-export-soon{display:none}
+ .mv-top .mv-name form{gap:3px}
+ .mv-top .mv-name form input{width:100%!important;min-width:0!important;height:32px!important;min-height:0!important;padding:4px 6px!important;font-size:13px}
+ .mv-top .mv-name form button{padding:2px}
+}
