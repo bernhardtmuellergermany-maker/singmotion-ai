@@ -167,3 +167,13 @@ export function mediaSyncDecision(expectedSeconds:number,actualSeconds:number,pl
  if(drift<=0.010)return {seek:false,rate:1};
  return {seek:false,rate:Math.max(0.95,Math.min(1.05,1+error*1.5))};
 }
+
+/** Auto follows the first actually visible output frame, not library order. */
+export function firstVisibleVideo<T extends {track:number;timelineStartMs:number;sourceInMs:number;sourceOutMs:number}>(clips:readonly T[]):T|undefined{
+ const frame=(ms:number)=>Math.ceil(ms*30/1000);
+ return clips.filter(c=>frame(c.timelineStartMs+c.sourceOutMs-c.sourceInMs)>frame(c.timelineStartMs))
+  .sort((a,b)=>frame(a.timelineStartMs)-frame(b.timelineStartMs)||b.track-a.track)[0];
+}
+export function aspectFromDimensions(size:{width:number;height:number}):"9:16"|"16:9"{
+ return size.height>size.width?"9:16":"16:9";
+}
