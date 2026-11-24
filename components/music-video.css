@@ -485,3 +485,13 @@
 .mv-root .mv-format-controls small{padding-left:4px;color:#bda6d2}
 .mv-root.mv-editor .mv-video-box:fullscreen{width:100%;height:100%;max-height:none;aspect-ratio:auto;background:#000}
 @media(max-width:760px){.mv-root.mv-editor .mv-video-box.is-portrait{width:min(100%,calc(48vh * 9 / 16));max-height:48vh}.mv-root .mv-format-controls{padding:4px 5px}}
+
+/* Keep the two related time pairs adjacent at every viewport width. */
+.mv-editor .mv-clip-position .mv-video-times{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 20px;flex:1 1 100%;min-width:0}
+.mv-editor .mv-clip-position .mv-time-pair{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;min-width:0}
+.mv-root.mv-editor .mv-clip-position .mv-time-pair input{width:100%!important;max-width:none;min-width:0;box-sizing:border-box}
+.mv-editor .mv-clip-position .mv-video-time-actions{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+@media(max-width:600px){
+ .mv-editor .mv-clip-position .mv-video-times{grid-template-columns:minmax(0,1fr);gap:9px}
+ .mv-editor .mv-clip-position .mv-time-pair{gap:8px}
+}
