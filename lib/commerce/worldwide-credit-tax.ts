@@ -8,8 +8,8 @@
  * redemption-time tax ledger is installed.
  */
 export type BuyerType="consumer"|"business";
-export type VoucherKind="single-purpose"|"multi-purpose"|"merchant-of-record-determined"|"private-test-unclassified";
-export type CreditTaxMode="stripe-managed-payments"|"de-small-business"|"eu-sme-exempt"|"stripe-tax"|"reviewed-no-tax"|"de-small-business-eu-threshold"|"foreign-threshold-no-tax"|"private-live-verification";
+export type VoucherKind="single-purpose"|"multi-purpose"|"merchant-of-record-determined"|"private-test-unclassified"|"seller-review-pending";
+export type CreditTaxMode="stripe-managed-payments"|"de-small-business"|"eu-sme-exempt"|"stripe-tax"|"reviewed-no-tax"|"de-small-business-eu-threshold"|"foreign-threshold-no-tax"|"private-live-verification"|"seller-stripe-tax";
 export type CreditTaxDecision={
  country:string;buyerType:BuyerType;voucherKind:VoucherKind;
  mode:CreditTaxMode;revision:string;taxAtIssue:boolean;taxCode:string|null;
