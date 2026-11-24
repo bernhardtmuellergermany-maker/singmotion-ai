@@ -338,3 +338,22 @@ test("a split without a removed interval plays seamlessly",async()=>{
  const range={startMs:1000,endMs:10000,positionMs:0};
  assert.deepEqual(continuousSongParts(range,[{startMs:1000,endMs:3000},{startMs:3000,endMs:4000},{startMs:5000,endMs:10000}]),[{startMs:1000,endMs:4000},{startMs:5000,endMs:10000}]);
 });
+
+test("MP4 export automatically chooses 720p or 1080p from visible source dimensions",async()=>{
+ const {chooseExportResolution}=await import("../lib/music-video/export.ts");
+ const hd={width:1280,height:720},full={width:1920,height:1080};
+ assert.deepEqual(chooseExportResolution([{width:640,height:480}]),hd);
+ assert.deepEqual(chooseExportResolution([hd,{width:720,height:1280}]),hd);
+ assert.deepEqual(chooseExportResolution([hd,full]),full);
+ assert.deepEqual(chooseExportResolution([{width:1080,height:1920}]),full);
+ assert.deepEqual(chooseExportResolution([{width:3840,height:2160}]),full);
+ assert.deepEqual(chooseExportResolution([{width:1600,height:900}]),full);
+ assert.throws(()=>chooseExportResolution([{width:0,height:720}]));
+ assert.throws(()=>chooseExportResolution([]));
+ const renderer=read("lib/music-video/export.ts"),editor=read("components/music-video-editor.tsx");
+ assert.ok(renderer.includes("inspectExportResolution(spans,files)"));
+ assert.ok(renderer.includes("stream=width,height"));
+ assert.ok(renderer.includes('scale="+width+":"+height+'));
+ assert.ok(renderer.includes('color=c=black:s="+width+"x"+height'));
+ assert.ok(editor.includes("exportJob.resolution.height"));
+});
