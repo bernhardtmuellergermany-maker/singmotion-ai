@@ -58,7 +58,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
   const [importing,setImporting]=useState(false);
   const importBusy=useRef(false),roleBusy=useRef(false);
-  const [roleChanging,setRoleChanging]=useState<string|null>(null);
+  const [roleChanging,setRoleChanging]=useState<string|null>(null),[roleError,setRoleError]=useState("");
   const [wave,setWave]=useState<number[]>([]),[editingName,setEditingName]=useState(false),[newName,setNewName]=useState("");
   const audio=useRef<HTMLAudioElement>(null),video=useRef<HTMLVideoElement>(null),scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
   const revision=useRef(0),latest=useRef<MusicClip[]>([]),dirty=useRef(false),inFlight=useRef<Promise<void>|null>(null);
@@ -144,6 +144,7 @@ export function MusicVideoEditor({id}:{id:string}){
     setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
   }
   function commitSongRange(range:SongRange,position?:number){
+    if(roleBusy.current)return;
     if(!project||!validSongRange(range.startMs,range.endMs,project.songDurationMs)){displaySong(rangeRef.current);setError("Choose a valid song range of at least 100 ms.");return;}
     const original=rangeRef.current;
     const next=position===undefined?trimSongPlacement(original,range):{...range,positionMs:position};
@@ -334,6 +335,7 @@ export function MusicVideoEditor({id}:{id:string}){
     return Math.abs(closest-value)<250?closest:value;
   }
   function addClip(asset:MusicAsset,track:Track,atMs:number){
+    if(roleBusy.current)return;
     const locked=asset.role==="lip-sync"&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null;
     const length=locked?Math.min(asset.durationMs,asset.sourceEndMs!-asset.sourceStartMs!):asset.durationMs;
     if(!project||length<=0)return;
@@ -467,6 +469,7 @@ export function MusicVideoEditor({id}:{id:string}){
     commitSongRange(next,next.positionMs);
   }
   function deleteClip(){
+    if(roleBusy.current)return;
     if(!selectedClip)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
   }
   function toggleLock(){
@@ -489,8 +492,10 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function persistAssetRole(a:MusicAsset,role:MediaRole){
     if(a.role===role)return a;
-    const result=await request<Detail>(endpoint+id+"/assets/"+a.id,{method:"PATCH",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({role,revision:revision.current})});
+    const wasBusy=roleBusy.current;roleBusy.current=true;
+    let result:Detail;
+    try{result=await request<Detail>(endpoint+id+"/assets/"+a.id,{method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({role,revision:revision.current})});}finally{roleBusy.current=wasBusy;}
     revision.current=result.project.revision;detailRef.current=result;latest.current=result.clips;dirty.current=false;
     setDetail(result);setClips(result.clips);
     // Older edit snapshots can contain locks invalid under the new role.
@@ -499,7 +504,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function changeAssetRole(a:MusicAsset,role:MediaRole){
     if(importBusy.current||a.role===role)return;
-    importBusy.current=true;roleBusy.current=true;setImporting(true);setRoleChanging(a.id);setError("");
+    importBusy.current=true;roleBusy.current=true;setImporting(true);setRoleChanging(a.id);setRoleError("");setError("");
     try{
       stopPlayback();
       if(saveTimer.current)clearTimeout(saveTimer.current);
@@ -507,7 +512,7 @@ export function MusicVideoEditor({id}:{id:string}){
       await persistAssetRole(a,role);
       if(filter==="Lip Sync"||filter==="B-Roll")setFilter(role==="lip-sync"?"Lip Sync":"B-Roll");
       setStatus("Saved");
-    }catch(e){setError(e instanceof Error?e.message:"Could not change the video role.");setStatus(dirty.current?"Not saved":"Saved");}
+    }catch(e){setRoleError(e instanceof Error?e.message:"Could not change the video role.");setStatus(dirty.current?"Not saved":"Saved");}
     finally{roleBusy.current=false;importBusy.current=false;setImporting(false);setRoleChanging(null);}
   }
   async function insertLipSync(source:LipSyncSource,track:Track){
@@ -544,11 +549,13 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{importBusy.current=false;setImporting(false);}
   }
   async function deleteAsset(a:MusicAsset){
+    if(importBusy.current)return;
     if(!window.confirm("Remove '"+a.name+"' from this project's Library? Original videos in Videos are preserved."))return;
     try{await saveNow();await request(endpoint+id+"/assets/"+a.id,{method:"DELETE"});await load();}
     catch(e){setError(e instanceof Error?e.message:"Could not remove asset.");}
   }
   async function saveName(){
+    if(importBusy.current)return;
     if(!newName.trim()||!project)return;
     try{await saveNow();const data=await request<{project:MusicProject}>(endpoint+id,{
       method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:newName})});
@@ -796,6 +803,7 @@ export function MusicVideoEditor({id}:{id:string}){
         {libraryOpen?<ChevronDown size={21}/>:<ChevronRight size={21}/>}<h2>Library</h2><span>{assets.length} videos</span>
       </button>
       {libraryOpen&&<div className="mv-library-content">
+        {roleError&&<p className="mv-error" role="alert">{roleError}</p>}
         <p className="mv-role-hint">Choose each video’s role. Lip Sync defaults to the main track; B-Roll to the upper track. Changing role keeps existing clip positions; B-Roll releases Sync Lock. Original source times are preserved.</p>
         <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","B-Roll","AI Video","Uploads"] as const).map(f=>
           <button key={f} className={filter===f?"active":""} onClick={()=>setFilter(f)}>{f}</button>)}</div>
