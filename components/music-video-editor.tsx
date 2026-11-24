@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -537,13 +537,6 @@ export function MusicVideoEditor({id}:{id:string}){
     if(latest.current.length>=500){setError("The timeline supports up to 500 clips.");return;}
     stopPlayback();apply([...latest.current.filter(c=>c.id!==current.id),...parts]);setSelected(parts[1].id);
   }
-  function cutSong(edge:"start"|"end"){
-    if(importBusy.current)return;
-    if(partsRef.current){const source=timelineToSongTime(Math.round(playheadRef.current),rangeRef.current);const p=partsRef.current[Math.min(partIndex,partsRef.current.length-1)];if(source-p.startMs<100||p.endMs-source<100){setError("Place the playhead inside the selected song part.");return;}editPart(edge==="start"?source:p.startMs,edge==="end"?source:p.endMs);return;}
-    const next=trimSongAtPlayhead(rangeRef.current,playheadRef.current,edge);
-    if(!next){setError("Place the playhead inside the song, leaving at least 100 ms on either side.");return;}
-    commitSongRange(next,next.positionMs);
-  }
   function deleteClip(){
     if(roleBusy.current)return;
     if(!selectedClip)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
@@ -917,16 +910,14 @@ export function MusicVideoEditor({id}:{id:string}){
         <small>Drag a clip or handle with the mouse. On touch, swipe to scroll or hold to edit. Drag the middle between tracks. Song start refers to the original recording; timeline start follows the actual project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
-        <strong><Scissors size={16}/> {songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"Song trim"}</strong>
+        <strong><Music2 size={16}/> {songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"Song trim"}</strong>
         {songParts?<><label>Part source start<input aria-label="Song part start" value={partStartText} onChange={e=>setPartStartText(e.target.value)}/></label><label>Part source end<input aria-label="Song part end" value={partEndText} onChange={e=>setPartEndText(e.target.value)}/></label><button type="button" className="mv-outline" disabled={importing} onClick={()=>{const start=parseSongTime(partStartText),end=parseSongTime(partEndText);if(start===null||end===null){setError("Enter valid song times.");return;}editPart(start,end);}}>Set part</button><button type="button" className="mv-outline" disabled={importing||songParts.length<2} onClick={removeSongPart}><Trash2 size={14}/> Remove part</button><button type="button" className="mv-outline" disabled={importing} onClick={resetSongParts}>Reset splits</button></>:<><label>Source start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
         <label>Source end<input aria-label="Song end time" value={endText} onChange={e=>setEndText(e.target.value)} placeholder="00:30.000"/></label></>}
         <label>{songParts?"Song group position":"Timeline position"}<input aria-label="Song timeline position" value={positionText} onChange={e=>setPositionText(e.target.value)} placeholder="00:08.918"/></label>
         <button type="submit" className="mv-outline" disabled={importing}>Apply</button>
         <button type="button" className="mv-outline" disabled={importing||!!songParts} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)}>Reset</button>
         <span>Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
-        <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead({...selectedPart,positionMs:songTimeToTimeline(selectedPart.startMs,songRange)},playhead,"start")} onClick={()=>cutSong("start")}><Scissors size={14}/> Trim start at playhead</button>
-        <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead({...selectedPart,positionMs:songTimeToTimeline(selectedPart.startMs,songRange)},playhead,"end")} onClick={()=>cutSong("end")}><Scissors size={14}/> Trim end at playhead</button>
-        <small>Drag with mouse to move all song parts together. On touch, swipe to scroll or hold to move. Split or trim at the playhead; removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
+        <small>Drag with mouse to move all song parts together. On touch, swipe to scroll or hold to move. Use the scissors to split at the playhead, or drag the trim handles to shorten a part. Removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
       </form>}
       </div>
       {error&&<p className="mv-error" role="alert">{error}</p>}
