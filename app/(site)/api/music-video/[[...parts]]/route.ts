@@ -76,8 +76,13 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
       const service=studioRuntime(live,dataDir,process.env,true,false).service;
       const p=service.view(ref,logged.owner);
       if(!p.outputReady||p.hidden||service.trashedAt(ref,logged.owner)!==null)throw new MusicError("Only available completed videos can be added.",409);
-      await service.output(ref,logged.owner);
-      const from=toMs(p.selection.start),to=toMs(p.selection.end),duration=toMs(p.durationSeconds);
+      const file=await service.output(ref,logged.owner);
+      // The prepared provider audio may have been slowed down; the delivered MP4 is authoritative for clip length.
+      const inspected=await probe(file);
+      const stream=inspected.streams.find(s=>s.codec_type==="video");
+      const measured=Number(stream?.duration??inspected.format.duration);
+      if(!stream||!Number.isFinite(measured)||measured<=0)throw new MusicError("Delivered video duration unavailable.",409);
+      const from=toMs(p.selection.start),to=toMs(p.selection.end),duration=toMs(measured);
       return {kind:"lip-sync" as MediaKind,name:p.displayName||p.projectName||p.artistName||"Lip Sync",durationMs:duration,
         sourceStartMs:from,sourceEndMs:to};
     }finally{live.db.close();}
