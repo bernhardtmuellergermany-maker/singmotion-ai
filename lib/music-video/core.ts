@@ -6,6 +6,8 @@ import {dataDir} from "@/lib/db";
 import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,type SongRange} from "./song-range.ts";
 
 export type Track = 1 | 2;
+export type AudioTrack = Track | "song";
+export type TrackMutes = Record<AudioTrack,boolean>;
 export type SourceKind = "uploaded" | "live" | "paid";
 export type MediaKind = "lip-sync" | "ai-video" | "imported";
 export type MediaRole = "lip-sync" | "b-roll";
@@ -19,7 +21,7 @@ export type MusicAsset = {
   sourceEndMs:number|null; createdAt:number;
 };
 export type MusicProject = {
-  id:string; ownerId:string; name:string; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null;
+  id:string; ownerId:string; name:string; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
   revision:number; createdAt:number; updatedAt:number; aspectRatio:"16:9";
 };
 export class MusicError extends Error {
@@ -46,6 +48,7 @@ function database():DatabaseSync{
     if(!columns.some(c=>c.name==="song_end_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_end_ms INTEGER DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_position_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_position_ms INTEGER DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_parts_json"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_parts_json TEXT DEFAULT NULL");
+    if(!columns.some(c=>c.name==="track_mute_mask"))opened.exec("ALTER TABLE music_projects ADD COLUMN track_mute_mask INTEGER NOT NULL DEFAULT 3");
     opened.exec("COMMIT");
   }catch(e){opened.exec("ROLLBACK");opened.close();throw e;}
   opened.exec("CREATE INDEX IF NOT EXISTS music_projects_owner ON music_projects(owner_id,updated_at)");
@@ -63,10 +66,10 @@ function database():DatabaseSync{
   db=opened;
   return opened;
 }
-type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;revision:number;created_at:number;updated_at:number};
+type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;revision:number;created_at:number;updated_at:number};
 type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;role:MediaRole|null;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number};
-const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:"16:9"});
+const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:"16:9"});
 const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll"),sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked});
 export function requireMusicProject(id:string,owner:string):MusicProject{
@@ -184,7 +187,7 @@ export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:
   }
   return clips;
 }
-export function saveMusicClips(id:string,owner:string,revision:unknown,clips:MusicClip[],songStartMs?:unknown,songEndMs?:unknown,songPositionMs?:unknown,songParts?:unknown){
+export function saveMusicClips(id:string,owner:string,revision:unknown,clips:MusicClip[],songStartMs?:unknown,songEndMs?:unknown,songPositionMs?:unknown,songParts?:unknown,trackMutes?:unknown){
   const project=requireMusicProject(id,owner),connection=database();
   if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed on another device. Reload to avoid overwriting edits.",409);
   const start=songStartMs===undefined&&songEndMs===undefined?project.songStartMs:songStartMs;
@@ -197,10 +200,13 @@ export function saveMusicClips(id:string,owner:string,revision:unknown,clips:Mus
     throw new MusicError("Invalid song position.");
   const parts=songParts===undefined?project.songParts:songParts;
   if(parts!==null&&!validSongParts(parts,{startMs:start,endMs:end,positionMs:position}))throw new MusicError("Invalid song parts.");
+  const mutes=trackMutes===undefined?project.trackMutes:trackMutes as TrackMutes;
+  if(!mutes||typeof mutes!=="object"||typeof mutes[1]!=="boolean"||typeof mutes[2]!=="boolean"||typeof mutes.song!=="boolean")throw new MusicError("Invalid track mute settings.");
+  const muteMask=(mutes[1]?1:0)|(mutes[2]?2:0)|(mutes.song?4:0);
   const accepted=validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start);
   connection.exec("BEGIN IMMEDIATE");
   try{
-    const changed=connection.prepare("UPDATE music_projects SET updated_at=?,revision=revision+1,song_start_ms=?,song_end_ms=?,song_position_ms=?,song_parts_json=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),start,end,position,parts===null?null:JSON.stringify(parts),id,owner,revision);
+    const changed=connection.prepare("UPDATE music_projects SET updated_at=?,revision=revision+1,song_start_ms=?,song_end_ms=?,song_position_ms=?,song_parts_json=?,track_mute_mask=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),start,end,position,parts===null?null:JSON.stringify(parts),muteMask,id,owner,revision);
     if(changed.changes!==1)throw new MusicError("Project changed on another device. Reload to continue.",409);
     connection.prepare("DELETE FROM music_clips WHERE project_id=?").run(id);
     const add=connection.prepare("INSERT INTO music_clips VALUES (?,?,?,?,?,?,?,?)");
