@@ -5,7 +5,7 @@ import {tmpdir} from "node:os";
 import path from "node:path";
 import {randomUUID} from "node:crypto";
 import type {MusicClip,MusicProject} from "./core";
-import {effectiveSongParts,songTimeToTimeline,songPartsEnd,type SongPlacement} from "./song-range.ts";
+import {effectiveSongParts,songTimeToTimeline,songPartsEnd,clipSourceTimeMs,type SongPlacement} from "./song-range.ts";
 
 const exec=promisify(execFile);
 const fps=30, limitMs=600000;
@@ -19,10 +19,10 @@ export function videoRenderSpans(clips:MusicClip[],durationMs:number):RenderSpan
  const spans:RenderSpan[]=[];
  for(let i=0;i<bounds.length-1;i++){
   const startFrame=bounds[i],endFrame=bounds[i+1],at=startFrame*1000/fps;
-  const clip=clips.filter(c=>c.timelineStartMs<=at&&clipEnd(c)>at).sort((a,b)=>b.track-a.track)[0]??null;
+  const clip=clips.filter(c=>Math.ceil(c.timelineStartMs*fps/1000)<=startFrame&&Math.ceil(clipEnd(c)*fps/1000)>startFrame).sort((a,b)=>b.track-a.track)[0]??null;
   const prev=spans.at(-1);
   if(prev&&prev.clip?.id===clip?.id){prev.endFrame=endFrame;continue;}
-  spans.push({startFrame,endFrame,clip,sourceMs:clip?clip.sourceInMs+at-clip.timelineStartMs:0});
+  spans.push({startFrame,endFrame,clip,sourceMs:clip?clipSourceTimeMs(clip,at):0});
  }
  return spans;
 }
