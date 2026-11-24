@@ -36,6 +36,7 @@ import {
   hasRights,
 } from "@/lib/rights";
 import { parseStudioDraft } from "@/lib/studio-draft";
+import {nextStudioAudioSelection} from "@/lib/studio-next-segment";
 import { AppError } from "@/lib/domain";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -150,6 +151,16 @@ async function handler(req: NextRequest) {
             },
           },
         );
+      }
+      if (id && req.nextUrl.searchParams.get("next") === "1") {
+        const project=service.view(id,owner);
+        if(!project.outputReady||project.selection.owner!==owner)
+          throw new StudioLiveError("PROJECT_NOT_READY","Only a completed private video can start a new segment.",409);
+        const song=asset(project.selection.songId,owner);
+        if(song.kind!=="audio")throw new StudioLiveError("PROJECT_MEDIA_UNAVAILABLE","Original audio is no longer available.",409);
+        const selection=nextStudioAudioSelection(project.selection,song.duration);
+        if(!selection)throw new StudioLiveError("NO_NEXT_AUDIO_SEGMENT","Less than 5 seconds remain in the original song. There is no next segment.",409);
+        return json({selection,projectName:(project.projectName||project.artistName||"Music video").slice(0,60)+" · Next segment"});
       }
       if (id && req.nextUrl.searchParams.get("copy") === "1") {
         // Reuse an owned project's original inputs for editing, never its
