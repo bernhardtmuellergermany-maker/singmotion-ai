@@ -155,7 +155,7 @@ test("Staging Stripe checkout captures sanitized 400 reason and support referenc
  assert.ok(checkoutForm.includes('"line_items[0][price_data][currency]"'),"EUR price data remains included");
  assert.ok(checkoutForm.includes('"managed_payments[enabled]":useMoR?"true":"false"'),
   "Staging test top-ups must not opt in to Managed Payments; live requires reviewed MoR eligibility");
- assert.match(route,/const useMoR=liveMode&&managedCreditMoRApproved\(process\.env\)/,
+ assert.match(route,/(?:const|let) useMoR=liveMode&&managedCreditMoRApproved\(process\.env\)/,
   "Only verified production Live checkouts can enable Managed Payments");
  assert.ok(!checkoutForm.includes('"line_items[0][price_data][product_data][tax_code]"'),
   "Do not invent tax codes for unclassified prepaid credits");
