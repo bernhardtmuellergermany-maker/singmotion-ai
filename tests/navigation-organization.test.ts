@@ -446,6 +446,9 @@ test("video inspector groups source start/end before timeline start/end",()=>{
  assert.ok(start>=0&&end>start);
  const labels=[...editor.slice(start,end).matchAll(/<label>([^<]+)<input/g)].map(m=>m[1]);
  assert.deepEqual(labels,["Video start time","Video end time","Timeline start","Timeline end"]);
+ assert.ok(editor.includes("Original song time"));
+ assert.ok(editor.includes("Position in the full, untrimmed song"));
+ assert.ok(editor.includes("Position in this music video project"));
  assert.ok(editor.includes("onClick={submitClipTime}"));
  assert.ok(editor.includes("onClick={submitClipEnd}"));
 });
