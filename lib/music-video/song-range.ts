@@ -102,3 +102,17 @@ export function timelineProgress(atMs:number,durationMs:number):{positionMs:numb
  const positionMs=Number.isFinite(atMs)?Math.max(0,Math.min(end,Math.round(atMs))):0;
  return {positionMs,percent:end>0?positionMs/end*100:0};
 }
+
+/** Exact end edit: preserve source start and sync; reject rather than silently clamp. */
+export function setVideoEnd<T extends PositionedClip>(clips:readonly T[],clip:T,endMs:number,sourceDuration:number):T|null{
+ const oldEnd=clip.timelineStartMs+clip.sourceOutMs-clip.sourceInMs;
+ if(!Number.isSafeInteger(endMs)||endMs<clip.timelineStartMs+Math.min(100,clip.sourceOutMs-clip.sourceInMs)||endMs>MAX_TIMELINE_MS)return null;
+ const next=trimVideoClip(clips,clip,"end",endMs-oldEnd,sourceDuration);
+ return next.timelineStartMs+next.sourceOutMs-next.sourceInMs===endMs?next:null;
+}
+export const MEDIA_HOLD_MS=350;
+export const MEDIA_PAN_THRESHOLD=7;
+export function mediaPanAxis(dx:number,dy:number):"x"|"y"|null{
+ if(Math.max(Math.abs(dx),Math.abs(dy))<MEDIA_PAN_THRESHOLD)return null;
+ return Math.abs(dx)>=Math.abs(dy)?"x":"y";
+}
