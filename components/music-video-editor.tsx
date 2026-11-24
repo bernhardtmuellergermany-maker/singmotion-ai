@@ -931,17 +931,25 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
         <strong><Film size={16}/> {selectedClip.track===1?"Lip Sync / Main":"Video 2"}: {selectedAsset.name}</strong>
-        <label>Song start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
+        <div className="mv-video-times">
+          <div className="mv-time-pair" role="group" aria-label="Video times in original song">
+        <label>Video start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
+        <label>Video end time<input aria-label="Video end time in original song" value={clipSongEndText} onChange={e=>updateClipEnd(e.target.value,"song")} placeholder="00:18.918"/></label>
+          </div>
+          <div className="mv-time-pair" role="group" aria-label="Video times on project timeline">
         <label>Timeline start<input aria-label="Video start time on timeline" value={clipTimelineText} onChange={e=>updateClipTime(e.target.value,"timeline")} placeholder="00:08.918"/></label>
-        <button type="button" className="mv-primary" disabled={importing} onClick={submitClipTime}>Move video</button>
-        <label>Song end time<input aria-label="Video end time in original song" value={clipSongEndText} onChange={e=>updateClipEnd(e.target.value,"song")} placeholder="00:18.918"/></label>
         <label>Timeline end<input aria-label="Video end time on timeline" value={clipEndText} onChange={e=>updateClipEnd(e.target.value,"timeline")} placeholder="00:18.918"/></label>
+          </div>
+        </div>
+        <div className="mv-video-time-actions">
+        <button type="button" className="mv-primary" disabled={importing} onClick={submitClipTime}>Move video</button>
         <button type="button" className="mv-outline" disabled={importing} onClick={submitClipEnd}>Set end</button>
+        </div>
         <button type="submit" hidden tabIndex={-1} aria-hidden="true">Apply</button>
         {originalClipSongTime!==null&&<button type="button" className="mv-outline" disabled={importing} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)}><Lock size={14}/> Restore Lip Sync · {time(originalClipSongTime,true)}</button>}
         <span>Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
         <button type="button" className="mv-outline" disabled={importing} onClick={switchVideoTrack}>{selectedClip.track===1?"Move to Video 2":"Move to Lip Sync / Main"}</button>
-        <small>Drag a clip or handle with the mouse. On touch, swipe to scroll or hold to edit. Drag the middle between tracks. Song start refers to the original recording; timeline start follows the actual project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
+        <small>Drag a clip or handle with the mouse. On touch, swipe to scroll or hold to edit. Drag the middle between tracks. Video start/end refer to the original song; timeline start/end refer to the project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
         <strong><Music2 size={16}/> {songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"Song trim"}</strong>
