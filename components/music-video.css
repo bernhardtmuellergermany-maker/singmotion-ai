@@ -163,3 +163,9 @@
 .mv-song-trim button{padding:7px 11px;font-size:13px}
 .mv-song-trim>span{align-self:center;font-size:13px;font-variant-numeric:tabular-nums}
 .mv-song-trim>small{flex-basis:100%;color:var(--mv-muted)}
+
+.mv-song-block{position:absolute;top:7px;bottom:7px;border:1px solid #eb9aff;border-radius:5px;overflow:hidden;cursor:grab;touch-action:none;background:#391849;user-select:none}
+.mv-song-block:active{cursor:grabbing}
+.mv-song-block .mv-wave{position:absolute;top:0;pointer-events:none;border-radius:0}
+.mv-song-block .mv-wave span{min-width:0}
+.mv-song-block:focus-visible{outline:2px solid #fff}
