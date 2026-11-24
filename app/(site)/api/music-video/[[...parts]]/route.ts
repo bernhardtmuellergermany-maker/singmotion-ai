@@ -170,7 +170,7 @@ async function handler(req:NextRequest,context:Context){
       return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg");
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
-      return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts));
+      return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts,body.trackMutes));
     }
     if(section==="export"){
       if(!assetId&&req.method==="POST"){
