@@ -7,7 +7,7 @@ import {CreditAmountPicker} from "@/components/credit-amount-picker";
 import {CustomerFeedback} from "@/components/customer-feedback";
 import {checkoutFeedback,type CustomerNotice} from "@/lib/live/customer-feedback";
 
-type Ledger={id:string;credits:number;type:string;reference:string;created:number;video?:{name:string;href:string}|null};
+type Ledger={id:string;credits:number;type:string;reference:string;created:number;video?:{name:string;href:string|null}|null};
 type Order={id:string;projectId:string;credits:number;euros:number;created:number;status:string};
 type Purchase={id:string;credits:number;cents:number;status:string;created:number};
 type VideoReservation={projectId:string;credits:number;state:"reserved"|"review";created:number};
@@ -156,8 +156,10 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
      {balance.entries.length===0?<p className="sm-credits-empty">No credit transactions recorded yet.</p>:
       <ul>{balance.entries.map(entry=><li key={entry.id}>
        <span><strong>{entry.type==="purchase"?"Credits purchased":entry.type==="beta-welcome"?"Beta welcome gift":entry.type==="manual-gift"?"Promotional Gift":entry.type==="manual-gift-correction"?"Promotional Gift correction":entry.type==="video"?"Video paid with credits":entry.type==="video-release"?"Video credit hold released":entry.type==="refund"?"Refund":entry.type==="dispute"?"Payment dispute":"Credit adjustment"}</strong>
-       {entry.type==="video"&&entry.video&&/^\/videos\/live_[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(entry.video.href)&&
+       {entry.type==="video"&&entry.video?.href&&/^\/videos\/live_[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(entry.video.href)&&
         <Link className="sm-credits-video-link" href={entry.video.href} aria-label={`View video: ${entry.video.name}`}>{entry.video.name} · View video →</Link>}
+       {entry.type==="video"&&entry.video&&entry.video.href===null&&<><span>{entry.video.name}</span><small>Video deleted</small></>}
+       {entry.type==="video"&&!entry.video&&<small>Video unavailable</small>}
        <small>{date(entry.created)} · {entry.reference.slice(0,24)}</small></span>
        <strong className={entry.credits>0?"sm-credits-positive":""}>{entry.credits>0?"+":""}{num(entry.credits)} Credits</strong>
       </li>)}</ul>}
