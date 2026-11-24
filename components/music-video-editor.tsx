@@ -52,6 +52,9 @@ export function MusicVideoEditor({id}:{id:string}){
   const [mobileReady,setMobileReady]=useState<Set<string>>(()=>new Set());
   const mobileReadyRef=useRef<Set<string>>(new Set());
   const [mobileUnavailable,setMobileUnavailable]=useState<Set<string>>(()=>new Set());
+  const [mobileRetry,setMobileRetry]=useState(0);
+  const mobileFailures=useRef(new Map<string,number>());
+  const mobileUnavailableRef=useRef(new Set<string>());
   const mobileSongStarting=useRef(false);
   useEffect(()=>{const value=window.matchMedia("(pointer: coarse)").matches||/iPhone|iPad|Android|Mobile/i.test(navigator.userAgent);mobileRef.current=value;setMobile(value);},[]);
   const lastFollowerSeek=useRef(new WeakMap<HTMLMediaElement,number>());
@@ -501,25 +504,29 @@ export function MusicVideoEditor({id}:{id:string}){
     const prepare=async()=>{
       for(const assetId of ids){
         if(controller.signal.aborted)return;
-        if(mobileReadyRef.current.has(assetId)||mobileUnavailable.has(assetId))continue;
+        if(mobileReadyRef.current.has(assetId)||mobileUnavailableRef.current.has(assetId))continue;
         try{
           const data=await request<{ready:boolean;unsupported?:boolean}>(endpoint+id+"/preview/"+assetId+"?mobile=1",{method:"POST",signal:controller.signal});
           if(controller.signal.aborted)return;
           if(data.ready){mobileReadyRef.current=new Set([...mobileReadyRef.current,assetId]);setMobileReady(mobileReadyRef.current);}
-          else if(data.unsupported)setMobileUnavailable(old=>new Set([...old,assetId]));
+          else if(data.unsupported){mobileUnavailableRef.current.add(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));}
         }catch{}
       }
-      if(!controller.signal.aborted&&ids.some(a=>!mobileReadyRef.current.has(a)&&!mobileUnavailable.has(a)))timer=setTimeout(()=>void prepare(),2000);
+      if(!controller.signal.aborted&&ids.some(a=>!mobileReadyRef.current.has(a)&&!mobileUnavailableRef.current.has(a)))timer=setTimeout(()=>void prepare(),2000);
     };
     void prepare();
     return()=>{controller.abort();if(timer)clearTimeout(timer);};
-  },[id,mobile,activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id,mobileUnavailable,mobileReady]);
+  },[id,mobile,activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id,mobileRetry]);
   function mobilePreviewFailed(assetId:string){
     if(!mobileRef.current)return;
     const next=new Set(mobileReadyRef.current);next.delete(assetId);mobileReadyRef.current=next;setMobileReady(next);
+    const count=(mobileFailures.current.get(assetId)??0)+1;mobileFailures.current.set(assetId,count);
+    if(count>=2){mobileUnavailableRef.current.add(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));stopPlayback();setError("Mobile preview could not be loaded. Retry the preview.");}
+    else setMobileRetry(n=>n+1);
   }
   const mobilePreparing=mobile===true&&!!activeAsset&&!mobileReady.has(activeAsset.id);
   const mobileUnsupported=mobilePreparing&&!!activeAsset&&mobileUnavailable.has(activeAsset.id);
+  function retryMobilePreview(assetId:string){mobileFailures.current.delete(assetId);mobileUnavailableRef.current.delete(assetId);setMobileUnavailable(new Set(mobileUnavailableRef.current));setMobileRetry(n=>n+1);setError("");}
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
@@ -877,7 +884,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(song.playbackRate!==decision.rate)song.playbackRate=decision.rate;
     if(song.paused&&!mobileSongStarting.current){
       mobileSongStarting.current=true;
-      void song.play().catch(()=>{if(playingRef.current&&!mutesRef.current.song){stopPlayback();setError("Song playback was blocked. Tap Play to retry.");}})
+      void song.play().catch(error=>{if(error?.name!=="AbortError"&&playingRef.current&&!mutesRef.current.song){stopPlayback();setError("Song playback was blocked. Tap Play to retry.");}})
         .finally(()=>{mobileSongStarting.current=false;if(!playingRef.current||mutesRef.current.song)song.pause();});
     }
   }
@@ -890,11 +897,14 @@ export function MusicVideoEditor({id}:{id:string}){
       let at=playheadRef.current;
       const elapsed=Math.max(0,now-last);last=now;
       const part=songPartAt(range,continuousSongParts(range,partsRef.current),at);
-      const mobileClock=mobileRef.current&&!!previewMediaPlan(latest.current,at,mutesRef.current).visible;
+      const mobilePlan=mobileRef.current?previewMediaPlan(latest.current,at,mutesRef.current):null;
+      const mobileClock=!!mobilePlan?.visible;
+      if(mobilePlan?.visible&&mobileUnavailableRef.current.has(mobilePlan.visible.assetId)){stopPlayback();setError("Mobile preview unavailable for this clip.");return;}
       if(mobileClock){
         at=advanceMutedClock(at,elapsed,timelineEnd);
         const master=mutedPreviewClock(at).element;
-        syncMobileSong(at,!!master&&!master.paused&&!master.seeking&&master.readyState>=2);
+        const run=!!master&&!master.paused&&!master.seeking&&master.readyState>=2;
+        if(!run||now-lastPaint>=100)syncMobileSong(at,run);
       }else if(mutesRef.current.song){
         if(current&&!current.paused)current.pause();
         at=advanceMutedClock(at,elapsed,timelineEnd);
@@ -1034,7 +1044,7 @@ export function MusicVideoEditor({id}:{id:string}){
     <section className="mv-preview" aria-label="Music video preview">
       <div className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
         {!activeAsset&&<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
-        {mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"This video is too long for mobile preview.":"Preparing mobile preview…"}</span></div>}
+        {mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"Mobile preview unavailable.":"Preparing mobile preview…"}</span>{mobileUnsupported&&<button type="button" onClick={()=>retryMobilePreview(activeAsset.id)}>Retry</button>}</div>}
         {(mobile===null?[]:mobile?(activeClip&&mobileReady.has(activeClip.assetId)?[activeClip]:[]):[activeClip,nextClip&&nextAsset&&readyForPlayback.has(nextAsset.id)&&nextClip.timelineStartMs-playhead<=5000?nextClip:undefined]).filter((c):c is MusicClip=>!!c).map(c=>{
           const a=byId.get(c.assetId);if(!a)return null;
           const visible=c.id===activeClip?.id;
