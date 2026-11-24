@@ -59,7 +59,7 @@ import { photoFormat, uploadedPhotoFraming } from "@/lib/studio-editor";
 import { defaultStudioContent, type StudioContent } from "@/lib/studio-content";
 import { productCopy } from "@/lib/product-copy";
 import {
-  featuredCameraMovements, additionalCameraMovements, type CameraMovement,
+  featuredCameraMovements, additionalCameraMovements, replaceCameraQuickTip, type CameraMovement,
 } from "@/lib/studio-camera-movements";
 import {hasFirstStudioUpload, type StudioDraftExport} from "@/lib/studio-draft";
 import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
@@ -522,19 +522,15 @@ export function StudioWizard({
     setSaved(false);
   }
   function addCameraMovement(move:CameraMovement) {
+    // Quick tips insert text without opening the mobile keyboard. Editing is opt-in.
+    if(document.activeElement===performanceInput.current)performanceInput.current?.blur();
     setCameraPreview(move);
-    const lines=draft.customPrompt.split("\n").map(line=>line.trim()).filter(Boolean);
-    // Keep existing performance instructions; selecting another camera option
-    // replaces only the previous "Camera:" direction, never appends conflicts.
-    const kept=lines.filter(line=>!/^Camera:\s*/i.test(line));
-    kept.push(move.direction);
-    const next=kept.join("\n");
+    const next=replaceCameraQuickTip(draft.customPrompt,move);
     if(next.length>500){
       setError("Your prompt can contain up to 500 characters.");
       return;
     }
     update({customPrompt:next,performance:"Custom"});
-    performanceInput.current?.focus({preventScroll:true});
   }
   async function importSunoAsNewDraft(file: File): Promise<void> {
     if (busy || !ready || !owner) throw Error("Studio is not ready for another import.");
