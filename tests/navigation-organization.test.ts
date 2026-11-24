@@ -620,7 +620,7 @@ test("Projects preview throttles React renders, keeps the exact clock and does n
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
  assert.ok(editor.includes("now-lastPaint>=100"));
  assert.ok(editor.includes("playheadRef.current=at"));
- assert.ok(editor.includes("if(crossed||now-lastPaint>=100)"));
+ assert.ok(editor.includes("if(crossed||(mobileRef.current?now-lastPaint>=250:now-lastPaint>=100))"));
  assert.ok(editor.includes('playheadLine.current.style.left=x+"px"'));
  assert.ok(editor.includes("const SongWaveform=memo("));
  assert.ok(editor.includes('endpoint+id+"/waveform"'));
@@ -636,7 +636,7 @@ test("preview proxies are authorized, bounded and do not replace export original
  assert.ok(api.includes('const asset=musicAsset(id,owner,assetId)'));
  assert.ok(api.includes('if(durationMs>180000)return false'));
  assert.ok(api.includes('if(previewJobs.size)return false'));
- assert.ok(api.includes('while(old.length>=6)'));
+ assert.ok(api.includes('while(old.length>=(mobile?8:6))'));
  assert.ok(api.includes('24*1024*1024'));
  assert.ok(api.includes('"private, no-cache"'));
  assert.ok(api.includes('"Vary":"Cookie, Authorization"'));
@@ -644,4 +644,23 @@ test("preview proxies are authorized, bounded and do not replace export original
  assert.ok(editor.includes('playingPreviewRef.current=new Set(previewReadyRef.current)'));
  assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile)'));
  assert.ok(!renderer.includes('preview-v1'));
+});
+
+test("mobile editing uses one native clock and never automatically downloads original video",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes('window.matchMedia("(pointer: coarse)")'));
+ assert.ok(editor.includes('mobileOriginalRef.current.has(assetId)?"/assets/"+assetId:"/preview/"+assetId+"?mobile=1"'));
+ assert.ok(editor.includes('mobile?(activeClip&&mobileReady.has(activeClip.assetId)?[activeClip]:[])'));
+ assert.ok(editor.includes('key={mobile?"mobile-video":c.id}'));
+ assert.ok(editor.includes('if(mobile!==false||playing||importing)return'));
+ assert.ok(editor.includes('if(mobile!==true)return'));
+ assert.ok(editor.includes('timer=setTimeout(()=>void prepare(),2000)'));
+ assert.ok(editor.includes('const mobileClock=!!mobilePlan?.visible'));
+ assert.ok(editor.includes('clip=mobileRef.current?plan.visible:plan.clock'));
+ assert.ok(editor.includes('syncMobileSong(at,run)'));
+ assert.ok(editor.includes('now-lastPaint>=250'));
+ assert.ok(api.includes('if(mobile)return json({error:"Mobile preview not ready."},409)'));
+ assert.ok(api.includes('mobile?"400k":"800k"'));
+ assert.ok(api.includes('["-profile:v","baseline","-level:v","3.1"]'));
+ assert.ok(editor.includes('onClick={()=>useOriginalOnMobile(activeAsset.id)}'));
 });
