@@ -151,3 +151,19 @@ export function continuousSongParts(range:SongPlacement,parts:SongRange[]|null):
  }
  return runs;
 }
+
+/** One source clock for preview and render. No rounding to whole frames here. */
+export function clipSourceTimeMs(clip:{sourceInMs:number;sourceOutMs:number;timelineStartMs:number},atMs:number):number{
+ return Math.max(clip.sourceInMs,Math.min(clip.sourceOutMs,clip.sourceInMs+atMs-clip.timelineStartMs));
+}
+/** Seek large errors; gently correct smaller drift without repeatedly seeking a playing decoder. */
+export function mediaSyncDecision(expectedSeconds:number,actualSeconds:number,playing:boolean,paused:boolean,seeking:boolean):{seek:boolean;rate:number}{
+ const error=expectedSeconds-actualSeconds,drift=Math.abs(error);
+ if(!Number.isFinite(drift))return {seek:false,rate:1};
+ if(!playing)return {seek:drift>0.001,rate:1};
+ if(seeking)return {seek:false,rate:1};
+ if(paused)return {seek:drift>0.008,rate:1};
+ if(drift>0.050)return {seek:true,rate:1};
+ if(drift<=0.010)return {seek:false,rate:1};
+ return {seek:false,rate:Math.max(0.95,Math.min(1.05,1+error*1.5))};
+}
