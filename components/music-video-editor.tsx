@@ -5,12 +5,12 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
-import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
-type EditSnapshot={clips:MusicClip[];range:SongPlacement;parts:SongRange[]|null;mutes:TrackMutes};
+type EditSnapshot={clips:MusicClip[];range:SongPlacement;parts:SongRange[]|null;mutes:TrackMutes;aspectRatio:ProjectAspectRatio};
 const initialMutes:TrackMutes={1:true,2:true,song:false};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
 type ExportJob={id:string;state:"rendering"|"ready"|"failed";progress:number;resolution?:{width:number;height:number};error?:string};
@@ -33,6 +33,8 @@ const overlaps=(clips:MusicClip[],target:MusicClip)=>clips.filter(c=>c.id!==targ
   target.timelineStartMs<clipEnd(c)&&clipEnd(target)>c.timelineStartMs);
 export function MusicVideoEditor({id}:{id:string}){
   const [detail,setDetail]=useState<Detail|null>(null),[clips,setClips]=useState<MusicClip[]>([]);
+  const [aspectRatio,setAspectRatio]=useState<ProjectAspectRatio>("auto"),ratioRef=useRef<ProjectAspectRatio>("auto");
+  const [autoFormat,setAutoFormat]=useState<{assetId:string;ratio:"9:16"|"16:9"}|null>(null);
   const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
   const trackAudio1=useRef<HTMLAudioElement>(null),trackAudio2=useRef<HTMLAudioElement>(null);
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
@@ -78,6 +80,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const data=await request<Detail>(endpoint+id);
     detailRef.current=data;revision.current=data.project.revision;latest.current=data.clips;dirty.current=false;
     const range={startMs:data.project.songStartMs,endMs:data.project.songEndMs,positionMs:data.project.songPositionMs};
+    ratioRef.current=data.project.aspectRatio??"auto";setAspectRatio(ratioRef.current);
     mutesRef.current=data.project.trackMutes??initialMutes;setTrackMutes(mutesRef.current);
     partsRef.current=data.project.songParts;setSongParts(data.project.songParts);setPartIndex(0);
     rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
@@ -112,11 +115,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(inFlight.current){await inFlight.current;if(dirty.current)await saveNow();return;}
     if(!dirty.current)return;
     dirty.current=false;
-    const snapshot=latest.current,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current;
+    const snapshot=latest.current,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current,ratio=ratioRef.current;
     setStatus("Saving…");
     const task=(async()=>{
       const result=await request<Detail>(endpoint+id+"/clips",{method:"PATCH",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({revision:revision.current,clips:snapshot,songStartMs:range.startMs,songEndMs:range.endMs,songPositionMs:range.positionMs,songParts:parts,trackMutes:mutes})});
+        body:JSON.stringify({revision:revision.current,clips:snapshot,songStartMs:range.startMs,songEndMs:range.endMs,songPositionMs:range.positionMs,songParts:parts,trackMutes:mutes,aspectRatio:ratio})});
       revision.current=result.project.revision;detailRef.current={...result,clips:latest.current};
       setDetail(previous=>previous?{...previous,project:result.project}:result);
     })();
@@ -132,10 +135,11 @@ export function MusicVideoEditor({id}:{id:string}){
     saveTimer.current=setTimeout(()=>{void saveNow().catch(()=>{});},600);
   };
   useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
-  function apply(next:MusicClip[],record=true,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current){
+  function apply(next:MusicClip[],record=true,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current,ratio=ratioRef.current){
     if(roleBusy.current)return;
-    if(record){past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
+    if(record){past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current,aspectRatio:ratioRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
     const changed=range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs||range.positionMs!==rangeRef.current.positionMs;
+    ratioRef.current=ratio;setAspectRatio(ratio);
     mutesRef.current=mutes;setTrackMutes(mutes);
     const partsChanged=parts!==partsRef.current;
     partsRef.current=parts;setSongParts(parts);
@@ -148,12 +152,12 @@ export function MusicVideoEditor({id}:{id:string}){
   function undo(){
     if(roleBusy.current)return;
     const previous=past.current.pop();if(!previous)return;
-    future.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current});apply(previous.clips,false,previous.range,previous.parts,previous.mutes);
+    future.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current,aspectRatio:ratioRef.current});apply(previous.clips,false,previous.range,previous.parts,previous.mutes,previous.aspectRatio);
   }
   function redo(){
     if(roleBusy.current)return;
     const next=future.current.pop();if(!next)return;
-    past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current});apply(next.clips,false,next.range,next.parts,next.mutes);
+    past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current,aspectRatio:ratioRef.current});apply(next.clips,false,next.range,next.parts,next.mutes,next.aspectRatio);
   }
   function toggleTrackMute(track:AudioTrack){
     if(importBusy.current||roleBusy.current)return;
@@ -391,6 +395,20 @@ export function MusicVideoEditor({id}:{id:string}){
 
   const activeClip=clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0];
   const activeAsset=activeClip?byId.get(activeClip.assetId):null;
+  const firstAssetId=useMemo(()=>firstVisibleVideo(clips)?.assetId,[clips]);
+  useEffect(()=>{
+    if(aspectRatio!=="auto"||!firstAssetId)return;
+    const controller=new AbortController();
+    void request<{width:number;height:number}>(endpoint+id+"/format/"+firstAssetId,{signal:controller.signal})
+      .then(size=>{if(!controller.signal.aborted)setAutoFormat({assetId:firstAssetId,ratio:aspectFromDimensions(size)});})
+      .catch(()=>{if(!controller.signal.aborted)setAutoFormat(null);});
+    return()=>controller.abort();
+  },[id,firstAssetId,aspectRatio]);
+  const previewRatio=aspectRatio==="auto"?(autoFormat?.assetId===firstAssetId?autoFormat?.ratio??"16:9":"16:9"):aspectRatio;
+  function changeAspectRatio(ratio:ProjectAspectRatio){
+    if(importBusy.current||roleBusy.current||ratio===ratioRef.current)return;
+    apply(latest.current,true,rangeRef.current,partsRef.current,mutesRef.current,ratio);
+  }
   const activeAudio1=clips.find(c=>c.track===1&&playhead>=c.timelineStartMs&&playhead<clipEnd(c));
   const activeAudio2=clips.find(c=>c.track===2&&playhead>=c.timelineStartMs&&playhead<clipEnd(c));
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
@@ -794,15 +812,20 @@ export function MusicVideoEditor({id}:{id:string}){
         <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!clips.length} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
     </div>
     <section className="mv-preview" aria-label="Music video preview">
-      <div className="mv-video-box">
+      <div className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
         {activeAsset?<video key={activeClip?.id??activeAsset.id} ref={video} playsInline muted preload="auto" src={source(activeAsset)}
           onLoadedMetadata={e=>syncVideo(e.currentTarget,activeClip)} onCanPlay={e=>syncVideo(e.currentTarget,activeClip)} onSeeked={e=>syncVideo(e.currentTarget,activeClip)}/>:<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
-        <span className="mv-ratio">▣ 16:9</span>
+
       </div>
       <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload="metadata"
         onLoadedMetadata={()=>setAt(playheadRef.current)} onWaiting={pauseFollowers} onSeeking={pauseFollowers} onPlaying={syncFollowers}/>
       {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} src={endpoint+id+"/assets/"+activeAudio1.assetId} preload="auto" muted={trackMutes[1]} onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
       {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} src={endpoint+id+"/assets/"+activeAudio2.assetId} preload="auto" muted={trackMutes[2]} onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
+      <div className="mv-format-controls" role="group" aria-label="Project video format">
+        <span>Format</span>
+        {(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} title={ratio==="auto"?"Use the first visible video’s format":ratio==="9:16"?"Portrait":"Landscape"} disabled={importing} onClick={()=>changeAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}
+        {aspectRatio==="auto"&&autoFormat?.assetId===firstAssetId&&<small>{previewRatio}</small>}
+      </div>
       <div className="mv-player-controls">
         <button aria-label={playing?"Pause":"Play"} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
         <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
@@ -966,8 +989,8 @@ export function MusicVideoEditor({id}:{id:string}){
           </div></article>)}</div>:<p className="mv-empty-library">No videos in this Library. Import a video or use Add to Project from Videos.</p>}
       </div>}
     </section>
-    {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready{exportJob.resolution?" · "+exportJob.resolution.height+"p":""}</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
-    {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||(exportJob?.resolution?"Preparing "+exportJob.resolution.height+"p MP4 for download.":"Checking source resolution…")}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
+    {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready{exportJob.resolution?" · "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p":""}</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
+    {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||(exportJob?.resolution?"Preparing "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p MP4 for download.":"Checking source resolution…")}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
     {lipTrack!==null&&<div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
       <div className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
         <h2>Insert Lip Sync · {lipTrack===1?"Main track":"Video 2"}</h2>
