@@ -9,7 +9,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "static shot. Movement: hold a single locked camera position for the entire clip. Speed: perfectly still and steady. Framing: the angle, height, lens distance and composition never change. End: finish on the identical framing you opened with.",
     "example": "static shot. Movement: hold a single locked camera position for the entire clip. Speed: perfectly still and steady. Framing: the angle, height, lens distance and composition never change. End: finish on the identical framing you opened with.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: static shot. Movement: hold a single locked camera position for the entire clip. Speed: perfectly still and steady. Framing: the angle, height, lens distance and composition never change. End: finish on the identical framing you opened with.",
     "recommended": true
   },
@@ -21,7 +21,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "pan right. Movement: rotate the camera horizontally left-to-right from one fixed point. Speed: smooth, constant rotation. Framing: hold the horizon level as new space enters from the right edge. End: settle on a clean final composition.",
     "example": "pan right. Movement: rotate the camera horizontally left-to-right from one fixed point. Speed: smooth, constant rotation. Framing: hold the horizon level as new space enters from the right edge. End: settle on a clean final composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: pan right. Movement: rotate the camera horizontally left-to-right from one fixed point. Speed: smooth, constant rotation. Framing: hold the horizon level as new space enters from the right edge. End: settle on a clean final composition.",
     "recommended": true
   },
@@ -33,57 +33,9 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "pan left. Movement: rotate the camera horizontally right-to-left from one fixed point. Speed: smooth, constant rotation. Framing: hold the horizon level as new space enters from the left edge. End: settle on a clean final composition.",
     "example": "pan left. Movement: rotate the camera horizontally right-to-left from one fixed point. Speed: smooth, constant rotation. Framing: hold the horizon level as new space enters from the left edge. End: settle on a clean final composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: pan left. Movement: rotate the camera horizontally right-to-left from one fixed point. Speed: smooth, constant rotation. Framing: hold the horizon level as new space enters from the left edge. End: settle on a clean final composition.",
     "recommended": true
-  },
-  {
-    "name": "Whip pan right",
-    "category": "Pan/Tilt",
-    "id": "03",
-    "level": "Pan/Tilt",
-    "where": "Creative camera direction",
-    "text": "whip pan right. Movement: snap the camera rapidly toward a new target on the right. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
-    "example": "whip pan right. Movement: snap the camera rapidly toward a new target on the right. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: whip pan right. Movement: snap the camera rapidly toward a new target on the right. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
-    "recommended": false
-  },
-  {
-    "name": "Whip pan left",
-    "category": "Pan/Tilt",
-    "id": "03B",
-    "level": "Pan/Tilt",
-    "where": "Creative camera direction",
-    "text": "whip pan left. Movement: snap the camera rapidly toward a new target on the left. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
-    "example": "whip pan left. Movement: snap the camera rapidly toward a new target on the left. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: whip pan left. Movement: snap the camera rapidly toward a new target on the left. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
-    "recommended": false
-  },
-  {
-    "name": "Tilt up",
-    "category": "Pan/Tilt",
-    "id": "04",
-    "level": "Pan/Tilt",
-    "where": "Creative camera direction",
-    "text": "tilt up. Movement: the subject stands completely still, feet planted, holding their pose — ONLY the camera moves: locked at one fixed position on its tripod, holding the same distance and focal length, it pivots steadily UPWARD on its horizontal axis. Speed: one smooth, continuous tilt at a constant rate. Framing: the subject stays the same size on screen and slides steadily DOWN toward the bottom edge, while the scene above them — ceiling, upper walls, sky — pours in from the top edge and fills the screen. End: settle on the higher view, the subject just leaving the bottom of the frame, level and still.",
-    "example": "tilt up. Movement: the subject stands completely still, feet planted, holding their pose — ONLY the camera moves: locked at one fixed position on its tripod, holding the same distance and focal length, it pivots steadily UPWARD on its horizontal axis. Speed: one smooth, continuous tilt at a constant rate. Framing: the subject stays the same size on screen and slides steadily DOWN toward the bottom edge, while the scene above them — ceiling, upper walls, sky — pours in from the top edge and fills the screen. End: settle on the higher view, the subject just leaving the bottom of the frame, level and still.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: Pivot upward from a fixed tripod position, keeping distance and focal length constant. The stationary subject moves toward the bottom of the frame as the space above becomes visible.",
-    "recommended": false
-  },
-  {
-    "name": "Tilt down",
-    "category": "Pan/Tilt",
-    "id": "04B",
-    "level": "Pan/Tilt",
-    "where": "Creative camera direction",
-    "text": "tilt down. Movement: rotate the camera downward from one fixed point. Speed: smooth, constant tilt. Framing: keep the vertical subject centered as the frame descends. End: land on the lower target.",
-    "example": "tilt down. Movement: rotate the camera downward from one fixed point. Speed: smooth, constant tilt. Framing: keep the vertical subject centered as the frame descends. End: land on the lower target.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: tilt down. Movement: rotate the camera downward from one fixed point. Speed: smooth, constant tilt. Framing: keep the vertical subject centered as the frame descends. End: land on the lower target.",
-    "recommended": false
   },
   {
     "name": "Slow zoom in",
@@ -93,7 +45,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "slow zoom in. Movement: increase the lens focal length gradually toward a tighter frame. Speed: gradual and even. Framing: the main subject stays readable as it grows in frame. End: finish on a stable tighter composition.",
     "example": "slow zoom in. Movement: increase the lens focal length gradually toward a tighter frame. Speed: gradual and even. Framing: the main subject stays readable as it grows in frame. End: finish on a stable tighter composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: slow zoom in. Movement: increase the lens focal length gradually toward a tighter frame. Speed: gradual and even. Framing: the main subject stays readable as it grows in frame. End: finish on a stable tighter composition.",
     "recommended": true
   },
@@ -105,57 +57,9 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "slow zoom out. Movement: decrease the lens focal length gradually toward a wider frame. Speed: gradual and even. Framing: the main subject stays readable as more surroundings appear. End: finish on a stable wider composition.",
     "example": "slow zoom out. Movement: decrease the lens focal length gradually toward a wider frame. Speed: gradual and even. Framing: the main subject stays readable as more surroundings appear. End: finish on a stable wider composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: slow zoom out. Movement: decrease the lens focal length gradually toward a wider frame. Speed: gradual and even. Framing: the main subject stays readable as more surroundings appear. End: finish on a stable wider composition.",
     "recommended": true
-  },
-  {
-    "name": "Fast zoom in",
-    "category": "Zoom/Lens",
-    "id": "06",
-    "level": "Zoom/Lens",
-    "where": "Creative camera direction",
-    "text": "fast zoom in. Movement: push the lens quickly toward the main subject. Speed: quick and decisive. Framing: keep the target centered through the scale change. End: finish on a stable tighter composition.",
-    "example": "fast zoom in. Movement: push the lens quickly toward the main subject. Speed: quick and decisive. Framing: keep the target centered through the scale change. End: finish on a stable tighter composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: fast zoom in. Movement: push the lens quickly toward the main subject. Speed: quick and decisive. Framing: keep the target centered through the scale change. End: finish on a stable tighter composition.",
-    "recommended": false
-  },
-  {
-    "name": "Fast zoom out",
-    "category": "Zoom/Lens",
-    "id": "06B",
-    "level": "Zoom/Lens",
-    "where": "Creative camera direction",
-    "text": "fast zoom out. Movement: pull the lens quickly away from the main subject. Speed: quick and decisive. Framing: keep the target readable as the surrounding space opens up. End: finish on a stable wider composition.",
-    "example": "fast zoom out. Movement: pull the lens quickly away from the main subject. Speed: quick and decisive. Framing: keep the target readable as the surrounding space opens up. End: finish on a stable wider composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: fast zoom out. Movement: pull the lens quickly away from the main subject. Speed: quick and decisive. Framing: keep the target readable as the surrounding space opens up. End: finish on a stable wider composition.",
-    "recommended": false
-  },
-  {
-    "name": "Crash zoom in",
-    "category": "Zoom/Lens",
-    "id": "07A",
-    "level": "Zoom/Lens",
-    "where": "Creative camera direction",
-    "text": "crash zoom in. Movement: slam the lens toward the main subject. Speed: very fast and punchy. Framing: the target stays readable through the sudden scale jump. End: land on a bold tighter composition.",
-    "example": "crash zoom in. Movement: slam the lens toward the main subject. Speed: very fast and punchy. Framing: the target stays readable through the sudden scale jump. End: land on a bold tighter composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: crash zoom in. Movement: slam the lens toward the main subject. Speed: very fast and punchy. Framing: the target stays readable through the sudden scale jump. End: land on a bold tighter composition.",
-    "recommended": false
-  },
-  {
-    "name": "Crash zoom out",
-    "category": "Zoom/Lens",
-    "id": "07B",
-    "level": "Zoom/Lens",
-    "where": "Creative camera direction",
-    "text": "crash zoom out. Movement: slam the lens away from the main subject. Speed: very fast and punchy. Framing: the target stays readable as the space around it appears. End: land on a bold wider composition.",
-    "example": "crash zoom out. Movement: slam the lens away from the main subject. Speed: very fast and punchy. Framing: the target stays readable as the space around it appears. End: land on a bold wider composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: crash zoom out. Movement: slam the lens away from the main subject. Speed: very fast and punchy. Framing: the target stays readable as the space around it appears. End: land on a bold wider composition.",
-    "recommended": false
   },
   {
     "name": "Dolly in",
@@ -165,7 +69,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "dolly in. Movement: the subject stands in place, feet planted, body steady — ONLY the camera moves: a smooth controlled push physically straight forward toward the subject. Speed: a smooth, controlled push. Framing: camera height and lens direction stay constant as the distance closes. End: finish in a tighter composition on their face.",
     "example": "dolly in. Movement: the subject stands in place, feet planted, body steady — ONLY the camera moves: a smooth controlled push physically straight forward toward the subject. Speed: a smooth, controlled push. Framing: camera height and lens direction stay constant as the distance closes. End: finish in a tighter composition on their face.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: dolly in. Movement: the subject stands in place, feet planted, body steady — ONLY the camera moves: a smooth controlled push physically straight forward toward the subject. Speed: a smooth, controlled push. Framing: camera height and lens direction stay constant as the distance closes. End: finish in a tighter composition on their face.",
     "recommended": true
   },
@@ -177,9 +81,105 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "dolly out. Movement: move the camera physically backward in a straight line away from the subject. Speed: a smooth, controlled retreat. Framing: lens direction and height stay consistent as more environment enters. End: finish in a wider composition.",
     "example": "dolly out. Movement: move the camera physically backward in a straight line away from the subject. Speed: a smooth, controlled retreat. Framing: lens direction and height stay consistent as more environment enters. End: finish in a wider composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
     "direction": "Camera: dolly out. Movement: move the camera physically backward in a straight line away from the subject. Speed: a smooth, controlled retreat. Framing: lens direction and height stay consistent as more environment enters. End: finish in a wider composition.",
     "recommended": true
+  },
+  {
+    "name": "Handheld shot",
+    "category": "Human Camera",
+    "id": "23",
+    "level": "Human Camera",
+    "where": "Creative camera direction",
+    "text": "handheld shot. Movement: hold the camera at operator height with natural body movement. Speed: responsive and organic. Framing: the subject stays readable through subtle sway and micro-adjustments. End: finish on a natural handheld frame.",
+    "example": "handheld shot. Movement: hold the camera at operator height with natural body movement. Speed: responsive and organic. Framing: the subject stays readable through subtle sway and micro-adjustments. End: finish on a natural handheld frame.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
+    "direction": "Camera: handheld shot. Movement: hold the camera at operator height with natural body movement. Speed: responsive and organic. Framing: the subject stays readable through subtle sway and micro-adjustments. End: finish on a natural handheld frame.",
+    "recommended": true
+  },
+  {
+    "name": "Reverse tracking",
+    "category": "Dolly/Track",
+    "id": "18",
+    "level": "Dolly/Track",
+    "where": "Creative camera direction",
+    "text": "reverse tracking. Movement: move backward in front of the walking subject. Speed: matched to their forward pace. Framing: face and body framing stay stable as the background falls away behind them. End: hold a clear front-facing moving composition.",
+    "example": "reverse tracking. Movement: move backward in front of the walking subject. Speed: matched to their forward pace. Framing: face and body framing stay stable as the background falls away behind them. End: hold a clear front-facing moving composition.",
+    "risk": "Suggested starting point for OmniHuman 2.0. AI-generated motion and lip sync may vary.",
+    "direction": "Camera: reverse tracking. Movement: move backward in front of the walking subject. Speed: matched to their forward pace. Framing: face and body framing stay stable as the background falls away behind them. End: hold a clear front-facing moving composition.",
+    "recommended": true
+  },
+  {
+    "name": "Whip pan right",
+    "category": "Pan/Tilt",
+    "id": "03",
+    "level": "Pan/Tilt",
+    "where": "Creative camera direction",
+    "text": "whip pan right. Movement: snap the camera rapidly toward a new target on the right. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
+    "example": "whip pan right. Movement: snap the camera rapidly toward a new target on the right. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
+    "direction": "Camera: whip pan right. Movement: snap the camera rapidly toward a new target on the right. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
+    "recommended": false
+  },
+  {
+    "name": "Whip pan left",
+    "category": "Pan/Tilt",
+    "id": "03B",
+    "level": "Pan/Tilt",
+    "where": "Creative camera direction",
+    "text": "whip pan left. Movement: snap the camera rapidly toward a new target on the left. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
+    "example": "whip pan left. Movement: snap the camera rapidly toward a new target on the left. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
+    "direction": "Camera: whip pan left. Movement: snap the camera rapidly toward a new target on the left. Speed: a fast whip with a breath of motion blur mid-turn. Framing: open on one readable frame and land on a second readable target. End: lock into a sharp final frame.",
+    "recommended": false
+  },
+  {
+    "name": "Tilt up",
+    "category": "Pan/Tilt",
+    "id": "04",
+    "level": "Pan/Tilt",
+    "where": "Creative camera direction",
+    "text": "tilt up. Movement: the subject stands completely still, feet planted, holding their pose — ONLY the camera moves: locked at one fixed position on its tripod, holding the same distance and focal length, it pivots steadily UPWARD on its horizontal axis. Speed: one smooth, continuous tilt at a constant rate. Framing: the subject stays the same size on screen and slides steadily DOWN toward the bottom edge, while the scene above them — ceiling, upper walls, sky — pours in from the top edge and fills the screen. End: settle on the higher view, the subject just leaving the bottom of the frame, level and still.",
+    "example": "tilt up. Movement: the subject stands completely still, feet planted, holding their pose — ONLY the camera moves: locked at one fixed position on its tripod, holding the same distance and focal length, it pivots steadily UPWARD on its horizontal axis. Speed: one smooth, continuous tilt at a constant rate. Framing: the subject stays the same size on screen and slides steadily DOWN toward the bottom edge, while the scene above them — ceiling, upper walls, sky — pours in from the top edge and fills the screen. End: settle on the higher view, the subject just leaving the bottom of the frame, level and still.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
+    "direction": "Camera: Pivot upward from a fixed tripod position, keeping distance and focal length constant. The stationary subject moves toward the bottom of the frame as the space above becomes visible.",
+    "recommended": false
+  },
+  {
+    "name": "Tilt down",
+    "category": "Pan/Tilt",
+    "id": "04B",
+    "level": "Pan/Tilt",
+    "where": "Creative camera direction",
+    "text": "tilt down. Movement: rotate the camera downward from one fixed point. Speed: smooth, constant tilt. Framing: keep the vertical subject centered as the frame descends. End: land on the lower target.",
+    "example": "tilt down. Movement: rotate the camera downward from one fixed point. Speed: smooth, constant tilt. Framing: keep the vertical subject centered as the frame descends. End: land on the lower target.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
+    "direction": "Camera: tilt down. Movement: rotate the camera downward from one fixed point. Speed: smooth, constant tilt. Framing: keep the vertical subject centered as the frame descends. End: land on the lower target.",
+    "recommended": false
+  },
+  {
+    "name": "Fast zoom in",
+    "category": "Zoom/Lens",
+    "id": "06",
+    "level": "Zoom/Lens",
+    "where": "Creative camera direction",
+    "text": "fast zoom in. Movement: push the lens quickly toward the main subject. Speed: quick and decisive. Framing: keep the target centered through the scale change. End: finish on a stable tighter composition.",
+    "example": "fast zoom in. Movement: push the lens quickly toward the main subject. Speed: quick and decisive. Framing: keep the target centered through the scale change. End: finish on a stable tighter composition.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
+    "direction": "Camera: fast zoom in. Movement: push the lens quickly toward the main subject. Speed: quick and decisive. Framing: keep the target centered through the scale change. End: finish on a stable tighter composition.",
+    "recommended": false
+  },
+  {
+    "name": "Fast zoom out",
+    "category": "Zoom/Lens",
+    "id": "06B",
+    "level": "Zoom/Lens",
+    "where": "Creative camera direction",
+    "text": "fast zoom out. Movement: pull the lens quickly away from the main subject. Speed: quick and decisive. Framing: keep the target readable as the surrounding space opens up. End: finish on a stable wider composition.",
+    "example": "fast zoom out. Movement: pull the lens quickly away from the main subject. Speed: quick and decisive. Framing: keep the target readable as the surrounding space opens up. End: finish on a stable wider composition.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
+    "direction": "Camera: fast zoom out. Movement: pull the lens quickly away from the main subject. Speed: quick and decisive. Framing: keep the target readable as the surrounding space opens up. End: finish on a stable wider composition.",
+    "recommended": false
   },
   {
     "name": "Tracking shot",
@@ -189,7 +189,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "tracking shot. Movement: move through the scene together with the main subject. Speed: matched to the subject’s pace. Framing: the subject stays consistently readable while the world moves around them. End: hold a clear moving composition.",
     "example": "tracking shot. Movement: move through the scene together with the main subject. Speed: matched to the subject’s pace. Framing: the subject stays consistently readable while the world moves around them. End: hold a clear moving composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: tracking shot. Movement: move through the scene together with the main subject. Speed: matched to the subject’s pace. Framing: the subject stays consistently readable while the world moves around them. End: hold a clear moving composition.",
     "recommended": false
   },
@@ -201,20 +201,8 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "follow shot. Movement: move behind the subject along their route at shoulder height. Speed: matched to the subject’s pace. Framing: their back and shoulders lead the frame while the route ahead stays readable. End: keep following with the subject leading the frame.",
     "example": "follow shot. Movement: move behind the subject along their route at shoulder height. Speed: matched to the subject’s pace. Framing: their back and shoulders lead the frame while the route ahead stays readable. End: keep following with the subject leading the frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: follow shot. Movement: move behind the subject along their route at shoulder height. Speed: matched to the subject’s pace. Framing: their back and shoulders lead the frame while the route ahead stays readable. End: keep following with the subject leading the frame.",
-    "recommended": false
-  },
-  {
-    "name": "Reverse tracking",
-    "category": "Dolly/Track",
-    "id": "18",
-    "level": "Dolly/Track",
-    "where": "Creative camera direction",
-    "text": "reverse tracking. Movement: move backward in front of the walking subject. Speed: matched to their forward pace. Framing: face and body framing stay stable as the background falls away behind them. End: hold a clear front-facing moving composition.",
-    "example": "reverse tracking. Movement: move backward in front of the walking subject. Speed: matched to their forward pace. Framing: face and body framing stay stable as the background falls away behind them. End: hold a clear front-facing moving composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: reverse tracking. Movement: move backward in front of the walking subject. Speed: matched to their forward pace. Framing: face and body framing stay stable as the background falls away behind them. End: hold a clear front-facing moving composition.",
     "recommended": false
   },
   {
@@ -225,7 +213,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "side tracking. Movement: move parallel beside the subject along their direction of travel. Speed: matched to the subject’s motion. Framing: hold the subject in side or three-quarter profile at a stable distance. End: continue the parallel move with clear lateral motion.",
     "example": "side tracking. Movement: move parallel beside the subject along their direction of travel. Speed: matched to the subject’s motion. Framing: hold the subject in side or three-quarter profile at a stable distance. End: continue the parallel move with clear lateral motion.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: side tracking. Movement: move parallel beside the subject along their direction of travel. Speed: matched to the subject’s motion. Framing: hold the subject in side or three-quarter profile at a stable distance. End: continue the parallel move with clear lateral motion.",
     "recommended": false
   },
@@ -237,32 +225,8 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "low tracking. Movement: move at ground height alongside the subject’s path. Speed: matched to the footsteps or wheels. Framing: keep the low detail sharp while the ground plane streams through frame. End: finish with the low perspective intact.",
     "example": "low tracking. Movement: move at ground height alongside the subject’s path. Speed: matched to the footsteps or wheels. Framing: keep the low detail sharp while the ground plane streams through frame. End: finish with the low perspective intact.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: low tracking. Movement: move at ground height alongside the subject’s path. Speed: matched to the footsteps or wheels. Framing: keep the low detail sharp while the ground plane streams through frame. End: finish with the low perspective intact.",
-    "recommended": false
-  },
-  {
-    "name": "Vehicle tracking",
-    "category": "Dolly/Track",
-    "id": "21",
-    "level": "Dolly/Track",
-    "where": "Creative camera direction",
-    "text": "vehicle tracking. Movement: move with the vehicle along its route. Speed: matched to the vehicle’s speed. Framing: the vehicle holds steady in frame while the road rushes past. End: maintain a clear moving-vehicle composition.",
-    "example": "vehicle tracking. Movement: move with the vehicle along its route. Speed: matched to the vehicle’s speed. Framing: the vehicle holds steady in frame while the road rushes past. End: maintain a clear moving-vehicle composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: vehicle tracking. Movement: move with the vehicle along its route. Speed: matched to the vehicle’s speed. Framing: the vehicle holds steady in frame while the road rushes past. End: maintain a clear moving-vehicle composition.",
-    "recommended": false
-  },
-  {
-    "name": "Chase shot",
-    "category": "Dolly/Track",
-    "id": "22",
-    "level": "Dolly/Track",
-    "where": "Creative camera direction",
-    "text": "chase shot. Movement: chase the moving subject along the action route. Speed: fast, reactive, physically close. Framing: the subject stays visible while the frame reframes with the energy. End: stay connected to the subject in motion.",
-    "example": "chase shot. Movement: chase the moving subject along the action route. Speed: fast, reactive, physically close. Framing: the subject stays visible while the frame reframes with the energy. End: stay connected to the subject in motion.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: chase shot. Movement: chase the moving subject along the action route. Speed: fast, reactive, physically close. Framing: the subject stays visible while the frame reframes with the energy. End: stay connected to the subject in motion.",
     "recommended": false
   },
   {
@@ -273,7 +237,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "truck right. Movement: move the whole camera to the right on a straight lateral path. Speed: smooth, constant lateral travel. Framing: the lens keeps facing the same direction while the scene slides across. End: finish on a clean lateral composition.",
     "example": "truck right. Movement: move the whole camera to the right on a straight lateral path. Speed: smooth, constant lateral travel. Framing: the lens keeps facing the same direction while the scene slides across. End: finish on a clean lateral composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: truck right. Movement: move the whole camera to the right on a straight lateral path. Speed: smooth, constant lateral travel. Framing: the lens keeps facing the same direction while the scene slides across. End: finish on a clean lateral composition.",
     "recommended": false
   },
@@ -285,7 +249,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "truck left. Movement: move the whole camera to the left on a straight lateral path. Speed: smooth, constant lateral travel. Framing: the lens keeps facing the same direction while the scene slides across. End: finish on a clean lateral composition.",
     "example": "truck left. Movement: move the whole camera to the left on a straight lateral path. Speed: smooth, constant lateral travel. Framing: the lens keeps facing the same direction while the scene slides across. End: finish on a clean lateral composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: truck left. Movement: move the whole camera to the left on a straight lateral path. Speed: smooth, constant lateral travel. Framing: the lens keeps facing the same direction while the scene slides across. End: finish on a clean lateral composition.",
     "recommended": false
   },
@@ -297,7 +261,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "pedestal up. Movement: the subject stands completely still, feet planted — ONLY the camera moves: it rises physically straight UP at a constant height gain, its lens staying level the whole time, never tilting. Speed: a smooth, constant vertical rise. Framing: the subject slides steadily DOWN the frame as the camera rises past eye level, while the scene above them enters from the top edge. End: the camera holds its higher position, lens still level, the subject low in the frame.",
     "example": "pedestal up. Movement: the subject stands completely still, feet planted — ONLY the camera moves: it rises physically straight UP at a constant height gain, its lens staying level the whole time, never tilting. Speed: a smooth, constant vertical rise. Framing: the subject slides steadily DOWN the frame as the camera rises past eye level, while the scene above them enters from the top edge. End: the camera holds its higher position, lens still level, the subject low in the frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: pedestal up. Movement: the subject stands completely still, feet planted — ONLY the camera moves: it rises physically straight UP at a constant height gain, its lens staying level the whole time, never tilting. Speed: a smooth, constant vertical rise. Framing: the subject slides steadily DOWN the frame as the camera rises past eye level, while the scene above them enters from the top edge. End: the camera holds its higher position, lens still level, the subject low in the frame.",
     "recommended": false
   },
@@ -309,7 +273,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "pedestal down. Movement: lower the entire camera straight downward. Speed: a smooth, constant descent. Framing: the lens stays level and pointed the same way through the drop. End: finish with the lower framing clearly readable.",
     "example": "pedestal down. Movement: lower the entire camera straight downward. Speed: a smooth, constant descent. Framing: the lens stays level and pointed the same way through the drop. End: finish with the lower framing clearly readable.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: pedestal down. Movement: lower the entire camera straight downward. Speed: a smooth, constant descent. Framing: the lens stays level and pointed the same way through the drop. End: finish with the lower framing clearly readable.",
     "recommended": false
   },
@@ -321,7 +285,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "slider right. Movement: slide the camera a short distance to the right. Speed: slow, controlled, constant. Framing: foreground, subject and background layers shift with gentle parallax. End: finish on a refined frame with the new right-side angle visible.",
     "example": "slider right. Movement: slide the camera a short distance to the right. Speed: slow, controlled, constant. Framing: foreground, subject and background layers shift with gentle parallax. End: finish on a refined frame with the new right-side angle visible.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: slider right. Movement: slide the camera a short distance to the right. Speed: slow, controlled, constant. Framing: foreground, subject and background layers shift with gentle parallax. End: finish on a refined frame with the new right-side angle visible.",
     "recommended": false
   },
@@ -333,7 +297,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "slider left. Movement: slide the camera a short distance to the left. Speed: slow, controlled, constant. Framing: foreground, subject and background layers shift with gentle parallax. End: finish on a refined frame with the new left-side angle visible.",
     "example": "slider left. Movement: slide the camera a short distance to the left. Speed: slow, controlled, constant. Framing: foreground, subject and background layers shift with gentle parallax. End: finish on a refined frame with the new left-side angle visible.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: slider left. Movement: slide the camera a short distance to the left. Speed: slow, controlled, constant. Framing: foreground, subject and background layers shift with gentle parallax. End: finish on a refined frame with the new left-side angle visible.",
     "recommended": false
   },
@@ -345,7 +309,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "push past. Movement: glide forward past a visible foreground object, edge or opening. Speed: a smooth forward glide. Framing: the foreground sweeps close to the lens while the space beyond sharpens. End: arrive inside or beyond the foreground layer.",
     "example": "push past. Movement: glide forward past a visible foreground object, edge or opening. Speed: a smooth forward glide. Framing: the foreground sweeps close to the lens while the space beyond sharpens. End: arrive inside or beyond the foreground layer.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: push past. Movement: glide forward past a visible foreground object, edge or opening. Speed: a smooth forward glide. Framing: the foreground sweeps close to the lens while the space beyond sharpens. End: arrive inside or beyond the foreground layer.",
     "recommended": false
   },
@@ -357,7 +321,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "arc right. Movement: move on a shallow curve around the subject toward their left side. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the angle changes. End: finish from a new left-side angle.",
     "example": "arc right. Movement: move on a shallow curve around the subject toward their left side. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the angle changes. End: finish from a new left-side angle.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: arc right. Movement: move on a shallow curve around the subject toward their left side. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the angle changes. End: finish from a new left-side angle.",
     "recommended": false
   },
@@ -369,7 +333,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "arc left. Movement: move on a shallow curve around the subject toward their right side. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the angle changes. End: finish from a new right-side angle.",
     "example": "arc left. Movement: move on a shallow curve around the subject toward their right side. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the angle changes. End: finish from a new right-side angle.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: arc left. Movement: move on a shallow curve around the subject toward their right side. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the angle changes. End: finish from a new right-side angle.",
     "recommended": false
   },
@@ -381,7 +345,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "orbit clockwise. Movement: the subject holds their position, body steady, head and eyes turning TOGETHER naturally to follow the lens — the camera tracks sideways to the RIGHT on a smooth curve around them, so the background behind them sweeps steadily to the LEFT of the frame. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the viewing angle changes. End: the camera finishes at the subject's RIGHT side, seeing their profile, their face turned naturally toward the lens, stable framing.",
     "example": "orbit clockwise. Movement: the subject holds their position, body steady, head and eyes turning TOGETHER naturally to follow the lens — the camera tracks sideways to the RIGHT on a smooth curve around them, so the background behind them sweeps steadily to the LEFT of the frame. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the viewing angle changes. End: the camera finishes at the subject's RIGHT side, seeing their profile, their face turned naturally toward the lens, stable framing.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: Move smoothly right on a curve around the stationary subject, keeping height and distance constant; the background sweeps left. The subject naturally follows the lens with their head and eyes.",
     "recommended": false
   },
@@ -393,7 +357,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "orbit counterclockwise. Movement: the subject holds their position, body steady, head and eyes turning TOGETHER naturally to follow the lens — the camera tracks sideways to the LEFT on a smooth curve around them, so the background behind them sweeps steadily to the RIGHT of the frame. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the viewing angle changes. End: the camera finishes at the subject's LEFT side, seeing their profile, their face turned naturally toward the lens, stable framing.",
     "example": "orbit counterclockwise. Movement: the subject holds their position, body steady, head and eyes turning TOGETHER naturally to follow the lens — the camera tracks sideways to the LEFT on a smooth curve around them, so the background behind them sweeps steadily to the RIGHT of the frame. Speed: a smooth, measured curve. Framing: distance, height and subject readability hold while the viewing angle changes. End: the camera finishes at the subject's LEFT side, seeing their profile, their face turned naturally toward the lens, stable framing.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: Move smoothly left on a curve around the stationary subject, keeping height and distance constant; the background sweeps right. The subject naturally follows the lens with their head and eyes.",
     "recommended": false
   },
@@ -405,7 +369,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "crane up. Movement: travel smoothly upward through open space. Speed: a slow, controlled vertical lift. Framing: the subject or location stays readable as the camera gains height. End: finish with the larger scale clearly visible.",
     "example": "crane up. Movement: travel smoothly upward through open space. Speed: a slow, controlled vertical lift. Framing: the subject or location stays readable as the camera gains height. End: finish with the larger scale clearly visible.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: crane up. Movement: travel smoothly upward through open space. Speed: a slow, controlled vertical lift. Framing: the subject or location stays readable as the camera gains height. End: finish with the larger scale clearly visible.",
     "recommended": false
   },
@@ -417,7 +381,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "crane down. Movement: travel smoothly downward through open space. Speed: a slow, controlled vertical descent. Framing: the subject or destination stays readable as the camera comes down. End: finish with the lower subject clearly visible.",
     "example": "crane down. Movement: travel smoothly downward through open space. Speed: a slow, controlled vertical descent. Framing: the subject or destination stays readable as the camera comes down. End: finish with the lower subject clearly visible.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: crane down. Movement: travel smoothly downward through open space. Speed: a slow, controlled vertical descent. Framing: the subject or destination stays readable as the camera comes down. End: finish with the lower subject clearly visible.",
     "recommended": false
   },
@@ -429,7 +393,7 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "drone push in. Movement: the subject stands completely still, feet planted — ONLY the camera moves: an aerial camera flies smoothly forward through open air, physically closing the distance toward the stationary subject, keeping them centered as they grow steadily larger in frame. Speed: a controlled, constant forward glide. Framing: the environment slides past the edges of the frame while the subject stays fixed at center, growing from small to prominent. End: arrive at a closer aerial composition on the subject, who has not moved at all.",
     "example": "drone push in. Movement: the subject stands completely still, feet planted — ONLY the camera moves: an aerial camera flies smoothly forward through open air, physically closing the distance toward the stationary subject, keeping them centered as they grow steadily larger in frame. Speed: a controlled, constant forward glide. Framing: the environment slides past the edges of the frame while the subject stays fixed at center, growing from small to prominent. End: arrive at a closer aerial composition on the subject, who has not moved at all.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: Fly smoothly forward toward the stationary subject, keeping them centered as they grow larger and the environment slides past the frame edges.",
     "recommended": false
   },
@@ -441,116 +405,8 @@ export const cameraMovements:readonly CameraMovement[] = [
     "where": "Creative camera direction",
     "text": "drone pull back. Movement: fly smoothly backward away from the subject. Speed: a controlled aerial retreat. Framing: the subject stays readable as more landscape opens around them. End: finish on a wider aerial composition.",
     "example": "drone pull back. Movement: fly smoothly backward away from the subject. Speed: a controlled aerial retreat. Framing: the subject stays readable as more landscape opens around them. End: finish on a wider aerial composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
+    "risk": "Experimental with OmniHuman 2.0: the model may ignore the move, alter the background or lose facial consistency. Keep the performer visible.",
     "direction": "Camera: drone pull back. Movement: fly smoothly backward away from the subject. Speed: a controlled aerial retreat. Framing: the subject stays readable as more landscape opens around them. End: finish on a wider aerial composition.",
-    "recommended": false
-  },
-  {
-    "name": "Helicopter shot",
-    "category": "Drone/Crane",
-    "id": "27",
-    "level": "Drone/Crane",
-    "where": "Creative camera direction",
-    "text": "helicopter shot. Movement: move at high altitude along a broad, gradual flight path. Speed: steady, unhurried aerial motion. Framing: the landscape or distant subject stays readable at wide scale. End: finish on a stable high-altitude composition.",
-    "example": "helicopter shot. Movement: move at high altitude along a broad, gradual flight path. Speed: steady, unhurried aerial motion. Framing: the landscape or distant subject stays readable at wide scale. End: finish on a stable high-altitude composition.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: helicopter shot. Movement: move at high altitude along a broad, gradual flight path. Speed: steady, unhurried aerial motion. Framing: the landscape or distant subject stays readable at wide scale. End: finish on a stable high-altitude composition.",
-    "recommended": false
-  },
-  {
-    "name": "Handheld shot",
-    "category": "Human Camera",
-    "id": "23",
-    "level": "Human Camera",
-    "where": "Creative camera direction",
-    "text": "handheld shot. Movement: hold the camera at operator height with natural body movement. Speed: responsive and organic. Framing: the subject stays readable through subtle sway and micro-adjustments. End: finish on a natural handheld frame.",
-    "example": "handheld shot. Movement: hold the camera at operator height with natural body movement. Speed: responsive and organic. Framing: the subject stays readable through subtle sway and micro-adjustments. End: finish on a natural handheld frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: handheld shot. Movement: hold the camera at operator height with natural body movement. Speed: responsive and organic. Framing: the subject stays readable through subtle sway and micro-adjustments. End: finish on a natural handheld frame.",
-    "recommended": true
-  },
-  {
-    "name": "Snorricam",
-    "category": "Human Camera",
-    "id": "24",
-    "level": "Human Camera",
-    "where": "Creative camera direction",
-    "text": "snorricam. Movement: fix the camera to the subject’s torso so it moves with their body. Speed: matched exactly to their motion. Framing: the subject stays locked and centered while the world swims behind them. End: finish with the subject still pinned in frame.",
-    "example": "snorricam. Movement: fix the camera to the subject’s torso so it moves with their body. Speed: matched exactly to their motion. Framing: the subject stays locked and centered while the world swims behind them. End: finish with the subject still pinned in frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: snorricam. Movement: fix the camera to the subject’s torso so it moves with their body. Speed: matched exactly to their motion. Framing: the subject stays locked and centered while the world swims behind them. End: finish with the subject still pinned in frame.",
-    "recommended": false
-  },
-  {
-    "name": "First-person view",
-    "category": "Human Camera",
-    "id": "24B",
-    "level": "Human Camera",
-    "where": "Creative camera direction",
-    "text": "first-person view. Movement: move forward at eye height from the character’s own point of view. Speed: natural walking or reaching pace. Framing: hands, arms or body edges anchor the viewer inside the body. End: arrive at the next point of action from the same point of view.",
-    "example": "first-person view. Movement: move forward at eye height from the character’s own point of view. Speed: natural walking or reaching pace. Framing: hands, arms or body edges anchor the viewer inside the body. End: arrive at the next point of action from the same point of view.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: first-person view. Movement: move forward at eye height from the character’s own point of view. Speed: natural walking or reaching pace. Framing: hands, arms or body edges anchor the viewer inside the body. End: arrive at the next point of action from the same point of view.",
-    "recommended": false
-  },
-  {
-    "name": "Tilt-shift",
-    "category": "Specials",
-    "id": "S2",
-    "level": "Specials",
-    "where": "Creative camera direction",
-    "text": "tilt-shift. Movement: hold or glide from a high angled view over the scene. Speed: small, precise movement. Framing: a narrow band of sharp focus crosses the subject with soft blur above and below. End: finish with the miniature-scale illusion intact.",
-    "example": "tilt-shift. Movement: hold or glide from a high angled view over the scene. Speed: small, precise movement. Framing: a narrow band of sharp focus crosses the subject with soft blur above and below. End: finish with the miniature-scale illusion intact.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: tilt-shift. Movement: hold or glide from a high angled view over the scene. Speed: small, precise movement. Framing: a narrow band of sharp focus crosses the subject with soft blur above and below. End: finish with the miniature-scale illusion intact.",
-    "recommended": false
-  },
-  {
-    "name": "Infinite zoom",
-    "category": "Specials",
-    "id": "S3",
-    "level": "Specials",
-    "where": "Creative camera direction",
-    "text": "infinite zoom. Movement: zoom continuously inward toward the exact center of frame. Speed: smooth and steadily accelerating. Framing: the centered target keeps expanding as the zoom keeps going. End: finish as the next visual world fills the frame.",
-    "example": "infinite zoom. Movement: zoom continuously inward toward the exact center of frame. Speed: smooth and steadily accelerating. Framing: the centered target keeps expanding as the zoom keeps going. End: finish as the next visual world fills the frame.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: infinite zoom. Movement: zoom continuously inward toward the exact center of frame. Speed: smooth and steadily accelerating. Framing: the centered target keeps expanding as the zoom keeps going. End: finish as the next visual world fills the frame.",
-    "recommended": false
-  },
-  {
-    "name": "Earth zoom out",
-    "category": "Specials",
-    "id": "S4",
-    "level": "Specials",
-    "where": "Creative camera direction",
-    "text": "earth zoom out. Movement: pull up and away from the starting point through street, city and planet scale. Speed: a rapid expanding zoom out. Framing: the original location holds center as the scale multiplies. End: finish at planet scale with the start point implied at center.",
-    "example": "earth zoom out. Movement: pull up and away from the starting point through street, city and planet scale. Speed: a rapid expanding zoom out. Framing: the original location holds center as the scale multiplies. End: finish at planet scale with the start point implied at center.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: earth zoom out. Movement: pull up and away from the starting point through street, city and planet scale. Speed: a rapid expanding zoom out. Framing: the original location holds center as the scale multiplies. End: finish at planet scale with the start point implied at center.",
-    "recommended": false
-  },
-  {
-    "name": "Time-lapse",
-    "category": "Specials",
-    "id": "S5",
-    "level": "Specials",
-    "where": "Creative camera direction",
-    "text": "time-lapse. Movement: hold one locked camera position while time runs fast. Speed: heavy time compression over a stable camera. Framing: the composition and horizon never move as motion pours through. End: finish on the same angle with the passage of time visible.",
-    "example": "time-lapse. Movement: hold one locked camera position while time runs fast. Speed: heavy time compression over a stable camera. Framing: the composition and horizon never move as motion pours through. End: finish on the same angle with the passage of time visible.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: time-lapse. Movement: hold one locked camera position while time runs fast. Speed: heavy time compression over a stable camera. Framing: the composition and horizon never move as motion pours through. End: finish on the same angle with the passage of time visible.",
-    "recommended": false
-  },
-  {
-    "name": "Pass through",
-    "category": "Specials",
-    "id": "S7",
-    "level": "Specials",
-    "where": "Creative camera direction",
-    "text": "pass through. Movement: move forward into a visible object, surface or opening and continue beyond it. Speed: a smooth, centered glide. Framing: the opening holds center as the transition point. End: arrive inside the revealed space beyond.",
-    "example": "pass through. Movement: move forward into a visible object, surface or opening and continue beyond it. Speed: a smooth, centered glide. Framing: the opening holds center as the transition point. End: arrive inside the revealed space beyond.",
-    "risk": "AI-generated camera motion may vary. Adapt the move to your reference image and keep the performer visible.",
-    "direction": "Camera: pass through. Movement: move forward into a visible object, surface or opening and continue beyond it. Speed: a smooth, centered glide. Framing: the opening holds center as the transition point. End: arrive inside the revealed space beyond.",
     "recommended": false
   }
 ];

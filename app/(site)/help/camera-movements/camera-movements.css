@@ -58,3 +58,6 @@
  .sm-camera-copy{transition:none!important}
  .sm-camera-copy:hover{transform:none}
 }
+
+/* Camera suitability labels: restrained accents on the existing dark surface. */
+.sm-camera-rating-group{margin:26px 0 34px}.sm-camera-rating-heading{font-size:21px;color:#f2eefc;margin:0 0 6px}.sm-camera-rating-heading span{font-size:14px;font-weight:500;color:#b8a5c7}.sm-camera-rating-group>p{color:#c1b4cf;margin:0 0 15px;font-size:14px}.sm-camera-rating{display:table;margin-top:6px;border:1px solid;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:600;line-height:1.5}.sm-camera-rating.is-recommended{color:#a8dfbc;border-color:#426b52;background:rgba(62,117,78,.15)}.sm-camera-rating.is-experimental{color:#e6c38c;border-color:#80633c;background:rgba(137,99,45,.13)}

@@ -12,9 +12,9 @@ export const metadata={
 
 /** Studio presets are distinguished from exploratory language instructions.
  * Prompts are creative guidance: model adherence, trajectory and timing are not guaranteed. */
-// The same 46 movements power the Studio camera chips.
+// The same 34 movements power the Studio camera chips.
 const techniques=cameraMovements;
-const categories=[...new Set(techniques.map(t=>t.category))];
+const movementGroups=[{recommended:true,label:"Recommended",description:"Suggested starting points for OmniHuman 2.0; not a guarantee of model adherence."},{recommended:false,label:"Experimental",description:"More challenging creative directions. Camera movement, framing and lip sync may vary."}];
 const useCases=[
   {
     "name": "Original songs & music videos",
@@ -152,10 +152,10 @@ export default function CameraMovementsHelp(){
    </section>
    <section className="sm-camera-section" id="camera-movements">
     <div className="sm-camera-section-title"><span className="sm-legal-num">03 / CAMERA MOVEMENTS</span><h2>Camera moves and copy-ready instructions</h2>
-     <p>Explore 46 camera movements in seven categories, with complete English prompts. These are creative directions, not guaranteed controls. Match the move to your reference image. The full prompts are reproduced from the supplied Mone Motion camera-motion library; shorten longer prompts to fit Studio’s 500-character limit.</p>
+     <p>Explore 34 camera movements, with complete English prompts. The recommended and experimental labels are practical guidance, not verified rendering results. These are creative directions, not guaranteed controls. Match the move to your reference image. The full prompts are reproduced from the supplied Mone Motion camera-motion library; shorten longer prompts to fit Studio’s 500-character limit.</p>
     </div>
-    {categories.map(category=><section key={category}><h3>{category}</h3><div className="sm-camera-techniques">{techniques.filter(t=>t.category===category).map(t=><article key={t.name} className="sm-camera-technique">
-     <div className="sm-camera-technique-top"><span className="sm-camera-number">{t.id}</span><div><h3>{t.name}</h3><small>{t.category}</small></div></div>
+    {movementGroups.map(group=><section key={group.label} className="sm-camera-rating-group"><h3 className="sm-camera-rating-heading">{group.label} <span>({techniques.filter(t=>t.recommended===group.recommended).length})</span></h3><p>{group.description}</p><div className="sm-camera-techniques">{techniques.filter(t=>t.recommended===group.recommended).map(t=><article key={t.name} className="sm-camera-technique">
+     <div className="sm-camera-technique-top"><span className="sm-camera-number">{t.id}</span><div><h3>{t.name}</h3><small>{t.category}</small><span className={`sm-camera-rating ${t.recommended?"is-recommended":"is-experimental"}`}>{t.recommended?"Recommended":"Experimental"}</span></div></div>
      <div className="sm-camera-prompt-top"><strong>Copy this prompt</strong><PromptCopyButton text={t.example} label={"Copy "+t.name+" prompt"}/></div>
      <blockquote>{t.example}</blockquote>
      <p className="sm-camera-risk"><TriangleAlert size={16} aria-hidden="true"/>{t.risk}</p>
