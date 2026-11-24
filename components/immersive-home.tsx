@@ -531,9 +531,9 @@ export function ImmersiveHome(){
      <CampaignOfferLine/>
     </div>
     <div ref={feed} className={"sm-mobile-reels"+(feedBusy?" is-refreshing":"")} onScroll={onScroll} onWheel={wheel} role="region" aria-label="Swipe up or down between music videos" tabIndex={0} onKeyDown={e=>{if(e.key==="ArrowDown"||e.key==="PageDown"){e.preventDefault();moveTo(currentClip+1)}else if(e.key==="ArrowUp"||e.key==="PageUp"){e.preventDefault();moveTo(currentClip-1)}}}>
-     {(clips.length?clips:[{title:"SingMotion showcase",url:"",posterUrl:null}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
-       <div className="sm-mobile-reel-loading" aria-hidden="true" style={item.posterUrl?{backgroundImage:"url("+JSON.stringify(item.posterUrl)+")",backgroundSize:"cover",backgroundPosition:"center"}:undefined}/>
-       {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-mobile-reel-video" data-feed-index={i} src={item.url} poster={item.posterUrl||undefined} playsInline autoPlay={i===currentClip} muted={i!==currentClip||muted} loop preload={i===currentClip?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;
+     {(clips.length?clips:[{title:"SingMotion showcase",url:""}]).map((item,i)=><section className="sm-mobile-reel" key={item.url+"-"+i} aria-label={item.title}>
+       <div className="sm-mobile-reel-loading" aria-hidden="true"/>
+       {isMobileViewport&&item.url&&!failed[i]&&Math.abs(currentClip-i)<=1&&<video disablePictureInPicture disableRemotePlayback controlsList="nodownload nofullscreen noremoteplayback" className="sm-mobile-reel-video" data-feed-index={i} src={item.url} playsInline autoPlay muted={muted} loop preload={i===currentClip||i===currentClip+1?"auto":"metadata"} onLoadedData={()=>setLoaded(prev=>({...prev,[i]:true}))} onCanPlay={()=>setLoaded(prev=>prev[i]?prev:{...prev,[i]:true})} onError={()=>setFailed(prev=>({...prev,[i]:true}))} onClick={e=>{const video=e.currentTarget;
         unlockSoundAfterGesture.current=false;
         const next=!video.muted;
         video.muted=next;setMuted(next);
@@ -541,7 +541,6 @@ export function ImmersiveHome(){
         if(video.paused)void video.play().catch(()=>{if(!video.muted){video.muted=true;setMuted(true);void video.play().catch(()=>{});}});
        }} aria-label={item.title+": Tippen, um Ton ein- oder auszuschalten"}/>}
        {i===currentClip&&<div className="sm-mobile-reel-shade" aria-hidden="true"/>}
-       {i===currentClip&&failed[i]&&<button type="button" className="sm-mobile-video-retry" style={{position:"absolute",zIndex:4,top:"45%",left:"50%",transform:"translateX(-50%)",padding:"10px 14px",borderRadius:12,background:"#22182ee8",color:"#fff",border:"1px solid #8564a1",display:"flex",alignItems:"center",gap:7}} onClick={()=>{setFailed(previous=>({...previous,[i]:false}));setLoaded(previous=>({...previous,[i]:false}));}}><RotateCw size={16}/> Retry video</button>}
      </section>)}
     </div>
     <div ref={refreshCircle} className={"sm-mobile-refresh-indicator"+(feedBusy?" is-loading":"")} style={{"--refresh-y":"-68px","--refresh-rotation":"0deg"} as React.CSSProperties} role="status" aria-hidden={!refreshing&&!feedBusy} aria-label={feedBusy?"Videos werden aktualisiert":refreshing?"Loslassen zum Aktualisieren":"Zum Aktualisieren weiterziehen"}>
