@@ -758,7 +758,8 @@ export function MusicVideoEditor({id}:{id:string}){
     if(element.playbackRate!==decision.rate)element.playbackRate=decision.rate;
     if(decision.seek){try{element.currentTime=expected;}catch{}}
     if(!run){element.pause();return;}
-    if(!element.seeking&&element.readyState>=2&&element.paused&&!element.ended)void element.play().catch(()=>{});
+    // Queue play while the decoder seeks, so slow devices do not get stuck chasing the clock.
+    if(element.paused&&!element.ended)void element.play().catch(()=>{});
   }
   function syncVideo(element:HTMLVideoElement|null,clip:MusicClip|undefined){
     const at=playheadRef.current;
