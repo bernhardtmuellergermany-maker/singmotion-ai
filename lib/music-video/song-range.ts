@@ -2,7 +2,7 @@ export type SongRange={startMs:number;endMs:number};
 export const MIN_SONG_RANGE_MS=100;
 export function parseSongTime(text:string):number|null{
  const value=text.trim().replace(",",".");
- const clock=/^(\d{1,2}):([0-5]\d)(?:\.(\d{1,3}))?$/.exec(value);
+ const clock=/^(\d{1,3}):([0-5]\d)(?:\.(\d{1,3}))?$/.exec(value);
  const seconds=/^(\d{1,4})(?:\.(\d{1,3}))?$/.exec(value);
  if(clock)return Number(clock[1])*60000+Number(clock[2])*1000+Number((clock[3]||"").padEnd(3,"0"));
  if(seconds)return Number(seconds[1])*1000+Number((seconds[2]||"").padEnd(3,"0"));
