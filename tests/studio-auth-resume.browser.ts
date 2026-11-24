@@ -33,18 +33,20 @@ async function verifyCameraPicker(page:Page,original:string){
   const chip=panel.getByRole("button",{name:"Add "+move.name+" camera movement to prompt",exact:true});
   const group=panel.getByRole("group",{name:move.recommended?"Add camera movement to prompt":"Experimental camera movements",exact:true});
   const positions=()=>group.evaluate(el=>{
-   const origin=el.getBoundingClientRect();
-   return Array.from(el.querySelectorAll(".sm-camera-chip-recommended,.sm-camera-chip-experimental"),button=>{
-    const r=button.getBoundingClientRect();
-    return [r.x-origin.x,r.y-origin.y,r.width,r.height].map(value=>Math.round(value)||0);
-   });
+   // Use layout offsets, not transformed client rectangles: hovering a chip
+   // intentionally translates it by one pixel, without reflowing any rows.
+   const buttons=Array.from(el.querySelectorAll<HTMLButtonElement>(".sm-camera-chip-recommended,.sm-camera-chip-experimental"));
+   const origin=buttons[0];
+   return buttons.map(button=>[button.offsetLeft-origin.offsetLeft,button.offsetTop-origin.offsetTop,button.offsetWidth,button.offsetHeight]);
   });
   const before=await positions();
   await chip.click();
   await preview.waitFor({state:"visible"});
   assert.equal(await prompt.evaluate(el=>document.activeElement===el),false,"quick tip must never focus the prompt");
   assert.ok(await group.evaluate(el=>!!el.lastElementChild?.querySelector("#sm-camera-active-preview")),"preview follows every chip in its own group");
-  assert.deepEqual(await positions(),before,"quick links retain their positions when the preview changes");
+  const after=await positions();
+  assert.equal(after.length,before.length);
+  assert.ok(after.every((rect,index)=>rect.every((value,axis)=>Math.abs(value-before[index][axis])<=1)),"quick links retain their layout positions within one pixel when the preview changes");
   assert.ok(await group.evaluate(el=>{
    const slot=el.lastElementChild!.getBoundingClientRect();
    return Array.from(el.querySelectorAll(".sm-camera-chip-recommended,.sm-camera-chip-experimental")).every(button=>button.getBoundingClientRect().bottom<=slot.top);
