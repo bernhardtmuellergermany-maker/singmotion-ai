@@ -1,5 +1,8 @@
 import {NextRequest,NextResponse} from "next/server";
 import path from "node:path";
+import {DatabaseSync} from "node:sqlite";
+import {existsSync} from "node:fs";
+import {creditEntriesWithVideoProjects} from "@/lib/commerce/notifications";
 import {CommerceStore} from "@/lib/commerce/store";
 import {CreditWallet,stripeCreditTopupsTestEnabled,stripeCreditTopupsLiveEnabled} from "@/lib/commerce/credit-wallet";
 import {resolveCreditWalletIdentity} from "@/lib/commerce/credit-wallet-auth";
@@ -53,6 +56,14 @@ export async function GET(req:NextRequest){
   // Keep historical EUR transactions visible only under legacy order history.
   // They are NOT Credit Wallet purchases or spendable deposits.
   const entries=wallet.entries(identity.subject);
+  // Display-only enrichment, identical ownership and output checks to Notifications.
+  // The credit ledger remains available even when the private project DB is absent.
+  let live:DatabaseSync|null=null;
+  const projectFile=path.join(dataDir,"live-test.sqlite");
+  try{if(existsSync(projectFile))live=new DatabaseSync(projectFile,{readOnly:true});}catch{live=null;}
+  let enrichedEntries:ReturnType<typeof creditEntriesWithVideoProjects<(typeof entries)[number]>>;
+  try{enrichedEntries=creditEntriesWithVideoProjects(store.db,live,identity.subject,entries);}
+  finally{live?.close();}
   const rawBalance=purchased-reserved;
   // Display-only: the video-seconds estimate must follow the same active,
   // server-verified campaign tariff as Studio, not a hardcoded price.
@@ -89,7 +100,7 @@ export async function GET(req:NextRequest){
    approvedBillingCountries:null,
    alternativeCheckoutEnabled:liveCheckout&&alternativeCreditCheckoutApproved(process.env),
    alternativeBillingCountries:liveCheckout&&alternativeCreditCheckoutApproved(process.env)?approvedAlternativeBillingCountries(process.env):null,
-   entries,
+   entries:enrichedEntries,
    legacyOrders:oldOrders,
    purchases:wallet.purchases(identity.subject),
    videoReservations,
