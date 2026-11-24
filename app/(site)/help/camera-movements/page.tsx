@@ -12,8 +12,9 @@ export const metadata={
 
 /** Studio presets are distinguished from exploratory language instructions.
  * Prompts are creative guidance: model adherence, trajectory and timing are not guaranteed. */
-// The same 22 reviewed movements power the Studio camera chips.
+// The same 46 movements power the Studio camera chips.
 const techniques=cameraMovements;
+const categories=[...new Set(techniques.map(t=>t.category))];
 const useCases=[
   {
     "name": "Original songs & music videos",
@@ -151,15 +152,14 @@ export default function CameraMovementsHelp(){
    </section>
    <section className="sm-camera-section" id="camera-movements">
     <div className="sm-camera-section-title"><span className="sm-legal-num">03 / CAMERA MOVEMENTS</span><h2>Camera moves and copy-ready instructions</h2>
-     <p>Start with a SingMotion preset or a simple push-in. Advanced camera terms are creative experiments, not extra buttons or guaranteed features. Match each move to what is visible in your reference image.</p>
+     <p>Explore 46 camera movements in seven categories, with complete English prompts. These are creative directions, not guaranteed controls. Match the move to your reference image. The full prompts are reproduced from the supplied Mone Motion camera-motion library; shorten longer prompts to fit Studio’s 500-character limit.</p>
     </div>
-    <div className="sm-camera-techniques">{techniques.map((t,i)=><article key={t.name} className="sm-camera-technique">
-     <div className="sm-camera-technique-top"><span className="sm-camera-number">{String(i+1).padStart(2,"0")}</span><div><h3>{t.name}</h3><small>{t.level} · {t.where}</small></div></div>
-     <p>{t.text}</p>
+    {categories.map(category=><section key={category}><h3>{category}</h3><div className="sm-camera-techniques">{techniques.filter(t=>t.category===category).map(t=><article key={t.name} className="sm-camera-technique">
+     <div className="sm-camera-technique-top"><span className="sm-camera-number">{t.id}</span><div><h3>{t.name}</h3><small>{t.category}</small></div></div>
      <div className="sm-camera-prompt-top"><strong>Copy this prompt</strong><PromptCopyButton text={t.example} label={"Copy "+t.name+" prompt"}/></div>
      <blockquote>{t.example}</blockquote>
      <p className="sm-camera-risk"><TriangleAlert size={16} aria-hidden="true"/>{t.risk}</p>
-    </article>)}</div>
+    </article>)}</div></section>)}
    </section>
    <section className="sm-legal-panel">
     <span className="sm-legal-num">04 / WORKFLOW</span><h2>Make the first attempt count</h2>
@@ -173,7 +173,7 @@ export default function CameraMovementsHelp(){
    <section className="sm-legal-panel">
     <span className="sm-legal-num">06 / RIGHTS & SAFETY</span><h2>Publish responsibly</h2>
     <p>Use only songs, photos, recordings and voices you have permission to animate and publish. Never imply that a real person endorsed a product or reported an event without authorization. Label synthetic presenters and manipulated news-style footage when required, verify claims, and follow platform advertising rules.</p>
-    <p>See <Link href="/rights">Media rights</Link>, <Link href="/ai-transparency">AI transparency</Link> and <Link href="/privacy">Privacy</Link>. No example videos or links to external platforms are included in this guide.</p>
+    <p>See <Link href="/rights">Media rights</Link>, <Link href="/ai-transparency">AI transparency</Link> and <Link href="/privacy">Privacy</Link>. No example videos are included in this guide.</p>
    </section>
    <section className="sm-camera-section" id="ideas">
     <div className="sm-camera-section-title"><span className="sm-legal-num">07 / WHAT ELSE CAN YOU MAKE?</span>
