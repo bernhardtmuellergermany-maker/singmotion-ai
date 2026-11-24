@@ -31,7 +31,7 @@ test("managed buyers choose country inside Stripe; no pre-checkout double entry"
  const checkout=read("app/(site)/api/credit-checkout/route.ts");
  const hook=read("app/(site)/api/stripe-webhook/route.ts");
  const balance=read("app/(site)/api/credit-balance/route.ts");
- assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
+ assert.doesNotMatch(picker,/needsBillingCountry|setBillingCountry|setBuyerType|paymentRoute:/);
  assert.match(balance,/globalCountrySelection:liveCheckout&&!managedCreditMoRApproved\(process\.env\)/);
  assert.match(picker,/body:JSON\.stringify\(\{credits:String\(credits\)/);
  assert.match(checkout,/metadata\[creditTaxFlow\]/);
