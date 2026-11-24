@@ -354,7 +354,7 @@ test("MP4 export automatically chooses 720p or 1080p from visible source dimensi
  assert.throws(()=>chooseExportResolution([{width:0,height:720}]));
  assert.throws(()=>chooseExportResolution([]));
  const renderer=read("lib/music-video/export.ts"),editor=read("components/music-video-editor.tsx");
- assert.ok(renderer.includes("inspectExportResolution(spans,files)"));
+ assert.ok(renderer.includes("inspectExportResolution(spans,files,project.aspectRatio)"));
  assert.ok(renderer.includes("stream=width,height"));
  assert.ok(renderer.includes('scale="+width+":"+height+'));
  assert.ok(renderer.includes('color=c=black:s="+width+"x"+height'));
@@ -417,4 +417,24 @@ test("preview and render share exact source time, and playback corrects drift wi
  assert.ok(api.includes("const inspected=await probe(file)"));
  assert.ok(api.includes("duration=toMs(measured)"));
  assert.ok(!editor.includes("playing?0.24:0.001"));
+});
+
+test("auto export follows first visible video orientation; explicit format overrides it",async()=>{
+ const {chooseExportResolution}=await import("../lib/music-video/export.ts");
+ const {firstVisibleVideo,aspectFromDimensions}=await import("../lib/music-video/song-range.ts");
+ const portrait={width:720,height:1280},landscape={width:1280,height:720};
+ assert.deepEqual(chooseExportResolution([portrait],"auto"),portrait);
+ assert.deepEqual(chooseExportResolution([portrait,{width:1920,height:1080}],"auto"),{width:1080,height:1920});
+ assert.deepEqual(chooseExportResolution([landscape,portrait],"auto"),landscape);
+ assert.deepEqual(chooseExportResolution([portrait],"16:9"),landscape);
+ assert.deepEqual(chooseExportResolution([landscape],"9:16"),portrait);
+ assert.equal(aspectFromDimensions(portrait),"9:16");
+ const lower={id:"lower",track:1,timelineStartMs:10,sourceInMs:0,sourceOutMs:1000};
+ const upper={...lower,id:"upper",track:2,timelineStartMs:25};
+ assert.equal(firstVisibleVideo([lower,upper])?.id,"upper");
+ const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(core.includes("aspect_ratio TEXT NOT NULL DEFAULT 'auto'"));
+ assert.ok(editor.includes("aspectRatio:ratio"));
+ assert.ok(editor.includes("firstVisibleVideo(clips)"));
+ assert.ok(api.includes("inspectVideoDimensions(files.get(assetId)!)"));
 });
