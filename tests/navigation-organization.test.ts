@@ -181,3 +181,29 @@ test("video trim and track transfer preserve media and synchronization",async()=
  assert.ok(editor.includes('document.addEventListener("pointercancel",cancel)'));
  assert.ok(!editor.includes("draggable={!c.syncLocked}"));
 });
+
+test("draggable playhead cuts on exact timeline milliseconds without breaking sync",async()=>{
+ const {trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,songOffset}=await import("../lib/music-video/song-range.ts");
+ const song={startMs:2000,endMs:25000,positionMs:5000};
+ const left=trimSongAtPlayhead(song,11918,"end"),right=trimSongAtPlayhead(song,11918,"start");
+ assert.deepEqual(left,{...song,endMs:8918});
+ assert.deepEqual(right,{...song,startMs:8918,positionMs:11918});
+ assert.equal(songOffset(right!),songOffset(song));
+ assert.equal(trimSongAtPlayhead(song,4999,"start"),null);
+ assert.equal(trimSongAtPlayhead(song,28000,"end"),null);
+ const clip={id:"a",track:1,timelineStartMs:8918,sourceInMs:1000,sourceOutMs:6000,syncLocked:true};
+ const parts=splitVideoAtPlayhead(clip,10000,"b");
+ assert.deepEqual(parts,[{...clip,sourceOutMs:2082},{...clip,id:"b",timelineStartMs:10000,sourceInMs:2082}]);
+ assert.equal(splitVideoAtPlayhead(clip,8920,"b"),null);
+ assert.equal(snapPlayhead(8900,20000,[8918],100),8918);
+ assert.equal(snapPlayhead(8900,20000,[],100),8900);
+ assert.equal(snapPlayhead(-100,20000,[],100),0);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("onPointerDown={e=>scrubMarker(e,true)}"));
+ assert.ok(editor.includes("onPointerMove={updateMarker}"));
+ assert.ok(editor.includes("e.currentTarget.setPointerCapture(e.pointerId)"));
+ assert.ok(editor.includes("splitVideoAtPlayhead(current,playheadRef.current,uuid())"));
+ assert.ok(editor.includes('onClick={()=>cutSong("start")}'));
+ assert.ok(editor.includes('onClick={()=>cutSong("end")}'));
+ assert.ok(editor.includes("commitSongRange(next,next.positionMs)"));
+});
