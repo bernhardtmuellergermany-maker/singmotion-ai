@@ -571,3 +571,11 @@
  .mv-root .mv-browse-filter{width:100%}
 }
 @media(max-width:400px){.mv-root .mv-browse-filter select,.mv-root .mv-browse-control span{font-size:11px}.mv-root .mv-browse-toolbar .mv-browse-control{padding-inline:9px}}
+
+/* Consistent white lane symbols, unobtrusive duration, and foreground menus. */
+.mv-root.mv-editor .mv-clip-title{display:flex;align-items:center;gap:4px;color:#fff;min-width:0}
+.mv-root.mv-editor .mv-clip-title>svg{flex:none;color:#fff}
+.mv-root.mv-editor .mv-clip-title>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv-root .mv-project-card:has(.mv-card-more[open]),.mv-root .mv-media-card:has(.mv-media-actions details[open]){position:relative;z-index:20}
+.mv-root.mv-editor .mv-song-trim>.mv-inspector-duration{margin-left:auto;align-self:center;color:#bcaacb;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.mv-root.mv-editor .mv-inspector-duration b{color:#eee5f5;font-weight:500}
