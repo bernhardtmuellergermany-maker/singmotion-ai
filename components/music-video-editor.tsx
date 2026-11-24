@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -118,12 +118,9 @@ export function MusicVideoEditor({id}:{id:string}){
     if(record){past.current.push({clips:latest.current,range:rangeRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
     const changed=range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs||range.positionMs!==rangeRef.current.positionMs;
     rangeRef.current=range;
-    if(changed){
-      displaySong(range);
-      stopPlayback();
-      const at=Math.min(playheadRef.current,Math.max(songTimelineEnd(range),...next.map(clipEnd)));
-      setAt(at,range);
-    }
+    if(changed)displaySong(range);
+    const at=timelineProgress(playheadRef.current,Math.max(songTimelineEnd(range),...next.map(clipEnd))).positionMs;
+    if(changed||at!==Math.round(playheadRef.current)){stopPlayback();setAt(at,range);}
     latest.current=next;setClips(next);setError("");queue();
   }
   function undo(){
@@ -256,6 +253,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const activeAsset=activeClip?byId.get(activeClip.assetId):null;
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
   const timelineEnd=project?Math.max(songTimelineEnd(songRange),...clips.map(clipEnd)):0;
+  const progress=timelineProgress(playhead,timelineEnd);
   const pixels=project?Math.max(640,Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000)/1000*zoom):640;
   const timelineLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000):0;
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
@@ -590,8 +588,11 @@ export function MusicVideoEditor({id}:{id:string}){
         onLoadedMetadata={()=>setAt(playheadRef.current)}/>
       <div className="mv-player-controls">
         <button aria-label={playing?"Pause":"Play"} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
-        <span className="mv-clock">{time(playhead,true)} / {time(timelineEnd,true)}</span>
-        <input className="mv-progress" aria-label="Seek song" type="range" min={0} max={timelineEnd} step="1" value={Math.max(0,Math.min(timelineEnd,playhead))} onChange={e=>seek(Number(e.target.value))}/>
+        <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
+        <div className="mv-progress-wrap">
+          <div className="mv-progress-rail" aria-hidden="true"><span style={{width:progress.percent+"%"}}/></div>
+          <input className="mv-progress" aria-label="Seek timeline" aria-valuetext={time(progress.positionMs,true)} type="range" min={0} max={Math.max(1,timelineEnd)} step="1" disabled={timelineEnd===0} value={progress.positionMs} onChange={e=>seek(Number(e.target.value))}/>
+        </div>
         <button title="Song is the only audio track" aria-label="Song audio only"><Volume2 size={19}/></button>
         <button aria-label="Fullscreen" onClick={()=>{const box=document.querySelector(".mv-video-box");void box?.requestFullscreen?.();}}><Maximize size={19}/></button>
       </div>
@@ -662,7 +663,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}
             </div>
-            <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:playhead/1000*zoom}}>
+            <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}}>
               <button type="button" className="mv-playhead-grip" role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
                 onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
             </div>
