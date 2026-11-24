@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
-import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
+import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
@@ -60,8 +60,8 @@ export function MusicVideoEditor({id}:{id:string}){
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
   const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"B-Roll"|"AI Video"|"Uploads">("All");
-  const [search,setSearch]=useState(""),[addMenu,setAddMenu]=useState<Track|null>(null);
-  const [uploadTrack,setUploadTrack]=useState<Track|null>(null),[error,setError]=useState(""),[status,setStatus]=useState("Saved");
+  const [search,setSearch]=useState("");
+  const [error,setError]=useState(""),[status,setStatus]=useState("Saved");
   const [lipTrack,setLipTrack]=useState<Track|null>(null),[lipSources,setLipSources]=useState<LipSyncSource[]>([]);
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
   const [importing,setImporting]=useState(false);
@@ -273,13 +273,13 @@ export function MusicVideoEditor({id}:{id:string}){
   const selectedClip=clips.find(c=>c.id===selected);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
   const songSelected=!selectedClip||!selectedAsset;
-  function selectSong(){setSelected(null);setAddMenu(null);setInspectorOpen(true);}
+  function selectSong(){setSelected(null);setInspectorOpen(true);}
   useEffect(()=>{setInspectorOpen(true);},[selected,partIndex]);
   const currentParts=effectiveSongParts(songRange,songParts);
   const selectedPart=currentParts[Math.min(partIndex,currentParts.length-1)];
   useEffect(()=>{setPartStartText(time(selectedPart.startMs,true));setPartEndText(time(selectedPart.endMs,true));},[selectedPart.startMs,selectedPart.endMs]);
   function selectPart(i:number){setPartIndex(i);selectSong();}
-  function selectVideo(id:string){setSelected(id);setInspectorOpen(true);setAddMenu(null);}
+  function selectVideo(id:string){setSelected(id);setInspectorOpen(true);}
   function editPart(start:number,end:number){
     if(importBusy.current||!partsRef.current)return;
     const list=partsRef.current,i=Math.min(partIndex,list.length-1);
@@ -569,7 +569,7 @@ export function MusicVideoEditor({id}:{id:string}){
     apply(latest.current.map(c=>c.id===selectedClip.id?{...c,syncLocked:lock}:c));
   }
   async function openLipSync(track:Track){
-    setAddMenu(null);setLipTrack(track);setLipSearch("");setLipError("");setLipLoading(true);setLipSources([]);
+    setLipTrack(track);setLipSearch("");setLipError("");setLipLoading(true);setLipSources([]);
     try{
       await ensureSession();
       const result=await request<{videos:LipSyncSource[]}>(endpoint+id+"/lip-sync");
@@ -619,7 +619,7 @@ export function MusicVideoEditor({id}:{id:string}){
     }catch(e){setLipError(e instanceof Error?e.message:"Unable to insert Lip Sync video.");}
     finally{importBusy.current=false;setImporting(false);}
   }
-  async function uploadVideo(file:File,track:Track|null){
+  async function uploadVideo(file:File){
     if(importBusy.current)return;
     if(!/\.(mp4|webm)$/i.test(file.name)||file.size<1||file.size>50*1024*1024){
       setError("Choose an MP4 or WebM video up to 50 MB.");return;
@@ -629,9 +629,8 @@ export function MusicVideoEditor({id}:{id:string}){
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Uploading…");
       const form=new FormData();form.set("video",file);
-      const result=await request<{asset:MusicAsset}>(endpoint+id+"/assets",{method:"POST",body:form});
+      await request<{asset:MusicAsset}>(endpoint+id+"/assets",{method:"POST",body:form});
       await load();setLibraryOpen(true);setFilter("Uploads");setStatus("Saved");
-      if(track!==null)addClip(result.asset,track,playhead);
     }catch(e){setError(e instanceof Error?e.message:"Upload failed.");setStatus("Saved");}
     finally{importBusy.current=false;setImporting(false);}
   }
@@ -913,19 +912,7 @@ export function MusicVideoEditor({id}:{id:string}){
             </div>
           </div>
         </div>
-        <div className="mv-track-adds" aria-label="Add videos">
-          <div className="mv-add-spacer"/>
-          {([2,1] as Track[]).map(track=><div className="mv-track-add-row" key={track}>
-            <button type="button" className="mv-track-add-button" aria-label={"Add video to track "+track} aria-expanded={addMenu===track} title={track===1?"Add to Lip Sync / Main":"Add to Video 2"} onClick={()=>setAddMenu(addMenu===track?null:track)}><Plus size={15}/></button>
-            {addMenu===track&&<div className="mv-add-menu">
-              <button disabled={importing} onClick={()=>void openLipSync(track)}><Music2 size={15}/> Insert Lip Sync</button>
-              <button disabled={importing} onClick={()=>{setUploadTrack(track);fileInput.current?.click();setAddMenu(null);}}><Upload size={15}/> Upload own video</button>
-              <button onClick={()=>{setLibraryOpen(true);setAddMenu(null);}}><FolderOpen size={15}/> Library</button>
-              <button disabled title="AI video generation will be added later"><Plus size={15}/> Generate · Soon</button>
-            </div>}
-          </div>)}
-          <div className="mv-track-add-row mv-track-add-audio" aria-hidden="true"/>
-        </div>
+
       </div>
       <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?(songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1):"Song"):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
@@ -966,7 +953,7 @@ export function MusicVideoEditor({id}:{id:string}){
       </div>
       {error&&<p className="mv-error" role="alert">{error}</p>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
-        const file=e.target.files?.[0];if(file)void uploadVideo(file,uploadTrack);e.target.value="";
+        const file=e.target.files?.[0];if(file)void uploadVideo(file);e.target.value="";
       }}/>
     </section>
     <section className="mv-library">
@@ -979,7 +966,8 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","B-Roll","AI Video","Uploads"] as const).map(f=>
           <button key={f} className={filter===f?"active":""} onClick={()=>setFilter(f)}>{f}</button>)}</div>
           <div className="mv-library-search"><Search size={16}/><input placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-          <button className="mv-outline" disabled={importing} onClick={()=>{setUploadTrack(null);fileInput.current?.click();}}><Upload size={16}/> Upload video</button>
+          <button className="mv-outline" disabled={importing} onClick={()=>void openLipSync(1)}><Music2 size={16}/> Insert Lip Sync</button>
+          <button className="mv-outline" disabled={importing} onClick={()=>fileInput.current?.click()}><Upload size={16}/> Upload video</button>
         </div>
         {media.length?<div className="mv-media-grid">{media.map(a=><article key={a.id} className="mv-media-card"
           draggable onDragStart={e=>e.dataTransfer.setData("application/x-mvasset",a.id)}>
