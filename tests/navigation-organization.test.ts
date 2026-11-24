@@ -496,3 +496,19 @@ test("project overview reuses first visible clip thumbnail and offers explicit e
  assert.ok(client.includes('<Link href={"/projects/"+p.id}><Pencil size={14}/> Edit</Link>'));
  assert.ok(core.includes('thumbnailAssetId:firstVisibleVideo'));
 });
+
+test("project and library browse toolbars offer search, matching filters, refresh and sorting",()=>{
+ const client=read("components/music-projects-client.tsx"),editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ for(const page of [client,editor]){
+  assert.ok(page.includes('className="mv-browse-toolbar"'));
+  assert.ok(page.includes('className="mv-browse-search"'));
+  assert.ok(page.includes('className="mv-browse-filter"'));
+  assert.ok(page.includes("Newest first"));
+  assert.ok(page.includes("Oldest first"));
+ }
+ assert.ok(client.includes('aria-label="Refresh projects"'));
+ assert.ok(editor.includes('aria-label="Refresh library"'));
+ assert.ok(editor.includes("libraryNewest?b.createdAt-a.createdAt:a.createdAt-b.createdAt"));
+ assert.ok(client.includes("newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt"));
+ assert.ok(css.includes(".mv-root .mv-format-controls>span{margin-right:5px}"));
+});
