@@ -452,3 +452,26 @@
 }
 .mv-root.mv-editor .mv-library-search input{background:transparent!important}
 .mv-root.mv-editor input::selection{background:#704293;color:#fff}
+
+/* New Project uses a native audio file chooser: style both its text and its button. */
+.mv-root.mv-projects .mv-dialog input{
+ color-scheme:dark;background:#131d2b!important;color:#f4f0fa!important;
+ -webkit-text-fill-color:#f4f0fa!important;border:1px solid #44394e!important;
+ border-radius:10px;box-sizing:border-box;min-width:0;width:100%;opacity:1;
+}
+.mv-root.mv-projects .mv-dialog input::placeholder{color:#a99bb9!important;-webkit-text-fill-color:#a99bb9!important;opacity:1}
+.mv-root.mv-projects .mv-dialog input[type=file]{
+ display:block;padding:6px!important;line-height:1.5;cursor:pointer;overflow:hidden;
+}
+.mv-root.mv-projects .mv-dialog input[type=file]::file-selector-button{
+ color-scheme:dark;background:#2c203d!important;color:#f4f0fa!important;
+ -webkit-text-fill-color:#f4f0fa!important;border:1px solid #65467b!important;
+ border-radius:6px;padding:7px 10px;margin:0 9px 0 0;font:inherit;cursor:pointer;
+}
+.mv-root.mv-projects .mv-dialog input[type=file]::-webkit-file-upload-button{
+ background:#2c203d!important;color:#f4f0fa!important;-webkit-text-fill-color:#f4f0fa!important;
+ border:1px solid #65467b!important;border-radius:6px;padding:7px 10px;margin:0 9px 0 0;font:inherit;cursor:pointer;
+}
+.mv-root.mv-projects .mv-dialog input[type=file]::file-selector-button:hover{background:#403052!important}
+.mv-root.mv-projects .mv-dialog input:focus-visible{outline:2px solid #a76cce;outline-offset:2px}
+.mv-root.mv-projects .mv-dialog input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #131d2b inset!important;-webkit-text-fill-color:#f4f0fa!important}
