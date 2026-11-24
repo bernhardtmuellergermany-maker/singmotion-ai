@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -19,6 +19,7 @@ const time=(ms:number,precise=false)=>{
   return String(Math.floor(n/60000)).padStart(2,"0")+":"+String(Math.floor(n%60000/1000)).padStart(2,"0")+
     (precise?"."+String(n%1000).padStart(3,"0"):"");
 };
+const signedTime=(ms:number)=>(ms<0?"-":"")+time(Math.abs(ms),true);
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
   const response=await fetch(url,{cache:"no-store",credentials:"same-origin",...init});
   const data=await response.json() as T&{error?:string};
@@ -36,6 +37,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const playheadRef=useRef(0),playingRef=useRef(false);
   const rangeRef=useRef<SongPlacement>({startMs:0,endMs:0,positionMs:0});
   const [selected,setSelected]=useState<string|null>(null),[playhead,setPlayhead]=useState(0);
+  const [clipSongText,setClipSongText]=useState("00:00.000"),[clipTimelineText,setClipTimelineText]=useState("00:00.000");
+  const clipTimeMode=useRef<"song"|"timeline">("song");
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
   const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"AI Video"|"Uploads">("All");
   const [search,setSearch]=useState(""),[addMenu,setAddMenu]=useState<Track|null>(null);
@@ -195,6 +198,54 @@ export function MusicVideoEditor({id}:{id:string}){
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
   const selectedClip=clips.find(c=>c.id===selected);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
+  const selectedStart=selectedClip?.timelineStartMs;
+  const selectedId=selectedClip?.id;
+  const offset=songOffset(songRange);
+  useEffect(()=>{
+    if(selectedStart===undefined)return;
+    setClipSongText(signedTime(selectedStart-offset));setClipTimelineText(time(selectedStart,true));clipTimeMode.current="song";
+  },[selectedId,selectedStart,offset]);
+  function updateClipTime(text:string,mode:"song"|"timeline"){
+    clipTimeMode.current=mode;
+    if(mode==="song"){
+      setClipSongText(text);
+      const ms=parseRelativeSongTime(text);
+      if(ms!==null)setClipTimelineText(signedTime(songTimeToTimeline(ms,rangeRef.current)));
+    }else{
+      setClipTimelineText(text);
+      const ms=parseSongTime(text);
+      if(ms!==null)setClipSongText(signedTime(timelineToSongTime(ms,rangeRef.current)));
+    }
+  }
+  function moveSelectedClip(position:number,restore=false){
+    if(importBusy.current||!selectedClip||!selectedAsset)return;
+    const current=latest.current.find(c=>c.id===selectedClip.id);
+    if(!current)return;
+    const result=positionVideoClip(latest.current,current,position);
+    if(result.status!=="ok"){
+      setError(result.status==="collision"?"That position is occupied on Video "+current.track+". The clip was not moved.":result.status==="locked"?"Sync Lock is enabled. Unlock this clip before moving it away from its original song position.":"The complete clip must fit within the timeline.");
+      return;
+    }
+    const candidate={...result.clip,syncLocked:restore||current.syncLocked};
+    if(candidate.timelineStartMs!==current.timelineStartMs||candidate.syncLocked!==current.syncLocked)
+      apply(latest.current.map(c=>c.id===current.id?candidate:c));
+    setClipSongText(signedTime(timelineToSongTime(position,rangeRef.current)));setClipTimelineText(time(position,true));
+    setError("");stopPlayback();setAt(position);
+    requestAnimationFrame(()=>{
+      const el=scroll.current;if(!el)return;
+      const x=position/1000*zoom;
+      if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);
+    });
+  }
+  function submitClipTime(){
+    const mode=clipTimeMode.current;
+    const ms=mode==="song"?parseRelativeSongTime(clipSongText):parseSongTime(clipTimelineText);
+    if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
+    moveSelectedClip(mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms);
+  }
+  const originalClipSongTime=selectedClip&&selectedAsset?.kind==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
+    ?selectedAsset.sourceStartMs+selectedClip.sourceInMs:null;
+
   const activeClip=clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0];
   const activeAsset=activeClip?byId.get(activeClip.assetId):null;
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
@@ -272,7 +323,9 @@ export function MusicVideoEditor({id}:{id:string}){
     }
   }
   function movePointer(e:React.PointerEvent,clip:MusicClip,edge:"start"|"end"|"move"){
-    if(e.button!==0||edge==="move"&&clip.syncLocked)return;
+    if(e.button!==0)return;
+    setSelected(clip.id);
+    if(edge==="move"&&clip.syncLocked)return;
     e.stopPropagation();e.preventDefault();
     const startX=e.clientX,initial={...clip};
     const startClips=latest.current;
@@ -512,6 +565,8 @@ export function MusicVideoEditor({id}:{id:string}){
                     style={{left:c.timelineStartMs/1000*zoom,width:(c.sourceOutMs-c.sourceInMs)/1000*zoom}}
                     draggable={!c.syncLocked}
                     onDragStart={e=>e.dataTransfer.setData("application/x-mvclip",c.id)}
+                    tabIndex={0} aria-label={"Select video "+a.name}
+                    onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();setSelected(c.id);seek(c.timelineStartMs);}}}
                     onClick={()=>{setSelected(c.id);seek(c.timelineStartMs);}}
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))movePointer(e,c,"move");}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
@@ -541,6 +596,14 @@ export function MusicVideoEditor({id}:{id:string}){
           </div>
         </div>
       </div>
+      {selectedClip&&selectedAsset&&<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();submitClipTime();}}>
+        <strong><Film size={16}/> Video {selectedClip.track}: {selectedAsset.name}</strong>
+        <label>Song start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
+        <label>Timeline start<input aria-label="Video start time on timeline" value={clipTimelineText} onChange={e=>updateClipTime(e.target.value,"timeline")} placeholder="00:08.918"/></label>
+        <button type="submit" className="mv-primary" disabled={importing}>Move video</button>
+        {originalClipSongTime!==null&&<button type="button" className="mv-outline" disabled={importing} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)}><Lock size={14}/> Restore Lip Sync · {time(originalClipSongTime,true)}</button>}
+        <small>Song start refers to the original recording; timeline start follows the actual project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
+      </form>}
       <form className="mv-song-trim" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
         <strong><Scissors size={16}/> Song trim</strong>
         <label>Source start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
