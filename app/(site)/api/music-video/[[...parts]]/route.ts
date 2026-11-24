@@ -333,6 +333,17 @@ async function handler(req:NextRequest,context:Context){
         return json({deleted:true});
       }
       if(req.method==="GET"){
+        if(req.nextUrl.searchParams.has("download")){
+          // Recheck the project and original media ownership before streaming.
+          if(asset.sourceKind==="paid")return Response.redirect(new URL("/api/customer-video?orderId="+encodeURIComponent(asset.sourceId||"")+"&download=1",req.url));
+          const files=await exportSources(req,owner,id,musicDetail(id,owner),[assetId]);
+          const file=files.get(assetId)!;
+          const extension=asset.sourceKind==="uploaded"&&asset.sourceId==="webm"?"webm":"mp4";
+          const name=(asset.name.replace(/\.(mp4|webm)$/i,"").replace(/[^A-Za-z0-9_. -]/g,"_").trim()||"video")+"."+extension;
+          const info=await stat(file);
+          if(!info.isFile()||info.size<1)throw new MusicError("Media unavailable.",404);
+          return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream,{headers:{...common,"Content-Type":extension==="webm"?"video/webm":"video/mp4","Content-Length":String(info.size),"Content-Disposition":'attachment; filename="'+name+'"'}});
+        }
         if(asset.sourceKind==="uploaded")
           return await streamFile(req,path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId),asset.sourceId==="webm"?"video/webm":"video/mp4");
         if(asset.sourceKind==="live")
