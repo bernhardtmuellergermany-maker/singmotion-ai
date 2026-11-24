@@ -1,5 +1,5 @@
 "use client";
-import {useCallback,useEffect,useMemo,useRef,useState} from "react";
+import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
@@ -48,6 +48,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const [markerText,setMarkerText]=useState("00:00.000"),[scrubbing,setScrubbing]=useState(false);
   const markerDrag=useRef<{pointer:number;offset:number}|null>(null);
   const trackArea=useRef<HTMLDivElement>(null);
+  const tracksRef=useRef<HTMLDivElement>(null);
+  const [rulerViewport,setRulerViewport]=useState({left:0,width:0,scrollLeft:0});
   useEffect(()=>{setMarkerText(time(playhead,true));},[playhead]);
   const [dragTrack,setDragTrack]=useState<Track|null>(null),[dragBlocked,setDragBlocked]=useState(false);
   const videoLanes=useRef<Partial<Record<Track,HTMLDivElement|null>>>({});
@@ -269,6 +271,21 @@ export function MusicVideoEditor({id}:{id:string}){
     document.addEventListener("pointercancel",cancel);
   }
   const project=detail?.project,assets=detail?.assets||[];
+  // The grip sits outside the clipped scroll container, but follows its exact coordinates.
+  useLayoutEffect(()=>{
+    const tracks=tracksRef.current,scroller=scroll.current,area=trackArea.current;
+    if(!tracks||!scroller||!area)return;
+    const update=()=>{
+      const left=scroller.getBoundingClientRect().left-tracks.getBoundingClientRect().left+scroller.clientLeft;
+      const width=scroller.clientWidth,scrollLeft=scroller.scrollLeft;
+      setRulerViewport(previous=>previous.left===left&&previous.width===width&&previous.scrollLeft===scrollLeft?previous:{left,width,scrollLeft});
+    };
+    update();
+    scroller.addEventListener("scroll",update,{passive:true});
+    const observer=new ResizeObserver(update);
+    observer.observe(tracks);observer.observe(scroller);observer.observe(area);
+    return()=>{scroller.removeEventListener("scroll",update);observer.disconnect();};
+  },[project?.id]);
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
   const selectedClip=clips.find(c=>c.id===selected);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
@@ -414,6 +431,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
   const timelineEnd=project?Math.max(songPartsEnd(songRange,songParts),...clips.map(clipEnd)):0;
   const progress=timelineProgress(playhead,timelineEnd);
+  const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
+  const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
   const pixels=project?Math.max(640,Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000)/1000*zoom):640;
   const timelineLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000):0;
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
@@ -864,7 +883,7 @@ export function MusicVideoEditor({id}:{id:string}){
             <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)}/></label>
             <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
           </form>
-          <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap</label>
+          <label title="Automatically align clips and the playhead to nearby clip edges"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap to edges</label>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
             
             <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=20} onClick={()=>setZoom(z=>Math.max(20,z-12))}><Minus size={17}/></button>
@@ -872,7 +891,7 @@ export function MusicVideoEditor({id}:{id:string}){
             <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=140} onClick={()=>setZoom(z=>Math.min(140,z+12))}><Plus size={17}/></button>
           </div></div>
       </div>
-      <div className="mv-tracks">
+      <div className="mv-tracks" ref={tracksRef}>
         <div className="mv-track-labels">
           <div className="mv-label mv-ruler-spacer"/>
           {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"Video · Overlay"}>
@@ -921,13 +940,13 @@ export function MusicVideoEditor({id}:{id:string}){
                 {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}/>)}
               </div>)}
             </div>
-            <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}}>
-              <button type="button" className="mv-playhead-grip" style={{left:Math.max(0,Math.min(pixels-25,progress.positionMs/1000*zoom-12))-progress.positionMs/1000*zoom}} role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
-                onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
-            </div>
+            <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}} aria-hidden="true"/>
           </div>
         </div>
-
+        <div className="mv-playhead-overlay">
+          <button type="button" className="mv-playhead-grip" style={{left:rulerViewport.left+markerViewportX,visibility:markerVisible?"visible":"hidden"}} role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
+                onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
+        </div>
       </div>
       <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
