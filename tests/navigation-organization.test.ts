@@ -225,3 +225,24 @@ test("project player progress shares the exact timeline position with its clock 
  assert.ok(css.includes("input.mv-progress[type=range]"));
  assert.ok(css.includes("padding:0!important"));
 });
+
+test("exact video end and hold-to-edit preserve the source timing and scroll intent",async()=>{
+ const {setVideoEnd,mediaPanAxis,MEDIA_HOLD_MS}=await import("../lib/music-video/song-range.ts");
+ const clip={id:"a",track:1,timelineStartMs:8918,sourceInMs:1000,sourceOutMs:6000,syncLocked:true};
+ const next={...clip,id:"b",timelineStartMs:15000};
+ assert.deepEqual(setVideoEnd([clip],clip,12000,9000),{...clip,sourceOutMs:4082});
+ assert.equal(setVideoEnd([clip,next],clip,15001,9000),null);
+ assert.equal(setVideoEnd([clip],clip,18000,9000),null);
+ assert.equal(setVideoEnd([clip],clip,8918,9000),null);
+ assert.equal(mediaPanAxis(4,3),null);
+ assert.equal(mediaPanAxis(20,3),"x");
+ assert.equal(mediaPanAxis(3,-20),"y");
+ assert.equal(MEDIA_HOLD_MS,350);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("setVideoEnd(latest.current,current,end,sourceLimit(current,selectedAsset))"));
+ assert.ok(editor.includes('aria-label="Video end time on timeline"'));
+ assert.ok(editor.includes("scroller.scrollLeft=startScroll-dx"));
+ assert.ok(editor.includes('beginMediaGesture(e,c.id,()=>movePointer(e,c,"move")'));
+ assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
+ assert.ok(editor.includes('track===1?"Lip Sync":"Video 2"'));
+});
