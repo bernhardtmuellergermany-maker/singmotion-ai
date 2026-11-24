@@ -4,7 +4,7 @@ import {mkdtemp,rm,writeFile,stat} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {randomUUID} from "node:crypto";
-import type {MusicClip,MusicProject} from "./core";
+import type {MusicClip,MusicProject,ProjectAspectRatio} from "./core";
 import {effectiveSongParts,songTimeToTimeline,songPartsEnd,clipSourceTimeMs,type SongPlacement} from "./song-range.ts";
 
 const exec=promisify(execFile);
@@ -26,14 +26,16 @@ export function videoRenderSpans(clips:MusicClip[],durationMs:number):RenderSpan
  }
  return spans;
 }
-/** Select one landscape canvas from the actual visible source videos, independent of orientation. */
-export type ExportResolution={width:1280;height:720}|{width:1920;height:1080};
-export function chooseExportResolution(sources:readonly {width:number;height:number}[]):ExportResolution{
+/** Select HD or Full HD from visible sources, then orient the project canvas. */
+export type ExportResolution={width:1280;height:720}|{width:1920;height:1080}|{width:720;height:1280}|{width:1080;height:1920};
+export function chooseExportResolution(sources:readonly {width:number;height:number}[],aspectRatio:ProjectAspectRatio="16:9"):ExportResolution{
  if(!sources.length||sources.some(s=>!Number.isSafeInteger(s.width)||!Number.isSafeInteger(s.height)||s.width<=0||s.height<=0))
   throw new Error("Could not determine source video resolution.");
- return sources.some(s=>Math.min(s.width,s.height)>720)?{width:1920,height:1080}:{width:1280,height:720};
+ const full=sources.some(s=>Math.min(s.width,s.height)>720);
+ if(aspectRatio==="9:16")return full?{width:1080,height:1920}:{width:720,height:1280};
+ return full?{width:1920,height:1080}:{width:1280,height:720};
 }
-async function inspectExportResolution(spans:RenderSpan[],files:Map<string,string>):Promise<ExportResolution>{
+async function inspectExportResolution(spans:RenderSpan[],files:Map<string,string>,aspectRatio:ProjectAspectRatio):Promise<ExportResolution>{
  const dimensions:{width:number;height:number}[]=[];
  const ids=new Set(spans.flatMap(s=>s.clip?[s.clip.assetId]:[]));
  for(const id of ids){
@@ -42,7 +44,7 @@ async function inspectExportResolution(spans:RenderSpan[],files:Map<string,strin
   const stream=JSON.parse(stdout).streams?.[0];
   dimensions.push({width:Number(stream?.width),height:Number(stream?.height)});
  }
- return chooseExportResolution(dimensions);
+ return chooseExportResolution(dimensions,aspectRatio);
 }
 type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;progress:number;resolution?:ExportResolution;folder?:string;error?:string};
 const jobs=new Map<string,Job>();
@@ -94,7 +96,7 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
  const parts=effectiveSongParts(range,project.songParts);
  const duration=Math.max(songPartsEnd(range,project.songParts),...clips.map(clipEnd));
  const spans=videoRenderSpans(clips,duration);
- const resolution=await inspectExportResolution(spans,files);job.resolution=resolution;
+ const resolution=await inspectExportResolution(spans,files,project.aspectRatio);job.resolution=resolution;
  const {width,height}=resolution;
  const folder=await mkdtemp(path.join(tmpdir(),"sm-music-export-"));job.folder=folder;
  const started=Date.now(),remaining=()=>Math.max(1,Math.min(180000,20*60*1000-(Date.now()-started)));
