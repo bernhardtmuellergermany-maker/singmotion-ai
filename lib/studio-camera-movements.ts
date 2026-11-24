@@ -418,3 +418,16 @@ export function cameraMovementPreview(move:CameraMovement){
  const stem="/camera-movements/singmotion-"+move.name.toLowerCase().replace(/[^a-z0-9]+/g,"-");
  return {animation:stem+".webp",poster:stem+"-poster.webp"};
 }
+
+/** Replace library suggestions while preserving manually written lines and formatting. */
+export function replaceCameraQuickTip(prompt:string,move:CameraMovement):string {
+ const known=new Set(cameraMovements.map(item=>item.direction));
+ let replaced=false;
+ const lines=prompt.split("\n").flatMap(line=>{
+  if(!known.has(line))return [line];
+  if(replaced)return [];
+  replaced=true;
+  return [move.direction];
+ });
+ return replaced?lines.join("\n"):prompt+(prompt&&!prompt.endsWith("\n")?"\n":"")+move.direction;
+}

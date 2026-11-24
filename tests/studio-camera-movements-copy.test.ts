@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import sharp from "sharp";
 import {
- cameraMovements,featuredCameraMovements,additionalCameraMovements,cameraMovementPreview,
+ cameraMovements,featuredCameraMovements,additionalCameraMovements,cameraMovementPreview,replaceCameraQuickTip,
 } from "../lib/studio-camera-movements.ts";
 
 const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
@@ -26,7 +26,7 @@ test("all 34 camera moves are available; nine recommended moves show initially",
  }
 });
 
-test("Studio camera picker only replaces previous Camera line and expands 25 experimental moves on demand",()=>{
+test("Studio camera picker only replaces library quick tips and expands 25 experimental moves on demand",()=>{
  const wizard=read("components/studio-wizard.tsx");
  const help=read("app/(site)/help/camera-movements/page.tsx");
  assert.match(help,/import \{cameraMovements\} from "@\/lib\/studio-camera-movements"/);
@@ -42,8 +42,6 @@ test("Studio camera picker only replaces previous Camera line and expands 25 exp
  assert.match(wizard,/aria-expanded=\{cameraMovesExpanded\}/);
  assert.match(wizard,/aria-controls="sm-more-camera-movements"/);
  assert.match(wizard,/Show more \(25 experimental\)/);
- assert.match(wizard,/const kept=lines\.filter\(line=>!\/\^Camera:/);
- assert.match(wizard,/kept\.push\(move\.direction\)/);
  assert.match(wizard,/if\(next\.length>500\)/);
  assert.doesNotMatch(wizard,/performanceInput\.current\??\.focus\s*\(/);
  assert.match(wizard,/if\(document\.activeElement===performanceInput\.current\)performanceInput\.current\?\.blur\(\)/);
@@ -119,4 +117,20 @@ test("shared lazy preview has a still for reduced motion and Studio keeps one di
  assert.match(wizard,/cameraPreview\?\.recommended/);
  assert.match(wizard,/cameraMovesExpanded && cameraPreview && !cameraPreview\.recommended/);
  assert.match(wizard,/aria-expanded=\{cameraPreview\?\.id===move\.id\}/);
+});
+
+test("quick tip switching preserves personal instructions and whitespace",()=>{
+ const [a,b]=featuredCameraMovements;
+ const c=additionalCameraMovements[0];
+ const own="  Sing with joy.\n\nCamera: Keep my own framing.\nCustom lighting.  ";
+ assert.equal(replaceCameraQuickTip("",a),a.direction);
+ assert.equal(replaceCameraQuickTip(own,a),own+"\n"+a.direction);
+ assert.equal(replaceCameraQuickTip(own+"\n"+a.direction,b),own+"\n"+b.direction);
+ assert.equal(replaceCameraQuickTip(own+"\n"+b.direction,b),own+"\n"+b.direction);
+ assert.equal(replaceCameraQuickTip(own+"\n"+a.direction+"\n"+b.direction,c),own+"\n"+c.direction);
+ assert.equal(replaceCameraQuickTip(a.direction+"\n"+own,c),c.direction+"\n"+own);
+ assert.equal(replaceCameraQuickTip(own+"\n\n"+a.direction,b),own+"\n\n"+b.direction);
+ assert.equal(replaceCameraQuickTip(own+"\n"+a.direction+"\nAdditional manual text.",b),own+"\n"+b.direction+"\nAdditional manual text.");
+ assert.equal(replaceCameraQuickTip(own+"\n",a),own+"\n"+a.direction);
+ assert.match(read("components/studio-wizard.tsx"),/replaceCameraQuickTip\(draft\.customPrompt,move\)/);
 });
