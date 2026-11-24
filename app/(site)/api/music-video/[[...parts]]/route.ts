@@ -74,7 +74,8 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
     try{
       const service=studioRuntime(live,dataDir,process.env,true,false).service;
       const p=service.view(ref,logged.owner);
-      if(!p.outputReady)throw new MusicError("Only completed videos can be added.",409);
+      if(!p.outputReady||p.hidden||service.trashedAt(ref,logged.owner)!==null)throw new MusicError("Only available completed videos can be added.",409);
+      await service.output(ref,logged.owner);
       const from=toMs(p.selection.start),to=toMs(p.selection.end),duration=toMs(p.durationSeconds);
       return {kind:"lip-sync" as MediaKind,name:p.displayName||p.projectName||p.artistName||"Lip Sync",durationMs:duration,
         sourceStartMs:from,sourceEndMs:to};
@@ -145,6 +146,20 @@ async function handler(req:NextRequest,context:Context){
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
       return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[]));
+    }
+    if(section==="lip-sync"&&!assetId&&req.method==="GET"){
+      const logged=session(req.cookies.get("sm_session")?.value);
+      if(!owner.startsWith("staff:")||logged?.owner!=="cms-staff-"+owner.slice(6))
+        throw new MusicError("Open Studio to establish your private media session.",403);
+      const live=await openStudioStore(dataDir);
+      try{
+        const service=studioRuntime(live,dataDir,process.env,true,false).service;
+        const videos=service.list(logged.owner).filter(p=>p.outputReady&&!p.hidden)
+          .map(p=>({id:p.id,name:p.displayName||p.projectName||p.artistName||"Lip Sync",
+            durationMs:toMs(p.durationSeconds),sourceStartMs:toMs(p.selection.start),sourceEndMs:toMs(p.selection.end)}))
+          .filter(p=>p.sourceStartMs>=0&&p.sourceEndMs>p.sourceStartMs);
+        return json({videos});
+      }finally{live.db.close();}
     }
     if(section==="assets"&&!assetId&&req.method==="POST"){
       const kind=req.headers.get("content-type")||"";
