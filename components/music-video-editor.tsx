@@ -707,7 +707,12 @@ export function MusicVideoEditor({id}:{id:string}){
             <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
           </form>
           <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap</label>
-          <Minus size={15}/><input aria-label="Timeline zoom" type="range" min="20" max="140" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/><ZoomIn size={16}/></div>
+          <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
+            <span><ZoomIn size={14}/> Zoom</span>
+            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=20} onClick={()=>setZoom(z=>Math.max(20,z-12))}><Minus size={17}/></button>
+            <output aria-label="Timeline zoom level">{(zoom/44).toFixed(1)}×</output>
+            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=140} onClick={()=>setZoom(z=>Math.min(140,z+12))}><Plus size={17}/></button>
+          </div></div>
       </div>
       <div className="mv-tracks">
         <div className="mv-track-labels">
