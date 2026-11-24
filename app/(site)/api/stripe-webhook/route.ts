@@ -15,6 +15,7 @@ import {auditSingMotionLaunch} from "@/lib/launch-audit";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
 import {existingBoundLiveCreditReceipt} from "@/lib/commerce/legacy-private-credit-settlement";
 import {customerLaunchReadiness} from "@/lib/commerce/readiness";
+import {STANDARD_CREDIT_TAX_FLOW,existingBoundStandardCreditReceipt,standardCreditTaxDecisionFromVerifiedStripe} from "@/lib/commerce/standard-credit-checkout";
 import {managedCreditTaxDecisionFromVerifiedStripe} from "@/lib/commerce/managed-credit-payments";
 
 export const runtime = "nodejs";
@@ -56,7 +57,8 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
  const metadata=obj?.metadata as Record<string,unknown>|undefined;
  if(mode==="test"&&!stripeCreditWebhookTestEnabled(process.env)||
     mode==="live"&&!stripeCreditTopupsLiveEnabled(process.env)&&
-     !existingBoundLiveCreditReceipt(store.db,metadata?.creditTopupId,obj?.id))
+     !existingBoundLiveCreditReceipt(store.db,metadata?.creditTopupId,obj?.id)&&
+     !existingBoundStandardCreditReceipt(store.db,metadata,obj?.id))
   throw Error("Credit webhook settlement unavailable");
  const id=typeof metadata?.creditTopupId==="string"?metadata.creditTopupId:"";
  if(metadata?.flow!=="singmotion_credit_topup"||!/^[0-9a-f-]{36}$/i.test(id)||
@@ -80,6 +82,18 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
    address?:{country?:string};tax_ids?:Array<{type?:string;value?:string}>
   }|undefined;
   const stripeCollected=verifiedMetadata.creditTaxFlow==="stripe-collected";
+  const sellerCollected=verifiedMetadata.creditTaxFlow===STANDARD_CREDIT_TAX_FLOW;
+  if(sellerCollected){
+   if(!existingBoundStandardCreditReceipt(store.db,verifiedMetadata,session.id))throw Error("STANDARD_CREDIT_SESSION_NOT_BOUND");
+   const checked=standardCreditTaxDecisionFromVerifiedStripe(session);
+   if(!checked)throw Error("STANDARD_CREDIT_STRIPE_TAX_DETAILS_NOT_VERIFIED");
+   wallet.bindTaxContext(id,checked,session.id);
+   prior=wallet.taxContext(id);
+   if(!prior||prior.mode!==checked.mode||prior.revision!==checked.revision||prior.country!==checked.country||prior.buyerType!==checked.buyerType||prior.voucherKind!==checked.voucherKind)
+    throw Error("STANDARD_CREDIT_TAX_CONTEXT_MISMATCH");
+   const auto=session.automatic_tax as {status?:unknown}|undefined;
+   if(auto?.status!=="complete")console.warn("STANDARD_CREDIT_TAX_REVIEW_REQUIRED");
+  }
   if(stripeCollected){
    // Country and MoR proof come only from the paid session fetched from Stripe,
    // never from request metadata or browser input.
@@ -99,7 +113,7 @@ async function reconcileCreditPurchase(store:CommerceStore,event:StripeTestEvent
   if(prior?.mode==="stripe-managed-payments"&&
      (session.managed_payments as {enabled?:boolean}|undefined)?.enabled!==true)
    throw Error("STRIPE_MANAGED_PAYMENTS_MERCHANT_OF_RECORD_NOT_VERIFIED");
-  if(!prior||(!stripeCollected&&(
+  if(!prior||(!stripeCollected&&!sellerCollected&&(
        prior.country!==verifiedMetadata.creditTaxCountry||
        prior.buyerType!==verifiedMetadata.creditTaxBuyerType||
        prior.voucherKind!==verifiedMetadata.creditVoucherKind||
@@ -249,8 +263,8 @@ export async function POST(req: NextRequest) {
     // Previously bound signed LIVE receipts remain reconcilable after a pause.
     // New LIVE purchases only use worldwide buyer-country verification.
     const eventCreditMetadata=event.data?.object?.metadata as Record<string,unknown>|undefined;
-    const existingLiveReceipt=mode==="live"&&existingBoundLiveCreditReceipt(
-      store.db,eventCreditMetadata?.creditTopupId,event.data?.object?.id);
+    const existingLiveReceipt=mode==="live"&&(existingBoundLiveCreditReceipt(
+      store.db,eventCreditMetadata?.creditTopupId,event.data?.object?.id)||existingBoundStandardCreditReceipt(store.db,eventCreditMetadata,event.data?.object?.id));
     if((mode==="test"&&stripeCreditWebhookTestEnabled(process.env)||
         mode==="live"&&(stripeCreditTopupsLiveEnabled(process.env)||existingLiveReceipt))&&
        ["checkout.session.completed","checkout.session.async_payment_succeeded"].includes(event.type||"") &&

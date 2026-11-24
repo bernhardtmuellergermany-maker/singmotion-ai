@@ -10,6 +10,7 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {assessWorldwideCreditTax} from "@/lib/commerce/worldwide-credit-tax";
 import {managedCreditMoRApproved,assertManagedCreditCheckoutParams} from "@/lib/commerce/managed-credit-payments";
+import {standardCreditCheckoutEnabled,configureStandardCreditCheckout} from "@/lib/commerce/standard-credit-checkout";
 import {selectAlternativeCreditCheckout} from "@/lib/commerce/alternative-credit-checkout";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {privateInternationalCreditBetaEnabled} from "@/lib/commerce/private-international-credit-beta";
@@ -50,11 +51,13 @@ export async function POST(req:NextRequest){
   // Actual billing country is independently checked against Stripe's paid session.
   let route=selectAlternativeCreditCheckout(process.env,body.paymentRoute,liveMode,body.billingCountry,body.buyerType);
   if(!route.allowed)return json({error:"Alternative payment methods are not yet approved for this Credit purchase."},422);
-  let useMoR=liveMode&&managedCreditMoRApproved(process.env)&&!route.alternative;
+  const sellerHosted=liveMode&&standardCreditCheckoutEnabled(process.env);
+  let useMoR=liveMode&&managedCreditMoRApproved(process.env)&&!route.alternative&&!sellerHosted;
   // Stripe MoR collects billing country only on its hosted Checkout.
   // The signed webhook verifies the actual Stripe country before Credits accrue.
   let tax=liveMode&&!useMoR?assessWorldwideCreditTax(process.env,body.billingCountry,body.buyerType):null;
-  if(liveMode&&!useMoR&&!tax?.ready)
+  if(sellerHosted)tax=null;
+  if(liveMode&&!useMoR&&!sellerHosted&&!tax?.ready)
    return json({error:"This billing country/customer type is not approved for Credit purchases yet.",taxStatus:tax?.reason},422);
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
   try{
@@ -140,6 +143,7 @@ export async function POST(req:NextRequest){
       form.set("invoice_creation[invoice_data][footer]","Gemäß § 19 UStG gilt die Steuerbefreiung für Kleinunternehmer. Es wird keine Umsatzsteuer ausgewiesen.");
     }
    }
+   if(sellerHosted)configureStandardCreditCheckout(form);
    if(useMoR)assertManagedCreditCheckoutParams(form);
    const response=await fetch("https://api.stripe.com/v1/checkout/sessions",{
     method:"POST",
@@ -173,9 +177,10 @@ export async function POST(req:NextRequest){
     return json({error:testMode?"Stripe Test Checkout could not be created. No payment was taken.":"Secure Credit Checkout could not be created. No payment was taken.",
       ...(requestId?{supportReference:requestId}:{})},502);
    }
-   const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string;managed_payments?:{enabled?:boolean}};
+   const session=await response.json() as {id?:string;url?:string;livemode?:boolean;amount_total?:number;currency?:string;mode?:string;managed_payments?:{enabled?:boolean};automatic_tax?:{enabled?:boolean};invoice_creation?:{enabled?:boolean}};
    if((useMoR&&session.managed_payments?.enabled!==true)||
       (route.alternative&&session.managed_payments?.enabled!==false)||
+      (sellerHosted&&(session.managed_payments?.enabled!==false||session.automatic_tax?.enabled!==true||session.invoice_creation?.enabled!==true))||
       session.livemode!==liveMode||session.mode!=="payment"||session.amount_total!==purchase.cents||
       session.currency!=="eur"||!session.id||!session.url)
     return json({error:"Stripe Checkout verification failed."},502);
