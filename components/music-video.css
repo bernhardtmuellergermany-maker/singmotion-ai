@@ -240,3 +240,9 @@
  .mv-root .mv-clip-position input,.mv-root .mv-song-trim input{width:112px!important;max-width:100%;padding:6px 8px!important}
  .mv-song-trim{gap:6px 9px;padding:9px}
 }
+
+.mv-role-hint{font-size:12px;line-height:1.45;color:#d6c2e6;margin:0 0 12px!important}
+.mv-media-role{display:flex;gap:4px;margin:8px 0;flex-wrap:wrap}
+.mv-media-role button{display:inline-flex;align-items:center;gap:4px;justify-content:center;flex:1 1 auto;background:#21142e;border:1px solid #76518d;border-radius:7px;padding:6px 5px;font-size:11px;white-space:nowrap}
+.mv-media-role button.active{background:#6f2b99;border-color:#dc91ff;color:#fff}
+.mv-media-info .mv-source-time{font-size:11px;line-height:1.4;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
