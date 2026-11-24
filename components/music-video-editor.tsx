@@ -201,10 +201,10 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!project||!validSongRange(range.startMs,range.endMs,project.songDurationMs)){displaySong(rangeRef.current);setError("Choose a valid song range of at least 100 ms.");return;}
     const original=rangeRef.current;
     const next=position===undefined?trimSongPlacement(original,range):{...range,positionMs:position};
-    if(!validSongPlacement(next,project.songDurationMs)){displaySong(original);setClips(latest.current);setError("Song position is outside the timeline.");return;}
+    if(!validSongPlacement(next,project.songDurationMs)||songTimelineEnd(next)>timelineLimit){displaySong(original);setClips(latest.current);setError("Song position is outside the timeline.");return;}
     if(partsRef.current&&!validSongParts(partsRef.current,next)){displaySong(original);setClips(latest.current);setError("Edit the individual song parts or use Reset song first.");return;}
     const moved=shiftLockedClips(latest.current,songOffset(next)-songOffset(original));
-    if(!moved){displaySong(original);setClips(latest.current);setError("Cannot move the song: a sync-locked video would overlap another clip or leave the timeline. Unlock or move the conflicting video first.");return;}
+    if(!moved||moved.some(c=>clipEnd(c)>timelineLimit)){displaySong(original);setClips(latest.current);setError("Cannot move the song: a sync-locked video would overlap another clip or leave the timeline. Unlock or move the conflicting video first.");return;}
     displaySong(next);setClips(moved);
     if(next.startMs!==original.startMs||next.endMs!==original.endMs||next.positionMs!==original.positionMs)
       apply(moved,true,next);
@@ -270,9 +270,9 @@ export function MusicVideoEditor({id}:{id:string}){
         const closest=targets.reduce((a,b)=>Math.abs(b-next)<Math.abs(a-next)?b:a,0);
         if(Math.abs(closest-next)<150)next=closest;
       }
-      position=Math.max(0,Math.min(MAX_TIMELINE_MS-original.endMs+original.startMs,next));
+      position=Math.max(0,Math.min(timelineLimit-original.endMs+original.startMs,next));
       const moved=shiftLockedClips(initial,position-original.positionMs);
-      if(moved){displaySong({...original,positionMs:position});setClips(moved);}
+      if(moved&&moved.every(c=>clipEnd(c)<=timelineLimit)){displaySong({...original,positionMs:position});setClips(moved);}
     };
     const cleanup=()=>{document.removeEventListener("pointermove",update);document.removeEventListener("pointerup",finish);document.removeEventListener("pointercancel",cancel);setArmedMedia(null);};
     const finish=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;update(event);cleanup();commitSongRange(original,position);};
@@ -289,7 +289,8 @@ export function MusicVideoEditor({id}:{id:string}){
       if(event.pointerId!==pointer)return;
       const delta=(event.clientX-origin+(scroll.current?.scrollLeft??0)-startScroll)/zoom*1000;
       range=moveSongEdge(original,edge,(edge==="start"?original.startMs:original.endMs)+delta,duration);
-      displaySong(trimSongPlacement(original,range));
+      const candidate=trimSongPlacement(original,range);
+      if(songTimelineEnd(candidate)<=timelineLimit)displaySong(candidate);
     };
     const cleanup=()=>{
       document.removeEventListener("pointermove",update);
@@ -397,6 +398,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const ms=mode==="song"?parseRelativeSongTime(clipSongEndText):parseSongTime(clipEndText);
     if(ms===null){setError("Enter a valid end time, e.g. 00:08.918.");return;}
     const end=mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms;
+    if(end>timelineLimit){setError("The video must end within the song.");return;}
     const next=setVideoEnd(latest.current,current,end,sourceLimit(current,selectedAsset));
     if(!next){setError("The requested end does not fit the available video length or free space on this track. The clip was not changed.");return;}
     commitVideoEdit(current,next);setClipEndText(time(end,true));setClipSongEndText(signedTime(timelineToSongTime(end,rangeRef.current)));setError("");
@@ -417,6 +419,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(importBusy.current||!selectedClip||!selectedAsset)return;
     const current=latest.current.find(c=>c.id===selectedClip.id);
     if(!current)return;
+    if(position+current.sourceOutMs-current.sourceInMs>timelineLimit){setError("The video must fit within the song.");return;}
     const result=positionVideoClip(latest.current,current,position);
     if(result.status!=="ok"){
       setError(result.status==="collision"?"That position is occupied on Video "+current.track+". The clip was not moved.":result.status==="locked"?"Sync Lock is enabled. Unlock this clip before moving it away from its original song position.":"The complete clip must fit within the timeline.");
@@ -464,8 +467,9 @@ export function MusicVideoEditor({id}:{id:string}){
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
-  const pixels=project?Math.max(640,Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000)/1000*zoom):640;
-  const timelineLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000):0;
+  // Do not add artificial space after the song. Keep existing longer edits accessible.
+  const timelineLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current),...latest.current.map(clipEnd))):0;
+  const pixels=project?Math.max(1,timelineLimit/1000*zoom):640;
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
   function getDropTime(e:React.DragEvent){
     const rect=e.currentTarget.getBoundingClientRect();
@@ -573,7 +577,7 @@ export function MusicVideoEditor({id}:{id:string}){
         const track=([1,2] as const).find(t=>{const rect=videoLanes.current[t]?.getBoundingClientRect();return !!rect&&event.clientY>=rect.top&&event.clientY<rect.bottom;});
         if(track===undefined){valid=false;setDragTrack(null);setDragBlocked(false);setClips(startClips);return;}
         const position=initial.syncLocked||Math.abs(dx)<=3?initial.timelineStartMs:
-          Math.min(MAX_TIMELINE_MS-(initial.sourceOutMs-initial.sourceInMs),Math.max(0,snapped(initial.timelineStartMs+delta,initial)));
+          Math.min(timelineLimit-(initial.sourceOutMs-initial.sourceInMs),Math.max(0,snapped(initial.timelineStartMs+delta,initial)));
         const result=transferVideoClip(startClips,initial,track,position);
         valid=result.status==="ok";setDragTrack(track);setDragBlocked(!valid);
         next=result.status==="ok"?result.clip:initial;
@@ -878,7 +882,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{setLibraryRefreshing(false);}
   }
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
-  const ticks=Array.from({length:Math.floor(pixels/zoom/10)+1},(_,i)=>i*10000);
+  const ticks=Array.from({length:Math.floor(timelineLimit/10000)+1},(_,i)=>i*10000);
   return <main id="content" className="mv-root mv-editor">
     <div className="mv-top">
       <div className="mv-name"><Link href="/projects" aria-label="Back to projects">‹</Link>
