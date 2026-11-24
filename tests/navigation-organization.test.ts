@@ -438,3 +438,14 @@ test("auto export follows first visible video orientation; explicit format overr
  assert.ok(editor.includes("firstVisibleVideo(clips)"));
  assert.ok(api.includes("inspectVideoDimensions(files.get(assetId)!)"));
 });
+
+test("video inspector groups source start/end before timeline start/end",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ const start=editor.indexOf('className="mv-video-times"');
+ const end=editor.indexOf('className="mv-video-time-actions"',start);
+ assert.ok(start>=0&&end>start);
+ const labels=[...editor.slice(start,end).matchAll(/<label>([^<]+)<input/g)].map(m=>m[1]);
+ assert.deepEqual(labels,["Video start time","Video end time","Timeline start","Timeline end"]);
+ assert.ok(editor.includes("onClick={submitClipTime}"));
+ assert.ok(editor.includes("onClick={submitClipEnd}"));
+});
