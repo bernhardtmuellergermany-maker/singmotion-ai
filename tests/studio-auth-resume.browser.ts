@@ -288,6 +288,25 @@ try{
     "sign-in does not create an order");
    const cookies=await context.cookies(origin);
    assert.ok(cookies.some(x=>x.name==="sm_customer"),"customer has a verified login");
+   // A standalone purchase must ignore an old Step 4 handoff.
+   await page.route("**/api/credit-balance",async route=>{
+    if(route.request().method()!=="GET"){await route.continue();return;}
+    const actual=await route.fetch();
+    const data=await actual.json();
+    await route.fulfill({response:actual,json:{...data,availableCredits:10000}});
+   });
+   await page.evaluate(draftId=>sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({draftId,requiredCredits:500,created:Date.now()})),id);
+   await page.goto(origin+"/credits?checkout=success");
+   await page.getByRole("region",{name:"Current credit balance"}).waitFor({timeout:15000});
+   await page.waitForTimeout(1700);
+   assert.equal(new URL(page.url()).pathname,"/credits","standalone purchase must remain in Credits");
+   assert.equal(await page.getByRole("link",{name:"Continue project · Step 4"}).count(),0);
+   await page.unroute("**/api/credit-balance");
+   await page.goto(origin+"/studio?new=1&suno_connected=1");
+   await page.getByText("Step 1 of 4 · Audio",{exact:true}).waitFor({timeout:15000});
+   assert.equal(await page.getByRole("heading",{name:"Ready to generate?"}).count(),0);
+   assert.equal(new URL(page.url()).searchParams.get("new"),"1");
+   console.log("PASS: standalone Credits return ignores stale Step 4; Suno OAuth return starts at audio.");
    // Reproduce the real signed-in failure: existing Step 4, Videos -> New
    // video, then two new Suno imports. Suno OAuth/MCP is mocked, but MP3
    // upload, account-owned storage and navigation run through real Next.js.

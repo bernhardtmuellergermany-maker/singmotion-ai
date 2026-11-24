@@ -123,7 +123,7 @@ test("signed-in customer without enough Credits can purchase from Step 4, never 
  assert.match(action,/await api\("studio-drafts"/);
  assert.match(action,/id:projectKey,selection,artistName:draft\.artistName/);
  assert.match(action,/projectName,step:3/);
- assert.match(action,/sessionStorage\.setItem\("sm-credit-checkout-resume"/);
+ assert.doesNotMatch(action,/sessionStorage\.setItem\("sm-credit-checkout-resume"/);
  assert.match(action,/draftId:projectKey,requiredCredits:creditQuote\.credits/);
  assert.match(action,/window\.location\.assign\("\/credits\?resumeDraft="/);
  assert.match(wizard,/reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
