@@ -207,3 +207,21 @@ test("draggable playhead cuts on exact timeline milliseconds without breaking sy
  assert.ok(editor.includes('onClick={()=>cutSong("end")}'));
  assert.ok(editor.includes("commitSongRange(next,next.positionMs)"));
 });
+
+test("project player progress shares the exact timeline position with its clock and playhead",async()=>{
+ const {timelineProgress}=await import("../lib/music-video/song-range.ts");
+ assert.deepEqual(timelineProgress(0,90333),{positionMs:0,percent:0});
+ assert.deepEqual(timelineProgress(15000,30000),{positionMs:15000,percent:50});
+ assert.deepEqual(timelineProgress(90333,90333),{positionMs:90333,percent:100});
+ assert.deepEqual(timelineProgress(100000,90333),{positionMs:90333,percent:100});
+ assert.deepEqual(timelineProgress(-10,90333),{positionMs:0,percent:0});
+ assert.deepEqual(timelineProgress(1000,0),{positionMs:0,percent:0});
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(editor.includes("const progress=timelineProgress(playhead,timelineEnd)"));
+ assert.ok(editor.includes("time(progress.positionMs,true)"));
+ assert.ok(editor.includes("value={progress.positionMs}"));
+ assert.ok(editor.includes('width:progress.percent+"%"'));
+ assert.ok(editor.includes("left:progress.positionMs/1000*zoom"));
+ assert.ok(css.includes("input.mv-progress[type=range]"));
+ assert.ok(css.includes("padding:0!important"));
+});
