@@ -1,7 +1,7 @@
 "use client";
 import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
-import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,
+import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
@@ -875,8 +875,8 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-tracks">
         <div className="mv-track-labels">
           <div className="mv-label mv-ruler-spacer"/>
-          {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip Sync · Main video track":"Video 2 · Overlay"}>
-            {track===1?<Music2 size={18}/>:<Film size={18}/>}<strong>{track===1?"Lip Sync":"Video 2"}</strong>{muteButton(track,track===1?"Lip Sync audio":"Video 2 audio")}
+          {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"Video · Overlay"}>
+            {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"Video"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"Video audio")}
           </div>)}
           <div className="mv-label mv-audio-label" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
         </div>
