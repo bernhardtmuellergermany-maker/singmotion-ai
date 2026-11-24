@@ -9,16 +9,23 @@
  */
 export type BuyerType="consumer"|"business";
 export type VoucherKind="single-purpose"|"multi-purpose"|"merchant-of-record-determined"|"private-test-unclassified";
-export type CreditTaxMode="stripe-managed-payments"|"de-small-business"|"eu-sme-exempt"|"stripe-tax"|"reviewed-no-tax"|"private-live-verification";
+export type CreditTaxMode="stripe-managed-payments"|"de-small-business"|"eu-sme-exempt"|"stripe-tax"|"reviewed-no-tax"|"de-small-business-eu-threshold"|"foreign-threshold-no-tax"|"private-live-verification";
 export type CreditTaxDecision={
  country:string;buyerType:BuyerType;voucherKind:VoucherKind;
  mode:CreditTaxMode;revision:string;taxAtIssue:boolean;taxCode:string|null;
+ thresholdCapCents?:number;
 };
 type TaxPolicy={revision:string;reviewedAt:string;entries:Array<{
  country:string;buyerType:BuyerType;voucherKind:VoucherKind;mode:CreditTaxMode;
  evidence:string;exNumber?:string;taxRegistrationEvidence?:string;
 }>};
 const DE="DE";
+const FOREIGN_THRESHOLD_COUNTRIES=new Set(["CH","AU","NZ","NO"]);
+function thresholdCap(env:Record<string,string|undefined>):number|null{
+ const raw=env.CREDIT_TAX_THRESHOLD_CHECKOUT_CAP_CENTS||"";
+ const n=Number(raw);
+ return /^[0-9]{1,6}$/.test(raw)&&Number.isSafeInteger(n)&&n>=500&&n<=100000?n:null;
+}
 const COUNTRY=/^[A-Z]{2}$/;
 const EEA_EU=new Set("AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE".split(" "));
 function readPolicy(env:Record<string,string|undefined>):TaxPolicy|null{
@@ -40,12 +47,14 @@ function readPolicy(env:Record<string,string|undefined>):TaxPolicy|null{
    if(!x||typeof x.country!=="string"||!COUNTRY.test(x.country)||
       !["consumer","business"].includes(x.buyerType)||
       !["single-purpose","multi-purpose"].includes(x.voucherKind)||
-      !["de-small-business","eu-sme-exempt","stripe-tax","reviewed-no-tax"].includes(x.mode)||
+      !["de-small-business","eu-sme-exempt","stripe-tax","reviewed-no-tax","de-small-business-eu-threshold","foreign-threshold-no-tax"].includes(x.mode)||
       typeof x.evidence!=="string"||x.evidence.trim().length<24||x.evidence.length>1200)return null;
    const key=x.country+":"+x.buyerType;
    if(keys.has(key))return null;
    keys.add(key);
    if(x.mode==="de-small-business"&&x.country!==DE)return null;
+   if(x.mode==="de-small-business-eu-threshold"&&(!EEA_EU.has(x.country)||x.country===DE||x.buyerType!=="consumer"))return null;
+   if(x.mode==="foreign-threshold-no-tax"&&(!FOREIGN_THRESHOLD_COUNTRIES.has(x.country)||x.buyerType!=="consumer"))return null;
    if(x.mode==="eu-sme-exempt"&&
       (!EEA_EU.has(x.country)||x.country===DE||
        !/^DE[A-Za-z0-9.-]{4,24}EX$/.test(x.exNumber||"")))return null;
@@ -68,8 +77,13 @@ export function assessWorldwideCreditTax(
  if(!entry)return {ready:false,reason:"COUNTRY_AND_CUSTOMER_TYPE_NOT_YET_REVIEWED",decision:null};
  if(entry.voucherKind==="multi-purpose")
   return {ready:false,reason:"REDEMPTION_TIME_TAX_LEDGER_NOT_APPROVED",decision:null};
- if(entry.mode==="de-small-business"&&env.CREDIT_TAX_DE_KLEINUNTERNEHMER_APPROVED!=="true")
+ if((entry.mode==="de-small-business"||entry.mode==="de-small-business-eu-threshold")&&env.CREDIT_TAX_DE_KLEINUNTERNEHMER_APPROVED!=="true")
   return {ready:false,reason:"GERMAN_SMALL_BUSINESS_STATUS_NOT_CONFIRMED",decision:null};
+ const thresholdMode=entry.mode==="de-small-business-eu-threshold"||entry.mode==="foreign-threshold-no-tax";
+ const cap=thresholdMode?thresholdCap(env):null;
+ if(thresholdMode&&(cap===null||env.CREDIT_TAX_THRESHOLD_BASELINE_APPROVED!=="true"||
+   (entry.mode==="de-small-business-eu-threshold"&&env.CREDIT_TAX_EU_ORIGIN_THRESHOLD_APPROVED!=="true")))
+  return {ready:false,reason:"THRESHOLD_HEADROOM_AND_BASELINE_REQUIRED",decision:null};
  const taxCode=entry.mode==="stripe-tax"?env.STRIPE_CREDIT_TAX_CODE||null:null;
  if(entry.mode==="stripe-tax"&&(!/^txcd_[A-Za-z0-9]+$/.test(taxCode||"")||
     env.STRIPE_CREDIT_TAX_REVIEW_APPROVED!=="true"))
@@ -77,6 +91,7 @@ export function assessWorldwideCreditTax(
  return {ready:true,reason:"REVIEWED",decision:{
   country,buyerType:buyerType as BuyerType,voucherKind:entry.voucherKind,
   mode:entry.mode,revision:p.revision,taxAtIssue:true,taxCode,
+  ...(cap===null?{}:{thresholdCapCents:cap}),
  }};
 }
 export function worldwideTaxPolicyAvailable(env:Record<string,string|undefined>){
