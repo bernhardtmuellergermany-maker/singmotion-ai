@@ -2,7 +2,7 @@
 import Link from "next/link";
 import {useCallback,useEffect,useState} from "react";
 import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2} from "lucide-react";
-import type {MusicProject} from "@/lib/music-video/core";
+import type {MusicProject,ProjectAspectRatio} from "@/lib/music-video/core";
 import "./music-video.css";
 
 type Payload={projects:MusicProject[];error?:string};
@@ -21,6 +21,7 @@ export function MusicProjectsClient(){
   const [creating,setCreating]=useState(false);
   const [busy,setBusy]=useState(false);
   const [name,setName]=useState("");
+  const [aspectRatio,setAspectRatio]=useState<ProjectAspectRatio>("auto");
   const [song,setSong]=useState<File|null>(null);
   const refresh=useCallback(async()=>{
     try{const data=await api<Payload>("/api/music-video");setProjects(data.projects||[]);setError("");}
@@ -33,7 +34,7 @@ export function MusicProjectsClient(){
     if(!song||!name.trim()||busy)return;
     setBusy(true);setError("");
     try{
-      const body=new FormData();body.set("name",name);body.set("song",song);
+      const body=new FormData();body.set("name",name);body.set("song",song);body.set("aspectRatio",aspectRatio);
       const result=await api<{project:MusicProject}>("/api/music-video",{method:"POST",body});
       window.location.assign("/projects/"+result.project.id);
     }catch(e){setError(e instanceof Error?e.message:"Could not create project.");setBusy(false);}
@@ -60,7 +61,7 @@ export function MusicProjectsClient(){
     {loading?<p role="status">Loading projects…</p>:filtered.length?<div className="mv-project-grid">
       {filtered.map(p=><article key={p.id} className="mv-project-card">
         <Link href={"/projects/"+p.id} className="mv-project-link">
-          <div className="mv-project-art"><Music2 size={38}/><span>16:9</span></div>
+          <div className="mv-project-art"><Music2 size={38}/><span>{p.aspectRatio==="auto"?"Auto":p.aspectRatio}</span></div>
           <strong>{p.name}</strong><p>{duration(p.songDurationMs)} · Edited {new Date(p.updatedAt).toLocaleDateString("en-GB")}</p>
         </Link>
         <details className="mv-card-more"><summary aria-label={"Project options for "+p.name}><MoreHorizontal size={18}/></summary>
@@ -74,6 +75,7 @@ export function MusicProjectsClient(){
       <form className="mv-dialog" onSubmit={e=>void create(e)} aria-label="New music video project">
         <h2>New Project</h2><label>Project Name<input autoFocus required maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder="My Music Video"/></label>
         <label>Upload Song (MP3, WAV or M4A)<input required type="file" accept=".mp3,.wav,.m4a,audio/*" onChange={e=>setSong(e.target.files?.[0]||null)}/></label>
+        <div className="mv-format-controls" role="group" aria-label="Project video format"><span>Format</span>{(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} disabled={busy} onClick={()=>setAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}</div>
         <div className="mv-dialog-actions"><button type="button" disabled={busy} onClick={()=>setCreating(false)}>Cancel</button><button type="submit" className="mv-primary" disabled={!name.trim()||!song||busy}>{busy?"Creating…":"Create Project"}</button></div>
       </form>
     </div>}
