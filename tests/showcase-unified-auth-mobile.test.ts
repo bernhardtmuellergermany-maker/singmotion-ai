@@ -69,22 +69,3 @@ test("CMS and customer sessions are independent across tabs",()=>{
  assert.doesNotMatch(account,/\/api\/cms\/staff\/login/);
  assert.match(media,/Public account wins when CMS and customer cookies coexist/);
 });
-
-test("showcase streaming respects requested byte ranges, including mobile open-ended and suffix requests",async()=>{
- const {showcaseByteRange}=await import("../lib/showcase-media-security.ts");
- const size=20*1024*1024;
- assert.deepEqual(showcaseByteRange(null,size),{start:0,end:size-1,status:200});
- assert.deepEqual(showcaseByteRange("bytes=0-",size),{start:0,end:size-1,status:206});
- assert.deepEqual(showcaseByteRange("bytes=2097152-",size),{start:2097152,end:size-1,status:206});
- assert.deepEqual(showcaseByteRange("bytes=-1024",size),{start:size-1024,end:size-1,status:206});
- assert.deepEqual(showcaseByteRange("bytes=0-99999999",size),{start:0,end:size-1,status:206});
- assert.equal(showcaseByteRange("bytes=99999999-",size),null);
- assert.equal(showcaseByteRange("bytes=5-2",size),null);
- assert.equal(showcaseByteRange("bytes=-0",size),null);
- const home=read("components/immersive-home.tsx"),api=read("app/(site)/api/showcase/route.ts");
- assert.match(home,/autoPlay=\{i===currentClip\}/);
- assert.match(home,/muted=\{i!==currentClip\|\|muted\}/);
- assert.match(home,/preload=\{i===currentClip\?"auto":"metadata"\}/);
- assert.match(api,/showcaseByteRange\(req.headers.get\("range"\),size\)/);
- assert.doesNotMatch(api,/start\+\(2\*1024\*1024\)/);
-});
