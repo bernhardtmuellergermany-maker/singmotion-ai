@@ -203,9 +203,12 @@ test("draggable playhead cuts on exact timeline milliseconds without breaking sy
  assert.ok(editor.includes("onPointerMove={updateMarker}"));
  assert.ok(editor.includes("e.currentTarget.setPointerCapture(e.pointerId)"));
  assert.ok(editor.includes("splitVideoAtPlayhead(current,playheadRef.current,uuid())"));
- assert.ok(editor.includes('onClick={()=>cutSong("start")}'));
- assert.ok(editor.includes('onClick={()=>cutSong("end")}'));
- assert.ok(editor.includes("commitSongRange(next,next.positionMs)"));
+ assert.ok(!editor.includes("Trim start at playhead"));
+ assert.ok(!editor.includes("Trim end at playhead"));
+ assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
+ assert.ok(editor.includes('muteButton("song","song")'));
+ const songLaneLabel=editor.split("\n").find(line=>line.includes('className="mv-label mv-audio-label"'));
+ assert.ok(songLaneLabel&&!songLaneLabel.includes("Scissors"));
 });
 
 test("project player progress shares the exact timeline position with its clock and playhead",async()=>{
