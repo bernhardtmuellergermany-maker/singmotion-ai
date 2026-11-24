@@ -1,5 +1,5 @@
 "use client";
-import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
+import {memo,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
@@ -37,6 +37,10 @@ function InlineTimeField({label,ariaLabel,value,onChange,onConfirm,disabled,plac
     <button type="button" className="mv-inline-confirm" disabled={disabled} title={"Confirm "+label.toLowerCase()} aria-label={"Confirm "+ariaLabel.toLowerCase()} onClick={onConfirm}><Check size={15}/></button>
   </div>;
 }
+const SongWaveform=memo(function SongWaveform({peaks,width,left}:{peaks:number[];width:number;left:number}){
+  const bars=peaks.length?peaks:Array.from({length:180},()=>0.22);
+  return <div className="mv-wave" style={{width,left}}>{bars.map((v,i)=><span key={i} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>;
+});
 export function MusicVideoEditor({id}:{id:string}){
   const [detail,setDetail]=useState<Detail|null>(null),[clips,setClips]=useState<MusicClip[]>([]);
   const [aspectRatio,setAspectRatio]=useState<ProjectAspectRatio>("auto"),ratioRef=useRef<ProjectAspectRatio>("auto");
@@ -44,6 +48,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
   const trackAudio1=useRef<HTMLAudioElement>(null),trackAudio2=useRef<HTMLAudioElement>(null);
   const mutedClockRef=useRef<{element:HTMLMediaElement;aligned:boolean}|null>(null);
+  const lastFollowerSeek=useRef(new WeakMap<HTMLMediaElement,number>());
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
   const [partIndex,setPartIndex]=useState(0),[partStartText,setPartStartText]=useState(""),[partEndText,setPartEndText]=useState("");
   const [songRange,setSongRange]=useState<SongPlacement>({startMs:0,endMs:0,positionMs:0});
@@ -53,10 +58,15 @@ export function MusicVideoEditor({id}:{id:string}){
   const [selected,setSelected]=useState<string|null>(null),[playhead,setPlayhead]=useState(0);
   const [markerText,setMarkerText]=useState("00:00.000"),[scrubbing,setScrubbing]=useState(false);
   const markerDrag=useRef<{pointer:number;offset:number}|null>(null);
+  const playheadLine=useRef<HTMLDivElement>(null),playheadGrip=useRef<HTMLButtonElement>(null);
+  const viewportRef=useRef({zoom:44,left:0,width:0,scrollLeft:0});
+  const previewReadyRef=useRef<Set<string>>(new Set()),playingPreviewRef=useRef<Set<string>>(new Set());
+  const [previewReady,setPreviewReady]=useState<Set<string>>(()=>new Set());
+  const previewAttempts=useRef(new Map<string,number>());
   const trackArea=useRef<HTMLDivElement>(null);
   const tracksRef=useRef<HTMLDivElement>(null);
   const [rulerViewport,setRulerViewport]=useState({left:0,width:0,scrollLeft:0});
-  useEffect(()=>{setMarkerText(time(playhead,true));},[playhead]);
+  useEffect(()=>{if(!playingRef.current)setMarkerText(time(playhead,true));},[playhead]);
   const [dragTrack,setDragTrack]=useState<Track|null>(null),[dragBlocked,setDragBlocked]=useState(false);
   const videoLanes=useRef<Partial<Record<Track,HTMLDivElement|null>>>({});
   const [clipSongText,setClipSongText]=useState("00:00.000"),[clipTimelineText,setClipTimelineText]=useState("00:00.000");
@@ -117,25 +127,14 @@ export function MusicVideoEditor({id}:{id:string}){
     return()=>{document.removeEventListener("pointerdown",outside,true);document.removeEventListener("click",outside,true);document.removeEventListener("keydown",escape);};
   },[]);
 
-  // Generate downsampled waveform from the actual project audio. No beat detection.
+  // Fetch only 240 precomputed peaks; never download/decode the song twice.
   useEffect(()=>{
-    if(!detail)return;
-    let alive=true;let ctx:AudioContext|null=null;
-    void(async()=>{
-      try{
-        const buffer=await fetch(endpoint+id+"/song",{credentials:"same-origin"}).then(r=>r.arrayBuffer());
-        ctx=new AudioContext();
-        const decoded=await ctx.decodeAudioData(buffer),channel=decoded.getChannelData(0),bins=240;
-        const peaks=Array.from({length:bins},(_,i)=>{
-          const from=Math.floor(i*channel.length/bins),to=Math.min(channel.length,Math.floor((i+1)*channel.length/bins));
-          let peak=0;for(let j=from;j<to;j+=Math.max(1,Math.floor((to-from)/120)))peak=Math.max(peak,Math.abs(channel[j]));
-          return Math.max(0.07,peak);
-        });
-        if(alive)setWave(peaks);
-      }catch{if(alive)setWave([]);}
-      finally{if(ctx)await ctx.close().catch(()=>{});}
-    })();
-    return()=>{alive=false;};
+    if(!detail?.project.id)return;
+    const controller=new AbortController();
+    void request<{peaks:number[]}>(endpoint+id+"/waveform",{signal:controller.signal})
+      .then(data=>{if(!controller.signal.aborted)setWave(Array.isArray(data.peaks)?data.peaks:[]);})
+      .catch(()=>{});
+    return()=>controller.abort();
   },[id,detail?.project.id]);
   async function saveNow():Promise<void>{
     if(inFlight.current){await inFlight.current;if(dirty.current)await saveNow();return;}
@@ -461,10 +460,36 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   const previewPlan=previewMediaPlan(playhead<timelineEnd?clips:[],playhead,trackMutes);
   const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2;
-  const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
+  const readyForPlayback=playing?playingPreviewRef.current:previewReady;
+  const source=(a:MusicAsset)=>endpoint+id+(readyForPlayback.has(a.id)?"/preview/":"/assets/")+a.id;
+  const mediaBoundaries=useMemo(()=>[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t<timelineEnd).sort((a,b)=>a-b),[clips,timelineEnd]);
+  const nextClip=useMemo(()=>{
+    const boundaries=mediaBoundaries.filter(t=>t>playhead);
+    for(const at of boundaries){const candidate=previewMediaPlan(clips,at,trackMutes).visible;if(candidate&&candidate.id!==activeClip?.id)return candidate;}
+    return undefined;
+  },[clips,playhead,mediaBoundaries,trackMutes,activeClip]);
+  const nextAsset=nextClip?byId.get(nextClip.assetId):undefined;
+  // Prepare only the visible and next clips; no proxy swap in the middle of playback.
+  useEffect(()=>{
+    if(playing||importing)return;
+    const controller=new AbortController();
+    const candidates=[activeAsset,nextAsset].filter((a):a is MusicAsset=>!!a&&a.durationMs<=180000);
+    void(async()=>{
+      for(const a of candidates){
+        if(controller.signal.aborted||previewReadyRef.current.has(a.id)||Date.now()-(previewAttempts.current.get(a.id)??0)<15000)continue;
+        previewAttempts.current.set(a.id,Date.now());
+        try{
+          const data=await request<{ready:boolean}>(endpoint+id+"/preview/"+a.id,{method:"POST",signal:controller.signal});
+          if(data.ready&&!controller.signal.aborted){previewReadyRef.current=new Set([...previewReadyRef.current,a.id]);setPreviewReady(previewReadyRef.current);}
+        }catch{}
+      }
+    })();
+    return()=>controller.abort();
+  },[id,activeAsset?.id,nextAsset?.id,playing,importing]);
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
+  useLayoutEffect(()=>{viewportRef.current={zoom,...rulerViewport};},[zoom,rulerViewport]);
   // The last audible song part is the only end of the editable project.
   const pixels=project?Math.max(1,timelineLimit/1000*zoom):640;
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
@@ -722,6 +747,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{exportBusy.current=false;importBusy.current=false;if(!controller.signal.aborted){setImporting(false);setExporting(false);}exportAbort.current=null;}
   }
   function stopPlayback(){
+    if(playingRef.current){const at=Math.round(playheadRef.current);setPlayhead(at);setMarkerText(time(at,true));}
     mutedClockRef.current=null;playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
   function setAt(ms:number,range=rangeRef.current){
@@ -803,7 +829,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   useEffect(()=>{
     if(!playing)return;
-    let frame=0,last=performance.now(),starting=false;
+    let frame=0,last=performance.now(),lastPaint=0,published=playheadRef.current,starting=false;
     const tick=(now:number)=>{
       if(!playingRef.current)return;
       const current=audio.current,range=rangeRef.current;
@@ -831,7 +857,21 @@ export function MusicVideoEditor({id}:{id:string}){
         at=Math.min(at+elapsed,next,timelineEnd);
       }
       if(at>=timelineEnd){playheadRef.current=timelineEnd;setPlayhead(timelineEnd);stopPlayback();return;}
-      playheadRef.current=at;setPlayhead(Math.round(at));frame=requestAnimationFrame(tick);
+      playheadRef.current=at;
+      // Paint the moving marker directly, without rebuilding the editor on each video frame.
+      const viewport=viewportRef.current,x=at/1000*viewport.zoom,viewX=x-viewport.scrollLeft;
+      if(playheadLine.current)playheadLine.current.style.left=x+"px";
+      if(playheadGrip.current){
+        playheadGrip.current.style.left=(viewport.left+viewX)+"px";
+        playheadGrip.current.style.visibility=viewport.width>0&&viewX>=-.5&&viewX<=viewport.width+.5?"visible":"hidden";
+      }
+      const crossed=latest.current.some(c=>(c.timelineStartMs>published&&c.timelineStartMs<=at)||(clipEnd(c)>published&&clipEnd(c)<=at));
+      // Media changes are immediate; React controls and millisecond readouts update at 10 Hz.
+      if(crossed||now-lastPaint>=100){
+        published=at;lastPaint=now;
+        const ms=Math.round(at);setPlayhead(ms);setMarkerText(time(ms,true));
+      }
+      frame=requestAnimationFrame(tick);
     };
     frame=requestAnimationFrame(tick);
     return()=>cancelAnimationFrame(frame);
@@ -840,6 +880,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!audio.current)return;
     if(playingRef.current){stopPlayback();return;}
     if(playheadRef.current>=timelineEnd)setAt(0);
+    playingPreviewRef.current=new Set(previewReadyRef.current);
     playingRef.current=true;setPlaying(true);
     const range=rangeRef.current,at=playheadRef.current;
     // The follower effect and song playing event start the matching clips.
@@ -866,9 +907,13 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!clip||at<clip.timelineStartMs||at>=clipEnd(clip)){element.pause();element.playbackRate=1;return;}
     const expected=clipSourceTimeMs(clip,at)/1000;
     if(element.readyState<1)return;
+    // While the master buffers, pause followers rather than repeatedly seeking them.
+    if(!run&&playingRef.current){element.pause();return;}
     const decision=mediaSyncDecision(expected,element.currentTime,run,element.paused,element.seeking);
     if(element.playbackRate!==decision.rate)element.playbackRate=decision.rate;
-    if(decision.seek){try{element.currentTime=expected;}catch{}}
+    if(decision.seek&&(!run||element.paused||performance.now()-(lastFollowerSeek.current.get(element)??-Infinity)>=250)){
+      try{element.currentTime=expected;lastFollowerSeek.current.set(element,performance.now());}catch{}
+    }
     if(!run){element.pause();return;}
     // Queue play while the decoder seeks, so slow devices do not get stuck chasing the clock.
     if(element.paused&&!element.ended)void element.play().catch(()=>{});
@@ -894,7 +939,7 @@ export function MusicVideoEditor({id}:{id:string}){
   useEffect(()=>{syncFollowers();},[playhead,activeClip,activeAudio1,activeAudio2,trackMutes,playing]);
   const libraryFilters=["All","Lip Sync","B-Roll","AI Video","Uploads"] as const;
   const matchesLibraryFilter=(a:MusicAsset,filter:typeof libraryFilters[number])=>filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported";
-  const media=assets.filter(a=>matchesLibraryFilter(a,filter)&&a.name.toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>libraryNewest?b.createdAt-a.createdAt:a.createdAt-b.createdAt);
+  const media=useMemo(()=>assets.filter(a=>matchesLibraryFilter(a,filter)&&a.name.toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>libraryNewest?b.createdAt-a.createdAt:a.createdAt-b.createdAt),[assets,filter,search,libraryNewest]);
   async function refreshLibrary(){
     if(importBusy.current||roleBusy.current||libraryRefreshing)return;
     setLibraryRefreshing(true);setRoleError("");
@@ -922,14 +967,19 @@ export function MusicVideoEditor({id}:{id:string}){
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
-        {activeAsset?<video key={activeClip?.id??activeAsset.id} ref={video} data-clip-id={activeClip?.id} playsInline muted={!activeClip||trackMutes[activeClip.track]} preload="auto" src={source(activeAsset)}
-          onLoadedMetadata={e=>syncVideo(e.currentTarget,activeClip)} onCanPlay={e=>syncVideo(e.currentTarget,activeClip)} onSeeked={e=>syncVideo(e.currentTarget,activeClip)}/>:<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
+        {!activeAsset&&<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
+        {([activeClip,nextClip&&nextAsset&&readyForPlayback.has(nextAsset.id)&&nextClip.timelineStartMs-playhead<=5000?nextClip:undefined]).filter((c):c is MusicClip=>!!c).map(c=>{
+          const a=byId.get(c.assetId);if(!a)return null;
+          const visible=c.id===activeClip?.id;
+          return <video key={c.id} ref={visible?video:undefined} data-clip-id={c.id} playsInline muted={!visible||trackMutes[c.track]} preload={visible?"auto":"metadata"} src={source(a)} style={visible?undefined:{visibility:"hidden",pointerEvents:"none"}} aria-hidden={!visible}
+            onLoadedMetadata={e=>{if(visible)syncVideo(e.currentTarget,c);}} onCanPlay={e=>{if(visible)syncVideo(e.currentTarget,c);}} onSeeked={e=>{if(visible)syncVideo(e.currentTarget,c);}}/>;
+        })}
 
       </div>
-      <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload="metadata"
-        onLoadedMetadata={()=>setAt(playheadRef.current)} onWaiting={pauseFollowers} onSeeking={pauseFollowers} onPlaying={syncFollowers}/>
-      {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} data-clip-id={activeAudio1.id} src={endpoint+id+"/assets/"+activeAudio1.assetId} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
-      {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} data-clip-id={activeAudio2.id} src={endpoint+id+"/assets/"+activeAudio2.assetId} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
+      <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload={trackMutes.song?"none":"metadata"}
+        onLoadedMetadata={()=>{if(!playingRef.current&&!mutesRef.current.song)setAt(playheadRef.current);}} onWaiting={pauseFollowers} onSeeking={pauseFollowers} onPlaying={syncFollowers}/>
+      {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} data-clip-id={activeAudio1.id} src={endpoint+id+(readyForPlayback.has(activeAudio1.assetId)?"/preview/":"/assets/")+activeAudio1.assetId} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
+      {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} data-clip-id={activeAudio2.id} src={endpoint+id+(readyForPlayback.has(activeAudio2.assetId)?"/preview/":"/assets/")+activeAudio2.assetId} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
       <div className="mv-format-controls" role="group" aria-label="Project video format">
         <span>Format</span>
         {(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} title={ratio==="auto"?"Use the first visible video’s format":ratio==="9:16"?"Portrait":"Landscape"} disabled={importing} onClick={()=>changeAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}
@@ -1002,8 +1052,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
-                <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom,left:-songRange.startMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,i)=>
-                  <span key={i} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
+                <SongWaveform peaks={wave} width={project!.songDurationMs/1000*zoom} left={-songRange.startMs/1000*zoom}/>
               </div>
               {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")}
                 style={{left:(edge==="start"?songRange.positionMs:songTimelineEnd(songRange))/1000*zoom,width:Math.min(22,(songRange.endMs-songRange.startMs)/1000*zoom/3)}}
@@ -1011,16 +1060,16 @@ export function MusicVideoEditor({id}:{id:string}){
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong)}
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}/>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
-                <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom,left:-p.startMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,j)=><span key={j} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
+                <SongWaveform peaks={wave} width={project!.songDurationMs/1000*zoom} left={-p.startMs/1000*zoom}/>
                 <span className="mv-song-part-number">{i+1}</span>
                 {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}/>)}
               </div>)}
             </div>
-            <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}} aria-hidden="true"/>
+            <div ref={playheadLine} className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}} aria-hidden="true"/>
           </div>
         </div>
         <div className="mv-playhead-overlay">
-          <button type="button" className="mv-playhead-grip" style={{left:rulerViewport.left+markerViewportX,visibility:markerVisible?"visible":"hidden"}} role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
+          <button ref={playheadGrip} type="button" className="mv-playhead-grip" style={{left:rulerViewport.left+markerViewportX,visibility:markerVisible?"visible":"hidden"}} role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
                 onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
         </div>
       </div>
