@@ -467,7 +467,7 @@ test("auto export follows first visible video orientation; explicit format overr
  const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
  assert.ok(core.includes("aspect_ratio TEXT NOT NULL DEFAULT 'auto'"));
  assert.ok(editor.includes("aspectRatio:ratio"));
- assert.ok(editor.includes("firstVisibleVideo(clips)"));
+ assert.ok(editor.includes("firstVisibleVideo(clips.filter(c=>c.timelineStartMs<timelineEnd))"));
  assert.ok(api.includes("inspectVideoDimensions(files.get(assetId)!)"));
 });
 
@@ -589,11 +589,26 @@ test("video and song time fields confirm inline and on Enter",()=>{
  assert.ok(css.includes("padding-right:34px!important"));
 });
 
-test("timeline does not append empty time after original song; existing longer edits remain visible",()=>{
- const editor=read("components/music-video-editor.tsx");
- assert.ok(editor.includes("Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current),...latest.current.map(clipEnd))"));
+test("the timeline and export stop at the last retained song part, not the source duration or video end",async()=>{
+ const {songPartsEnd}=await import("../lib/music-video/song-range.ts");
+ const {videoRenderSpans,trackAudioSpans}=await import("../lib/music-video/export.ts");
+ const range={startMs:10000,endMs:40000,positionMs:0};
+ const parts=[{startMs:10000,endMs:20000},{startMs:22000,endMs:25000}];
+ const duration=songPartsEnd(range,parts);
+ assert.equal(duration,15000);
+ const clip={id:"a",assetId:"a",track:1 as const,timelineStartMs:0,sourceInMs:500,sourceOutMs:30000,syncLocked:false};
+ const outside={...clip,id:"b",timelineStartMs:30000};
+ assert.equal(videoRenderSpans([clip,outside],duration).at(-1)?.endFrame,450);
+ assert.equal(trackAudioSpans([clip,outside],1,duration)[0].durationMs,15000);
+ const editor=read("components/music-video-editor.tsx"),renderer=read("lib/music-video/export.ts");
+ assert.ok(editor.includes("const timelineEnd=project?songPartsEnd(songRange,songParts):0"));
+ assert.ok(editor.includes("const timelineLimit=timelineEnd"));
  assert.ok(editor.includes("Math.max(1,timelineLimit/1000*zoom)"));
- assert.ok(!editor.includes("Math.max(project.songDurationMs,timelineEnd)+10000"));
+ assert.ok(editor.includes("c.track===track&&c.timelineStartMs<timelineLimit"));
+ assert.ok(editor.includes("Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs"));
  assert.ok(editor.includes("if(end>timelineLimit)"));
  assert.ok(editor.includes("Math.min(timelineLimit-(initial.sourceOutMs-initial.sourceInMs)"));
+ assert.ok(editor.includes("songTimelineEnd(candidate)<=songPlacementLimit"));
+ assert.ok(!editor.includes("Math.max(songPartsEnd("));
+ assert.equal(renderer.split("const duration=songPartsEnd(range,project.songParts);").length,3);
 });
