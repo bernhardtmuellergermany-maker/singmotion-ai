@@ -18,7 +18,7 @@ import {musicPrincipal} from "@/lib/music-video/auth";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
-  newMusicProject,musicDetail,renameMusicProject,removeMusicProject,
+  newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
   newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,
   type MediaKind,type SourceKind,type MusicClip,
 } from "@/lib/music-video/core";
@@ -160,6 +160,17 @@ async function libraryThumbnail(projectId:string,assetId:string,file:string,dura
   thumbnailJobs.set(cached,job);
   try{return await job;}finally{thumbnailJobs.delete(cached);}
 }
+function cleanSongName(name:unknown):string|null{
+ if(typeof name!=="string")return null;
+ return name.replace(/[\x00-\x1f\x7f]/g," ").trim().slice(0,180)||null;
+}
+async function originalSongTitle(file:string):Promise<string|null>{
+ try{
+  const {stdout}=await promisify(execFile)("ffprobe",["-v","error","-show_entries","format_tags=title:stream_tags=title","-of","json",file],{timeout:5000,maxBuffer:32768});
+  const tags=JSON.parse(stdout) as {format?:{tags?:Record<string,string>};streams?:Array<{tags?:Record<string,string>}>};
+  return cleanSongName(tags.format?.tags?.title??tags.format?.tags?.TITLE??tags.streams?.find(s=>s.tags?.title||s.tags?.TITLE)?.tags?.title??tags.streams?.find(s=>s.tags?.TITLE)?.tags?.TITLE);
+ }catch{return null;}
+}
 async function handler(req:NextRequest,context:Context){
   const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
   try{
@@ -182,7 +193,8 @@ async function handler(req:NextRequest,context:Context){
         await mkdir(path.dirname(temp),{recursive:true,mode:0o700});
         await writeFile(temp,buffer,{flag:"wx",mode:0o600});
         const duration=await validateAudio(temp);
-        project=newMusicProject(owner,title,toMs(duration),form.get("aspectRatio")??"auto");
+        const songName=await originalSongTitle(temp)||cleanSongName(file.name.replace(/\.(mp3|wav|m4a)$/i,""))||"Untitled song";
+        project=newMusicProject(owner,title,toMs(duration),form.get("aspectRatio")??"auto",songName);
         await mkdir(projectFolder(project.id),{recursive:true,mode:0o700});
         await rename(temp,path.join(projectFolder(project.id),"song-original."+extension));
         if(extension==="mp3")await writeFile(path.join(projectFolder(project.id),"song.mp3"),buffer,{flag:"wx",mode:0o600});
@@ -195,10 +207,21 @@ async function handler(req:NextRequest,context:Context){
     }
     const project=requireMusicProject(id,owner);
     if(!section){
-      if(req.method==="GET")return json(musicDetail(id,owner));
+      if(req.method==="GET"){
+        if(!project.songName){
+          for(const ext of ["mp3","wav","m4a"]){
+            const file=path.join(projectFolder(id),"song-original."+ext);
+            if(!await stat(file).then(s=>s.isFile()).catch(()=>false))continue;
+            const title=await originalSongTitle(file);
+            if(title)fillMusicSongName(id,owner,title);
+            break;
+          }
+        }
+        return json(musicDetail(id,owner));
+      }
       if(req.method==="PATCH"){
         const body=await jsonBody(req);
-        return json({project:renameMusicProject(id,owner,body.name)});
+        return json({project:body.songName!==undefined?renameMusicSong(id,owner,body.songName):renameMusicProject(id,owner,body.name)});
       }
       if(req.method==="DELETE"){
         removeMusicProject(id,owner);
