@@ -156,6 +156,20 @@ export function continuousSongParts(range:SongPlacement,parts:SongRange[]|null):
 export function clipSourceTimeMs(clip:{sourceInMs:number;sourceOutMs:number;timelineStartMs:number},atMs:number):number{
  return Math.max(clip.sourceInMs,Math.min(clip.sourceOutMs,clip.sourceInMs+atMs-clip.timelineStartMs));
 }
+/** A visible clip owns its own audio. Only a covered, audible clip needs another decoder.
+ * When the song is muted, prefer an audible media clock, then the visible picture. */
+export function previewMediaPlan<T extends {id:string;track:1|2;timelineStartMs:number;sourceInMs:number;sourceOutMs:number}>(clips:readonly T[],at:number,mutes:{1:boolean;2:boolean}){
+ const end=(c:T)=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
+ const active=clips.filter(c=>at>=c.timelineStartMs&&at<end(c));
+ const one=active.find(c=>c.track===1),two=active.find(c=>c.track===2);
+ const visible=two??one;
+ const audio1=!mutes[1]&&one&&one!==visible?one:undefined;
+ const audio2=!mutes[2]&&two&&two!==visible?two:undefined;
+ const clock=visible&&!mutes[visible.track]?visible:audio2??audio1??visible;
+ const nextBoundaryMs=clips.reduce((next,c)=>Math.min(next,c.timelineStartMs>at?c.timelineStartMs:Infinity,end(c)>at?end(c):Infinity),Infinity);
+ return {visible,audio1,audio2,clock,nextBoundaryMs};
+}
+
 /** Seek large errors; gently correct smaller drift without repeatedly seeking a playing decoder. */
 export function mediaSyncDecision(expectedSeconds:number,actualSeconds:number,playing:boolean,paused:boolean,seeking:boolean):{seek:boolean;rate:number}{
  const error=expectedSeconds-actualSeconds,drift=Math.abs(error);
