@@ -1,0 +1,7 @@
+.figure{margin:0;max-width:640px;min-width:0;width:100%}
+.figure picture{display:block;aspect-ratio:16/9;overflow:hidden;border-radius:10px;background:#11101e}
+.figure img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:contain}
+.caption{display:flex;align-items:center;justify-content:space-between;gap:8px;color:inherit;font-size:12px;line-height:1.4;margin-top:6px}
+.pause{min-height:40px;padding:5px 11px;border:1px solid #8973a2;border-radius:8px;background:transparent;color:inherit;font-size:12px;cursor:pointer;flex-shrink:0}
+.pause:focus-visible{outline:2px solid #e3caff;outline-offset:2px}
+@media(prefers-reduced-motion:reduce){.pause{display:none}}

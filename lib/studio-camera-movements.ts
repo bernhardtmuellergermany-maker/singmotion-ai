@@ -412,3 +412,9 @@ export const cameraMovements:readonly CameraMovement[] = [
 ];
 export const featuredCameraMovements = cameraMovements.filter(move => move.recommended);
 export const additionalCameraMovements = cameraMovements.filter(move => !move.recommended);
+
+/** The same locally rendered demonstration and reduced-motion poster power Help and Studio. */
+export function cameraMovementPreview(move:CameraMovement){
+ const stem="/camera-movements/singmotion-"+move.name.toLowerCase().replace(/[^a-z0-9]+/g,"-");
+ return {animation:stem+".webp",poster:stem+"-poster.webp"};
+}
