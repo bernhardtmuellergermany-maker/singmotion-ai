@@ -171,3 +171,26 @@ test("API deletes are recoverable and direct deleted project URLs are not public
  assert.match(worker,/nextProjectTrashCleanup=Date.now\(\)\+60\*60\*1000/);
  assert.match(worker,/runProjectTrashCleanup\(dataDir\)/);
 });
+
+test("paid deleted video retains its verified title after physical trash cleanup",async()=>{
+ const f=await fixture();try{
+  const {CreditWallet}=await import("../lib/commerce/credit-wallet.ts");
+  const {creditEntriesWithVideoProjects}=await import("../lib/commerce/notifications.ts");
+  const account=randomUUID(),subject="customer:"+account,owner="customer-"+account,id=randomUUID(),asset=randomUUID();
+  const commerce=new DatabaseSync(path.join(f.root,"commerce.sqlite"));
+  try{
+   const wallet=new CreditWallet(commerce);
+   commerce.prepare("INSERT INTO credit_video_reservations VALUES(?,?,?,'settled',?,?)").run(id,subject,125,now,now);
+   commerce.prepare("INSERT INTO credit_wallet_ledger VALUES(?,?,?,?,?,?)").run("video-charge:"+id,subject,-125,"video","video-charge:"+id,now);
+   const file=path.join(f.root,"live-output",id+".mp4");
+   await writeFile(file,"finished");
+   f.live.prepare("INSERT INTO live_studio_projects(attempt_id,owner,selection_json,policy_json,artist_name,project_name,deleted_at) VALUES(?,?,?,?,?,?,?)").run(id,owner,selection(owner,asset),"{}","Artist","Remember this video",now);
+   f.live.prepare("INSERT INTO live_attempts VALUES(?,?,?)").run(id,"test-job",JSON.stringify({state:"completed",media:{owner},outputPath:file}));
+   const result=await runProjectTrashCleanup(f.root,{now:now+PROJECT_TRASH_MS});
+   assert.equal(result.studioPurged,1);
+   await assert.rejects(stat(file));
+   assert.deepEqual(creditEntriesWithVideoProjects(commerce,f.live,subject,wallet.entries(subject))[0].video,{name:"Remember this video",href:null});
+   assert.equal(wallet.entries(subject)[0].credits,-125);
+  }finally{commerce.close()}
+ }finally{await f.close()}
+});
