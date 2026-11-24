@@ -47,7 +47,6 @@ export function MusicVideoEditor({id}:{id:string}){
   const [partIndex,setPartIndex]=useState(0),[partStartText,setPartStartText]=useState(""),[partEndText,setPartEndText]=useState("");
   const [songRange,setSongRange]=useState<SongPlacement>({startMs:0,endMs:0,positionMs:0});
   const [startText,setStartText]=useState("00:00.000"),[endText,setEndText]=useState("00:00.000");
-  const [positionText,setPositionText]=useState("00:00.000");
   const playheadRef=useRef(0),playingRef=useRef(false);
   const rangeRef=useRef<SongPlacement>({startMs:0,endMs:0,positionMs:0});
   const [selected,setSelected]=useState<string|null>(null),[playhead,setPlayhead]=useState(0);
@@ -92,7 +91,7 @@ export function MusicVideoEditor({id}:{id:string}){
     ratioRef.current=data.project.aspectRatio??"auto";setAspectRatio(ratioRef.current);
     mutesRef.current=data.project.trackMutes??initialMutes;setTrackMutes(mutesRef.current);
     partsRef.current=data.project.songParts;setSongParts(data.project.songParts);setPartIndex(0);
-    rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
+    rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
     playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
     const at=Math.min(playheadRef.current,Math.max(songPartsEnd(range,partsRef.current),...data.clips.map(clipEnd)));
     playheadRef.current=at;setPlayhead(at);
@@ -194,7 +193,7 @@ export function MusicVideoEditor({id}:{id:string}){
     return <button type="button" className={"mv-track-mute"+(muted?" is-muted":"")} aria-label={label} title={label} aria-pressed={muted} disabled={importing} onClick={()=>toggleTrackMute(track)}>{muted?<VolumeX size={15}/>:<Volume2 size={15}/>}</button>;
   }
   function displaySong(range:SongPlacement){
-    setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
+    setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
   }
   function commitSongRange(range:SongRange,position?:number){
     if(roleBusy.current)return;
@@ -209,13 +208,12 @@ export function MusicVideoEditor({id}:{id:string}){
     if(next.startMs!==original.startMs||next.endMs!==original.endMs||next.positionMs!==original.positionMs)
       apply(moved,true,next);
   }
-  function submitSongField(field:"start"|"end"|"position"){
+  function submitSongField(field:"start"|"end"){
     if(importBusy.current||roleBusy.current)return;
     const range=rangeRef.current,parts=partsRef.current;
-    const text=field==="position"?positionText:field==="start"?(parts?partStartText:startText):(parts?partEndText:endText);
+    const text=field==="start"?(parts?partStartText:startText):(parts?partEndText:endText);
     const ms=parseSongTime(text);
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
-    if(field==="position"){commitSongRange(range,ms);return;}
     if(parts){
       const part=parts[Math.min(partIndex,parts.length-1)];if(!part)return;
       editPart(field==="start"?ms:part.startMs,field==="end"?ms:part.endMs);
@@ -1018,7 +1016,6 @@ export function MusicVideoEditor({id}:{id:string}){
       <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>
         <InlineTimeField label={songParts?"Part source start":"Source start"} ariaLabel={songParts?"Song part start":"Song start time"} value={songParts?partStartText:startText} onChange={songParts?setPartStartText:setStartText} onConfirm={()=>submitSongField("start")} disabled={importing} placeholder="00:08.918"/>
         <InlineTimeField label={songParts?"Part source end":"Source end"} ariaLabel={songParts?"Song part end":"Song end time"} value={songParts?partEndText:endText} onChange={songParts?setPartEndText:setEndText} onConfirm={()=>submitSongField("end")} disabled={importing} placeholder="00:30.000"/>
-        <InlineTimeField label={songParts?"Song group position":"Timeline position"} ariaLabel="Song timeline position" value={positionText} onChange={setPositionText} onConfirm={()=>submitSongField("position")} disabled={importing} placeholder="00:08.918"/>
         {songParts?<><button type="button" className="mv-outline mv-inspector-icon" disabled={importing||songParts.length<2} onClick={removeSongPart} title="Remove part" aria-label="Remove part"><Trash2 size={15}/></button><button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={resetSongParts} title="Reset splits" aria-label="Reset splits"><RotateCcw size={15}/></button></>:<button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)} title="Reset song range" aria-label="Reset song range"><RotateCcw size={15}/></button>}
         <button type="button" className="mv-outline mv-song-rename mv-inspector-icon" disabled={importing} onClick={()=>void renameSong()} title="Rename song" aria-label="Rename song"><Pencil size={14}/>{!project!.songName?" Set song name":""}</button>
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
