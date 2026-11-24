@@ -261,3 +261,19 @@
  .mv-timeline-zoom .mv-marker-time label{font-size:11px}
  .mv-timeline-zoom .mv-zoom-buttons{margin-left:0}
 }
+
+/* Keep add controls at the visible right edge of the video lanes, outside scrolling media. */
+.mv-track-adds{flex:0 0 32px;min-width:32px;position:relative;z-index:10;background:#20132e;border-left:1px solid #58336e}
+.mv-add-spacer{height:30px;border-bottom:1px solid #5b3472}
+.mv-track-add-row{height:58px;position:relative;display:grid;place-items:center;border-bottom:1px solid #48315a}
+.mv-root .mv-track-add-button{width:25px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:#c4a4d5;display:grid;place-items:center;opacity:.8}
+.mv-root .mv-track-add-button:hover,.mv-root .mv-track-add-button[aria-expanded=true]{background:#49275b;color:#f3d4ff;opacity:1}
+.mv-track-adds .mv-add-menu{left:auto;right:3px;top:calc(100% - 6px);z-index:30;min-width:205px}
+.mv-song-block.is-selected{outline:2px solid #e0a6ff;outline-offset:2px}
+.mv-song-handle:not(.is-selected):not(.is-armed){opacity:0;pointer-events:none}
+.mv-song-position{background:#271537}
+@media(max-width:760px){
+ .mv-track-adds{flex-basis:28px;min-width:28px}
+ .mv-track-add-row{height:50px}
+ .mv-root .mv-track-add-button{width:26px;height:30px}
+}
