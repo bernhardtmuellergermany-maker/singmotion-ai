@@ -2,10 +2,10 @@
 import Link from "next/link";
 import {useCallback,useEffect,useState} from "react";
 import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2} from "lucide-react";
-import type {MusicProject,ProjectAspectRatio} from "@/lib/music-video/core";
+import type {MusicProject,MusicProjectSummary,ProjectAspectRatio} from "@/lib/music-video/core";
 import "./music-video.css";
 
-type Payload={projects:MusicProject[];error?:string};
+type Payload={projects:MusicProjectSummary[];error?:string};
 async function api<T>(url:string,init?:RequestInit):Promise<T>{
   const response=await fetch(url,{credentials:"same-origin",cache:"no-store",...init});
   const data=await response.json() as T & {error?:string};
@@ -14,7 +14,7 @@ async function api<T>(url:string,init?:RequestInit):Promise<T>{
 }
 const duration=(ms:number)=>String(Math.floor(ms/60000))+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0");
 export function MusicProjectsClient(){
-  const [projects,setProjects]=useState<MusicProject[]>([]);
+  const [projects,setProjects]=useState<MusicProjectSummary[]>([]);
   const [search,setSearch]=useState("");
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
@@ -61,11 +61,11 @@ export function MusicProjectsClient(){
     {loading?<p role="status">Loading projects…</p>:filtered.length?<div className="mv-project-grid">
       {filtered.map(p=><article key={p.id} className="mv-project-card">
         <Link href={"/projects/"+p.id} className="mv-project-link">
-          <div className="mv-project-art"><Music2 size={38}/><span>{p.aspectRatio==="auto"?"Auto":p.aspectRatio}</span></div>
+          <div className="mv-project-art"><Music2 size={38}/>{p.thumbnailAssetId&&<img key={p.thumbnailAssetId} src={"/api/music-video/"+p.id+"/thumbnail/"+p.thumbnailAssetId} alt="" loading="lazy" decoding="async" draggable={false} onError={e=>{e.currentTarget.style.display="none";}}/>}<span>{p.aspectRatio==="auto"?"Auto":p.aspectRatio}</span></div>
           <strong>{p.name}</strong><p>{duration(p.songDurationMs)} · Edited {new Date(p.updatedAt).toLocaleDateString("en-GB")}</p>
         </Link>
         <details className="mv-card-more"><summary aria-label={"Project options for "+p.name}><MoreHorizontal size={18}/></summary>
-          <div><button onClick={()=>void rename(p)}><Pencil size={14}/> Rename</button>
+          <div><Link href={"/projects/"+p.id}><Pencil size={14}/> Edit</Link><button onClick={()=>void rename(p)}><Pencil size={14}/> Rename</button>
           <button onClick={()=>void remove(p)}><Trash2 size={14}/> Delete</button></div>
         </details>
       </article>)}
