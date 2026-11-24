@@ -394,6 +394,29 @@ test("video lane audio includes covered clips and silence between clips",async()
  assert.deepEqual(trackAudioSpans([a,b],2,4000).map(s=>[s.clip?.id??null,s.startMs,s.durationMs]),[["b",0,4000]]);
 });
 
+test("muted song uses one native clip clock without duplicate visible audio",async()=>{
+ const {previewMediaPlan}=await import("../lib/music-video/song-range.ts");
+ const a={id:"a",track:1 as const,timelineStartMs:0,sourceInMs:500,sourceOutMs:4500};
+ const b={id:"b",track:2 as const,timelineStartMs:1000,sourceInMs:0,sourceOutMs:2000};
+ const c={...a,id:"c",timelineStartMs:5000};
+ let plan=previewMediaPlan([a,b,c],0,{1:false,2:true});
+ assert.equal(plan.visible,a);assert.equal(plan.clock,a);assert.equal(plan.audio1,undefined);assert.equal(plan.nextBoundaryMs,1000);
+ plan=previewMediaPlan([a,b,c],1000,{1:false,2:true});
+ assert.equal(plan.visible,b);assert.equal(plan.clock,a);assert.equal(plan.audio1,a);assert.equal(plan.audio2,undefined);
+ plan=previewMediaPlan([a,b,c],1000,{1:false,2:false});
+ assert.equal(plan.clock,b);assert.equal(plan.audio1,a);assert.equal(plan.audio2,undefined);
+ plan=previewMediaPlan([a,b,c],1000,{1:true,2:true});
+ assert.equal(plan.clock,b);assert.equal(plan.audio1,undefined);
+ plan=previewMediaPlan([a,b,c],4000,{1:false,2:false});
+ assert.equal(plan.clock,undefined);assert.equal(plan.nextBoundaryMs,5000);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("at=advanceMutedClock(at,elapsed,timelineEnd)"));
+ assert.ok(editor.includes("if(current&&!current.paused)current.pause()"));
+ assert.ok(editor.includes("mutedPreviewClock(at).element===element"));
+ assert.ok(editor.includes("muted={!activeClip||trackMutes[activeClip.track]}"));
+ assert.ok(editor.includes("audio.current.pause();startMutedClock(at);syncFollowers()"));
+ assert.ok(editor.includes("const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2"));
+});
 test("desktop mouse starts editing immediately; touch retains long-press scrolling",()=>{
  const editor=read("components/music-video-editor.tsx");
  const gesture=editor.slice(editor.indexOf("function beginMediaGesture("),editor.indexOf("function dragSong(e:"));
