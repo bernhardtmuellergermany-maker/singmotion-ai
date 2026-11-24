@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
 import {readFileSync} from "node:fs";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
-import {NotificationInbox,creditedVideoProject,creditEntriesWithVideoProjects} from "../lib/commerce/notifications.ts";
+import {NotificationInbox,creditedVideoProject,creditEntriesWithVideoProjects,preserveDeletedCreditVideo} from "../lib/commerce/notifications.ts";
 
 const videoId="31da5034-8686-4f24-9236-638994bef222";
 const customer="d7531cc6-179e-4088-b342-1f675c4a934a";
@@ -99,6 +99,14 @@ test("Credits usage identifies the same verified video without changing ledger a
   assert.equal(creditEntriesWithVideoProjects(commerce,live,"customer:aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",entries)[0].video,null);
   assert.equal(creditEntriesWithVideoProjects(commerce,live,subject,[{...entries[0],type:"purchase"}])[0].video,null);
   live.prepare("UPDATE live_studio_projects SET deleted_at=? WHERE attempt_id=?").run(Date.now(),videoId);
+  assert.deepEqual(enriched()[0].video,{name:"New name",href:null});
+  const deletedAt=(live.prepare("SELECT deleted_at FROM live_studio_projects WHERE attempt_id=?").get(videoId) as {deleted_at:number}).deleted_at;
+  preserveDeletedCreditVideo(commerce,live,videoId,owner,deletedAt);
+  live.prepare("DELETE FROM live_studio_projects WHERE attempt_id=?").run(videoId);
+  assert.deepEqual(enriched()[0].video,{name:"New name",href:null});
+  assert.equal(new NotificationInbox(commerce,live).list(subject).notifications[0].href,"/credits#usage");
+  assert.equal(creditEntriesWithVideoProjects(commerce,live,"customer:aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",entries)[0].video,null);
+  live.prepare("DELETE FROM live_studio_actions WHERE attempt_id=?").run(videoId);
   assert.equal(enriched()[0].video,null);
  }finally{commerce.close();live.close();}
 });
@@ -111,4 +119,7 @@ test("Credits usage API enriches the authenticated ledger read-only and UI links
  assert.ok(ui.includes('entry.type==="video"&&entry.video'));
  assert.ok(ui.includes('href={entry.video.href}'));
  assert.ok(ui.includes('{entry.video.name} · View video'));
+ assert.ok(ui.includes('entry.video.href===null'));
+ assert.ok(ui.includes('Video deleted'));
+ assert.ok(ui.includes('Video unavailable'));
 });
