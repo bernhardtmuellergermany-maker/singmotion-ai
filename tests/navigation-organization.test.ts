@@ -394,3 +394,27 @@ test("desktop mouse starts editing immediately; touch retains long-press scrolli
  assert.ok(gesture.includes("},MEDIA_HOLD_MS)"));
  assert.ok(!gesture.includes("immediate&&"));
 });
+
+test("preview and render share exact source time, and playback corrects drift within frame-scale tolerances",async()=>{
+ const {clipSourceTimeMs,mediaSyncDecision}=await import("../lib/music-video/song-range.ts");
+ const clip={timelineStartMs:2804,sourceInMs:715,sourceOutMs:5000};
+ assert.equal(clipSourceTimeMs(clip,2804),715);
+ assert.equal(clipSourceTimeMs(clip,3804),1715);
+ assert.equal(clipSourceTimeMs(clip,0),715);
+ assert.equal(clipSourceTimeMs(clip,9000),5000);
+ assert.equal(mediaSyncDecision(1,0.8,true,false,false).seek,true);
+ assert.equal(mediaSyncDecision(1,0.94,true,false,false).seek,true);
+ assert.equal(mediaSyncDecision(1,0.975,true,false,false).seek,false);
+ assert.ok(mediaSyncDecision(1,0.975,true,false,false).rate>1);
+ assert.ok(mediaSyncDecision(1,1.025,true,false,false).rate<1);
+ assert.equal(mediaSyncDecision(1,0.8,true,false,true).seek,false);
+ assert.equal(mediaSyncDecision(1,0.998,false,true,false).seek,true);
+ const editor=read("components/music-video-editor.tsx"),renderer=read("lib/music-video/export.ts"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes("clipSourceTimeMs(clip,at)"));
+ assert.ok(renderer.includes("clipSourceTimeMs(clip,at)"));
+ assert.ok(editor.includes("songClockRunning(at)"));
+ assert.ok(editor.includes("onWaiting={pauseFollowers}"));
+ assert.ok(api.includes("const inspected=await probe(file)"));
+ assert.ok(api.includes("duration=toMs(measured)"));
+ assert.ok(!editor.includes("playing?0.24:0.001"));
+});
