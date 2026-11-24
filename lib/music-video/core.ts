@@ -8,12 +8,13 @@ import {validSongRange,validSongPlacement,MAX_TIMELINE_MS} from "./song-range.ts
 export type Track = 1 | 2;
 export type SourceKind = "uploaded" | "live" | "paid";
 export type MediaKind = "lip-sync" | "ai-video" | "imported";
+export type MediaRole = "lip-sync" | "b-roll";
 export type MusicClip = {
   id:string; assetId:string; track:Track; timelineStartMs:number;
   sourceInMs:number; sourceOutMs:number; syncLocked:boolean;
 };
 export type MusicAsset = {
-  id:string; projectId:string; name:string; kind:MediaKind; sourceKind:SourceKind;
+  id:string; projectId:string; name:string; kind:MediaKind; role:MediaRole; sourceKind:SourceKind;
   sourceId:string|null; durationMs:number; sourceStartMs:number|null;
   sourceEndMs:number|null; createdAt:number;
 };
@@ -48,6 +49,12 @@ function database():DatabaseSync{
   }catch(e){opened.exec("ROLLBACK");opened.close();throw e;}
   opened.exec("CREATE INDEX IF NOT EXISTS music_projects_owner ON music_projects(owner_id,updated_at)");
   opened.exec("CREATE TABLE IF NOT EXISTS music_assets (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES music_projects(id) ON DELETE CASCADE, name TEXT NOT NULL, kind TEXT NOT NULL, source_kind TEXT NOT NULL, source_id TEXT, duration_ms INTEGER NOT NULL, source_start_ms INTEGER, source_end_ms INTEGER, created_at INTEGER NOT NULL)");
+  opened.exec("BEGIN IMMEDIATE");
+  try{
+    const columns=opened.prepare("PRAGMA table_info(music_assets)").all() as {name:string}[];
+    if(!columns.some(c=>c.name==="role"))opened.exec("ALTER TABLE music_assets ADD COLUMN role TEXT DEFAULT NULL");
+    opened.exec("COMMIT");
+  }catch(e){opened.exec("ROLLBACK");opened.close();throw e;}
   opened.exec("CREATE INDEX IF NOT EXISTS music_assets_project ON music_assets(project_id)");
   opened.exec("CREATE TABLE IF NOT EXISTS music_clips (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES music_projects(id) ON DELETE CASCADE, asset_id TEXT NOT NULL REFERENCES music_assets(id), track INTEGER NOT NULL, timeline_start_ms INTEGER NOT NULL, source_in_ms INTEGER NOT NULL, source_out_ms INTEGER NOT NULL, sync_locked INTEGER NOT NULL)");
   opened.exec("CREATE INDEX IF NOT EXISTS music_clips_project ON music_clips(project_id)");
@@ -56,10 +63,10 @@ function database():DatabaseSync{
   return opened;
 }
 type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;revision:number;created_at:number;updated_at:number};
-type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
+type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;role:MediaRole|null;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number};
 const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:"16:9"});
-const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
+const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll"),sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked});
 export function requireMusicProject(id:string,owner:string):MusicProject{
   if(!validId(id))throw new MusicError("Project not found.",404);
@@ -111,9 +118,9 @@ export function newMusicAsset(id:string,owner:string,value:{
   if(!Number.isSafeInteger(value.durationMs)||value.durationMs<100||value.durationMs>3600000)throw new MusicError("Invalid video duration.");
   if(!["lip-sync","ai-video","imported"].includes(value.kind)||!["uploaded","live","paid"].includes(value.sourceKind))throw new MusicError("Invalid asset type.");
   const aid=randomUUID(),now=Date.now();
-  database().prepare("INSERT INTO music_assets VALUES (?,?,?,?,?,?,?,?,?,?)").run(
+  database().prepare("INSERT INTO music_assets (id,project_id,name,kind,source_kind,source_id,duration_ms,source_start_ms,source_end_ms,created_at,role) VALUES (?,?,?,?,?,?,?,?,?,?,?)").run(
     aid,id,validatedName(value.name),value.kind,value.sourceKind,value.sourceId||null,
-    value.durationMs,value.sourceStartMs??null,value.sourceEndMs??null,now);
+    value.durationMs,value.sourceStartMs??null,value.sourceEndMs??null,now,value.kind==="lip-sync"?"lip-sync":"b-roll");
   database().prepare("UPDATE music_projects SET updated_at=?,revision=revision+1 WHERE id=? AND owner_id=?").run(now,id,owner);
   return (database().prepare("SELECT * FROM music_assets WHERE id=?").get(aid) as AssetRow|undefined) ? mapAsset(database().prepare("SELECT * FROM music_assets WHERE id=?").get(aid) as AssetRow) : (()=>{throw new MusicError("Asset unavailable.",500)})();
 }
@@ -123,6 +130,23 @@ export function musicAsset(id:string,owner:string,assetId:string):MusicAsset{
   const row=database().prepare("SELECT * FROM music_assets WHERE id=? AND project_id=?").get(assetId,id) as AssetRow|undefined;
   if(!row)throw new MusicError("Asset unavailable.",404);
   return mapAsset(row);
+}
+/** Role belongs to this project; source provenance and exact original times are immutable. */
+export function setMusicAssetRole(id:string,owner:string,assetId:string,role:unknown,revision:unknown){
+  if(role!=="lip-sync"&&role!=="b-roll")throw new MusicError("Unknown video role.");
+  const project=requireMusicProject(id,owner),asset=musicAsset(id,owner,assetId),connection=database();
+  if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed on another device. Reload to continue.",409);
+  if(asset.role===role)return musicDetail(id,owner);
+  connection.exec("BEGIN IMMEDIATE");
+  try{
+    const changed=connection.prepare("UPDATE music_projects SET revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),id,owner,revision);
+    if(changed.changes!==1)throw new MusicError("Project changed on another device. Reload to continue.",409);
+    connection.prepare("UPDATE music_assets SET role=? WHERE id=? AND project_id=?").run(role,assetId,id);
+    // B-roll is freely positioned; never move, delete, or trim existing timeline clips.
+    if(role==="b-roll")connection.prepare("UPDATE music_clips SET sync_locked=0 WHERE project_id=? AND asset_id=?").run(id,assetId);
+    connection.exec("COMMIT");
+  }catch(e){connection.exec("ROLLBACK");throw e;}
+  return musicDetail(id,owner);
 }
 export function removeMusicAsset(id:string,owner:string,assetId:string){
   musicAsset(id,owner,assetId);
@@ -146,7 +170,7 @@ export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:
     const end=c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
     if(end>songMs)throw new MusicError("Clip extends beyond the end of the song.",409);
     if(c.syncLocked){
-      if(a.kind!=="lip-sync"||a.sourceStartMs===null||a.sourceEndMs===null ||
+      if(a.role!=="lip-sync"||a.sourceStartMs===null||a.sourceEndMs===null ||
         c.timelineStartMs!==a.sourceStartMs+c.sourceInMs+offset||
         end>a.sourceEndMs+offset)throw new MusicError("Lip-sync position cannot change while Sync Lock is enabled.",409);
     }
