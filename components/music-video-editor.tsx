@@ -47,7 +47,13 @@ export function MusicVideoEditor({id}:{id:string}){
   const [autoFormat,setAutoFormat]=useState<{assetId:string;ratio:"9:16"|"16:9"}|null>(null);
   const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
   const trackAudio1=useRef<HTMLAudioElement>(null),trackAudio2=useRef<HTMLAudioElement>(null);
-  const mutedClockRef=useRef<{element:HTMLMediaElement;aligned:boolean}|null>(null);
+  const mutedClockRef=useRef<{element:HTMLMediaElement;clipId:string;aligned:boolean;pending:boolean}|null>(null);
+  const [mobile,setMobile]=useState<boolean|null>(null),mobileRef=useRef(false);
+  const [mobileReady,setMobileReady]=useState<Set<string>>(()=>new Set());
+  const mobileReadyRef=useRef<Set<string>>(new Set());
+  const [mobileUnavailable,setMobileUnavailable]=useState<Set<string>>(()=>new Set());
+  const mobileSongStarting=useRef(false);
+  useEffect(()=>{const value=window.matchMedia("(pointer: coarse)").matches||/iPhone|iPad|Android|Mobile/i.test(navigator.userAgent);mobileRef.current=value;setMobile(value);},[]);
   const lastFollowerSeek=useRef(new WeakMap<HTMLMediaElement,number>());
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
   const [partIndex,setPartIndex]=useState(0),[partStartText,setPartStartText]=useState(""),[partEndText,setPartEndText]=useState("");
@@ -461,7 +467,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const previewPlan=previewMediaPlan(playhead<timelineEnd?clips:[],playhead,trackMutes);
   const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2;
   const readyForPlayback=playing?playingPreviewRef.current:previewReady;
-  const source=(a:MusicAsset)=>endpoint+id+(readyForPlayback.has(a.id)?"/preview/":"/assets/")+a.id;
+  const source=(a:MusicAsset)=>mobile?endpoint+id+"/preview/"+a.id+"?mobile=1":endpoint+id+(readyForPlayback.has(a.id)?"/preview/":"/assets/")+a.id;
   const mediaBoundaries=useMemo(()=>[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t<timelineEnd).sort((a,b)=>a-b),[clips,timelineEnd]);
   const nextClip=useMemo(()=>{
     const boundaries=mediaBoundaries.filter(t=>t>playhead);
@@ -471,7 +477,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const nextAsset=nextClip?byId.get(nextClip.assetId):undefined;
   // Prepare only the visible and next clips; no proxy swap in the middle of playback.
   useEffect(()=>{
-    if(playing||importing)return;
+    if(mobile!==false||playing||importing)return;
     const controller=new AbortController();
     const candidates=[activeAsset,nextAsset].filter((a):a is MusicAsset=>!!a&&a.durationMs<=180000);
     void(async()=>{
@@ -485,7 +491,35 @@ export function MusicVideoEditor({id}:{id:string}){
       }
     })();
     return()=>controller.abort();
-  },[id,activeAsset?.id,nextAsset?.id,playing,importing]);
+  },[id,activeAsset?.id,nextAsset?.id,playing,importing,mobile]);
+  // Mobile never loads originals, and proxy preparation continues during playback.
+  useEffect(()=>{
+    if(mobile!==true)return;
+    const controller=new AbortController();
+    const ids=[...new Set([activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id].filter((v):v is string=>!!v))];
+    let timer:ReturnType<typeof setTimeout>|undefined;
+    const prepare=async()=>{
+      for(const assetId of ids){
+        if(controller.signal.aborted)return;
+        if(mobileReadyRef.current.has(assetId)||mobileUnavailable.has(assetId))continue;
+        try{
+          const data=await request<{ready:boolean;unsupported?:boolean}>(endpoint+id+"/preview/"+assetId+"?mobile=1",{method:"POST",signal:controller.signal});
+          if(controller.signal.aborted)return;
+          if(data.ready){mobileReadyRef.current=new Set([...mobileReadyRef.current,assetId]);setMobileReady(mobileReadyRef.current);}
+          else if(data.unsupported)setMobileUnavailable(old=>new Set([...old,assetId]));
+        }catch{}
+      }
+      if(!controller.signal.aborted&&ids.some(a=>!mobileReadyRef.current.has(a)&&!mobileUnavailable.has(a)))timer=setTimeout(()=>void prepare(),2000);
+    };
+    void prepare();
+    return()=>{controller.abort();if(timer)clearTimeout(timer);};
+  },[id,mobile,activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id,mobileUnavailable,mobileReady]);
+  function mobilePreviewFailed(assetId:string){
+    if(!mobileRef.current)return;
+    const next=new Set(mobileReadyRef.current);next.delete(assetId);mobileReadyRef.current=next;setMobileReady(next);
+  }
+  const mobilePreparing=mobile===true&&!!activeAsset&&!mobileReady.has(activeAsset.id);
+  const mobileUnsupported=mobilePreparing&&!!activeAsset&&mobileUnavailable.has(activeAsset.id);
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
@@ -795,7 +829,7 @@ export function MusicVideoEditor({id}:{id:string}){
     e.preventDefault();seek(next);
   }
   function mutedPreviewClock(at:number){
-    const plan=previewMediaPlan(latest.current,at,mutesRef.current),clip=plan.clock;
+    const plan=previewMediaPlan(latest.current,at,mutesRef.current),clip=mobileRef.current?plan.visible:plan.clock;
     const candidate=clip===plan.visible?video.current:clip?.track===1?trackAudio1.current:trackAudio2.current;
     const element=clip&&candidate?.dataset.clipId===clip.id?candidate:null;
     return {clip,element,nextBoundaryMs:plan.nextBoundaryMs};
@@ -803,18 +837,19 @@ export function MusicVideoEditor({id}:{id:string}){
   function startMutedClock(at:number){
     const clock=mutedPreviewClock(at),{clip,element}=clock;
     if(!clip||!element){mutedClockRef.current=null;return clock;}
-    const fresh=mutedClockRef.current?.element!==element;
-    if(fresh)mutedClockRef.current={element,aligned:false};
+    const fresh=mutedClockRef.current?.element!==element||mutedClockRef.current?.clipId!==clip.id;
+    if(fresh)mutedClockRef.current={element,clipId:clip.id,aligned:false,pending:false};
     const state=mutedClockRef.current!;
     const expected=clipSourceTimeMs(clip,at)/1000;
     if(!state.aligned&&(fresh||element.readyState>=1)){
       element.playbackRate=1;
       try{if(Math.abs(element.currentTime-expected)>0.025)element.currentTime=expected;state.aligned=element.readyState>=1;}catch{}
     }
-    if(fresh&&(element.paused||element.ended)){
+    if((fresh||mobileRef.current&&element.readyState>=2)&&!state.pending&&(element.paused||element.ended)){
+      state.pending=true;
       void element.play().catch(()=>{
-        if(playingRef.current&&mutesRef.current.song&&mutedClockRef.current===state){stopPlayback();setError("Video playback was blocked. Tap Play to retry.");}
-      }).finally(()=>{if(!playingRef.current)element.pause();});
+        if(playingRef.current&&(mutesRef.current.song||mobileRef.current)&&mutedClockRef.current===state){stopPlayback();setError("Video playback was blocked. Tap Play to retry.");}
+      }).finally(()=>{state.pending=false;if(!playingRef.current)element.pause();});
     }
     return clock;
   }
@@ -827,6 +862,25 @@ export function MusicVideoEditor({id}:{id:string}){
     if(element.paused||element.seeking||element.readyState<2)return at;
     return Math.min(boundary,Math.max(at,clip.timelineStartMs+element.currentTime*1000-clip.sourceInMs));
   }
+  // Mobile uses the actual displayed video as clock, including when the song is audible.
+  // A buffering video therefore cannot be chased by an independently advancing song.
+  function syncMobileSong(at:number,run:boolean){
+    const song=audio.current,range=rangeRef.current;
+    if(!song)return;
+    const part=songPartAt(range,partsRef.current,at);
+    if(mutesRef.current.song||!part||!run){song.pause();song.playbackRate=1;return;}
+    const expected=(at-songOffset(range))/1000;
+    const decision=mediaSyncDecision(expected,song.currentTime,true,song.paused,song.seeking);
+    if(song.readyState>=1&&decision.seek&&performance.now()-(lastFollowerSeek.current.get(song)??-Infinity)>=350){
+      try{song.currentTime=expected;lastFollowerSeek.current.set(song,performance.now());}catch{}
+    }
+    if(song.playbackRate!==decision.rate)song.playbackRate=decision.rate;
+    if(song.paused&&!mobileSongStarting.current){
+      mobileSongStarting.current=true;
+      void song.play().catch(()=>{if(playingRef.current&&!mutesRef.current.song){stopPlayback();setError("Song playback was blocked. Tap Play to retry.");}})
+        .finally(()=>{mobileSongStarting.current=false;if(!playingRef.current||mutesRef.current.song)song.pause();});
+    }
+  }
   useEffect(()=>{
     if(!playing)return;
     let frame=0,last=performance.now(),lastPaint=0,published=playheadRef.current,starting=false;
@@ -836,11 +890,17 @@ export function MusicVideoEditor({id}:{id:string}){
       let at=playheadRef.current;
       const elapsed=Math.max(0,now-last);last=now;
       const part=songPartAt(range,continuousSongParts(range,partsRef.current),at);
-      if(mutesRef.current.song){
+      const mobileClock=mobileRef.current&&!!previewMediaPlan(latest.current,at,mutesRef.current).visible;
+      if(mobileClock){
+        at=advanceMutedClock(at,elapsed,timelineEnd);
+        const master=mutedPreviewClock(at).element;
+        syncMobileSong(at,!!master&&!master.paused&&!master.seeking&&master.readyState>=2);
+      }else if(mutesRef.current.song){
         if(current&&!current.paused)current.pause();
         at=advanceMutedClock(at,elapsed,timelineEnd);
       }else if(part&&current){
         mutedClockRef.current=null;
+        if(current.playbackRate!==1)current.playbackRate=1;
         const end=songTimelineEnd(part);
         if(current.ended&&Math.round(current.currentTime*1000)+songOffset(range)>=end-40){at=end;}
         else{
@@ -867,7 +927,7 @@ export function MusicVideoEditor({id}:{id:string}){
       }
       const crossed=latest.current.some(c=>(c.timelineStartMs>published&&c.timelineStartMs<=at)||(clipEnd(c)>published&&clipEnd(c)<=at));
       // Media changes are immediate; React controls and millisecond readouts update at 10 Hz.
-      if(crossed||now-lastPaint>=100){
+      if(crossed||(mobileRef.current?now-lastPaint>=250:now-lastPaint>=100)){
         published=at;lastPaint=now;
         const ms=Math.round(at);setPlayhead(ms);setMarkerText(time(ms,true));
       }
@@ -880,11 +940,17 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!audio.current)return;
     if(playingRef.current){stopPlayback();return;}
     if(playheadRef.current>=timelineEnd)setAt(0);
+    if(mobileRef.current){
+      const plan=previewMediaPlan(latest.current,playheadRef.current,mutesRef.current);
+      if(plan.visible&&!mobileReadyRef.current.has(plan.visible.assetId)){setError("Preparing mobile video preview. Tap Play when ready.");return;}
+    }
     playingPreviewRef.current=new Set(previewReadyRef.current);
     playingRef.current=true;setPlaying(true);
     const range=rangeRef.current,at=playheadRef.current;
     // The follower effect and song playing event start the matching clips.
-    if(mutesRef.current.song){
+    if(mobileRef.current&&previewMediaPlan(latest.current,at,mutesRef.current).visible){
+      startMutedClock(at);syncMobileSong(at,true);syncFollowers();
+    }else if(mutesRef.current.song){
       audio.current.pause();startMutedClock(at);syncFollowers();
     }else if(songPartAt(range,partsRef.current,at)){
       audio.current.currentTime=(at-songOffset(range))/1000;
@@ -893,7 +959,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   // Use the song clock only while audible; a muted song must not stall the preview.
   function songClockRunning(at:number){
-    if(mutesRef.current.song){
+    if(mutesRef.current.song||mobileRef.current&&previewMediaPlan(latest.current,at,mutesRef.current).visible){
       const {clip,element}=mutedPreviewClock(at);
       return !clip||!!element&&!element.paused&&!element.seeking&&element.readyState>=2;
     }
@@ -903,7 +969,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function syncMedia(element:HTMLMediaElement|null,clip:MusicClip|undefined,at:number,run:boolean){
     if(!element)return;
-    if(playingRef.current&&mutesRef.current.song&&mutedPreviewClock(at).element===element)return;
+    if(playingRef.current&&(mutesRef.current.song||mobileRef.current)&&mutedPreviewClock(at).element===element)return;
     if(!clip||at<clip.timelineStartMs||at>=clipEnd(clip)){element.pause();element.playbackRate=1;return;}
     const expected=clipSourceTimeMs(clip,at)/1000;
     if(element.readyState<1)return;
@@ -928,7 +994,7 @@ export function MusicVideoEditor({id}:{id:string}){
     syncMedia(element,clip,at,run&&songClockRunning(at));
   }
   function pauseFollowers(){
-    if(mutesRef.current.song)return;
+    if(mutesRef.current.song||mobileRef.current)return;
     video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
   function syncFollowers(){
@@ -968,25 +1034,26 @@ export function MusicVideoEditor({id}:{id:string}){
     <section className="mv-preview" aria-label="Music video preview">
       <div className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
         {!activeAsset&&<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
-        {([activeClip,nextClip&&nextAsset&&readyForPlayback.has(nextAsset.id)&&nextClip.timelineStartMs-playhead<=5000?nextClip:undefined]).filter((c):c is MusicClip=>!!c).map(c=>{
+        {mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"This video is too long for mobile preview.":"Preparing mobile preview…"}</span></div>}
+        {(mobile===null?[]:mobile?(activeClip&&mobileReady.has(activeClip.assetId)?[activeClip]:[]):[activeClip,nextClip&&nextAsset&&readyForPlayback.has(nextAsset.id)&&nextClip.timelineStartMs-playhead<=5000?nextClip:undefined]).filter((c):c is MusicClip=>!!c).map(c=>{
           const a=byId.get(c.assetId);if(!a)return null;
           const visible=c.id===activeClip?.id;
-          return <video key={c.id} ref={visible?video:undefined} data-clip-id={c.id} playsInline muted={!visible||trackMutes[c.track]} preload={visible?"auto":"metadata"} src={source(a)} style={visible?undefined:{visibility:"hidden",pointerEvents:"none"}} aria-hidden={!visible}
+          return <video key={mobile?"mobile-video":c.id} ref={visible?video:undefined} data-clip-id={c.id} playsInline muted={!visible||trackMutes[c.track]} preload={visible?"auto":"metadata"} src={source(a)} style={visible?undefined:{visibility:"hidden",pointerEvents:"none"}} aria-hidden={!visible} onError={()=>{if(mobile)mobilePreviewFailed(a.id);}}
             onLoadedMetadata={e=>{if(visible)syncVideo(e.currentTarget,c);}} onCanPlay={e=>{if(visible)syncVideo(e.currentTarget,c);}} onSeeked={e=>{if(visible)syncVideo(e.currentTarget,c);}}/>;
         })}
 
       </div>
       <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload={trackMutes.song?"none":"metadata"}
         onLoadedMetadata={()=>{if(!playingRef.current&&!mutesRef.current.song)setAt(playheadRef.current);}} onWaiting={pauseFollowers} onSeeking={pauseFollowers} onPlaying={syncFollowers}/>
-      {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} data-clip-id={activeAudio1.id} src={endpoint+id+(readyForPlayback.has(activeAudio1.assetId)?"/preview/":"/assets/")+activeAudio1.assetId} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
-      {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} data-clip-id={activeAudio2.id} src={endpoint+id+(readyForPlayback.has(activeAudio2.assetId)?"/preview/":"/assets/")+activeAudio2.assetId} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
+      {activeAudio1&&mobile!==null&&(!mobile||mobileReady.has(activeAudio1.assetId))&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} data-clip-id={activeAudio1.id} src={mobile?endpoint+id+"/preview/"+activeAudio1.assetId+"?mobile=1":endpoint+id+(readyForPlayback.has(activeAudio1.assetId)?"/preview/":"/assets/")+activeAudio1.assetId} onError={()=>{if(mobile)mobilePreviewFailed(activeAudio1.assetId);}} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
+      {activeAudio2&&mobile!==null&&(!mobile||mobileReady.has(activeAudio2.assetId))&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} data-clip-id={activeAudio2.id} src={mobile?endpoint+id+"/preview/"+activeAudio2.assetId+"?mobile=1":endpoint+id+(readyForPlayback.has(activeAudio2.assetId)?"/preview/":"/assets/")+activeAudio2.assetId} onError={()=>{if(mobile)mobilePreviewFailed(activeAudio2.assetId);}} preload="auto" onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
       <div className="mv-format-controls" role="group" aria-label="Project video format">
         <span>Format</span>
         {(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} title={ratio==="auto"?"Use the first visible video’s format":ratio==="9:16"?"Portrait":"Landscape"} disabled={importing} onClick={()=>changeAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}
         {aspectRatio==="auto"&&autoFormat?.assetId===firstAssetId&&<small>{previewRatio}</small>}
       </div>
       <div className="mv-player-controls">
-        <button aria-label={playing?"Pause":"Play"} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
+        <button aria-label={playing?"Pause":"Play"} disabled={!playing&&(mobile===null||mobilePreparing)} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
         <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
         <div className="mv-progress-wrap">
           <div className="mv-progress-rail" aria-hidden="true"><span style={{width:progress.percent+"%"}}/></div>
