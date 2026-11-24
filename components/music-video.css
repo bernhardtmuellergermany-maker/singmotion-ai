@@ -427,3 +427,28 @@
 @media(max-width:340px){
  .mv-editor .mv-marker-time label{font-size:0;gap:0}
 }
+
+/* Match all editor text fields to the dark SingMotion form theme, including autofill. */
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=file]):not([type=hidden]){
+ color-scheme:dark;
+ background:#131d2b!important;
+ color:#f4f0fa!important;
+ -webkit-text-fill-color:#f4f0fa!important;
+ caret-color:#ead2ff;
+ border-color:#44394e!important;
+ opacity:1;
+}
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox])::placeholder{color:#a99bb9!important;-webkit-text-fill-color:#a99bb9!important;opacity:1}
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):focus{
+ background:#172335!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+ border-color:#a76cce!important;
+}
+.mv-root.mv-editor input:-webkit-autofill,
+.mv-root.mv-editor input:-webkit-autofill:hover,
+.mv-root.mv-editor input:-webkit-autofill:focus{
+ -webkit-box-shadow:0 0 0 1000px #131d2b inset!important;
+ -webkit-text-fill-color:#f4f0fa!important;
+ caret-color:#ead2ff;
+}
+.mv-root.mv-editor .mv-library-search input{background:transparent!important}
+.mv-root.mv-editor input::selection{background:#704293;color:#fff}
