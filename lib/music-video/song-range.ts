@@ -174,12 +174,13 @@ export function previewMediaPlan<T extends {id:string;track:1|2;timelineStartMs:
 export function mediaSyncDecision(expectedSeconds:number,actualSeconds:number,playing:boolean,paused:boolean,seeking:boolean):{seek:boolean;rate:number}{
  const error=expectedSeconds-actualSeconds,drift=Math.abs(error);
  if(!Number.isFinite(drift))return {seek:false,rate:1};
- if(!playing)return {seek:drift>0.001,rate:1};
  if(seeking)return {seek:false,rate:1};
- if(paused)return {seek:drift>0.008,rate:1};
- if(drift>0.050)return {seek:true,rate:1};
- if(drift<=0.010)return {seek:false,rate:1};
- return {seek:false,rate:Math.max(0.95,Math.min(1.05,1+error*1.5))};
+ if(!playing)return {seek:drift>0.001,rate:1};
+ if(paused)return {seek:drift>0.025,rate:1};
+ // Normal decoder/timestamp jitter is not a reason to discard buffered frames.
+ if(drift>0.120)return {seek:true,rate:1};
+ if(drift<=0.020)return {seek:false,rate:1};
+ return {seek:false,rate:Math.round(Math.max(0.95,Math.min(1.05,1+error))*100)/100};
 }
 
 /** Auto follows the first actually visible output frame, not library order. */
