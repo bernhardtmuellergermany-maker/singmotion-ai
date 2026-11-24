@@ -154,7 +154,7 @@ test("video start time supports exact song-relative placement and collision prot
  assert.equal(positionVideoClip([clip],{...clip,syncLocked:true},8918).status,"locked");
  assert.equal(positionVideoClip([clip],{...clip,syncLocked:true},0).status,"ok");
  const editor=read("components/music-video-editor.tsx");
- assert.ok(editor.includes("submitClipTime()"));
+ assert.ok(editor.includes('onConfirm={()=>submitClipTime("song")}'));
  assert.ok(editor.includes("positionVideoClip(latest.current,current,position)"));
  assert.ok(editor.includes("songTimeToTimeline(ms,rangeRef.current)"));
  assert.ok(editor.includes("Restore Lip Sync"));
@@ -448,15 +448,15 @@ test("auto export follows first visible video orientation; explicit format overr
 test("video inspector groups source start/end before timeline start/end",()=>{
  const editor=read("components/music-video-editor.tsx");
  const start=editor.indexOf('className="mv-video-times"');
- const end=editor.indexOf('className="mv-video-time-actions"',start);
+ const end=editor.indexOf('{originalClipSongTime!==null',start);
  assert.ok(start>=0&&end>start);
- const labels=[...editor.slice(start,end).matchAll(/<label>([^<]+)<input/g)].map(m=>m[1]);
+ const labels=[...editor.slice(start,end).matchAll(/<InlineTimeField label="([^"]+)"/g)].map(m=>m[1]);
  assert.deepEqual(labels,["Video start time","Video end time","Timeline start","Timeline end"]);
  assert.ok(editor.includes("Original song time"));
  assert.ok(editor.includes("Position in the full, untrimmed song"));
  assert.ok(editor.includes("Position in this music video project"));
- assert.ok(editor.includes("onClick={submitClipTime}"));
- assert.ok(editor.includes("onClick={submitClipEnd}"));
+ assert.ok(editor.includes('onConfirm={()=>submitClipTime("timeline")}'));
+ assert.ok(editor.includes('onConfirm={()=>submitClipEnd("timeline")}'));
 });
 
 test("library uses small authenticated cached still thumbnails instead of loading video elements",()=>{
@@ -539,4 +539,17 @@ test("library menu fits viewport and downloads the authorized original video",()
  assert.ok(css.includes("position:fixed;top:auto;right:auto;left:auto;z-index:1000"));
  assert.ok(api.includes("await exportSources(req,owner,id,musicDetail(id,owner),[assetId])"));
  assert.ok(api.includes('attachment; filename="'));
+});
+
+test("video and song time fields confirm inline and on Enter",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(editor.includes('className="mv-inline-confirm"'));
+ assert.ok(editor.includes('if(e.key==="Enter"){e.preventDefault();if(!disabled)onConfirm();}'));
+ assert.ok(editor.includes('onConfirm={()=>submitSongField("start")}'));
+ assert.ok(editor.includes('onConfirm={()=>submitSongField("end")}'));
+ assert.ok(editor.includes('onConfirm={()=>submitSongField("position")}'));
+ assert.ok(!editor.includes(">Move video</button>"));
+ assert.ok(!editor.includes(">Set end</button>"));
+ assert.ok(!editor.includes(">Set part</button>"));
+ assert.ok(css.includes("padding-right:34px!important"));
 });
