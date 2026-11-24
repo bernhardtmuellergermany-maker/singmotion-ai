@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -262,12 +262,30 @@ export function MusicVideoEditor({id}:{id:string}){
   const selectedPart=currentParts[Math.min(partIndex,currentParts.length-1)];
   useEffect(()=>{setPartStartText(time(selectedPart.startMs,true));setPartEndText(time(selectedPart.endMs,true));},[selectedPart.startMs,selectedPart.endMs]);
   function selectPart(i:number){setPartIndex(i);selectSong();}
+  function selectVideo(id:string){setSelected(id);setInspectorOpen(true);setAddMenu(null);}
   function editPart(start:number,end:number){
     if(importBusy.current||!partsRef.current)return;
     const list=partsRef.current,i=Math.min(partIndex,list.length-1);
     const next=list.map((p,j)=>j===i?{startMs:start,endMs:end}:p);
     if(!validSongParts(next,rangeRef.current)){setError("Song part must fit between adjacent parts and within the original range.");return;}
     apply(latest.current,true,rangeRef.current,next);
+  }
+  function trimPartEdge(e:React.PointerEvent<HTMLButtonElement>,i:number,edge:"start"|"end"){
+    const list=partsRef.current,range=rangeRef.current;
+    if(!list||!list[i]||importBusy.current)return;
+    selectPart(i);stopPlayback();e.preventDefault();e.stopPropagation();
+    const start=e.clientX,pointer=e.pointerId,startScroll=scroll.current?.scrollLeft??0,part=list[i];
+    let next=list;
+    const update=(event:PointerEvent)=>{
+      if(event.pointerId!==pointer)return;
+      const delta=Math.round((event.clientX-start+(scroll.current?.scrollLeft??0)-startScroll)/zoom*1000);
+      const p=edge==="start"?{...part,startMs:Math.max(list[i-1]?.endMs??range.startMs,Math.min(part.endMs-100,part.startMs+delta))}:{...part,endMs:Math.min(list[i+1]?.startMs??range.endMs,Math.max(part.startMs+100,part.endMs+delta))};
+      next=list.map((item,j)=>j===i?p:item);setSongParts(next);
+    };
+    const clean=()=>{document.removeEventListener("pointermove",update);document.removeEventListener("pointerup",finish);document.removeEventListener("pointercancel",cancel);setArmedMedia(null);};
+    const finish=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;update(event);clean();if(JSON.stringify(next)!==JSON.stringify(list))apply(latest.current,true,range,next);else setSongParts(list);};
+    const cancel=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;clean();setSongParts(list);};
+    document.addEventListener("pointermove",update);document.addEventListener("pointerup",finish);document.addEventListener("pointercancel",cancel);
   }
   function removeSongPart(){
     if(importBusy.current||!partsRef.current||partsRef.current.length<2)return;
@@ -456,7 +474,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const asset=byId.get(clip.assetId),initial=latest.current.find(c=>c.id===clip.id);
     if(!asset||!initial||!project)return;
     e.stopPropagation();e.preventDefault();
-    setSelected(clip.id);setError("");stopPlayback();
+    selectVideo(clip.id);setError("");stopPlayback();
     const startX=e.clientX,startY=e.clientY,pointer=e.pointerId,startScroll=scroll.current?.scrollLeft??0;
     const startClips=latest.current;
     let dragged=false;
@@ -682,7 +700,7 @@ export function MusicVideoEditor({id}:{id:string}){
       const current=audio.current,range=rangeRef.current;
       let at=playheadRef.current;
       const elapsed=Math.max(0,now-last);last=now;
-      const part=songPartAt(range,partsRef.current,at);
+      const part=songPartAt(range,continuousSongParts(range,partsRef.current),at);
       if(part&&current){
         const end=songTimelineEnd(part);
         if(current.ended&&Math.round(current.currentTime*1000)+songOffset(range)>=end-40){at=end;}
@@ -803,14 +821,14 @@ export function MusicVideoEditor({id}:{id:string}){
                 return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(armedMedia===c.id?" is-armed":"")}
                     style={{left:c.timelineStartMs/1000*zoom,width:(c.sourceOutMs-c.sourceInMs)/1000*zoom}}
                     tabIndex={0} aria-label={"Select video "+a.name}
-                    onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();setSelected(c.id);}}}
+                    onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectVideo(c.id);}}}
                     onContextMenu={e=>e.preventDefault()}
-                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>setSelected(c.id));}}
+                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id));}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
-                  <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Hold to trim or extend start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>setSelected(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
+                  <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Hold to trim or extend start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
                   <span className="mv-clip-title">{a.role==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
                   {c.syncLocked&&<Lock className="mv-clip-lock" size={13}/>}
-                  <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Hold to trim or extend end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>setSelected(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"end")}>Ⅱ</button>
+                  <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Hold to trim or extend end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"end")}>Ⅱ</button>
                 </div>;
               })}
             </div>)}
@@ -827,9 +845,10 @@ export function MusicVideoEditor({id}:{id:string}){
                 aria-label={"Trim song "+edge} title={time(edge==="start"?songRange.startMs:songRange.endMs,true)}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong,true)}
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
-                  commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i))} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectPart(i);}}}>
+                  commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
                 <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom,left:-p.startMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,j)=><span key={j} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
                 <span className="mv-song-part-number">{i+1}</span>
+                {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i),true)} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}>Ⅱ</button>)}
               </div>)}
             </div>
             <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}}>
