@@ -371,3 +371,21 @@
  .mv-editor .mv-song-trim input{font-size:13px}
  .mv-editor .mv-library-content{padding:9px}
 }
+
+/* A little breathing room inside the editor cards, without wasting timeline space. */
+.mv-editor{--mv-card-inset:8px}
+.mv-editor .mv-preview,.mv-editor .mv-timeline,.mv-editor .mv-library{padding:var(--mv-card-inset)}
+.mv-editor .mv-top{padding:10px 15px}
+.mv-editor .mv-video-box{border-radius:9px 9px 0 0}
+.mv-editor .mv-player-controls{border-radius:0 0 9px 9px}
+.mv-editor .mv-timeline-toolbar{border-radius:9px 9px 0 0}
+.mv-editor .mv-inspector-toggle{border-radius:0 0 8px 8px}
+.mv-editor .mv-inspector-toggle[aria-expanded=true]{border-radius:0}
+.mv-editor .mv-song-trim{border-radius:0 0 9px 9px}
+.mv-editor .mv-library-heading{border-radius:9px}
+.mv-editor .mv-library-heading[aria-expanded=true]{border-radius:9px 9px 0 0}
+@media(max-width:760px){
+ .mv-editor{--mv-card-inset:5px}
+ .mv-editor .mv-top{padding:7px 9px}
+ .mv-editor .mv-timeline-toolbar{padding:6px 7px}
+}
