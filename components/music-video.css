@@ -534,3 +534,10 @@
 @media(max-width:760px){
  .mv-root.mv-editor .mv-label{gap:0}
 }
+
+/* Reuse the private library still for the project card; no video download. */
+.mv-projects .mv-project-art{position:relative;overflow:hidden}
+.mv-projects .mv-project-art>img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#100d18;pointer-events:none}
+.mv-projects .mv-project-art>span{z-index:1}
+.mv-projects .mv-card-more>div>a{display:flex;align-items:center;gap:8px;padding:10px;width:100%;box-sizing:border-box;text-decoration:none;color:inherit;font-size:13px;border-radius:6px}
+.mv-projects .mv-card-more>div>a:hover{background:#49275b}
