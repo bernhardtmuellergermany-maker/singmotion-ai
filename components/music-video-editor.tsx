@@ -12,7 +12,7 @@ import "./music-video.css";
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
 type EditSnapshot={clips:MusicClip[];range:SongPlacement;parts:SongRange[]|null};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
-type ExportJob={id:string;state:"rendering"|"ready"|"failed";progress:number;error?:string};
+type ExportJob={id:string;state:"rendering"|"ready"|"failed";progress:number;resolution?:{width:number;height:number};error?:string};
 const endpoint="/api/music-video/";
 const uuid=()=>crypto.randomUUID();
 const time=(ms:number,precise=false)=>{
@@ -935,8 +935,8 @@ export function MusicVideoEditor({id}:{id:string}){
           </div></article>)}</div>:<p className="mv-empty-library">No videos in this Library. Import a video or use Add to Project from Videos.</p>}
       </div>}
     </section>
-    {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
-    {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||"Preparing MP4 for download."}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
+    {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready{exportJob.resolution?" · "+exportJob.resolution.height+"p":""}</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
+    {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||(exportJob?.resolution?"Preparing "+exportJob.resolution.height+"p MP4 for download.":"Checking source resolution…")}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
     {lipTrack!==null&&<div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
       <div className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
         <h2>Insert Lip Sync · {lipTrack===1?"Main track":"Video 2"}</h2>
