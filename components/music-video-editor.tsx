@@ -192,7 +192,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function dragSong(e:React.PointerEvent<HTMLDivElement>){
     if(!project||importBusy.current||e.button!==0)return;
-    e.preventDefault();e.stopPropagation();stopPlayback();
+    selectSong();e.preventDefault();e.stopPropagation();stopPlayback();
     const original=rangeRef.current,origin=e.clientX,pointer=e.pointerId,initial=latest.current,startScroll=scroll.current?.scrollLeft??0;
     let position=original.positionMs;
     const update=(event:PointerEvent)=>{
@@ -218,7 +218,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function dragSongEdge(e:React.PointerEvent<HTMLButtonElement>,edge:"start"|"end"){
     if(!project||importBusy.current||e.button!==0)return;
-    e.preventDefault();e.stopPropagation();stopPlayback();
+    selectSong();e.preventDefault();e.stopPropagation();stopPlayback();
     const original=rangeRef.current,origin=e.clientX,pointer=e.pointerId,startScroll=scroll.current?.scrollLeft??0;
     const duration=project.songDurationMs;
     let range:SongRange=original;
@@ -243,6 +243,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
   const selectedClip=clips.find(c=>c.id===selected);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
+  const songSelected=!selectedClip||!selectedAsset;
+  function selectSong(){setSelected(null);setAddMenu(null);}
   const selectedStart=selectedClip?.timelineStartMs;
   const selectedId=selectedClip?.id;
   const selectedEnd=selectedClip?clipEnd(selectedClip):undefined;
@@ -718,13 +720,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-track-labels">
           <div className="mv-label mv-ruler-spacer"/>
           {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip Sync · Main video track":"Video 2 · Overlay"}>
-            {track===1?<Music2 size={18}/>:<Film size={18}/>}<strong>{track===1?"Lip Sync":"Video 2"}</strong><button aria-label={"Add video to track "+track} onClick={()=>setAddMenu(addMenu===track?null:track)}><Plus size={17}/></button>
-            {addMenu===track&&<div className="mv-add-menu">
-              <button disabled={importing} onClick={()=>void openLipSync(track)}><Music2 size={15}/> Insert Lip Sync</button>
-              <button disabled={importing} onClick={()=>{setUploadTrack(track);fileInput.current?.click();setAddMenu(null);}}><Upload size={15}/> Upload own video</button>
-              <button onClick={()=>{setLibraryOpen(true);setAddMenu(null);}}><FolderOpen size={15}/> Library</button>
-              <button disabled title="AI video generation will be added later"><Plus size={15}/> Generate · Soon</button>
-            </div>}
+            {track===1?<Music2 size={18}/>:<Film size={18}/>}<strong>{track===1?"Lip Sync":"Video 2"}</strong>
           </div>)}
           <div className="mv-label mv-audio-label" title="Song audio"><Volume2 size={18}/><strong>Song</strong><Scissors size={15}/></div>
         </div>
@@ -751,18 +747,18 @@ export function MusicVideoEditor({id}:{id:string}){
               })}
             </div>)}
             <div className="mv-song-lane" onPointerDown={e=>{if(e.target===e.currentTarget)seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left));}}>
-              <div className={"mv-song-block"+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Move song on timeline" title="Hold to move song; swipe to scroll"
+              <div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Tap to select song; hold to move; swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
-                onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),()=>setSelected(null))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();const r=rangeRef.current;
+                onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
                 <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom,left:-songRange.startMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,i)=>
                   <span key={i} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
               </div>
-              {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(armedMedia==="song"?" is-armed":"")}
+              {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")}
                 style={{left:(edge==="start"?songRange.positionMs:songTimelineEnd(songRange))/1000*zoom}}
                 aria-label={"Trim song "+edge} title={time(edge==="start"?songRange.startMs:songRange.endMs,true)}
-                onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),()=>setSelected(null),true)}
-                onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();const range=rangeRef.current;
+                onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong,true)}
+                onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}
             </div>
             <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}}>
@@ -771,8 +767,21 @@ export function MusicVideoEditor({id}:{id:string}){
             </div>
           </div>
         </div>
+        <div className="mv-track-adds" aria-label="Add videos">
+          <div className="mv-add-spacer"/>
+          {([2,1] as Track[]).map(track=><div className="mv-track-add-row" key={track}>
+            <button type="button" className="mv-track-add-button" aria-label={"Add video to track "+track} aria-expanded={addMenu===track} title={track===1?"Add to Lip Sync / Main":"Add to Video 2"} onClick={()=>setAddMenu(addMenu===track?null:track)}><Plus size={15}/></button>
+            {addMenu===track&&<div className="mv-add-menu">
+              <button disabled={importing} onClick={()=>void openLipSync(track)}><Music2 size={15}/> Insert Lip Sync</button>
+              <button disabled={importing} onClick={()=>{setUploadTrack(track);fileInput.current?.click();setAddMenu(null);}}><Upload size={15}/> Upload own video</button>
+              <button onClick={()=>{setLibraryOpen(true);setAddMenu(null);}}><FolderOpen size={15}/> Library</button>
+              <button disabled title="AI video generation will be added later"><Plus size={15}/> Generate · Soon</button>
+            </div>}
+          </div>)}
+          <div className="mv-track-add-row mv-track-add-audio" aria-hidden="true"/>
+        </div>
       </div>
-      {selectedClip&&selectedAsset&&<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
+      {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
         <strong><Film size={16}/> {selectedClip.track===1?"Lip Sync / Main":"Video 2"}: {selectedAsset.name}</strong>
         <label>Song start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
         <label>Timeline start<input aria-label="Video start time on timeline" value={clipTimelineText} onChange={e=>updateClipTime(e.target.value,"timeline")} placeholder="00:08.918"/></label>
@@ -785,8 +794,8 @@ export function MusicVideoEditor({id}:{id:string}){
         <span>Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
         <button type="button" className="mv-outline" disabled={importing} onClick={switchVideoTrack}>{selectedClip.track===1?"Move to Video 2":"Move to Lip Sync / Main"}</button>
         <small>Swipe to scroll; hold a clip or handle to edit. Drag the middle between tracks. Song start refers to the original recording; timeline start follows the actual project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
-      </form>}
-      <form className="mv-song-trim" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
+      </form>:
+      <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
         <strong><Scissors size={16}/> Song trim</strong>
         <label>Source start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
         <label>Source end<input aria-label="Song end time" value={endText} onChange={e=>setEndText(e.target.value)} placeholder="00:30.000"/></label>
@@ -797,7 +806,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead(songRange,playhead,"start")} onClick={()=>cutSong("start")}><Scissors size={14}/> Trim start at playhead</button>
         <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead(songRange,playhead,"end")} onClick={()=>cutSong("end")}><Scissors size={14}/> Trim end at playhead</button>
         <small>Swipe to scroll; hold the song to move it. Trim at the playhead to cut the start or end. Sync-locked videos stay aligned. Enter MM:SS.mmm or seconds.</small>
-      </form>
+      </form>}
       {error&&<p className="mv-error" role="alert">{error}</p>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file,uploadTrack);e.target.value="";
