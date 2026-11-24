@@ -102,9 +102,34 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
  assert.ok(editor.includes("parseSongTime(startText)"));
- assert.ok(editor.includes("apply(latest.current,true,range)"));
- assert.ok(editor.includes("current.currentTime=range.endMs/1000"));
+ assert.ok(editor.includes("apply(moved,true,next)"));
+ assert.ok(editor.includes("if(at>=end){current.pause();at=end;}"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
  assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
- assert.ok(core.includes("validateMusicClips(clips,assets,project.songDurationMs)"));
+ assert.ok(core.includes("validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start)"));
+});
+
+test("song placement is independent of source trim and locked video moves atomically",async()=>{
+ const {songOffset,songTimelineEnd,validSongPlacement,trimSongPlacement,shiftLockedClips,parseSongTime}=await import("../lib/music-video/song-range.ts");
+ const song={startMs:8918,endMs:25000,positionMs:12000};
+ assert.equal(songOffset(song),3082);
+ assert.equal(songTimelineEnd(song),28082);
+ assert.equal(validSongPlacement(song,30000),true);
+ assert.equal(validSongPlacement({...song,positionMs:-1},30000),false);
+ assert.equal(validSongPlacement({...song,positionMs:7200000},30000),false);
+ assert.deepEqual(trimSongPlacement(song,{startMs:10000,endMs:25000}),{startMs:10000,endMs:25000,positionMs:13082});
+ assert.equal(parseSongTime("120:00.000"),7200000);
+ const locked={syncLocked:true,timelineStartMs:12000,sourceInMs:0,sourceOutMs:5000,track:1};
+ const free={syncLocked:false,timelineStartMs:20000,sourceInMs:0,sourceOutMs:5000,track:1};
+ assert.deepEqual(shiftLockedClips([locked,free],2000),[{...locked,timelineStartMs:14000},free]);
+ assert.equal(shiftLockedClips([locked,free],4000),null);
+ assert.equal(shiftLockedClips([locked,free],-13000),null);
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
+ assert.ok(editor.includes("onPointerDown={dragSong}"));
+ assert.ok(editor.includes("songPositionMs:range.positionMs"));
+ assert.ok(editor.includes("parseSongTime(positionText)"));
+ assert.ok(editor.includes("songOffset(next)-songOffset(original)"));
+ assert.ok(api.includes("body.songPositionMs"));
+ assert.ok(core.includes("song_position_ms=?"));
+ assert.ok(core.includes("a.sourceStartMs+c.sourceInMs+offset"));
 });
