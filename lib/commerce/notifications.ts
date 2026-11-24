@@ -40,6 +40,14 @@ export function creditedVideoProject(
 }
 
 
+/** Enrich already-account-scoped wallet entries without changing their financial data. */
+export function creditEntriesWithVideoProjects<T extends {type:string;reference:string}>(
+ commerce:DatabaseSync,live:DatabaseSync|null,subject:string,entries:readonly T[],
+):Array<T&{video:{name:string;href:string}|null}>{
+ return entries.map(entry=>({...entry,video:entry.type==="video"
+  ?creditedVideoProject(commerce,live,subject,entry.reference):null}));
+}
+
 /** Account-scoped inbox; source payment ledger remains immutable when a notice is deleted. */
 export type Notice={id:string;title:string;message:string;created:number;read:boolean;kind:"payment"|"video"|"announcement"|"gift";href:string};
 export class NotificationInbox {
