@@ -16,7 +16,7 @@ import {musicPrincipal} from "@/lib/music-video/auth";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,removeMusicProject,
-  newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,
+  newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,
   type MediaKind,type SourceKind,type MusicClip,
 } from "@/lib/music-video/core";
 
@@ -195,6 +195,10 @@ async function handler(req:NextRequest,context:Context){
     }
     if(section==="assets"&&assetId){
       const asset=musicAsset(id,owner,assetId);
+      if(req.method==="PATCH"){
+        const body=await jsonBody(req);
+        return json(setMusicAssetRole(id,owner,assetId,body.role,body.revision));
+      }
       if(req.method==="DELETE"){
         removeMusicAsset(id,owner,assetId);
         if(asset.sourceKind==="uploaded")await unlink(path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId)).catch(()=>{});
