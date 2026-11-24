@@ -488,3 +488,34 @@
 .mv-editor .mv-media-image{overflow:hidden}
 .mv-editor .mv-media-image img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#100d18;border-radius:inherit;pointer-events:none}
 .mv-editor .mv-media-image>span{z-index:1}
+
+/* Keep the playhead cap inside the timeline at either edge without moving its time line. */
+.mv-root.mv-editor .mv-playhead-grip{transform:none;width:24px;min-width:24px;box-sizing:border-box;height:21px;border-radius:4px 4px 7px 7px}
+.mv-root.mv-editor .mv-playhead-grip:focus-visible{outline-offset:-2px}
+/* Slim visible edge marks; transparent hit areas remain easy to grab. */
+.mv-root.mv-editor .mv-clip .mv-handle,
+.mv-root.mv-editor .mv-song-handle{
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ border-radius:4px;min-width:0!important;padding:0!important;
+ display:block;touch-action:none;
+}
+.mv-root.mv-editor .mv-clip .mv-handle{width:min(22px,33%);height:100%;transform:none;top:0;bottom:0}
+.mv-root.mv-editor .mv-clip{padding-inline:5px}
+.mv-root.mv-editor .mv-clip .mv-handle-start{left:0}
+.mv-root.mv-editor .mv-clip .mv-handle-end{right:0}
+.mv-root.mv-editor .mv-song-part .mv-part-edge{width:min(22px,33%);top:0;bottom:0;transform:none}
+.mv-root.mv-editor .mv-song-part .mv-part-edge.start{left:0}
+.mv-root.mv-editor .mv-song-part .mv-part-edge.end{left:auto;right:0}
+.mv-root.mv-editor .mv-clip .mv-handle::before,
+.mv-root.mv-editor .mv-song-handle::before{
+ content:"";position:absolute;top:50%;height:17px;width:3px;transform:translateY(-50%);
+ background:#e2bdf7;border-radius:4px;opacity:.85;pointer-events:none
+}
+.mv-root.mv-editor .mv-handle-start::before,.mv-root.mv-editor .mv-song-handle.start::before{left:1px}
+.mv-root.mv-editor .mv-handle-end::before,.mv-root.mv-editor .mv-song-handle.end::before{right:1px}
+.mv-root.mv-editor .mv-clip .mv-handle:hover::before,
+.mv-root.mv-editor .mv-song-handle:hover::before,
+.mv-root.mv-editor .is-armed .mv-handle::before,
+.mv-root.mv-editor .mv-song-handle.is-armed::before{background:#fff;opacity:1}
+.mv-root.mv-editor .mv-handle:focus-visible,.mv-root.mv-editor .mv-song-handle:focus-visible{outline:1px solid #e9c5ff;outline-offset:-1px}
+.mv-root.mv-editor .mv-song-rename{display:inline-flex;align-items:center;gap:5px}
