@@ -145,7 +145,7 @@ async function handler(req:NextRequest,context:Context){
       return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg");
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
-      return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[]));
+      return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs));
     }
     if(section==="lip-sync"&&!assetId&&req.method==="GET"){
       const logged=session(req.cookies.get("sm_session")?.value);
