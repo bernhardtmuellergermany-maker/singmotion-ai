@@ -55,3 +55,26 @@ export function positionVideoClip<T extends PositionedClip>(clips:readonly T[],c
  if(clips.some(c=>c.id!==clip.id&&c.track===clip.track&&position<c.timelineStartMs+c.sourceOutMs-c.sourceInMs&&position+length>c.timelineStartMs))return {status:"collision"};
  return {status:"ok",clip:{...clip,timelineStartMs:position}};
 }
+
+/** Trim without changing the source-to-timeline mapping; clamp to neighboring clips. */
+export function trimVideoClip<T extends PositionedClip>(clips:readonly T[],clip:T,edge:"start"|"end",deltaMs:number,sourceDuration:number,timelineLimit=MAX_TIMELINE_MS):T{
+ const min=Math.min(100,clip.sourceOutMs-clip.sourceInMs);
+ const end=clip.timelineStartMs+clip.sourceOutMs-clip.sourceInMs;
+ const others=clips.filter(c=>c.id!==clip.id&&c.track===clip.track);
+ const previous=Math.max(0,...others.filter(c=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs<=clip.timelineStartMs).map(c=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs));
+ const following=Math.min(timelineLimit,...others.filter(c=>c.timelineStartMs>=end).map(c=>c.timelineStartMs));
+ const delta=Math.round(deltaMs);
+ if(edge==="start"){
+  const lower=Math.max(0,clip.sourceInMs+previous-clip.timelineStartMs);
+  const upper=clip.sourceOutMs-min;
+  const sourceInMs=Math.min(upper,Math.max(lower,clip.sourceInMs+delta));
+  return {...clip,sourceInMs,timelineStartMs:clip.timelineStartMs+sourceInMs-clip.sourceInMs};
+ }
+ const upper=Math.min(sourceDuration,clip.sourceInMs+following-clip.timelineStartMs);
+ const lower=clip.sourceInMs+min;
+ return {...clip,sourceOutMs:Math.max(lower,Math.min(upper,clip.sourceOutMs+delta))};
+}
+export function transferVideoClip<T extends PositionedClip>(clips:readonly T[],clip:T,track:T["track"],position:number):{status:"ok";clip:T}|{status:"bounds"|"collision"|"locked"}{
+ if(track!==1&&track!==2)return {status:"bounds"};
+ return positionVideoClip(clips,{...clip,track},clip.syncLocked?clip.timelineStartMs:position);
+}
