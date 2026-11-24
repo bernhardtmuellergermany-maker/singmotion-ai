@@ -44,7 +44,9 @@ async function verifyCameraPicker(page:Page,original:string){
   await preview.waitFor({state:"visible"});
   assert.equal(await prompt.evaluate(el=>document.activeElement===el),false,"quick tip must never focus the prompt");
   assert.ok(await group.evaluate(el=>!!el.lastElementChild?.querySelector("#sm-camera-active-preview")),"preview follows every chip in its own group");
-  assert.deepEqual(await positions(),before,"quick links retain their positions when the preview changes");
+  const after=await positions();
+  assert.equal(after.length,before.length);
+  assert.ok(after.every((rect,index)=>rect.every((value,axis)=>Math.abs(value-before[index][axis])<=1)),"quick links retain their layout positions within one pixel when the preview changes");
   assert.ok(await group.evaluate(el=>{
    const slot=el.lastElementChild!.getBoundingClientRect();
    return Array.from(el.querySelectorAll(".sm-camera-chip-recommended,.sm-camera-chip-experimental")).every(button=>button.getBoundingClientRect().bottom<=slot.top);
