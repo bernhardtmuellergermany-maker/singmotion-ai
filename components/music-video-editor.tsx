@@ -48,6 +48,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
   const trackAudio1=useRef<HTMLAudioElement>(null),trackAudio2=useRef<HTMLAudioElement>(null);
   const mutedClockRef=useRef<{element:HTMLMediaElement;aligned:boolean}|null>(null);
+  const lastFollowerSeek=useRef(new WeakMap<HTMLMediaElement,number>());
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
   const [partIndex,setPartIndex]=useState(0),[partStartText,setPartStartText]=useState(""),[partEndText,setPartEndText]=useState("");
   const [songRange,setSongRange]=useState<SongPlacement>({startMs:0,endMs:0,positionMs:0});
@@ -461,11 +462,12 @@ export function MusicVideoEditor({id}:{id:string}){
   const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2;
   const readyForPlayback=playing?playingPreviewRef.current:previewReady;
   const source=(a:MusicAsset)=>endpoint+id+(readyForPlayback.has(a.id)?"/preview/":"/assets/")+a.id;
+  const mediaBoundaries=useMemo(()=>[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t<timelineEnd).sort((a,b)=>a-b),[clips,timelineEnd]);
   const nextClip=useMemo(()=>{
-    const boundaries=[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t>playhead&&t<timelineEnd).sort((a,b)=>a-b);
+    const boundaries=mediaBoundaries.filter(t=>t>playhead);
     for(const at of boundaries){const candidate=previewMediaPlan(clips,at,trackMutes).visible;if(candidate&&candidate.id!==activeClip?.id)return candidate;}
     return undefined;
-  },[clips,playhead,timelineEnd,trackMutes,activeClip]);
+  },[clips,playhead,mediaBoundaries,trackMutes,activeClip]);
   const nextAsset=nextClip?byId.get(nextClip.assetId):undefined;
   // Prepare only the visible and next clips; no proxy swap in the middle of playback.
   useEffect(()=>{
@@ -905,9 +907,13 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!clip||at<clip.timelineStartMs||at>=clipEnd(clip)){element.pause();element.playbackRate=1;return;}
     const expected=clipSourceTimeMs(clip,at)/1000;
     if(element.readyState<1)return;
+    // While the master buffers, pause followers rather than repeatedly seeking them.
+    if(!run&&playingRef.current){element.pause();return;}
     const decision=mediaSyncDecision(expected,element.currentTime,run,element.paused,element.seeking);
     if(element.playbackRate!==decision.rate)element.playbackRate=decision.rate;
-    if(decision.seek){try{element.currentTime=expected;}catch{}}
+    if(decision.seek&&(!run||element.paused||performance.now()-(lastFollowerSeek.current.get(element)??-Infinity)>=250)){
+      try{element.currentTime=expected;lastFollowerSeek.current.set(element,performance.now());}catch{}
+    }
     if(!run){element.pause();return;}
     // Queue play while the decoder seeks, so slow devices do not get stuck chasing the clock.
     if(element.paused&&!element.ended)void element.play().catch(()=>{});
