@@ -121,6 +121,7 @@ test("unapproved MCP download hosts are rejected and diagnostics never expose si
  }finally{console.warn=originalWarn}
 });
 test("Suno OAuth return opens direct import, confirms connection, and excludes manual fallback",()=>{
+ assert.match(callback,/SUNO_APP_ORIGIN\+"\/studio\?new=1&"\+/);
  assert.match(ui,/setExpanded\(true\)/);
  assert.match(ui,/suno_connected/);
  assert.match(ui,/focusAfterConnect/);

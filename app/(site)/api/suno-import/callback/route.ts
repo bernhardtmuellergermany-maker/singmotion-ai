@@ -13,7 +13,7 @@ export async function GET(req:NextRequest){
  if(!sunoProductionOnly()||req.headers.get("host")!=="www.singmotion.ai")
   return NextResponse.json({error:"Not found"},{status:404});
  const finish=(error?:string,token?:{cookie:string;ttl:number})=>{
-  const url=SUNO_APP_ORIGIN+"/studio?"+(error?"suno_error="+encodeURIComponent(error):"suno_connected=1");
+  const url=SUNO_APP_ORIGIN+"/studio?new=1&"+(error?"suno_error="+encodeURIComponent(error):"suno_connected=1");
   const response=NextResponse.redirect(url);
   response.headers.set("Cache-Control","private, no-store");
   response.cookies.set("sm_suno_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/suno-import",maxAge:0});

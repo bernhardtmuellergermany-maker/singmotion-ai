@@ -16,16 +16,6 @@ type Balance={videoReservations?:VideoReservation[];availableCredits:number;rese
  purchaseEnabled:boolean;testMode:boolean;globalCountrySelection?:boolean;approvedBillingCountries?:string[]|null;emailVerification?:"pending"|"verified"|"legacy"|null;entries:Ledger[];legacyOrders:Order[];purchases:Purchase[]};
 type View="loading"|"signed-out"|"unavailable"|"ready";
 type CreditResume={draftId:string;requiredCredits:number;created:number};
-const RESUME_KEY="sm-credit-checkout-resume";
-function readCreditResume():CreditResume|null {
- try{
-  const value=JSON.parse(sessionStorage.getItem(RESUME_KEY)||"null") as CreditResume|null;
-  if(!value||!/^[A-Za-z0-9_-]{1,80}$/.test(value.draftId)||
-     !Number.isSafeInteger(value.requiredCredits)||value.requiredCredits<1||value.requiredCredits>7500||
-     !Number.isFinite(value.created)||Date.now()-value.created>2*60*60*1000)return null;
-  return value;
- }catch{return null;}
-}
 const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const date=(n:number)=>new Date(n).toLocaleDateString("en-GB",{day:"2-digit",month:"2-digit",year:"numeric"});
 const eur=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
@@ -46,8 +36,9 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
    draftId&&/^[A-Za-z0-9_-]{1,80}$/.test(draftId)&&
      Number.isSafeInteger(required)&&required>=1&&required<=7500
     ?{draftId,requiredCredits:required,created:Date.now()}
-    :readCreditResume();
-  if(resumeCandidate)sessionStorage.setItem(RESUME_KEY,JSON.stringify(resumeCandidate));
+    :null;
+  const purchaseId=params.get("resumePurchase");
+  try{sessionStorage.removeItem("sm-credit-checkout-resume");}catch{}
   setResume(resumeCandidate);
   let returnTimer:number|null=null,tariffTimer:number|null=null,returnScheduled=false;
   setCheckoutNotice(checkoutFeedback(checkoutResult));
@@ -80,10 +71,14 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
       // Navigate only AFTER the signed-in account's server-verified wallet
       // contains the full quoted amount. The user still explicitly clicks
       // Generate Video on Step 4 (no automatic paid provider submission).
-      if(checkoutResult==="success"&&resumeCandidate&&
+      if(checkoutResult==="success"&&resumeCandidate&&purchaseId&&
+         data.purchases.some(p=>p.id===purchaseId&&p.status==="paid")&&
          data.availableCredits>=resumeCandidate.requiredCredits&&!returnScheduled){
        returnScheduled=true;
        returnTimer=window.setTimeout(()=>{
+        const clean=new URL(window.location.href);
+        clean.searchParams.delete("resumeDraft");clean.searchParams.delete("requiredCredits");clean.searchParams.delete("resumePurchase");
+        window.history.replaceState(window.history.state,"",clean.pathname+clean.search+clean.hash);
         window.location.assign("/studio?draft="+encodeURIComponent(resumeCandidate.draftId)+"&resume=review");
        },1400);
       }

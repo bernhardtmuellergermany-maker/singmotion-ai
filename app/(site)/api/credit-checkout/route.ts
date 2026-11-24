@@ -43,7 +43,7 @@ export async function POST(req:NextRequest){
    return json({error:"Enter 500–100,000 whole credits."},400);
   // Optional navigation-only context. Never authorizes spending or reads a draft;
   // Studio reload verifies ownership when the user follows the return link.
-  const resume=typeof body.resumeDraft==="string"&&/^[A-Za-z0-9_-]{1,80}$/.test(body.resumeDraft)&&
+  let resume=typeof body.resumeDraft==="string"&&/^[A-Za-z0-9_-]{1,80}$/.test(body.resumeDraft)&&
     typeof body.requiredCredits==="number"&&Number.isSafeInteger(body.requiredCredits)&&
     body.requiredCredits>=1&&body.requiredCredits<=7500
     ?`&resumeDraft=${encodeURIComponent(body.resumeDraft)}&requiredCredits=${body.requiredCredits}`:"";
@@ -67,6 +67,7 @@ export async function POST(req:NextRequest){
     return json({error:"Verify your customer email before purchasing."},403);
    const wallet=new CreditWallet(store.db);
    const purchase=wallet.pending(identity,credits,body.requestKey);
+   if(resume)resume+="&resumePurchase="+encodeURIComponent(purchase.id);
    // Do not reuse a seller-of-record request key for a Managed Payments purchase.
    if(useMoR&&wallet.taxContext(purchase.id))
     return json({error:"Payment option changed. Start a new purchase."},409);
