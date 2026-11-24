@@ -381,3 +381,13 @@ test("video lane audio includes covered clips and silence between clips",async()
  assert.deepEqual(trackAudioSpans([a,b],1,4000).map(s=>[s.clip?.id??null,s.startMs,s.durationMs]),[[null,0,1000],["a",1000,2000],[null,3000,1000]]);
  assert.deepEqual(trackAudioSpans([a,b],2,4000).map(s=>[s.clip?.id??null,s.startMs,s.durationMs]),[["b",0,4000]]);
 });
+
+test("desktop mouse starts editing immediately; touch retains long-press scrolling",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ const gesture=editor.slice(editor.indexOf("function beginMediaGesture("),editor.indexOf("function dragSong(e:"));
+ assert.ok(gesture.includes('if(e.pointerType==="mouse"){setArmedMedia(media);onHold();return;}'));
+ assert.ok(gesture.indexOf('if(e.pointerType==="mouse")')<gesture.indexOf("setTimeout("));
+ assert.ok(gesture.includes("mediaPanAxis(dx,dy)"));
+ assert.ok(gesture.includes("},MEDIA_HOLD_MS)"));
+ assert.ok(!gesture.includes("immediate&&"));
+});
