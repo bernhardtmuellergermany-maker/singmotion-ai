@@ -70,7 +70,7 @@ test("managed country is collected only once at Stripe; fulfillment still valida
  assert.match(checkout,/session\.managed_payments\?\.enabled!==true/);
  assert.match(balance,/globalCountrySelection:liveCheckout&&!managedCreditMoRApproved\(process\.env\)/);
  assert.match(balance,/approvedBillingCountries:null/);
- assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}:\{\}/);
+ assert.doesNotMatch(picker,/needsBillingCountry|setBillingCountry|setBuyerType|paymentRoute:/);
  assert.match(hook,/managedCreditTaxDecisionFromVerifiedStripe\(process\.env,details\)/);
  assert.match(hook,/wallet\.bindTaxContext\(id,checked\.decision,session\.id\)/);
  assert.match(hook,/CREDIT_STRIPE_BILLING_COUNTRY_NOT_APPROVED/);
