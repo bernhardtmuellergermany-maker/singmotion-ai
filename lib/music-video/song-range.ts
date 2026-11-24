@@ -78,3 +78,20 @@ export function transferVideoClip<T extends PositionedClip>(clips:readonly T[],c
  if(track!==1&&track!==2)return {status:"bounds"};
  return positionVideoClip(clips,{...clip,track},clip.syncLocked?clip.timelineStartMs:position);
 }
+
+/** Marker uses actual timeline milliseconds, not the offset within the source song. */
+export function trimSongAtPlayhead(range:SongPlacement,atMs:number,edge:"start"|"end"):SongPlacement|null{
+ const at=Math.round(atMs),source=timelineToSongTime(at,range);
+ if(!Number.isSafeInteger(at)||source-range.startMs<MIN_SONG_RANGE_MS||range.endMs-source<MIN_SONG_RANGE_MS)return null;
+ return edge==="start"?{...range,startMs:source,positionMs:at}:{...range,endMs:source};
+}
+export function splitVideoAtPlayhead<T extends PositionedClip>(clip:T,atMs:number,rightId:string):[T,T]|null{
+ const at=Math.round(atMs),inPoint=clip.sourceInMs+at-clip.timelineStartMs;
+ if(!Number.isSafeInteger(at)||inPoint-clip.sourceInMs<100||clip.sourceOutMs-inPoint<100)return null;
+ return [{...clip,sourceOutMs:inPoint},{...clip,id:rightId,timelineStartMs:at,sourceInMs:inPoint}];
+}
+export function snapPlayhead(ms:number,limit:number,markers:readonly number[],threshold:number):number{
+ const value=Math.max(0,Math.min(limit,Math.round(ms)));
+ const nearest=markers.filter(n=>n>=0&&n<=limit).reduce((a,b)=>Math.abs(b-value)<Math.abs(a-value)?b:a,Infinity);
+ return Math.abs(nearest-value)<=threshold?nearest:value;
+}
