@@ -160,3 +160,24 @@ test("video start time supports exact song-relative placement and collision prot
  assert.ok(editor.includes("syncLocked:restore||current.syncLocked"));
  assert.ok(editor.includes("apply(latest.current.map(c=>c.id===current.id?candidate:c))"));
 });
+
+test("video trim and track transfer preserve media and synchronization",async()=>{
+ const {trimVideoClip,transferVideoClip}=await import("../lib/music-video/song-range.ts");
+ const clip={id:"a",track:1,timelineStartMs:8918,sourceInMs:1000,sourceOutMs:5000,syncLocked:true};
+ const prev={...clip,id:"b",timelineStartMs:7000,sourceInMs:0,sourceOutMs:1500};
+ const next={...clip,id:"c",timelineStartMs:14000,sourceInMs:0,sourceOutMs:2000};
+ assert.deepEqual(trimVideoClip([clip],clip,"start",918,6000),{...clip,sourceInMs:1918,timelineStartMs:9836});
+ assert.deepEqual(trimVideoClip([clip,prev],clip,"start",-1000,6000),{...clip,sourceInMs:582,timelineStartMs:8500});
+ assert.deepEqual(trimVideoClip([clip,next],clip,"end",3000,6000),{...clip,sourceOutMs:6000});
+ assert.deepEqual(trimVideoClip([clip],clip,"end",-9000,6000),{...clip,sourceOutMs:1100});
+ assert.deepEqual(transferVideoClip([clip],clip,2,12000),{status:"ok",clip:{...clip,track:2}});
+ assert.equal(transferVideoClip([clip,{...next,track:2,timelineStartMs:10000}],clip,2,8918).status,"collision");
+ assert.deepEqual(transferVideoClip([clip],{...clip,syncLocked:false},2,12000),{status:"ok",clip:{...clip,syncLocked:false,track:2,timelineStartMs:12000}});
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("videoLanes.current[t]?.getBoundingClientRect()"));
+ assert.ok(editor.includes("trimVideoClip(startClips,initial,edge,delta,sourceLimit(initial,asset),timelineLimit)"));
+ assert.ok(editor.includes("transferVideoClip(startClips,initial,track,position)"));
+ assert.ok(editor.includes("onClick={switchVideoTrack}"));
+ assert.ok(editor.includes('document.addEventListener("pointercancel",cancel)'));
+ assert.ok(!editor.includes("draggable={!c.syncLocked}"));
+});
