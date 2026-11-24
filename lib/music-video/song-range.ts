@@ -140,3 +140,14 @@ export function songPartAt(range:SongPlacement,parts:SongRange[]|null,at:number)
 export function songPartsEnd(range:SongPlacement,parts:SongRange[]|null):number{
  return songTimeToTimeline(effectiveSongParts(range,parts).at(-1)!.endMs,range);
 }
+
+/** Adjacent split parts are still a continuous recording until a gap is created. */
+export function continuousSongParts(range:SongPlacement,parts:SongRange[]|null):SongRange[]{
+ const runs:SongRange[]=[];
+ for(const p of effectiveSongParts(range,parts)){
+  const last=runs.at(-1);
+  if(last&&last.endMs===p.startMs)last.endMs=p.endMs;
+  else runs.push({...p});
+ }
+ return runs;
+}
