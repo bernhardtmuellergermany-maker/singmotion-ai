@@ -3151,7 +3151,7 @@
 .product-theme.singmotion-flow .sm-studio-camera-preview-close{margin-left:auto;display:inline-flex;align-items:center;gap:6px;min-height:40px;padding:5px 9px;border:1px solid #77628c;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
 .product-theme.singmotion-flow .sm-performance-chips button[aria-expanded="true"]{outline:2px solid #c6a4eb;outline-offset:2px}
 
-/* The selected chip is immediately followed by a full-width inline preview row. */
+/* One full-width preview row follows all chips in the selected camera group. */
 .product-theme.singmotion-flow .sm-studio-camera-preview-slot{flex:0 0 100%;width:100%;min-width:0}
 .product-theme.singmotion-flow .sm-studio-camera-preview-slot .sm-studio-camera-preview{box-sizing:border-box;width:100%;margin:0 0 8px}
 .product-theme.singmotion-flow .sm-performance-chips .sm-studio-camera-preview button{min-height:40px;border-radius:8px;padding:5px 10px;background:transparent;color:inherit}
