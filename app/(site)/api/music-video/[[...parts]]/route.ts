@@ -13,7 +13,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
-import {startMusicExport,musicExportStatus,musicExportFile} from "@/lib/music-video/export";
+import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,removeMusicProject,
@@ -101,9 +101,9 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
   }
   throw new MusicError("Source video access denied.",403);
 }
-async function exportSources(req:NextRequest,owner:string,id:string,detail:ReturnType<typeof musicDetail>){
+async function exportSources(req:NextRequest,owner:string,id:string,detail:ReturnType<typeof musicDetail>,assetIds=detail.clips.map(c=>c.assetId)){
   const files=new Map<string,string>(),assets=new Map(detail.assets.map(a=>[a.id,a]));
-  for(const aid of new Set(detail.clips.map(c=>c.assetId))){
+  for(const aid of new Set(assetIds)){
     const a=assets.get(aid);
     if(!a)throw new MusicError("A source video is missing.",409);
     if(a.sourceKind==="uploaded"){
@@ -147,7 +147,7 @@ async function handler(req:NextRequest,context:Context){
         await mkdir(path.dirname(temp),{recursive:true,mode:0o700});
         await writeFile(temp,buffer,{flag:"wx",mode:0o600});
         const duration=await validateAudio(temp);
-        project=newMusicProject(owner,title,toMs(duration),form.get("aspectRatio")??"16:9");
+        project=newMusicProject(owner,title,toMs(duration),form.get("aspectRatio")??"auto");
         await mkdir(projectFolder(project.id),{recursive:true,mode:0o700});
         await rename(temp,path.join(projectFolder(project.id),"song-original."+extension));
         if(extension==="mp3")await writeFile(path.join(projectFolder(project.id),"song.mp3"),buffer,{flag:"wx",mode:0o600});
@@ -176,6 +176,11 @@ async function handler(req:NextRequest,context:Context){
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
       return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts,body.trackMutes,body.aspectRatio));
+    }
+    if(section==="format"&&assetId&&validId(assetId)&&req.method==="GET"){
+      const detail=musicDetail(id,owner);
+      const files=await exportSources(req,owner,id,detail,[assetId]);
+      return json(await inspectVideoDimensions(files.get(assetId)!));
     }
     if(section==="export"){
       if(!assetId&&req.method==="POST"){
