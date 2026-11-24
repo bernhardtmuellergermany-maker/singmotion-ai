@@ -98,6 +98,7 @@ export function SuperAdminGeneration({id}:{id:string}){
      downloadUrl={project?.outputReady?link+"&download=1":null}
      editHref={project?.state==="prepared"?resumeHref:project?.state==="failed"&&/^[a-f0-9-]{36}$/i.test(id)?`/studio?copy=live_${encodeURIComponent(id)}`:null}
      creditTopupHref={creditsHref}
+     nextSegmentId={project?.outputReady?project.id:null}
      reuseHref={project?.outputReady?`/studio?copy=live_${encodeURIComponent(id)}`:null}
      note={error||(!project?.outputReady&&project?.stage?project.stage:"")}/>}
 

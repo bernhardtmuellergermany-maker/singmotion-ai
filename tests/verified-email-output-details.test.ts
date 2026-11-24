@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {aiGenerationElapsed,projectCreatedLabel,sourceTimeLabel,videoTimecode} from "../lib/video-project-metadata.ts";
+import {nextStudioAudioSelection} from "../lib/studio-next-segment.ts";
+import type {StudioDraftExport} from "../lib/studio-draft.ts";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 
 test("Video metadata is formatted from recorded evidence, never guessed from the clock",()=>{
@@ -88,4 +90,37 @@ test("Historical customer order card uses only owner-scoped fields, and no inven
  assert.match(paid,/renameOrderId:guest\?null:orderId/);
  assert.match(orderQuery,/WHERE \(o\.account_id=\? OR gc\.account_id=\?\)/);
  assert.doesNotMatch(paid,/generationFinishedAt:Date\.now/);
+});
+
+
+test("next segment starts at the exact original end and resets all visual inputs",()=>{
+ const prior:StudioDraftExport={version:1,owner:"customer-fixture",songId:"song-1",imageId:"image-1",sourceImageId:"original-photo",editedImageId:"image-1",appliedOutputFormat:"16:9",outputFormat:"16:9",formatMode:"auto",start:10.123,end:25.456,performance:"Emotional",camera:"Orbit left",customPrompt:"Previous shot"};
+ const next=nextStudioAudioSelection(prior,120)!;
+ assert.equal(next.start,prior.end);
+ assert.equal(next.end,prior.end+(prior.end-prior.start));
+ assert.equal(next.songId,prior.songId);assert.equal(next.owner,prior.owner);
+ assert.equal(next.imageId,"");assert.equal(next.customPrompt,"");assert.equal(next.performance,"Natural");assert.equal(next.camera,"Static camera");
+ assert.equal(next.sourceImageId,undefined);assert.equal(next.editedImageId,undefined);assert.equal(next.appliedOutputFormat,undefined);
+ assert.equal(prior.imageId,"image-1");
+ assert.equal(nextStudioAudioSelection(prior,32)?.end,32);
+ assert.equal(nextStudioAudioSelection(prior,prior.end+4.99),null);
+ assert.equal(nextStudioAudioSelection(prior,prior.end),null);
+ assert.equal(nextStudioAudioSelection(prior,null),null);
+ assert.equal(nextStudioAudioSelection({...prior,start:0,end:250},1000)?.end,500);
+ const third=nextStudioAudioSelection(next,120)!;assert.equal(third.start,next.end);
+});
+test("completed video next-segment action uses only immutable owned audio and creates an independent Step 1 draft",()=>{
+ const route=read("app/(site)/api/studio-live/route.ts"),view=read("components/generation-status-view.tsx"),output=read("components/super-admin-generation.tsx"),button=read("components/next-audio-segment-button.tsx");
+ const next=route.split('req.nextUrl.searchParams.get("next") === "1"')[1].split('req.nextUrl.searchParams.get("copy")')[0];
+ assert.match(next,/!project\.outputReady\|\|project\.selection\.owner!==owner/);
+ assert.match(next,/asset\(project\.selection\.songId,owner\)/);
+ assert.doesNotMatch(next,/asset\(project\.selection\.imageId/);
+ assert.match(next,/nextStudioAudioSelection\(project\.selection,song\.duration\)/);
+ assert.match(output,/nextSegmentId=\{project\?\.outputReady\?project\.id:null\}/);
+ assert.ok(view.indexOf("{ready&&nextSegmentId&&<NextAudioSegmentButton")<view.indexOf("{ready&&reuseHref&&<a"));
+ assert.match(button,/const draftId=crypto\.randomUUID\(\)/);
+ assert.match(button,/selection:source\.selection/);
+ assert.match(button,/step:0/);
+ assert.match(button,/router\.push\("\/studio\?draft="\+encodeURIComponent\(draftId\)\)/);
+ assert.doesNotMatch(button,/action:"submit"|credit-checkout|uploadWithProgress/);
 });
