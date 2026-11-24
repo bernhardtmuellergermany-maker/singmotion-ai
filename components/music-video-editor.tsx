@@ -94,6 +94,23 @@ export function MusicVideoEditor({id}:{id:string}){
     setDetail(data);setClips(data.clips);setNewName(data.project.name);setError("");
   },[id]);
   useEffect(()=>{void load().catch(e=>setError(e instanceof Error?e.message:"Project unavailable."));},[load]);
+  useEffect(()=>{
+    const opened=()=>document.querySelectorAll<HTMLDetailsElement>('.mv-editor .mv-media-actions details[open]');
+    const outside=(event:Event)=>{
+      const target=event.target;
+      if(!(target instanceof Node))return;
+      opened().forEach(menu=>{if(!menu.contains(target))menu.open=false;});
+    };
+    const escape=(event:KeyboardEvent)=>{
+      if(event.key!=="Escape")return;
+      opened().forEach(menu=>{const focused=menu.contains(document.activeElement);menu.open=false;if(focused)menu.querySelector("summary")?.focus();});
+    };
+    document.addEventListener("pointerdown",outside,true);
+    document.addEventListener("click",outside,true);
+    document.addEventListener("keydown",escape);
+    return()=>{document.removeEventListener("pointerdown",outside,true);document.removeEventListener("click",outside,true);document.removeEventListener("keydown",escape);};
+  },[]);
+
   // Generate downsampled waveform from the actual project audio. No beat detection.
   useEffect(()=>{
     if(!detail)return;
@@ -930,7 +947,7 @@ export function MusicVideoEditor({id}:{id:string}){
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id));}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
-                  <span className="mv-clip-title">{a.role==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
+                  <span className="mv-clip-title">{c.track===1?<Mic size={12} aria-hidden="true"/>:<Video size={12} aria-hidden="true"/>}<span>{a.name}</span></span>
                   {c.syncLocked&&<Lock className="mv-clip-lock" size={13}/>}
                   <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
                 </div>;
@@ -984,9 +1001,8 @@ export function MusicVideoEditor({id}:{id:string}){
         </div>
         <button type="submit" hidden tabIndex={-1} aria-hidden="true">Apply</button>
         {originalClipSongTime!==null&&<button type="button" className="mv-outline" disabled={importing} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)}><Lock size={14}/> Restore Lip Sync · {time(originalClipSongTime,true)}</button>}
-        <span>Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
-        <button type="button" className="mv-outline" disabled={importing} onClick={switchVideoTrack}>{selectedClip.track===1?"Move to Video 2":"Move to Lip Sync / Main"}</button>
-        <small>Drag a clip or handle with the mouse. On touch, swipe to scroll or hold to edit. Drag the middle between tracks. Video start/end refer to the original song; timeline start/end refer to the project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
+        <button type="button" className="mv-outline" disabled={importing} onClick={switchVideoTrack}>{selectedClip.track===1?"Move to Video":"Move to Lip-Sync"}</button>
+        <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
         {songParts?<><label>Part source start<input aria-label="Song part start" value={partStartText} onChange={e=>setPartStartText(e.target.value)}/></label><label>Part source end<input aria-label="Song part end" value={partEndText} onChange={e=>setPartEndText(e.target.value)}/></label><button type="button" className="mv-outline" disabled={importing} onClick={()=>{const start=parseSongTime(partStartText),end=parseSongTime(partEndText);if(start===null||end===null){setError("Enter valid song times.");return;}editPart(start,end);}}>Set part</button><button type="button" className="mv-outline" disabled={importing||songParts.length<2} onClick={removeSongPart}><Trash2 size={14}/> Remove part</button><button type="button" className="mv-outline" disabled={importing} onClick={resetSongParts}>Reset splits</button></>:<><label>Source start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
@@ -994,9 +1010,8 @@ export function MusicVideoEditor({id}:{id:string}){
         <label>{songParts?"Song group position":"Timeline position"}<input aria-label="Song timeline position" value={positionText} onChange={e=>setPositionText(e.target.value)} placeholder="00:08.918"/></label>
         <button type="submit" className="mv-outline" disabled={importing}>Apply</button>
         <button type="button" className="mv-outline" disabled={importing||!!songParts} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)}>Reset</button>
-        <span>Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
         <button type="button" className="mv-outline mv-song-rename" disabled={importing} onClick={()=>void renameSong()} title="Rename song" aria-label="Rename song"><Pencil size={14}/>{!project!.songName?" Set song name":""}</button>
-        <small>Drag with mouse to move all song parts together. On touch, swipe to scroll or hold to move. Use the scissors to split at the playhead, or drag the trim handles to shorten a part. Removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
+        <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
       </form>}
       </div>
       {error&&<p className="mv-error" role="alert">{error}</p>}
