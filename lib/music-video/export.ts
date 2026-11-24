@@ -5,7 +5,7 @@ import {tmpdir} from "node:os";
 import path from "node:path";
 import {randomUUID} from "node:crypto";
 import type {MusicClip,MusicProject,ProjectAspectRatio} from "./core";
-import {effectiveSongParts,songTimeToTimeline,songPartsEnd,clipSourceTimeMs,type SongPlacement} from "./song-range.ts";
+import {effectiveSongParts,songTimeToTimeline,songPartsEnd,clipSourceTimeMs,aspectFromDimensions,type SongPlacement} from "./song-range.ts";
 
 const exec=promisify(execFile);
 const fps=30, limitMs=600000;
@@ -32,17 +32,24 @@ export function chooseExportResolution(sources:readonly {width:number;height:num
  if(!sources.length||sources.some(s=>!Number.isSafeInteger(s.width)||!Number.isSafeInteger(s.height)||s.width<=0||s.height<=0))
   throw new Error("Could not determine source video resolution.");
  const full=sources.some(s=>Math.min(s.width,s.height)>720);
- if(aspectRatio==="9:16")return full?{width:1080,height:1920}:{width:720,height:1280};
+ if((aspectRatio==="auto"?aspectFromDimensions(sources[0]):aspectRatio)==="9:16")return full?{width:1080,height:1920}:{width:720,height:1280};
  return full?{width:1920,height:1080}:{width:1280,height:720};
+}
+export async function inspectVideoDimensions(file:string):Promise<{width:number;height:number}>{
+ const {stdout}=await exec("ffprobe",["-v","error","-select_streams","v:0","-show_entries","stream=width,height:stream_side_data=rotation:stream_tags=rotate","-of","json",file],{timeout:15000,maxBuffer:16384});
+ const stream=JSON.parse(stdout).streams?.[0];
+ const width=Number(stream?.width),height=Number(stream?.height);
+ if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<=0||height<=0)throw new Error("Could not determine source video resolution.");
+ const rotation=Number(stream?.side_data_list?.find((item:{rotation?:number})=>item.rotation!==undefined)?.rotation??stream?.tags?.rotate??0);
+ return Math.abs(rotation)%180===90?{width:height,height:width}:{width,height};
 }
 async function inspectExportResolution(spans:RenderSpan[],files:Map<string,string>,aspectRatio:ProjectAspectRatio):Promise<ExportResolution>{
  const dimensions:{width:number;height:number}[]=[];
+ // Set preserves first appearance order; covered or unused library clips do not affect format.
  const ids=new Set(spans.flatMap(s=>s.clip?[s.clip.assetId]:[]));
  for(const id of ids){
   const file=files.get(id);if(!file)throw new Error("Source video missing.");
-  const {stdout}=await exec("ffprobe",["-v","error","-select_streams","v:0","-show_entries","stream=width,height","-of","json",file],{timeout:15000,maxBuffer:16384});
-  const stream=JSON.parse(stdout).streams?.[0];
-  dimensions.push({width:Number(stream?.width),height:Number(stream?.height)});
+  dimensions.push(await inspectVideoDimensions(file));
  }
  return chooseExportResolution(dimensions,aspectRatio);
 }
