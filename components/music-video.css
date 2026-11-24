@@ -175,3 +175,14 @@
 .mv-clip-position .mv-primary{padding:8px 13px}
 .mv-clip-position input{width:124px}
 .mv-clip:focus-visible{outline:2px solid #fff;outline-offset:2px}
+
+/* Keep both trim handles visible even for short clips and avoid native drag conflicts. */
+.mv-clip{overflow:visible;min-width:4px;border-radius:7px;justify-content:center;padding:0 10px;user-select:none}
+.mv-clip .mv-handle{position:absolute;top:0;bottom:0;height:100%;width:clamp(8px,23%,15px);min-width:0;z-index:6;border-radius:4px;background:#a347d9;display:grid;place-items:center;line-height:1;touch-action:none}
+.mv-handle-start{left:0}
+.mv-handle-end{right:0}
+.mv-clip-title{max-width:100%;padding:0 2px}
+.mv-clip.is-selected .mv-handle{background:#cb64f6;border-color:#fff}
+.mv-clip.is-locked{cursor:ns-resize}
+.mv-lane.is-drop-target{box-shadow:inset 0 0 0 2px #ce8bfa}
+.mv-lane.is-drop-blocked{box-shadow:inset 0 0 0 2px #f07d99}
