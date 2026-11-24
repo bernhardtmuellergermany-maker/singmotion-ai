@@ -3,7 +3,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,ZoomIn} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -796,7 +796,7 @@ export function MusicVideoEditor({id}:{id:string}){
           </form>
           <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap</label>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
-            <span><ZoomIn size={14}/> Zoom</span>
+            
             <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=20} onClick={()=>setZoom(z=>Math.max(20,z-12))}><Minus size={17}/></button>
             <output aria-label="Timeline zoom level">{(zoom/44).toFixed(1)}×</output>
             <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=140} onClick={()=>setZoom(z=>Math.min(140,z+12))}><Plus size={17}/></button>
