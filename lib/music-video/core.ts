@@ -20,9 +20,9 @@ export type MusicAsset = {
   sourceId:string|null; durationMs:number; sourceStartMs:number|null;
   sourceEndMs:number|null; createdAt:number;
 };
-export type ProjectAspectRatio = "16:9" | "9:16";
+export type ProjectAspectRatio = "auto" | "16:9" | "9:16";
 function validatedAspectRatio(value:unknown):ProjectAspectRatio{
- if(value!=="16:9"&&value!=="9:16")throw new MusicError("Choose 16:9 or 9:16.");
+ if(value!=="auto"&&value!=="16:9"&&value!=="9:16")throw new MusicError("Choose Auto, 16:9 or 9:16.");
  return value;
 }
 export type MusicProject = {
@@ -54,7 +54,7 @@ function database():DatabaseSync{
     if(!columns.some(c=>c.name==="song_position_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_position_ms INTEGER DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_parts_json"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_parts_json TEXT DEFAULT NULL");
     if(!columns.some(c=>c.name==="track_mute_mask"))opened.exec("ALTER TABLE music_projects ADD COLUMN track_mute_mask INTEGER NOT NULL DEFAULT 3");
-    if(!columns.some(c=>c.name==="aspect_ratio"))opened.exec("ALTER TABLE music_projects ADD COLUMN aspect_ratio TEXT NOT NULL DEFAULT '16:9'");
+    if(!columns.some(c=>c.name==="aspect_ratio"))opened.exec("ALTER TABLE music_projects ADD COLUMN aspect_ratio TEXT NOT NULL DEFAULT 'auto'");
     opened.exec("COMMIT");
   }catch(e){opened.exec("ROLLBACK");opened.close();throw e;}
   opened.exec("CREATE INDEX IF NOT EXISTS music_projects_owner ON music_projects(owner_id,updated_at)");
@@ -75,7 +75,7 @@ function database():DatabaseSync{
 type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
 type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;role:MediaRole|null;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number};
-const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"?"9:16":"16:9"});
+const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
 const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll"),sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked});
 export function requireMusicProject(id:string,owner:string):MusicProject{
@@ -87,7 +87,7 @@ export function requireMusicProject(id:string,owner:string):MusicProject{
 export function listMusicProjects(owner:string):MusicProject[]{
   return (database().prepare("SELECT * FROM music_projects WHERE owner_id=? ORDER BY updated_at DESC").all(owner) as ProjectRow[]).map(mapProject);
 }
-export function newMusicProject(owner:string,name:string,durationMs:number,aspectRatio:unknown="16:9"):MusicProject{
+export function newMusicProject(owner:string,name:string,durationMs:number,aspectRatio:unknown="auto"):MusicProject{
   const title=validatedName(name);
   if(!Number.isSafeInteger(durationMs)||durationMs<1000||durationMs>3600000)throw new MusicError("Song duration must be between 1 second and 60 minutes.");
   const now=Date.now(),id=randomUUID();
