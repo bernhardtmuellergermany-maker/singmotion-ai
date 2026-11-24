@@ -970,7 +970,7 @@ export function MusicVideoEditor({id}:{id:string}){
         </div>
         {media.length?<div className="mv-media-grid">{media.map(a=><article key={a.id} className="mv-media-card"
           draggable onDragStart={e=>e.dataTransfer.setData("application/x-mvasset",a.id)}>
-          <div className="mv-media-image"><Film size={32}/><span>{time(a.durationMs)}</span></div>
+          <div className="mv-media-image"><Film size={32}/><img src={endpoint+id+"/thumbnail/"+a.id} alt="" loading="lazy" decoding="async" draggable={false} onError={e=>{e.currentTarget.style.display="none";}} onLoad={e=>{e.currentTarget.style.display="block";}}/><span>{time(a.durationMs)}</span></div>
           <div className="mv-media-info">
             <strong title={a.name}>{a.name}</strong>
             <small>{a.sourceKind==="live"?"SingMotion":a.sourceKind==="uploaded"?"Uploaded video":"Generated video"}</small>
