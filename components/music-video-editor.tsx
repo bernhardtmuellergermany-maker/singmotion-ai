@@ -94,7 +94,7 @@ export function MusicVideoEditor({id}:{id:string}){
     partsRef.current=data.project.songParts;setSongParts(data.project.songParts);setPartIndex(0);
     rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
     mutedClockRef.current=null;playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
-    const at=Math.min(playheadRef.current,Math.max(songPartsEnd(range,partsRef.current),...data.clips.map(clipEnd)));
+    const at=Math.min(playheadRef.current,songPartsEnd(range,partsRef.current));
     playheadRef.current=at;setPlayhead(at);
     if(audio.current&&audio.current.readyState>=1)audio.current.currentTime=Math.max(range.startMs,Math.min(range.endMs,at-songOffset(range)))/1000;
     setDetail(data);setClips(data.clips);setNewName(data.project.name);setError("");
@@ -171,7 +171,7 @@ export function MusicVideoEditor({id}:{id:string}){
     partsRef.current=parts;setSongParts(parts);
     rangeRef.current=range;
     if(changed)displaySong(range);
-    const at=timelineProgress(playheadRef.current,Math.max(songPartsEnd(range,parts),...next.map(clipEnd))).positionMs;
+    const at=timelineProgress(playheadRef.current,songPartsEnd(range,parts)).positionMs;
     if(changed||partsChanged||at!==Math.round(playheadRef.current)){stopPlayback();setAt(at,range);}
     latest.current=next;setClips(next);setError("");queue();
   }
@@ -201,10 +201,10 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!project||!validSongRange(range.startMs,range.endMs,project.songDurationMs)){displaySong(rangeRef.current);setError("Choose a valid song range of at least 100 ms.");return;}
     const original=rangeRef.current;
     const next=position===undefined?trimSongPlacement(original,range):{...range,positionMs:position};
-    if(!validSongPlacement(next,project.songDurationMs)||songTimelineEnd(next)>timelineLimit){displaySong(original);setClips(latest.current);setError("Song position is outside the timeline.");return;}
+    if(!validSongPlacement(next,project.songDurationMs)||songTimelineEnd(next)>songPlacementLimit){displaySong(original);setClips(latest.current);setError("Song position is outside the timeline.");return;}
     if(partsRef.current&&!validSongParts(partsRef.current,next)){displaySong(original);setClips(latest.current);setError("Edit the individual song parts or use Reset song first.");return;}
     const moved=shiftLockedClips(latest.current,songOffset(next)-songOffset(original));
-    if(!moved||moved.some(c=>clipEnd(c)>timelineLimit)){displaySong(original);setClips(latest.current);setError("Cannot move the song: a sync-locked video would overlap another clip or leave the timeline. Unlock or move the conflicting video first.");return;}
+    if(!moved){displaySong(original);setClips(latest.current);setError("Cannot move the song: a sync-locked video would overlap another clip or leave the timeline. Unlock or move the conflicting video first.");return;}
     displaySong(next);setClips(moved);
     if(next.startMs!==original.startMs||next.endMs!==original.endMs||next.positionMs!==original.positionMs)
       apply(moved,true,next);
@@ -269,9 +269,9 @@ export function MusicVideoEditor({id}:{id:string}){
         const closest=targets.reduce((a,b)=>Math.abs(b-next)<Math.abs(a-next)?b:a,0);
         if(Math.abs(closest-next)<150)next=closest;
       }
-      position=Math.max(0,Math.min(timelineLimit-original.endMs+original.startMs,next));
+      position=Math.max(0,Math.min(songPlacementLimit-original.endMs+original.startMs,next));
       const moved=shiftLockedClips(initial,position-original.positionMs);
-      if(moved&&moved.every(c=>clipEnd(c)<=timelineLimit)){displaySong({...original,positionMs:position});setClips(moved);}
+      if(moved){displaySong({...original,positionMs:position});setClips(moved);}
     };
     const cleanup=()=>{document.removeEventListener("pointermove",update);document.removeEventListener("pointerup",finish);document.removeEventListener("pointercancel",cancel);setArmedMedia(null);};
     const finish=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;update(event);cleanup();commitSongRange(original,position);};
@@ -289,7 +289,7 @@ export function MusicVideoEditor({id}:{id:string}){
       const delta=(event.clientX-origin+(scroll.current?.scrollLeft??0)-startScroll)/zoom*1000;
       range=moveSongEdge(original,edge,(edge==="start"?original.startMs:original.endMs)+delta,duration);
       const candidate=trimSongPlacement(original,range);
-      if(songTimelineEnd(candidate)<=timelineLimit)displaySong(candidate);
+      if(songTimelineEnd(candidate)<=songPlacementLimit)displaySong(candidate);
     };
     const cleanup=()=>{
       document.removeEventListener("pointermove",update);
@@ -319,7 +319,11 @@ export function MusicVideoEditor({id}:{id:string}){
     return()=>{scroller.removeEventListener("scroll",update);observer.disconnect();};
   },[project?.id]);
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
-  const selectedClip=clips.find(c=>c.id===selected);
+  const timelineEnd=project?songPartsEnd(songRange,songParts):0;
+  const timelineLimit=timelineEnd;
+  // Source trim can be extended again, but never displays unused source duration.
+  const songPlacementLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current))):0;
+  const selectedClip=clips.find(c=>c.id===selected&&c.timelineStartMs<timelineEnd);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
   const songSelected=!selectedClip||!selectedAsset;
   function selectSong(){setSelected(null);setInspectorOpen(true);}
@@ -439,9 +443,9 @@ export function MusicVideoEditor({id}:{id:string}){
   const originalClipSongTime=selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
     ?selectedAsset.sourceStartMs+selectedClip.sourceInMs:null;
 
-  const activeClip=clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0];
+  const activeClip=playhead<timelineEnd?clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0]:undefined;
   const activeAsset=activeClip?byId.get(activeClip.assetId):null;
-  const firstAssetId=useMemo(()=>firstVisibleVideo(clips)?.assetId,[clips]);
+  const firstAssetId=useMemo(()=>firstVisibleVideo(clips.filter(c=>c.timelineStartMs<timelineEnd))?.assetId,[clips,timelineEnd]);
   useEffect(()=>{
     if(aspectRatio!=="auto"||!firstAssetId)return;
     const controller=new AbortController();
@@ -455,15 +459,13 @@ export function MusicVideoEditor({id}:{id:string}){
     if(importBusy.current||roleBusy.current||ratio===ratioRef.current)return;
     apply(latest.current,true,rangeRef.current,partsRef.current,mutesRef.current,ratio);
   }
-  const previewPlan=previewMediaPlan(clips,playhead,trackMutes);
+  const previewPlan=previewMediaPlan(playhead<timelineEnd?clips:[],playhead,trackMutes);
   const activeAudio1=previewPlan.audio1,activeAudio2=previewPlan.audio2;
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
-  const timelineEnd=project?Math.max(songPartsEnd(songRange,songParts),...clips.map(clipEnd)):0;
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
-  // Do not add artificial space after the song. Keep existing longer edits accessible.
-  const timelineLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current),...latest.current.map(clipEnd))):0;
+  // The last audible song part is the only end of the editable project.
   const pixels=project?Math.max(1,timelineLimit/1000*zoom):640;
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
   function getDropTime(e:React.DragEvent){
@@ -529,7 +531,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(JSON.stringify(initial)!==JSON.stringify(next))
       apply(latest.current.map(c=>c.id===next.id?next:c));
     else setClips(latest.current);
-    setSelected(next.id);stopPlayback();setAt(Math.min(playheadRef.current,Math.max(songPartsEnd(rangeRef.current,partsRef.current),...latest.current.map(clipEnd))));
+    setSelected(next.id);stopPlayback();setAt(Math.min(playheadRef.current,songPartsEnd(rangeRef.current,partsRef.current)));
   }
   function switchVideoTrack(){
     if(!selectedClip||importBusy.current)return;
@@ -572,10 +574,10 @@ export function MusicVideoEditor({id}:{id:string}){
         const track=([1,2] as const).find(t=>{const rect=videoLanes.current[t]?.getBoundingClientRect();return !!rect&&event.clientY>=rect.top&&event.clientY<rect.bottom;});
         if(track===undefined){valid=false;setDragTrack(null);setDragBlocked(false);setClips(startClips);return;}
         const position=initial.syncLocked||Math.abs(dx)<=3?initial.timelineStartMs:
-          Math.min(timelineLimit-(initial.sourceOutMs-initial.sourceInMs),Math.max(0,snapped(initial.timelineStartMs+delta,initial)));
+          Math.max(0,Math.min(timelineLimit-(initial.sourceOutMs-initial.sourceInMs),Math.max(0,snapped(initial.timelineStartMs+delta,initial))));
         const result=transferVideoClip(startClips,initial,track,position);
-        valid=result.status==="ok";setDragTrack(track);setDragBlocked(!valid);
-        next=result.status==="ok"?result.clip:initial;
+        valid=result.status==="ok"&&clipEnd(result.clip)<=timelineLimit;setDragTrack(track);setDragBlocked(!valid);
+        next=valid&&result.status==="ok"?result.clip:initial;
       }else{
         next=trimVideoClip(startClips,initial,edge,delta,sourceLimit(initial,asset),timelineLimit);
       }
@@ -698,7 +700,7 @@ export function MusicVideoEditor({id}:{id:string}){
     }catch(e){setError(e instanceof Error?e.message:"Rename failed.");}
   }
   async function exportMp4(){
-    if(importBusy.current||exportBusy.current||!latest.current.length)return;
+    if(importBusy.current||exportBusy.current||!latest.current.some(c=>c.timelineStartMs<timelineEnd))return;
     exportBusy.current=true;importBusy.current=true;setImporting(true);setExporting(true);setExportOpen(true);setExportError("");setExportJob(null);stopPlayback();
     const controller=new AbortController();exportAbort.current=controller;
     try{
@@ -916,7 +918,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="submit" aria-label="Save project name"><Check size={17}/></button></form>:
           <button className="mv-project-name-button" title={project!.name+" · Rename project"} aria-label={"Rename project "+project!.name} onClick={()=>setEditingName(true)}><Pencil size={17}/><span>{project!.name}</span></button>}</div>
       <div className="mv-top-actions"><span role="status" className="mv-status">{status}</span>
-        <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!clips.length} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
+        <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!clips.some(c=>c.timelineStartMs<timelineEnd)} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
@@ -975,14 +977,14 @@ export function MusicVideoEditor({id}:{id:string}){
         </div>
         <div className="mv-scroll" ref={scroll}>
           <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
-            <div className="mv-ruler" onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
+            <div className="mv-ruler" style={{overflow:"hidden"}} onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
               {ticks.map(t=><span key={t} style={{left:t/1000*zoom}}>{time(t)}</span>)}
             </div>
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(trackMutes[track]?" is-audio-muted":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
-              {clips.filter(c=>c.track===track).map(c=>{
+              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).map(c=>{
                 const a=byId.get(c.assetId);if(!a)return null;
                 return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(armedMedia===c.id?" is-armed":"")}
-                    style={{left:c.timelineStartMs/1000*zoom,width:(c.sourceOutMs-c.sourceInMs)/1000*zoom}}
+                    style={{left:c.timelineStartMs/1000*zoom,width:(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom}}
                     tabIndex={0} aria-label={"Select video "+a.name}
                     onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectVideo(c.id);}}}
                     onContextMenu={e=>e.preventDefault()}
