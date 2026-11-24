@@ -40,12 +40,65 @@ export function creditedVideoProject(
 }
 
 
+type DeletedCreditVideo={name:string;href:null};
+const chargeId=(reference:string)=>/^video-charge:([a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})$/i.exec(reference)?.[1];
+function paidVideoOwner(commerce:DatabaseSync,subject:string,reference:string):{id:string;owner:string}|null{
+ const id=chargeId(reference);
+ const identity=/^customer:([a-f0-9-]{36})$/i.exec(subject)||/^super-admin:([A-Za-z0-9_-]{1,100})$/.exec(subject);
+ if(!id||!identity)return null;
+ const paid=commerce.prepare("SELECT 1 FROM credit_wallet_ledger l JOIN credit_video_reservations r ON r.project_id=? AND r.subject=l.subject WHERE l.subject=? AND l.reference=? AND l.kind='video' AND l.delta<0 AND r.state='settled'").get(id,subject,reference);
+ return paid?{id,owner:(subject.startsWith("customer:")?"customer-":"cms-staff-")+identity[1]}:null;
+}
+function projectTitle(row:{display_name?:unknown;project_name?:unknown;artist_name?:unknown}):string{
+ return [row.display_name,row.project_name,row.artist_name].map(v=>typeof v==="string"?v.trim():"")
+  .find(v=>v.length>0&&v.length<=80)||"Untitled video";
+}
+function deletedCreditVideo(commerce:DatabaseSync,live:DatabaseSync,subject:string,reference:string):DeletedCreditVideo|null{
+ const paid=paidVideoOwner(commerce,subject,reference);
+ if(!paid)return null;
+ const attempt=live.prepare("SELECT data FROM live_attempts WHERE id=?").get(paid.id) as {data:string}|undefined;
+ if(!attempt)return null;
+ const data=JSON.parse(attempt.data) as {state?:string;media?:{owner?:string}};
+ if(data.state!=="completed"||data.media?.owner!==paid.owner)return null;
+ const row=live.prepare("SELECT * FROM live_studio_projects WHERE attempt_id=?").get(paid.id) as {owner:string;deleted_at:number|null;display_name?:string;project_name?:string;artist_name?:string}|undefined;
+ if(row)return row.owner===paid.owner&&row.deleted_at!==null?{name:projectTitle(row),href:null}:null;
+ // Permanent purge keeps only an owner-verified name in the existing action
+ // history, which full account erasure already removes by attempt_id.
+ if(!live.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='live_studio_actions'").get())return null;
+ const snapshot=live.prepare("SELECT evidence FROM live_studio_actions WHERE attempt_id=? AND action='credit-history-deleted' AND actor=? ORDER BY id DESC LIMIT 1").get(paid.id,paid.owner) as {evidence:string}|undefined;
+ if(!snapshot)return null;
+ const name=(JSON.parse(snapshot.evidence) as {name?:unknown}).name;
+ return typeof name==="string"&&name.trim().length>0&&name.length<=80?{name,href:null}:null;
+}
+/** Called within the same live DB transaction as permanent trash removal.
+ * Keep no media, prompt or URL; only a title for an actual settled charge.
+ */
+export function preserveDeletedCreditVideo(commerce:DatabaseSync,live:DatabaseSync,id:string,owner:string,deletedAt:number):void{
+ const subject=owner.startsWith("customer-")?"customer:"+owner.slice(9):owner.startsWith("cms-staff-")?"super-admin:"+owner.slice(10):"";
+ if(!subject||!commerce.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='credit_wallet_ledger'").get()||
+    !commerce.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='credit_video_reservations'").get())return;
+ const paid=paidVideoOwner(commerce,subject,"video-charge:"+id);
+ if(!paid||paid.owner!==owner)return;
+ const row=live.prepare("SELECT * FROM live_studio_projects WHERE attempt_id=? AND owner=? AND deleted_at=?").get(id,owner,deletedAt) as {display_name?:string;project_name?:string;artist_name?:string}|undefined;
+ if(!row)return;
+ const title=deletedCreditVideo(commerce,live,subject,"video-charge:"+id);
+ if(!title)return;
+ live.exec("CREATE TABLE IF NOT EXISTS live_studio_actions (id INTEGER PRIMARY KEY,attempt_id TEXT NOT NULL,action TEXT NOT NULL,actor TEXT NOT NULL,evidence TEXT NOT NULL,created_at INTEGER NOT NULL)");
+ live.prepare("INSERT INTO live_studio_actions (attempt_id,action,actor,evidence,created_at) VALUES (?,'credit-history-deleted',?,?,?)").run(id,owner,JSON.stringify({name:title.name}),deletedAt);
+}
+function creditHistoryVideo(commerce:DatabaseSync,live:DatabaseSync|null,subject:string,reference:string):{name:string;href:string|null}|null{
+ const active=creditedVideoProject(commerce,live,subject,reference);
+ if(active)return active;
+ if(!live)return null;
+ try{return deletedCreditVideo(commerce,live,subject,reference);}catch{return null;}
+}
+
 /** Enrich already-account-scoped wallet entries without changing their financial data. */
 export function creditEntriesWithVideoProjects<T extends {type:string;reference:string}>(
  commerce:DatabaseSync,live:DatabaseSync|null,subject:string,entries:readonly T[],
-):Array<T&{video:{name:string;href:string}|null}>{
+):Array<T&{video:{name:string;href:string|null}|null}>{
  return entries.map(entry=>({...entry,video:entry.type==="video"
-  ?creditedVideoProject(commerce,live,subject,entry.reference):null}));
+  ?creditHistoryVideo(commerce,live,subject,entry.reference):null}));
 }
 
 /** Account-scoped inbox; source payment ledger remains immutable when a notice is deleted. */
