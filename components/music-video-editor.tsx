@@ -3,7 +3,7 @@ import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "rea
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -63,6 +63,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
   const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"B-Roll"|"AI Video"|"Uploads">("All");
   const [search,setSearch]=useState("");
+  const [libraryNewest,setLibraryNewest]=useState(true),[libraryRefreshing,setLibraryRefreshing]=useState(false);
   const [error,setError]=useState(""),[status,setStatus]=useState("Saved");
   const [lipTrack,setLipTrack]=useState<Track|null>(null),[lipSources,setLipSources]=useState<LipSyncSource[]>([]);
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
@@ -830,8 +831,22 @@ export function MusicVideoEditor({id}:{id:string}){
     syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current);
   }
   useEffect(()=>{syncFollowers();},[playhead,activeClip,activeAudio1,activeAudio2,trackMutes,playing]);
-  const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported")&&
-    a.name.toLowerCase().includes(search.toLowerCase()));
+  const libraryFilters=["All","Lip Sync","B-Roll","AI Video","Uploads"] as const;
+  const matchesLibraryFilter=(a:MusicAsset,filter:typeof libraryFilters[number])=>filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported";
+  const media=assets.filter(a=>matchesLibraryFilter(a,filter)&&a.name.toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>libraryNewest?b.createdAt-a.createdAt:a.createdAt-b.createdAt);
+  async function refreshLibrary(){
+    if(importBusy.current||roleBusy.current||libraryRefreshing)return;
+    setLibraryRefreshing(true);setRoleError("");
+    try{
+      await saveNow();
+      const result=await request<Detail>(endpoint+id);
+      // Refresh only the media inventory. Do not reset selection, playhead or unsaved edits.
+      if(result.project.revision!==revision.current||dirty.current||importBusy.current||roleBusy.current)return;
+      if(detailRef.current)detailRef.current={...detailRef.current,assets:result.assets};
+      setDetail(previous=>previous?{...previous,assets:result.assets}:previous);
+    }catch(e){setRoleError(e instanceof Error?e.message:"Unable to refresh library.");}
+    finally{setLibraryRefreshing(false);}
+  }
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
   const ticks=Array.from({length:Math.floor(pixels/zoom/10)+1},(_,i)=>i*10000);
   return <main id="content" className="mv-root mv-editor">
@@ -996,11 +1011,19 @@ export function MusicVideoEditor({id}:{id:string}){
       {libraryOpen&&<div className="mv-library-content">
         {roleError&&<p className="mv-error" role="alert">{roleError}</p>}
         <p className="mv-role-hint">Choose each video’s role. Lip Sync defaults to the main track; B-Roll to the upper track. Changing role keeps existing clip positions; B-Roll releases Sync Lock. Original source times are preserved.</p>
-        <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","B-Roll","AI Video","Uploads"] as const).map(f=>
-          <button key={f} className={filter===f?"active":""} onClick={()=>setFilter(f)}>{f}</button>)}</div>
-          <div className="mv-library-search"><Search size={16}/><input placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        <div className="mv-library-tools">
+          <div className="mv-browse-toolbar">
+            <label className="mv-browse-search"><Search size={16}/><input type="search" placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></label>
+            <label className="mv-browse-filter"><select aria-label="Filter library videos" value={filter} onChange={e=>setFilter(e.target.value as typeof filter)}>
+              {libraryFilters.map(f=><option key={f} value={f}>{f==="All"?"All videos":f} ({assets.filter(a=>matchesLibraryFilter(a,f)).length})</option>)}
+            </select><ChevronDown size={15} aria-hidden="true"/></label>
+            <button type="button" className="mv-browse-control" disabled={importing||libraryRefreshing} onClick={()=>void refreshLibrary()} title="Refresh library" aria-label="Refresh library"><RefreshCw size={15}/></button>
+            <button type="button" className="mv-browse-control" onClick={()=>setLibraryNewest(v=>!v)} aria-label={libraryNewest?"Sort oldest first":"Sort newest first"}><ArrowUpDown size={15}/><span>{libraryNewest?"Newest first":"Oldest first"}</span></button>
+          </div>
+          <div className="mv-library-imports">
           <button className="mv-outline" disabled={importing} onClick={()=>void openLipSync(1)}><Music2 size={16}/> Insert Lip Sync</button>
           <button className="mv-outline" disabled={importing} onClick={()=>fileInput.current?.click()}><Upload size={16}/> Upload video</button>
+          </div>
         </div>
         {media.length?<div className="mv-media-grid">{media.map(a=><article key={a.id} className="mv-media-card"
           draggable onDragStart={e=>e.dataTransfer.setData("application/x-mvasset",a.id)}>
@@ -1017,7 +1040,7 @@ export function MusicVideoEditor({id}:{id:string}){
               <details><summary aria-label={"Options for "+a.name}><MoreHorizontal size={17}/></summary>
                 <div><button onClick={()=>addClip(a,1,playhead)}>Add to Lip Sync / Main</button><button onClick={()=>addClip(a,2,playhead)}>Add to Video 2</button><button onClick={()=>void deleteAsset(a)}>Remove from Library</button></div>
               </details></div>
-          </div></article>)}</div>:<p className="mv-empty-library">No videos in this Library. Import a video or use Add to Project from Videos.</p>}
+          </div></article>)}</div>:<p className="mv-empty-library">{assets.length?"No matching videos. Try another search or filter.":"No videos in this Library. Import a video or use Add to Project from Videos."}</p>}
       </div>}
     </section>
     {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready{exportJob.resolution?" · "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p":""}</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
