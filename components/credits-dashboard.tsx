@@ -143,7 +143,7 @@ export function CreditsDashboard({mode}:{mode:"buy"|"usage"}){
      <p>Your account is free and your Studio project is saved. Please confirm your email address first. Credit Checkout cannot open until the account is verified.</p>
      <Link href="/account/verify-email?from=studio" className="sm-plan-action sm-plan-action-outline">Verify email · Continue to Credits</Link>
     </section>}
-   {mode==="buy"&&balance.emailVerification!=="pending"&&<section id="buy-credits"><CreditAmountPicker purchaseEnabled={balance.purchaseEnabled} testMode={balance.testMode} globalCountrySelection={balance.globalCountrySelection===true} approvedBillingCountries={balance.approvedBillingCountries}/></section>}
+   {mode==="buy"&&balance.emailVerification!=="pending"&&<section id="buy-credits"><CreditAmountPicker discoverAvailability/></section>}
    <section className="sm-credits-history" id="usage">
     <h2>Usage & Orders</h2>
     <p className="sm-credits-muted">View your recorded credit transactions and previously paid video orders. Past euro payments are shown as a credit equivalent only; they have not been deducted from your balance again.</p>
