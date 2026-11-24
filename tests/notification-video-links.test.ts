@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {DatabaseSync} from "node:sqlite";
 import {readFileSync} from "node:fs";
 import {CreditWallet} from "../lib/commerce/credit-wallet.ts";
-import {NotificationInbox,creditedVideoProject} from "../lib/commerce/notifications.ts";
+import {NotificationInbox,creditedVideoProject,creditEntriesWithVideoProjects} from "../lib/commerce/notifications.ts";
 
 const videoId="31da5034-8686-4f24-9236-638994bef222";
 const customer="d7531cc6-179e-4088-b342-1f675c4a934a";
@@ -84,4 +84,31 @@ test("notification UI only renders internal verified video links and uses a name
  assert.match(ui,/PlayCircle/);
  assert.match(api,/new DatabaseSync\(projectFile,\{readOnly:true\}\)/);
  assert.match(api,/new NotificationInbox\(store.db,live\)/);
+});
+
+test("Credits usage identifies the same verified video without changing ledger amounts or exposing other projects",()=>{
+ const {commerce,live}=setup();
+ try{
+  const entries=new CreditWallet(commerce).entries(subject);
+  const enriched=()=>creditEntriesWithVideoProjects(commerce,live,subject,entries);
+  assert.deepEqual(enriched()[0],{...entries[0],video:{name:"Minecraft",href:"/videos/live_"+videoId}});
+  assert.equal(entries[0].credits,-275);
+  live.prepare("UPDATE live_studio_projects SET display_name=? WHERE attempt_id=?").run("New name",videoId);
+  assert.equal(enriched()[0].video?.name,"New name");
+  assert.equal(creditEntriesWithVideoProjects(commerce,null,subject,entries)[0].video,null);
+  assert.equal(creditEntriesWithVideoProjects(commerce,live,"customer:aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",entries)[0].video,null);
+  assert.equal(creditEntriesWithVideoProjects(commerce,live,subject,[{...entries[0],type:"purchase"}])[0].video,null);
+  live.prepare("UPDATE live_studio_projects SET deleted_at=? WHERE attempt_id=?").run(Date.now(),videoId);
+  assert.equal(enriched()[0].video,null);
+ }finally{commerce.close();live.close();}
+});
+test("Credits usage API enriches the authenticated ledger read-only and UI links to the named video",()=>{
+ const api=readFileSync(new URL("../app/(site)/api/credit-balance/route.ts",import.meta.url),"utf8");
+ const ui=readFileSync(new URL("../components/credits-dashboard.tsx",import.meta.url),"utf8");
+ assert.ok(api.includes('new DatabaseSync(projectFile,{readOnly:true})'));
+ assert.ok(api.includes('creditEntriesWithVideoProjects(store.db,live,identity.subject,entries)'));
+ assert.ok(api.includes('entries:enrichedEntries'));
+ assert.ok(ui.includes('entry.type==="video"&&entry.video'));
+ assert.ok(ui.includes('href={entry.video.href}'));
+ assert.ok(ui.includes('{entry.video.name} · View video'));
 });
