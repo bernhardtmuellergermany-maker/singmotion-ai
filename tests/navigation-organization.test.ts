@@ -315,7 +315,7 @@ test("song splits preserve absolute time and leave silence for removed intervals
  const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts");
  assert.ok(core.includes("song_parts_json=?"));
  assert.ok(editor.includes("songParts:parts"));
- assert.ok(editor.includes("onClick={splitSong}"));
+ assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
  assert.ok(editor.includes("songPartAt(range,continuousSongParts(range,partsRef.current),at)"));
 });
 test("one-click export uses top-track render spans and owner-scoped download",async()=>{
@@ -356,4 +356,28 @@ test("MP4 export automatically chooses 720p or 1080p from visible source dimensi
  assert.ok(renderer.includes('scale="+width+":"+height+'));
  assert.ok(renderer.includes('color=c=black:s="+width+"x"+height'));
  assert.ok(editor.includes("exportJob.resolution.height"));
+});
+
+test("each timeline lane persists audio mute and the cut button follows selection",()=>{
+ const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),renderer=read("lib/music-video/export.ts"),css=read("components/music-video.css");
+ assert.ok(core.includes("track_mute_mask INTEGER NOT NULL DEFAULT 3"));
+ assert.ok(core.includes("track_mute_mask=?"));
+ assert.ok(api.includes("body.trackMutes"));
+ assert.ok(editor.includes("trackMutes:mutes"));
+ assert.ok(editor.includes('muteButton("song","song")'));
+ assert.ok(editor.includes("muteButton(track,"));
+ assert.ok(editor.includes("muted={trackMutes.song}"));
+ assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
+ assert.ok(!editor.includes("> Split video</button>"));
+ assert.ok(!editor.includes("> Split song</button>"));
+ assert.ok(renderer.includes("if(mutes[track]||!clips.some"));
+ assert.ok(renderer.includes("if(!mutes.song)mixLabels.push"));
+ assert.ok(css.includes("grid-template-columns:minmax(0,1fr) auto auto"));
+});
+test("video lane audio includes covered clips and silence between clips",async()=>{
+ const {trackAudioSpans}=await import("../lib/music-video/export.ts");
+ const a={id:"a",assetId:"a",track:1 as const,timelineStartMs:1000,sourceInMs:500,sourceOutMs:2500,syncLocked:false};
+ const b={...a,id:"b",assetId:"b",track:2 as const,timelineStartMs:0,sourceInMs:0,sourceOutMs:4000};
+ assert.deepEqual(trackAudioSpans([a,b],1,4000).map(s=>[s.clip?.id??null,s.startMs,s.durationMs]),[[null,0,1000],["a",1000,2000],[null,3000,1000]]);
+ assert.deepEqual(trackAudioSpans([a,b],2,4000).map(s=>[s.clip?.id??null,s.startMs,s.durationMs]),[["b",0,4000]]);
 });
