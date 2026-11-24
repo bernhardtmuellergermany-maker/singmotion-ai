@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -37,6 +37,10 @@ export function MusicVideoEditor({id}:{id:string}){
   const playheadRef=useRef(0),playingRef=useRef(false);
   const rangeRef=useRef<SongPlacement>({startMs:0,endMs:0,positionMs:0});
   const [selected,setSelected]=useState<string|null>(null),[playhead,setPlayhead]=useState(0);
+  const [markerText,setMarkerText]=useState("00:00.000"),[scrubbing,setScrubbing]=useState(false);
+  const markerDrag=useRef<{pointer:number;offset:number}|null>(null);
+  const trackArea=useRef<HTMLDivElement>(null);
+  useEffect(()=>{setMarkerText(time(playhead,true));},[playhead]);
   const [dragTrack,setDragTrack]=useState<Track|null>(null),[dragBlocked,setDragBlocked]=useState(false);
   const videoLanes=useRef<Partial<Record<Track,HTMLDivElement|null>>>({});
   const [clipSongText,setClipSongText]=useState("00:00.000"),[clipTimelineText,setClipTimelineText]=useState("00:00.000");
@@ -317,7 +321,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(JSON.stringify(initial)!==JSON.stringify(next))
       apply(latest.current.map(c=>c.id===next.id?next:c));
     else setClips(latest.current);
-    setSelected(next.id);stopPlayback();setAt(next.timelineStartMs);
+    setSelected(next.id);stopPlayback();setAt(Math.min(playheadRef.current,Math.max(songTimelineEnd(rangeRef.current),...latest.current.map(clipEnd))));
   }
   function switchVideoTrack(){
     if(!selectedClip||importBusy.current)return;
@@ -384,11 +388,19 @@ export function MusicVideoEditor({id}:{id:string}){
     document.addEventListener("pointermove",update);document.addEventListener("pointerup",finish);document.addEventListener("pointercancel",cancel);
   }
   function split(){
-    if(!selectedClip||playhead<=selectedClip.timelineStartMs+100||playhead>=clipEnd(selectedClip)-100)return;
-    const splitAt=selectedClip.sourceInMs+(Math.round(playhead)-selectedClip.timelineStartMs);
-    const left={...selectedClip,sourceOutMs:splitAt};
-    const right={...selectedClip,id:uuid(),timelineStartMs:playhead,sourceInMs:splitAt};
-    apply([...latest.current.filter(c=>c.id!==selectedClip.id),left,right]);setSelected(right.id);
+    if(importBusy.current||!selectedClip)return;
+    const current=latest.current.find(c=>c.id===selectedClip.id);
+    if(!current)return;
+    const parts=splitVideoAtPlayhead(current,playheadRef.current,uuid());
+    if(!parts){setError("Place the playhead at least 100 ms inside the selected video.");return;}
+    if(latest.current.length>=500){setError("The timeline supports up to 500 clips.");return;}
+    stopPlayback();apply([...latest.current.filter(c=>c.id!==current.id),...parts]);setSelected(parts[1].id);
+  }
+  function cutSong(edge:"start"|"end"){
+    if(importBusy.current)return;
+    const next=trimSongAtPlayhead(rangeRef.current,playheadRef.current,edge);
+    if(!next){setError("Place the playhead inside the song, leaving at least 100 ms on either side.");return;}
+    commitSongRange(next,next.positionMs);
   }
   function deleteClip(){
     if(!selectedClip)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
@@ -467,6 +479,41 @@ export function MusicVideoEditor({id}:{id:string}){
   function seek(ms:number){
     if(!project)return;
     stopPlayback();setAt(Math.max(0,Math.min(timelineEnd,ms)));
+  }
+  function submitMarker(){
+    const ms=parseSongTime(markerText);
+    if(ms===null||ms>timelineEnd){setError("Enter a valid timeline time, for example 00:08.918.");return;}
+    seek(ms);setMarkerText(time(ms,true));setError("");
+  }
+  function scrubMarker(e:React.PointerEvent<HTMLElement>,grab=false){
+    if(e.button!==0||markerDrag.current||!trackArea.current)return;
+    e.preventDefault();e.stopPropagation();stopPlayback();
+    const left=trackArea.current.getBoundingClientRect().left;
+    markerDrag.current={pointer:e.pointerId,offset:grab?e.clientX-left-playheadRef.current/1000*zoom:0};
+    e.currentTarget.setPointerCapture(e.pointerId);setScrubbing(true);
+    if(!grab)updateMarker(e);
+  }
+  function updateMarker(e:React.PointerEvent<HTMLElement>){
+    const drag=markerDrag.current,area=trackArea.current;
+    if(!drag||drag.pointer!==e.pointerId||!area)return;
+    const raw=(e.clientX-area.getBoundingClientRect().left-drag.offset)/zoom*1000;
+    const range=rangeRef.current;
+    const markers=[0,timelineEnd,range.positionMs,songTimelineEnd(range),...latest.current.flatMap(c=>[c.timelineStartMs,clipEnd(c)])];
+    setAt(snapPlayhead(raw,timelineEnd,snap?markers:[],Math.min(150,5/zoom*1000)));
+  }
+  function releaseMarker(e:React.PointerEvent<HTMLElement>,cancel=false){
+    if(markerDrag.current?.pointer!==e.pointerId)return;
+    if(!cancel)updateMarker(e);
+    markerDrag.current=null;setScrubbing(false);
+    if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);
+  }
+  function markerKey(e:React.KeyboardEvent<HTMLButtonElement>){
+    let next=playheadRef.current;
+    if(e.key==="Home")next=0;
+    else if(e.key==="End")next=timelineEnd;
+    else if(e.key==="ArrowLeft"||e.key==="ArrowRight")next+=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);
+    else return;
+    e.preventDefault();seek(next);
   }
   useEffect(()=>{
     if(!playing)return;
@@ -553,11 +600,15 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-timeline-toolbar">
         <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
-          <button onClick={split} disabled={!selectedClip}><Scissors size={17}/> Split</button>
+          <button onClick={split} disabled={importing||!selectedClip||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100} title="Split the selected video at the playhead"><Scissors size={17}/> Split video</button>
           <button onClick={deleteClip} disabled={!selectedClip}><Trash2 size={17}/> Delete</button>
           {selectedAsset?.kind==="lip-sync"&&<button onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
           {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing} onClick={switchVideoTrack}>Switch track</button>}</div>
-        <div className="mv-timeline-zoom"><strong>{time(playhead,true)}</strong>
+        <div className="mv-timeline-zoom">
+          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
+            <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onBlur={()=>setMarkerText(time(playheadRef.current,true))}/></label>
+            <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
+          </form>
           <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap</label>
           <Minus size={15}/><input aria-label="Timeline zoom" type="range" min="20" max="140" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/><ZoomIn size={16}/></div>
       </div>
@@ -576,8 +627,8 @@ export function MusicVideoEditor({id}:{id:string}){
           <div className="mv-label"><Music2 size={18}/><strong>Song</strong><Scissors size={15}/></div>
         </div>
         <div className="mv-scroll" ref={scroll}>
-          <div className="mv-track-area" style={{width:pixels}}>
-            <div className="mv-ruler" onPointerDown={e=>seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left))}>
+          <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
+            <div className="mv-ruler" onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
               {ticks.map(t=><span key={t} style={{left:t/1000*zoom}}>{time(t)}</span>)}
             </div>
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
@@ -586,7 +637,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")}
                     style={{left:c.timelineStartMs/1000*zoom,width:(c.sourceOutMs-c.sourceInMs)/1000*zoom}}
                     tabIndex={0} aria-label={"Select video "+a.name}
-                    onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();setSelected(c.id);seek(c.timelineStartMs);}}}
+                    onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();setSelected(c.id);}}}
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))movePointer(e,c,"move");}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Drag to trim or extend start" onPointerDown={e=>movePointer(e,c,"start")} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
@@ -611,7 +662,10 @@ export function MusicVideoEditor({id}:{id:string}){
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}
             </div>
-            <div className="mv-playhead" style={{left:playhead/1000*zoom}}><span/></div>
+            <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:playhead/1000*zoom}}>
+              <button type="button" className="mv-playhead-grip" aria-label="Move playhead" title={"Drag playhead · "+time(playhead,true)}
+                onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
+            </div>
           </div>
         </div>
       </div>
@@ -633,7 +687,9 @@ export function MusicVideoEditor({id}:{id:string}){
         <button type="submit" className="mv-outline" disabled={importing}>Apply</button>
         <button type="button" className="mv-outline" disabled={importing} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)}>Reset</button>
         <span>Duration <b>{time(songRange.endMs-songRange.startMs,true)}</b></span>
-        <small>Drag the song to move it. Sync-locked videos move with it. Enter MM:SS.mmm or seconds.</small>
+        <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead(songRange,playhead,"start")} onClick={()=>cutSong("start")}><Scissors size={14}/> Trim start at playhead</button>
+        <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead(songRange,playhead,"end")} onClick={()=>cutSong("end")}><Scissors size={14}/> Trim end at playhead</button>
+        <small>Drag the song to move it. Trim at the playhead to cut the start or end. Sync-locked videos stay aligned. Enter MM:SS.mmm or seconds.</small>
       </form>
       {error&&<p className="mv-error" role="alert">{error}</p>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
