@@ -11,7 +11,93 @@ import {mkdtemp,mkdir,writeFile,readFile,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {DatabaseSync} from "node:sqlite";
-import {chromium} from "@playwright/test";
+import {chromium,type Page} from "@playwright/test";
+import {cameraMovements,featuredCameraMovements,additionalCameraMovements,cameraMovementPreview} from "../lib/studio-camera-movements.ts";
+
+/** Use the actual built Studio, not a mocked picker; preserve the test's draft. */
+async function verifyCameraPicker(page:Page,original:string){
+ const panel=page.locator(".sm-performance-ideas").filter({has:page.getByRole("heading",{name:"Camera Movements",exact:true})});
+ const prompt=page.locator("#flow-performance-prompt");
+ const preview=panel.locator("#sm-camera-active-preview");
+ const recommended=panel.locator(".sm-camera-chip-recommended");
+ const experimental=panel.locator(".sm-camera-chip-experimental");
+ assert.equal(await recommended.count(),9);
+ assert.equal(await panel.locator(".sm-camera-chip-recommended:visible").count(),9);
+ assert.equal(await experimental.count(),25);
+ assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),0);
+ assert.equal(await preview.count(),0);
+ const initialUrl=page.url();
+ const expected=(move:typeof cameraMovements[number])=>[...original.split("\n").map(x=>x.trim()).filter(x=>x&&!/^Camera:\s*/i.test(x)),move.direction].join("\n");
+ const select=async(move:typeof cameraMovements[number])=>{
+  const chip=panel.getByRole("button",{name:"Add "+move.name+" camera movement to prompt",exact:true});
+  await chip.click();
+  await preview.waitFor({state:"visible"});
+  assert.ok(await chip.evaluate(el=>!!el.nextElementSibling?.querySelector("#sm-camera-active-preview")),"preview is immediately after the selected chip");
+  assert.equal(await preview.count(),1);
+  assert.equal(await preview.locator("strong").innerText(),move.name);
+  assert.equal(await preview.locator(".sm-camera-chip-rating").innerText(),move.recommended?"Recommended":"Experimental");
+  assert.equal(await prompt.inputValue(),expected(move));
+  const img=preview.locator("img");
+  assert.equal(await img.getAttribute("src"),cameraMovementPreview(move).animation);
+  await img.scrollIntoViewIfNeeded();
+  await page.waitForFunction(()=>{const el=document.querySelector<HTMLImageElement>("#sm-camera-active-preview img");return el?.complete&&el.naturalWidth===640&&el.naturalHeight===360});
+  const bounds=await preview.boundingBox();
+  const viewport=page.viewportSize();
+  assert.ok(bounds&&viewport&&bounds.x>=-1&&bounds.x+bounds.width<=viewport.width+1,"preview fits the viewport");
+  assert.equal(page.url(),initialUrl,"no page navigation");
+ };
+ const dolly=featuredCameraMovements.find(m=>m.name==="Dolly in")!;
+ await select(dolly);
+ await preview.getByRole("button",{name:"Pause Dolly in preview"}).click();
+ assert.equal(await preview.locator("img").getAttribute("src"),cameraMovementPreview(dolly).poster);
+ await preview.getByRole("button",{name:"Play Dolly in preview"}).click();
+ await page.emulateMedia({reducedMotion:"reduce"});
+ await page.waitForFunction(()=>document.querySelector<HTMLImageElement>("#sm-camera-active-preview img")?.currentSrc.endsWith("-poster.webp"));
+ await page.emulateMedia({reducedMotion:"no-preference"});
+ await select(featuredCameraMovements.find(m=>m.name==="Pan right")!);
+ assert.equal(await preview.getByText("Dolly in",{exact:true}).count(),0);
+ await panel.getByRole("button",{name:"Show more (25 experimental)",exact:true}).click();
+ assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),25);
+ await select(additionalCameraMovements.find(m=>m.name==="Truck right")!);
+ await preview.getByRole("button",{name:"Close camera movement preview"}).click();
+ assert.equal(await preview.count(),0);
+ await select(additionalCameraMovements.find(m=>m.name==="Truck left")!);
+ await panel.getByRole("button",{name:"Show less",exact:true}).click();
+ assert.equal(await preview.count(),0);
+ assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),0);
+ await prompt.fill(original);
+ assert.equal(await prompt.inputValue(),original);
+ console.log("PASS: Studio camera chips select, switch, insert, pause, reduce motion and dismiss inline at "+page.viewportSize()?.width+"px.");
+}
+async function verifyCameraHelp(page:Page,origin:string){
+ const help=await page.context().newPage();
+ try{
+  await help.emulateMedia({reducedMotion:"reduce"});
+  await help.goto(origin+"/help/camera-movements");
+  const cards=help.locator("#camera-movements article.sm-camera-technique");
+  assert.equal(await cards.count(),34);
+  assert.equal(await help.locator("#camera-movements .sm-camera-recommended").count(),9);
+  assert.equal(await help.locator("#camera-movements .sm-camera-experimental").count(),25);
+  for(const [index,move] of cameraMovements.entries()){
+   const card=cards.nth(index);
+   assert.equal(await card.locator("h3").innerText(),move.name);
+   assert.equal(await card.locator("blockquote").innerText(),move.example);
+   const {animation,poster}=cameraMovementPreview(move);
+   assert.equal(await card.locator("img").getAttribute("src"),animation);
+   assert.equal(await card.locator("source").getAttribute("srcset"),poster);
+   for(const asset of [animation,poster]){
+    const response=await help.request.get(origin+asset);
+    assert.equal(response.status(),200,asset);
+    assert.match(response.headers()["content-type"],/^image\/webp/);
+    await response.dispose();
+   }
+  }
+  await cards.first().locator("img").scrollIntoViewIfNeeded();
+  await help.waitForFunction(()=>{const el=document.querySelector<HTMLImageElement>("#camera-movements article img");return el?.complete&&el.naturalWidth===640&&el.currentSrc.endsWith("-poster.webp")});
+  console.log("PASS: all 34 Help cards, original English prompts, 68 local WebP responses and reduced-motion poster in Chromium.");
+ }finally{await help.close()}
+}
+
 
 const root=await mkdtemp(path.join(tmpdir(),"sm-studio-standard-login-"));
 const oldData=process.env.DATA_DIR,oldDemo=process.env.DEMO_MODE;
@@ -136,6 +222,10 @@ try{
     await page.getByRole("button",{name:"Go to step 3 of 4: Performance"}).click();
     await page.getByRole("heading",{name:"Your performance"}).waitFor({timeout:10000});
     assert.equal(await page.locator("#flow-performance-prompt").inputValue(),prompt);
+    if(!registration){
+     await verifyCameraPicker(page,prompt);
+     if(viewport.width===390)await verifyCameraHelp(page,origin);
+    }
     await page.getByRole("button",{name:"Go to step 2 of 4: Photo"}).click();
     await page.getByRole("heading",{name:"Your artist photo"}).waitFor({timeout:10000});
     await page.getByRole("button",{name:"Go to step 1 of 4: Audio"}).click();
