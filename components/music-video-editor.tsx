@@ -5,12 +5,13 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
-import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole} from "@/lib/music-video/core";
+import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
-type EditSnapshot={clips:MusicClip[];range:SongPlacement;parts:SongRange[]|null};
+type EditSnapshot={clips:MusicClip[];range:SongPlacement;parts:SongRange[]|null;mutes:TrackMutes};
+const initialMutes:TrackMutes={1:true,2:true,song:false};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
 type ExportJob={id:string;state:"rendering"|"ready"|"failed";progress:number;resolution?:{width:number;height:number};error?:string};
 const endpoint="/api/music-video/";
@@ -32,6 +33,8 @@ const overlaps=(clips:MusicClip[],target:MusicClip)=>clips.filter(c=>c.id!==targ
   target.timelineStartMs<clipEnd(c)&&clipEnd(target)>c.timelineStartMs);
 export function MusicVideoEditor({id}:{id:string}){
   const [detail,setDetail]=useState<Detail|null>(null),[clips,setClips]=useState<MusicClip[]>([]);
+  const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
+  const trackAudio1=useRef<HTMLAudioElement>(null),trackAudio2=useRef<HTMLAudioElement>(null);
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
   const [partIndex,setPartIndex]=useState(0),[partStartText,setPartStartText]=useState(""),[partEndText,setPartEndText]=useState("");
   const [songRange,setSongRange]=useState<SongPlacement>({startMs:0,endMs:0,positionMs:0});
@@ -75,9 +78,10 @@ export function MusicVideoEditor({id}:{id:string}){
     const data=await request<Detail>(endpoint+id);
     detailRef.current=data;revision.current=data.project.revision;latest.current=data.clips;dirty.current=false;
     const range={startMs:data.project.songStartMs,endMs:data.project.songEndMs,positionMs:data.project.songPositionMs};
+    mutesRef.current=data.project.trackMutes??initialMutes;setTrackMutes(mutesRef.current);
     partsRef.current=data.project.songParts;setSongParts(data.project.songParts);setPartIndex(0);
     rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
-    playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();
+    playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
     const at=Math.min(playheadRef.current,Math.max(songPartsEnd(range,partsRef.current),...data.clips.map(clipEnd)));
     playheadRef.current=at;setPlayhead(at);
     if(audio.current&&audio.current.readyState>=1)audio.current.currentTime=Math.max(range.startMs,Math.min(range.endMs,at-songOffset(range)))/1000;
@@ -108,11 +112,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(inFlight.current){await inFlight.current;if(dirty.current)await saveNow();return;}
     if(!dirty.current)return;
     dirty.current=false;
-    const snapshot=latest.current,range=rangeRef.current,parts=partsRef.current;
+    const snapshot=latest.current,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current;
     setStatus("Saving…");
     const task=(async()=>{
       const result=await request<Detail>(endpoint+id+"/clips",{method:"PATCH",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({revision:revision.current,clips:snapshot,songStartMs:range.startMs,songEndMs:range.endMs,songPositionMs:range.positionMs,songParts:parts})});
+        body:JSON.stringify({revision:revision.current,clips:snapshot,songStartMs:range.startMs,songEndMs:range.endMs,songPositionMs:range.positionMs,songParts:parts,trackMutes:mutes})});
       revision.current=result.project.revision;detailRef.current={...result,clips:latest.current};
       setDetail(previous=>previous?{...previous,project:result.project}:result);
     })();
@@ -128,10 +132,11 @@ export function MusicVideoEditor({id}:{id:string}){
     saveTimer.current=setTimeout(()=>{void saveNow().catch(()=>{});},600);
   };
   useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
-  function apply(next:MusicClip[],record=true,range=rangeRef.current,parts=partsRef.current){
+  function apply(next:MusicClip[],record=true,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current){
     if(roleBusy.current)return;
-    if(record){past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
+    if(record){past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
     const changed=range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs||range.positionMs!==rangeRef.current.positionMs;
+    mutesRef.current=mutes;setTrackMutes(mutes);
     const partsChanged=parts!==partsRef.current;
     partsRef.current=parts;setSongParts(parts);
     rangeRef.current=range;
@@ -143,12 +148,20 @@ export function MusicVideoEditor({id}:{id:string}){
   function undo(){
     if(roleBusy.current)return;
     const previous=past.current.pop();if(!previous)return;
-    future.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current});apply(previous.clips,false,previous.range,previous.parts);
+    future.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current});apply(previous.clips,false,previous.range,previous.parts,previous.mutes);
   }
   function redo(){
     if(roleBusy.current)return;
     const next=future.current.pop();if(!next)return;
-    past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current});apply(next.clips,false,next.range,next.parts);
+    past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current});apply(next.clips,false,next.range,next.parts,next.mutes);
+  }
+  function toggleTrackMute(track:AudioTrack){
+    if(importBusy.current||roleBusy.current)return;
+    apply(latest.current,true,rangeRef.current,partsRef.current,{...mutesRef.current,[track]:!mutesRef.current[track]});
+  }
+  function muteButton(track:AudioTrack,name:string){
+    const muted=trackMutes[track],label=(muted?"Unmute ":"Mute ")+name;
+    return <button type="button" className={"mv-track-mute"+(muted?" is-muted":"")} aria-label={label} title={label} aria-pressed={muted} disabled={importing} onClick={()=>toggleTrackMute(track)}>{muted?<VolumeX size={15}/>:<Volume2 size={15}/>}</button>;
   }
   function displaySong(range:SongPlacement){
     setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
@@ -378,6 +391,8 @@ export function MusicVideoEditor({id}:{id:string}){
 
   const activeClip=clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0];
   const activeAsset=activeClip?byId.get(activeClip.assetId):null;
+  const activeAudio1=clips.find(c=>c.track===1&&playhead>=c.timelineStartMs&&playhead<clipEnd(c));
+  const activeAudio2=clips.find(c=>c.track===2&&playhead>=c.timelineStartMs&&playhead<clipEnd(c));
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
   const timelineEnd=project?Math.max(songPartsEnd(songRange,songParts),...clips.map(clipEnd)):0;
   const progress=timelineProgress(playhead,timelineEnd);
@@ -646,7 +661,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{exportBusy.current=false;importBusy.current=false;if(!controller.signal.aborted){setImporting(false);setExporting(false);}exportAbort.current=null;}
   }
   function stopPlayback(){
-    playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();
+    playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
   function setAt(ms:number,range=rangeRef.current){
     ms=Math.round(ms);playheadRef.current=ms;setPlayhead(ms);
@@ -729,6 +744,8 @@ export function MusicVideoEditor({id}:{id:string}){
     if(playheadRef.current>=timelineEnd)setAt(0);
     playingRef.current=true;setPlaying(true);
     const range=rangeRef.current,at=playheadRef.current;
+    syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],at,true);
+    syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],at,true);
     if(songPartAt(range,partsRef.current,at)){
       audio.current.currentTime=(at-songOffset(range))/1000;
       void audio.current.play().catch(()=>{stopPlayback();setError("Audio playback was blocked.");});
@@ -743,6 +760,17 @@ export function MusicVideoEditor({id}:{id:string}){
     if(playing&&video.current.paused)void video.current.play().catch(()=>{});
     if(!playing)video.current.pause();
   },[playhead,activeClip,activeAsset,playing]);
+  function syncTrackAudio(element:HTMLAudioElement|null,clip:MusicClip|undefined,muted:boolean,at:number,run:boolean){
+    if(!element)return;
+    if(!clip||muted||!run){element.pause();return;}
+    const expected=(clip.sourceInMs+Math.max(0,at-clip.timelineStartMs))/1000;
+    if(element.readyState>=1&&Math.abs(element.currentTime-expected)>(element.paused?0.01:0.16)){try{element.currentTime=expected;}catch{}}
+    if(element.readyState>=1&&element.paused&&!element.ended)void element.play().catch(()=>{});
+  }
+  useEffect(()=>{
+    syncTrackAudio(trackAudio1.current,activeAudio1,trackMutes[1],playhead,playing);
+    syncTrackAudio(trackAudio2.current,activeAudio2,trackMutes[2],playhead,playing);
+  },[playhead,activeAudio1,activeAudio2,trackMutes,playing]);
   const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported")&&
     a.name.toLowerCase().includes(search.toLowerCase()));
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
@@ -767,8 +795,10 @@ export function MusicVideoEditor({id}:{id:string}){
           }}/>:<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
         <span className="mv-ratio">▣ 16:9</span>
       </div>
-      <audio ref={audio} src={endpoint+id+"/song"} preload="metadata"
+      <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload="metadata"
         onLoadedMetadata={()=>setAt(playheadRef.current)}/>
+      {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} src={endpoint+id+"/assets/"+activeAudio1.assetId} preload="auto" muted={trackMutes[1]} onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
+      {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} src={endpoint+id+"/assets/"+activeAudio2.assetId} preload="auto" muted={trackMutes[2]} onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
       <div className="mv-player-controls">
         <button aria-label={playing?"Pause":"Play"} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
         <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
@@ -776,7 +806,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <div className="mv-progress-rail" aria-hidden="true"><span style={{width:progress.percent+"%"}}/></div>
           <input className="mv-progress" aria-label="Seek timeline" aria-valuetext={time(progress.positionMs,true)} type="range" min={0} max={Math.max(1,timelineEnd)} step="1" disabled={timelineEnd===0} value={progress.positionMs} onChange={e=>seek(Number(e.target.value))}/>
         </div>
-        <button title="Song is the only audio track" aria-label="Song audio only"><Volume2 size={19}/></button>
+        <button title={trackMutes.song?"Unmute song":"Mute song"} aria-label={trackMutes.song?"Unmute song in preview":"Mute song in preview"} aria-pressed={trackMutes.song} disabled={importing} onClick={()=>toggleTrackMute("song")}>{trackMutes.song?<VolumeX size={19}/>:<Volume2 size={19}/>}</button>
         <button aria-label="Fullscreen" onClick={()=>{const box=document.querySelector(".mv-video-box");void box?.requestFullscreen?.();}}><Maximize size={19}/></button>
       </div>
     </section>
@@ -784,8 +814,7 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-timeline-toolbar">
         <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
-          <button onClick={split} disabled={importing||!selectedClip||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100} title="Split selected video at playhead"><Scissors size={15}/> Split video</button>
-          <button className="mv-split-song" onClick={splitSong} disabled={importing||!splitSongPart(songRange,songParts,playhead)} title="Split song at playhead"><Scissors size={15}/> Split song</button>
+          <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
           <button onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip)}><Trash2 size={17}/> Delete</button>
           {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
           {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing} onClick={switchVideoTrack}>Switch track</button>}</div>
@@ -806,16 +835,16 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-track-labels">
           <div className="mv-label mv-ruler-spacer"/>
           {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip Sync · Main video track":"Video 2 · Overlay"}>
-            {track===1?<Music2 size={18}/>:<Film size={18}/>}<strong>{track===1?"Lip Sync":"Video 2"}</strong>
+            {track===1?<Music2 size={18}/>:<Film size={18}/>}<strong>{track===1?"Lip Sync":"Video 2"}</strong>{muteButton(track,track===1?"Lip Sync audio":"Video 2 audio")}
           </div>)}
-          <div className="mv-label mv-audio-label" title="Song audio"><Volume2 size={18}/><strong>Song</strong><Scissors size={15}/></div>
+          <div className="mv-label mv-audio-label" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
         </div>
         <div className="mv-scroll" ref={scroll}>
           <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
             <div className="mv-ruler" onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
               {ticks.map(t=><span key={t} style={{left:t/1000*zoom}}>{time(t)}</span>)}
             </div>
-            {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
+            {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(trackMutes[track]?" is-audio-muted":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
               {clips.filter(c=>c.track===track).map(c=>{
                 const a=byId.get(c.assetId);if(!a)return null;
                 return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(armedMedia===c.id?" is-armed":"")}
@@ -832,7 +861,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 </div>;
               })}
             </div>)}
-            <div className="mv-song-lane" onPointerDown={e=>{if(e.target===e.currentTarget)seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left));}}>
+            <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget)seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left));}}>
               {songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Tap to select song; hold to move; swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
