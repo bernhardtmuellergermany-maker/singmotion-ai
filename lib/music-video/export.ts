@@ -26,9 +26,10 @@ export function videoRenderSpans(clips:MusicClip[],durationMs:number):RenderSpan
  }
  return spans;
 }
-type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;folder?:string;error?:string};
+type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;progress:number;folder?:string;error?:string};
 const jobs=new Map<string,Job>();
-const publicJob=(j:Job)=>({id:j.id,state:j.state,error:j.error});
+const publicJob=(j:Job)=>({id:j.id,state:j.state,progress:j.progress,error:j.error});
+function expire(job:Job){const timer=setTimeout(()=>{jobs.delete(job.id);if(job.folder)void rm(job.folder,{recursive:true,force:true}).catch(()=>{});},30*60*1000);timer.unref();}
 async function cleanup(){
  for(const [id,j] of jobs)if(j.state!=="rendering"&&Date.now()-j.created>30*60*1000){jobs.delete(id);if(j.folder)await rm(j.folder,{recursive:true,force:true});}
 }
@@ -52,10 +53,10 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
    "-frames:v",String(frames),"-c:v","libx264","-threads","2","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-video_track_timescale","30000",out],remaining());
   const {stdout}=await exec("ffprobe",["-v","error","-select_streams","v:0","-show_entries","stream=nb_frames","-of","default=nw=1:nk=1",out],{timeout:15000,maxBuffer:1024});
   if(Number(stdout.trim())!==frames)throw new Error("incomplete video span");
-  names.push(name);
+  names.push(name);job.progress=Math.floor(span.endFrame/spans.at(-1)!.endFrame*90);
  }
  const list=path.join(folder,"concat.txt");
- await writeFile(list,names.map(n=>"file '"+n+"'").join("\n")+"\n");
+ await writeFile(list,names.map((n,i)=>"file '"+n+"'\nduration "+frameSeconds(spans[i].endFrame-spans[i].startFrame)).join("\n")+"\n");
  // Audio uses the original song clock. Removed parts and spaces are silence, never ripple edits.
  const graph:string[]=[],labels:string[]=[];
  if(parts.length>1)graph.push("[1:a:0]asplit="+parts.length+parts.map((_,i)=>"[src"+i+"]").join(""));
@@ -86,10 +87,10 @@ export async function startMusicExport(owner:string,project:MusicProject,clips:M
  if(duration>limitMs||videoRenderSpans(clips,duration).length>120)throw new Error("MP4 export currently supports up to 10 minutes and 120 video sections.");
  if([...jobs.values()].some(j=>j.state==="rendering"))throw new Error("An export is already rendering. Try again after it finishes.");
  if(jobs.size>=4)throw new Error("Export capacity is temporarily full. Try again later.");
- const job:Job={id:randomUUID(),owner,projectId:project.id,name:project.name,state:"rendering",created:Date.now()};
+ const job:Job={id:randomUUID(),owner,projectId:project.id,name:project.name,state:"rendering",created:Date.now(),progress:0};
  jobs.set(job.id,job);
- void render(job,project,clips,files,songFile).then(()=>{job.state="ready";job.created=Date.now();}).catch(async()=>{
-  job.state="failed";job.error="MP4 rendering failed. Check that all source videos are available and try again.";job.created=Date.now();
+ void render(job,project,clips,files,songFile).then(()=>{job.state="ready";job.progress=100;job.created=Date.now();expire(job);}).catch(async()=>{
+  job.state="failed";job.error="MP4 rendering failed. Check that all source videos are available and try again.";job.created=Date.now();expire(job);
   if(job.folder)await rm(job.folder,{recursive:true,force:true}).catch(()=>{});
  });
  return publicJob(job);
