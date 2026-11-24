@@ -10,7 +10,6 @@ import { createReadStream } from "node:fs";
 import { stat, realpath } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
-import {showcaseByteRange} from "@/lib/showcase-media-security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -130,9 +129,21 @@ async function handler(req:NextRequest){
           if(!file.startsWith(base+path.sep))return json({error:"Video unavailable"},404);
         }
         if(!(await stat(file)).isFile())return json({error:"Video unavailable"},404);
-        const size=(await stat(file)).size,range=showcaseByteRange(req.headers.get("range"),size);
-        if(!range)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`,"Accept-Ranges":"bytes"}});
-        const {start,end,status}=range;
+        const size=(await stat(file)).size;let start=0,end=size-1,status=200;
+        const range=req.headers.get("range");
+        if(range){
+          const m=/^bytes=(\d+)-(\d*)$/.exec(range);
+          if(!m)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+          start=Number(m[1]);end=m[2]?Number(m[2]):size-1;
+          if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+          // Chrome/Safari often request bytes=0- for HTML video. Sending an
+          // entire 80 MiB showcase file monopolizes bandwidth while three
+          // previews compete for the first decodable frame. Keep open-ended
+          // ranges bounded so each player can progressively request its
+          // next segment. Explicit bounded ranges remain unchanged.
+          if(!m[2])end=Math.min(end,start+(2*1024*1024)-1);
+          status=206;
+        }
         return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":mime,"Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
       }
       if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
@@ -249,9 +260,15 @@ async function handler(req:NextRequest){
       const file=await realpath(attempt.outputPath);
       if(!file.startsWith(base+path.sep)||(await stat(file)).isFile()===false)return json({error:"Showcase unavailable"},404);
       const size=(await stat(file)).size;
-      const range=showcaseByteRange(req.headers.get("range"),size);
-      if(!range)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`,"Accept-Ranges":"bytes"}});
-      const {start,end,status}=range;
+      let start=0,end=size-1,status=200;
+      const range=req.headers.get("range");
+      if(range){
+        const match=/^bytes=(\d+)-(\d*)$/.exec(range);
+        if(!match)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+        start=Number(match[1]);end=match[2]?Number(match[2]):size-1;
+        if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)return new Response(null,{status:416,headers:{"Content-Range":`bytes */${size}`}});
+        status=206;
+      }
       return new Response(Readable.toWeb(createReadStream(file,{start,end})) as ReadableStream,{status,headers:{"Content-Type":"video/mp4","Accept-Ranges":"bytes","Content-Length":String(end-start+1),"Cache-Control":"public,max-age=60","X-Content-Type-Options":"nosniff",...(status===206?{"Content-Range":`bytes ${start}-${end}/${size}`}:{})}});
     }
     if(req.method==="GET"&&!req.nextUrl.searchParams.has("admin")){
