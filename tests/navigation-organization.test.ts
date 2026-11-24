@@ -529,3 +529,14 @@ test("project and library menus dismiss on outside clicks and Escape; clip detai
  assert.equal(editor.split('className="mv-inspector-duration"').length-1,2);
  assert.ok(css.includes(".mv-root.mv-editor .mv-inspector-duration b"));
 });
+
+test("library menu fits viewport and downloads the authorized original video",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes('href={endpoint+id+"/assets/"+a.id+"?download=1"} download'));
+ assert.ok(editor.includes("window.innerHeight-h-margin"));
+ assert.ok(editor.includes('className="mv-library-menu"'));
+ assert.ok(css.includes(".mv-root.mv-editor .mv-library{overflow:visible}"));
+ assert.ok(css.includes("position:fixed;top:auto;right:auto;left:auto;z-index:1000"));
+ assert.ok(api.includes("await exportSources(req,owner,id,musicDetail(id,owner),[assetId])"));
+ assert.ok(api.includes('attachment; filename="'));
+});
