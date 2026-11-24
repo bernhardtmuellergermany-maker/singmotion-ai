@@ -477,7 +477,12 @@ test("song inspector shows actual song name once, playhead cap stays in bounds, 
  assert.ok(editor.includes('aria-label="Rename song"'));
  assert.ok(core.includes("ADD COLUMN song_name TEXT DEFAULT NULL"));
  assert.ok(api.includes('await originalSongTitle(temp)||cleanSongName(file.name'));
- assert.ok(editor.includes("Math.max(0,Math.min(pixels-25,progress.positionMs/1000*zoom-12))"));
+ assert.ok(editor.includes('className="mv-playhead-overlay"'));
+ assert.ok(editor.includes("rulerViewport.left+markerViewportX"));
+ assert.ok(editor.includes("progress.positionMs/1000*zoom-rulerViewport.scrollLeft"));
+ assert.ok(css.includes("transform:translateX(-50%);width:24px"));
+ assert.ok(editor.includes("Snap to edges"));
+ assert.ok(!editor.includes("Math.max(0,Math.min(pixels-25"));
  assert.ok(editor.includes('aria-label="Trim clip start"'));
  assert.ok(editor.includes('aria-label="Trim clip end"'));
  assert.ok(!editor.includes(">Ⅱ</button>"));
