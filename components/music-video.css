@@ -489,8 +489,11 @@
 .mv-editor .mv-media-image img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#100d18;border-radius:inherit;pointer-events:none}
 .mv-editor .mv-media-image>span{z-index:1}
 
-/* Keep the playhead cap inside the timeline at either edge without moving its time line. */
-.mv-root.mv-editor .mv-playhead-grip{transform:none;width:24px;min-width:24px;box-sizing:border-box;height:21px;border-radius:4px 4px 7px 7px}
+/* The playhead grip is centered on the line in a separate, unclipped layer. */
+.mv-root.mv-editor .mv-playhead-grip{transform:translateX(-50%);width:24px;min-width:24px;box-sizing:border-box;height:21px;border-radius:4px 4px 7px 7px}
+.mv-root.mv-editor .mv-playhead-overlay{position:absolute;inset:0 0 auto;height:30px;z-index:30;overflow:visible;pointer-events:none}
+.mv-root.mv-editor .mv-playhead-overlay .mv-playhead-grip{pointer-events:auto}
+.mv-root.mv-editor .mv-timeline{overflow:visible}
 .mv-root.mv-editor .mv-playhead-grip:focus-visible{outline-offset:-2px}
 /* Slim visible edge marks; transparent hit areas remain easy to grab. */
 .mv-root.mv-editor .mv-clip .mv-handle,
