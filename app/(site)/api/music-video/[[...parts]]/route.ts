@@ -1,9 +1,11 @@
 import {NextRequest} from "next/server";
 import {createReadStream} from "node:fs";
 import {Readable} from "node:stream";
-import {mkdir,writeFile,rename,rm,stat,unlink,realpath} from "node:fs/promises";
+import {mkdir,writeFile,rename,rm,stat,unlink,realpath,readFile} from "node:fs/promises";
 import path from "node:path";
 import {randomUUID} from "node:crypto";
+import {execFile} from "node:child_process";
+import {promisify} from "node:util";
 import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {dataDir,session} from "@/lib/db";
@@ -125,6 +127,39 @@ async function exportSources(req:NextRequest,owner:string,id:string,detail:Retur
   }
   return files;
 }
+// Private, small thumbnails: deduplicate requests and limit concurrent decoders.
+const thumbnailJobs=new Map<string,Promise<Buffer>>();
+let thumbnailSlots=0;
+const thumbnailWaiters:Array<()=>void>=[];
+async function withThumbnailSlot<T>(work:()=>Promise<T>):Promise<T>{
+  if(thumbnailSlots>=2)await new Promise<void>(resolve=>thumbnailWaiters.push(resolve));
+  else thumbnailSlots++;
+  try{return await work();}
+  finally{const next=thumbnailWaiters.shift();if(next)next();else thumbnailSlots--;}
+}
+async function libraryThumbnail(projectId:string,assetId:string,file:string,durationMs:number):Promise<Buffer>{
+  const cached=path.join(projectFolder(projectId),assetId+".thumb-v1.jpg");
+  const previous=await readFile(cached).catch(()=>null);
+  if(previous?.length)return previous;
+  const pending=thumbnailJobs.get(cached);if(pending)return pending;
+  if(thumbnailJobs.size>=100)throw new MusicError("Thumbnail queue busy.",503);
+  const job=withThumbnailSlot(async()=>{
+    const existing=await readFile(cached).catch(()=>null);if(existing?.length)return existing;
+    const frame=async(at:number)=>{
+      const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-ss",String(at),"-i",file,"-map","0:v:0","-an","-sn","-dn","-frames:v","1","-vf","scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2","-threads","1","-c:v","mjpeg","-q:v","5","-f","image2pipe","pipe:1"],{encoding:"buffer",timeout:15000,maxBuffer:512*1024});
+      if(stdout.length<4||stdout[0]!==255||stdout[1]!==216)throw new Error("No thumbnail frame");
+      return stdout;
+    };
+    let image:Buffer;
+    try{image=await frame(Math.min(0.5,durationMs/5000));}catch{image=await frame(0);}
+    const temp=cached+"."+randomUUID()+".tmp";
+    try{await writeFile(temp,image,{flag:"wx",mode:0o600});await rename(temp,cached);}catch{/* The decoded image is still usable. */}
+    finally{await rm(temp,{force:true}).catch(()=>{});}
+    return image;
+  });
+  thumbnailJobs.set(cached,job);
+  try{return await job;}finally{thumbnailJobs.delete(cached);}
+}
 async function handler(req:NextRequest,context:Context){
   const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
   try{
@@ -176,6 +211,16 @@ async function handler(req:NextRequest,context:Context){
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
       return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts,body.trackMutes,body.aspectRatio));
+    }
+    if(section==="thumbnail"&&assetId&&validId(assetId)&&req.method==="GET"){
+      const asset=musicAsset(id,owner,assetId);
+      const detail=musicDetail(id,owner);
+      const files=await exportSources(req,owner,id,detail,[assetId]);
+      const etag='"mv-thumb-v1-'+asset.id+'"';
+      const headers={...common,"Content-Type":"image/jpeg","Cache-Control":"private, no-cache","ETag":etag};
+      if(req.headers.get("if-none-match")===etag)return new Response(null,{status:304,headers});
+      const image=await libraryThumbnail(id,assetId,files.get(assetId)!,asset.durationMs);
+      return new Response(new Uint8Array(image),{headers:{...headers,"Content-Length":String(image.length)}});
     }
     if(section==="format"&&assetId&&validId(assetId)&&req.method==="GET"){
       const detail=musicDetail(id,owner);
@@ -260,6 +305,7 @@ async function handler(req:NextRequest,context:Context){
       }
       if(req.method==="DELETE"){
         removeMusicAsset(id,owner,assetId);
+        await unlink(path.join(projectFolder(id),asset.id+".thumb-v1.jpg")).catch(()=>{});
         if(asset.sourceKind==="uploaded")await unlink(path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId)).catch(()=>{});
         return json({deleted:true});
       }
