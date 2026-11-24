@@ -54,7 +54,7 @@ async function streamFile(req:NextRequest,filename:string,mime:string,revalidate
   if(!info.isFile()||info.size<1)throw new MusicError("Media unavailable.",404);
   const size=info.size;
   const etag='"'+createHash("sha256").update(filename+":"+size+":"+info.mtimeMs).digest("hex")+'"';
-  const headers=revalidate?{...common,"Cache-Control":"private, no-cache","Vary":"Cookie, Authorization","ETag":etag}:common;
+  const headers:Record<string,string>=revalidate?{...common,"Cache-Control":"private, no-cache","Vary":"Cookie, Authorization","ETag":etag}:common;
   const ifRange=req.headers.get("if-range");
   const range=!ifRange||ifRange===etag?req.headers.get("range"):null;
   if(revalidate&&!range&&req.headers.get("if-none-match")===etag)return new Response(null,{status:304,headers});
@@ -212,7 +212,10 @@ async function preparePreview(file:string,target:string,durationMs:number):Promi
   if(previewJobs.size)return false;
   const job=(async()=>{
     const dir=path.dirname(target);
-    const entries=await Promise.all((await readdir(dir)).filter(n=>/^[a-f0-9]{64}\.mp4$/.test(n)).map(async n=>({file:path.join(dir,n),info:await stat(path.join(dir,n)).catch(()=>null)})));
+    const names=await readdir(dir);
+    // Remove abandoned partial encodes after a process restart; no other encoder runs here.
+    await Promise.all(names.filter(n=>/^[a-f0-9]{64}\.mp4\.[a-f0-9-]{36}\.tmp\.mp4$/.test(n)).map(n=>rm(path.join(dir,n),{force:true}).catch(()=>{})));
+    const entries=await Promise.all(names.filter(n=>/^[a-f0-9]{64}\.mp4$/.test(n)).map(async n=>({file:path.join(dir,n),info:await stat(path.join(dir,n)).catch(()=>null)})));
     const old=entries.filter(e=>e.info).sort((a,b)=>a.info!.mtimeMs-b.info!.mtimeMs);
     while(old.length>=6){const first=old.shift()!;await rm(first.file,{force:true});}
     const temp=target+"."+randomUUID()+".tmp.mp4";
