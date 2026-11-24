@@ -512,3 +512,20 @@ test("project and library browse toolbars offer search, matching filters, refres
  assert.ok(client.includes("newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt"));
  assert.ok(css.includes(".mv-root .mv-format-controls>span{margin-right:5px}"));
 });
+
+test("project and library menus dismiss on outside clicks and Escape; clip details stay compact",()=>{
+ const client=read("components/music-projects-client.tsx"),editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ for(const page of [client,editor]){
+  assert.ok(page.includes('document.addEventListener("pointerdown",outside,true)'));
+  assert.ok(page.includes('if(!menu.contains(target))menu.open=false'));
+  assert.ok(page.includes('event.key!=="Escape"'));
+  assert.ok(page.includes('document.removeEventListener("pointerdown",outside,true)'));
+ }
+ assert.ok(editor.includes('c.track===1?<Mic size={12}'));
+ assert.ok(!editor.includes("🎤"));
+ assert.ok(!editor.includes("🎬"));
+ assert.ok(!editor.includes("<small>Drag a clip or handle with the mouse."));
+ assert.ok(!editor.includes("<small>Drag with mouse to move all song parts together."));
+ assert.equal(editor.split('className="mv-inspector-duration"').length-1,2);
+ assert.ok(css.includes(".mv-root.mv-editor .mv-inspector-duration b"));
+});
