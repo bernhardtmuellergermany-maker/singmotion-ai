@@ -147,7 +147,7 @@ async function handler(req:NextRequest,context:Context){
         await mkdir(path.dirname(temp),{recursive:true,mode:0o700});
         await writeFile(temp,buffer,{flag:"wx",mode:0o600});
         const duration=await validateAudio(temp);
-        project=newMusicProject(owner,title,toMs(duration));
+        project=newMusicProject(owner,title,toMs(duration),form.get("aspectRatio")??"16:9");
         await mkdir(projectFolder(project.id),{recursive:true,mode:0o700});
         await rename(temp,path.join(projectFolder(project.id),"song-original."+extension));
         if(extension==="mp3")await writeFile(path.join(projectFolder(project.id),"song.mp3"),buffer,{flag:"wx",mode:0o600});
@@ -175,7 +175,7 @@ async function handler(req:NextRequest,context:Context){
       return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg");
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
-      return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts,body.trackMutes));
+      return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts,body.trackMutes,body.aspectRatio));
     }
     if(section==="export"){
       if(!assetId&&req.method==="POST"){
