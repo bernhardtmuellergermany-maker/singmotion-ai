@@ -26,7 +26,7 @@ function validatedAspectRatio(value:unknown):ProjectAspectRatio{
  return value;
 }
 export type MusicProject = {
-  id:string; ownerId:string; name:string; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
+  id:string; ownerId:string; name:string; songName:string|null; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
   revision:number; createdAt:number; updatedAt:number; aspectRatio:ProjectAspectRatio;
 };
 export class MusicError extends Error {
@@ -49,6 +49,7 @@ function database():DatabaseSync{
   opened.exec("BEGIN IMMEDIATE");
   try{
     const columns=opened.prepare("PRAGMA table_info(music_projects)").all() as {name:string}[];
+    if(!columns.some(c=>c.name==="song_name"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_name TEXT DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_start_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_start_ms INTEGER NOT NULL DEFAULT 0");
     if(!columns.some(c=>c.name==="song_end_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_end_ms INTEGER DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_position_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_position_ms INTEGER DEFAULT NULL");
@@ -72,10 +73,10 @@ function database():DatabaseSync{
   db=opened;
   return opened;
 }
-type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
+type ProjectRow={id:string;owner_id:string;name:string;song_name:string|null;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
 type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;role:MediaRole|null;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number};
-const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
+const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songName:r.song_name??null,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
 const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll"),sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked});
 export function requireMusicProject(id:string,owner:string):MusicProject{
@@ -87,12 +88,24 @@ export function requireMusicProject(id:string,owner:string):MusicProject{
 export function listMusicProjects(owner:string):MusicProject[]{
   return (database().prepare("SELECT * FROM music_projects WHERE owner_id=? ORDER BY updated_at DESC").all(owner) as ProjectRow[]).map(mapProject);
 }
-export function newMusicProject(owner:string,name:string,durationMs:number,aspectRatio:unknown="auto"):MusicProject{
+export function newMusicProject(owner:string,name:string,durationMs:number,aspectRatio:unknown="auto",songName?:string):MusicProject{
   const title=validatedName(name);
   if(!Number.isSafeInteger(durationMs)||durationMs<1000||durationMs>3600000)throw new MusicError("Song duration must be between 1 second and 60 minutes.");
   const now=Date.now(),id=randomUUID();
-  database().prepare("INSERT INTO music_projects (id,owner_id,name,song_duration_ms,revision,created_at,updated_at,aspect_ratio) VALUES (?,?,?,?,0,?,?,?)").run(id,owner,title,durationMs,now,now,validatedAspectRatio(aspectRatio));
+  database().prepare("INSERT INTO music_projects (id,owner_id,name,song_duration_ms,revision,created_at,updated_at,aspect_ratio,song_name) VALUES (?,?,?,?,0,?,?,?,?)").run(id,owner,title,durationMs,now,now,validatedAspectRatio(aspectRatio),songName?validatedSongName(songName):null);
   return requireMusicProject(id,owner);
+}
+function validatedSongName(v:unknown):string{
+ if(typeof v!=="string"||!v.trim()||v.trim().length>180||/[\x00-\x1f\x7f]/.test(v))throw new MusicError("Enter a song name of up to 180 characters.");
+ return v.trim();
+}
+export function renameMusicSong(id:string,owner:string,name:unknown){
+ requireMusicProject(id,owner);
+ database().prepare("UPDATE music_projects SET song_name=?,updated_at=?,revision=revision+1 WHERE id=? AND owner_id=?").run(validatedSongName(name),Date.now(),id,owner);
+ return requireMusicProject(id,owner);
+}
+export function fillMusicSongName(id:string,owner:string,name:string){
+ database().prepare("UPDATE music_projects SET song_name=? WHERE id=? AND owner_id=? AND song_name IS NULL").run(validatedSongName(name),id,owner);
 }
 function validatedName(v:unknown):string{
   if(typeof v!=="string"||v.trim().length<1||v.trim().length>80||/[\x00-\x1f\x7f]/.test(v))throw new MusicError("Enter a name of up to 80 characters.");
