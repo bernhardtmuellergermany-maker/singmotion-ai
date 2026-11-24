@@ -4,9 +4,11 @@ import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
+import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track} from "@/lib/music-video/core";
 import "./music-video.css";
 
+type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
 const endpoint="/api/music-video/";
 const uuid=()=>crypto.randomUUID();
@@ -28,9 +30,13 @@ export function MusicVideoEditor({id}:{id:string}){
   const [detail,setDetail]=useState<Detail|null>(null),[clips,setClips]=useState<MusicClip[]>([]);
   const [selected,setSelected]=useState<string|null>(null),[playhead,setPlayhead]=useState(0);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
-  const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"AI Video">("All");
+  const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"AI Video"|"Uploads">("All");
   const [search,setSearch]=useState(""),[addMenu,setAddMenu]=useState<Track|null>(null);
-  const [uploadTrack,setUploadTrack]=useState<Track>(1),[error,setError]=useState(""),[status,setStatus]=useState("Saved");
+  const [uploadTrack,setUploadTrack]=useState<Track|null>(null),[error,setError]=useState(""),[status,setStatus]=useState("Saved");
+  const [lipTrack,setLipTrack]=useState<Track|null>(null),[lipSources,setLipSources]=useState<LipSyncSource[]>([]);
+  const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
+  const [importing,setImporting]=useState(false);
+  const importBusy=useRef(false);
   const [wave,setWave]=useState<number[]>([]),[editingName,setEditingName]=useState(false),[newName,setNewName]=useState("");
   const audio=useRef<HTMLAudioElement>(null),video=useRef<HTMLVideoElement>(null),scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
   const revision=useRef(0),latest=useRef<MusicClip[]>([]),dirty=useRef(false),inFlight=useRef<Promise<void>|null>(null);
@@ -227,16 +233,47 @@ export function MusicVideoEditor({id}:{id:string}){
     }
     apply(latest.current.map(c=>c.id===selectedClip.id?{...c,syncLocked:lock}:c));
   }
-  async function uploadVideo(file:File,track:Track){
+  async function openLipSync(track:Track){
+    setAddMenu(null);setLipTrack(track);setLipSearch("");setLipError("");setLipLoading(true);setLipSources([]);
+    try{
+      await ensureSession();
+      const result=await request<{videos:LipSyncSource[]}>(endpoint+id+"/lip-sync");
+      setLipSources(result.videos);
+    }catch(e){setLipError(e instanceof Error?e.message:"Unable to load Lip Sync videos.");}
+    finally{setLipLoading(false);}
+  }
+  async function insertLipSync(source:LipSyncSource,track:Track){
+    if(importBusy.current)return;
+    importBusy.current=true;setImporting(true);setLipError("");
+    try{
+      if(saveTimer.current)clearTimeout(saveTimer.current);
+      await saveNow();
+      const existing=detailRef.current?.assets.find(a=>a.sourceKind==="live"&&a.sourceId===source.id);
+      const a=existing??(await request<{asset:MusicAsset}>(endpoint+id+"/assets",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({sourceKind:"live",sourceId:source.id})
+      })).asset;
+      if(!existing)await load();
+      setLipTrack(null);setLibraryOpen(true);setFilter("Lip Sync");
+      addClip(a,track,source.sourceStartMs);
+    }catch(e){setLipError(e instanceof Error?e.message:"Unable to insert Lip Sync video.");}
+    finally{importBusy.current=false;setImporting(false);}
+  }
+  async function uploadVideo(file:File,track:Track|null){
+    if(importBusy.current)return;
+    if(!/\.(mp4|webm)$/i.test(file.name)||file.size<1||file.size>50*1024*1024){
+      setError("Choose an MP4 or WebM video up to 50 MB.");return;
+    }
+    importBusy.current=true;setImporting(true);setError("");
     try{
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Uploading…");
       const form=new FormData();form.set("video",file);
       const result=await request<{asset:MusicAsset}>(endpoint+id+"/assets",{method:"POST",body:form});
-      await load();setLibraryOpen(true);setStatus("Saved");
-      if(window.confirm("Video imported. Add it to Video "+track+" now?"))
-        addClip(result.asset,track,playhead);
-    }catch(e){setError(e instanceof Error?e.message:"Upload failed.");setStatus("Not saved");}
+      await load();setLibraryOpen(true);setFilter("Uploads");setStatus("Saved");
+      if(track!==null)addClip(result.asset,track,playhead);
+    }catch(e){setError(e instanceof Error?e.message:"Upload failed.");setStatus("Saved");}
+    finally{importBusy.current=false;setImporting(false);}
   }
   async function deleteAsset(a:MusicAsset){
     if(!window.confirm("Remove '"+a.name+"' from this project's Library? Original videos in Videos are preserved."))return;
@@ -273,7 +310,7 @@ export function MusicVideoEditor({id}:{id:string}){
     }
     if(playing&&video.current.paused)void video.current.play().catch(()=>{});
   },[playhead,activeClip,activeAsset,playing]);
-  const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.kind==="lip-sync"||filter==="AI Video"&&a.kind!=="lip-sync")&&
+  const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.kind==="lip-sync"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported")&&
     a.name.toLowerCase().includes(search.toLowerCase()));
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
   const ticks=Array.from({length:Math.floor(project!.songDurationMs/10000)+1},(_,i)=>i*10000);
@@ -330,7 +367,8 @@ export function MusicVideoEditor({id}:{id:string}){
           {([2,1] as Track[]).map(track=><div className="mv-label" key={track}>
             <Film size={18}/><strong>Video {track}</strong><button aria-label={"Add video to track "+track} onClick={()=>setAddMenu(addMenu===track?null:track)}><Plus size={17}/></button>
             {addMenu===track&&<div className="mv-add-menu">
-              <button onClick={()=>{setUploadTrack(track);fileInput.current?.click();setAddMenu(null);}}><Upload size={15}/> Import</button>
+              <button disabled={importing} onClick={()=>void openLipSync(track)}><Music2 size={15}/> Insert Lip Sync</button>
+              <button disabled={importing} onClick={()=>{setUploadTrack(track);fileInput.current?.click();setAddMenu(null);}}><Upload size={15}/> Upload own video</button>
               <button onClick={()=>{setLibraryOpen(true);setAddMenu(null);}}><FolderOpen size={15}/> Library</button>
               <button disabled title="AI video generation will be added later"><Plus size={15}/> Generate · Soon</button>
             </div>}
@@ -377,15 +415,15 @@ export function MusicVideoEditor({id}:{id:string}){
         {libraryOpen?<ChevronDown size={21}/>:<ChevronRight size={21}/>}<h2>Library</h2><span>{assets.length} videos</span>
       </button>
       {libraryOpen&&<div className="mv-library-content">
-        <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","AI Video"] as const).map(f=>
+        <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","AI Video","Uploads"] as const).map(f=>
           <button key={f} className={filter===f?"active":""} onClick={()=>setFilter(f)}>{f}</button>)}</div>
           <div className="mv-library-search"><Search size={16}/><input placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></div>
-          <button className="mv-outline" onClick={()=>{setUploadTrack(1);fileInput.current?.click();}}><Upload size={16}/> Upload</button>
+          <button className="mv-outline" disabled={importing} onClick={()=>{setUploadTrack(null);fileInput.current?.click();}}><Upload size={16}/> Upload video</button>
         </div>
         {media.length?<div className="mv-media-grid">{media.map(a=><article key={a.id} className="mv-media-card"
           draggable onDragStart={e=>e.dataTransfer.setData("application/x-mvasset",a.id)}>
           <div className="mv-media-image"><Film size={32}/><span>{time(a.durationMs)}</span></div>
-          <div className="mv-media-info"><small>{a.kind==="lip-sync"?"🎤 Lip Sync":"🎬 AI Video"}</small>
+          <div className="mv-media-info"><small>{a.kind==="lip-sync"?"🎤 Lip Sync":a.kind==="imported"?"Uploaded video":"🎬 AI Video"}</small>
             <strong title={a.name}>{a.name}</strong>
             <div className="mv-media-actions"><button onClick={()=>addClip(a,1,playhead)}><Plus size={14}/> Add to timeline</button>
               <details><summary aria-label={"Options for "+a.name}><MoreHorizontal size={17}/></summary>
@@ -394,5 +432,21 @@ export function MusicVideoEditor({id}:{id:string}){
           </div></article>)}</div>:<p className="mv-empty-library">No videos in this Library. Import a video or use Add to Project from Videos.</p>}
       </div>}
     </section>
+    {lipTrack!==null&&<div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
+      <div className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
+        <h2>Insert Lip Sync · Video {lipTrack}</h2>
+        <p>Choose a completed Lip Sync video. It will be placed at its original song time with Sync Lock enabled. Use the same song for accurate synchronization.</p>
+        <input autoFocus placeholder="Search completed videos…" aria-label="Search Lip Sync videos" value={lipSearch} onChange={e=>setLipSearch(e.target.value)}/>
+        {lipLoading?<p role="status">Loading your videos…</p>:<div className="mv-lip-list">
+          {lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).map(s=><button key={s.id} type="button" disabled={importing||s.sourceStartMs>=project!.songDurationMs||s.sourceEndMs>project!.songDurationMs}
+            onClick={()=>void insertLipSync(s,lipTrack)}>
+            <Music2 size={19}/><span><strong>{s.name}</strong><small>{time(s.sourceStartMs,true)} – {time(s.sourceEndMs,true)} · {time(s.durationMs)}</small></span><Plus size={18}/>
+          </button>)}
+          {!lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).length&&<p>No matching completed Lip Sync videos.</p>}
+        </div>}
+        {lipError&&<p role="alert" className="mv-error">{lipError}</p>}
+        <div className="mv-dialog-actions"><button type="button" disabled={importing} onClick={()=>setLipTrack(null)}>Close</button></div>
+      </div>
+    </div>}
   </main>;
 }
