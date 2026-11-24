@@ -606,7 +606,7 @@ export function MusicVideoEditor({id}:{id:string}){
           {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing} onClick={switchVideoTrack}>Switch track</button>}</div>
         <div className="mv-timeline-zoom">
           <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
-            <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onBlur={()=>setMarkerText(time(playheadRef.current,true))}/></label>
+            <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)}/></label>
             <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
           </form>
           <label><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap</label>
@@ -628,7 +628,7 @@ export function MusicVideoEditor({id}:{id:string}){
         </div>
         <div className="mv-scroll" ref={scroll}>
           <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
-            <div className="mv-ruler" onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
+            <div className="mv-ruler" onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
               {ticks.map(t=><span key={t} style={{left:t/1000*zoom}}>{time(t)}</span>)}
             </div>
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
@@ -663,7 +663,7 @@ export function MusicVideoEditor({id}:{id:string}){
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}
             </div>
             <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:playhead/1000*zoom}}>
-              <button type="button" className="mv-playhead-grip" aria-label="Move playhead" title={"Drag playhead · "+time(playhead,true)}
+              <button type="button" className="mv-playhead-grip" role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
                 onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
             </div>
           </div>
