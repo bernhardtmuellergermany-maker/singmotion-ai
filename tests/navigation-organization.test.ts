@@ -103,7 +103,7 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
  assert.ok(editor.includes("parseSongTime(startText)"));
  assert.ok(editor.includes("apply(moved,true,next)"));
- assert.ok(editor.includes("if(at>=end){current.pause();at=end;}"));
+ assert.ok(editor.includes("if(at>=end||current.ended){current.pause();at=end;}"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
  assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
  assert.ok(core.includes("validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start)"));
@@ -280,7 +280,7 @@ test("timeline zoom is visibly separate from playback progress",()=>{
 test("timeline adds stay on the right and the song shares a single selection inspector",()=>{
  const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
  assert.ok(editor.includes('const songSelected=!selectedClip||!selectedAsset'));
- assert.ok(editor.includes('function selectSong(){setSelected(null);setAddMenu(null);}'));
+ assert.ok(editor.includes('function selectSong(){setSelected(null);setAddMenu(null);setInspectorOpen(true);}'));
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e),selectSong)'));
  assert.ok(editor.includes('aria-label="Select song" aria-pressed={songSelected}'));
  assert.ok(editor.includes('!songSelected&&selectedClip&&selectedAsset?<form'));
@@ -301,4 +301,34 @@ test("project header stays on one compact line with readable status and export",
  assert.ok(css.includes('.mv-top{flex-wrap:nowrap}'));
  assert.ok(css.includes('.mv-top .mv-export-soon{display:none}'));
  assert.ok(css.includes('.mv-top .mv-top-actions{flex:none}'));
+});
+
+test("song splits preserve absolute time and leave silence for removed intervals",async()=>{
+ const {splitSongPart,songPartAt,songPartsEnd,validSongParts}=await import("../lib/music-video/song-range.ts");
+ const range={startMs:58467,endMs:148800,positionMs:0};
+ const parts=splitSongPart(range,null,2804);
+ assert.deepEqual(parts,[{startMs:58467,endMs:61271},{startMs:61271,endMs:148800}]);
+ assert.equal(songPartsEnd(range,parts),90333);
+ assert.equal(songPartAt(range,parts,2804)?.startMs,61271);
+ assert.equal(songPartAt(range,[parts![1]],1000),null);
+ assert.equal(validSongParts([{startMs:58467,endMs:61271},{startMs:60000,endMs:70000}],range),false);
+ const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts");
+ assert.ok(core.includes("song_parts_json=?"));
+ assert.ok(editor.includes("songParts:parts"));
+ assert.ok(editor.includes("onClick={splitSong}"));
+ assert.ok(editor.includes("songPartAt(range,partsRef.current,at)"));
+});
+test("one-click export uses top-track render spans and owner-scoped download",async()=>{
+ const {videoRenderSpans}=await import("../lib/music-video/export.ts");
+ const a={id:"a",assetId:"a",track:1 as const,timelineStartMs:0,sourceInMs:1000,sourceOutMs:5000,syncLocked:false};
+ const b={...a,id:"b",assetId:"b",track:2 as const,timelineStartMs:1000,sourceInMs:0,sourceOutMs:1000};
+ const spans=videoRenderSpans([a,b],5000);
+ assert.deepEqual(spans.map(s=>[s.startFrame,s.endFrame,s.clip?.id??null,s.sourceMs]),[[0,30,"a",1000],[30,60,"b",0],[60,120,"a",3000],[120,150,null,0]]);
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes("onClick={()=>void exportMp4()}"));
+ assert.ok(editor.includes("await saveNow()"));
+ assert.ok(api.includes("musicExportFile(owner,id,assetId)"));
+ assert.ok(api.includes("startMusicExport(owner,detail.project,detail.clips,files,songFile)"));
+ assert.ok(api.includes("attachment; filename="));
+ assert.ok(editor.includes('hidden={!inspectorOpen}'));
 });
