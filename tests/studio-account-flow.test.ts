@@ -124,7 +124,7 @@ test("signed-in customer without enough Credits can purchase from Step 4, never 
  assert.match(action,/id:projectKey,selection,artistName:draft\.artistName/);
  assert.match(action,/projectName,step:3/);
  assert.doesNotMatch(action,/sessionStorage\.setItem\("sm-credit-checkout-resume"/);
- assert.match(action,/draftId:projectKey,requiredCredits:creditQuote\.credits/);
+ assert.match(action,/encodeURIComponent\(projectKey\)\+\s*"&requiredCredits="\+creditQuote\.credits/);
  assert.match(action,/window\.location\.assign\("\/credits\?resumeDraft="/);
  assert.match(wizard,/reviewShortage\?void continueToCreditPurchase\(\):void startCreditGeneration\(\)/);
  assert.match(wizard,/reviewShortage&&!operatorStudio\?"Buy Credits to generate":"Generate Video"/);
