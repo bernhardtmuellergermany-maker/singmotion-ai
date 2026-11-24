@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import {CompletedVideoDetails,type CompletedVideoMetadata} from "./completed-video-details";
+import {NextAudioSegmentButton} from "./next-audio-segment-button";
 
 const GENERATION_WAIT_MESSAGES = [
   "Your song is the creative foundation of this performance.",
@@ -23,7 +24,7 @@ import {generationFeedback,providerFeedback,requestErrorFeedback,type CustomerNo
 
 export type GenerationProgress = "credits-needed"|"verifying-payment"|"prepared"|"queued"|"processing"|"review"|"ready"|"failed"|"unavailable";
 export function GenerationStatusView({
-  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,reuseBlank=false,previewNotice,editHref,creditTopupHref="/credits#buy-credits",paymentStatus,statusNotice,projectDetails,
+  progress,paymentMode,amount,creditCharge,availableCredits,photoUrl,format,videoUrl,downloadUrl,note,reuseHref,nextSegmentId,reuseBlank=false,previewNotice,editHref,creditTopupHref="/credits#buy-credits",paymentStatus,statusNotice,projectDetails,
 }:{
   progress:GenerationProgress;
   projectDetails?:CompletedVideoMetadata|null;
@@ -45,6 +46,7 @@ export function GenerationStatusView({
   editHref?:string|null;
   creditTopupHref?:string;
   reuseHref?:string|null;
+  nextSegmentId?:string|null;
   reuseBlank?:boolean;
 }){
   const [imagePortrait,setImagePortrait]=useState(false);
@@ -169,6 +171,7 @@ export function GenerationStatusView({
         </div>}
         {ready?<a className="sm-gen-download" href={downloadUrl!} download><Download size={18}/> Download video</a>:
           <button className="sm-gen-download" type="button" disabled><LockKeyhole size={17}/> Download video</button>}
+        {ready&&nextSegmentId&&<NextAudioSegmentButton key={nextSegmentId} id={nextSegmentId}/>}
         {ready&&reuseHref&&<a className="sm-gen-reuse" href={reuseHref}><RotateCcw size={16}/> {reuseBlank?"Create another video":"Create another version"}</a>}
         {ready&&reuseHref&&<p className="sm-gen-reuse-note">{reuseBlank
           ?"Start a new video. Upload your audio and photo and choose your settings."
