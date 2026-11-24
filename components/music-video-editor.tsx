@@ -3,7 +3,7 @@ import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "rea
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown,RotateCcw} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -364,10 +364,6 @@ export function MusicVideoEditor({id}:{id:string}){
     stopPlayback();apply(latest.current,true,rangeRef.current,next);
     setPartIndex(next.findIndex(p=>p.startMs===timelineToSongTime(Math.round(playheadRef.current),rangeRef.current)));selectSong();
   }
-  function resetSongParts(){
-    if(importBusy.current)return;
-    apply(latest.current,true,rangeRef.current,null);setPartIndex(0);
-  }
   const selectedStart=selectedClip?.timelineStartMs;
   const selectedId=selectedClip?.id;
   const selectedEnd=selectedClip?clipEnd(selectedClip):undefined;
@@ -692,21 +688,6 @@ export function MusicVideoEditor({id}:{id:string}){
     try{await saveNow();await request(endpoint+id+"/assets/"+a.id,{method:"DELETE"});await load();}
     catch(e){setError(e instanceof Error?e.message:"Could not remove asset.");}
   }
-  async function renameSong(){
-    if(importBusy.current||roleBusy.current||!project)return;
-    const name=window.prompt("Song name",project.songName??"")?.trim();
-    if(!name||name===project.songName)return;
-    importBusy.current=true;setImporting(true);
-    try{
-      if(saveTimer.current)clearTimeout(saveTimer.current);
-      await saveNow();
-      const data=await request<{project:MusicProject}>(endpoint+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({songName:name})});
-      revision.current=data.project.revision;
-      if(detailRef.current)detailRef.current={...detailRef.current,project:data.project};
-      setDetail(prev=>prev?{...prev,project:data.project}:prev);
-    }catch(e){setError(e instanceof Error?e.message:"Rename failed.");}
-    finally{importBusy.current=false;setImporting(false);}
-  }
   async function saveName(){
     if(importBusy.current)return;
     if(!newName.trim()||!project)return;
@@ -1016,8 +997,6 @@ export function MusicVideoEditor({id}:{id:string}){
       <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>
         <InlineTimeField label={songParts?"Part source start":"Source start"} ariaLabel={songParts?"Song part start":"Song start time"} value={songParts?partStartText:startText} onChange={songParts?setPartStartText:setStartText} onConfirm={()=>submitSongField("start")} disabled={importing} placeholder="00:08.918"/>
         <InlineTimeField label={songParts?"Part source end":"Source end"} ariaLabel={songParts?"Song part end":"Song end time"} value={songParts?partEndText:endText} onChange={songParts?setPartEndText:setEndText} onConfirm={()=>submitSongField("end")} disabled={importing} placeholder="00:30.000"/>
-        {songParts?<><button type="button" className="mv-outline mv-inspector-icon" disabled={importing||songParts.length<2} onClick={removeSongPart} title="Remove part" aria-label="Remove part"><Trash2 size={15}/></button><button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={resetSongParts} title="Reset splits" aria-label="Reset splits"><RotateCcw size={15}/></button></>:<button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)} title="Reset song range" aria-label="Reset song range"><RotateCcw size={15}/></button>}
-        <button type="button" className="mv-outline mv-song-rename mv-inspector-icon" disabled={importing} onClick={()=>void renameSong()} title="Rename song" aria-label="Rename song"><Pencil size={14}/>{!project!.songName?" Set song name":""}</button>
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
       </form>}
       </div>
