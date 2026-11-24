@@ -640,6 +640,21 @@ export function MusicVideoEditor({id}:{id:string}){
     try{await saveNow();await request(endpoint+id+"/assets/"+a.id,{method:"DELETE"});await load();}
     catch(e){setError(e instanceof Error?e.message:"Could not remove asset.");}
   }
+  async function renameSong(){
+    if(importBusy.current||roleBusy.current||!project)return;
+    const name=window.prompt("Song name",project.songName??"")?.trim();
+    if(!name||name===project.songName)return;
+    importBusy.current=true;setImporting(true);
+    try{
+      if(saveTimer.current)clearTimeout(saveTimer.current);
+      await saveNow();
+      const data=await request<{project:MusicProject}>(endpoint+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({songName:name})});
+      revision.current=data.project.revision;
+      if(detailRef.current)detailRef.current={...detailRef.current,project:data.project};
+      setDetail(prev=>prev?{...prev,project:data.project}:prev);
+    }catch(e){setError(e instanceof Error?e.message:"Rename failed.");}
+    finally{importBusy.current=false;setImporting(false);}
+  }
   async function saveName(){
     if(importBusy.current)return;
     if(!newName.trim()||!project)return;
@@ -880,10 +895,10 @@ export function MusicVideoEditor({id}:{id:string}){
                     onContextMenu={e=>e.preventDefault()}
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id));}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
-                  <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
+                  <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
                   <span className="mv-clip-title">{a.role==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
                   {c.syncLocked&&<Lock className="mv-clip-lock" size={13}/>}
-                  <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}>Ⅱ</button>
+                  <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
                 </div>;
               })}
             </div>)}
@@ -896,25 +911,25 @@ export function MusicVideoEditor({id}:{id:string}){
                   <span key={i} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
               </div>
               {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")}
-                style={{left:(edge==="start"?songRange.positionMs:songTimelineEnd(songRange))/1000*zoom}}
+                style={{left:(edge==="start"?songRange.positionMs:songTimelineEnd(songRange))/1000*zoom,width:Math.min(22,(songRange.endMs-songRange.startMs)/1000*zoom/3)}}
                 aria-label={"Trim song "+edge} title={time(edge==="start"?songRange.startMs:songRange.endMs,true)}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong)}
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
-                  commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
+                  commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}/>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
                 <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom,left:-p.startMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,j)=><span key={j} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
                 <span className="mv-song-part-number">{i+1}</span>
-                {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}>Ⅱ</button>)}
+                {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}/>)}
               </div>)}
             </div>
             <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}}>
-              <button type="button" className="mv-playhead-grip" role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
+              <button type="button" className="mv-playhead-grip" style={{left:Math.max(0,Math.min(pixels-25,progress.positionMs/1000*zoom-12))-progress.positionMs/1000*zoom}} role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
                 onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
             </div>
           </div>
         </div>
 
       </div>
-      <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?(songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1):"Song"):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
+      <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
         <div className="mv-video-times">
@@ -940,13 +955,13 @@ export function MusicVideoEditor({id}:{id:string}){
         <small>Drag a clip or handle with the mouse. On touch, swipe to scroll or hold to edit. Drag the middle between tracks. Video start/end refer to the original song; timeline start/end refer to the project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
-        <strong><Music2 size={16}/> {songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"Song trim"}</strong>
         {songParts?<><label>Part source start<input aria-label="Song part start" value={partStartText} onChange={e=>setPartStartText(e.target.value)}/></label><label>Part source end<input aria-label="Song part end" value={partEndText} onChange={e=>setPartEndText(e.target.value)}/></label><button type="button" className="mv-outline" disabled={importing} onClick={()=>{const start=parseSongTime(partStartText),end=parseSongTime(partEndText);if(start===null||end===null){setError("Enter valid song times.");return;}editPart(start,end);}}>Set part</button><button type="button" className="mv-outline" disabled={importing||songParts.length<2} onClick={removeSongPart}><Trash2 size={14}/> Remove part</button><button type="button" className="mv-outline" disabled={importing} onClick={resetSongParts}>Reset splits</button></>:<><label>Source start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
         <label>Source end<input aria-label="Song end time" value={endText} onChange={e=>setEndText(e.target.value)} placeholder="00:30.000"/></label></>}
         <label>{songParts?"Song group position":"Timeline position"}<input aria-label="Song timeline position" value={positionText} onChange={e=>setPositionText(e.target.value)} placeholder="00:08.918"/></label>
         <button type="submit" className="mv-outline" disabled={importing}>Apply</button>
         <button type="button" className="mv-outline" disabled={importing||!!songParts} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)}>Reset</button>
         <span>Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
+        <button type="button" className="mv-outline mv-song-rename" disabled={importing} onClick={()=>void renameSong()} title="Rename song" aria-label="Rename song"><Pencil size={14}/>{!project!.songName?" Set song name":""}</button>
         <small>Drag with mouse to move all song parts together. On touch, swipe to scroll or hold to move. Use the scissors to split at the playhead, or drag the trim handles to shorten a part. Removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
       </form>}
       </div>
