@@ -467,3 +467,17 @@ test("library uses small authenticated cached still thumbnails instead of loadin
  assert.ok(api.includes('thumbnailSlots>=2'));
  assert.ok(api.includes('"Cache-Control":"private, no-cache"'));
 });
+
+test("song inspector shows actual song name once, playhead cap stays in bounds, and trim handles stay accessible",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
+ assert.ok(editor.includes('project!.songName||"Unnamed song"'));
+ assert.ok(!editor.includes(':"Song trim"}</strong>'));
+ assert.ok(editor.includes('aria-label="Rename song"'));
+ assert.ok(core.includes("ADD COLUMN song_name TEXT DEFAULT NULL"));
+ assert.ok(api.includes('await originalSongTitle(temp)||cleanSongName(file.name'));
+ assert.ok(editor.includes("Math.max(0,Math.min(pixels-25,progress.positionMs/1000*zoom-12))"));
+ assert.ok(editor.includes('aria-label="Trim clip start"'));
+ assert.ok(editor.includes('aria-label="Trim clip end"'));
+ assert.ok(!editor.includes(">Ⅱ</button>"));
+ assert.ok(css.includes("width:min(22px,33%)"));
+});
