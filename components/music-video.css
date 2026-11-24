@@ -519,3 +519,15 @@
 .mv-root.mv-editor .mv-song-handle.is-armed::before{background:#fff;opacity:1}
 .mv-root.mv-editor .mv-handle:focus-visible,.mv-root.mv-editor .mv-song-handle:focus-visible{outline:1px solid #e9c5ff;outline-offset:-1px}
 .mv-root.mv-editor .mv-song-rename{display:inline-flex;align-items:center;gap:5px}
+
+/* Compact, aligned track labels with neutral white track icons. */
+.mv-root.mv-editor .mv-label>svg{color:#fff;flex-shrink:0}
+@media(min-width:761px){
+ .mv-root.mv-editor .mv-track-labels{flex:0 0 94px;min-width:94px}
+ .mv-root.mv-editor .mv-label{gap:3px;padding-inline:4px}
+ .mv-root.mv-editor .mv-label strong{flex:1;min-width:0;font-size:11px}
+ .mv-root.mv-editor .mv-label>.mv-track-mute{width:21px;height:25px;padding:2px}
+}
+@media(max-width:760px){
+ .mv-root.mv-editor .mv-label{gap:0}
+}
