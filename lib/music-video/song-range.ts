@@ -116,3 +116,27 @@ export function mediaPanAxis(dx:number,dy:number):"x"|"y"|null{
  if(Math.max(Math.abs(dx),Math.abs(dy))<MEDIA_PAN_THRESHOLD)return null;
  return Math.abs(dx)>=Math.abs(dy)?"x":"y";
 }
+
+/** Song parts keep the common original-song offset, so edits do not ripple lip sync. */
+export function validSongParts(parts:unknown,range:SongPlacement):parts is SongRange[]{
+ if(!Array.isArray(parts)||parts.length<1||parts.length>100)return false;
+ return parts.every((p,i)=>p&&validSongRange(p.startMs,p.endMs,range.endMs)&&p.startMs>=range.startMs&&
+  (i===0||p.startMs>=parts[i-1].endMs));
+}
+export const effectiveSongParts=(range:SongPlacement,parts:SongRange[]|null):SongRange[]=>parts??[{startMs:range.startMs,endMs:range.endMs}];
+export function splitSongPart(range:SongPlacement,parts:SongRange[]|null,at:number):SongRange[]|null{
+ const source=timelineToSongTime(Math.round(at),range),list=effectiveSongParts(range,parts);
+ if(list.length>=100)return null;
+ const i=list.findIndex(p=>source-p.startMs>=MIN_SONG_RANGE_MS&&p.endMs-source>=MIN_SONG_RANGE_MS);
+ if(i<0)return null;
+ const p=list[i];
+ return [...list.slice(0,i),{startMs:p.startMs,endMs:source},{startMs:source,endMs:p.endMs},...list.slice(i+1)];
+}
+export function songPartAt(range:SongPlacement,parts:SongRange[]|null,at:number):SongPlacement|null{
+ const source=timelineToSongTime(at,range);
+ const p=effectiveSongParts(range,parts).find(p=>source>=p.startMs&&source<p.endMs);
+ return p?{...p,positionMs:songTimeToTimeline(p.startMs,range)}:null;
+}
+export function songPartsEnd(range:SongPlacement,parts:SongRange[]|null):number{
+ return songTimeToTimeline(effectiveSongParts(range,parts).at(-1)!.endMs,range);
+}
