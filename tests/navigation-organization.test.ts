@@ -125,7 +125,7 @@ test("song placement is independent of source trim and locked video moves atomic
  assert.equal(shiftLockedClips([locked,free],4000),null);
  assert.equal(shiftLockedClips([locked,free],-13000),null);
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
- assert.ok(editor.includes("onPointerDown={dragSong}"));
+ assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
  assert.ok(editor.includes("songPositionMs:range.positionMs"));
  assert.ok(editor.includes("parseSongTime(positionText)"));
  assert.ok(editor.includes("songOffset(next)-songOffset(original)"));
