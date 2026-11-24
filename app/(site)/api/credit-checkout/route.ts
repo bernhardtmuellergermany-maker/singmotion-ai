@@ -67,7 +67,13 @@ export async function POST(req:NextRequest){
    // Do not reuse a seller-of-record request key for a Managed Payments purchase.
    if(useMoR&&wallet.taxContext(purchase.id))
     return json({error:"Payment option changed. Start a new purchase."},409);
-   if(liveMode&&tax?.decision)wallet.bindTaxContext(purchase.id,tax.decision);
+   if(liveMode&&tax?.decision){
+    try{wallet.bindTaxContext(purchase.id,tax.decision)}catch(error){
+     if(error instanceof Error&&error.message==="CREDIT_TAX_THRESHOLD_LIMIT")
+      return json({error:"This payment option has reached its reviewed sales limit. Please use standard checkout."},422);
+     throw error;
+    }
+   }
    if(purchase.status==="paid"||purchase.status==="reversed")
     return json({error:"This top-up request was already settled. Start a new purchase."},409);
    if(purchase.sessionId&&purchase.checkoutUrl)
@@ -126,7 +132,7 @@ export async function POST(req:NextRequest){
      // Uses the live product catalog tax code; no inline product_data permitted.
     }else if(decision.mode!=="stripe-managed-payments"){
      form.set("automatic_tax[enabled]","false");
-     if(decision.mode==="de-small-business")
+     if(decision.mode==="de-small-business"||decision.mode==="de-small-business-eu-threshold")
       form.set("invoice_creation[invoice_data][footer]","Gemäß § 19 UStG gilt die Steuerbefreiung für Kleinunternehmer. Es wird keine Umsatzsteuer ausgewiesen.");
     }
    }
