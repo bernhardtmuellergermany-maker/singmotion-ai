@@ -248,3 +248,16 @@
 .mv-media-info .mv-source-time{font-size:11px;line-height:1.4;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
 
 .mv-media-role button{min-height:32px;cursor:pointer}
+
+/* Zoom is a scale control, not another playback progress bar. */
+.mv-timeline-zoom .mv-zoom-buttons{display:inline-flex;flex:0 0 auto;align-items:center;gap:5px;white-space:nowrap;border:1px solid #795098;border-radius:9px;padding:3px 5px;background:#21142f}
+.mv-zoom-buttons>span{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:#d7bce8}
+.mv-timeline-toolbar .mv-zoom-buttons button{width:29px;height:29px;min-width:29px;padding:3px;border:1px solid #8653a3;border-radius:6px;background:#47205e}
+.mv-zoom-buttons output{font-size:12px;min-width:30px;text-align:center;font-variant-numeric:tabular-nums}
+.mv-root .mv-marker-time input[aria-label="Playhead timeline time"]{box-sizing:border-box;width:112px!important;max-width:112px!important;min-width:0!important;padding:6px 8px!important;margin:0!important;height:34px;min-height:0!important;font-size:13px;font-variant-numeric:tabular-nums}
+@media(max-width:760px){
+ .mv-timeline-toolbar>div.mv-timeline-zoom{width:100%;gap:6px 9px;align-items:center;justify-content:flex-start}
+ .mv-timeline-zoom .mv-marker-time{flex:0 0 auto}
+ .mv-timeline-zoom .mv-marker-time label{font-size:11px}
+ .mv-timeline-zoom .mv-zoom-buttons{margin-left:0}
+}
