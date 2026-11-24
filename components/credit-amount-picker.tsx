@@ -8,27 +8,15 @@ import {MAX_CREDIT_TOPUP,MIN_CREDIT_TOPUP,parseCreditTopup,proposedTopupCents} f
 
 import "./credit-amount-picker.css";
 const presets=[500,2000,4000,10000] as const;
-const countryDisplay=new Intl.DisplayNames(["en"],{type:"region"});
-const countries="AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW".split(" ")
- .map(code=>({code,label:countryDisplay.of(code)||code}))
- .sort((a,b)=>a.label.localeCompare(b.label,"en"));
-
 const num=(n:number)=>new Intl.NumberFormat("en-GB").format(n);
 const euro=(n:number)=>new Intl.NumberFormat("en-GB",{style:"currency",currency:"EUR"}).format(n/100);
 
 /** UI quote only; the server decides if this account may create a Stripe Checkout. */
-type AlternativeCountries={consumer:string[];business:string[]};
-function parseAlternativeCountries(raw:unknown):AlternativeCountries|null{
- if(!raw||typeof raw!=="object")return null;
- const x=raw as Partial<AlternativeCountries>;
- const valid=(list:unknown):list is string[]=>Array.isArray(list)&&list.length<=250&&list.every(s=>typeof s==="string"&&/^[A-Z]{2}$/.test(s));
- return valid(x.consumer)&&valid(x.business)?{consumer:x.consumer,business:x.business}:null;
-}
-type CheckoutAccess={state:"checking"|"ready"|"signed-out"|"unavailable";purchaseEnabled:boolean;testMode:boolean;emailVerification:string|null;globalCountrySelection:boolean;approvedBillingCountries:string[]|null;alternativeCheckoutEnabled:boolean;alternativeBillingCountries:AlternativeCountries|null};
-export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discoverAvailability=false,globalCountrySelection=false,approvedBillingCountries=null}:
+type CheckoutAccess={state:"checking"|"ready"|"signed-out"|"unavailable";purchaseEnabled:boolean;testMode:boolean;emailVerification:string|null};
+export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discoverAvailability=false}:
  {purchaseEnabled?:boolean;testMode?:boolean;discoverAvailability?:boolean;globalCountrySelection?:boolean;approvedBillingCountries?:string[]|null}){
  const [checkoutAccess,setCheckoutAccess]=useState<CheckoutAccess>({
-  state:"checking",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false,alternativeBillingCountries:null
+  state:"checking",purchaseEnabled:false,testMode:true,emailVerification:null
  });
  useEffect(()=>{
   if(!discoverAvailability)return;
@@ -37,24 +25,18 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
    try{
     const response=await fetch("/api/credit-balance",{cache:"no-store",credentials:"same-origin"});
     if(response.status===401){
-     if(active)setCheckoutAccess({state:"signed-out",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false,alternativeBillingCountries:null});
+     if(active)setCheckoutAccess({state:"signed-out",purchaseEnabled:false,testMode:true,emailVerification:null});
      return;
     }
     if(!response.ok)throw Error("Credit eligibility unavailable");
-    const info=await response.json() as {purchaseEnabled?:unknown;testMode?:unknown;emailVerification?:unknown;globalCountrySelection?:unknown;approvedBillingCountries?:unknown;alternativeCheckoutEnabled?:unknown;alternativeBillingCountries?:unknown};
+    const info=await response.json() as {purchaseEnabled?:unknown;testMode?:unknown;emailVerification?:unknown};
     if(typeof info.purchaseEnabled!=="boolean"||typeof info.testMode!=="boolean")
      throw Error("Invalid Credit eligibility response");
     if(active)setCheckoutAccess({state:"ready",purchaseEnabled:info.purchaseEnabled,
      testMode:info.testMode,emailVerification:typeof info.emailVerification==="string"?info.emailVerification:null,
-     globalCountrySelection:info.globalCountrySelection===true,
-     alternativeCheckoutEnabled:info.alternativeCheckoutEnabled===true,
-     alternativeBillingCountries:parseAlternativeCountries(info.alternativeBillingCountries),
-     approvedBillingCountries:Array.isArray(info.approvedBillingCountries)&&
-      info.approvedBillingCountries.length<=250&&
-      info.approvedBillingCountries.every(x=>typeof x==="string"&&/^[A-Z]{2}$/.test(x))
-      ?info.approvedBillingCountries:null});
+});
    }catch{
-    if(active)setCheckoutAccess({state:"unavailable",purchaseEnabled:false,testMode:true,emailVerification:null,globalCountrySelection:false,approvedBillingCountries:null,alternativeCheckoutEnabled:false,alternativeBillingCountries:null});
+    if(active)setCheckoutAccess({state:"unavailable",purchaseEnabled:false,testMode:true,emailVerification:null});
    }
   };
   void refresh();
@@ -64,12 +46,6 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  },[discoverAvailability]);
  const canPurchase=discoverAvailability?checkoutAccess.state==="ready"&&checkoutAccess.purchaseEnabled:purchaseEnabled;
  const checkoutTestMode=discoverAvailability?checkoutAccess.testMode:testMode;
- const alternativesEnabled=discoverAvailability&&checkoutAccess.alternativeCheckoutEnabled&&checkoutAccess.state==="ready"&&checkoutAccess.alternativeBillingCountries!==null;
- const needsBillingCountry=(discoverAvailability?checkoutAccess.globalCountrySelection:globalCountrySelection)||alternativesEnabled;
- const [billingCountry,setBillingCountry]=useState("");
- const [buyerType,setBuyerType]=useState<"consumer"|"business">("consumer");
- const moRCountries=discoverAvailability?checkoutAccess.approvedBillingCountries:approvedBillingCountries;
- const selectableCountries=moRCountries?countries.filter(x=>moRCountries.includes(x.code)):countries;
  const [raw,setRaw]=useState("500");
  const [busy,setBusy]=useState(false);
  const [error,setError]=useState("");
@@ -93,7 +69,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  const credits=parseCreditTopup(raw),cents=credits===null?null:proposedTopupCents(credits);
  const estimatedVideoSeconds=credits===null||creditsPerSecond===null?null:Math.floor(credits/creditsPerSecond);
  const begin=async()=>{
-  if(!canPurchase||credits===null||busy||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry)))))return;
+  if(!canPurchase||credits===null||busy)return;
   setBusy(true);setError("");setStatus(null);
   try{
    // Keep the exact interrupted Step 4 draft across the external Stripe redirect,
@@ -119,7 +95,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
     method:"POST",credentials:"same-origin",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({credits:String(credits),requestKey:(requestKey.current??=crypto.randomUUID()),
-      ...(needsBillingCountry?{billingCountry,buyerType}:{}),...resume}),
+      ...resume}),
    });
    const data=await response.json() as {url?:string;error?:string;testMode?:boolean;supportReference?:string};
    if(!response.ok||data.testMode!==checkoutTestMode||typeof data.url!=="string"||
@@ -154,27 +130,13 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
    <p id={inputId+"-hint"} className={credits===null?"sm-credit-amount-error":"sm-credit-amount-helper"}>
     {credits===null?"Enter 500 to 100,000 whole credits.":"1 Credit = €0.01."}</p>
   </div>
-  {canPurchase&&needsBillingCountry&&<div className="sm-credit-country-fields">
-    <label htmlFor={inputId+"-country"}>Billing country</label>
-    <select id={inputId+"-country"} value={billingCountry} required
-     onChange={e=>{setBillingCountry(e.target.value);requestKey.current=null;setError("");}}>
-     <option value="">Select your billing country</option>
-     {selectableCountries.map(item=><option key={item.code} value={item.code}>{item.label}</option>)}
-    </select>
-    <label htmlFor={inputId+"-buyer"}>Customer type</label>
-    <select id={inputId+"-buyer"} value={buyerType}
-     onChange={e=>{setBuyerType(e.target.value as "consumer"|"business");setBillingCountry("");requestKey.current=null;setError("");}}>
-     <option value="consumer">Individual</option><option value="business">Business</option>
-    </select>
-    <p>Your billing country determines the available payment methods. Choose your payment method on the secure Stripe checkout page.</p>
-   </div>}
   <div className="sm-credit-amount-total" aria-live="polite">
    <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
    <div><span>Estimated payment</span><strong>{cents===null?"—":euro(cents)}</strong></div>
    <div><span>Estimated AI Video Seconds</span><strong>{estimatedVideoSeconds===null?"—":num(estimatedVideoSeconds)+" s"}</strong></div>
    <p className="sm-credit-amount-seconds-note">Total source-audio time at {creditsPerSecond===null?"a currently unverified rate":creditsPerSecond+" Credits per started second"}. Individual video limits apply.</p>
   </div>
-  {canPurchase?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry))))} onClick={()=>void begin()}>
+  {canPurchase?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null} onClick={()=>void begin()}>
    {busy?"Opening Stripe…":checkoutTestMode?"Test purchase with Stripe":"Buy securely with Stripe"}
   </button>:discoverAvailability&&checkoutAccess.state==="signed-out"?<Link href="/login" className="sm-credit-amount-disabled sm-credit-buy-enabled">Sign in to buy Credits</Link>:
    discoverAvailability&&checkoutAccess.state==="ready"&&checkoutAccess.emailVerification==="pending"?<Link href="/account/verify-email" className="sm-credit-amount-disabled sm-credit-buy-enabled">Verify email to buy Credits</Link>:

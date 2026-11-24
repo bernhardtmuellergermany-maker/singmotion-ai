@@ -43,7 +43,7 @@ test("alternative Credit Checkout cannot replace Merchant-of-Record without tax 
  assert.match(checkout,/route\.alternative&&session\.managed_payments\?\.enabled!==false/);
  assert.match(balance,/liveCheckout&&alternativeCreditCheckoutApproved\(process\.env\)/);
  assert.doesNotMatch(picker,/name="credit-payment-route"|setPaymentRoute|paymentRoute:"alternative"/);
- assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}/);
+ assert.doesNotMatch(picker,/needsBillingCountry|setBillingCountry|setBuyerType|Select your billing country/);
  assert.match(checkout,/route=\{allowed:true,alternative:false\};useMoR=true;tax=null/);
  assert.match(picker,/requestKey\.current=null/);
  assert.match(webhook,/if\(session\.payment_status!=="paid"\)/);
