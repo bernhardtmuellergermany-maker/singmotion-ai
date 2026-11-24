@@ -3,7 +3,7 @@ import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "rea
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown,RotateCcw} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -31,6 +31,12 @@ async function request<T>(url:string,init?:RequestInit):Promise<T>{
 const clipEnd=(c:MusicClip)=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
 const overlaps=(clips:MusicClip[],target:MusicClip)=>clips.filter(c=>c.id!==target.id&&c.track===target.track&&
   target.timelineStartMs<clipEnd(c)&&clipEnd(target)>c.timelineStartMs);
+function InlineTimeField({label,ariaLabel,value,onChange,onConfirm,disabled,placeholder}:{label:string;ariaLabel:string;value:string;onChange:(value:string)=>void;onConfirm:()=>void;disabled:boolean;placeholder?:string}){
+  return <div className="mv-inline-time">
+    <label>{label}<input aria-label={ariaLabel} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();if(!disabled)onConfirm();}}}/></label>
+    <button type="button" className="mv-inline-confirm" disabled={disabled} title={"Confirm "+label.toLowerCase()} aria-label={"Confirm "+ariaLabel.toLowerCase()} onClick={onConfirm}><Check size={15}/></button>
+  </div>;
+}
 export function MusicVideoEditor({id}:{id:string}){
   const [detail,setDetail]=useState<Detail|null>(null),[clips,setClips]=useState<MusicClip[]>([]);
   const [aspectRatio,setAspectRatio]=useState<ProjectAspectRatio>("auto"),ratioRef=useRef<ProjectAspectRatio>("auto");
@@ -56,7 +62,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [clipSongText,setClipSongText]=useState("00:00.000"),[clipTimelineText,setClipTimelineText]=useState("00:00.000");
   const clipTimeMode=useRef<"song"|"timeline">("song");
   const [clipEndText,setClipEndText]=useState("00:00.000"),[clipSongEndText,setClipSongEndText]=useState("00:00.000");
-  const clipEndMode=useRef<"song"|"timeline">("timeline"),clipEditKind=useRef<"start"|"end">("start");
+  const clipEndMode=useRef<"song"|"timeline">("timeline");
   const [armedMedia,setArmedMedia]=useState<string|null>(null);
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
@@ -203,11 +209,19 @@ export function MusicVideoEditor({id}:{id:string}){
     if(next.startMs!==original.startMs||next.endMs!==original.endMs||next.positionMs!==original.positionMs)
       apply(moved,true,next);
   }
-  function submitSongRange(){
-    if(partsRef.current){const position=parseSongTime(positionText);if(position===null){setError("Enter a valid timeline position.");return;}commitSongRange(rangeRef.current,position);return;}
-    const start=parseSongTime(startText),end=parseSongTime(endText),position=parseSongTime(positionText);
-    if(start===null||end===null||position===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
-    commitSongRange({startMs:start,endMs:end},position===rangeRef.current.positionMs?undefined:position);
+  function submitSongField(field:"start"|"end"|"position"){
+    if(importBusy.current||roleBusy.current)return;
+    const range=rangeRef.current,parts=partsRef.current;
+    const text=field==="position"?positionText:field==="start"?(parts?partStartText:startText):(parts?partEndText:endText);
+    const ms=parseSongTime(text);
+    if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
+    if(field==="position"){commitSongRange(range,ms);return;}
+    if(parts){
+      const part=parts[Math.min(partIndex,parts.length-1)];if(!part)return;
+      editPart(field==="start"?ms:part.startMs,field==="end"?ms:part.endMs);
+      return;
+    }
+    commitSongRange({startMs:field==="start"?ms:range.startMs,endMs:field==="end"?ms:range.endMs});
   }
   // Mouse editing starts immediately. Touch swipes pan the viewport; stationary holds arm editing.
   function beginMediaGesture(e:React.PointerEvent,media:string,onHold:()=>void,onTap:()=>void){
@@ -361,14 +375,14 @@ export function MusicVideoEditor({id}:{id:string}){
   const offset=songOffset(songRange);
   useEffect(()=>{
     if(selectedStart===undefined)return;
-    setClipSongText(signedTime(selectedStart-offset));setClipTimelineText(time(selectedStart,true));clipTimeMode.current="song";clipEditKind.current="start";
+    setClipSongText(signedTime(selectedStart-offset));setClipTimelineText(time(selectedStart,true));clipTimeMode.current="song";
   },[selectedId,selectedStart,offset]);
   useEffect(()=>{
     if(selectedEnd===undefined)return;
     setClipEndText(time(selectedEnd,true));setClipSongEndText(signedTime(selectedEnd-offset));clipEndMode.current="timeline";
   },[selectedId,selectedEnd,offset]);
   function updateClipEnd(text:string,mode:"song"|"timeline"){
-    clipEditKind.current="end";clipEndMode.current=mode;
+    clipEndMode.current=mode;
     if(mode==="timeline"){
       setClipEndText(text);const ms=parseSongTime(text);
       if(ms!==null)setClipSongEndText(signedTime(timelineToSongTime(ms,rangeRef.current)));
@@ -377,10 +391,10 @@ export function MusicVideoEditor({id}:{id:string}){
       if(ms!==null)setClipEndText(signedTime(songTimeToTimeline(ms,rangeRef.current)));
     }
   }
-  function submitClipEnd(){
+  function submitClipEnd(mode=clipEndMode.current){
     if(importBusy.current||!selectedClip||!selectedAsset)return;
     const current=latest.current.find(c=>c.id===selectedClip.id);if(!current)return;
-    const mode=clipEndMode.current,ms=mode==="song"?parseRelativeSongTime(clipSongEndText):parseSongTime(clipEndText);
+    const ms=mode==="song"?parseRelativeSongTime(clipSongEndText):parseSongTime(clipEndText);
     if(ms===null){setError("Enter a valid end time, e.g. 00:08.918.");return;}
     const end=mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms;
     const next=setVideoEnd(latest.current,current,end,sourceLimit(current,selectedAsset));
@@ -388,7 +402,7 @@ export function MusicVideoEditor({id}:{id:string}){
     commitVideoEdit(current,next);setClipEndText(time(end,true));setClipSongEndText(signedTime(timelineToSongTime(end,rangeRef.current)));setError("");
   }
   function updateClipTime(text:string,mode:"song"|"timeline"){
-    clipEditKind.current="start";clipTimeMode.current=mode;
+    clipTimeMode.current=mode;
     if(mode==="song"){
       setClipSongText(text);
       const ms=parseRelativeSongTime(text);
@@ -419,8 +433,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);
     });
   }
-  function submitClipTime(){
-    const mode=clipTimeMode.current;
+  function submitClipTime(mode=clipTimeMode.current){
     const ms=mode==="song"?parseRelativeSongTime(clipSongText):parseSongTime(clipTimelineText);
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
     moveSelectedClip(mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms);
@@ -982,35 +995,28 @@ export function MusicVideoEditor({id}:{id:string}){
       </div>
       <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
-      {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
+      {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>e.preventDefault()}>
         <div className="mv-video-times">
           <div className="mv-time-pair" role="group" aria-label="Original song time">
             <span className="mv-time-pair-heading">Original song time <small>Position in the full, untrimmed song</small></span>
-        <label>Video start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
-        <label>Video end time<input aria-label="Video end time in original song" value={clipSongEndText} onChange={e=>updateClipEnd(e.target.value,"song")} placeholder="00:18.918"/></label>
+            <InlineTimeField label="Video start time" ariaLabel="Video start time in original song" value={clipSongText} onChange={v=>updateClipTime(v,"song")} onConfirm={()=>submitClipTime("song")} disabled={importing} placeholder="00:08.918"/>
+            <InlineTimeField label="Video end time" ariaLabel="Video end time in original song" value={clipSongEndText} onChange={v=>updateClipEnd(v,"song")} onConfirm={()=>submitClipEnd("song")} disabled={importing} placeholder="00:18.918"/>
           </div>
           <div className="mv-time-pair" role="group" aria-label="Project timeline">
             <span className="mv-time-pair-heading">Project timeline <small>Position in this music video project</small></span>
-        <label>Timeline start<input aria-label="Video start time on timeline" value={clipTimelineText} onChange={e=>updateClipTime(e.target.value,"timeline")} placeholder="00:08.918"/></label>
-        <label>Timeline end<input aria-label="Video end time on timeline" value={clipEndText} onChange={e=>updateClipEnd(e.target.value,"timeline")} placeholder="00:18.918"/></label>
+            <InlineTimeField label="Timeline start" ariaLabel="Video start time on timeline" value={clipTimelineText} onChange={v=>updateClipTime(v,"timeline")} onConfirm={()=>submitClipTime("timeline")} disabled={importing} placeholder="00:08.918"/>
+            <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing} placeholder="00:18.918"/>
           </div>
         </div>
-        <div className="mv-video-time-actions">
-        <button type="button" className="mv-primary" disabled={importing} onClick={submitClipTime}>Move video</button>
-        <button type="button" className="mv-outline" disabled={importing} onClick={submitClipEnd}>Set end</button>
-        </div>
-        <button type="submit" hidden tabIndex={-1} aria-hidden="true">Apply</button>
-        {originalClipSongTime!==null&&<button type="button" className="mv-outline" disabled={importing} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)}><Lock size={14}/> Restore Lip Sync · {time(originalClipSongTime,true)}</button>}
-        <button type="button" className="mv-outline" disabled={importing} onClick={switchVideoTrack}>{selectedClip.track===1?"Move to Video":"Move to Lip-Sync"}</button>
+        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Restore Lip Sync"><Lock size={14}/></button>}
         <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
       </form>:
-      <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
-        {songParts?<><label>Part source start<input aria-label="Song part start" value={partStartText} onChange={e=>setPartStartText(e.target.value)}/></label><label>Part source end<input aria-label="Song part end" value={partEndText} onChange={e=>setPartEndText(e.target.value)}/></label><button type="button" className="mv-outline" disabled={importing} onClick={()=>{const start=parseSongTime(partStartText),end=parseSongTime(partEndText);if(start===null||end===null){setError("Enter valid song times.");return;}editPart(start,end);}}>Set part</button><button type="button" className="mv-outline" disabled={importing||songParts.length<2} onClick={removeSongPart}><Trash2 size={14}/> Remove part</button><button type="button" className="mv-outline" disabled={importing} onClick={resetSongParts}>Reset splits</button></>:<><label>Source start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
-        <label>Source end<input aria-label="Song end time" value={endText} onChange={e=>setEndText(e.target.value)} placeholder="00:30.000"/></label></>}
-        <label>{songParts?"Song group position":"Timeline position"}<input aria-label="Song timeline position" value={positionText} onChange={e=>setPositionText(e.target.value)} placeholder="00:08.918"/></label>
-        <button type="submit" className="mv-outline" disabled={importing}>Apply</button>
-        <button type="button" className="mv-outline" disabled={importing||!!songParts} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)}>Reset</button>
-        <button type="button" className="mv-outline mv-song-rename" disabled={importing} onClick={()=>void renameSong()} title="Rename song" aria-label="Rename song"><Pencil size={14}/>{!project!.songName?" Set song name":""}</button>
+      <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>
+        <InlineTimeField label={songParts?"Part source start":"Source start"} ariaLabel={songParts?"Song part start":"Song start time"} value={songParts?partStartText:startText} onChange={songParts?setPartStartText:setStartText} onConfirm={()=>submitSongField("start")} disabled={importing} placeholder="00:08.918"/>
+        <InlineTimeField label={songParts?"Part source end":"Source end"} ariaLabel={songParts?"Song part end":"Song end time"} value={songParts?partEndText:endText} onChange={songParts?setPartEndText:setEndText} onConfirm={()=>submitSongField("end")} disabled={importing} placeholder="00:30.000"/>
+        <InlineTimeField label={songParts?"Song group position":"Timeline position"} ariaLabel="Song timeline position" value={positionText} onChange={setPositionText} onConfirm={()=>submitSongField("position")} disabled={importing} placeholder="00:08.918"/>
+        {songParts?<><button type="button" className="mv-outline mv-inspector-icon" disabled={importing||songParts.length<2} onClick={removeSongPart} title="Remove part" aria-label="Remove part"><Trash2 size={15}/></button><button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={resetSongParts} title="Reset splits" aria-label="Reset splits"><RotateCcw size={15}/></button></>:<button type="button" className="mv-outline mv-inspector-icon" disabled={importing} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs},0)} title="Reset song range" aria-label="Reset song range"><RotateCcw size={15}/></button>}
+        <button type="button" className="mv-outline mv-song-rename mv-inspector-icon" disabled={importing} onClick={()=>void renameSong()} title="Rename song" aria-label="Rename song"><Pencil size={14}/>{!project!.songName?" Set song name":""}</button>
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
       </form>}
       </div>
