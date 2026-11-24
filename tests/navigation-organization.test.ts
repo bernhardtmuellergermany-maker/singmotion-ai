@@ -128,7 +128,10 @@ test("song placement is independent of source trim and locked video moves atomic
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
  assert.ok(editor.includes("songPositionMs:range.positionMs"));
- assert.ok(editor.includes('field==="position"?positionText:'));
+ assert.ok(editor.includes('beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);}'));
+ assert.ok(editor.includes('shiftLockedClips(initial,position-original.positionMs)'));
+ assert.ok(editor.includes('commitSongRange(original,position)'));
+ assert.ok(!editor.includes('positionText'));
  assert.ok(editor.includes("songOffset(next)-songOffset(original)"));
  assert.ok(api.includes("body.songPositionMs"));
  assert.ok(core.includes("song_position_ms=?"));
@@ -474,7 +477,14 @@ test("song inspector shows actual song name once, playhead cap stays in bounds, 
  const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
  assert.ok(editor.includes('project!.songName||"Unnamed song"'));
  assert.ok(!editor.includes(':"Song trim"}</strong>'));
- assert.ok(editor.includes('aria-label="Rename song"'));
+ assert.ok(!editor.includes('aria-label="Rename song"'));
+ assert.ok(!editor.includes('aria-label="Reset splits"'));
+ assert.ok(!editor.includes('aria-label="Reset song range"'));
+ assert.ok(!editor.includes('aria-label="Remove part"'));
+ assert.ok(editor.includes('aria-label={"Rename project "+project!.name}'));
+ assert.ok(editor.includes('onClick={songSelected?removeSongPart:deleteClip}'));
+ assert.ok(editor.includes('aria-label="Undo"'));
+ assert.ok(editor.includes('aria-label="Redo"'));
  assert.ok(core.includes("ADD COLUMN song_name TEXT DEFAULT NULL"));
  assert.ok(api.includes('await originalSongTitle(temp)||cleanSongName(file.name'));
  assert.ok(editor.includes('className="mv-playhead-overlay"'));
@@ -547,7 +557,9 @@ test("video and song time fields confirm inline and on Enter",()=>{
  assert.ok(editor.includes('if(e.key==="Enter"){e.preventDefault();if(!disabled)onConfirm();}'));
  assert.ok(editor.includes('onConfirm={()=>submitSongField("start")}'));
  assert.ok(editor.includes('onConfirm={()=>submitSongField("end")}'));
- assert.ok(editor.includes('onConfirm={()=>submitSongField("position")}'));
+ assert.ok(!editor.includes('onConfirm={()=>submitSongField("position")}'));
+ assert.ok(!editor.includes('Song group position'));
+ assert.ok(!editor.includes('ariaLabel="Song timeline position"'));
  assert.ok(!editor.includes(">Move video</button>"));
  assert.ok(!editor.includes(">Set end</button>"));
  assert.ok(!editor.includes(">Set part</button>"));
