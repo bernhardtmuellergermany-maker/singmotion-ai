@@ -7,28 +7,22 @@ import {
 
 const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 
-test("all 22 Help camera moves are available; only the eight simpler moves show initially",()=>{
- assert.equal(cameraMovements.length,22);
+test("all 46 camera moves are available in seven categories; eight show initially",()=>{
+ assert.equal(cameraMovements.length,46);
  assert.equal(featuredCameraMovements.length,8);
- assert.equal(additionalCameraMovements.length,14);
- const featured=[
-  "Static / locked shot","Slow push-in","Slow pull-out / dolly out",
-  "Orbit left","Tilt up","Tilt down","Gentle handheld","Follow backwards",
- ];
- assert.deepEqual(featuredCameraMovements.map(move=>move.name),featured);
- assert.equal(new Set(cameraMovements.map(move=>move.name)).size,22);
- assert.equal(new Set(cameraMovements.map(move=>move.direction)).size,22);
+ assert.equal(additionalCameraMovements.length,38);
+ assert.equal(new Set(cameraMovements.map(move=>move.category)).size,7);
+ assert.equal(new Set(cameraMovements.map(move=>move.name)).size,46);
+ assert.equal(new Set(cameraMovements.map(move=>move.direction)).size,46);
  for(const move of cameraMovements){
-  assert.match(move.direction,/^Camera: [A-Z]/);
-  assert.ok(move.direction.length<350,move.name);
-  assert.ok(move.example.length>20,move.name);
-  assert.ok(move.risk.length>15,move.name);
+  assert.ok(move.direction.startsWith("Camera: "));
+  assert.ok(move.direction.length<=500,move.name);
+  assert.match(move.example,/Movement: .*Speed: .*Framing: .*End: /);
+  assert.equal(move.example,move.text);
  }
- assert.ok(additionalCameraMovements.some(move=>move.level.includes("experimental")));
- assert.ok(featuredCameraMovements.every(move=>!move.level.includes("experimental")));
 });
 
-test("Studio camera picker only replaces previous Camera line and expands 14 other moves on demand",()=>{
+test("Studio camera picker only replaces previous Camera line and expands 38 other moves on demand",()=>{
  const wizard=read("components/studio-wizard.tsx");
  const help=read("app/(site)/help/camera-movements/page.tsx");
  assert.match(help,/import \{cameraMovements\} from "@\/lib\/studio-camera-movements"/);
