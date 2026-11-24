@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import {useCallback,useEffect,useState} from "react";
-import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2} from "lucide-react";
+import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2,ChevronDown,RefreshCw,ArrowUpDown} from "lucide-react";
 import type {MusicProject,MusicProjectSummary,ProjectAspectRatio} from "@/lib/music-video/core";
 import "./music-video.css";
 
@@ -16,6 +16,8 @@ const duration=(ms:number)=>String(Math.floor(ms/60000))+":"+String(Math.floor((
 export function MusicProjectsClient(){
   const [projects,setProjects]=useState<MusicProjectSummary[]>([]);
   const [search,setSearch]=useState("");
+  const [projectFilter,setProjectFilter]=useState<"all"|"auto"|"9:16"|"16:9">("all");
+  const [newest,setNewest]=useState(true),[refreshing,setRefreshing]=useState(false);
   const [error,setError]=useState("");
   const [loading,setLoading]=useState(true);
   const [creating,setCreating]=useState(false);
@@ -24,9 +26,10 @@ export function MusicProjectsClient(){
   const [aspectRatio,setAspectRatio]=useState<ProjectAspectRatio>("auto");
   const [song,setSong]=useState<File|null>(null);
   const refresh=useCallback(async()=>{
+    setRefreshing(true);
     try{const data=await api<Payload>("/api/music-video");setProjects(data.projects||[]);setError("");}
     catch(e){setError(e instanceof Error?e.message:"Projects unavailable.");}
-    finally{setLoading(false);}
+    finally{setLoading(false);setRefreshing(false);}
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
   async function create(e:React.FormEvent){
@@ -50,13 +53,20 @@ export function MusicProjectsClient(){
     try{await api("/api/music-video/"+p.id,{method:"DELETE"});await refresh();}
     catch(e){setError(e instanceof Error?e.message:"Delete failed.");}
   }
-  const filtered=projects.filter(p=>p.name.toLowerCase().includes(search.toLowerCase()));
+  const filtered=projects.filter(p=>(projectFilter==="all"||p.aspectRatio===projectFilter)&&(p.name+" "+(p.songName||"")).toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt);
   return <main id="content" className="mv-root mv-projects">
     <div className="mv-heading"><div><div className="mv-heading-title"><Clapperboard size={30}/><h1>Projects</h1></div>
       <p>Your music video projects, all in one place.</p></div>
       <button className="mv-primary" type="button" onClick={()=>setCreating(true)}><Plus size={17}/> New Project</button>
     </div>
-    <div className="mv-search"><Search size={17}/><input aria-label="Search projects" placeholder="Search projects…" value={search} onChange={e=>setSearch(e.target.value)}/></div>
+    <div className="mv-browse-toolbar">
+      <label className="mv-browse-search"><Search size={16}/><input type="search" aria-label="Search projects" placeholder="Search projects…" value={search} onChange={e=>setSearch(e.target.value)}/></label>
+      <label className="mv-browse-filter"><select aria-label="Filter projects by format" value={projectFilter} onChange={e=>setProjectFilter(e.target.value as typeof projectFilter)}>
+        {(["all","9:16","16:9","auto"] as const).map(f=><option key={f} value={f}>{f==="all"?"All projects":f==="auto"?"Auto format":f} ({projects.filter(p=>f==="all"||p.aspectRatio===f).length})</option>)}
+      </select><ChevronDown size={15} aria-hidden="true"/></label>
+      <button type="button" className="mv-browse-control" disabled={refreshing} onClick={()=>void refresh()} aria-label="Refresh projects" title="Refresh projects"><RefreshCw size={15}/></button>
+      <button type="button" className="mv-browse-control" onClick={()=>setNewest(v=>!v)} aria-label={newest?"Sort oldest first":"Sort newest first"}><ArrowUpDown size={15}/><span>{newest?"Newest first":"Oldest first"}</span></button>
+    </div>
     {error&&<p role="alert" className="mv-error">{error}</p>}
     {loading?<p role="status">Loading projects…</p>:filtered.length?<div className="mv-project-grid">
       {filtered.map(p=><article key={p.id} className="mv-project-card">
