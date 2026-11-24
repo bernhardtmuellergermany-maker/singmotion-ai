@@ -246,3 +246,5 @@
 .mv-media-role button{display:inline-flex;align-items:center;gap:4px;justify-content:center;flex:1 1 auto;background:#21142e;border:1px solid #76518d;border-radius:7px;padding:6px 5px;font-size:11px;white-space:nowrap}
 .mv-media-role button.active{background:#6f2b99;border-color:#dc91ff;color:#fff}
 .mv-media-info .mv-source-time{font-size:11px;line-height:1.4;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+
+.mv-media-role button{min-height:32px;cursor:pointer}
