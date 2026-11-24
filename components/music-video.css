@@ -495,3 +495,6 @@
  .mv-editor .mv-clip-position .mv-video-times{grid-template-columns:minmax(0,1fr);gap:9px}
  .mv-editor .mv-clip-position .mv-time-pair{gap:8px}
 }
+
+.mv-editor .mv-time-pair-heading{grid-column:1/-1;font-size:12px;font-weight:600;color:#ede1f7;display:flex;flex-direction:column;gap:3px;line-height:1.3}
+.mv-editor .mv-time-pair-heading small{font-size:11px;color:#c1b2cf;font-weight:400}
