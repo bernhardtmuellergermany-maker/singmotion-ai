@@ -141,3 +141,11 @@
 .mv-library-search{max-width:100%}
 .mv-media-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+.mv-lip-dialog{max-height:85vh;overflow:auto}
+.mv-lip-list{display:grid;gap:8px;max-height:42vh;overflow:auto}
+.mv-lip-list button{display:flex;align-items:center;gap:12px;text-align:left;border:1px solid var(--mv-border);border-radius:10px;background:#301b45;padding:12px}
+.mv-lip-list button:hover:not(:disabled){background:#52306b}
+.mv-lip-list button span{flex:1;min-width:0;display:grid;gap:5px;overflow-wrap:anywhere}
+.mv-lip-list button small{color:var(--mv-muted);font-size:12px}
+.mv-add-menu{min-width:205px}
