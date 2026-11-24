@@ -185,11 +185,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(start===null||end===null||position===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
     commitSongRange({startMs:start,endMs:end},position===rangeRef.current.positionMs?undefined:position);
   }
-  // Short swipes pan the viewport, stationary holds arm editing. Do not move media on a scroll.
-  function beginMediaGesture(e:React.PointerEvent,media:string,onHold:()=>void,onTap:()=>void,immediate=false){
+  // Mouse editing starts immediately. Touch swipes pan the viewport; stationary holds arm editing.
+  function beginMediaGesture(e:React.PointerEvent,media:string,onHold:()=>void,onTap:()=>void){
     if(e.button!==0||!e.isPrimary||importBusy.current||gestureCleanup.current)return;
     e.preventDefault();e.stopPropagation();
-    if(immediate&&e.pointerType==="mouse"){setArmedMedia(media);onHold();return;}
+    if(e.pointerType==="mouse"){setArmedMedia(media);onHold();return;}
     const pointer=e.pointerId,x=e.clientX,y=e.clientY;
     const scroller=scroll.current,startScroll=scroller?.scrollLeft??0,startY=window.scrollY;
     let axis:"x"|"y"|null=null;
@@ -854,15 +854,15 @@ export function MusicVideoEditor({id}:{id:string}){
                     onContextMenu={e=>e.preventDefault()}
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id));}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
-                  <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Hold to trim or extend start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
+                  <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
                   <span className="mv-clip-title">{a.role==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
                   {c.syncLocked&&<Lock className="mv-clip-lock" size={13}/>}
-                  <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Hold to trim or extend end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"end")}>Ⅱ</button>
+                  <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}>Ⅱ</button>
                 </div>;
               })}
             </div>)}
             <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget)seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left));}}>
-              {songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Tap to select song; hold to move; swipe to scroll"
+              {songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
@@ -872,12 +872,12 @@ export function MusicVideoEditor({id}:{id:string}){
               {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")}
                 style={{left:(edge==="start"?songRange.positionMs:songTimelineEnd(songRange))/1000*zoom}}
                 aria-label={"Trim song "+edge} title={time(edge==="start"?songRange.startMs:songRange.endMs,true)}
-                onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong,true)}
+                onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong)}
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
                 <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom,left:-p.startMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,j)=><span key={j} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
                 <span className="mv-song-part-number">{i+1}</span>
-                {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i),true)} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}>Ⅱ</button>)}
+                {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}>Ⅱ</button>)}
               </div>)}
             </div>
             <div className={"mv-playhead"+(scrubbing?" is-scrubbing":"")} style={{left:progress.positionMs/1000*zoom}}>
@@ -914,7 +914,7 @@ export function MusicVideoEditor({id}:{id:string}){
         {originalClipSongTime!==null&&<button type="button" className="mv-outline" disabled={importing} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)}><Lock size={14}/> Restore Lip Sync · {time(originalClipSongTime,true)}</button>}
         <span>Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
         <button type="button" className="mv-outline" disabled={importing} onClick={switchVideoTrack}>{selectedClip.track===1?"Move to Video 2":"Move to Lip Sync / Main"}</button>
-        <small>Swipe to scroll; hold a clip or handle to edit. Drag the middle between tracks. Song start refers to the original recording; timeline start follows the actual project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
+        <small>Drag a clip or handle with the mouse. On touch, swipe to scroll or hold to edit. Drag the middle between tracks. Song start refers to the original recording; timeline start follows the actual project timeline. Enter MM:SS.mmm or seconds. Clips only move if the full interval is free on this track.{selectedClip.syncLocked?" Sync Lock is enabled.":""}</small>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
         <strong><Scissors size={16}/> {songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"Song trim"}</strong>
@@ -926,7 +926,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <span>Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
         <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead({...selectedPart,positionMs:songTimeToTimeline(selectedPart.startMs,songRange)},playhead,"start")} onClick={()=>cutSong("start")}><Scissors size={14}/> Trim start at playhead</button>
         <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead({...selectedPart,positionMs:songTimeToTimeline(selectedPart.startMs,songRange)},playhead,"end")} onClick={()=>cutSong("end")}><Scissors size={14}/> Trim end at playhead</button>
-        <small>Swipe to scroll; hold the song to move all parts together. Split or trim at the playhead; removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
+        <small>Drag with mouse to move all song parts together. On touch, swipe to scroll or hold to move. Split or trim at the playhead; removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
       </form>}
       </div>
       {error&&<p className="mv-error" role="alert">{error}</p>}
