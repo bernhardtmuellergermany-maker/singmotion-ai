@@ -37,3 +37,21 @@ export function shiftLockedClips<T extends {syncLocked:boolean;timelineStartMs:n
  }
  return moved;
 }
+
+/** Song times refer to the original recording, even after trimming or moving it. */
+export const songTimeToTimeline=(ms:number,range:SongPlacement)=>ms+songOffset(range);
+export const timelineToSongTime=(ms:number,range:SongPlacement)=>ms-songOffset(range);
+export function parseRelativeSongTime(text:string):number|null{
+ const trimmed=text.trim();
+ if(!trimmed.startsWith("-"))return parseSongTime(trimmed);
+ const value=parseSongTime(trimmed.slice(1));
+ return value===null?null:-value;
+}
+type PositionedClip={id:string;track:number;timelineStartMs:number;sourceInMs:number;sourceOutMs:number;syncLocked:boolean};
+export function positionVideoClip<T extends PositionedClip>(clips:readonly T[],clip:T,position:number):{status:"ok";clip:T}|{status:"bounds"|"collision"|"locked"}{
+ const length=clip.sourceOutMs-clip.sourceInMs;
+ if(!Number.isSafeInteger(position)||position<0||length<=0||position+length>MAX_TIMELINE_MS)return {status:"bounds"};
+ if(clip.syncLocked&&position!==clip.timelineStartMs)return {status:"locked"};
+ if(clips.some(c=>c.id!==clip.id&&c.track===clip.track&&position<c.timelineStartMs+c.sourceOutMs-c.sourceInMs&&position+length>c.timelineStartMs))return {status:"collision"};
+ return {status:"ok",clip:{...clip,timelineStartMs:position}};
+}
