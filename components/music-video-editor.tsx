@@ -3,7 +3,7 @@ import {useCallback,useEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -12,6 +12,7 @@ import "./music-video.css";
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
 type EditSnapshot={clips:MusicClip[];range:SongPlacement;parts:SongRange[]|null};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
+type ExportJob={id:string;state:"rendering"|"ready"|"failed";progress:number;error?:string};
 const endpoint="/api/music-video/";
 const uuid=()=>crypto.randomUUID();
 const time=(ms:number,precise=false)=>{
@@ -60,6 +61,10 @@ export function MusicVideoEditor({id}:{id:string}){
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
   const [importing,setImporting]=useState(false);
   const importBusy=useRef(false),roleBusy=useRef(false);
+  const [exportJob,setExportJob]=useState<ExportJob|null>(null),[exportError,setExportError]=useState(""),[exportOpen,setExportOpen]=useState(false),[exporting,setExporting]=useState(false);
+  const exportAbort=useRef<AbortController|null>(null),exportBusy=useRef(false);
+  useEffect(()=>()=>exportAbort.current?.abort(),[]);
+  const [inspectorOpen,setInspectorOpen]=useState(true);
   const [roleChanging,setRoleChanging]=useState<string|null>(null),[roleError,setRoleError]=useState("");
   const [wave,setWave]=useState<number[]>([]),[editingName,setEditingName]=useState(false),[newName,setNewName]=useState("");
   const audio=useRef<HTMLAudioElement>(null),video=useRef<HTMLVideoElement>(null),scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
@@ -251,7 +256,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const selectedClip=clips.find(c=>c.id===selected);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
   const songSelected=!selectedClip||!selectedAsset;
-  function selectSong(){setSelected(null);setAddMenu(null);}
+  function selectSong(){setSelected(null);setAddMenu(null);setInspectorOpen(true);}
+  useEffect(()=>{setInspectorOpen(true);},[selected,partIndex]);
   const currentParts=effectiveSongParts(songRange,songParts);
   const selectedPart=currentParts[Math.min(partIndex,currentParts.length-1)];
   useEffect(()=>{setPartStartText(time(selectedPart.startMs,true));setPartEndText(time(selectedPart.endMs,true));},[selectedPart.startMs,selectedPart.endMs]);
@@ -599,6 +605,28 @@ export function MusicVideoEditor({id}:{id:string}){
       revision.current=data.project.revision;setDetail(prev=>prev?{...prev,project:data.project}:prev);setEditingName(false);
     }catch(e){setError(e instanceof Error?e.message:"Rename failed.");}
   }
+  async function exportMp4(){
+    if(importBusy.current||exportBusy.current||!latest.current.length)return;
+    exportBusy.current=true;importBusy.current=true;setImporting(true);setExporting(true);setExportOpen(true);setExportError("");setExportJob(null);stopPlayback();
+    const controller=new AbortController();exportAbort.current=controller;
+    try{
+      if(saveTimer.current)clearTimeout(saveTimer.current);
+      await saveNow();
+      let job=await request<ExportJob>(endpoint+id+"/export",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({revision:revision.current}),signal:controller.signal});
+      setExportJob(job);
+      const deadline=Date.now()+22*60*1000;
+      while(job.state==="rendering"){
+        await new Promise<void>(resolve=>setTimeout(resolve,1000));
+        if(controller.signal.aborted)return;
+        if(Date.now()>deadline)throw new Error("Export timed out. Please try again.");
+        job=await request<ExportJob>(endpoint+id+"/export/"+job.id,{signal:controller.signal});setExportJob(job);
+      }
+      if(job.state!=="ready")throw new Error(job.error||"MP4 export failed.");
+      const link=document.createElement("a");link.href=endpoint+id+"/export/"+job.id+"?download=1";link.download=(project?.name||"music-video")+".mp4";document.body.appendChild(link);link.click();link.remove();
+      setExportOpen(false);
+    }catch(e){if(!controller.signal.aborted)setExportError(e instanceof Error?e.message:"Export failed.");}
+    finally{exportBusy.current=false;importBusy.current=false;if(!controller.signal.aborted){setImporting(false);setExporting(false);}exportAbort.current=null;}
+  }
   function stopPlayback(){
     playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();
   }
@@ -657,7 +685,7 @@ export function MusicVideoEditor({id}:{id:string}){
       const part=songPartAt(range,partsRef.current,at);
       if(part&&current){
         const end=songTimelineEnd(part);
-        if(current.ended&&!current.paused){at=end;}
+        if(current.ended&&Math.round(current.currentTime*1000)+songOffset(range)>=end-40){at=end;}
         else{
           if(current.paused&&!starting){
             starting=true;current.currentTime=Math.max(part.startMs,at-songOffset(range))/1000;
@@ -709,7 +737,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="submit" aria-label="Save project name"><Check size={17}/></button></form>:
           <button className="mv-project-name-button" title={project!.name+" · Rename project"} aria-label={"Rename project "+project!.name} onClick={()=>setEditingName(true)}><Pencil size={17}/><span>{project!.name}</span></button>}</div>
       <div className="mv-top-actions"><span role="status" className="mv-status">{status}</span>
-        <button className="mv-primary mv-export-button" type="button" aria-label="MP4 Export — Coming Soon" title="MP4 Export — Coming Soon" disabled><Upload size={17}/><span>Export<span className="mv-export-soon"> · Coming Soon</span></span></button></div>
+        <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!clips.length} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div className="mv-video-box">
@@ -738,8 +766,9 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-timeline-toolbar">
         <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
-          <button onClick={songSelected?splitSong:split} disabled={importing||(songSelected?!splitSongPart(songRange,songParts,playhead):!selectedClip||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title="Split selected media at playhead"><Scissors size={17}/> {songSelected?"Split song":"Split video"}</button>
-          <button onClick={deleteClip} disabled={!selectedClip}><Trash2 size={17}/> Delete</button>
+          <button onClick={split} disabled={importing||!selectedClip||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100} title="Split selected video at playhead"><Scissors size={15}/> Split video</button>
+          <button className="mv-split-song" onClick={splitSong} disabled={importing||!splitSongPart(songRange,songParts,playhead)} title="Split song at playhead"><Scissors size={15}/> Split song</button>
+          <button onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip)}><Trash2 size={17}/> Delete</button>
           {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
           {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing} onClick={switchVideoTrack}>Switch track</button>}</div>
         <div className="mv-timeline-zoom">
@@ -823,6 +852,8 @@ export function MusicVideoEditor({id}:{id:string}){
           <div className="mv-track-add-row mv-track-add-audio" aria-hidden="true"/>
         </div>
       </div>
+      <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?(songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1):"Song"):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
+      <div className="mv-inspector-body" hidden={!inspectorOpen}>
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
         <strong><Film size={16}/> {selectedClip.track===1?"Lip Sync / Main":"Video 2"}: {selectedAsset.name}</strong>
         <label>Song start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
@@ -849,6 +880,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <button type="button" className="mv-outline" disabled={importing||!trimSongAtPlayhead({...selectedPart,positionMs:songTimeToTimeline(selectedPart.startMs,songRange)},playhead,"end")} onClick={()=>cutSong("end")}><Scissors size={14}/> Trim end at playhead</button>
         <small>Swipe to scroll; hold the song to move all parts together. Split or trim at the playhead; removing a part leaves silence, preserving lip sync. Enter MM:SS.mmm or seconds.</small>
       </form>}
+      </div>
       {error&&<p className="mv-error" role="alert">{error}</p>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file,uploadTrack);e.target.value="";
@@ -884,6 +916,8 @@ export function MusicVideoEditor({id}:{id:string}){
           </div></article>)}</div>:<p className="mv-empty-library">No videos in this Library. Import a video or use Add to Project from Videos.</p>}
       </div>}
     </section>
+    {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
+    {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||"Preparing MP4 for download."}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
     {lipTrack!==null&&<div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
       <div className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
         <h2>Insert Lip Sync · {lipTrack===1?"Main track":"Video 2"}</h2>
