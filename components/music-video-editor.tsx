@@ -932,11 +932,13 @@ export function MusicVideoEditor({id}:{id:string}){
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
         <strong><Film size={16}/> {selectedClip.track===1?"Lip Sync / Main":"Video 2"}: {selectedAsset.name}</strong>
         <div className="mv-video-times">
-          <div className="mv-time-pair" role="group" aria-label="Video times in original song">
+          <div className="mv-time-pair" role="group" aria-label="Original song time">
+            <span className="mv-time-pair-heading">Original song time <small>Position in the full, untrimmed song</small></span>
         <label>Video start time<input aria-label="Video start time in original song" value={clipSongText} onChange={e=>updateClipTime(e.target.value,"song")} placeholder="00:08.918"/></label>
         <label>Video end time<input aria-label="Video end time in original song" value={clipSongEndText} onChange={e=>updateClipEnd(e.target.value,"song")} placeholder="00:18.918"/></label>
           </div>
-          <div className="mv-time-pair" role="group" aria-label="Video times on project timeline">
+          <div className="mv-time-pair" role="group" aria-label="Project timeline">
+            <span className="mv-time-pair-heading">Project timeline <small>Position in this music video project</small></span>
         <label>Timeline start<input aria-label="Video start time on timeline" value={clipTimelineText} onChange={e=>updateClipTime(e.target.value,"timeline")} placeholder="00:08.918"/></label>
         <label>Timeline end<input aria-label="Video end time on timeline" value={clipEndText} onChange={e=>updateClipEnd(e.target.value,"timeline")} placeholder="00:18.918"/></label>
           </div>
