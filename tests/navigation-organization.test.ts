@@ -292,3 +292,13 @@ test("timeline adds stay on the right and the song shares a single selection ins
  assert.ok(css.includes('.mv-track-adds .mv-add-menu{left:auto;right:3px'));
  assert.ok(css.includes('.mv-song-block.is-selected'));
 });
+
+test("project header stays on one compact line with readable status and export",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(editor.includes('className="mv-project-name-button"'));
+ assert.ok(editor.includes('<span>{project!.name}</span>'));
+ assert.ok(editor.includes('className="mv-primary mv-export-button"'));
+ assert.ok(css.includes('.mv-top{flex-wrap:nowrap}'));
+ assert.ok(css.includes('.mv-top .mv-export-soon{display:none}'));
+ assert.ok(css.includes('.mv-top .mv-top-actions{flex:none}'));
+});
