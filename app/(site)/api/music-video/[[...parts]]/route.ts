@@ -1,7 +1,9 @@
 import {NextRequest} from "next/server";
 import {createReadStream} from "node:fs";
 import {Readable} from "node:stream";
-import {mkdir,writeFile,rename,rm,stat,unlink,realpath,readFile} from "node:fs/promises";
+import {mkdir,writeFile,rename,rm,stat,unlink,realpath,readFile,readdir} from "node:fs/promises";
+import {tmpdir} from "node:os";
+import {createHash} from "node:crypto";
 import path from "node:path";
 import {randomUUID} from "node:crypto";
 import {execFile} from "node:child_process";
@@ -47,21 +49,27 @@ async function fileForm(req:NextRequest,maxBytes:number,name:string){
   if(!(file instanceof File)||file.size<1||file.size>maxBytes)throw new MusicError("Upload a supported file.",413);
   return {form,file};
 }
-async function streamFile(req:NextRequest,filename:string,mime:string){
+async function streamFile(req:NextRequest,filename:string,mime:string,revalidate=false){
   const info=await stat(filename);
   if(!info.isFile()||info.size<1)throw new MusicError("Media unavailable.",404);
-  const size=info.size,range=req.headers.get("range");
+  const size=info.size;
+  const etag='"'+createHash("sha256").update(filename+":"+size+":"+info.mtimeMs).digest("hex")+'"';
+  const headers=revalidate?{...common,"Cache-Control":"private, no-cache","Vary":"Cookie, Authorization","ETag":etag}:common;
+  const ifRange=req.headers.get("if-range");
+  const range=!ifRange||ifRange===etag?req.headers.get("range"):null;
+  if(revalidate&&!range&&req.headers.get("if-none-match")===etag)return new Response(null,{status:304,headers});
   let start=0,end=size-1,status=200;
   if(range){
-    const match=/^bytes=(\d+)-(\d*)$/.exec(range);
-    if(!match)return new Response(null,{status:416,headers:{...common,"Content-Range":"bytes */"+size}});
-    start=Number(match[1]);end=match[2]?Number(match[2]):size-1;
-    if(!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||start>end||end>=size)
-      return new Response(null,{status:416,headers:{...common,"Content-Range":"bytes */"+size}});
+    const match=/^bytes=(\d*)-(\d*)$/.exec(range);
+    if(!match||(!match[1]&&!match[2]))return new Response(null,{status:416,headers:{...headers,"Content-Range":"bytes */"+size}});
+    const a=Number(match[1]),b=Number(match[2]);
+    if(!Number.isSafeInteger(a)||!Number.isSafeInteger(b)||(!match[1]&&b<=0))return new Response(null,{status:416,headers:{...headers,"Content-Range":"bytes */"+size}});
+    start=match[1]?a:Math.max(0,size-b);end=match[1]&&match[2]?Math.min(b,size-1):size-1;
+    if(start>end||start>=size)return new Response(null,{status:416,headers:{...headers,"Content-Range":"bytes */"+size}});
     status=206;
   }
   return new Response(Readable.toWeb(createReadStream(filename,{start,end})) as ReadableStream,{
-    status,headers:{...common,"Content-Type":mime,"Accept-Ranges":"bytes",
+    status,headers:{...headers,"Content-Type":mime,"Accept-Ranges":"bytes",
       "Content-Length":String(end-start+1),
       ...(status===206?{"Content-Range":"bytes "+start+"-"+end+"/"+size}:{})}
   });
@@ -160,6 +168,64 @@ async function libraryThumbnail(projectId:string,assetId:string,file:string,dura
   thumbnailJobs.set(cached,job);
   try{return await job;}finally{thumbnailJobs.delete(cached);}
 }
+// Cache compact waveform data, not decoded audio in the browser. Bound FFmpeg work.
+const waveJobs=new Map<string,Promise<number[]>>();
+async function songWaveform(id:string):Promise<number[]>{
+  const cached=path.join(projectFolder(id),"song.wave-v1.json");
+  const old=await readFile(cached,"utf8").then(v=>JSON.parse(v) as number[]).catch(()=>null);
+  if(old?.length===240)return old;
+  const pending=waveJobs.get(id);if(pending)return pending;
+  if(waveJobs.size>=2)return [];
+  const job=(async()=>{
+    const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",path.join(projectFolder(id),"song.mp3"),"-vn","-sn","-dn","-ac","1","-ar","2000","-t","3600","-f","s16le","pipe:1"],{encoding:"buffer",timeout:30000,maxBuffer:16*1024*1024});
+    const samples=Math.floor(stdout.length/2);
+    if(!samples)return [];
+    const peaks=Array.from({length:240},(_,i)=>{
+      let peak=0;const from=Math.floor(i*samples/240),to=Math.floor((i+1)*samples/240);
+      for(let j=from;j<to;j++)peak=Math.max(peak,Math.abs(stdout.readInt16LE(j*2))/32768);
+      return Math.max(.07,Math.round(peak*1000)/1000);
+    });
+    const temp=cached+"."+randomUUID()+".tmp";
+    try{await writeFile(temp,JSON.stringify(peaks),{flag:"wx",mode:0o600});await rename(temp,cached);}catch{}finally{await rm(temp,{force:true}).catch(()=>{});}
+    return peaks;
+  })();
+  waveJobs.set(id,job);
+  try{return await job;}finally{waveJobs.delete(id);}
+}
+
+// Private, disposable preview cache. Never replace or transcode the original for export.
+// One encoder, at most six 24 MiB files; long/unavailable media fall back to the original.
+const previewRoot=()=>mkdir(path.join(tmpdir(),"singmotion-project-preview-v1"),{recursive:true,mode:0o700}).then(()=>path.join(tmpdir(),"singmotion-project-preview-v1"));
+const previewJobs=new Map<string,Promise<boolean>>();
+async function previewPath(id:string,assetId:string,file:string){
+  const info=await stat(file);
+  const key=createHash("sha256").update(id+":"+assetId+":"+info.size+":"+info.mtimeMs).digest("hex");
+  return path.join(await previewRoot(),key+".mp4");
+}
+async function readyPreview(file:string){
+  return stat(file).then(s=>s.isFile()&&s.size>1024&&s.size<=24*1024*1024).catch(()=>false);
+}
+async function preparePreview(file:string,target:string,durationMs:number):Promise<boolean>{
+  if(await readyPreview(target))return true;
+  if(durationMs>180000)return false;
+  const pending=previewJobs.get(target);if(pending)return pending;
+  if(previewJobs.size)return false;
+  const job=(async()=>{
+    const dir=path.dirname(target);
+    const entries=await Promise.all((await readdir(dir)).filter(n=>/^[a-f0-9]{64}\.mp4$/.test(n)).map(async n=>({file:path.join(dir,n),info:await stat(path.join(dir,n)).catch(()=>null)})));
+    const old=entries.filter(e=>e.info).sort((a,b)=>a.info!.mtimeMs-b.info!.mtimeMs);
+    while(old.length>=6){const first=old.shift()!;await rm(first.file,{force:true});}
+    const temp=target+"."+randomUUID()+".tmp.mp4";
+    try{
+      await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",file,"-map","0:v:0","-map","0:a:0?","-sn","-dn","-filter_threads","1","-vf","scale=w='min(854,iw)':h='min(854,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1","-c:v","libx264","-threads","1","-preset","veryfast","-crf","24","-maxrate","800k","-bufsize","1600k","-g","30","-pix_fmt","yuv420p","-c:a","aac","-b:a","96k","-movflags","+faststart",temp],{timeout:90000,maxBuffer:65536});
+      if(!await readyPreview(temp))return false;
+      await rename(temp,target);return true;
+    }catch{return false;}finally{await rm(temp,{force:true}).catch(()=>{});}
+  })();
+  previewJobs.set(target,job);
+  try{return await job;}finally{previewJobs.delete(target);}
+}
+
 function cleanSongName(name:unknown):string|null{
  if(typeof name!=="string")return null;
  return name.replace(/[\x00-\x1f\x7f]/g," ").trim().slice(0,180)||null;
@@ -230,7 +296,21 @@ async function handler(req:NextRequest,context:Context){
       }
     }
     if(section==="song"&&req.method==="GET"&&!assetId)
-      return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg");
+      return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg",true);
+    if(section==="waveform"&&req.method==="GET"&&!assetId){
+      const peaks=await songWaveform(id).catch(()=>[]);
+      return json({peaks});
+    }
+    if(section==="preview"&&assetId&&validId(assetId)&&(req.method==="GET"||req.method==="POST")){
+      const asset=musicAsset(id,owner,assetId);
+      const files=await exportSources(req,owner,id,musicDetail(id,owner),[assetId]);
+      const original=files.get(assetId)!;
+      const target=await previewPath(id,assetId,original);
+      if(req.method==="POST")return json({ready:await preparePreview(original,target,asset.durationMs)});
+      if(await readyPreview(target))return await streamFile(req,target,"video/mp4",true);
+      // Evicted preview: use original, preserving the source clock.
+      return Response.redirect(new URL("/api/music-video/"+id+"/assets/"+assetId,req.url));
+    }
     if(section==="clips"&&req.method==="PATCH"&&!assetId){
       const body=await jsonBody(req);
       return json(saveMusicClips(id,owner,body.revision,body.clips as MusicClip[],body.songStartMs,body.songEndMs,body.songPositionMs,body.songParts,body.trackMutes,body.aspectRatio));
@@ -345,7 +425,7 @@ async function handler(req:NextRequest,context:Context){
           return new Response(Readable.toWeb(createReadStream(file)) as ReadableStream,{headers:{...common,"Content-Type":extension==="webm"?"video/webm":"video/mp4","Content-Length":String(info.size),"Content-Disposition":'attachment; filename="'+name+'"'}});
         }
         if(asset.sourceKind==="uploaded")
-          return await streamFile(req,path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId),asset.sourceId==="webm"?"video/webm":"video/mp4");
+          return await streamFile(req,path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId),asset.sourceId==="webm"?"video/webm":"video/mp4",true);
         if(asset.sourceKind==="live")
           return Response.redirect(new URL("/api/studio-live?id="+encodeURIComponent(asset.sourceId||"")+"&video=1",req.url));
         if(asset.sourceKind==="paid")
