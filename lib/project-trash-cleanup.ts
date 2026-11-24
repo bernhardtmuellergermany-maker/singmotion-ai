@@ -10,6 +10,7 @@ import path from "node:path";
 import {deleteMirroredPrivateSource,type CloudMediaRecord} from "./cloud-media.ts";
 import {ensureDraftTrash,ensureLiveTrash,PROJECT_TRASH_MS} from "./project-trash.ts";
 import type {Asset} from "./domain.ts";
+import {preserveDeletedCreditVideo} from "./commerce/notifications.ts";
 
 type Candidate={id:string;owner:string;selection:string;deleted_at:number;kind:"draft"|"live"};
 type Options={now?:number;limit?:number;deleteCloud?:(owner:string,id:string,row:CloudMediaRecord)=>Promise<void>};
@@ -169,9 +170,14 @@ export async function runProjectTrashCleanup(root:string,options:Options={}){
        .run(candidate.id,candidate.owner,candidate.deleted_at);
      if(Number(removed.changes)===1)result.draftsPurged++;
     }else{
-     const removed=live!.prepare("DELETE FROM live_studio_projects WHERE attempt_id=? AND owner=? AND deleted_at=?")
+     live!.exec("BEGIN IMMEDIATE");
+     try{
+      if(commerce)preserveDeletedCreditVideo(commerce,live!,candidate.id,candidate.owner,candidate.deleted_at);
+      const removed=live!.prepare("DELETE FROM live_studio_projects WHERE attempt_id=? AND owner=? AND deleted_at=?")
        .run(candidate.id,candidate.owner,candidate.deleted_at);
-     if(Number(removed.changes)===1)result.studioPurged++;
+      live!.exec("COMMIT");
+      if(Number(removed.changes)===1)result.studioPurged++;
+     }catch(e){live!.exec("ROLLBACK");throw e}
     }
    }catch{result.held++}
   }
