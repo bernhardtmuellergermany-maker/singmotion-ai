@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -717,7 +717,7 @@ export function MusicVideoEditor({id}:{id:string}){
             starting=true;current.currentTime=Math.max(part.startMs,at-songOffset(range))/1000;
             void current.play().catch(()=>{stopPlayback();setError("Audio playback was blocked.");}).finally(()=>{starting=false;if(!playingRef.current)current.pause();});
           }
-          if(!current.paused)at=Math.max(part.positionMs,Math.round(current.currentTime*1000)+songOffset(range));
+          if(!current.paused&&!current.seeking)at=Math.max(at,part.positionMs,Math.round(current.currentTime*1000)+songOffset(range));
           if(at>=end||current.ended){current.pause();at=end;}
         }
       }else{
@@ -737,33 +737,47 @@ export function MusicVideoEditor({id}:{id:string}){
     if(playheadRef.current>=timelineEnd)setAt(0);
     playingRef.current=true;setPlaying(true);
     const range=rangeRef.current,at=playheadRef.current;
-    syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],at,true);
-    syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],at,true);
+    // The follower effect and song playing event start the matching clips.
     if(songPartAt(range,partsRef.current,at)){
       audio.current.currentTime=(at-songOffset(range))/1000;
       void audio.current.play().catch(()=>{stopPlayback();setError("Audio playback was blocked.");});
     }
   }
-  useEffect(()=>{
-    if(!activeClip||!activeAsset||!video.current)return;
-    const expected=(activeClip.sourceInMs+Math.max(0,playhead-activeClip.timelineStartMs))/1000;
-    if(video.current.readyState>=1&&Math.abs(video.current.currentTime-expected)>(playing?0.24:0.001)){
-      try{video.current.currentTime=expected;}catch{}
-    }
-    if(playing&&video.current.paused)void video.current.play().catch(()=>{});
-    if(!playing)video.current.pause();
-  },[playhead,activeClip,activeAsset,playing]);
+  // Song playback is the master clock. A clip never acquires an independent timeline offset.
+  function songClockRunning(at:number){
+    const master=audio.current;
+    return !songPartAt(rangeRef.current,partsRef.current,at)||
+      (!!master&&!master.paused&&!master.seeking&&master.readyState>=3);
+  }
+  function syncMedia(element:HTMLMediaElement|null,clip:MusicClip|undefined,at:number,run:boolean){
+    if(!element)return;
+    if(!clip||at<clip.timelineStartMs||at>=clipEnd(clip)){element.pause();element.playbackRate=1;return;}
+    const expected=clipSourceTimeMs(clip,at)/1000;
+    if(element.readyState<1)return;
+    const decision=mediaSyncDecision(expected,element.currentTime,run,element.paused,element.seeking);
+    if(element.playbackRate!==decision.rate)element.playbackRate=decision.rate;
+    if(decision.seek){try{element.currentTime=expected;}catch{}}
+    if(!run){element.pause();return;}
+    if(!element.seeking&&element.readyState>=2&&element.paused&&!element.ended)void element.play().catch(()=>{});
+  }
+  function syncVideo(element:HTMLVideoElement|null,clip:MusicClip|undefined){
+    const at=playheadRef.current;
+    syncMedia(element,clip,at,playingRef.current&&songClockRunning(at));
+  }
   function syncTrackAudio(element:HTMLAudioElement|null,clip:MusicClip|undefined,muted:boolean,at:number,run:boolean){
     if(!element)return;
-    if(!clip||muted||!run){element.pause();return;}
-    const expected=(clip.sourceInMs+Math.max(0,at-clip.timelineStartMs))/1000;
-    if(element.readyState>=1&&Math.abs(element.currentTime-expected)>(element.paused?0.01:0.16)){try{element.currentTime=expected;}catch{}}
-    if(element.readyState>=1&&element.paused&&!element.ended)void element.play().catch(()=>{});
+    if(muted){element.pause();element.playbackRate=1;return;}
+    syncMedia(element,clip,at,run&&songClockRunning(at));
   }
-  useEffect(()=>{
-    syncTrackAudio(trackAudio1.current,activeAudio1,trackMutes[1],playhead,playing);
-    syncTrackAudio(trackAudio2.current,activeAudio2,trackMutes[2],playhead,playing);
-  },[playhead,activeAudio1,activeAudio2,trackMutes,playing]);
+  function pauseFollowers(){
+    video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
+  }
+  function syncFollowers(){
+    syncVideo(video.current,activeClip);
+    syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current);
+    syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current);
+  }
+  useEffect(()=>{syncFollowers();},[playhead,activeClip,activeAudio1,activeAudio2,trackMutes,playing]);
   const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported")&&
     a.name.toLowerCase().includes(search.toLowerCase()));
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
@@ -780,18 +794,14 @@ export function MusicVideoEditor({id}:{id:string}){
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div className="mv-video-box">
-        {activeAsset?<video key={activeAsset.id} ref={video} playsInline muted preload="auto" src={source(activeAsset)}
-          onLoadedMetadata={e=>{
-            const v=e.currentTarget;const at=activeClip?activeClip.sourceInMs+Math.max(0,playhead-activeClip.timelineStartMs):0;
-            try{v.currentTime=at/1000;}catch{}
-            if(playing)void v.play().catch(()=>{});
-          }}/>:<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
+        {activeAsset?<video key={activeClip?.id??activeAsset.id} ref={video} playsInline muted preload="auto" src={source(activeAsset)}
+          onLoadedMetadata={e=>syncVideo(e.currentTarget,activeClip)} onCanPlay={e=>syncVideo(e.currentTarget,activeClip)} onSeeked={e=>syncVideo(e.currentTarget,activeClip)}/>:<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
         <span className="mv-ratio">▣ 16:9</span>
       </div>
       <audio ref={audio} src={endpoint+id+"/song"} muted={trackMutes.song} preload="metadata"
-        onLoadedMetadata={()=>setAt(playheadRef.current)}/>
-      {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} src={endpoint+id+"/assets/"+activeAudio1.assetId} preload="auto" muted={trackMutes[1]} onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
-      {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} src={endpoint+id+"/assets/"+activeAudio2.assetId} preload="auto" muted={trackMutes[2]} onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
+        onLoadedMetadata={()=>setAt(playheadRef.current)} onWaiting={pauseFollowers} onSeeking={pauseFollowers} onPlaying={syncFollowers}/>
+      {activeAudio1&&<audio key={"track1-"+activeAudio1.id} ref={trackAudio1} src={endpoint+id+"/assets/"+activeAudio1.assetId} preload="auto" muted={trackMutes[1]} onLoadedMetadata={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current)}/>}
+      {activeAudio2&&<audio key={"track2-"+activeAudio2.id} ref={trackAudio2} src={endpoint+id+"/assets/"+activeAudio2.assetId} preload="auto" muted={trackMutes[2]} onLoadedMetadata={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onCanPlay={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)} onSeeked={()=>syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current)}/>}
       <div className="mv-player-controls">
         <button aria-label={playing?"Pause":"Play"} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
         <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
