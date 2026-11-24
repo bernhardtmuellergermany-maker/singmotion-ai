@@ -1052,8 +1052,19 @@ export function MusicVideoEditor({id}:{id:string}){
             </div>
             {roleChanging===a.id?<small role="status">Saving role…</small>:a.sourceStartMs!==null&&a.sourceEndMs!==null?<small className="mv-source-time">Source: {time(a.sourceStartMs,true)} – {time(a.sourceEndMs,true)}</small>:a.role==="lip-sync"?<small>Set song time manually on the timeline.</small>:null}
             <div className="mv-media-actions"><button disabled={importing} onClick={()=>addClip(a,a.role==="lip-sync"?1:2,playhead)}><Plus size={14}/> Add to timeline</button>
-              <details><summary aria-label={"Options for "+a.name}><MoreHorizontal size={17}/></summary>
-                <div><button onClick={()=>addClip(a,1,playhead)}>Add to Lip Sync / Main</button><button onClick={()=>addClip(a,2,playhead)}>Add to Video 2</button><button onClick={()=>void deleteAsset(a)}>Remove from Library</button></div>
+              <details onToggle={e=>{
+                const menu=e.currentTarget;if(!menu.open)return;
+                const anchor=menu.querySelector("summary"),panel=menu.querySelector<HTMLDivElement>(".mv-library-menu");if(!anchor||!panel)return;
+                const r=anchor.getBoundingClientRect(),w=panel.offsetWidth,h=panel.offsetHeight,margin=8;
+                panel.style.left=Math.max(margin,Math.min(r.right-w,window.innerWidth-w-margin))+"px";
+                panel.style.top=Math.max(margin,Math.min(r.bottom+5+h<=window.innerHeight-margin?r.bottom+5:r.top-h-5,window.innerHeight-h-margin))+"px";
+              }}><summary aria-label={"Options for "+a.name}><MoreHorizontal size={17}/></summary>
+                <div className="mv-library-menu" onClick={e=>{if((e.target as HTMLElement).closest("button,a")){const menu=e.currentTarget.closest("details");if(menu)menu.open=false;}}}>
+                  <button type="button" onClick={()=>addClip(a,1,playhead)}><Mic size={14}/> Add to Lip-Sync</button>
+                  <button type="button" onClick={()=>addClip(a,2,playhead)}><Video size={14}/> Add to Video</button>
+                  <a href={endpoint+id+"/assets/"+a.id+"?download=1"} download><Download size={14}/> Download video</a>
+                  <button type="button" onClick={()=>void deleteAsset(a)}><Trash2 size={14}/> Remove from Library</button>
+                </div>
               </details></div>
           </div></article>)}</div>:<p className="mv-empty-library">{assets.length?"No matching videos. Try another search or filter.":"No videos in this Library. Import a video or use Add to Project from Videos."}</p>}
       </div>}
