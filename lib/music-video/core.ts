@@ -3,7 +3,7 @@ import {mkdirSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import path from "node:path";
 import {dataDir} from "@/lib/db";
-import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,type SongRange} from "./song-range.ts";
+import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,firstVisibleVideo,type SongRange} from "./song-range.ts";
 
 export type Track = 1 | 2;
 export type AudioTrack = Track | "song";
@@ -85,8 +85,12 @@ export function requireMusicProject(id:string,owner:string):MusicProject{
   if(!row)throw new MusicError("Project not found.",404);
   return mapProject(row);
 }
-export function listMusicProjects(owner:string):MusicProject[]{
-  return (database().prepare("SELECT * FROM music_projects WHERE owner_id=? ORDER BY updated_at DESC").all(owner) as ProjectRow[]).map(mapProject);
+export type MusicProjectSummary=MusicProject&{thumbnailAssetId:string|null};
+export function listMusicProjects(owner:string):MusicProjectSummary[]{
+  const connection=database();
+  const rows=connection.prepare("SELECT * FROM music_projects WHERE owner_id=? ORDER BY updated_at DESC").all(owner) as ProjectRow[];
+  const clips=connection.prepare("SELECT * FROM music_clips WHERE project_id=?");
+  return rows.map(row=>({...mapProject(row),thumbnailAssetId:firstVisibleVideo((clips.all(row.id) as ClipRow[]).map(mapClip))?.assetId??null}));
 }
 export function newMusicProject(owner:string,name:string,durationMs:number,aspectRatio:unknown="auto",songName?:string):MusicProject{
   const title=validatedName(name);
