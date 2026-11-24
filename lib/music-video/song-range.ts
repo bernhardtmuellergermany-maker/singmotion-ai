@@ -95,3 +95,10 @@ export function snapPlayhead(ms:number,limit:number,markers:readonly number[],th
  const nearest=markers.filter(n=>n>=0&&n<=limit).reduce((a,b)=>Math.abs(b-value)<Math.abs(a-value)?b:a,Infinity);
  return Math.abs(nearest-value)<=threshold?nearest:value;
 }
+
+/** One clamped timeline value drives the readout, scrubber and its visible fill. */
+export function timelineProgress(atMs:number,durationMs:number):{positionMs:number;percent:number}{
+ const end=Number.isFinite(durationMs)?Math.max(0,Math.round(durationMs)):0;
+ const positionMs=Number.isFinite(atMs)?Math.max(0,Math.min(end,Math.round(atMs))):0;
+ return {positionMs,percent:end>0?positionMs/end*100:0};
+}
