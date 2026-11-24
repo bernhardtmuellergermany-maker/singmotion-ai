@@ -75,7 +75,8 @@ test("Projects offers owned completed Lip Sync insertion and separate user video
  assert.ok(editor.includes("Upload video"));
  assert.ok(editor.includes('await ensureSession()'));
  assert.ok(editor.includes('addClip(a,track,source.sourceStartMs)'));
- assert.ok(editor.includes('if(track!==null)addClip(result.asset,track,playhead)'));
+ assert.ok(editor.includes('await load();setLibraryOpen(true);setFilter("Uploads")'));
+ assert.ok(!editor.includes("if(track!==null)addClip(result.asset,track,playhead)"));
  assert.ok(editor.includes('filter==="Uploads"&&a.kind==="imported"'));
  assert.ok(api.includes('section==="lip-sync"'));
  assert.ok(api.includes('logged?.owner!=="cms-staff-"+owner.slice(6)'));
