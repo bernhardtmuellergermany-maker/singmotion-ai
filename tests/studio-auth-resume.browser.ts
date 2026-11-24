@@ -36,7 +36,7 @@ async function verifyCameraPicker(page:Page,original:string){
    const origin=el.getBoundingClientRect();
    return Array.from(el.querySelectorAll(".sm-camera-chip-recommended,.sm-camera-chip-experimental"),button=>{
     const r=button.getBoundingClientRect();
-    return [r.x-origin.x,r.y-origin.y,r.width,r.height].map(Math.round);
+    return [r.x-origin.x,r.y-origin.y,r.width,r.height].map(value=>Math.round(value)||0);
    });
   });
   const before=await positions();
