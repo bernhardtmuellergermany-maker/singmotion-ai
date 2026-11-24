@@ -917,7 +917,6 @@ export function MusicVideoEditor({id}:{id:string}){
       <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?(songParts?"Song part "+(Math.min(partIndex,currentParts.length-1)+1):"Song"):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>{e.preventDefault();if(clipEditKind.current==="end")submitClipEnd();else submitClipTime();}}>
-        <strong><Film size={16}/> {selectedClip.track===1?"Lip Sync / Main":"Video 2"}: {selectedAsset.name}</strong>
         <div className="mv-video-times">
           <div className="mv-time-pair" role="group" aria-label="Original song time">
             <span className="mv-time-pair-heading">Original song time <small>Position in the full, untrimmed song</small></span>
