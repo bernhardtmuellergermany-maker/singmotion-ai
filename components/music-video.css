@@ -579,3 +579,10 @@
 .mv-root .mv-project-card:has(.mv-card-more[open]),.mv-root .mv-media-card:has(.mv-media-actions details[open]){position:relative;z-index:20}
 .mv-root.mv-editor .mv-song-trim>.mv-inspector-duration{margin-left:auto;align-self:center;color:#bcaacb;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .mv-root.mv-editor .mv-inspector-duration b{color:#eee5f5;font-weight:500}
+
+/* Menus may extend beyond the library card and flip within the viewport. */
+.mv-root.mv-editor .mv-library{overflow:visible}
+.mv-root.mv-editor .mv-media-actions details>div.mv-library-menu{position:fixed;top:auto;right:auto;left:auto;z-index:1000;width:200px;max-width:calc(100vw - 16px);min-width:0;max-height:calc(100dvh - 16px);overflow-y:auto;box-shadow:0 12px 30px #0009}
+.mv-root.mv-editor .mv-library-menu>button,.mv-root.mv-editor .mv-library-menu>a{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;color:#eee5f5;padding:10px;font-size:12px;text-decoration:none;white-space:nowrap}
+.mv-root.mv-editor .mv-library-menu>a:hover,.mv-root.mv-editor .mv-library-menu>button:hover{background:#51316a}
+.mv-root.mv-editor .mv-library-menu svg{flex:none}
