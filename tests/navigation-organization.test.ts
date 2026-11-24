@@ -316,7 +316,7 @@ test("song splits preserve absolute time and leave silence for removed intervals
  assert.ok(core.includes("song_parts_json=?"));
  assert.ok(editor.includes("songParts:parts"));
  assert.ok(editor.includes("onClick={splitSong}"));
- assert.ok(editor.includes("songPartAt(range,partsRef.current,at)"));
+ assert.ok(editor.includes("songPartAt(range,continuousSongParts(range,partsRef.current),at)"));
 });
 test("one-click export uses top-track render spans and owner-scoped download",async()=>{
  const {videoRenderSpans}=await import("../lib/music-video/export.ts");
@@ -331,4 +331,10 @@ test("one-click export uses top-track render spans and owner-scoped download",as
  assert.ok(api.includes("startMusicExport(owner,detail.project,detail.clips,files,songFile)"));
  assert.ok(api.includes("attachment; filename="));
  assert.ok(editor.includes('hidden={!inspectorOpen}'));
+});
+
+test("a split without a removed interval plays seamlessly",async()=>{
+ const {continuousSongParts}=await import("../lib/music-video/song-range.ts");
+ const range={startMs:1000,endMs:10000,positionMs:0};
+ assert.deepEqual(continuousSongParts(range,[{startMs:1000,endMs:3000},{startMs:3000,endMs:4000},{startMs:5000,endMs:10000}]),[{startMs:1000,endMs:4000},{startMs:5000,endMs:10000}]);
 });
