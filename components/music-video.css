@@ -192,3 +192,14 @@
 .mv-clip.is-selected .mv-handle-start{left:0;transform:translateX(-45%)}
 .mv-clip.is-selected .mv-handle-end{right:0;transform:translateX(45%)}
 .mv-clip.is-selected .mv-handle{width:clamp(10px,20%,15px)}
+
+/* The playhead cap and ruler are pointer-driven; the line never blocks clip editing. */
+.mv-ruler{touch-action:none;user-select:none;cursor:ew-resize}
+.mv-playhead{z-index:8;pointer-events:none}
+.mv-playhead-grip{position:absolute;top:0;left:0;transform:translateX(-50%);width:20px;height:21px;min-width:20px;padding:0!important;border:1px solid #f1b5ff!important;border-radius:4px 4px 8px 8px;background:#cd35fc!important;box-shadow:0 1px 4px #150a25;cursor:ew-resize!important;pointer-events:auto;touch-action:none}
+.mv-playhead-grip:before{content:"";position:absolute;left:50%;top:4px;bottom:5px;border-left:2px solid white;transform:translateX(-50%)}
+.mv-playhead.is-scrubbing{border-left-color:#f0a3ff}
+.mv-playhead-grip:focus-visible{outline:2px solid white;outline-offset:2px}
+.mv-marker-time{display:flex;align-items:center;gap:4px}
+.mv-marker-time label{display:flex;align-items:center;gap:5px}
+.mv-marker-time input{width:100px;padding:4px 5px;font-size:12px;font-variant-numeric:tabular-nums}
