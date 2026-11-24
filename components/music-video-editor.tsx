@@ -668,9 +668,9 @@ export function MusicVideoEditor({id}:{id:string}){
         {editingName?<form onSubmit={e=>{e.preventDefault();void saveName();}}>
           <input autoFocus maxLength={80} value={newName} onChange={e=>setNewName(e.target.value)}/>
           <button type="submit" aria-label="Save project name"><Check size={17}/></button></form>:
-          <button title="Rename project" onClick={()=>setEditingName(true)}><Pencil size={17}/>{project!.name}</button>}</div>
+          <button className="mv-project-name-button" title={project!.name+" · Rename project"} aria-label={"Rename project "+project!.name} onClick={()=>setEditingName(true)}><Pencil size={17}/><span>{project!.name}</span></button>}</div>
       <div className="mv-top-actions"><span role="status" className="mv-status">{status}</span>
-        <button className="mv-primary" type="button" title="MP4 Export — Coming Soon" disabled><Upload size={17}/> Export · Coming Soon</button></div>
+        <button className="mv-primary mv-export-button" type="button" aria-label="MP4 Export — Coming Soon" title="MP4 Export — Coming Soon" disabled><Upload size={17}/><span>Export<span className="mv-export-soon"> · Coming Soon</span></span></button></div>
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div className="mv-video-box">
