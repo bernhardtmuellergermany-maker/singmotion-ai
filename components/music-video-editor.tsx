@@ -5,7 +5,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
-import type {MusicAsset,MusicClip,MusicProject,Track} from "@/lib/music-video/core";
+import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,trimSongAtPlayhead,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
@@ -51,13 +51,14 @@ export function MusicVideoEditor({id}:{id:string}){
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
-  const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"AI Video"|"Uploads">("All");
+  const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"B-Roll"|"AI Video"|"Uploads">("All");
   const [search,setSearch]=useState(""),[addMenu,setAddMenu]=useState<Track|null>(null);
   const [uploadTrack,setUploadTrack]=useState<Track|null>(null),[error,setError]=useState(""),[status,setStatus]=useState("Saved");
   const [lipTrack,setLipTrack]=useState<Track|null>(null),[lipSources,setLipSources]=useState<LipSyncSource[]>([]);
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
   const [importing,setImporting]=useState(false);
-  const importBusy=useRef(false);
+  const importBusy=useRef(false),roleBusy=useRef(false);
+  const [roleChanging,setRoleChanging]=useState<string|null>(null);
   const [wave,setWave]=useState<number[]>([]),[editingName,setEditingName]=useState(false),[newName,setNewName]=useState("");
   const audio=useRef<HTMLAudioElement>(null),video=useRef<HTMLVideoElement>(null),scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
   const revision=useRef(0),latest=useRef<MusicClip[]>([]),dirty=useRef(false),inFlight=useRef<Promise<void>|null>(null);
@@ -120,6 +121,7 @@ export function MusicVideoEditor({id}:{id:string}){
   };
   useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
   function apply(next:MusicClip[],record=true,range=rangeRef.current){
+    if(roleBusy.current)return;
     if(record){past.current.push({clips:latest.current,range:rangeRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
     const changed=range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs||range.positionMs!==rangeRef.current.positionMs;
     rangeRef.current=range;
@@ -129,10 +131,12 @@ export function MusicVideoEditor({id}:{id:string}){
     latest.current=next;setClips(next);setError("");queue();
   }
   function undo(){
+    if(roleBusy.current)return;
     const previous=past.current.pop();if(!previous)return;
     future.current.push({clips:latest.current,range:rangeRef.current});apply(previous.clips,false,previous.range);
   }
   function redo(){
+    if(roleBusy.current)return;
     const next=future.current.pop();if(!next)return;
     past.current.push({clips:latest.current,range:rangeRef.current});apply(next.clips,false,next.range);
   }
@@ -308,7 +312,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
     moveSelectedClip(mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms);
   }
-  const originalClipSongTime=selectedClip&&selectedAsset?.kind==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
+  const originalClipSongTime=selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
     ?selectedAsset.sourceStartMs+selectedClip.sourceInMs:null;
 
   const activeClip=clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0];
@@ -330,7 +334,7 @@ export function MusicVideoEditor({id}:{id:string}){
     return Math.abs(closest-value)<250?closest:value;
   }
   function addClip(asset:MusicAsset,track:Track,atMs:number){
-    const locked=asset.kind==="lip-sync"&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null;
+    const locked=asset.role==="lip-sync"&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null;
     const length=locked?Math.min(asset.durationMs,asset.sourceEndMs!-asset.sourceStartMs!):asset.durationMs;
     if(!project||length<=0)return;
     const candidate:MusicClip={id:uuid(),assetId:asset.id,track,
@@ -466,7 +470,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!selectedClip)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
   }
   function toggleLock(){
-    if(!selectedClip||!selectedAsset||selectedAsset.kind!=="lip-sync")return;
+    if(!selectedClip||!selectedAsset||selectedAsset.role!=="lip-sync"||selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null)return;
     if(selectedClip.syncLocked&&!window.confirm("Unlock song synchronization? Moving this clip can break lip sync."))return;
     const lock=!selectedClip.syncLocked;
     if(lock&&(selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null||selectedClip.timelineStartMs!==selectedAsset.sourceStartMs+selectedClip.sourceInMs+songOffset(rangeRef.current)||clipEnd(selectedClip)>selectedAsset.sourceEndMs+songOffset(rangeRef.current))){
@@ -483,6 +487,29 @@ export function MusicVideoEditor({id}:{id:string}){
     }catch(e){setLipError(e instanceof Error?e.message:"Unable to load Lip Sync videos.");}
     finally{setLipLoading(false);}
   }
+  async function persistAssetRole(a:MusicAsset,role:MediaRole){
+    if(a.role===role)return a;
+    const result=await request<Detail>(endpoint+id+"/assets/"+a.id,{method:"PATCH",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({role,revision:revision.current})});
+    revision.current=result.project.revision;detailRef.current=result;latest.current=result.clips;dirty.current=false;
+    setDetail(result);setClips(result.clips);
+    // Older edit snapshots can contain locks invalid under the new role.
+    past.current=[];future.current=[];
+    return result.assets.find(item=>item.id===a.id)!;
+  }
+  async function changeAssetRole(a:MusicAsset,role:MediaRole){
+    if(importBusy.current||a.role===role)return;
+    importBusy.current=true;roleBusy.current=true;setImporting(true);setRoleChanging(a.id);setError("");
+    try{
+      stopPlayback();
+      if(saveTimer.current)clearTimeout(saveTimer.current);
+      await saveNow();setStatus("Saving…");
+      await persistAssetRole(a,role);
+      if(filter==="Lip Sync"||filter==="B-Roll")setFilter(role==="lip-sync"?"Lip Sync":"B-Roll");
+      setStatus("Saved");
+    }catch(e){setError(e instanceof Error?e.message:"Could not change the video role.");setStatus(dirty.current?"Not saved":"Saved");}
+    finally{roleBusy.current=false;importBusy.current=false;setImporting(false);setRoleChanging(null);}
+  }
   async function insertLipSync(source:LipSyncSource,track:Track){
     if(importBusy.current)return;
     importBusy.current=true;setImporting(true);setLipError("");
@@ -490,7 +517,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();
       const existing=detailRef.current?.assets.find(a=>a.sourceKind==="live"&&a.sourceId===source.id);
-      const a=existing??(await request<{asset:MusicAsset}>(endpoint+id+"/assets",{
+      const a=existing?await persistAssetRole(existing,"lip-sync"):(await request<{asset:MusicAsset}>(endpoint+id+"/assets",{
         method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({sourceKind:"live",sourceId:source.id})
       })).asset;
@@ -622,7 +649,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(playing&&video.current.paused)void video.current.play().catch(()=>{});
     if(!playing)video.current.pause();
   },[playhead,activeClip,activeAsset,playing]);
-  const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.kind==="lip-sync"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported")&&
+  const media=assets.filter(a=>(filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported")&&
     a.name.toLowerCase().includes(search.toLowerCase()));
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
   const ticks=Array.from({length:Math.floor(pixels/zoom/10)+1},(_,i)=>i*10000);
@@ -665,7 +692,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
           <button onClick={split} disabled={importing||!selectedClip||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100} title="Split the selected video at the playhead"><Scissors size={17}/> Split video</button>
           <button onClick={deleteClip} disabled={!selectedClip}><Trash2 size={17}/> Delete</button>
-          {selectedAsset?.kind==="lip-sync"&&<button onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
+          {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
           {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing} onClick={switchVideoTrack}>Switch track</button>}</div>
         <div className="mv-timeline-zoom">
           <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
@@ -705,7 +732,7 @@ export function MusicVideoEditor({id}:{id:string}){
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>setSelected(c.id));}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button type="button" className="mv-handle mv-handle-start" aria-label="Trim clip start" title="Hold to trim or extend start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>setSelected(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"start")}>Ⅱ</button>
-                  <span className="mv-clip-title">{a.kind==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
+                  <span className="mv-clip-title">{a.role==="lip-sync"?"🎤 ":"🎬 "}{a.name}</span>
                   {c.syncLocked&&<Lock className="mv-clip-lock" size={13}/>}
                   <button type="button" className="mv-handle mv-handle-end" aria-label="Trim clip end" title="Hold to trim or extend end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>setSelected(c.id),true)} onKeyDown={e=>keyboardTrim(e,c,"end")}>Ⅱ</button>
                 </div>;
@@ -769,7 +796,8 @@ export function MusicVideoEditor({id}:{id:string}){
         {libraryOpen?<ChevronDown size={21}/>:<ChevronRight size={21}/>}<h2>Library</h2><span>{assets.length} videos</span>
       </button>
       {libraryOpen&&<div className="mv-library-content">
-        <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","AI Video","Uploads"] as const).map(f=>
+        <p className="mv-role-hint">Choose each video’s role. Lip Sync defaults to the main track; B-Roll to the upper track. Changing role keeps existing clip positions; B-Roll releases Sync Lock. Original source times are preserved.</p>
+        <div className="mv-library-tools"><div className="mv-filter">{(["All","Lip Sync","B-Roll","AI Video","Uploads"] as const).map(f=>
           <button key={f} className={filter===f?"active":""} onClick={()=>setFilter(f)}>{f}</button>)}</div>
           <div className="mv-library-search"><Search size={16}/><input placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></div>
           <button className="mv-outline" disabled={importing} onClick={()=>{setUploadTrack(null);fileInput.current?.click();}}><Upload size={16}/> Upload video</button>
@@ -777,9 +805,15 @@ export function MusicVideoEditor({id}:{id:string}){
         {media.length?<div className="mv-media-grid">{media.map(a=><article key={a.id} className="mv-media-card"
           draggable onDragStart={e=>e.dataTransfer.setData("application/x-mvasset",a.id)}>
           <div className="mv-media-image"><Film size={32}/><span>{time(a.durationMs)}</span></div>
-          <div className="mv-media-info"><small>{a.kind==="lip-sync"?"🎤 Lip Sync":a.kind==="imported"?"Uploaded video":"🎬 AI Video"}</small>
+          <div className="mv-media-info">
             <strong title={a.name}>{a.name}</strong>
-            <div className="mv-media-actions"><button onClick={()=>addClip(a,a.kind==="lip-sync"?1:2,playhead)}><Plus size={14}/> Add to timeline</button>
+            <small>{a.sourceKind==="live"?"SingMotion":a.sourceKind==="uploaded"?"Uploaded video":"Generated video"}</small>
+            <div className="mv-media-role" role="group" aria-label={"Role of "+a.name}>
+              <button type="button" className={a.role==="lip-sync"?"active":""} aria-pressed={a.role==="lip-sync"} disabled={importing} onClick={()=>void changeAssetRole(a,"lip-sync")}><Music2 size={13}/> Lip Sync</button>
+              <button type="button" className={a.role==="b-roll"?"active":""} aria-pressed={a.role==="b-roll"} disabled={importing} onClick={()=>void changeAssetRole(a,"b-roll")}><Film size={13}/> B-Roll</button>
+            </div>
+            {roleChanging===a.id?<small role="status">Saving role…</small>:a.sourceStartMs!==null&&a.sourceEndMs!==null?<small className="mv-source-time">Source: {time(a.sourceStartMs,true)} – {time(a.sourceEndMs,true)}</small>:a.role==="lip-sync"?<small>Set song time manually on the timeline.</small>:null}
+            <div className="mv-media-actions"><button disabled={importing} onClick={()=>addClip(a,a.role==="lip-sync"?1:2,playhead)}><Plus size={14}/> Add to timeline</button>
               <details><summary aria-label={"Options for "+a.name}><MoreHorizontal size={17}/></summary>
                 <div><button onClick={()=>addClip(a,1,playhead)}>Add to Lip Sync / Main</button><button onClick={()=>addClip(a,2,playhead)}>Add to Video 2</button><button onClick={()=>void deleteAsset(a)}>Remove from Library</button></div>
               </details></div>
