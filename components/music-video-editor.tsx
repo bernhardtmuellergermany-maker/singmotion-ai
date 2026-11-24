@@ -132,7 +132,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!project||!validSongRange(range.startMs,range.endMs,project.songDurationMs)){displaySong(rangeRef.current);setError("Choose a valid song range of at least 100 ms.");return;}
     const original=rangeRef.current;
     const next=position===undefined?trimSongPlacement(original,range):{...range,positionMs:position};
-    if(!validSongPlacement(next,project.songDurationMs)){displaySong(original);setError("Song position is outside the timeline.");return;}
+    if(!validSongPlacement(next,project.songDurationMs)){displaySong(original);setClips(latest.current);setError("Song position is outside the timeline.");return;}
     const moved=shiftLockedClips(latest.current,songOffset(next)-songOffset(original));
     if(!moved){displaySong(original);setClips(latest.current);setError("Cannot move the song: a sync-locked video would overlap another clip or leave the timeline. Unlock or move the conflicting video first.");return;}
     displaySong(next);setClips(moved);
@@ -298,7 +298,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(edge==="move")next.timelineStartMs=Math.min(timelineLimit-(clip.sourceOutMs-clip.sourceInMs),Math.max(0,snapped(initial.timelineStartMs+delta,clip)));
       if(edge==="start"){next.sourceInMs=Math.min(initial.sourceOutMs-100,Math.max(0,initial.sourceInMs+delta));next.timelineStartMs=initial.timelineStartMs+(next.sourceInMs-initial.sourceInMs);}
       if(edge==="end")next.sourceOutMs=Math.min(asset.durationMs,Math.max(initial.sourceInMs+100,initial.sourceOutMs+delta));
-      if(clipEnd(next)>timelineLimit||overlaps(startClips,next).length){setClips(startClips);setError("Clip overlaps another clip or exceeds the song.");return;}
+      if(next.timelineStartMs<0||clipEnd(next)>timelineLimit||overlaps(startClips,next).length){setClips(startClips);setError("Clip overlaps another clip or exceeds the song.");return;}
       if(JSON.stringify(next)!==JSON.stringify(initial))apply(startClips.map(c=>c.id===next.id?next:c));
     };
     document.addEventListener("pointermove",handler);document.addEventListener("pointerup",finish,{once:true});
@@ -306,7 +306,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function split(){
     if(!selectedClip||playhead<=selectedClip.timelineStartMs+100||playhead>=clipEnd(selectedClip)-100)return;
-    const splitAt=selectedClip.sourceInMs+(playhead-selectedClip.timelineStartMs);
+    const splitAt=selectedClip.sourceInMs+(Math.round(playhead)-selectedClip.timelineStartMs);
     const left={...selectedClip,sourceOutMs:splitAt};
     const right={...selectedClip,id:uuid(),timelineStartMs:playhead,sourceInMs:splitAt};
     apply([...latest.current.filter(c=>c.id!==selectedClip.id),left,right]);setSelected(right.id);
@@ -381,7 +381,7 @@ export function MusicVideoEditor({id}:{id:string}){
     playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();
   }
   function setAt(ms:number,range=rangeRef.current){
-    playheadRef.current=ms;setPlayhead(ms);
+    ms=Math.round(ms);playheadRef.current=ms;setPlayhead(ms);
     if(audio.current&&audio.current.readyState>=1)
       audio.current.currentTime=Math.max(range.startMs,Math.min(range.endMs,ms-songOffset(range)))/1000;
   }
@@ -411,7 +411,7 @@ export function MusicVideoEditor({id}:{id:string}){
         current?.pause();at=Math.min(at+elapsed,at<range.positionMs?range.positionMs:timelineEnd);
       }
       if(at>=timelineEnd){playheadRef.current=timelineEnd;setPlayhead(timelineEnd);stopPlayback();return;}
-      playheadRef.current=at;setPlayhead(at);frame=requestAnimationFrame(tick);
+      playheadRef.current=at;setPlayhead(Math.round(at));frame=requestAnimationFrame(tick);
     };
     frame=requestAnimationFrame(tick);
     return()=>cancelAnimationFrame(frame);
