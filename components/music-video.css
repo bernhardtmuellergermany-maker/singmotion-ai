@@ -389,3 +389,13 @@
  .mv-editor .mv-top{padding:7px 9px}
  .mv-editor .mv-timeline-toolbar{padding:6px 7px}
 }
+
+/* Minimal right-aligned timeline scale control, separate from playback. */
+.mv-editor .mv-timeline-zoom .mv-zoom-buttons{margin-left:auto;flex:0 0 auto;flex-wrap:nowrap;gap:2px;border:0;padding:0;background:transparent;white-space:nowrap}
+.mv-editor .mv-timeline-zoom .mv-zoom-buttons button{background:transparent;border:0;box-shadow:none;color:#bca5d0;width:26px;min-width:26px;height:28px;min-height:28px;padding:3px}
+.mv-editor .mv-timeline-zoom .mv-zoom-buttons button:hover:not(:disabled){background:#30213f;color:#f2e5ff}
+.mv-editor .mv-zoom-buttons output{min-width:31px;font-size:11px;color:#c6b4d4}
+@media(max-width:760px){
+ .mv-editor .mv-timeline-zoom .mv-zoom-buttons{margin-left:auto;gap:1px}
+ .mv-editor .mv-timeline-zoom .mv-zoom-buttons button{width:24px;min-width:24px;height:26px;min-height:26px}
+}
