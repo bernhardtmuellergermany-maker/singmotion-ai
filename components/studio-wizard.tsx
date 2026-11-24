@@ -1,6 +1,6 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { SiteHeader } from "./site-header";
 import {SunoSongImport} from "./suno-song-import";
@@ -1135,7 +1135,7 @@ export function StudioWizard({
             <h2>Camera Movements</h2>
             <p className="sm-camera-chip-caption"><span className="sm-camera-chip-rating is-recommended">Recommended</span> for OmniHuman 2.0 · Suggested starting points, not guaranteed results.</p>
             <div className="sm-performance-chips" role="group" aria-label="Add camera movement to prompt">
-              {featuredCameraMovements.map(move=><button type="button" key={move.name}
+              {featuredCameraMovements.map(move=><Fragment key={move.id}><button type="button"
                 aria-label={`Add ${move.name} camera movement to prompt`}
                 title={move.text}
                 className="sm-camera-chip-recommended"
@@ -1145,20 +1145,22 @@ export function StudioWizard({
                 {move.name==="Static shot"?<Video size={19} aria-hidden="true"/>:
                  move.name.startsWith("Orbit")?<RotateCw size={19} aria-hidden="true"/>:<Camera size={19} aria-hidden="true"/>}
                 <span>{move.name}</span>
-              </button>)}
-            </div>
-            {cameraPreview?.recommended && <section id="sm-camera-active-preview" className="sm-studio-camera-preview" aria-label={cameraPreview.name+" preview"}>
+              </button>
+              {cameraPreview?.recommended && cameraPreview.id===move.id && <div className="sm-studio-camera-preview-slot"><section id="sm-camera-active-preview" className="sm-studio-camera-preview" aria-label={cameraPreview.name+" preview"}>
                 <div className="sm-studio-camera-preview-head">
                   <strong>{cameraPreview.name}</strong>
                   <span className={`sm-camera-chip-rating ${cameraPreview.recommended?"is-recommended":"is-experimental"}`}>{cameraPreview.recommended?"Recommended":"Experimental"}</span>
                   <button type="button" className="sm-studio-camera-preview-close" aria-label="Close camera movement preview" onClick={()=>setCameraPreview(null)}><X size={18} aria-hidden="true"/> Close</button>
                 </div>
                 <CameraMovementPreview key={cameraPreview.id} move={cameraPreview}/>
-              </section>}
+              </section></div>}
+              </Fragment>)}
+            </div>
+            
             <div id="sm-more-camera-movements" className="sm-performance-chips sm-camera-extra-movements"
               role="group" aria-label="Experimental camera movements" hidden={!cameraMovesExpanded}>
               <p className="sm-camera-chip-caption sm-camera-experimental-caption"><span className="sm-camera-chip-rating is-experimental">Experimental</span> · Camera motion and lip sync may vary.</p>
-              {additionalCameraMovements.map(move=><button type="button" key={move.name}
+              {additionalCameraMovements.map(move=><Fragment key={move.id}><button type="button"
                 aria-label={`Add ${move.name} camera movement to prompt`}
                 title={`${move.text} Experimental: results may vary.`}
                 className="sm-camera-chip-experimental"
@@ -1167,16 +1169,18 @@ export function StudioWizard({
                 onClick={()=>addCameraMovement(move)}>
                 {move.name.startsWith("Orbit")?<RotateCw size={19} aria-hidden="true"/>:<Camera size={19} aria-hidden="true"/>}
                 <span>{move.name}</span>
-              </button>)}
-            </div>
-            {cameraMovesExpanded && cameraPreview && !cameraPreview.recommended && <section id="sm-camera-active-preview" className="sm-studio-camera-preview" aria-label={cameraPreview.name+" preview"}>
+              </button>
+              {cameraMovesExpanded && cameraPreview && !cameraPreview.recommended && cameraPreview.id===move.id && <div className="sm-studio-camera-preview-slot"><section id="sm-camera-active-preview" className="sm-studio-camera-preview" aria-label={cameraPreview.name+" preview"}>
                 <div className="sm-studio-camera-preview-head">
                   <strong>{cameraPreview.name}</strong>
                   <span className={`sm-camera-chip-rating ${cameraPreview.recommended?"is-recommended":"is-experimental"}`}>{cameraPreview.recommended?"Recommended":"Experimental"}</span>
                   <button type="button" className="sm-studio-camera-preview-close" aria-label="Close camera movement preview" onClick={()=>setCameraPreview(null)}><X size={18} aria-hidden="true"/> Close</button>
                 </div>
                 <CameraMovementPreview key={cameraPreview.id} move={cameraPreview}/>
-              </section>}
+              </section></div>}
+              </Fragment>)}
+            </div>
+            
             <button type="button" className="sm-camera-show-more"
               aria-expanded={cameraMovesExpanded} aria-controls="sm-more-camera-movements"
               onClick={()=>{if(cameraMovesExpanded && cameraPreview && !cameraPreview.recommended)setCameraPreview(null);setCameraMovesExpanded(value=>!value);}}>

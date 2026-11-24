@@ -29,8 +29,10 @@ async function verifyCameraPicker(page:Page,original:string){
  const initialUrl=page.url();
  const expected=(move:typeof cameraMovements[number])=>[...original.split("\n").map(x=>x.trim()).filter(x=>x&&!/^Camera:\s*/i.test(x)),move.direction].join("\n");
  const select=async(move:typeof cameraMovements[number])=>{
-  await panel.getByRole("button",{name:"Add "+move.name+" camera movement to prompt",exact:true}).click();
+  const chip=panel.getByRole("button",{name:"Add "+move.name+" camera movement to prompt",exact:true});
+  await chip.click();
   await preview.waitFor({state:"visible"});
+  assert.ok(await chip.evaluate(el=>!!el.nextElementSibling?.querySelector("#sm-camera-active-preview")),"preview is immediately after the selected chip");
   assert.equal(await preview.count(),1);
   assert.equal(await preview.locator("strong").innerText(),move.name);
   assert.equal(await preview.locator(".sm-camera-chip-rating").innerText(),move.recommended?"Recommended":"Experimental");
