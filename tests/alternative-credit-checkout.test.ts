@@ -12,6 +12,7 @@ const approved={
  CREDIT_TAX_COUNTRY_POLICY_JSON:JSON.stringify({revision:"DE-2026-reviewed",reviewedAt:new Date().toISOString().slice(0,10),
  entries:[{country:"DE",buyerType:"consumer",voucherKind:"single-purpose",
  mode:"de-small-business",evidence:"Reviewed synthetic tax policy fixture. Approval in this unit test is not evidence of a legal review."}]}),
+ CREDIT_TAX_DE_KLEINUNTERNEHMER_APPROVED:"true",
  STRIPE_CREDIT_TOPUPS_LIVE_ENABLED:"true",
  STRIPE_LIVE_CHECKOUT_ENABLED:"true",
 };
@@ -35,14 +36,15 @@ test("alternative Credit Checkout cannot replace Merchant-of-Record without tax 
  const balance=read("app/(site)/api/credit-balance/route.ts");
  const picker=read("components/credit-amount-picker.tsx");
  const webhook=read("app/(site)/api/stripe-webhook/route.ts");
- assert.match(checkout,/selectAlternativeCreditCheckout\(process\.env,body\.paymentRoute,liveMode\)/);
+ assert.match(checkout,/selectAlternativeCreditCheckout\(process\.env,body\.paymentRoute,liveMode,body\.billingCountry,body\.buyerType\)/);
  assert.match(checkout,/if\(!route\.allowed\)return json/);
  assert.match(checkout,/managedCreditMoRApproved\(process\.env\)&&!route\.alternative/);
  assert.match(checkout,/assessWorldwideCreditTax\(process\.env,body\.billingCountry,body\.buyerType\)/);
  assert.match(checkout,/route\.alternative&&session\.managed_payments\?\.enabled!==false/);
  assert.match(balance,/liveCheckout&&alternativeCreditCheckoutApproved\(process\.env\)/);
- assert.match(picker,/alternativesEnabled&&canPurchase/);
- assert.match(picker,/paymentRoute:"alternative"/);
+ assert.doesNotMatch(picker,/name="credit-payment-route"|setPaymentRoute|paymentRoute:"alternative"/);
+ assert.match(picker,/needsBillingCountry\?\{billingCountry,buyerType\}/);
+ assert.match(checkout,/route=\{allowed:true,alternative:false\};useMoR=true;tax=null/);
  assert.match(picker,/requestKey\.current=null/);
  assert.match(webhook,/if\(session\.payment_status!=="paid"\)/);
  assert.match(webhook,/CREDIT_TAX_LOCATION_OR_BUSINESS_PROOF_MISMATCH/);
@@ -52,4 +54,14 @@ test("alternative Credit Checkout cannot replace Merchant-of-Record without tax 
 test("wallet and pricing pages both discover checkout payment eligibility",()=>{
  for(const file of ["components/credits-dashboard.tsx","app/(site)/plans/page.tsx"])
   assert.match(read(file),/<CreditAmountPicker discoverAvailability\s*\/>/);
+});
+
+
+test("automatic checkout chooses reviewed seller route only for eligible country and buyer",()=>{
+ assert.deepEqual(selectAlternativeCreditCheckout(approved,undefined,true,"DE","consumer"),{allowed:true,alternative:true});
+ for(const [country,buyer] of [["US","consumer"],["DE","business"],["GB","consumer"],[undefined,undefined]])
+  assert.equal(selectAlternativeCreditCheckout(approved,undefined,true,country,buyer).alternative,false);
+ assert.equal(selectAlternativeCreditCheckout(approved,undefined,false,"DE","consumer").alternative,false);
+ assert.equal(selectAlternativeCreditCheckout({...approved,CREDIT_TAX_DE_KLEINUNTERNEHMER_APPROVED:"false"},undefined,true,"DE","consumer").alternative,false);
+ assert.equal(selectAlternativeCreditCheckout(approved,"managed",true,"DE","consumer").alternative,false);
 });
