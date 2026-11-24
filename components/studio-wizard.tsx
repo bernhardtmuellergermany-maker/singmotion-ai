@@ -1123,16 +1123,18 @@ export function StudioWizard({
                 <p><strong>Reference photo tip:</strong> For full-body actions such as walking or dancing, use a photo that shows the whole person, including the legs. A close-up may limit visible movement.</p>
                 <p><strong>Keep it focused:</strong> Prefer a few compatible instructions over conflicting actions. For example, do not ask the camera to stay fixed and follow the singer at the same time.</p>
                 <p><strong>Important:</strong> These are writing tips, not automatic instructions. SingMotion sends only the text you enter in the prompt box above. The AI model may still interpret or omit movements; a result is not guaranteed.</p>
-                <p><Link href="/help/camera-movements" target="_blank" rel="noopener noreferrer" className="sm-prompt-guide-library-link">Explore 46 camera moves, continuous-action tips & copy-ready examples</Link></p>
+                <p><Link href="/help/camera-movements" target="_blank" rel="noopener noreferrer" className="sm-prompt-guide-library-link">Explore 34 camera moves, continuous-action tips & copy-ready examples</Link></p>
               </div>
             </details>
           </div>
           <div className="sm-performance-ideas">
             <h2>Camera Movements</h2>
+            <p className="sm-camera-chip-caption"><span className="sm-camera-chip-rating is-recommended">Recommended</span> for OmniHuman 2.0 · Suggested starting points, not guaranteed results.</p>
             <div className="sm-performance-chips" role="group" aria-label="Add camera movement to prompt">
               {featuredCameraMovements.map(move=><button type="button" key={move.name}
                 aria-label={`Add ${move.name} camera movement to prompt`}
                 title={move.text}
+                className="sm-camera-chip-recommended"
                 onClick={()=>addCameraMovement(move)}>
                 {move.name==="Static shot"?<Video size={19} aria-hidden="true"/>:
                  move.name.startsWith("Orbit")?<RotateCw size={19} aria-hidden="true"/>:<Camera size={19} aria-hidden="true"/>}
@@ -1140,10 +1142,12 @@ export function StudioWizard({
               </button>)}
             </div>
             <div id="sm-more-camera-movements" className="sm-performance-chips sm-camera-extra-movements"
-              role="group" aria-label="More camera movements" hidden={!cameraMovesExpanded}>
+              role="group" aria-label="Experimental camera movements" hidden={!cameraMovesExpanded}>
+              <p className="sm-camera-chip-caption sm-camera-experimental-caption"><span className="sm-camera-chip-rating is-experimental">Experimental</span> · Camera motion and lip sync may vary.</p>
               {additionalCameraMovements.map(move=><button type="button" key={move.name}
                 aria-label={`Add ${move.name} camera movement to prompt`}
-                title={move.level.includes("experimental")?`${move.text} Experimental: result may vary.`:move.text}
+                title={`${move.text} Experimental: results may vary.`}
+                className="sm-camera-chip-experimental"
                 onClick={()=>addCameraMovement(move)}>
                 {move.name.startsWith("Orbit")?<RotateCw size={19} aria-hidden="true"/>:<Camera size={19} aria-hidden="true"/>}
                 <span>{move.name}</span>
@@ -1152,7 +1156,7 @@ export function StudioWizard({
             <button type="button" className="sm-camera-show-more"
               aria-expanded={cameraMovesExpanded} aria-controls="sm-more-camera-movements"
               onClick={()=>setCameraMovesExpanded(value=>!value)}>
-              {cameraMovesExpanded?"Show less":"Show more"}
+              {cameraMovesExpanded?"Show less":"Show more (25 experimental)"}
               <ChevronDown size={17} aria-hidden="true" className={cameraMovesExpanded?"is-expanded":""}/>
             </button>
           </div>

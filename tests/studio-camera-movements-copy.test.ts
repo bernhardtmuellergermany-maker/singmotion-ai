@@ -7,13 +7,16 @@ import {
 
 const read=(path:string)=>readFileSync(new URL("../"+path,import.meta.url),"utf8");
 
-test("all 46 camera moves are available in seven categories; eight show initially",()=>{
- assert.equal(cameraMovements.length,46);
- assert.equal(featuredCameraMovements.length,8);
- assert.equal(additionalCameraMovements.length,38);
- assert.equal(new Set(cameraMovements.map(move=>move.category)).size,7);
- assert.equal(new Set(cameraMovements.map(move=>move.name)).size,46);
- assert.equal(new Set(cameraMovements.map(move=>move.direction)).size,46);
+test("all 34 camera moves are available; nine recommended moves show initially",()=>{
+ assert.equal(cameraMovements.length,34);
+ assert.equal(featuredCameraMovements.length,9);
+ assert.deepEqual(featuredCameraMovements.map(move=>move.name),["Static shot","Pan right","Pan left","Slow zoom in","Slow zoom out","Dolly in","Dolly out","Handheld shot","Reverse tracking"]);
+ for(const name of ["Crash zoom in","Crash zoom out","Vehicle tracking","Chase shot","Helicopter shot","Snorricam","First-person view","Tilt-shift","Infinite zoom","Earth zoom out","Time-lapse","Pass through"])assert.ok(!cameraMovements.some(move=>move.name===name),name);
+ assert.ok(additionalCameraMovements.every(move=>!move.recommended));
+ assert.equal(additionalCameraMovements.length,25);
+ assert.equal(new Set(cameraMovements.map(move=>move.category)).size,6);
+ assert.equal(new Set(cameraMovements.map(move=>move.name)).size,34);
+ assert.equal(new Set(cameraMovements.map(move=>move.direction)).size,34);
  for(const move of cameraMovements){
   assert.ok(move.direction.startsWith("Camera: "));
   assert.ok(move.direction.length<=500,move.name);
@@ -22,18 +25,22 @@ test("all 46 camera moves are available in seven categories; eight show initiall
  }
 });
 
-test("Studio camera picker only replaces previous Camera line and expands 38 other moves on demand",()=>{
+test("Studio camera picker only replaces previous Camera line and expands 25 experimental moves on demand",()=>{
  const wizard=read("components/studio-wizard.tsx");
  const help=read("app/(site)/help/camera-movements/page.tsx");
  assert.match(help,/import \{cameraMovements\} from "@\/lib\/studio-camera-movements"/);
  assert.match(help,/const techniques=cameraMovements/);
  assert.match(help,/Camera Movements/);
+ assert.match(help,/movementGroups\.map/);
+ assert.match(help,/sm-camera-rating/);
+ assert.match(wizard,/sm-camera-chip-recommended/);
+ assert.match(wizard,/sm-camera-chip-experimental/);
  assert.match(wizard,/featuredCameraMovements\.map\(move/);
  assert.match(wizard,/additionalCameraMovements\.map\(move/);
  assert.match(wizard,/hidden=\{!cameraMovesExpanded\}/);
  assert.match(wizard,/aria-expanded=\{cameraMovesExpanded\}/);
  assert.match(wizard,/aria-controls="sm-more-camera-movements"/);
- assert.match(wizard,/\? "Show less":"Show more"|\?"Show less":"Show more"/);
+ assert.match(wizard,/Show more \(25 experimental\)/);
  assert.match(wizard,/const kept=lines\.filter\(line=>!\/\^Camera:/);
  assert.match(wizard,/kept\.push\(move\.direction\)/);
  assert.match(wizard,/if\(next\.length>500\)/);

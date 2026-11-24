@@ -3141,3 +3141,6 @@
    aspect-ratio:9 / 16;
  }
 }
+
+/* Camera prompt recommendations, not model guarantees. */
+.product-theme.singmotion-flow .sm-camera-chip-caption{font-size:12px;color:inherit;opacity:.9;margin:0 0 9px;line-height:1.6}.product-theme.singmotion-flow .sm-camera-experimental-caption{flex-basis:100%;width:100%;margin-top:4px}.product-theme.singmotion-flow .sm-camera-chip-rating{display:inline-block;border:1px solid;border-radius:999px;padding:1px 7px;font-size:11px;font-weight:650}.product-theme.singmotion-flow .sm-camera-chip-rating.is-recommended{color:#91d8ac;border-color:#518765}.product-theme.singmotion-flow .sm-camera-chip-rating.is-experimental{color:#e3bb80;border-color:#8c7045}.product-theme.singmotion-flow .sm-performance-chips button.sm-camera-chip-recommended{border-color:#426b52}.product-theme.singmotion-flow .sm-performance-chips button.sm-camera-chip-recommended svg{color:#91d8ac}.product-theme.singmotion-flow .sm-performance-chips button.sm-camera-chip-experimental{border-color:#80633c}.product-theme.singmotion-flow .sm-performance-chips button.sm-camera-chip-experimental svg{color:#e3bb80}
