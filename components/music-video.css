@@ -169,3 +169,9 @@
 .mv-song-block .mv-wave{position:absolute;top:0;pointer-events:none;border-radius:0}
 .mv-song-block .mv-wave span{min-width:0}
 .mv-song-block:focus-visible{outline:2px solid #fff}
+
+.mv-clip-position{background:#271537;border-top:1px solid #9c56bc}
+.mv-clip-position>strong{max-width:100%;overflow-wrap:anywhere}
+.mv-clip-position .mv-primary{padding:8px 13px}
+.mv-clip-position input{width:124px}
+.mv-clip:focus-visible{outline:2px solid #fff;outline-offset:2px}
