@@ -72,7 +72,7 @@ test("unreleased Projects stays CMS Super Admin only across page/API/menu",()=>{
 test("Projects offers owned completed Lip Sync insertion and separate user video uploads",()=>{
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
  assert.ok(editor.includes("Insert Lip Sync"));
- assert.ok(editor.includes("Upload own video"));
+ assert.ok(editor.includes("Upload video"));
  assert.ok(editor.includes('await ensureSession()'));
  assert.ok(editor.includes('addClip(a,track,source.sourceStartMs)'));
  assert.ok(editor.includes('if(track!==null)addClip(result.asset,track,playhead)'));
@@ -280,19 +280,22 @@ test("timeline zoom is visibly separate from playback progress",()=>{
  assert.ok(css.includes(".mv-timeline-zoom .mv-zoom-buttons"));
 });
 
-test("timeline adds stay on the right and the song shares a single selection inspector",()=>{
+test("timeline uses full width and media is added from the library",()=>{
  const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
  assert.ok(editor.includes('const songSelected=!selectedClip||!selectedAsset'));
- assert.ok(editor.includes('function selectSong(){setSelected(null);setAddMenu(null);setInspectorOpen(true);}'));
+ assert.ok(editor.includes('function selectSong(){setSelected(null);setInspectorOpen(true);}'));
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e),selectSong)'));
  assert.ok(editor.includes('aria-label="Select song" aria-pressed={songSelected}'));
  assert.ok(editor.includes('!songSelected&&selectedClip&&selectedAsset?<form'));
  assert.ok(editor.includes('</form>:\n      <form className="mv-song-trim mv-song-position"'));
  const scroll=editor.indexOf('<div className="mv-scroll"');
- const adds=editor.indexOf('<div className="mv-track-adds"');
- assert.ok(scroll>=0&&adds>scroll);
- assert.ok(editor.indexOf('aria-label={"Add video to track "+track}')>adds);
- assert.ok(css.includes('.mv-track-adds .mv-add-menu{left:auto;right:3px'));
+ assert.ok(scroll>=0);
+ assert.ok(!editor.includes('className="mv-track-adds"'));
+ assert.ok(!css.includes('.mv-track-adds'));
+ const library=editor.indexOf('className="mv-library-tools"');
+ assert.ok(library>scroll);
+ assert.ok(editor.indexOf('onClick={()=>void openLipSync(1)}',library)>library);
+ assert.ok(editor.indexOf('onClick={()=>fileInput.current?.click()}',library)>library);
  assert.ok(css.includes('.mv-song-block.is-selected'));
 });
 
