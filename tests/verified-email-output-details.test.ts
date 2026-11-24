@@ -122,5 +122,7 @@ test("completed video next-segment action uses only immutable owned audio and cr
  assert.match(button,/selection:source\.selection/);
  assert.match(button,/step:0/);
  assert.match(button,/router\.push\("\/studio\?draft="\+encodeURIComponent\(draftId\)\)/);
- assert.doesNotMatch(button,/action:"submit"|credit-checkout|uploadWithProgress/);
+ // Removing a stale checkout resume key is not a checkout API invocation.
+ assert.match(button,/sessionStorage\.removeItem\("sm-credit-checkout-resume"\)/);
+ assert.doesNotMatch(button.replace('sessionStorage.removeItem("sm-credit-checkout-resume")',""),/action:"submit"|credit-checkout|uploadWithProgress/);
 });
