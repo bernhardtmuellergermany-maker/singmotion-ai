@@ -102,7 +102,7 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  assert.deepEqual(moveSongEdge({startMs:8918,endMs:30000},"end",0,30000),{startMs:8918,endMs:9018});
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
- assert.ok(editor.includes("parseSongTime(startText)"));
+ assert.ok(editor.includes('field==="start"?(parts?partStartText:startText)'));
  assert.ok(editor.includes("apply(moved,true,next)"));
  assert.ok(editor.includes("if(at>=end||current.ended){current.pause();at=end;}"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
@@ -128,7 +128,7 @@ test("song placement is independent of source trim and locked video moves atomic
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
  assert.ok(editor.includes("songPositionMs:range.positionMs"));
- assert.ok(editor.includes("parseSongTime(positionText)"));
+ assert.ok(editor.includes('field==="position"?positionText:'));
  assert.ok(editor.includes("songOffset(next)-songOffset(original)"));
  assert.ok(api.includes("body.songPositionMs"));
  assert.ok(core.includes("song_position_ms=?"));
@@ -244,7 +244,7 @@ test("exact video end and hold-to-edit preserve the source timing and scroll int
  assert.equal(MEDIA_HOLD_MS,350);
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("setVideoEnd(latest.current,current,end,sourceLimit(current,selectedAsset))"));
- assert.ok(editor.includes('aria-label="Video end time on timeline"'));
+ assert.ok(editor.includes('ariaLabel="Video end time on timeline"'));
  assert.ok(editor.includes("scroller.scrollLeft=startScroll-dx"));
  assert.ok(editor.includes('beginMediaGesture(e,c.id,()=>movePointer(e,c,"move")'));
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
@@ -552,4 +552,13 @@ test("video and song time fields confirm inline and on Enter",()=>{
  assert.ok(!editor.includes(">Set end</button>"));
  assert.ok(!editor.includes(">Set part</button>"));
  assert.ok(css.includes("padding-right:34px!important"));
+});
+
+test("timeline does not append empty time after original song; existing longer edits remain visible",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current),...latest.current.map(clipEnd))"));
+ assert.ok(editor.includes("Math.max(1,timelineLimit/1000*zoom)"));
+ assert.ok(!editor.includes("Math.max(project.songDurationMs,timelineEnd)+10000"));
+ assert.ok(editor.includes("if(end>timelineLimit)"));
+ assert.ok(editor.includes("Math.min(timelineLimit-(initial.sourceOutMs-initial.sourceInMs)"));
 });
