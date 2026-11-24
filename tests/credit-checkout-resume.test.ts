@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 const read=(p:string)=>readFileSync(new URL("../"+p,import.meta.url),"utf8");
 test("Exact Step 4 draft is saved before credit shortage checkout",()=>{
  const wizard=read("components/studio-wizard.tsx");
- assert.match(wizard,/sessionStorage\.setItem\("sm-credit-checkout-resume"/);
+ assert.doesNotMatch(wizard,/sessionStorage\.setItem\("sm-credit-checkout-resume"/);
  assert.match(wizard,/reviewShortage/);
  assert.match(wizard,/resumeDraft=\$\{encodeURIComponent\(projectKey\)\}/);
  assert.match(wizard,/setStep\(resumeReview && saved\.song\?\.kind === "audio"/);
@@ -25,5 +25,9 @@ test("After checkout credits and account menu refresh, with explicit return to S
  assert.match(credits,/window\.dispatchEvent\(new Event\("credit-balance-updated"\)\)/);
  assert.match(header,/addEventListener\("credit-balance-updated",refresh\)/);
  assert.doesNotMatch(credits,/window\.location\.replace\("\/studio\?draft="/);
- assert.doesNotMatch(credits,/sessionStorage\.removeItem\(RESUME_KEY\)/);
+ assert.doesNotMatch(credits,/readCreditResume|sessionStorage\.getItem\(/);
+ assert.match(credits,/data\.purchases\.some\(p=>p\.id===purchaseId&&p\.status==="paid"\)/);
+ assert.match(credits,/clean\.searchParams\.delete\("resumeDraft"\)/);
+ assert.doesNotMatch(read("components/credit-amount-picker.tsx"),/sessionStorage\.getItem\(/);
+ assert.match(read("app/(site)/api/credit-checkout/route.ts"),/resume\+="&resumePurchase="\+encodeURIComponent\(purchase\.id\)/);
 });

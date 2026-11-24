@@ -69,9 +69,6 @@ export function StudioAccountResume(){
     // wallet balance or email verification status. Step 4 shows the wallet,
     // and paid generation still requires its explicit user action.
     setMessage("Your audio, photo, prompt and video settings are saved. Returning to Step 4…");
-    sessionStorage.setItem("sm-credit-checkout-resume",JSON.stringify({
-     draftId:wanted.draftId,requiredCredits:quote.credits,created:Date.now(),
-    }));
     window.location.assign("/studio?draft="+encodeURIComponent(wanted.draftId)+"&resume=review");
     return;
    }catch(cause){
