@@ -54,6 +54,41 @@ async function cleanup(){
 async function ffmpeg(args:string[],timeout=180000){
  await exec("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-y",...args],{timeout,maxBuffer:1024*1024});
 }
+/** Render original audio from an enabled video lane, including intervals hidden by overlays. */
+export function trackAudioSpans(clips:MusicClip[],track:1|2,durationMs:number){
+ const ordered=clips.filter(c=>c.track===track).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+ const spans:{clip:MusicClip|null;startMs:number;durationMs:number}[]=[];
+ let cursor=0;
+ for(const clip of ordered){
+  if(clip.timelineStartMs>=durationMs)break;
+  if(clip.timelineStartMs>cursor)spans.push({clip:null,startMs:cursor,durationMs:clip.timelineStartMs-cursor});
+  const end=Math.min(durationMs,clipEnd(clip));
+  if(end>clip.timelineStartMs)spans.push({clip,startMs:clip.timelineStartMs,durationMs:end-clip.timelineStartMs});
+  cursor=end;
+ }
+ if(cursor<durationMs)spans.push({clip:null,startMs:cursor,durationMs:durationMs-cursor});
+ return spans;
+}
+async function renderTrackAudio(track:1|2,clips:MusicClip[],files:Map<string,string>,durationMs:number,folder:string,remaining:()=>number,started:number){
+ const names:string[]=[],hasAudio=new Map<string,boolean>();
+ const spans=trackAudioSpans(clips,track,durationMs);
+ for(const [i,span] of spans.entries()){
+  if(Date.now()-started>20*60*1000)throw new Error("render timeout");
+  const file=span.clip?files.get(span.clip.assetId):undefined;
+  if(span.clip&&!file)throw new Error("Source video missing.");
+  if(file&&!hasAudio.has(file)){
+   const {stdout}=await exec("ffprobe",["-v","error","-select_streams","a:0","-show_entries","stream=index","-of","csv=p=0",file],{timeout:15000,maxBuffer:16384});
+   hasAudio.set(file,stdout.trim().length>0);
+  }
+  const input=file&&hasAudio.get(file)?["-ss",seconds(span.clip!.sourceInMs),"-i",file]:["-f","lavfi","-i","anullsrc=r=48000:cl=stereo"];
+  const name="audio-"+track+"-"+i+".wav";
+  await ffmpeg([...input,"-map","0:a:0","-vn","-sn","-dn","-af","aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo,apad","-t",seconds(span.durationMs),"-c:a","pcm_s16le",path.join(folder,name)],remaining());
+  names.push(name);
+ }
+ const list=path.join(folder,"audio-"+track+".txt");
+ await writeFile(list,names.map(n=>"file '"+n+"'").join("\n")+"\n");
+ return {list,names:[...names,"audio-"+track+".txt"]};
+}
 async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string){
  const range:SongPlacement={startMs:project.songStartMs,endMs:project.songEndMs,positionMs:project.songPositionMs};
  const parts=effectiveSongParts(range,project.songParts);
@@ -94,10 +129,26 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
  }
  const totalFrames=spans.at(-1)!.endFrame;
  silence(totalFrames*1000/fps-cursor);
- graph.push(labels.join("")+"concat=n="+labels.length+":v=0:a=1[aout]");
- await ffmpeg(["-f","concat","-safe","1","-i",list,"-i",songFile,"-filter_complex_threads","1","-filter_complex",graph.join(";"),"-map","0:v:0","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","320k","-t",frameSeconds(totalFrames),"-movflags","+faststart",path.join(folder,"result.mp4")],remaining());
+ const mutes=project.trackMutes??{1:true,2:true,song:false};
+ graph.push(labels.join("")+"concat=n="+labels.length+":v=0:a=1[song]");
+ const audioInputs:string[]=[],audioTemp:string[]=[],mixLabels:string[]=[];
+ if(!mutes.song)mixLabels.push("[song]");
+ else graph.push("[song]anullsink");
+ for(const track of [1,2] as const){
+  if(mutes[track]||!clips.some(c=>c.track===track))continue;
+  const rendered=await renderTrackAudio(track,clips,files,totalFrames*1000/fps,folder,remaining,started);
+  const index=2+audioInputs.length/6;
+  audioInputs.push("-f","concat","-safe","1","-i",rendered.list);
+  audioTemp.push(...rendered.names);
+  graph.push("["+index+":a:0]asetpts=PTS-STARTPTS,aresample=48000,aformat=sample_rates=48000:channel_layouts=stereo[t"+track+"]");
+  mixLabels.push("[t"+track+"]");
+ }
+ if(mixLabels.length===0)graph.push("anullsrc=r=48000:cl=stereo,atrim=duration="+frameSeconds(totalFrames)+"[aout]");
+ else if(mixLabels.length===1)graph.push(mixLabels[0]+"anull[aout]");
+ else graph.push(mixLabels.join("")+"amix=inputs="+mixLabels.length+":duration=longest:normalize=0,alimiter=limit=0.95:level=0:latency=1[aout]");
+ await ffmpeg(["-f","concat","-safe","1","-i",list,"-i",songFile,...audioInputs,"-filter_complex_threads","1","-filter_complex",graph.join(";"),"-map","0:v:0","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","320k","-t",frameSeconds(totalFrames),"-movflags","+faststart",path.join(folder,"result.mp4")],remaining());
  if((await stat(path.join(folder,"result.mp4"))).size<1000)throw new Error("empty export");
- for(const n of [...names,"concat.txt"])await rm(path.join(folder,n),{force:true});
+ for(const n of [...names,"concat.txt",...audioTemp])await rm(path.join(folder,n),{force:true});
 }
 export async function startMusicExport(owner:string,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string){
  await cleanup();
