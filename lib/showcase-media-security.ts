@@ -24,19 +24,3 @@ export function showcaseMutationOriginAllowed(
 export function isShowcasePosterFilename(filename:string):boolean{
  return /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\.webp$/i.test(filename);
 }
-
-/** RFC byte range handling for progressive playback. Never truncate an open-ended request. */
-export function showcaseByteRange(header:string|null,size:number):{start:number;end:number;status:200|206}|null{
- if(!Number.isSafeInteger(size)||size<1)return null;
- if(header===null)return {start:0,end:size-1,status:200};
- const m=/^bytes=(\d*)-(\d*)$/.exec(header.trim());
- if(!m||(!m[1]&&!m[2]))return null;
- if(!m[1]){
-  const length=Number(m[2]);
-  if(!Number.isSafeInteger(length)||length<=0)return null;
-  return {start:Math.max(0,size-length),end:size-1,status:206};
- }
- const start=Number(m[1]),requestedEnd=m[2]?Number(m[2]):size-1;
- if(!Number.isSafeInteger(start)||!Number.isSafeInteger(requestedEnd)||start>=size||requestedEnd<start)return null;
- return {start,end:Math.min(requestedEnd,size-1),status:206};
-}
