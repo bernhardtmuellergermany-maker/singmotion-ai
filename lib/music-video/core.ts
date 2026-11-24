@@ -3,7 +3,7 @@ import {mkdirSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import path from "node:path";
 import {dataDir} from "@/lib/db";
-import {validSongRange} from "./song-range.ts";
+import {validSongRange,validSongPlacement,MAX_TIMELINE_MS} from "./song-range.ts";
 
 export type Track = 1 | 2;
 export type SourceKind = "uploaded" | "live" | "paid";
@@ -18,7 +18,7 @@ export type MusicAsset = {
   sourceEndMs:number|null; createdAt:number;
 };
 export type MusicProject = {
-  id:string; ownerId:string; name:string; songDurationMs:number; songStartMs:number; songEndMs:number;
+  id:string; ownerId:string; name:string; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number;
   revision:number; createdAt:number; updatedAt:number; aspectRatio:"16:9";
 };
 export class MusicError extends Error {
@@ -43,6 +43,7 @@ function database():DatabaseSync{
     const columns=opened.prepare("PRAGMA table_info(music_projects)").all() as {name:string}[];
     if(!columns.some(c=>c.name==="song_start_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_start_ms INTEGER NOT NULL DEFAULT 0");
     if(!columns.some(c=>c.name==="song_end_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_end_ms INTEGER DEFAULT NULL");
+    if(!columns.some(c=>c.name==="song_position_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_position_ms INTEGER DEFAULT NULL");
     opened.exec("COMMIT");
   }catch(e){opened.exec("ROLLBACK");opened.close();throw e;}
   opened.exec("CREATE INDEX IF NOT EXISTS music_projects_owner ON music_projects(owner_id,updated_at)");
@@ -54,10 +55,10 @@ function database():DatabaseSync{
   db=opened;
   return opened;
 }
-type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;revision:number;created_at:number;updated_at:number};
+type ProjectRow={id:string;owner_id:string;name:string;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;revision:number;created_at:number;updated_at:number};
 type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number};
-const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:"16:9"});
+const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:"16:9"});
 const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked});
 export function requireMusicProject(id:string,owner:string):MusicProject{
@@ -131,7 +132,7 @@ export function removeMusicAsset(id:string,owner:string,assetId:string){
   database().prepare("UPDATE music_projects SET updated_at=?,revision=revision+1 WHERE id=?").run(Date.now(),id);
 }
 function integer(v:unknown,max:number){return typeof v==="number"&&Number.isSafeInteger(v)&&v>=0&&v<=max;}
-export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:number):MusicClip[]{
+export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:number,offset=0):MusicClip[]{
   if(!Array.isArray(clips)||clips.length>500)throw new MusicError("Too many timeline clips.");
   const byAsset=new Map(assets.map(a=>[a.id,a])),used=new Set<string>();
   const bounds:Record<Track,Array<[number,number]>>={1:[],2:[]};
@@ -146,8 +147,8 @@ export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:
     if(end>songMs)throw new MusicError("Clip extends beyond the end of the song.",409);
     if(c.syncLocked){
       if(a.kind!=="lip-sync"||a.sourceStartMs===null||a.sourceEndMs===null ||
-        c.timelineStartMs!==a.sourceStartMs+c.sourceInMs||
-        end>a.sourceEndMs)throw new MusicError("Lip-sync position cannot change while Sync Lock is enabled.",409);
+        c.timelineStartMs!==a.sourceStartMs+c.sourceInMs+offset||
+        end>a.sourceEndMs+offset)throw new MusicError("Lip-sync position cannot change while Sync Lock is enabled.",409);
     }
     bounds[c.track].push([c.timelineStartMs,end]);
   }
@@ -158,7 +159,7 @@ export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:
   }
   return clips;
 }
-export function saveMusicClips(id:string,owner:string,revision:unknown,clips:MusicClip[],songStartMs?:unknown,songEndMs?:unknown){
+export function saveMusicClips(id:string,owner:string,revision:unknown,clips:MusicClip[],songStartMs?:unknown,songEndMs?:unknown,songPositionMs?:unknown){
   const project=requireMusicProject(id,owner),connection=database();
   if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed on another device. Reload to avoid overwriting edits.",409);
   const start=songStartMs===undefined&&songEndMs===undefined?project.songStartMs:songStartMs;
@@ -166,10 +167,13 @@ export function saveMusicClips(id:string,owner:string,revision:unknown,clips:Mus
   if(!validSongRange(start,end,project.songDurationMs)||typeof end!=="number")
     throw new MusicError("Invalid song trim. Select at least 100 milliseconds within the original song.");
   const assets=musicDetail(id,owner).assets;
-  const accepted=validateMusicClips(clips,assets,project.songDurationMs);
+  const position=songPositionMs===undefined?Math.max(0,project.songPositionMs+start-project.songStartMs):songPositionMs;
+  if(typeof position!=="number"||!validSongPlacement({startMs:start,endMs:end,positionMs:position},project.songDurationMs))
+    throw new MusicError("Invalid song position.");
+  const accepted=validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start);
   connection.exec("BEGIN IMMEDIATE");
   try{
-    const changed=connection.prepare("UPDATE music_projects SET updated_at=?,revision=revision+1,song_start_ms=?,song_end_ms=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),start,end,id,owner,revision);
+    const changed=connection.prepare("UPDATE music_projects SET updated_at=?,revision=revision+1,song_start_ms=?,song_end_ms=?,song_position_ms=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),start,end,position,id,owner,revision);
     if(changed.changes!==1)throw new MusicError("Project changed on another device. Reload to continue.",409);
     connection.prepare("DELETE FROM music_clips WHERE project_id=?").run(id);
     const add=connection.prepare("INSERT INTO music_clips VALUES (?,?,?,?,?,?,?,?)");
