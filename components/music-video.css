@@ -475,3 +475,13 @@
 .mv-root.mv-projects .mv-dialog input[type=file]::file-selector-button:hover{background:#403052!important}
 .mv-root.mv-projects .mv-dialog input:focus-visible{outline:2px solid #a76cce;outline-offset:2px}
 .mv-root.mv-projects .mv-dialog input:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #131d2b inset!important;-webkit-text-fill-color:#f4f0fa!important}
+
+/* Project format selection: preview and exported canvas share the same orientation. */
+.mv-root.mv-editor .mv-video-box.is-portrait{aspect-ratio:9/16;width:min(100%,calc(54vh * 9 / 16));max-height:54vh;margin-inline:auto;border-radius:9px}
+.mv-root .mv-format-controls{display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:5px 7px;flex-wrap:wrap;color:#c5b2d3;font-size:11px}
+.mv-root .mv-format-controls>span{margin-right:auto}
+.mv-root .mv-format-controls button{min-width:42px;padding:4px 8px;min-height:27px;border:1px solid transparent;border-radius:6px;background:transparent;color:#c5b2d3;font-size:12px}
+.mv-root .mv-format-controls button[aria-pressed=true]{background:#352043;border-color:#77509a;color:#f3dfff}
+.mv-root .mv-format-controls small{padding-left:4px;color:#bda6d2}
+.mv-root.mv-editor .mv-video-box:fullscreen{width:100%;height:100%;max-height:none;aspect-ratio:auto;background:#000}
+@media(max-width:760px){.mv-root.mv-editor .mv-video-box.is-portrait{width:min(100%,calc(48vh * 9 / 16));max-height:48vh}.mv-root .mv-format-controls{padding:4px 5px}}
