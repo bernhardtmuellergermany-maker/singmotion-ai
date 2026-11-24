@@ -195,17 +195,17 @@ async function songWaveform(id:string):Promise<number[]>{
 
 // Private, disposable preview cache. Never replace or transcode the original for export.
 // One encoder, at most six 24 MiB files; long/unavailable media fall back to the original.
-const previewRoot=()=>mkdir(path.join(tmpdir(),"singmotion-project-preview-v1"),{recursive:true,mode:0o700}).then(()=>path.join(tmpdir(),"singmotion-project-preview-v1"));
+const previewRoot=(mobile=false)=>{const root=path.join(tmpdir(),mobile?"singmotion-project-mobile-v1":"singmotion-project-preview-v1");return mkdir(root,{recursive:true,mode:0o700}).then(()=>root);};
 const previewJobs=new Map<string,Promise<boolean>>();
-async function previewPath(id:string,assetId:string,file:string){
+async function previewPath(id:string,assetId:string,file:string,mobile=false){
   const info=await stat(file);
   const key=createHash("sha256").update(id+":"+assetId+":"+info.size+":"+info.mtimeMs).digest("hex");
-  return path.join(await previewRoot(),key+".mp4");
+  return path.join(await previewRoot(mobile),key+".mp4");
 }
 async function readyPreview(file:string){
   return stat(file).then(s=>s.isFile()&&s.size>1024&&s.size<=24*1024*1024).catch(()=>false);
 }
-async function preparePreview(file:string,target:string,durationMs:number):Promise<boolean>{
+async function preparePreview(file:string,target:string,durationMs:number,mobile=false):Promise<boolean>{
   if(await readyPreview(target))return true;
   if(durationMs>180000)return false;
   const pending=previewJobs.get(target);if(pending)return pending;
@@ -217,10 +217,10 @@ async function preparePreview(file:string,target:string,durationMs:number):Promi
     await Promise.all(names.filter(n=>/^[a-f0-9]{64}\.mp4\.[a-f0-9-]{36}\.tmp\.mp4$/.test(n)).map(n=>rm(path.join(dir,n),{force:true}).catch(()=>{})));
     const entries=await Promise.all(names.filter(n=>/^[a-f0-9]{64}\.mp4$/.test(n)).map(async n=>({file:path.join(dir,n),info:await stat(path.join(dir,n)).catch(()=>null)})));
     const old=entries.filter(e=>e.info).sort((a,b)=>a.info!.mtimeMs-b.info!.mtimeMs);
-    while(old.length>=6){const first=old.shift()!;await rm(first.file,{force:true});}
+    while(old.length>=(mobile?8:6)){const first=old.shift()!;await rm(first.file,{force:true});}
     const temp=target+"."+randomUUID()+".tmp.mp4";
     try{
-      await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",file,"-map","0:v:0","-map","0:a:0?","-sn","-dn","-filter_threads","1","-vf","scale=w='min(854,iw)':h='min(854,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1","-c:v","libx264","-threads","1","-preset","veryfast","-crf","24","-maxrate","800k","-bufsize","1600k","-g","30","-pix_fmt","yuv420p","-c:a","aac","-b:a","96k","-movflags","+faststart",temp],{timeout:90000,maxBuffer:65536});
+      await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",file,"-map","0:v:0","-map","0:a:0?","-sn","-dn","-filter_threads","1","-vf",mobile?"scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,fps=30":"scale=w='min(854,iw)':h='min(854,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1","-c:v","libx264","-threads","1","-preset","veryfast","-crf",mobile?"26":"24","-maxrate",mobile?"400k":"800k","-bufsize",mobile?"800k":"1600k","-g",mobile?"15":"30",...(mobile?["-profile:v","baseline","-level:v","3.1"]:[]),"-pix_fmt","yuv420p","-c:a","aac","-b:a",mobile?"64k":"96k","-movflags","+faststart",temp],{timeout:90000,maxBuffer:65536});
       if(!await readyPreview(temp))return false;
       await rename(temp,target);return true;
     }catch{return false;}finally{await rm(temp,{force:true}).catch(()=>{});}
@@ -308,9 +308,12 @@ async function handler(req:NextRequest,context:Context){
       const asset=musicAsset(id,owner,assetId);
       const files=await exportSources(req,owner,id,musicDetail(id,owner),[assetId]);
       const original=files.get(assetId)!;
-      const target=await previewPath(id,assetId,original);
-      if(req.method==="POST")return json({ready:await preparePreview(original,target,asset.durationMs)});
+      const mobile=req.nextUrl.searchParams.get("mobile")==="1";
+      const target=await previewPath(id,assetId,original,mobile);
+      if(req.method==="POST")return json({ready:await preparePreview(original,target,asset.durationMs,mobile),unsupported:asset.durationMs>180000});
       if(await readyPreview(target))return await streamFile(req,target,"video/mp4",true);
+      // Mobile must not silently fall back to a heavyweight original.
+      if(mobile)return json({error:"Mobile preview not ready."},409);
       // Evicted preview: use original, preserving the source clock.
       return Response.redirect(new URL("/api/music-video/"+id+"/assets/"+assetId,req.url));
     }
