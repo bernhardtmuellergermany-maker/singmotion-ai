@@ -122,5 +122,13 @@ test("completed video next-segment action uses only immutable owned audio and cr
  assert.match(button,/selection:source\.selection/);
  assert.match(button,/step:0/);
  assert.match(button,/router\.push\("\/studio\?draft="\+encodeURIComponent\(draftId\)\)/);
- assert.doesNotMatch(button,/action:"submit"|credit-checkout|uploadWithProgress/);
+ // Clearing a stale checkout-resume key is required, not a checkout request.
+ const clearCreditResume='sessionStorage.removeItem("sm-credit-checkout-resume")';
+ const clearAccountResume='sessionStorage.removeItem("sm-studio-account-resume")';
+ const navigation=button.indexOf('router.push("/studio?draft="');
+ for(const cleanup of [clearCreditResume,clearAccountResume]){
+  assert.equal(button.split(cleanup).length,2);
+  assert.ok(button.indexOf(cleanup)<navigation);
+ }
+ assert.doesNotMatch(button.replace(clearCreditResume,""),/action\s*:\s*["']submit["']|credit-checkout|uploadWithProgress/);
 });
