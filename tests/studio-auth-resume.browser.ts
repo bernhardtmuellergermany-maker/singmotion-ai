@@ -31,10 +31,24 @@ async function verifyCameraPicker(page:Page,original:string){
  const expected=(move:typeof cameraMovements[number])=>ownText+"\n"+move.direction;
  const select=async(move:typeof cameraMovements[number])=>{
   const chip=panel.getByRole("button",{name:"Add "+move.name+" camera movement to prompt",exact:true});
+  const group=panel.getByRole("group",{name:move.recommended?"Add camera movement to prompt":"Experimental camera movements",exact:true});
+  const positions=()=>group.evaluate(el=>{
+   const origin=el.getBoundingClientRect();
+   return Array.from(el.querySelectorAll(".sm-camera-chip-recommended,.sm-camera-chip-experimental"),button=>{
+    const r=button.getBoundingClientRect();
+    return [r.x-origin.x,r.y-origin.y,r.width,r.height].map(Math.round);
+   });
+  });
+  const before=await positions();
   await chip.click();
   await preview.waitFor({state:"visible"});
   assert.equal(await prompt.evaluate(el=>document.activeElement===el),false,"quick tip must never focus the prompt");
-  assert.ok(await chip.evaluate(el=>!!el.nextElementSibling?.querySelector("#sm-camera-active-preview")),"preview is immediately after the selected chip");
+  assert.ok(await group.evaluate(el=>!!el.lastElementChild?.querySelector("#sm-camera-active-preview")),"preview follows every chip in its own group");
+  assert.deepEqual(await positions(),before,"quick links retain their positions when the preview changes");
+  assert.ok(await group.evaluate(el=>{
+   const slot=el.lastElementChild!.getBoundingClientRect();
+   return Array.from(el.querySelectorAll(".sm-camera-chip-recommended,.sm-camera-chip-experimental")).every(button=>button.getBoundingClientRect().bottom<=slot.top);
+  }),"preview is below every quick link");
   assert.equal(await preview.count(),1);
   assert.equal(await preview.locator("strong").innerText(),move.name);
   assert.equal(await preview.locator(".sm-camera-chip-rating").innerText(),move.recommended?"Recommended":"Experimental");
@@ -67,6 +81,7 @@ async function verifyCameraPicker(page:Page,original:string){
  await panel.getByRole("button",{name:"Show more (25 experimental)",exact:true}).click();
  assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),25);
  await select(additionalCameraMovements.find(m=>m.name==="Truck right")!);
+ await select(additionalCameraMovements.find(m=>m.name==="Truck left")!);
  await preview.getByRole("button",{name:"Close camera movement preview"}).click();
  assert.equal(await preview.count(),0);
  await select(additionalCameraMovements.find(m=>m.name==="Truck left")!);
@@ -75,7 +90,7 @@ async function verifyCameraPicker(page:Page,original:string){
  assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),0);
  await prompt.fill(original);
  assert.equal(await prompt.inputValue(),original);
- console.log("PASS: Studio camera chips switch library tips, retain manual text, and dismiss inline without focusing the prompt at "+page.viewportSize()?.width+"px.");
+ console.log("PASS: Studio camera chips keep previews below all chips in each group, preserve chip positions and manual text, and never focus the prompt at "+page.viewportSize()?.width+"px.");
 }
 async function verifyCameraHelp(page:Page,origin:string){
  const help=await page.context().newPage();
