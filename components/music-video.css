@@ -203,3 +203,16 @@
 .mv-marker-time{display:flex;align-items:center;gap:4px}
 .mv-marker-time label{display:flex;align-items:center;gap:5px}
 .mv-marker-time input{width:100px;padding:4px 5px;font-size:12px;font-variant-numeric:tabular-nums}
+
+/* The player scrubber is not a text field. Keep the rendered fill at the true
+   timeline percentage on mobile and desktop, with a native accessible input. */
+.mv-player-controls .mv-progress-wrap{position:relative;flex:1 1 0;min-width:32px;height:44px;display:flex;align-items:center}
+.mv-player-controls .mv-progress-rail{position:absolute;left:8px;right:8px;height:6px;border-radius:999px;background:#ded6e8;overflow:hidden;pointer-events:none}
+.mv-player-controls .mv-progress-rail>span{display:block;height:100%;border-radius:inherit;background:#c03af4}
+.mv-root .mv-player-controls input.mv-progress[type=range]{-webkit-appearance:none!important;appearance:none!important;position:relative;display:block;width:100%!important;min-width:0!important;max-width:none!important;height:44px!important;min-height:0!important;margin:0!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important;box-shadow:none!important;cursor:pointer;touch-action:pan-y}
+.mv-root .mv-player-controls input.mv-progress[type=range]::-webkit-slider-runnable-track{height:6px;border:0;background:transparent}
+.mv-root .mv-player-controls input.mv-progress[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;box-sizing:border-box;width:16px;height:16px;margin-top:-5px;border:0;border-radius:50%;background:#c03af4}
+.mv-root .mv-player-controls input.mv-progress[type=range]::-moz-range-track{height:6px;border:0;background:transparent}
+.mv-root .mv-player-controls input.mv-progress[type=range]::-moz-range-progress{background:transparent}
+.mv-root .mv-player-controls input.mv-progress[type=range]::-moz-range-thumb{box-sizing:border-box;width:16px;height:16px;border:0;border-radius:50%;background:#c03af4}
+.mv-root .mv-player-controls input.mv-progress[type=range]:focus-visible{outline:2px solid #e5a3ff;outline-offset:1px;border-radius:8px!important}
