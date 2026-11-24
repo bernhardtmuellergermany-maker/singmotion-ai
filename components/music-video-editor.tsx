@@ -483,7 +483,7 @@ export function MusicVideoEditor({id}:{id:string}){
   useEffect(()=>{
     if(!activeClip||!activeAsset||!video.current)return;
     const expected=(activeClip.sourceInMs+Math.max(0,playhead-activeClip.timelineStartMs))/1000;
-    if(video.current.readyState>=1&&Math.abs(video.current.currentTime-expected)>0.24){
+    if(video.current.readyState>=1&&Math.abs(video.current.currentTime-expected)>(playing?0.24:0.001)){
       try{video.current.currentTime=expected;}catch{}
     }
     if(playing&&video.current.paused)void video.current.play().catch(()=>{});
