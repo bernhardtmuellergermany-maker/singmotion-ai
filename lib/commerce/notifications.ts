@@ -61,7 +61,7 @@ function deletedCreditVideo(commerce:DatabaseSync,live:DatabaseSync,subject:stri
  const data=JSON.parse(attempt.data) as {state?:string;media?:{owner?:string}};
  if(data.state!=="completed"||data.media?.owner!==paid.owner)return null;
  const row=live.prepare("SELECT * FROM live_studio_projects WHERE attempt_id=?").get(paid.id) as {owner:string;deleted_at:number|null;display_name?:string;project_name?:string;artist_name?:string}|undefined;
- if(row)return row.owner===paid.owner&&row.deleted_at!==null?{name:projectTitle(row),href:null}:null;
+ if(row)return row.owner===paid.owner&&typeof row.deleted_at==="number"&&row.deleted_at>0?{name:projectTitle(row),href:null}:null;
  // Permanent purge keeps only an owner-verified name in the existing action
  // history, which full account erasure already removes by attempt_id.
  if(!live.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='live_studio_actions'").get())return null;
