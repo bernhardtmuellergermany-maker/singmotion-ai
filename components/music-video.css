@@ -586,3 +586,14 @@
 .mv-root.mv-editor .mv-library-menu>button,.mv-root.mv-editor .mv-library-menu>a{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;text-align:left;background:transparent;border:0;color:#eee5f5;padding:10px;font-size:12px;text-decoration:none;white-space:nowrap}
 .mv-root.mv-editor .mv-library-menu>a:hover,.mv-root.mv-editor .mv-library-menu>button:hover{background:#51316a}
 .mv-root.mv-editor .mv-library-menu svg{flex:none}
+
+/* Inline time confirmations: a single clean input surface with a small check on the right. */
+.mv-root.mv-editor .mv-inline-time{position:relative;min-width:0}
+.mv-root.mv-editor .mv-inline-time label{min-width:0}
+.mv-root.mv-editor .mv-inline-time input{box-sizing:border-box;width:100%!important;min-width:0!important;max-width:100%!important;padding-right:34px!important;min-height:38px}
+.mv-root.mv-editor .mv-inline-time .mv-inline-confirm{position:absolute;right:3px;bottom:3px;height:32px;width:29px;min-width:29px;display:grid;place-items:center;padding:0!important;border:0;background:transparent;color:#d7b9ed;border-radius:5px;box-shadow:none}
+.mv-root.mv-editor .mv-inline-time .mv-inline-confirm:hover:not(:disabled),.mv-root.mv-editor .mv-inline-time .mv-inline-confirm:focus-visible{background:#38234b;color:#fff}
+.mv-root.mv-editor .mv-inline-time .mv-inline-confirm:disabled{opacity:.35}
+.mv-root.mv-editor .mv-song-position>.mv-inline-time{flex:1 1 132px;max-width:220px}
+.mv-root.mv-editor .mv-inspector-icon{min-height:34px;min-width:34px;display:inline-flex;align-items:center;justify-content:center;padding:5px 7px;gap:4px;background:transparent;border-color:#51405e;color:#ccb5dd}
+@media(max-width:600px){.mv-root.mv-editor .mv-inline-time input{min-height:40px;font-size:12px;padding-left:6px!important;padding-right:32px!important}.mv-root.mv-editor .mv-inline-time .mv-inline-confirm{height:34px;width:28px}.mv-root.mv-editor .mv-song-position>.mv-inline-time{flex:1 1 110px;max-width:none}}
