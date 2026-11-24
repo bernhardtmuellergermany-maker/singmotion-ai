@@ -27,7 +27,8 @@ async function verifyCameraPicker(page:Page,original:string){
  assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),0);
  assert.equal(await preview.count(),0);
  const initialUrl=page.url();
- const expected=(move:typeof cameraMovements[number])=>[...original.split("\n").map(x=>x.trim()).filter(x=>x&&!/^Camera:\s*/i.test(x)),move.direction].join("\n");
+ let ownText=original;
+ const expected=(move:typeof cameraMovements[number])=>ownText+"\n"+move.direction;
  const select=async(move:typeof cameraMovements[number])=>{
   const chip=panel.getByRole("button",{name:"Add "+move.name+" camera movement to prompt",exact:true});
   await chip.click();
@@ -52,6 +53,8 @@ async function verifyCameraPicker(page:Page,original:string){
  await select(dolly);
  await prompt.click();
  assert.equal(await prompt.evaluate(el=>document.activeElement===el),true,"manual tap can still focus the prompt");
+ ownText="  Sing naturally.\n\nCamera: My own framing instruction.  ";
+ await prompt.fill(ownText+"\n"+dolly.direction);
  await select(dolly);
  await preview.getByRole("button",{name:"Pause Dolly in preview"}).click();
  assert.equal(await preview.locator("img").getAttribute("src"),cameraMovementPreview(dolly).poster);
@@ -72,7 +75,7 @@ async function verifyCameraPicker(page:Page,original:string){
  assert.equal(await panel.locator(".sm-camera-chip-experimental:visible").count(),0);
  await prompt.fill(original);
  assert.equal(await prompt.inputValue(),original);
- console.log("PASS: Studio camera chips select, switch, insert, pause, reduce motion and dismiss inline without focusing the prompt at "+page.viewportSize()?.width+"px.");
+ console.log("PASS: Studio camera chips switch library tips, retain manual text, and dismiss inline without focusing the prompt at "+page.viewportSize()?.width+"px.");
 }
 async function verifyCameraHelp(page:Page,origin:string){
  const help=await page.context().newPage();
