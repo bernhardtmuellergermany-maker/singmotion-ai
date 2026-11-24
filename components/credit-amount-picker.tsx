@@ -65,12 +65,10 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  const canPurchase=discoverAvailability?checkoutAccess.state==="ready"&&checkoutAccess.purchaseEnabled:purchaseEnabled;
  const checkoutTestMode=discoverAvailability?checkoutAccess.testMode:testMode;
  const alternativesEnabled=discoverAvailability&&checkoutAccess.alternativeCheckoutEnabled&&checkoutAccess.state==="ready"&&checkoutAccess.alternativeBillingCountries!==null;
- const [paymentRoute,setPaymentRoute]=useState<"managed"|"alternative">("managed");
- const needsBillingCountry=(discoverAvailability?checkoutAccess.globalCountrySelection:globalCountrySelection)||
-   (alternativesEnabled&&paymentRoute==="alternative");
+ const needsBillingCountry=(discoverAvailability?checkoutAccess.globalCountrySelection:globalCountrySelection)||alternativesEnabled;
  const [billingCountry,setBillingCountry]=useState("");
  const [buyerType,setBuyerType]=useState<"consumer"|"business">("consumer");
- const moRCountries=paymentRoute==="alternative"?(checkoutAccess.alternativeBillingCountries?.[buyerType]??[]):(discoverAvailability?checkoutAccess.approvedBillingCountries:approvedBillingCountries);
+ const moRCountries=discoverAvailability?checkoutAccess.approvedBillingCountries:approvedBillingCountries;
  const selectableCountries=moRCountries?countries.filter(x=>moRCountries.includes(x.code)):countries;
  const [raw,setRaw]=useState("500");
  const [busy,setBusy]=useState(false);
@@ -95,7 +93,6 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
  const credits=parseCreditTopup(raw),cents=credits===null?null:proposedTopupCents(credits);
  const estimatedVideoSeconds=credits===null||creditsPerSecond===null?null:Math.floor(credits/creditsPerSecond);
  const begin=async()=>{
-  if(paymentRoute==="alternative"&&!alternativesEnabled)return;
   if(!canPurchase||credits===null||busy||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry)))))return;
   setBusy(true);setError("");setStatus(null);
   try{
@@ -122,8 +119,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
     method:"POST",credentials:"same-origin",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({credits:String(credits),requestKey:(requestKey.current??=crypto.randomUUID()),
-      ...(needsBillingCountry?{billingCountry,buyerType}:{}),
-      ...(paymentRoute==="alternative"&&alternativesEnabled?{paymentRoute:"alternative"}:{}),...resume}),
+      ...(needsBillingCountry?{billingCountry,buyerType}:{}),...resume}),
    });
    const data=await response.json() as {url?:string;error?:string;testMode?:boolean;supportReference?:string};
    if(!response.ok||data.testMode!==checkoutTestMode||typeof data.url!=="string"||
@@ -158,7 +154,7 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
    <p id={inputId+"-hint"} className={credits===null?"sm-credit-amount-error":"sm-credit-amount-helper"}>
     {credits===null?"Enter 500 to 100,000 whole credits.":"1 Credit = €0.01."}</p>
   </div>
-  {needsBillingCountry&&<div className="sm-credit-country-fields">
+  {canPurchase&&needsBillingCountry&&<div className="sm-credit-country-fields">
     <label htmlFor={inputId+"-country"}>Billing country</label>
     <select id={inputId+"-country"} value={billingCountry} required
      onChange={e=>{setBillingCountry(e.target.value);requestKey.current=null;setError("");}}>
@@ -170,25 +166,15 @@ export function CreditAmountPicker({purchaseEnabled=false,testMode=true,discover
      onChange={e=>{setBuyerType(e.target.value as "consumer"|"business");setBillingCountry("");requestKey.current=null;setError("");}}>
      <option value="consumer">Individual</option><option value="business">Business</option>
     </select>
-    <p>Your billing country and customer type must be eligible for this purchase. Stripe verifies the billing address at Checkout.</p>
+    <p>Your billing country determines the available payment methods. Choose your payment method on the secure Stripe checkout page.</p>
    </div>}
-  {alternativesEnabled&&canPurchase&&<fieldset className="sm-credit-payment-choice">
-   <legend>Payment options</legend>
-   <label><input type="radio" name="credit-payment-route" checked={paymentRoute==="managed"}
-    onChange={()=>{setPaymentRoute("managed");setBillingCountry("");requestKey.current=null;setError("");}}/>
-    Standard checkout (card and supported wallets)</label>
-   <label><input type="radio" name="credit-payment-route" checked={paymentRoute==="alternative"}
-    onChange={()=>{setPaymentRoute("alternative");setBillingCountry("");requestKey.current=null;setError("");}}/>
-    More payment methods (PayPal / Klarna where eligible)</label>
-   <p>These methods depend on your billing country and Stripe eligibility. Credits are issued only after confirmed payment.</p>
-  </fieldset>}
   <div className="sm-credit-amount-total" aria-live="polite">
    <div><span>Credits</span><strong>{credits===null?"—":num(credits)}</strong></div>
    <div><span>Estimated payment</span><strong>{cents===null?"—":euro(cents)}</strong></div>
    <div><span>Estimated AI Video Seconds</span><strong>{estimatedVideoSeconds===null?"—":num(estimatedVideoSeconds)+" s"}</strong></div>
    <p className="sm-credit-amount-seconds-note">Total source-audio time at {creditsPerSecond===null?"a currently unverified rate":creditsPerSecond+" Credits per started second"}. Individual video limits apply.</p>
   </div>
-  {canPurchase?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null||(paymentRoute==="alternative"&&!alternativesEnabled)||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry))))} onClick={()=>void begin()}>
+  {canPurchase?<button type="button" className="sm-credit-amount-disabled sm-credit-buy-enabled" disabled={busy||credits===null||(needsBillingCountry&&(!billingCountry||(moRCountries!==null&&!moRCountries.includes(billingCountry))))} onClick={()=>void begin()}>
    {busy?"Opening Stripe…":checkoutTestMode?"Test purchase with Stripe":"Buy securely with Stripe"}
   </button>:discoverAvailability&&checkoutAccess.state==="signed-out"?<Link href="/login" className="sm-credit-amount-disabled sm-credit-buy-enabled">Sign in to buy Credits</Link>:
    discoverAvailability&&checkoutAccess.state==="ready"&&checkoutAccess.emailVerification==="pending"?<Link href="/account/verify-email" className="sm-credit-amount-disabled sm-credit-buy-enabled">Verify email to buy Credits</Link>:
