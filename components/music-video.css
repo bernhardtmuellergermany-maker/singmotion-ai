@@ -71,9 +71,6 @@
 .mv-label strong{font-size:13px;flex:1;white-space:nowrap}
 .mv-label>button{width:29px;height:29px;padding:4px;border:1px solid #9d52c4;background:#54246e;border-radius:50%;display:grid;place-items:center}
 .mv-ruler-spacer{height:30px}
-.mv-add-menu{position:absolute;top:42px;left:100px;background:#2a173d;border:1px solid #ad66cf;border-radius:10px;padding:6px;box-shadow:0 14px 30px #0009;z-index:20;min-width:156px}
-.mv-add-menu button{display:flex;align-items:center;gap:10px;width:100%;font-size:13px;padding:9px 11px;border:0;background:transparent;text-align:left}
-.mv-add-menu button:hover{background:#57316b}
 .mv-scroll{overflow-x:auto;overflow-y:visible;flex:1;min-width:0;scrollbar-color:#8a4faf #261136}
 .mv-track-area{position:relative;min-height:204px}
 .mv-ruler{height:30px;background:#160e28;border-bottom:1px solid #5b3472;position:relative;cursor:crosshair}
@@ -135,7 +132,6 @@
 .mv-label strong{font-size:11px}
 .mv-label>button{width:23px;height:23px}
 .mv-label>svg{width:13px;flex-shrink:0}
-.mv-add-menu{left:50px}
 .mv-library-content{padding:9px}
 .mv-library-tools{justify-content:flex-start}
 .mv-library-search{max-width:100%}
@@ -148,7 +144,6 @@
 .mv-lip-list button:hover:not(:disabled){background:#52306b}
 .mv-lip-list button span{flex:1;min-width:0;display:grid;gap:5px;overflow-wrap:anywhere}
 .mv-lip-list button small{color:var(--mv-muted);font-size:12px}
-.mv-add-menu{min-width:205px}
 
 .mv-song-lane{position:relative;padding:10px 0;cursor:crosshair}
 .mv-song-mask{position:absolute;top:7px;bottom:7px;background:#10081ddd;pointer-events:none}
@@ -236,7 +231,6 @@
  .mv-tracks{min-height:180px}
  .mv-clip .mv-handle{opacity:0;pointer-events:none}
  .mv-clip.is-selected .mv-handle,.mv-clip.is-armed .mv-handle{opacity:1;pointer-events:auto}
- .mv-add-menu{left:40px;top:0}
  .mv-root .mv-clip-position input,.mv-root .mv-song-trim input{width:112px!important;max-width:100%;padding:6px 8px!important}
  .mv-song-trim{gap:6px 9px;padding:9px}
 }
@@ -263,19 +257,10 @@
 }
 
 /* Keep add controls at the visible right edge of the video lanes, outside scrolling media. */
-.mv-track-adds{flex:0 0 32px;min-width:32px;position:relative;z-index:10;background:#20132e;border-left:1px solid #58336e}
-.mv-add-spacer{height:30px;border-bottom:1px solid #5b3472}
-.mv-track-add-row{height:58px;position:relative;display:grid;place-items:center;border-bottom:1px solid #48315a}
-.mv-root .mv-track-add-button{width:25px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:#c4a4d5;display:grid;place-items:center;opacity:.8}
-.mv-root .mv-track-add-button:hover,.mv-root .mv-track-add-button[aria-expanded=true]{background:#49275b;color:#f3d4ff;opacity:1}
-.mv-track-adds .mv-add-menu{left:auto;right:3px;top:calc(100% - 6px);z-index:30;min-width:205px}
 .mv-song-block.is-selected{outline:2px solid #e0a6ff;outline-offset:2px}
 .mv-song-handle:not(.is-selected):not(.is-armed){opacity:0;pointer-events:none}
 .mv-song-position{background:#271537}
 @media(max-width:760px){
- .mv-track-adds{flex-basis:28px;min-width:28px}
- .mv-track-add-row{height:50px}
- .mv-root .mv-track-add-button{width:26px;height:30px}
 }
 
 /* Single-line project header. Name shrinks, status and export remain visible. */
@@ -320,8 +305,8 @@
 .mv-editor .mv-timeline-toolbar .mv-split-song:not(:disabled){background:#462358;color:#f3dfff;border:1px solid #80509b}
 .mv-editor .mv-timeline-zoom .mv-zoom-buttons{border-color:#554065;background:transparent}
 .mv-editor .mv-zoom-buttons button{background:#2f203f;border-color:#604578}
-.mv-editor .mv-track-labels,.mv-editor .mv-track-adds{background:#1c1529;border-color:#392b49}
-.mv-editor .mv-label,.mv-editor .mv-track-add-row,.mv-editor .mv-lane,.mv-editor .mv-ruler,.mv-editor .mv-add-spacer{border-color:#392d49}
+.mv-editor .mv-track-labels{background:#1c1529;border-color:#392b49}
+.mv-editor .mv-label,.mv-editor .mv-lane,.mv-editor .mv-ruler{border-color:#392d49}
 .mv-editor .mv-lane{background:repeating-linear-gradient(90deg,#282033 0,#282033 1px,#181326 1px,#181326 100px)}
 .mv-editor .mv-main-lane{background:repeating-linear-gradient(90deg,#34243f 0,#34243f 1px,#20152d 1px,#20152d 100px)}
 .mv-editor .mv-main-label,.mv-editor .mv-main-lane{box-shadow:inset 0 -1px 0 #614078}
