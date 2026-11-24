@@ -54,3 +54,7 @@
 
 /* A fixed header must not hide Buy Credits and Usage anchor headings. */
 #buy-credits,#usage{scroll-margin-top:calc(var(--sm-nav-height,70px) + 25px)}
+
+.sm-credits-history li>span{min-width:0;overflow-wrap:anywhere}
+.sm-credits-video-link{color:#d5b8ff;font-size:14px;font-weight:600;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.sm-credits-video-link:hover,.sm-credits-video-link:focus-visible{color:#fff}
