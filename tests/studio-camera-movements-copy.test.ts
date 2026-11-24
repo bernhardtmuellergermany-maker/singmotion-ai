@@ -128,7 +128,9 @@ test("quick tip switching preserves personal instructions and whitespace",()=>{
  assert.equal(replaceCameraQuickTip(own+"\n"+a.direction,b),own+"\n"+b.direction);
  assert.equal(replaceCameraQuickTip(own+"\n"+b.direction,b),own+"\n"+b.direction);
  assert.equal(replaceCameraQuickTip(own+"\n"+a.direction+"\n"+b.direction,c),own+"\n"+c.direction);
- assert.equal(replaceCameraQuickTip(a.direction+"\n"+own,c),own+"\n"+c.direction);
+ assert.equal(replaceCameraQuickTip(a.direction+"\n"+own,c),c.direction+"\n"+own);
+ assert.equal(replaceCameraQuickTip(own+"\n\n"+a.direction,b),own+"\n\n"+b.direction);
+ assert.equal(replaceCameraQuickTip(own+"\n"+a.direction+"\nAdditional manual text.",b),own+"\n"+b.direction+"\nAdditional manual text.");
  assert.equal(replaceCameraQuickTip(own+"\n",a),own+"\n"+a.direction);
  assert.match(read("components/studio-wizard.tsx"),/replaceCameraQuickTip\(draft\.customPrompt,move\)/);
 });
