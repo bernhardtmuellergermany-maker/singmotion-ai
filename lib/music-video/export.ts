@@ -101,7 +101,7 @@ async function renderTrackAudio(track:1|2,clips:MusicClip[],files:Map<string,str
 async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string){
  const range:SongPlacement={startMs:project.songStartMs,endMs:project.songEndMs,positionMs:project.songPositionMs};
  const parts=effectiveSongParts(range,project.songParts);
- const duration=Math.max(songPartsEnd(range,project.songParts),...clips.map(clipEnd));
+ const duration=songPartsEnd(range,project.songParts);
  const spans=videoRenderSpans(clips,duration);
  const resolution=await inspectExportResolution(spans,files,project.aspectRatio);job.resolution=resolution;
  const {width,height}=resolution;
@@ -162,8 +162,8 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
 export async function startMusicExport(owner:string,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string){
  await cleanup();
  const range={startMs:project.songStartMs,endMs:project.songEndMs,positionMs:project.songPositionMs};
- const duration=Math.max(songPartsEnd(range,project.songParts),...clips.map(clipEnd));
- if(!clips.length)throw new Error("Add at least one video before exporting.");
+ const duration=songPartsEnd(range,project.songParts);
+ if(!clips.some(c=>c.timelineStartMs<duration))throw new Error("Add at least one video within the song before exporting.");
  if(duration>limitMs||videoRenderSpans(clips,duration).length>120)throw new Error("MP4 export currently supports up to 10 minutes and 120 video sections.");
  if([...jobs.values()].some(j=>j.state==="rendering"))throw new Error("An export is already rendering. Try again after it finishes.");
  if(jobs.size>=4)throw new Error("Export capacity is temporarily full. Try again later.");
