@@ -456,3 +456,14 @@ test("video inspector groups source start/end before timeline start/end",()=>{
  assert.ok(editor.includes("onClick={submitClipTime}"));
  assert.ok(editor.includes("onClick={submitClipEnd}"));
 });
+
+test("library uses small authenticated cached still thumbnails instead of loading video elements",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes('src={endpoint+id+"/thumbnail/"+a.id}'));
+ assert.ok(editor.includes('loading="lazy" decoding="async" draggable={false}'));
+ assert.ok(api.includes('if(section==="thumbnail"&&assetId&&validId(assetId)&&req.method==="GET")'));
+ assert.ok(api.includes('const asset=musicAsset(id,owner,assetId)'));
+ assert.ok(api.includes('scale=320:240:force_original_aspect_ratio=decrease:force_divisible_by=2'));
+ assert.ok(api.includes('thumbnailSlots>=2'));
+ assert.ok(api.includes('"Cache-Control":"private, no-cache"'));
+});
