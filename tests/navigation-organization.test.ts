@@ -68,3 +68,19 @@ test("unreleased Projects stays CMS Super Admin only across page/API/menu",()=>{
  for(const s of [page,detail,api])assert.match(s,/musicPrincipal\(/);
  assert.match(api,/if\(!owner\)throw new MusicError\("Music Video Builder access denied\.",403\)/);
 });
+
+test("Projects offers owned completed Lip Sync insertion and separate user video uploads",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes("Insert Lip Sync"));
+ assert.ok(editor.includes("Upload own video"));
+ assert.ok(editor.includes('await ensureSession()'));
+ assert.ok(editor.includes('addClip(a,track,source.sourceStartMs)'));
+ assert.ok(editor.includes('if(track!==null)addClip(result.asset,track,playhead)'));
+ assert.ok(editor.includes('filter==="Uploads"&&a.kind==="imported"'));
+ assert.ok(api.includes('section==="lip-sync"'));
+ assert.ok(api.includes('logged?.owner!=="cms-staff-"+owner.slice(6)'));
+ assert.ok(api.includes('service.list(logged.owner).filter(p=>p.outputReady&&!p.hidden)'));
+ assert.ok(api.includes('service.trashedAt(ref,logged.owner)!==null'));
+ assert.ok(api.includes('await service.output(ref,logged.owner)'));
+ assert.ok(api.includes('if(!media.streams.some(v=>v.codec_type==="video"))'));
+});
