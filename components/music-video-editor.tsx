@@ -6,9 +6,11 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,FolderOpen,Lock,Unlock,
   Search,Trash2,Undo2,Upload,Volume2,VolumeX,ZoomIn} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track} from "@/lib/music-video/core";
+import {parseSongTime,validSongRange,moveSongEdge,type SongRange} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
+type EditSnapshot={clips:MusicClip[];range:SongRange};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
 const endpoint="/api/music-video/";
 const uuid=()=>crypto.randomUUID();
@@ -28,6 +30,9 @@ const overlaps=(clips:MusicClip[],target:MusicClip)=>clips.filter(c=>c.id!==targ
   target.timelineStartMs<clipEnd(c)&&clipEnd(target)>c.timelineStartMs);
 export function MusicVideoEditor({id}:{id:string}){
   const [detail,setDetail]=useState<Detail|null>(null),[clips,setClips]=useState<MusicClip[]>([]);
+  const [songRange,setSongRange]=useState<SongRange>({startMs:0,endMs:0});
+  const [startText,setStartText]=useState("00:00.000"),[endText,setEndText]=useState("00:00.000");
+  const rangeRef=useRef<SongRange>({startMs:0,endMs:0});
   const [selected,setSelected]=useState<string|null>(null),[playhead,setPlayhead]=useState(0);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
   const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"AI Video"|"Uploads">("All");
@@ -40,11 +45,17 @@ export function MusicVideoEditor({id}:{id:string}){
   const [wave,setWave]=useState<number[]>([]),[editingName,setEditingName]=useState(false),[newName,setNewName]=useState("");
   const audio=useRef<HTMLAudioElement>(null),video=useRef<HTMLVideoElement>(null),scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
   const revision=useRef(0),latest=useRef<MusicClip[]>([]),dirty=useRef(false),inFlight=useRef<Promise<void>|null>(null);
-  const saveTimer=useRef<ReturnType<typeof setTimeout>|null>(null),past=useRef<MusicClip[][]>([]),future=useRef<MusicClip[][]>([]);
+  const saveTimer=useRef<ReturnType<typeof setTimeout>|null>(null),past=useRef<EditSnapshot[]>([]),future=useRef<EditSnapshot[]>([]);
   const detailRef=useRef<Detail|null>(null);
   const load=useCallback(async()=>{
     const data=await request<Detail>(endpoint+id);
     detailRef.current=data;revision.current=data.project.revision;latest.current=data.clips;dirty.current=false;
+    const range={startMs:data.project.songStartMs,endMs:data.project.songEndMs};
+    rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
+    const at=audio.current?Math.round(audio.current.currentTime*1000):range.startMs;
+    const clamped=Math.max(range.startMs,Math.min(range.endMs,at));
+    if(audio.current&&audio.current.readyState>=1)audio.current.currentTime=clamped/1000;
+    setPlayhead(clamped);
     setDetail(data);setClips(data.clips);setNewName(data.project.name);setError("");
   },[id]);
   useEffect(()=>{void load().catch(e=>setError(e instanceof Error?e.message:"Project unavailable."));},[load]);
@@ -72,11 +83,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(inFlight.current){await inFlight.current;if(dirty.current)await saveNow();return;}
     if(!dirty.current)return;
     dirty.current=false;
-    const snapshot=latest.current;
+    const snapshot=latest.current,range=rangeRef.current;
     setStatus("Saving…");
     const task=(async()=>{
       const result=await request<Detail>(endpoint+id+"/clips",{method:"PATCH",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({revision:revision.current,clips:snapshot})});
+        body:JSON.stringify({revision:revision.current,clips:snapshot,songStartMs:range.startMs,songEndMs:range.endMs})});
       revision.current=result.project.revision;detailRef.current={...result,clips:latest.current};
       setDetail(previous=>previous?{...previous,project:result.project}:result);
     })();
@@ -92,17 +103,60 @@ export function MusicVideoEditor({id}:{id:string}){
     saveTimer.current=setTimeout(()=>{void saveNow().catch(()=>{});},600);
   };
   useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
-  function apply(next:MusicClip[],record=true){
-    if(record){past.current.push(latest.current);if(past.current.length>40)past.current.shift();future.current=[];}
+  function apply(next:MusicClip[],record=true,range=rangeRef.current){
+    if(record){past.current.push({clips:latest.current,range:rangeRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
+    const changed=range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs;
+    rangeRef.current=range;
+    if(changed){
+      setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
+      audio.current?.pause();
+      const at=Math.max(range.startMs,Math.min(range.endMs,playhead));
+      if(audio.current&&audio.current.readyState>=1)audio.current.currentTime=at/1000;
+      setPlayhead(at);
+    }
     latest.current=next;setClips(next);setError("");queue();
   }
   function undo(){
     const previous=past.current.pop();if(!previous)return;
-    future.current.push(latest.current);apply(previous,false);
+    future.current.push({clips:latest.current,range:rangeRef.current});apply(previous.clips,false,previous.range);
   }
   function redo(){
     const next=future.current.pop();if(!next)return;
-    past.current.push(latest.current);apply(next,false);
+    past.current.push({clips:latest.current,range:rangeRef.current});apply(next.clips,false,next.range);
+  }
+  function commitSongRange(range:SongRange){
+    if(!project||!validSongRange(range.startMs,range.endMs,project.songDurationMs)){setError("Choose a valid song range of at least 100 ms.");return;}
+    setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
+    if(range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs)
+      apply(latest.current,true,range);
+  }
+  function submitSongRange(){
+    const start=parseSongTime(startText),end=parseSongTime(endText);
+    if(start===null||end===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
+    commitSongRange({startMs:start,endMs:end});
+  }
+  function dragSongEdge(e:React.PointerEvent<HTMLButtonElement>,edge:"start"|"end"){
+    if(!project||importBusy.current||e.button!==0)return;
+    e.preventDefault();e.stopPropagation();audio.current?.pause();
+    const original=rangeRef.current,origin=e.clientX,pointer=e.pointerId;
+    const duration=project.songDurationMs;
+    let range=original;
+    const update=(event:PointerEvent)=>{
+      if(event.pointerId!==pointer)return;
+      const delta=(event.clientX-origin)/zoom*1000;
+      range=moveSongEdge(original,edge,(edge==="start"?original.startMs:original.endMs)+delta,duration);
+      setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
+    };
+    const cleanup=()=>{
+      document.removeEventListener("pointermove",update);
+      document.removeEventListener("pointerup",finish);
+      document.removeEventListener("pointercancel",cancel);
+    };
+    const finish=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;update(event);cleanup();commitSongRange(range);};
+    const cancel=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;cleanup();setSongRange(original);setStartText(time(original.startMs,true));setEndText(time(original.endMs,true));};
+    document.addEventListener("pointermove",update);
+    document.addEventListener("pointerup",finish);
+    document.addEventListener("pointercancel",cancel);
   }
   const project=detail?.project,assets=detail?.assets||[];
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
@@ -289,18 +343,32 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function seek(ms:number){
     if(!project)return;
-    const clamped=Math.max(0,Math.min(project.songDurationMs,ms));
+    const range=rangeRef.current;
+    const clamped=Math.max(range.startMs,Math.min(range.endMs,ms));
     if(audio.current)audio.current.currentTime=clamped/1000;
     setPlayhead(clamped);
   }
   function onAudioTime(){
     const current=audio.current;if(!current)return;
-    setPlayhead(Math.round(current.currentTime*1000));
+    const at=Math.round(current.currentTime*1000),range=rangeRef.current;
+    if(at>=range.endMs){current.pause();current.currentTime=range.endMs/1000;setPlayhead(range.endMs);return;}
+    if(at<range.startMs){current.currentTime=range.startMs/1000;setPlayhead(range.startMs);return;}
+    setPlayhead(at);
   }
+  useEffect(()=>{
+    if(!playing)return;
+    let frame=0;
+    const tick=()=>{onAudioTime();if(audio.current&&!audio.current.paused)frame=requestAnimationFrame(tick);};
+    frame=requestAnimationFrame(tick);
+    return()=>cancelAnimationFrame(frame);
+  },[playing]);
   function togglePlayback(){
     if(!audio.current)return;
-    if(audio.current.paused)void audio.current.play().catch(()=>setError("Audio playback was blocked."));
-    else audio.current.pause();
+    if(audio.current.paused){
+      const range=rangeRef.current,at=Math.round(audio.current.currentTime*1000);
+      if(at<range.startMs||at>=range.endMs)seek(range.startMs);
+      void audio.current.play().catch(()=>setError("Audio playback was blocked."));
+    }else audio.current.pause();
   }
   useEffect(()=>{
     if(!activeClip||!activeAsset||!video.current)return;
@@ -335,12 +403,12 @@ export function MusicVideoEditor({id}:{id:string}){
         <span className="mv-ratio">▣ 16:9</span>
       </div>
       <audio ref={audio} src={endpoint+id+"/song"} preload="metadata"
-        onTimeUpdate={onAudioTime} onEnded={()=>setPlaying(false)}
+        onLoadedMetadata={()=>seek(playhead)} onTimeUpdate={onAudioTime} onEnded={()=>setPlaying(false)}
         onPlay={()=>setPlaying(true)} onPause={()=>{setPlaying(false);video.current?.pause();}}/>
       <div className="mv-player-controls">
         <button aria-label={playing?"Pause":"Play"} onClick={togglePlayback}>{playing?<Pause size={19}/>:<Play size={19}/>}</button>
-        <span className="mv-clock">{time(playhead)} / {time(project!.songDurationMs)}</span>
-        <input className="mv-progress" aria-label="Seek song" type="range" min="0" max={project!.songDurationMs} step="10" value={playhead} onChange={e=>seek(Number(e.target.value))}/>
+        <span className="mv-clock">{time(playhead,true)} / {time(songRange.endMs,true)}</span>
+        <input className="mv-progress" aria-label="Seek song" type="range" min={songRange.startMs} max={songRange.endMs} step="1" value={Math.max(songRange.startMs,Math.min(songRange.endMs,playhead))} onChange={e=>seek(Number(e.target.value))}/>
         <button title="Song is the only audio track" aria-label="Song audio only"><Volume2 size={19}/></button>
         <button aria-label="Fullscreen" onClick={()=>{const box=document.querySelector(".mv-video-box");void box?.requestFullscreen?.();}}><Maximize size={19}/></button>
       </div>
@@ -373,7 +441,7 @@ export function MusicVideoEditor({id}:{id:string}){
               <button disabled title="AI video generation will be added later"><Plus size={15}/> Generate · Soon</button>
             </div>}
           </div>)}
-          <div className="mv-label"><Music2 size={18}/><strong>Song</strong><Lock size={15}/></div>
+          <div className="mv-label"><Music2 size={18}/><strong>Song</strong><Scissors size={15}/></div>
         </div>
         <div className="mv-scroll" ref={scroll}>
           <div className="mv-track-area" style={{width:pixels}}>
@@ -397,14 +465,32 @@ export function MusicVideoEditor({id}:{id:string}){
                 </div>;
               })}
             </div>)}
-            <div className="mv-song-lane">
-              <div className="mv-wave">{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,i)=>
+            <div className="mv-song-lane" onPointerDown={e=>{if(e.target===e.currentTarget||!(e.target as HTMLElement).closest(".mv-song-handle"))seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left));}}>
+              <div className="mv-wave" style={{width:project!.songDurationMs/1000*zoom}}>{(wave.length?wave:Array.from({length:180},()=>0.22)).map((v,i)=>
                 <span key={i} style={{height:Math.max(5,Math.min(100,v*100))+"%"}}/>)}</div>
+              <div className="mv-song-mask" style={{left:0,width:songRange.startMs/1000*zoom}}/>
+              <div className="mv-song-mask" style={{left:songRange.endMs/1000*zoom,width:(project!.songDurationMs-songRange.endMs)/1000*zoom}}/>
+              <div className="mv-song-selection" style={{left:songRange.startMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}/>
+              {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge}
+                style={{left:(edge==="start"?songRange.startMs:songRange.endMs)/1000*zoom}}
+                aria-label={"Trim song "+edge} title={time(edge==="start"?songRange.startMs:songRange.endMs,true)}
+                onPointerDown={e=>dragSongEdge(e,edge)}
+                onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();const range=rangeRef.current;
+                  commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}>Ⅱ</button>)}
             </div>
             <div className="mv-playhead" style={{left:playhead/1000*zoom}}><span/></div>
           </div>
         </div>
       </div>
+      <form className="mv-song-trim" onSubmit={e=>{e.preventDefault();submitSongRange();}}>
+        <strong><Scissors size={16}/> Song trim</strong>
+        <label>Start<input aria-label="Song start time" value={startText} onChange={e=>setStartText(e.target.value)} placeholder="00:08.918"/></label>
+        <label>End<input aria-label="Song end time" value={endText} onChange={e=>setEndText(e.target.value)} placeholder="00:30.000"/></label>
+        <button type="submit" className="mv-outline" disabled={importing}>Apply</button>
+        <button type="button" className="mv-outline" disabled={importing} onClick={()=>commitSongRange({startMs:0,endMs:project!.songDurationMs})}>Reset</button>
+        <span>Duration <b>{time(songRange.endMs-songRange.startMs,true)}</b></span>
+        <small>Original song time · Lip Sync stays aligned. Enter MM:SS.mmm or seconds.</small>
+      </form>
       {error&&<p className="mv-error" role="alert">{error}</p>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file,uploadTrack);e.target.value="";
