@@ -133,3 +133,30 @@ test("song placement is independent of source trim and locked video moves atomic
  assert.ok(core.includes("song_position_ms=?"));
  assert.ok(core.includes("a.sourceStartMs+c.sourceInMs+offset"));
 });
+
+test("video start time supports exact song-relative placement and collision protection",async()=>{
+ const {songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip}=await import("../lib/music-video/song-range.ts");
+ const song={startMs:2000,endMs:25000,positionMs:5000};
+ assert.equal(songTimeToTimeline(8918,song),11918);
+ assert.equal(timelineToSongTime(11918,song),8918);
+ assert.equal(parseRelativeSongTime("-00:02.100"),-2100);
+ assert.equal(parseRelativeSongTime("00:08.918"),8918);
+ const clip={id:"a",track:1,timelineStartMs:0,sourceInMs:1000,sourceOutMs:4000,syncLocked:false};
+ const blocker={...clip,id:"b",timelineStartMs:15000};
+ const otherTrack={...blocker,id:"c",track:2,timelineStartMs:11918};
+ assert.deepEqual(positionVideoClip([clip,blocker,otherTrack],clip,11918),{status:"ok",clip:{...clip,timelineStartMs:11918}});
+ assert.equal(positionVideoClip([clip,blocker],clip,12001).status,"collision");
+ assert.equal(positionVideoClip([clip,blocker],clip,12000).status,"ok");
+ assert.equal(positionVideoClip([clip,blocker],clip,18000).status,"ok");
+ assert.equal(positionVideoClip([clip],clip,-1).status,"bounds");
+ assert.equal(positionVideoClip([clip],clip,7200000).status,"bounds");
+ assert.equal(positionVideoClip([clip],{...clip,syncLocked:true},8918).status,"locked");
+ assert.equal(positionVideoClip([clip],{...clip,syncLocked:true},0).status,"ok");
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("submitClipTime()"));
+ assert.ok(editor.includes("positionVideoClip(latest.current,current,position)"));
+ assert.ok(editor.includes("songTimeToTimeline(ms,rangeRef.current)"));
+ assert.ok(editor.includes("Restore Lip Sync"));
+ assert.ok(editor.includes("syncLocked:restore||current.syncLocked"));
+ assert.ok(editor.includes("apply(latest.current.map(c=>c.id===current.id?candidate:c))"));
+});
