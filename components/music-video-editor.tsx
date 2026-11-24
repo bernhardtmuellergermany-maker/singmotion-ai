@@ -55,7 +55,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const range={startMs:data.project.songStartMs,endMs:data.project.songEndMs,positionMs:data.project.songPositionMs};
     rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPositionText(time(range.positionMs,true));
     playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();
-    const at=Math.min(playheadRef.current,Math.max(songTimelineEnd(range),...data.clips.map(clipEnd),data.project.songDurationMs));
+    const at=Math.min(playheadRef.current,Math.max(songTimelineEnd(range),...data.clips.map(clipEnd)));
     playheadRef.current=at;setPlayhead(at);
     if(audio.current&&audio.current.readyState>=1)audio.current.currentTime=Math.max(range.startMs,Math.min(range.endMs,at-songOffset(range)))/1000;
     setDetail(data);setClips(data.clips);setNewName(data.project.name);setError("");
@@ -112,7 +112,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(changed){
       displaySong(range);
       stopPlayback();
-      const at=Math.min(playheadRef.current,Math.max(songTimelineEnd(range),...next.map(clipEnd),project?.songDurationMs??0));
+      const at=Math.min(playheadRef.current,Math.max(songTimelineEnd(range),...next.map(clipEnd)));
       setAt(at,range);
     }
     latest.current=next;setClips(next);setError("");queue();
@@ -198,9 +198,9 @@ export function MusicVideoEditor({id}:{id:string}){
   const activeClip=clips.filter(c=>playhead>=c.timelineStartMs&&playhead<clipEnd(c)).sort((a,b)=>b.track-a.track)[0];
   const activeAsset=activeClip?byId.get(activeClip.assetId):null;
   const source=(a:MusicAsset)=>endpoint+id+"/assets/"+a.id;
-  const timelineEnd=project?Math.max(project.songDurationMs,songTimelineEnd(songRange),...clips.map(clipEnd)):0;
-  const pixels=project?Math.max(640,Math.min(MAX_TIMELINE_MS,timelineEnd+10000)/1000*zoom):640;
-  const timelineLimit=project?Math.min(MAX_TIMELINE_MS,timelineEnd+10000):0;
+  const timelineEnd=project?Math.max(songTimelineEnd(songRange),...clips.map(clipEnd)):0;
+  const pixels=project?Math.max(640,Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000)/1000*zoom):640;
+  const timelineLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,timelineEnd)+10000):0;
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
   function getDropTime(e:React.DragEvent){
     const rect=e.currentTarget.getBoundingClientRect();
@@ -286,7 +286,7 @@ export function MusicVideoEditor({id}:{id:string}){
         next.timelineStartMs=initial.timelineStartMs+(next.sourceInMs-initial.sourceInMs);
       }
       if(edge==="end")next.sourceOutMs=Math.min(asset.durationMs,Math.max(initial.sourceInMs+100,initial.sourceOutMs+delta));
-      if(clipEnd(next)>timelineLimit||overlaps(startClips,next).length)return;
+      if(next.timelineStartMs<0||clipEnd(next)>timelineLimit||overlaps(startClips,next).length)return;
       setClips(startClips.map(c=>c.id===next.id?next:c));
     };
     const finish=(event:PointerEvent)=>{
@@ -318,7 +318,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!selectedClip||!selectedAsset||selectedAsset.kind!=="lip-sync")return;
     if(selectedClip.syncLocked&&!window.confirm("Unlock song synchronization? Moving this clip can break lip sync."))return;
     const lock=!selectedClip.syncLocked;
-    if(lock&&selectedAsset.sourceStartMs!==null&&selectedClip.timelineStartMs!==selectedAsset.sourceStartMs+selectedClip.sourceInMs+songOffset(rangeRef.current)){
+    if(lock&&(selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null||selectedClip.timelineStartMs!==selectedAsset.sourceStartMs+selectedClip.sourceInMs+songOffset(rangeRef.current)||clipEnd(selectedClip)>selectedAsset.sourceEndMs+songOffset(rangeRef.current))){
       setError("Move this clip back to its original song position before relocking.");return;
     }
     apply(latest.current.map(c=>c.id===selectedClip.id?{...c,syncLocked:lock}:c));
