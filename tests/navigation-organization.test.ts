@@ -246,3 +246,21 @@ test("exact video end and hold-to-edit preserve the source timing and scroll int
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
  assert.ok(editor.includes('track===1?"Lip Sync":"Video 2"'));
 });
+
+test("library role is distinct from immutable media provenance and source timing",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
+ assert.ok(core.includes('export type MediaRole = "lip-sync" | "b-roll"'));
+ assert.ok(core.includes('role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll")'));
+ assert.ok(core.includes('UPDATE music_assets SET role=? WHERE id=? AND project_id=?'));
+ assert.ok(core.includes('UPDATE music_clips SET sync_locked=0 WHERE project_id=? AND asset_id=?'));
+ assert.ok(core.includes('if(a.role!=="lip-sync"||a.sourceStartMs===null'));
+ assert.ok(api.includes('setMusicAssetRole(id,owner,assetId,body.role,body.revision)'));
+ assert.ok(api.includes('sourceStartMs:from,sourceEndMs:to'));
+ assert.ok(editor.includes('changeAssetRole(a,"lip-sync")'));
+ assert.ok(editor.includes('changeAssetRole(a,"b-roll")'));
+ assert.ok(editor.includes('filter==="B-Roll"&&a.role==="b-roll"'));
+ assert.ok(editor.includes('filter==="Uploads"&&a.kind==="imported"'));
+ assert.ok(editor.includes('const locked=asset.role==="lip-sync"&&asset.sourceStartMs'));
+ assert.ok(editor.includes('a.role==="lip-sync"?1:2'));
+ assert.ok(editor.includes('persistAssetRole(existing,"lip-sync")'));
+});
