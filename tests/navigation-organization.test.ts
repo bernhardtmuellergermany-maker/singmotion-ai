@@ -488,3 +488,11 @@ test("song inspector shows actual song name once, playhead cap stays in bounds, 
  assert.ok(!editor.includes(">Ⅱ</button>"));
  assert.ok(css.includes("width:min(22px,33%)"));
 });
+
+test("project overview reuses first visible clip thumbnail and offers explicit edit action",()=>{
+ const client=read("components/music-projects-client.tsx"),core=read("lib/music-video/core.ts");
+ assert.ok(client.includes('p.thumbnailAssetId&&<img'));
+ assert.ok(client.includes('src={"/api/music-video/"+p.id+"/thumbnail/"+p.thumbnailAssetId}'));
+ assert.ok(client.includes('<Link href={"/projects/"+p.id}><Pencil size={14}/> Edit</Link>'));
+ assert.ok(core.includes('thumbnailAssetId:firstVisibleVideo'));
+});
