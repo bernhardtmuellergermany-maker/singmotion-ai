@@ -84,3 +84,27 @@ test("Projects offers owned completed Lip Sync insertion and separate user video
  assert.ok(api.includes('await service.output(ref,logged.owner)'));
  assert.ok(api.includes('if(!media.streams.some(v=>v.codec_type==="video"))'));
 });
+
+test("song trimming is millisecond precise, validated and non-destructive",async()=>{
+ const {parseSongTime,validSongRange,moveSongEdge}=await import("../lib/music-video/song-range.ts");
+ assert.equal(parseSongTime("00:08.918"),8918);
+ assert.equal(parseSongTime("8.918"),8918);
+ assert.equal(parseSongTime("01:02.003"),62003);
+ assert.equal(parseSongTime("1,5"),1500);
+ assert.equal(parseSongTime("00:60.000"),null);
+ assert.equal(parseSongTime("8.9182"),null);
+ assert.equal(validSongRange(8918,20000,30000),true);
+ assert.equal(validSongRange(8918,9000,30000),false);
+ assert.equal(validSongRange(0,30001,30000),false);
+ assert.equal(validSongRange("0",30000,30000),false);
+ assert.deepEqual(moveSongEdge({startMs:0,endMs:30000},"start",8918,30000),{startMs:8918,endMs:30000});
+ assert.deepEqual(moveSongEdge({startMs:8918,endMs:30000},"end",0,30000),{startMs:8918,endMs:9018});
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),core=read("lib/music-video/core.ts");
+ assert.ok(editor.includes("dragSongEdge(e,edge)"));
+ assert.ok(editor.includes("parseSongTime(startText)"));
+ assert.ok(editor.includes("apply(latest.current,true,range)"));
+ assert.ok(editor.includes("current.currentTime=range.endMs/1000"));
+ assert.ok(api.includes("body.songStartMs,body.songEndMs"));
+ assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
+ assert.ok(core.includes("validateMusicClips(clips,assets,project.songDurationMs)"));
+});
