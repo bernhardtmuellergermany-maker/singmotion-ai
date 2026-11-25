@@ -931,7 +931,7 @@ export function MusicVideoEditor({id}:{id:string}){
         else{
           if(current.paused&&!starting){
             starting=true;current.currentTime=Math.max(part.startMs,at-songOffset(range))/1000;
-            void current.play().catch(()=>{if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}}).finally(()=>{starting=false;if(!playingRef.current||mutesRef.current.song)current.pause();});
+            void current.play().catch(error=>{if(mobileRef.current&&error?.name==="AbortError")return;if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}}).finally(()=>{starting=false;if(!playingRef.current||mutesRef.current.song)current.pause();});
           }
           if(!current.paused&&!current.seeking)at=Math.max(at,part.positionMs,Math.round(current.currentTime*1000)+songOffset(range));
           if(at>=end||current.ended){current.pause();at=end;}
@@ -989,7 +989,7 @@ export function MusicVideoEditor({id}:{id:string}){
       audio.current.pause();startMutedClock(at);syncFollowers();
     }else if(songPartAt(range,partsRef.current,at)){
       audio.current.currentTime=(at-songOffset(range))/1000;
-      void audio.current.play().catch(()=>{if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}});
+      void audio.current.play().catch(error=>{if(mobileRef.current&&error?.name==="AbortError")return;if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}});
     }
   }
   // Use the song clock only while audible; a muted song must not stall the preview.
