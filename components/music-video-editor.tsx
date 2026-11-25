@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,previewMediaPlan,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,previewMediaPlan,publishedPlaybackMs,nativeClipClockStep,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -47,7 +47,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [autoFormat,setAutoFormat]=useState<{assetId:string;ratio:"9:16"|"16:9"}|null>(null);
   const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
   const trackAudio1=useRef<HTMLAudioElement>(null),trackAudio2=useRef<HTMLAudioElement>(null);
-  const mutedClockRef=useRef<{element:HTMLMediaElement;clipId:string;aligned:boolean;pending:boolean}|null>(null);
+  const mutedClockRef=useRef<{element:HTMLMediaElement;clipId:string;aligned:boolean;pending:boolean;lastAttempt:number}|null>(null);
   const [mobile,setMobile]=useState<boolean|null>(null),mobileRef=useRef(false);
   const [mobileReady,setMobileReady]=useState<Set<string>>(()=>new Set());
   const mobileReadyRef=useRef<Set<string>>(new Set());
@@ -798,7 +798,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{exportBusy.current=false;importBusy.current=false;if(!controller.signal.aborted){setImporting(false);setExporting(false);}exportAbort.current=null;}
   }
   function stopPlayback(){
-    if(playingRef.current){const at=Math.round(playheadRef.current);setPlayhead(at);setMarkerText(time(at,true));}
+    if(playingRef.current){const at=publishedPlaybackMs(playheadRef.current);playheadRef.current=at;setPlayhead(at);setMarkerText(time(at,true));}
     mutedClockRef.current=null;playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
   function setAt(ms:number,range=rangeRef.current){
@@ -855,16 +855,19 @@ export function MusicVideoEditor({id}:{id:string}){
     const clock=mutedPreviewClock(at),{clip,element}=clock;
     if(!clip||!element){mutedClockRef.current=null;return clock;}
     const fresh=mutedClockRef.current?.element!==element||mutedClockRef.current?.clipId!==clip.id;
-    if(fresh)mutedClockRef.current={element,clipId:clip.id,aligned:false,pending:false};
+    if(fresh)mutedClockRef.current={element,clipId:clip.id,aligned:false,pending:false,lastAttempt:-Infinity};
     const state=mutedClockRef.current!;
     const expected=clipSourceTimeMs(clip,at)/1000;
-    if(!state.aligned&&(fresh||element.readyState>=1)){
+    if(!state.aligned&&element.readyState>=1){
       element.playbackRate=1;
-      try{if(Math.abs(element.currentTime-expected)>0.025)element.currentTime=expected;state.aligned=element.readyState>=1;}catch{}
+      try{if(Math.abs(element.currentTime-expected)>0.001)element.currentTime=expected;state.aligned=true;}catch{}
     }
-    if((fresh||mobileRef.current&&element.readyState>=2)&&!state.pending&&(element.paused||element.ended)){
-      state.pending=true;
-      void element.play().catch(()=>{
+    // A source switch can abort play() while the replacement source is loading.
+    // Retry on the same element after readiness instead of stopping the entire project.
+    if(!state.pending&&(element.paused||element.ended)&&(fresh||element.readyState>=2&&performance.now()-state.lastAttempt>=150)){
+      state.pending=true;state.lastAttempt=performance.now();
+      void element.play().catch(error=>{
+        if(error?.name==="AbortError")return;
         if(playingRef.current&&(mutesRef.current.song||mobileRef.current)&&mutedClockRef.current===state){stopPlayback();setError("Video playback was blocked. Tap Play to retry.");}
       }).finally(()=>{state.pending=false;if(!playingRef.current)element.pause();});
     }
@@ -875,9 +878,10 @@ export function MusicVideoEditor({id}:{id:string}){
     const boundary=Math.min(nextBoundaryMs,limit);
     if(!clip)return Math.min(at+elapsed,boundary);
     if(!element)return at; // Wait for the matching media element at a clip transition.
-    if(element.ended)return Math.min(clipEnd(clip),boundary);
+    if(!mutedClockRef.current?.aligned)return at;
+    if(element.ended)return nativeClipClockStep(clip,at,element.currentTime,boundary,true);
     if(element.paused||element.seeking||element.readyState<2)return at;
-    return Math.min(boundary,Math.max(at,clip.timelineStartMs+element.currentTime*1000-clip.sourceInMs));
+    return nativeClipClockStep(clip,at,element.currentTime,boundary,false);
   }
   // Mobile uses the actual displayed video as clock, including when the song is audible.
   // A buffering video therefore cannot be chased by an independently advancing song.
@@ -909,11 +913,12 @@ export function MusicVideoEditor({id}:{id:string}){
       const part=songPartAt(range,continuousSongParts(range,partsRef.current),at);
       const mobilePlan=mobileRef.current?previewMediaPlan(latest.current,at,mutesRef.current):null;
       const mobileClock=!!mobilePlan?.visible;
+      const before=at;
       if(mobilePlan?.visible&&mobileUnavailableRef.current.has(mobilePlan.visible.assetId)){stopPlayback();setError("Mobile preview unavailable for this clip.");return;}
       if(mobileClock){
         at=advanceMutedClock(at,elapsed,timelineEnd);
         const master=mutedPreviewClock(at).element;
-        const run=!!master&&!master.paused&&!master.seeking&&master.readyState>=2;
+        const run=!!master&&!!mutedClockRef.current?.aligned&&mutedClockRef.current.clipId===master.dataset.clipId&&!master.paused&&!master.seeking&&master.readyState>=2;
         if(!run||now-lastPaint>=100)syncMobileSong(at,run);
       }else if(mutesRef.current.song){
         if(current&&!current.paused)current.pause();
@@ -926,7 +931,7 @@ export function MusicVideoEditor({id}:{id:string}){
         else{
           if(current.paused&&!starting){
             starting=true;current.currentTime=Math.max(part.startMs,at-songOffset(range))/1000;
-            void current.play().catch(()=>{if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}}).finally(()=>{starting=false;if(!playingRef.current||mutesRef.current.song)current.pause();});
+            void current.play().catch(error=>{if(mobileRef.current&&error?.name==="AbortError")return;if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}}).finally(()=>{starting=false;if(!playingRef.current||mutesRef.current.song)current.pause();});
           }
           if(!current.paused&&!current.seeking)at=Math.max(at,part.positionMs,Math.round(current.currentTime*1000)+songOffset(range));
           if(at>=end||current.ended){current.pause();at=end;}
@@ -936,7 +941,17 @@ export function MusicVideoEditor({id}:{id:string}){
         const next=effectiveSongParts(range,partsRef.current).map(p=>songTimeToTimeline(p.startMs,range)).find(p=>p>at)??timelineEnd;
         at=Math.min(at+elapsed,next,timelineEnd);
       }
+      // When a song-only interval reaches a video, stop exactly at the first media boundary.
+      if(mobilePlan&&!mobileClock)at=Math.min(at,mobilePlan.nextBoundaryMs);
       if(at>=timelineEnd){playheadRef.current=timelineEnd;setPlayhead(timelineEnd);stopPlayback();return;}
+      if(mobileRef.current&&at>before){
+        const outgoing=mobilePlan?.visible,incoming=previewMediaPlan(latest.current,at,mutesRef.current).visible;
+        if(outgoing?.id!==incoming?.id){
+          video.current?.pause();mutedClockRef.current=null;
+          // Pause the old song follower until the incoming video is aligned.
+          if(incoming)audio.current?.pause();
+        }
+      }
       playheadRef.current=at;
       // Paint the moving marker directly, without rebuilding the editor on each video frame.
       const viewport=viewportRef.current,x=at/1000*viewport.zoom,viewX=x-viewport.scrollLeft;
@@ -949,7 +964,7 @@ export function MusicVideoEditor({id}:{id:string}){
       // Media changes are immediate; React controls and millisecond readouts update at 10 Hz.
       if(crossed||(mobileRef.current?now-lastPaint>=250:now-lastPaint>=100)){
         published=at;lastPaint=now;
-        const ms=Math.round(at);setPlayhead(ms);setMarkerText(time(ms,true));
+        const ms=publishedPlaybackMs(at);setPlayhead(ms);setMarkerText(time(ms,true));
       }
       frame=requestAnimationFrame(tick);
     };
@@ -974,7 +989,7 @@ export function MusicVideoEditor({id}:{id:string}){
       audio.current.pause();startMutedClock(at);syncFollowers();
     }else if(songPartAt(range,partsRef.current,at)){
       audio.current.currentTime=(at-songOffset(range))/1000;
-      void audio.current.play().catch(()=>{if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}});
+      void audio.current.play().catch(error=>{if(mobileRef.current&&error?.name==="AbortError")return;if(!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked.");}});
     }
   }
   // Use the song clock only while audible; a muted song must not stall the preview.
@@ -989,6 +1004,8 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function syncMedia(element:HTMLMediaElement|null,clip:MusicClip|undefined,at:number,run:boolean){
     if(!element)return;
+    // Ignore stale media callbacks from the previous clip/source during a handoff.
+    if(clip&&element.dataset.clipId!==clip.id)return;
     if(playingRef.current&&(mutesRef.current.song||mobileRef.current)&&mutedPreviewClock(at).element===element)return;
     if(!clip||at<clip.timelineStartMs||at>=clipEnd(clip)){element.pause();element.playbackRate=1;return;}
     const expected=clipSourceTimeMs(clip,at)/1000;
@@ -1059,7 +1076,7 @@ export function MusicVideoEditor({id}:{id:string}){
           const a=byId.get(c.assetId);if(!a)return null;
           const visible=c.id===activeClip?.id;
           return <video key={mobile?"mobile-video":c.id} ref={visible?video:undefined} data-clip-id={c.id} playsInline muted={!visible||trackMutes[c.track]} preload={visible?"auto":"metadata"} src={source(a)} style={visible?undefined:{visibility:"hidden",pointerEvents:"none"}} aria-hidden={!visible} onError={()=>{if(mobile)mobilePreviewFailed(a.id);}}
-            onLoadedMetadata={e=>{if(visible)syncVideo(e.currentTarget,c);}} onCanPlay={e=>{if(visible)syncVideo(e.currentTarget,c);}} onSeeked={e=>{if(visible)syncVideo(e.currentTarget,c);}}/>;
+            onLoadedMetadata={e=>{if(visible)syncVideo(e.currentTarget,c);}} onCanPlay={e=>{if(visible){if(mobile&&playingRef.current)startMutedClock(playheadRef.current);else syncVideo(e.currentTarget,c);}}} onSeeked={e=>{if(visible)syncVideo(e.currentTarget,c);}}/>;
         })}
 
       </div>
