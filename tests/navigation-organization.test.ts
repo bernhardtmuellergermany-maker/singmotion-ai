@@ -664,3 +664,33 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(api.includes('["-profile:v","baseline","-level:v","3.1"]'));
  assert.ok(editor.includes('onClick={()=>useOriginalOnMobile(activeAsset.id)}'));
 });
+
+test("fractional native playback never publishes the next track before the clock reaches its boundary",async()=>{
+ const {previewMediaPlan,publishedPlaybackMs,nativeClipClockStep}=await import("../lib/music-video/song-range.ts");
+ const a={id:"lip",track:1 as const,timelineStartMs:0,sourceInMs:0,sourceOutMs:1000};
+ const b={id:"overlay",track:2 as const,timelineStartMs:1000,sourceInMs:1500,sourceOutMs:2500};
+ const c={...a,id:"lip-return",timelineStartMs:2000};
+ const clips=[a,b,c],mutes={1:false,2:true};
+ let at=nativeClipClockStep(a,990,0.9997,1000,false);
+ assert.equal(previewMediaPlan(clips,at,mutes).visible?.id,"lip");
+ assert.equal(publishedPlaybackMs(at),999);
+ assert.equal(previewMediaPlan(clips,publishedPlaybackMs(at),mutes).visible?.id,"lip");
+ at=nativeClipClockStep(a,at,1,1000,false);
+ assert.equal(at,1000);
+ assert.equal(previewMediaPlan(clips,publishedPlaybackMs(at),mutes).visible?.id,"overlay");
+ assert.equal(nativeClipClockStep(b,at,1.5,2000,false),1000);
+ at=nativeClipClockStep(b,1999,2.499,2000,true);
+ assert.equal(at,2000);
+ assert.equal(previewMediaPlan(clips,publishedPlaybackMs(at),mutes).visible?.id,"lip-return");
+ // Overlap: the top lane takes over exactly at its first frame, and the lower returns.
+ const lower={...a,sourceOutMs:3000};
+ assert.equal(nativeClipClockStep(lower,999,1.05,1000,false),1000);
+ assert.equal(previewMediaPlan([lower,b],1000,mutes).visible?.id,"overlay");
+ assert.equal(previewMediaPlan([lower,b],2000,mutes).visible?.id,"lip");
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("const ms=publishedPlaybackMs(at);setPlayhead(ms)"));
+ assert.ok(editor.includes('if(error?.name==="AbortError")return'));
+ assert.ok(editor.includes("if(outgoing?.id!==incoming?.id)"));
+ assert.ok(editor.includes("if(mobilePlan&&!mobileClock)at=Math.min(at,mobilePlan.nextBoundaryMs)"));
+ assert.ok(editor.includes("if(clip&&element.dataset.clipId!==clip.id)return"));
+});
