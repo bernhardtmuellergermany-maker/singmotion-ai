@@ -170,6 +170,17 @@ export function previewMediaPlan<T extends {id:string;track:1|2;timelineStartMs:
  return {visible,audio1,audio2,clock,nextBoundaryMs};
 }
 
+/** Use a half-open timeline interval in both the media clock and the rendered clip.
+ * Rounding up before a boundary would unmount the media driving that boundary. */
+export function publishedPlaybackMs(at:number):number{
+ return Math.max(0,Math.floor(at));
+}
+export function nativeClipClockStep(clip:{timelineStartMs:number;sourceInMs:number;sourceOutMs:number},at:number,sourceSeconds:number,boundary:number,ended:boolean):number{
+ const end=clip.timelineStartMs+clip.sourceOutMs-clip.sourceInMs;
+ if(ended)return Math.min(end,boundary);
+ if(!Number.isFinite(sourceSeconds))return at;
+ return Math.min(boundary,Math.max(at,clip.timelineStartMs+sourceSeconds*1000-clip.sourceInMs));
+}
 /** Seek large errors; gently correct smaller drift without repeatedly seeking a playing decoder. */
 export function mediaSyncDecision(expectedSeconds:number,actualSeconds:number,playing:boolean,paused:boolean,seeking:boolean):{seek:boolean;rate:number}{
  const error=expectedSeconds-actualSeconds,drift=Math.abs(error);
