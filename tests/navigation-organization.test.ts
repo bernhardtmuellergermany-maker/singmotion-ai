@@ -340,7 +340,7 @@ test("one-click export uses top-track render spans and owner-scoped download",as
  assert.ok(editor.includes("onClick={()=>void exportMp4()}"));
  assert.ok(editor.includes("await saveNow()"));
  assert.ok(api.includes("musicExportFile(owner,id,assetId)"));
- assert.ok(api.includes("startMusicExport(owner,detail.project,detail.clips,files,songFile)"));
+ assert.ok(api.includes("startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close())"));
  assert.ok(api.includes("attachment; filename="));
  assert.ok(editor.includes('hidden={!inspectorOpen}'));
 });
@@ -573,7 +573,7 @@ test("library menu fits viewport and downloads the authorized original video",()
  assert.ok(editor.includes('className="mv-library-menu"'));
  assert.ok(css.includes(".mv-root.mv-editor .mv-library{overflow:visible}"));
  assert.ok(css.includes("position:fixed;top:auto;right:auto;left:auto;z-index:1000"));
- assert.ok(api.includes("await exportSources(req,owner,id,musicDetail(id,owner),[assetId])"));
+ assert.ok(api.includes("await exportSources(req,owner,id,musicDetail(id,owner),scratch,[assetId])"));
  assert.ok(api.includes('attachment; filename="'));
 });
 
@@ -642,7 +642,7 @@ test("preview proxies are authorized, bounded and do not replace export original
  assert.ok(api.includes('"Vary":"Cookie, Authorization"'));
  assert.ok(editor.includes('preload="auto"'));
  assert.ok(editor.includes('playingPreviewRef.current=new Set(previewReadyRef.current)'));
- assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile)'));
+ assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close())'));
  assert.ok(!renderer.includes('preview-v1'));
 });
 

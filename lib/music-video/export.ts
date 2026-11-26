@@ -159,7 +159,7 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
  if((await stat(path.join(folder,"result.mp4"))).size<1000)throw new Error("empty export");
  for(const n of [...names,"concat.txt",...audioTemp])await rm(path.join(folder,n),{force:true});
 }
-export async function startMusicExport(owner:string,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string){
+export async function startMusicExport(owner:string,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string,releaseSources:()=>Promise<void>=async()=>{}){
  await cleanup();
  const range={startMs:project.songStartMs,endMs:project.songEndMs,positionMs:project.songPositionMs};
  const duration=songPartsEnd(range,project.songParts);
@@ -172,7 +172,7 @@ export async function startMusicExport(owner:string,project:MusicProject,clips:M
  void render(job,project,clips,files,songFile).then(()=>{job.state="ready";job.progress=100;job.created=Date.now();expire(job);}).catch(async()=>{
   job.state="failed";job.error="MP4 rendering failed. Check that all source videos are available and try again.";job.created=Date.now();expire(job);
   if(job.folder)await rm(job.folder,{recursive:true,force:true}).catch(()=>{});
- });
+ }).finally(()=>releaseSources().catch(()=>{}));
  return publicJob(job);
 }
 export async function musicExportStatus(owner:string,projectId:string,id:string){

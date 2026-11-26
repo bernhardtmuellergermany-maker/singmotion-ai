@@ -2,6 +2,7 @@ import {DatabaseSync} from "node:sqlite";
 import {mkdirSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import path from "node:path";
+import type {ProjectCloudRecord} from "./project-r2";
 import {dataDir} from "@/lib/db";
 import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,firstVisibleVideo,type SongRange} from "./song-range.ts";
 
@@ -69,6 +70,9 @@ function database():DatabaseSync{
   opened.exec("CREATE INDEX IF NOT EXISTS music_assets_project ON music_assets(project_id)");
   opened.exec("CREATE TABLE IF NOT EXISTS music_clips (id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES music_projects(id) ON DELETE CASCADE, asset_id TEXT NOT NULL REFERENCES music_assets(id), track INTEGER NOT NULL, timeline_start_ms INTEGER NOT NULL, source_in_ms INTEGER NOT NULL, source_out_ms INTEGER NOT NULL, sync_locked INTEGER NOT NULL)");
   opened.exec("CREATE INDEX IF NOT EXISTS music_clips_project ON music_clips(project_id)");
+  // Retain pending-delete manifests until R2 confirms deletion; no cascading loss of object keys.
+  opened.exec("CREATE TABLE IF NOT EXISTS music_asset_cloud (asset_id TEXT PRIMARY KEY, project_id TEXT NOT NULL, owner_id TEXT NOT NULL, object_key TEXT NOT NULL, sha256 TEXT NOT NULL, bytes INTEGER NOT NULL, pending_delete INTEGER NOT NULL DEFAULT 0)");
+  opened.exec("CREATE INDEX IF NOT EXISTS music_asset_cloud_owner ON music_asset_cloud(owner_id,pending_delete)");
   opened.exec("PRAGMA foreign_keys=ON;");
   db=opened;
   return opened;
@@ -132,6 +136,7 @@ export function removeMusicProject(id:string,owner:string){
   connection.exec("BEGIN IMMEDIATE");
   try{
     connection.prepare("DELETE FROM music_clips WHERE project_id=?").run(id);
+    connection.prepare("UPDATE music_asset_cloud SET pending_delete=1 WHERE project_id=? AND owner_id=?").run(id,owner);
     connection.prepare("DELETE FROM music_assets WHERE project_id=?").run(id);
     connection.prepare("DELETE FROM music_projects WHERE id=? AND owner_id=?").run(id,owner);
     connection.exec("COMMIT");
@@ -179,8 +184,13 @@ export function removeMusicAsset(id:string,owner:string,assetId:string){
   musicAsset(id,owner,assetId);
   const active=database().prepare("SELECT 1 AS active FROM music_clips WHERE project_id=? AND asset_id=? LIMIT 1").get(id,assetId);
   if(active)throw new MusicError("Remove the clip from the timeline first.",409);
-  database().prepare("DELETE FROM music_assets WHERE id=? AND project_id=?").run(assetId,id);
-  database().prepare("UPDATE music_projects SET updated_at=?,revision=revision+1 WHERE id=?").run(Date.now(),id);
+  const db=database();db.exec("BEGIN IMMEDIATE");
+  try{
+   db.prepare("UPDATE music_asset_cloud SET pending_delete=1 WHERE asset_id=? AND project_id=? AND owner_id=?").run(assetId,id,owner);
+   db.prepare("DELETE FROM music_assets WHERE id=? AND project_id=?").run(assetId,id);
+   db.prepare("UPDATE music_projects SET updated_at=?,revision=revision+1 WHERE id=?").run(Date.now(),id);
+   db.exec("COMMIT");
+  }catch(e){db.exec("ROLLBACK");throw e;}
 }
 function integer(v:unknown,max:number){return typeof v==="number"&&Number.isSafeInteger(v)&&v>=0&&v<=max;}
 export function validateMusicClips(clips:MusicClip[],assets:MusicAsset[],songMs:number,offset=0):MusicClip[]{
@@ -238,4 +248,27 @@ export function saveMusicClips(id:string,owner:string,revision:unknown,clips:Mus
     connection.exec("COMMIT");
   }catch(e){connection.exec("ROLLBACK");throw e;}
   return musicDetail(id,owner);
+}
+type CloudRow={asset_id:string;project_id:string;object_key:string;sha256:string;bytes:number};
+const mapCloud=(r:CloudRow):ProjectCloudRecord=>({key:r.object_key,sha256:r.sha256,bytes:r.bytes});
+export function projectCloudRecord(id:string,owner:string,assetId:string):ProjectCloudRecord|null{
+ musicAsset(id,owner,assetId);
+ const row=database().prepare("SELECT * FROM music_asset_cloud WHERE project_id=? AND owner_id=? AND asset_id=? AND pending_delete=0").get(id,owner,assetId) as CloudRow|undefined;
+ return row?mapCloud(row):null;
+}
+export function recordProjectCloud(id:string,owner:string,assetId:string,record:ProjectCloudRecord){
+ const db=database();
+ const inserted=db.prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes) SELECT a.id,a.project_id,p.owner_id,?,?,? FROM music_assets a JOIN music_projects p ON p.id=a.project_id WHERE a.id=? AND a.project_id=? AND p.owner_id=? AND a.source_kind='uploaded' ON CONFLICT(asset_id) DO NOTHING").run(record.key,record.sha256,record.bytes,assetId,id,owner);
+ const current=projectCloudRecord(id,owner,assetId);
+ if(!current||current.key!==record.key||current.sha256!==record.sha256||current.bytes!==record.bytes)throw Error("Projects cloud manifest conflict");
+ return inserted.changes;
+}
+export function projectMigrationCandidates(owner:string){
+ return (database().prepare("SELECT a.* FROM music_assets a JOIN music_projects p ON p.id=a.project_id LEFT JOIN music_asset_cloud c ON c.asset_id=a.id WHERE p.owner_id=? AND a.source_kind='uploaded' AND c.asset_id IS NULL ORDER BY a.created_at,a.id LIMIT 1").all(owner) as AssetRow[]).map(mapAsset);
+}
+export function pendingProjectCloudDeletes(owner:string){
+ return (database().prepare("SELECT * FROM music_asset_cloud WHERE owner_id=? AND pending_delete=1 LIMIT 10").all(owner) as CloudRow[]).map(r=>({projectId:r.project_id,assetId:r.asset_id,record:mapCloud(r)}));
+}
+export function finishProjectCloudDelete(owner:string,assetId:string,key:string){
+ database().prepare("DELETE FROM music_asset_cloud WHERE owner_id=? AND asset_id=? AND object_key=? AND pending_delete=1").run(owner,assetId,key);
 }

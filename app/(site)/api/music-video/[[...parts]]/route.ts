@@ -17,13 +17,15 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
+import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch} from "@/lib/music-video/project-r2";
 import {projectStorage,reserveProjectUpload} from "@/lib/music-video/storage";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
   newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,
-  type MediaKind,type SourceKind,type MusicClip,
+  projectCloudRecord,recordProjectCloud,projectMigrationCandidates,pendingProjectCloudDeletes,finishProjectCloudDelete,
+  type MediaKind,type SourceKind,type MusicClip,type MusicAsset,
 } from "@/lib/music-video/core";
 
 export const runtime="nodejs";
@@ -112,16 +114,18 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
   }
   throw new MusicError("Source video access denied.",403);
 }
-async function exportSources(req:NextRequest,owner:string,id:string,detail:ReturnType<typeof musicDetail>,assetIds=detail.clips.map(c=>c.assetId)){
+async function exportSources(req:NextRequest,owner:string,id:string,detail:ReturnType<typeof musicDetail>,scratch:ProjectScratch,assetIds=detail.clips.map(c=>c.assetId),snapshot=false){
   const files=new Map<string,string>(),assets=new Map(detail.assets.map(a=>[a.id,a]));
   for(const aid of new Set(assetIds)){
     const a=assets.get(aid);
     if(!a)throw new MusicError("A source video is missing.",409);
     if(a.sourceKind==="uploaded"){
       if(a.sourceId!=="mp4"&&a.sourceId!=="webm")throw new MusicError("Invalid source video.",409);
-      const root=await realpath(projectFolder(id)),file=await realpath(path.join(/*turbopackIgnore: true*/ root,a.id+"."+a.sourceId));
-      if(!file.startsWith(root+path.sep)||!(await stat(file)).isFile())throw new MusicError("Source video unavailable.",409);
-      files.set(aid,file);
+      const record=projectCloudRecord(id,owner,aid);
+      if(record){files.set(aid,await scratch.hydrate(owner,id,aid,a.sourceId,record));}
+      else{const file=await safeLocalProjectVideo(projectFolder(id),aid,a.sourceId);
+       files.set(aid,snapshot?await scratch.copy(aid,a.sourceId,file):file);}
+
     }else if(a.sourceKind==="live"&&a.sourceId&&owner.startsWith("staff:")){
       const logged=session(req.cookies.get("sm_session")?.value);
       if(logged?.owner!=="cms-staff-"+owner.slice(6))throw new MusicError("Open Videos to establish your private media session.",403);
@@ -198,9 +202,9 @@ async function songWaveform(id:string):Promise<number[]>{
 // One encoder, at most six 24 MiB files; long/unavailable media fall back to the original.
 const previewRoot=(mobile=false)=>{const root=path.join(tmpdir(),mobile?"singmotion-project-mobile-v1":"singmotion-project-preview-v1");return mkdir(root,{recursive:true,mode:0o700}).then(()=>root);};
 const previewJobs=new Map<string,Promise<boolean>>();
-async function previewPath(id:string,assetId:string,file:string,mobile=false){
-  const info=await stat(file);
-  const key=createHash("sha256").update(id+":"+assetId+":"+info.size+":"+info.mtimeMs).digest("hex");
+async function previewPath(id:string,assetId:string,file:string,mobile=false,digest?:string){
+  const info=digest?null:await stat(file);
+  const key=createHash("sha256").update(id+":"+assetId+":"+(digest??(info!.size+":"+info!.mtimeMs))).digest("hex");
   return path.join(await previewRoot(mobile),key+".mp4");
 }
 async function readyPreview(file:string){
@@ -241,18 +245,48 @@ async function originalSongTitle(file:string):Promise<string|null>{
   return cleanSongName(tags.format?.tags?.title??tags.format?.tags?.TITLE??tags.streams?.find(s=>s.tags?.title||s.tags?.TITLE)?.tags?.title??tags.streams?.find(s=>s.tags?.TITLE)?.tags?.TITLE);
  }catch{return null;}
 }
+// Only one verified migration at a time. The owner is always server-authenticated.
+let migrating=false;
+async function offloadProjectVideo(owner:string,asset:MusicAsset){
+ if(asset.sourceKind!=="uploaded"||!asset.sourceId)throw Error("Not a project upload");
+ const file=await safeLocalProjectVideo(projectFolder(asset.projectId),asset.id,asset.sourceId);
+ const record=await mirrorProjectVideo(owner,asset.projectId,asset.id,file,asset.sourceId==="webm"?"video/webm":"video/mp4");
+ recordProjectCloud(asset.projectId,owner,asset.id,record);
+ // The manifest and full object readback are durable before removing the local file.
+ await unlink(file);
+}
+async function cleanCloudDeletes(owner:string){
+ for(const item of pendingProjectCloudDeletes(owner)){
+  try{await deleteProjectVideo(owner,item.projectId,item.assetId,item.record);finishProjectCloudDelete(owner,item.assetId,item.record.key);}
+  catch{console.warn("PROJECT_VIDEO_R2_DELETE_PENDING");}
+ }
+}
 async function handler(req:NextRequest,context:Context){
   const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
+  const scratch=new ProjectScratch();let exportOwnsScratch=false;
   try{
     const owner=await musicPrincipal(req.headers,req.cookies.get("sm_customer")?.value||"");
     if(!owner)throw new MusicError("Music Video Builder access denied.",403);
     if(req.method!=="GET")checkOrigin(req);
     const [id,section,assetId]=(await context.params).parts||[];
+    if(id==="storage-migrate"&&!section&&req.method==="POST"){
+      if(!projectR2Enabled())throw new MusicError("Projects cloud storage is not enabled.",409);
+      if(migrating)throw new MusicError("A migration is already running.",409);
+      migrating=true;
+      try{
+       await cleanCloudDeletes(owner);
+       const asset=projectMigrationCandidates(owner)[0];
+       if(!asset)return json({migrated:0,done:true});
+       await offloadProjectVideo(owner,asset);
+       return json({migrated:1,done:projectMigrationCandidates(owner).length===0});
+      }catch{throw new MusicError("Cloud migration could not be verified. Unverified originals remain local.",503);}
+      finally{migrating=false;}
+    }
     if(!id){
       if(req.method==="GET"){
         const projects=listMusicProjects(owner);
         let storage=null;try{storage=projectStorage(dataDir,owner);}catch{/* Existing projects remain available. */}
-        return json({projects,storage});
+        return json({projects,storage,cloudEnabled:projectR2Enabled()});
       }
       if(req.method!=="POST")throw new MusicError("Unsupported method.",405);
       const {form,file}=await fileForm(req,AUDIO_LIMIT,"song");
@@ -302,6 +336,7 @@ async function handler(req:NextRequest,context:Context){
       if(req.method==="DELETE"){
         removeMusicProject(id,owner);
         await rm(projectFolder(id),{recursive:true,force:true});
+        await cleanCloudDeletes(owner);
         return json({deleted:true});
       }
     }
@@ -313,10 +348,20 @@ async function handler(req:NextRequest,context:Context){
     }
     if(section==="preview"&&assetId&&validId(assetId)&&(req.method==="GET"||req.method==="POST")){
       const asset=musicAsset(id,owner,assetId);
-      const files=await exportSources(req,owner,id,musicDetail(id,owner),[assetId]);
-      const original=files.get(assetId)!;
       const mobile=req.nextUrl.searchParams.get("mobile")==="1";
-      const target=await previewPath(id,assetId,original,mobile);
+      const record=asset.sourceKind==="uploaded"?projectCloudRecord(id,owner,assetId):null;
+      const cachedTarget=record?await previewPath(id,assetId,"",mobile,record.sha256):null;
+      if(cachedTarget&&await readyPreview(cachedTarget)){
+       if(req.method==="POST")return json({ready:true,unsupported:false});
+       return await streamFile(req,cachedTarget,"video/mp4",true);
+      }
+      if(record&&req.method==="GET"){
+       if(mobile)return json({error:"Mobile preview not ready."},409);
+       return Response.redirect(new URL("/api/music-video/"+id+"/assets/"+assetId,req.url));
+      }
+      const files=await exportSources(req,owner,id,musicDetail(id,owner),scratch,[assetId]);
+      const original=files.get(assetId)!;
+      const target=cachedTarget??await previewPath(id,assetId,original,mobile);
       if(req.method==="POST")return json({ready:await preparePreview(original,target,asset.durationMs,mobile),unsupported:asset.durationMs>180000});
       if(await readyPreview(target))return await streamFile(req,target,"video/mp4",true);
       // Mobile must not silently fall back to a heavyweight original.
@@ -331,27 +376,27 @@ async function handler(req:NextRequest,context:Context){
     if(section==="thumbnail"&&assetId&&validId(assetId)&&req.method==="GET"){
       const asset=musicAsset(id,owner,assetId);
       const detail=musicDetail(id,owner);
-      const files=await exportSources(req,owner,id,detail,[assetId]);
       const etag='"mv-thumb-v1-'+asset.id+'"';
       const headers={...common,"Content-Type":"image/jpeg","Cache-Control":"private, no-cache","ETag":etag};
       if(req.headers.get("if-none-match")===etag)return new Response(null,{status:304,headers});
-      const image=await libraryThumbnail(id,assetId,files.get(assetId)!,asset.durationMs);
+      const cached=await readFile(path.join(projectFolder(id),assetId+".thumb-v1.jpg")).catch(()=>null);
+      const image=cached?.length?cached:await libraryThumbnail(id,assetId,(await exportSources(req,owner,id,detail,scratch,[assetId])).get(assetId)!,asset.durationMs);
       return new Response(new Uint8Array(image),{headers:{...headers,"Content-Length":String(image.length)}});
     }
     if(section==="format"&&assetId&&validId(assetId)&&req.method==="GET"){
       const detail=musicDetail(id,owner);
-      const files=await exportSources(req,owner,id,detail,[assetId]);
+      const files=await exportSources(req,owner,id,detail,scratch,[assetId]);
       return json(await inspectVideoDimensions(files.get(assetId)!));
     }
     if(section==="export"){
       if(!assetId&&req.method==="POST"){
         const body=await jsonBody(req),detail=musicDetail(id,owner);
         if(body.revision!==detail.project.revision)throw new MusicError("Save your latest changes before exporting.",409);
-        const files=await exportSources(req,owner,id,detail);
+        const files=await exportSources(req,owner,id,detail,scratch,undefined,true);
         const folder=projectFolder(id);
         let songFile=path.join(folder,"song.mp3");
         for(const ext of ["wav","m4a","mp3"]){const candidate=path.join(/*turbopackIgnore: true*/ folder,"song-original."+ext);if(await stat(candidate).then(s=>s.isFile()).catch(()=>false)){songFile=candidate;break;}}
-        try{return json(await startMusicExport(owner,detail.project,detail.clips,files,songFile),202);}
+        try{const job=await startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close());exportOwnsScratch=true;return json(job,202);}
         catch(e){throw new MusicError(e instanceof Error?e.message:"Export unavailable.",409);}
       }
       if(assetId&&validId(assetId)&&req.method==="GET"){
@@ -409,7 +454,12 @@ async function handler(req:NextRequest,context:Context){
         if(!Number.isFinite(duration)||duration<=0||duration>3600)throw new MusicError("Invalid video duration.");
         saved=newMusicAsset(id,owner,{name:file.name.slice(0,80),kind:"imported",sourceKind:"uploaded",sourceId:extension,durationMs:toMs(duration)});
         await rename(temporary,path.join(/*turbopackIgnore: true*/ folder,saved.id+"."+extension));
-        return json({asset:saved},201);
+        let cloudStored=false;
+        if(projectR2Enabled()){
+         try{await offloadProjectVideo(owner,saved);cloudStored=true;}
+         catch{console.warn("PROJECT_VIDEO_R2_LOCAL_FALLBACK");}
+        }
+        return json({asset:saved,cloudStored},201);
       }catch(error){
         if(saved)removeMusicAsset(id,owner,saved.id);
         throw error;
@@ -425,13 +475,22 @@ async function handler(req:NextRequest,context:Context){
         removeMusicAsset(id,owner,assetId);
         await unlink(path.join(projectFolder(id),asset.id+".thumb-v1.jpg")).catch(()=>{});
         if(asset.sourceKind==="uploaded")await unlink(path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId)).catch(()=>{});
+        await cleanCloudDeletes(owner);
         return json({deleted:true});
       }
       if(req.method==="GET"){
+        if(asset.sourceKind==="uploaded"){
+         const record=projectCloudRecord(id,owner,assetId);
+         if(record){
+          const ext=asset.sourceId==="webm"?"webm":"mp4";
+          const name=(asset.name.replace(/\.(mp4|webm)$/i,"").replace(/[^A-Za-z0-9_. -]/g,"_").trim()||"video")+"."+ext;
+          return await projectVideoResponse(req,owner,id,assetId,record,ext==="webm"?"video/webm":"video/mp4",common,req.nextUrl.searchParams.has("download")?name:undefined);
+         }
+        }
         if(req.nextUrl.searchParams.has("download")){
           // Recheck the project and original media ownership before streaming.
           if(asset.sourceKind==="paid")return Response.redirect(new URL("/api/customer-video?orderId="+encodeURIComponent(asset.sourceId||"")+"&download=1",req.url));
-          const files=await exportSources(req,owner,id,musicDetail(id,owner),[assetId]);
+          const files=await exportSources(req,owner,id,musicDetail(id,owner),scratch,[assetId]);
           const file=files.get(assetId)!;
           const extension=asset.sourceKind==="uploaded"&&asset.sourceId==="webm"?"webm":"mp4";
           const name=(asset.name.replace(/\.(mp4|webm)$/i,"").replace(/[^A-Za-z0-9_. -]/g,"_").trim()||"video")+"."+extension;
@@ -453,7 +512,7 @@ async function handler(req:NextRequest,context:Context){
     if((error as NodeJS.ErrnoException)?.code==="ENOENT")return json({error:"Media unavailable."},404);
     console.warn("MUSIC_VIDEO_REQUEST_FAILED",{method:req.method,error:"internal"});
     return json({error:"Unable to complete the request."},500);
-  }
+  }finally{if(!exportOwnsScratch)await scratch.close().catch(()=>{});}
 }
 export const GET=handler;
 export const POST=handler;
