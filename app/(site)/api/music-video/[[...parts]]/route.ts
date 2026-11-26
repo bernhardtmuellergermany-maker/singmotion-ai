@@ -20,6 +20,8 @@ import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
 import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
 import {reserveProjectUpload} from "@/lib/music-video/storage";
+import {projectLimits,ProjectCapacityError} from "@/lib/music-video/capacity";
+import {admitProjectOperation} from "@/lib/music-video/core";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
@@ -50,7 +52,17 @@ async function jsonBody(req:NextRequest):Promise<Record<string,unknown>>{
 }
 async function fileForm(req:NextRequest,maxBytes:number,name:string){
   if(Number(req.headers.get("content-length"))>maxBytes+1048576)throw new MusicError("File too large.",413);
-  const form=await req.formData(),file=form.get(name);
+  if(!req.body)throw new MusicError("Upload body missing.",400);
+  let received=0,tooLarge=false;
+  const bounded=req.body.pipeThrough(new TransformStream<Uint8Array,Uint8Array>({transform(chunk,controller){
+    received+=chunk.byteLength;
+    if(received>maxBytes+1048576){tooLarge=true;controller.error(new Error("Upload too large"));return;}
+    controller.enqueue(chunk);
+  }}));
+  let form:FormData;
+  try{form=await new Response(bounded,{headers:{"Content-Type":req.headers.get("content-type")||""}}).formData();}
+  catch{throw new MusicError(tooLarge?"File too large.":"Invalid upload.",tooLarge?413:400);}
+  const file=form.get(name);
   if(!(file instanceof File)||file.size<1||file.size>maxBytes)throw new MusicError("Upload a supported file.",413);
   return {form,file};
 }
@@ -295,6 +307,7 @@ async function cleanCloudDeletes(owner:string){
 async function handler(req:NextRequest,context:Context){
   const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
   const scratch=new ProjectScratch();let exportOwnsScratch=false;
+  let releaseAdmission:(()=>void)|undefined;
   try{
     const owner=await musicPrincipal(req.headers,req.cookies.get("sm_customer")?.value||"");
     if(!owner)throw new MusicError("Music Video Builder access denied.",403);
@@ -323,7 +336,9 @@ async function handler(req:NextRequest,context:Context){
       }
       if(req.method!=="POST")throw new MusicError("Unsupported method.",405);
       cloudRequired();
-      const {form,file}=await fileForm(req,AUDIO_LIMIT,"song");
+      const max=Math.min(AUDIO_LIMIT,projectLimits().audioBytes);
+      releaseAdmission=admitProjectOperation(tmpdir(),owner,"song",max);
+      const {form,file}=await fileForm(req,max,"song");
       const title=form.get("name");
       if(typeof title!=="string")throw new MusicError("Project name required.");
       const extension=file.name.toLowerCase().endsWith(".mp3")?"mp3":file.name.toLowerCase().endsWith(".wav")?"wav":file.name.toLowerCase().endsWith(".m4a")?"m4a":null;
@@ -434,9 +449,10 @@ async function handler(req:NextRequest,context:Context){
       if(!assetId&&req.method==="POST"){
         const body=await jsonBody(req),detail=musicDetail(id,owner);
         if(body.revision!==detail.project.revision)throw new MusicError("Save your latest changes before exporting.",409);
+        releaseAdmission=admitProjectOperation(tmpdir(),owner,"export",0);
         const files=await exportSources(req,owner,id,detail,scratch,undefined,true);
         const songFile=await songWorkingFile(id,owner,await originalSongSlot(id,owner),scratch);
-        try{const job=await startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close());exportOwnsScratch=true;return json(job,202);}
+        try{const job=await startMusicExport(owner,detail.project,detail.clips,files,songFile,async()=>{try{await scratch.close();}finally{releaseAdmission?.();}});exportOwnsScratch=true;return json(job,202);}
         catch(e){throw new MusicError(e instanceof Error?e.message:"Export unavailable.",409);}
       }
       if(assetId&&validId(assetId)&&req.method==="GET"){
@@ -478,7 +494,9 @@ async function handler(req:NextRequest,context:Context){
         return json({asset},201);
       }
       cloudRequired();
-      const {file}=await fileForm(req,50*1024*1024,"video");
+      const max=projectLimits().videoBytes;
+      releaseAdmission=admitProjectOperation(tmpdir(),owner,"video",max);
+      const {file}=await fileForm(req,max,"video");
       const extension=file.name.toLowerCase().endsWith(".mp4")?"mp4":file.name.toLowerCase().endsWith(".webm")?"webm":null;
       if(!extension)throw new MusicError("Use an MP4 or WebM video.");
       const folder=projectFolder(id);
@@ -550,11 +568,11 @@ async function handler(req:NextRequest,context:Context){
     }
     throw new MusicError("Unknown endpoint.",404);
   }catch(error){
-    if(error instanceof MusicError)return json({error:error.message},error.status);
+    if(error instanceof MusicError||error instanceof ProjectCapacityError)return json({error:error.message},error.status);
     if((error as NodeJS.ErrnoException)?.code==="ENOENT")return json({error:"Media unavailable."},404);
     console.warn("MUSIC_VIDEO_REQUEST_FAILED",{method:req.method,error:"internal"});
     return json({error:"Unable to complete the request."},500);
-  }finally{if(!exportOwnsScratch)await scratch.close().catch(()=>{});}
+  }finally{if(!exportOwnsScratch){try{await scratch.close().catch(()=>{});}finally{releaseAdmission?.();}}}
 }
 export const GET=handler;
 export const POST=handler;
