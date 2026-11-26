@@ -9,6 +9,7 @@ export class BrowserPreviewCache {
  private controller:AbortController|null=null;
  private closed=false;
  private running=false;
+ private retry:ReturnType<typeof setTimeout>|undefined;
  private bytes=0;
  private readonly maxBytes:number;
  private readonly maxFile:number;
@@ -47,6 +48,11 @@ export class BrowserPreviewCache {
       if(this.bytes+length<=this.maxBytes)break;
       if(!this.pinned.has(key)&&!this.wanted.some(x=>x.key===key))this.evict(key);
      }
+     const priority=this.wanted.findIndex(x=>x.key===next.key);
+     for(const key of this.entries.keys()){
+      if(this.bytes+length<=this.maxBytes)break;
+      if(!this.pinned.has(key)&&this.wanted.findIndex(x=>x.key===key)>priority)this.evict(key);
+     }
      if(this.bytes+length>this.maxBytes)throw Error("Preview cache full");
      const reader=response.body.getReader(),parts:Uint8Array<ArrayBuffer>[]=[];
      let count=0;
@@ -63,7 +69,9 @@ export class BrowserPreviewCache {
     }catch{this.failures.set(next.key,Date.now());}
     finally{controller.abort();if(this.controller===controller)this.controller=null;}
    }
-  }finally{this.running=false;}
+  }finally{this.running=false;
+   if(!this.closed&&this.wanted.some(x=>!this.entries.has(x.key))&&!this.retry)this.retry=setTimeout(()=>{this.retry=undefined;void this.pump();},16000);
+  }
  }
- close(){this.closed=true;this.controller?.abort();for(const key of this.entries.keys())this.evict(key);this.wanted=[];this.pinned.clear();}
+ close(){this.closed=true;if(this.retry)clearTimeout(this.retry);this.controller?.abort();for(const key of this.entries.keys())this.evict(key);this.wanted=[];this.pinned.clear();}
 }
