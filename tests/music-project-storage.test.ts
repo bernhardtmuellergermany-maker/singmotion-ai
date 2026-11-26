@@ -89,3 +89,24 @@ test("250 MiB raw video is admitted and streamed with exact byte accounting",asy
   await assert.rejects(writeVideoUpload(small(7),path.join(root,"short.mp4"),8),/length mismatch/);
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+import {BrowserPreviewCache} from "../lib/music-video/browser-preview-cache.ts";
+test("complete preview bytes are reused on repeated seek and revoked when leaving editor",async()=>{
+ const original=globalThis.fetch;let requests=0,notify!:()=>void;
+ const downloaded=new Promise<void>(resolve=>{notify=resolve;});
+ const cache=new BrowserPreviewCache(false,notify);
+ try{
+  globalThis.fetch=async()=>{requests++;return new Response(new Uint8Array([1,2,3,4]),{headers:{"content-type":"video/mp4","content-length":"4"}});};
+  const candidate={key:"project:asset:desktop",url:"https://example.invalid/preview"};
+  cache.update([candidate],[]);
+  await Promise.race([downloaded,new Promise<never>((_,reject)=>{const t=setTimeout(()=>reject(Error("Preview cache timeout")),2000);t.unref();})]);
+  const local=cache.get(candidate.key)!;
+  assert.ok(local.startsWith("blob:"));
+  for(let n=0;n<10;n++){cache.update([candidate],[candidate.key]);assert.equal(cache.get(candidate.key),local);}
+  assert.equal(requests,1);
+  globalThis.fetch=original;
+  assert.deepEqual(new Uint8Array(await (await fetch(local)).arrayBuffer()),new Uint8Array([1,2,3,4]));
+  cache.close();
+  await assert.rejects(()=>fetch(local));
+ }finally{cache.close();globalThis.fetch=original;}
+});
