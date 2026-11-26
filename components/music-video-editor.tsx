@@ -532,7 +532,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const attached=new Map<string,string>();
     for(const element of [...Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>("video[data-asset-id]")??[]),trackAudio1.current,trackAudio2.current])if(element?.dataset.assetId)attached.set(element.dataset.assetId,element.getAttribute("src")||networkSource(element.dataset.assetId));
     sessionSources.current=attached;
-  },[playing,playhead,mobileReady,cacheVersion]);
+  },[playing,playhead,mobileReady,cacheVersion,buffering]);
   const mediaBoundaries=useMemo(()=>[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t<timelineEnd).sort((a,b)=>a-b),[clips,timelineEnd]);
   const nextTransition=useMemo(()=>nextVisibleClipTransition(clips,playhead,mediaBoundaries,trackMutes),[clips,playhead,mediaBoundaries,trackMutes]);
   const previousTransition=useMemo(()=>previousVisibleClipTransition(clips,playhead,mediaBoundaries,trackMutes),[clips,playhead,mediaBoundaries,trackMutes]);
@@ -550,7 +550,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const attached=[...Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>("video[data-asset-id]")??[]),trackAudio1.current,trackAudio2.current];
     const pinned=[...new Set(attached.filter(v=>v?.getAttribute("src")?.startsWith("blob:")).map(v=>v?.dataset.assetId).filter((v):v is string=>!!v))].map(cacheKey);
     browserCache.current?.update(candidates,pinned);
-  },[id,mobile,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,activeAudio1?.assetId,activeAudio2?.assetId,previewReady,mobileReady,playing,cacheVersion]);
+  },[id,mobile,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,activeAudio1?.assetId,activeAudio2?.assetId,previewReady,mobileReady,playing,cacheVersion,buffering]);
   // Prepare a bounded queue while editing or playing. Never swap the source of a mounted decoder.
   useEffect(()=>{
     if(mobile!==false||importing)return;
