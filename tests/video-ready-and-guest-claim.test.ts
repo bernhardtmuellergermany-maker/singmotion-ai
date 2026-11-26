@@ -69,6 +69,9 @@ test("Completion email is sent only after validated paid delivery, once across w
   assert.deepEqual(await retryVideoReadyNotifications(file,env,sender),{attempted:1,sent:1});
   assert.equal(sent.length,1);
   assert.deepEqual(sent[0].to,["buyer@example.test"]);
+  assert.match(sent[0].subject,/Your music video is ready/);
+  assert.match(sent[0].text,/Your SingMotion AI music video is ready!/);
+  assert.match(sent[0].text,/Without an account: Open your private order link/);
   for(const ref of [orderReference(delivered.id),videoReference(delivered.id),"/orders/"+delivered.id])
    assert.ok(sent[0].text.includes(ref));
   assert.ok(!sent[0].text.includes(delivered.guestToken!),"bearer guest access must never be emailed");
@@ -85,13 +88,16 @@ test("Guest recovery token rotates private link; verified matching account can c
    project:"recovery",cents:250,quoteEvidence:"verified-guest-video-recovery-2026",
    key:"guest-recovery-fixture",media});
   const messages:string[]=[];
+  const subjects:string[]=[];
   const sender:typeof fetch=async(_url,opts)=>{
    const body=JSON.parse(String(opts?.body));
-   messages.push(body.text);return new Response(null,{status:202});
+   subjects.push(body.subject);messages.push(body.text);return new Response(null,{status:202});
   };
   assert.equal(await requestGuestOrderRecovery(store,guest.id,"wrong@example.test",env,sender),false);
   assert.equal(messages.length,0);
   assert.equal(await requestGuestOrderRecovery(store,guest.id,"buyer@example.test",env,sender),true);
+  assert.match(subjects[0],/Restore private video access/);
+  assert.match(messages[0],/This link expires in 20 minutes and can only be used once/);
   const match=messages[0].match(/#recover=([A-Za-z0-9_-]{43})/);
   assert.ok(match);
   assert.equal(redeemGuestOrderRecovery(store,guest.id,"invalid"),null);
@@ -119,6 +125,7 @@ test("Guest recovery token rotates private link; verified matching account can c
 test("Completion email never leaks secret URL or BytePlus task identifiers",()=>{
  const id="a26d977e-37da-442a-955e-63ce505ac3b1";
  const text=videoReadyEmailText(id,"https://www.singmotion.ai",true);
+ assert.match(videoReadyEmailText(id,"https://www.singmotion.ai",false),/Sign in to your account to watch or download your video/);
  assert.match(text,/VID-/);
  assert.match(text,/SM-/);
  assert.doesNotMatch(text,/#access=|#recover=|tiktokcdn|byteplus-task/i);
