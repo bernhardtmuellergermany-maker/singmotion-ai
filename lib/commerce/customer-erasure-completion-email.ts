@@ -44,18 +44,18 @@ export async function retryCustomerErasureCompletionEmails(
    ).get(entry.accountId) as {cents:number}).cents:0;
    if(!Number.isSafeInteger(total)||total<0)continue;
    const payment=total>0?
-    "Ihre bestätigte Rückzahlung für nicht verbrauchte gekaufte Credits beträgt "+
-     (total/100).toLocaleString("de-DE",{style:"currency",currency:"EUR"})+
-     ". Der Zahlungsanbieter hat die Erstattung auf Ihr ursprüngliches Zahlungsmittel bestätigt. Die Gutschrift kann je nach Bank etwas dauern.":
-    "Es wurden keine erstattungsfähigen gekauften Credits festgestellt. Deshalb war keine Rückzahlung erforderlich.";
+    "Your confirmed refund for unused purchased Credits is "+
+     (total/100).toLocaleString("en-GB",{style:"currency",currency:"EUR"})+
+     ". The payment provider has confirmed the refund to your original payment method. Bank processing times may vary.":
+    "No refundable purchased Credits were identified, so no refund was required.";
    const body=[
-    "Guten Tag,","",
-    "vielen Dank, dass Sie SingMotion AI genutzt haben.",
-    "Ihr Kundenkonto wurde erfolgreich gelöscht. Ihre aktiven privaten Projekte und Dateien wurden entfernt.","",
+    "Hello,","",
+    "Thank you for using SingMotion AI.",
+    "Your customer account has been successfully deleted. Your active private projects and files have been removed.","",
     payment,"",
-    "Gesetzlich vorgeschriebene, minimierte Zahlungsbelege und befristete Sicherungskopien unterliegen ihren jeweiligen Aufbewahrungsfristen.","",
-    "Bei Fragen schreiben Sie an support@singmotion.ai.","",
-    "Vielen Dank und alles Gute!","Ihr SingMotion AI Team",
+    "Legally required, minimized payment records and time-limited backups remain subject to their respective retention periods.","",
+    "If you have any questions, contact support@singmotion.ai.","",
+    "Thank you and all the best!","The SingMotion AI Team",
    ].join("\n");
    const idempotency="sm-erasure-complete-v1-"+createHash("sha256").update(entry.accountId).digest("hex");
    result.attempted++;
@@ -66,7 +66,7 @@ export async function retryCustomerErasureCompletionEmails(
      method:"POST",headers:{"Authorization":"Bearer "+env.RESEND_API_KEY,
       "Content-Type":"application/json","Idempotency-Key":idempotency},
      body:JSON.stringify({from:env.ACCOUNT_EMAIL_FROM,to:[entry.recipient],
-      subject:"Bestätigung Ihrer Kontolöschung – SingMotion AI",text:body}),
+      subject:"Account deletion confirmation – SingMotion AI",text:body}),
      cache:"no-store",signal:AbortSignal.timeout(10000),
     });
     if(response.ok){
