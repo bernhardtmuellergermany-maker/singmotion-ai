@@ -4,6 +4,7 @@ import config from "@payload-config";
 import {hasRole} from "@/cms/policy";
 import {stagingDenial} from "@/lib/staging";
 import {limit,dataDir} from "@/lib/db";
+import {storageOverview} from "@/lib/music-video/storage";
 import {
  listCustomerInsights,customerInsightProfile,openCustomerInsightsReadOnly,
 } from "@/lib/commerce/customer-insights";
@@ -34,6 +35,11 @@ export async function GET(req:NextRequest){
   if(!/^[A-Za-z0-9_-]{1,100}$/.test(actor))return reply({error:"Access denied"},403);
   try{limit("customer-insights:"+actor,90,60_000)}
   catch{return reply({error:"Too many requests"},429)}
+  if(req.nextUrl.searchParams.get("storage")==="1"){
+   const storage=storageOverview(dataDir);
+   await payload.create({collection:"audit-events",overrideAccess:true,data:{actor,action:"view",resource:"customer-insights",record:"storage"}});
+   return reply({storage});
+  }
   const id=req.nextUrl.searchParams.get("id");
   const search=req.nextUrl.searchParams.get("q")||"";
   const pageString=req.nextUrl.searchParams.get("page")||"1";

@@ -17,6 +17,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
+import {projectStorage,reserveProjectUpload} from "@/lib/music-video/storage";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
@@ -248,7 +249,11 @@ async function handler(req:NextRequest,context:Context){
     if(req.method!=="GET")checkOrigin(req);
     const [id,section,assetId]=(await context.params).parts||[];
     if(!id){
-      if(req.method==="GET")return json({projects:listMusicProjects(owner)});
+      if(req.method==="GET"){
+        const projects=listMusicProjects(owner);
+        let storage=null;try{storage=projectStorage(dataDir,owner);}catch{/* Existing projects remain available. */}
+        return json({projects,storage});
+      }
       if(req.method!=="POST")throw new MusicError("Unsupported method.",405);
       const {form,file}=await fileForm(req,AUDIO_LIMIT,"song");
       const title=form.get("name");
@@ -256,6 +261,8 @@ async function handler(req:NextRequest,context:Context){
       const extension=file.name.toLowerCase().endsWith(".mp3")?"mp3":file.name.toLowerCase().endsWith(".wav")?"wav":file.name.toLowerCase().endsWith(".m4a")?"m4a":null;
       if(!extension)throw new MusicError("Use MP3, WAV or M4A audio.");
       const buffer=Buffer.from(await file.arrayBuffer());
+      let release:()=>void;
+      try{release=reserveProjectUpload(dataDir,file.size,"audio");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
       const temp=path.join(dataDir,"music-video","upload-"+randomUUID()+"."+extension);
       let project:ReturnType<typeof newMusicProject>|null=null;
       try{
@@ -272,7 +279,7 @@ async function handler(req:NextRequest,context:Context){
       }catch(e){
         if(project){removeMusicProject(project.id,owner);await rm(projectFolder(project.id),{recursive:true,force:true});}
         throw e;
-      }finally{await rm(temp,{force:true});}
+      }finally{try{await rm(temp,{force:true});}finally{release();}}
     }
     const project=requireMusicProject(id,owner);
     if(!section){
@@ -392,6 +399,8 @@ async function handler(req:NextRequest,context:Context){
       await mkdir(folder,{recursive:true,mode:0o700});
       const temporary=path.join(folder,"incoming-"+randomUUID()+"."+extension);
       let saved:ReturnType<typeof newMusicAsset>|null=null;
+      let release:()=>void;
+      try{release=reserveProjectUpload(dataDir,file.size,"video");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
       try{
         await writeFile(temporary,Buffer.from(await file.arrayBuffer()),{flag:"wx",mode:0o600});
         const media=await probe(temporary);
@@ -404,7 +413,7 @@ async function handler(req:NextRequest,context:Context){
       }catch(error){
         if(saved)removeMusicAsset(id,owner,saved.id);
         throw error;
-      }finally{await rm(temporary,{force:true});}
+      }finally{try{await rm(temporary,{force:true});}finally{release();}}
     }
     if(section==="assets"&&assetId){
       const asset=musicAsset(id,owner,assetId);

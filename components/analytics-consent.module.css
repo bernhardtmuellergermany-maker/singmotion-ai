@@ -45,7 +45,7 @@
 .settings svg { color: #d99afa; flex-shrink: 0; }
 @media (max-width: 600px) {
   .panel {
-    inset-inline: 0; margin-inline: auto;
+    inset-inline: auto; left: 50%; right: auto; transform: translateX(-50%); margin: 0;
     width: min(354px, calc(100% - 24px));
     bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px));
     max-height: calc(100dvh - 36px);
