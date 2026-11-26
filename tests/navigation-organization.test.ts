@@ -625,8 +625,12 @@ test("Projects preview throttles React renders, keeps the exact clock and does n
  assert.ok(editor.includes("const SongWaveform=memo("));
  assert.ok(editor.includes('endpoint+id+"/waveform"'));
  assert.ok(!editor.includes("decodeAudioData("));
- assert.ok(api.includes('song.wave-v1.json'));
- assert.ok(api.includes('length:240'));
+ assert.ok(api.includes('.wave-v2.json'));
+ assert.ok(api.includes('pcmWaveform(stdout,durationMs)'));
+ assert.ok(api.includes('if(waveJobs.size>=2)'));
+ assert.ok(editor.includes('sourceInMs={c.sourceInMs}'));
+ assert.ok(editor.includes('sourceInMs={p.startMs}'));
+ assert.ok(!editor.includes('Array.from({length:180},()=>0.22)'));
  assert.ok(editor.includes("lastFollowerSeek.current.get(element)"));
  assert.ok(editor.includes("if(!run&&playingRef.current){if(!(jointStarted.current&&syncHold.current===null&&performance.now()-jointStartTime.current<180))element.pause();return;}"));
 });
