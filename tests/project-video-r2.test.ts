@@ -19,7 +19,7 @@ test("migration demands full byte-for-byte readback, not just metadata",async()=
  const key=projectCloudKey("staff:a",project,asset,sha256,env);
  let stored:Buffer|undefined;
  const client={async send(c:any){
-  if(c instanceof PutObjectCommand){assert.equal(c.input.IfNoneMatch,"*");stored=c.input.Body;return {};}
+  if(c instanceof PutObjectCommand){assert.equal(c.input.IfNoneMatch,"*");assert.ok(Buffer.isBuffer(c.input.Body));stored=Buffer.from(c.input.Body);return {};}
   assert.ok(c instanceof GetObjectCommand);assert.ok(stored);
   return {ContentLength:stored.length,Metadata:{"singmotion-sha256":sha256},Body:[stored]};
  }};
