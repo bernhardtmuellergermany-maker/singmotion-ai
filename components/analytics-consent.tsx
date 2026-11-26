@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
 import { CONSENT_KEY, readConsent, serializeConsent, publicAnalyticsLocation, sanitizedReferrer, type Choice } from "@/lib/analytics/consent";
 import styles from "./analytics-consent.module.css";
 
@@ -185,16 +186,16 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   const show = open || (!choice && Boolean(title));
   return <>
     {show ? <aside className={styles.panel} aria-label="Privacy preferences">
-      <h2>Privacy preferences</h2>
-      <p>Essential technologies keep your account and projects working. Optional Google Analytics 4 measures visits, approximate country and traffic sources only with your permission. Google may process browser information and identifiers outside the EEA. Advertising tracking is not enabled.</p>
-      {preview && !id && <p>Analytics is currently disabled. No information is sent to Google; this choice is a preview only. We will ask again before analytics is activated.</p>}
-      <p><a href="/privacy">Privacy policy</a> · <a href="/cookies">Cookie policy</a></p>
+      <h2><ShieldCheck size={17} aria-hidden="true"/>Privacy preferences</h2>
+      <p>Essential technologies keep SingMotion working. With your permission, Google Analytics 4 measures visits, approximate country and traffic sources. Google may process browser data and identifiers outside the EEA. No advertising tracking.</p>
+      {preview && !id && <p className={styles.preview}>Preview only: analytics is off. Nothing is sent to Google. We will ask again before activation.</p>}
       <div className={styles.actions}>
         <button type="button" onClick={() => choose("denied")}>Reject optional</button>
         <button type="button" onClick={() => choose("granted")}>Accept analytics</button>
       </div>
+      <p className={styles.links}><a href="/privacy">Privacy policy</a><span aria-hidden="true">·</span><a href="/cookies">Cookie policy</a></p>
       {error && <p role="alert">Your choice could not be saved. Analytics remains off.</p>}
       {open && choice && <button type="button" className={styles.close} onClick={() => setOpen(false)}>Close settings</button>}
-    </aside> : <button type="button" className={styles.settings} onClick={() => setOpen(true)}>Privacy settings</button>}
+    </aside> : <button type="button" className={styles.settings} onClick={() => setOpen(true)}><ShieldCheck size={14} aria-hidden="true"/>Privacy settings</button>}
   </>;
 }

@@ -1,22 +1,53 @@
+/* SingMotion's immersive-home palette: midnight navy, off-white and soft purple.
+   A non-modal card; both consent actions intentionally share every visual rule. */
 .panel {
-  position: fixed; z-index: 90; inset-inline-end: 16px; bottom: 16px;
-  width: min(390px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
-  padding: 20px; border: 1px solid #c9c6dc; border-radius: 16px;
-  background: #fff; color: #211e36; box-shadow: 0 10px 44px #211e3630;
-  font: 14px/1.5 system-ui, sans-serif;
+  box-sizing: border-box;
+  position: fixed; z-index: 90; inset-inline-end: 18px;
+  bottom: max(18px, calc(env(safe-area-inset-bottom, 0px) + 10px));
+  width: min(354px, calc(100% - 36px)); max-height: calc(100dvh - 48px);
+  overflow: auto; overscroll-behavior: contain;
+  padding: 15px 16px 13px; border: 1px solid #77518d; border-radius: 16px;
+  color-scheme: dark; background: linear-gradient(145deg, #1a1228, #100d1c 80%);
+  color: #f9f6ff; box-shadow: 0 8px 28px #08071590;
+  font-family: inherit; font-size: 13px; line-height: 1.48;
 }
-.panel h2 { margin: 0 0 8px; font-size: 18px; font-weight: 650; }
-.panel p { margin: 0 0 10px; }
-.panel a { color: #403595; text-decoration: underline; }
-.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.panel h2 {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0 0 7px; color: #f9f6ff; font-size: 15px; font-weight: 700; letter-spacing: -.015em;
+}
+.panel h2 svg { color: #d99afa; flex-shrink: 0; }
+.panel p { margin: 0 0 9px; color: #ded6eb; }
+.panel .preview { color: #c4b6d7; font-size: 12px; line-height: 1.4; }
+.panel .links { display: flex; flex-wrap: wrap; align-items: center; gap: 5px 9px; margin: 8px 0 0; font-size: 12px; }
+.panel a { color: #e4b4ff; text-decoration: underline; text-underline-offset: 3px; }
+.actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .actions button, .close, .settings {
-  background: #fff; color: #312768; border: 1px solid #7466a9; border-radius: 8px;
-  padding: 10px; cursor: pointer; font: 600 13px/1.4 system-ui, sans-serif;
+  box-sizing: border-box;
+  color: #f9f6ff; background: #2a1b3d; border: 1px solid #a879cb; border-radius: 9px;
+  padding: 8px; min-height: 44px; cursor: pointer;
+  font: inherit; font-size: 13px; line-height: 1.25; font-weight: 650;
+  transition: background-color .15s, border-color .15s;
 }
-.actions button:hover, .close:hover, .settings:hover { background: #f0edff; }
-.actions button:focus-visible, .close:focus-visible, .settings:focus-visible {
-  outline: 3px solid #6950c6; outline-offset: 2px;
+.actions button:hover, .close:hover, .settings:hover { background: #402651; border-color: #df9cf9; }
+.actions button:focus-visible, .close:focus-visible, .settings:focus-visible, .panel a:focus-visible {
+  outline: 2px solid #efb5ff; outline-offset: 3px;
 }
 .close { margin-top: 8px; width: 100%; }
-.settings { position: fixed; z-index: 85; inset-inline-start: 12px; bottom: 12px; padding: 6px 10px; }
-@media (max-width: 480px) { .panel { bottom: max(12px, env(safe-area-inset-bottom)); } }
+.settings {
+  position: fixed; z-index: 85; inset-inline-start: 12px;
+  bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 4px));
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border-radius: 999px; padding: 7px 11px; background: #130f20;
+  color: #e8d8f5; border-color: #76588f; font-size: 11px;
+}
+.settings svg { color: #d99afa; flex-shrink: 0; }
+@media (max-width: 480px) {
+  .panel {
+    inset-inline-end: 10px; width: min(354px, calc(100% - 20px));
+    bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px));
+    padding: 12px; border-radius: 13px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .actions button, .close, .settings { transition: none; }
+}

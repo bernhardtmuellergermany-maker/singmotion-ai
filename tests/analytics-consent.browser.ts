@@ -56,6 +56,16 @@ try {
    const reject=page.getByRole("button",{name:"Reject optional",exact:true});
    const accept=page.getByRole("button",{name:"Accept analytics",exact:true});
    await expect(reject).toBeVisible();await expect(accept).toBeVisible();
+   const panel=page.getByRole("complementary",{name:"Privacy preferences"});
+   const bounds=await panel.boundingBox();
+   assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=viewport.width+1&&bounds.y+bounds.height<=viewport.height+1,"banner fits the viewport");
+   assert.ok(bounds.width<=354.5&&bounds.height<=viewport.height*0.42,"compact non-modal banner");
+   const appearance=(el:Element)=>{const s=getComputedStyle(el);return [s.backgroundColor,s.color,s.borderColor,s.fontSize,s.fontWeight,s.minHeight];};
+   assert.deepEqual(await reject.evaluate(appearance),await accept.evaluate(appearance),"accept and reject have identical visual prominence");
+   const rejectBounds=await reject.boundingBox(),acceptBounds=await accept.boundingBox();
+   assert.ok(rejectBounds&&acceptBounds&&Math.abs(rejectBounds.width-acceptBounds.width)<=1&&rejectBounds.height>=44&&acceptBounds.height>=44,"equal accessible tap targets");
+   await expect(panel.getByRole("link",{name:"Privacy policy"})).toBeVisible();
+   await expect(panel.getByRole("link",{name:"Cookie policy"})).toBeVisible();
    assert.equal(requests.length,0,"no tag before consent");
    await reject.click();
    await expect(page.getByRole("button",{name:"Privacy settings"})).toBeVisible();
