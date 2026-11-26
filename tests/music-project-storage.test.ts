@@ -60,7 +60,32 @@ test("shared SQLite leases enforce account, global, project and manifest quotas 
   assert.throws(()=>reserveProjectOperation(b,root,other,"export",0,limits),/concurrent/);
   exportRelease();
   const next=reserveProjectOperation(b,root,other,"export",0,limits);next();
-  assert.throws(()=>reserveProjectOperation(a,root,other,"video",51*MiB,limits),/File too large/);
+  assert.throws(()=>reserveProjectOperation(a,root,other,"video",251*MiB,limits),/File too large/);
   assert.throws(()=>projectLimits({PROJECTS_UPLOADS_GLOBAL:"0"}),/incorrectly configured/);
  }finally{a.close();b.close();rmSync(root,{recursive:true,force:true});}
+});
+
+import {parseVideoUpload,writeVideoUpload} from "../lib/music-video/video-upload.ts";
+import {PROJECT_VIDEO_MAX_BYTES} from "../lib/music-video/media-limits.ts";
+import {statSync} from "node:fs";
+test("250 MiB raw video is admitted and streamed with exact byte accounting",async()=>{
+ const root=mkdtempSync(path.join(tmpdir(),"sm-large-video-"));
+ const target=path.join(root,"large.mp4"),MiB=1024*1024;
+ const headers=new Headers({"x-project-filename":encodeURIComponent("Großes Video.mp4"),"x-project-bytes":String(PROJECT_VIDEO_MAX_BYTES),"content-length":String(PROJECT_VIDEO_MAX_BYTES)});
+ try{
+  assert.equal(projectLimits({}).videoBytes,250*MiB);
+  assert.equal(parseVideoUpload(headers).size,250*MiB);
+  assert.equal(parseVideoUpload(headers).name,"Großes Video.mp4");
+  const block=new Uint8Array(MiB);let sent=0;
+  const stream=new ReadableStream<Uint8Array>({pull(controller){if(sent===250)controller.close();else{sent++;controller.enqueue(block);}}});
+  await writeVideoUpload(stream,target,250*MiB);
+  assert.equal(statSync(target).size,250*MiB);
+  headers.set("x-project-bytes",String(250*MiB+1));
+  assert.throws(()=>parseVideoUpload(headers),/File too large/);
+  headers.set("x-project-bytes","8");
+  assert.throws(()=>parseVideoUpload(headers),/length mismatch/);
+  const small=(n:number)=>new ReadableStream<Uint8Array>({start(c){c.enqueue(new Uint8Array(n));c.close();}});
+  await assert.rejects(writeVideoUpload(small(9),path.join(root,"too-big.mp4"),8),/File too large/);
+  await assert.rejects(writeVideoUpload(small(7),path.join(root,"short.mp4"),8),/length mismatch/);
+ }finally{rmSync(root,{recursive:true,force:true});}
 });
