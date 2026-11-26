@@ -5,7 +5,8 @@ import {statfsSync} from "node:fs";
 const MiB=1024*1024;
 export type OperationKind="song"|"video"|"export";
 export class ProjectCapacityError extends Error {
- constructor(message:string,readonly status=429){super(message);}
+ readonly status:number;
+ constructor(message:string,status=429){super(message);this.status=status;}
 }
 function setting(env:Record<string,string|undefined>,key:string,fallback:number,max:number){
  const raw=env[key];if(raw===undefined||raw==="")return fallback;
