@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { analyticsConfig, CONSENT_TTL, readConsent, serializeConsent, publicAnalyticsPage, sanitizedReferrer } from "../lib/analytics/consent.ts";
+import { analyticsConfig, CONSENT_TTL, readConsent, serializeConsent, publicAnalyticsPage, publicAnalyticsLocation, sanitizedReferrer } from "../lib/analytics/consent.ts";
 test("analytics defaults off and requires an explicit environment-specific valid GA4 id", () => {
   assert.deepEqual(analyticsConfig({}), {id:null,preview:false});
   assert.equal(analyticsConfig({GA4_ENABLED:"true",GA4_MEASUREMENT_ID:"G-TEST1234"}).id,null);
@@ -26,4 +26,13 @@ test("private paths and URL parameters never enter the marketing page allowlist"
   for (const path of ["/studio","/account","/projects/secret","/credits","/checkout","/admin","/api/assets","/help?email=x","/__proto__"]) assert.equal(publicAnalyticsPage(path),null);
   assert.equal(sanitizedReferrer("https://example.test/user?email=x#private"),"https://example.test/");
   assert.equal(sanitizedReferrer("javascript:alert(1)"),"");
+});
+
+test("only exact, clean marketing URLs are eligible, including the private home carousel exclusion", () => {
+  assert.equal(publicAnalyticsLocation("/", "", ""), "SingMotion AI");
+  for (const query of ["?card=projects", "?card=login", "?email=synthetic@example.test", "?utm_source=google"]) {
+    assert.equal(publicAnalyticsLocation("/", query, ""), null);
+  }
+  assert.equal(publicAnalyticsLocation("/", "", "#private"), null);
+  assert.equal(publicAnalyticsLocation("/studio", "", ""), null);
 });

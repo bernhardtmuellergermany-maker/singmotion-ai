@@ -41,3 +41,9 @@ export function sanitizedReferrer(referrer: string): string {
     return url.protocol === "https:" || url.protocol === "http:" ? url.origin + "/" : "";
   } catch { return ""; }
 }
+
+// The home route can render private workspaces through ?card=... .
+// Until campaign values are explicitly reviewed, reject ALL query strings and fragments.
+export function publicAnalyticsLocation(pathname: string, search: string, hash: string): string | null {
+  return search === "" && hash === "" ? publicAnalyticsPage(pathname) : null;
+}

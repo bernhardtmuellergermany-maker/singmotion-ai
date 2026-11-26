@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
-import { CONSENT_KEY, readConsent, serializeConsent, publicAnalyticsPage, sanitizedReferrer, type Choice } from "@/lib/analytics/consent";
+import { usePathname, useSearchParams } from "next/navigation";
+import { CONSENT_KEY, readConsent, serializeConsent, publicAnalyticsLocation, sanitizedReferrer, type Choice } from "@/lib/analytics/consent";
 import styles from "./analytics-consent.module.css";
 
 type GoogleWindow = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]) => void } & Record<string, unknown>;
@@ -25,6 +25,9 @@ function clearAnalyticsCookies() {
 
 export function AnalyticsConsent({ id, preview }: { id: string | null; preview: boolean }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const search = searchParams?.toString() ?? "";
+  const [hash, setHash] = useState("");
   const key = CONSENT_KEY + (id ? ":" + id : ":preview");
   const [choice, setChoice] = useState<Choice | null>(null);
   const [ready, setReady] = useState(false);
@@ -32,16 +35,24 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   const [error, setError] = useState(false);
   const lastPage = useRef<string | null>(null);
   const initialized = useRef(false);
-  const title = publicAnalyticsPage(pathname ?? "");
+  const title = publicAnalyticsLocation(pathname ?? "", search, hash);
   const active = Boolean(id || preview);
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
 
   useEffect(() => {
     if (!active) return;
     const sync = () => {
+      setHash(location.hash);
       const current = readChoice(key);
       if (id && current !== "granted") {
         disable(id);
-        if (initialized.current) clearAnalyticsCookies();
+        clearAnalyticsCookies();
+        if (initialized.current) {
+          scriptRef.current?.remove();
+          initialized.current = false;
+          location.reload();
+          return;
+        }
       }
       setChoice(current);
       setReady(true);
@@ -52,10 +63,21 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
     };
     window.addEventListener("storage", changed);
     window.addEventListener("focus", sync);
+    window.addEventListener("hashchange", sync);
+    const pagehide = () => { if (id) disable(id); };
+    const pageshow = (event: PageTransitionEvent) => {
+      if (event.persisted && initialized.current) location.reload();
+      else sync();
+    };
+    window.addEventListener("pagehide", pagehide);
+    window.addEventListener("pageshow", pageshow);
     const timer = window.setInterval(sync, 60_000);
     return () => {
       window.removeEventListener("storage", changed);
       window.removeEventListener("focus", sync);
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("pagehide", pagehide);
+      window.removeEventListener("pageshow", pageshow);
       window.clearInterval(timer);
       if (id) disable(id);
     };
@@ -64,9 +86,16 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   useLayoutEffect(() => {
     if (!id) return;
     // The Google tag is never inserted before affirmative, current consent and a public route.
-    if (!ready || choice !== "granted" || !title || readChoice(key) !== "granted") {
+    // Recheck the real browser URL as well as React state. A query-bearing home URL may be a private workspace.
+    const actualTitle = publicAnalyticsLocation(location.pathname, location.search, location.hash);
+    if (!ready || choice !== "granted" || !title || !actualTitle || readChoice(key) !== "granted") {
       disable(id);
       lastPage.current = null;
+      if (initialized.current && !actualTitle) {
+        scriptRef.current?.remove();
+        initialized.current = false;
+        location.reload();
+      }
       return;
     }
     const w = google();
@@ -82,6 +111,9 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
         send_page_view: false,
         allow_google_signals: false,
         allow_ad_personalization_signals: false,
+        cookie_expires: 180 * 24 * 60 * 60,
+        cookie_update: false,
+        cookie_flags: "SameSite=Lax;Secure",
         page_location: page, page_title: title,
         page_referrer: sanitizedReferrer(document.referrer),
       });
@@ -89,6 +121,7 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       script.async = true;
       script.referrerPolicy = "no-referrer";
       script.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(id);
+      scriptRef.current = script;
       document.head.appendChild(script);
       initialized.current = true;
     }
@@ -100,7 +133,27 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       lastPage.current = page;
     }
     return () => { disable(id); };
-  }, [id, ready, choice, title, pathname, key]);
+  }, [id, ready, choice, title, pathname, search, hash, key]);
+
+  useEffect(() => {
+    if (!id) return;
+    // When the loaded tag would otherwise survive a Next client navigation to a private view,
+    // use a fresh document instead. Do not interfere with modified/new-tab/download clicks.
+    const leave = (event: MouseEvent) => {
+      if (!initialized.current || event.defaultPrevented || event.button !== 0 ||
+          event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+      if (!(anchor instanceof HTMLAnchorElement) || anchor.download || (anchor.target && anchor.target !== "_self")) return;
+      const url = new URL(anchor.href, location.href);
+      if (url.origin !== location.origin || publicAnalyticsLocation(url.pathname, url.search, url.hash)) return;
+      disable(id);
+      event.preventDefault();
+      event.stopPropagation();
+      location.assign(url.href);
+    };
+    document.addEventListener("click", leave, true);
+    return () => document.removeEventListener("click", leave, true);
+  }, [id]);
 
   function choose(next: Choice) {
     if (next === "denied" && id) {
@@ -108,16 +161,22 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       clearAnalyticsCookies();
     }
     try {
+      if (next === "denied") localStorage.removeItem(key);
       localStorage.setItem(key, serializeConsent(next));
       setChoice(next);
       setError(false);
       setOpen(false);
       // Unload an already loaded third-party tag after withdrawal.
-      if (next === "denied" && initialized.current) location.reload();
+      if (next === "denied" && initialized.current) {
+        scriptRef.current?.remove();
+        initialized.current = false;
+        location.reload();
+      }
     } catch {
       setError(true);
       setChoice(null);
       if (id) disable(id);
+      if (next === "denied" && initialized.current) scriptRef.current?.remove();
     }
   }
 

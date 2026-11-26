@@ -1,3 +1,4 @@
+import {Suspense} from "react";
 import type { Metadata } from "next";
 import {connection} from "next/server";
 import {AnalyticsConsent} from "@/components/analytics-consent";
@@ -48,7 +49,7 @@ export default async function RootLayout({
           Skip to content
         </a>
         {children}
-        <AnalyticsConsent {...analytics}/>
+        <Suspense fallback={null}><AnalyticsConsent {...analytics}/></Suspense>
       </body>
     </html>
   );

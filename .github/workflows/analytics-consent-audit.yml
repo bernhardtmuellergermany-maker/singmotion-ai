@@ -1,0 +1,29 @@
+name: Isolated analytics consent browser audit
+on:
+  push:
+    branches:
+      - feature/analytics-privacy-audit-20261126
+    paths:
+      - 'components/analytics-consent*'
+      - 'lib/analytics/**'
+      - 'tests/analytics-consent*'
+      - '.github/workflows/analytics-consent-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.3'
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: node --experimental-strip-types tests/analytics-consent.browser.ts
