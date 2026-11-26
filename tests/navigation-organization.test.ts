@@ -794,5 +794,21 @@ test("lookahead requires bounded buffered runway, not media in intentional gaps"
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("if(!clip)return true;"));
  assert.ok(editor.includes("hasPreviewBuffer(element.buffered,expected"));
- assert.ok(editor.includes("[activeAsset,nextAsset,followingAsset]"));
+ assert.ok(editor.includes("[activeAsset,nextAsset,previousAsset,followingAsset]"));
+});
+
+test("reverse scrubbing retains bounded preceding decoder across cuts and gaps",async()=>{
+ const {previousVisibleClipTransition}=await import("../lib/music-video/song-range.ts");
+ const a={id:"a",track:1 as const,timelineStartMs:0,sourceInMs:0,sourceOutMs:5000};
+ const b={id:"b",track:2 as const,timelineStartMs:10000,sourceInMs:1000,sourceOutMs:4000};
+ const boundaries=[0,5000,10000,13000],mutes={1:true,2:true};
+ assert.equal(previousVisibleClipTransition([a,b],11000,boundaries,mutes)?.clip.id,"a");
+ assert.equal(previousVisibleClipTransition([a,b],8000,boundaries,mutes)?.clip.id,"a");
+ assert.equal(previousVisibleClipTransition([a,b],1000,boundaries,mutes),undefined);
+ assert.equal(previousVisibleClipTransition([a,b],50000,boundaries,mutes),undefined);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("alignPausedSong(ms,range)"));
+ assert.ok(editor.includes("if(!playingRef.current)alignPausedSong()"));
+ assert.ok(editor.includes("previousTransition.clip:undefined"));
+ assert.ok(editor.includes("if(visible)syncVideo(e.currentTarget,c);else warm(e.currentTarget)"));
 });
