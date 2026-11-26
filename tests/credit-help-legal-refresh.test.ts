@@ -94,6 +94,13 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  assert.match(publicCms,/publicSiteLink\(b\.url\)/);
  const legalRefs=read("components/legal-policies.tsx");
  assert.doesNotMatch(legalRefs,/<a href="https:\/\//);
+ // The sole external legal reference list is limited to these official Google pages.
+ const references=legalRefs.match(/const googlePrivacyReferences = (\[[\s\S]*?\]) as const;/)?.[1];
+ assert.ok(references,"fixed legal provider reference list");
+ assert.deepEqual(JSON.parse(references).map((item:{url:string})=>item.url),["https://policies.google.com/privacy","https://support.google.com/analytics/answer/12017362","https://support.google.com/analytics/answer/11397207","https://business.safety.google/adsdatatransfers/","https://business.safety.google/adsprocessorterms/"]);
+ assert.match(legalRefs,/googlePrivacyReferences\.map\(\(\{label,url\}\)=>/);
+ assert.deepEqual([...legalRefs.matchAll(/<a\s+href=\{([^}]+)\}/g)].map(match=>match[1]),["url"]);
+ assert.match(legalRefs,/href=\{url\} rel="noreferrer noopener"/);
  assert.doesNotMatch(help,/margin: "3rem auto"|BytePlus OmniHuman 1\.5/);
  const guide=read("components/help-faq.tsx");
  assert.doesNotMatch(guide,/github\.com|https:\/\//);

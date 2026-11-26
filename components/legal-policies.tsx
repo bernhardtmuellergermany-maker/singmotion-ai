@@ -123,6 +123,30 @@ const legalTopics = [
   },
 ] as const;
 
+// Fixed official provider documentation only; no CMS- or visitor-supplied external links.
+const googlePrivacyReferences = [
+  {
+    "label": "Google privacy policy",
+    "url": "https://policies.google.com/privacy"
+  },
+  {
+    "label": "Regional data and privacy",
+    "url": "https://support.google.com/analytics/answer/12017362"
+  },
+  {
+    "label": "Google Analytics cookies",
+    "url": "https://support.google.com/analytics/answer/11397207"
+  },
+  {
+    "label": "International transfers",
+    "url": "https://business.safety.google/adsdatatransfers/"
+  },
+  {
+    "label": "Data processing terms",
+    "url": "https://business.safety.google/adsprocessorterms/"
+  }
+] as const;
+
 export const legalSlugs = Object.keys(pages);
 export function LegalPolicyPage({slug}:{slug:string}){
   const page=pages[slug];
@@ -149,7 +173,7 @@ export function LegalPolicyPage({slug}:{slug:string}){
         </nav>
       ) : null}
       {page.sections.map((section,i)=><section key={section.title} id={slug === "legal" && i === 0 ? "imprint" : undefined} className="sm-legal-panel"><span className="sm-legal-num">{String(i+1).padStart(2,"0")} / INFORMATION</span><h2>{section.title}</h2>{section.paragraphs.map((p,j)=><p key={j}>{p}</p>)}</section>)}
-      {(slug==="privacy"||slug==="cookies")&&<aside className="sm-legal-panel" aria-label="Google Analytics privacy references"><h2>Google Analytics information</h2><p><a href="https://policies.google.com/privacy">Google privacy policy</a> · <a href="https://support.google.com/analytics/answer/12017362">Regional data and privacy</a> · <a href="https://support.google.com/analytics/answer/11397207">Google Analytics cookies</a> · <a href="https://business.safety.google/adsdatatransfers/">International transfers</a> · <a href="https://business.safety.google/adsprocessorterms/">Data processing terms</a></p></aside>}
+      {(slug==="privacy"||slug==="cookies")&&<aside className="sm-legal-panel" aria-label="Google Analytics privacy references"><h2>Google Analytics information</h2><p>{googlePrivacyReferences.map(({label,url})=><span key={url}><a href={url} rel="noreferrer noopener">{label}</a>{" · "}</span>)}</p></aside>}
       {slug==="privacy"&&<aside className="sm-legal-panel" aria-label="Official privacy references">
         <h2>Official privacy resources</h2>
         <p><strong>General Data Protection Regulation (GDPR)</strong> · <strong>German device-access rules (Section 25 TDDDG)</strong></p>
