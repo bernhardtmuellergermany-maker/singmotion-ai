@@ -2,10 +2,11 @@
 import {DatabaseSync} from "node:sqlite";
 import {existsSync,lstatSync,realpathSync,readdirSync,statfsSync} from "node:fs";
 import path from "node:path";
+import {projectLimits,type ProjectLimits} from "./capacity.ts";
 const MiB=1024*1024;
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 export type ProjectStorage={audioBytes:number;videoBytes:number;otherBytes:number;totalBytes:number;projects:number;partial:boolean;cloudVideoBytes:number;cloudVideoObjects:number;cloudSongBytes:number;cloudSongObjects:number};
-export type StorageOverview={projects:ProjectStorage;disk:{totalBytes:number;availableBytes:number};cloud:{sourceBytes:number;videoBytes:number;sourceObjects:number;videoObjects:number};trashPurgeEnabled:boolean};
+export type StorageOverview={projects:ProjectStorage;disk:{totalBytes:number;availableBytes:number};cloud:{sourceBytes:number;videoBytes:number;sourceObjects:number;videoObjects:number};trashPurgeEnabled:boolean;admission:{limits:ProjectLimits;reservedTempBytes:number;activeUploads:number;activeExports:number;pendingDeletes:number;pendingDeleteBytes:number;customers:{owner:string;projects:number;bytes:number;objects:number}[];customersPartial:boolean}};
 const empty=():ProjectStorage=>({audioBytes:0,videoBytes:0,otherBytes:0,totalBytes:0,projects:0,partial:false,cloudVideoBytes:0,cloudVideoObjects:0,cloudSongBytes:0,cloudSongObjects:0});
 function safeDirectory(folder:string):boolean{
  try{const s=lstatSync(folder);return s.isDirectory()&&!s.isSymbolicLink()&&realpathSync(folder)===folder;}catch{return false;}
@@ -70,10 +71,30 @@ function manifests(root:string,file:string,table:"cloud_source_media"|"cloud_pai
   return row;
  }finally{db.close();}
 }
+function admissionOverview(root:string):StorageOverview["admission"]{
+ const result:StorageOverview["admission"]={limits:projectLimits(),reservedTempBytes:0,activeUploads:0,activeExports:0,pendingDeletes:0,pendingDeleteBytes:0,customers:[],customersPartial:false};
+ const db=readOnly(root,"music-video.sqlite");if(!db)return result;
+ try{
+  const has=(name:string)=>!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
+  if(has("music_operation_leases")){
+   const row=db.prepare("SELECT COALESCE(SUM(temp_bytes),0) AS temp,COALESCE(SUM(CASE WHEN kind='export' THEN 1 ELSE 0 END),0) AS exports,COALESCE(SUM(CASE WHEN kind!='export' THEN 1 ELSE 0 END),0) AS uploads FROM music_operation_leases WHERE expires_at>?").get(Date.now()) as {temp:number;exports:number;uploads:number};
+   result.reservedTempBytes=row.temp;result.activeUploads=row.uploads;result.activeExports=row.exports;
+  }
+  if(has("music_asset_cloud")){
+   const row=db.prepare("SELECT COUNT(*) AS n,COALESCE(SUM(bytes),0) AS bytes FROM music_asset_cloud WHERE pending_delete=1").get() as {n:number;bytes:number};
+   result.pendingDeletes=row.n;result.pendingDeleteBytes=row.bytes;
+   if(has("music_projects")){
+    const rows=db.prepare("WITH owners AS (SELECT owner_id FROM music_projects WHERE owner_id LIKE 'customer:%' UNION SELECT owner_id FROM music_asset_cloud WHERE owner_id LIKE 'customer:%'), p AS (SELECT owner_id,COUNT(*) AS n FROM music_projects GROUP BY owner_id), c AS (SELECT owner_id,COUNT(*) AS n,COALESCE(SUM(bytes),0) AS bytes FROM music_asset_cloud GROUP BY owner_id) SELECT owners.owner_id AS owner,COALESCE(p.n,0) AS projects,COALESCE(c.bytes,0) AS bytes,COALESCE(c.n,0) AS objects FROM owners LEFT JOIN p USING(owner_id) LEFT JOIN c USING(owner_id) ORDER BY bytes DESC,owner LIMIT 101").all() as StorageOverview["admission"]["customers"];
+    result.customersPartial=rows.length>100;result.customers=rows.slice(0,100);
+   }
+  }
+  return result;
+ }finally{db.close();}
+}
 export function storageOverview(root:string):StorageOverview{
  root=realpathSync(root);
  const sources=manifests(root,"demo.sqlite","cloud_source_media"),videos=manifests(root,"commerce.sqlite","cloud_paid_videos");
- return {projects:projectStorage(root),disk:storageCapacity(root),cloud:{sourceBytes:sources.bytes,sourceObjects:sources.count,videoBytes:videos.bytes,videoObjects:videos.count},trashPurgeEnabled:process.env.PROJECT_TRASH_PURGE_ENABLED==="true"};
+ return {projects:projectStorage(root),disk:storageCapacity(root),cloud:{sourceBytes:sources.bytes,sourceObjects:sources.count,videoBytes:videos.bytes,videoObjects:videos.count},trashPurgeEnabled:process.env.PROJECT_TRASH_PURGE_ENABLED==="true",admission:admissionOverview(root)};
 }
 // Conservative process-local reservations. Other workers may also use the volume;
 // this is a guardrail, not a filesystem quota or a guarantee of available space.
