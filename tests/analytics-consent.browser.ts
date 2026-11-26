@@ -63,7 +63,7 @@ try {
    const details=panel.getByRole("button",{name:"Details",exact:true});
    const extra=panel.locator("#sm-analytics-details");
    if(viewport.width<=600){
-    assert.ok(Math.abs(bounds.x+(bounds.width/2)-(viewport.width/2))<=1,"mobile banner is horizontally centered");
+    await expect.poll(async()=>{const rect=await panel.boundingBox();const visibleWidth=await page.evaluate(()=>document.documentElement.clientWidth);return rect?Math.abs(rect.x+rect.width/2-visibleWidth/2):999;},{message:"mobile banner is centered in the visible document width"}).toBeLessThanOrEqual(1);
     assert.ok(bounds.height<=205,"compact collapsed mobile banner");
     await expect(details).toBeVisible();
     await expect(details).toHaveAttribute("aria-expanded","false");

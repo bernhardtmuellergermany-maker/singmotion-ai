@@ -12,8 +12,18 @@ test("Super Admin project sync must never query the customer-only order endpoint
 });
 
 test("account project requests still fail visibly when a real customer sync fails",()=>{
- assert.match(gallery,/if\(!r\.ok\)throw Error\("Customer projects unavailable"\)/);
- assert.match(gallery,/d\.status==="rejected"\|\|o\.status==="rejected"\|\|l\.status==="rejected"/);
+ assert.match(gallery,/if\(!r\.ok\)throw Error\("Customer videos unavailable/);
+ assert.match(gallery,/d\.status==="rejected"\?"drafts"/);
+ assert.match(gallery,/o\.status==="rejected"\?"customer orders"/);
+ assert.match(gallery,/l\.status==="rejected"\?"generated videos"/);
  assert.match(gallery,/api<SavedDraft\[\]>\("studio-drafts",\{cache:"no-store"\}\)/);
  assert.match(gallery,/api<\{projects:StudioProject\[\]\}>\("studio-live",\{cache:"no-store"\}\)/);
+});
+
+test("mobile resume and manual sync request a fresh authenticated media session and gate trash reads",()=>{
+ assert.match(gallery,/resetSession\(\);\s*const session=await ensureSession\(\)/);
+ assert.match(gallery,/workspaceOwner\.current!==owner/);
+ assert.match(gallery,/isCustomer\?fetch\("\/api\/customer-orders\?view=hidden"/);
+ assert.match(gallery,/await refreshTrash\(isCustomer\)/);
+ assert.match(gallery,/window\.addEventListener\("pageshow",onFocus\)/);
 });

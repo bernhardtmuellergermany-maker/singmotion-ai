@@ -4,7 +4,7 @@ import Link from "next/link";
 import {ArrowDownToLine,ArrowUpDown,CalendarDays,Check,ChevronDown,
  Clapperboard,Clock3,Eye,Film,FolderOpen,Image as ImageIcon,
  MoreHorizontal,Plus,Search,SquarePen,Video,Trash2,Copy,RefreshCw} from "lucide-react";
-import {api,ensureSession} from "@/lib/client";
+import {api,ensureSession,resetSession} from "@/lib/client";
 import type {StudioProject} from "@/lib/live/studio";
 import "./my-projects-gallery.css";
 import "./music-video.css";
@@ -51,6 +51,7 @@ function statusText(v:ProjectStatus){
 }
 export function MyProjectsGallery(){
  const [drafts,setDrafts]=useState<SavedDraft[]>([]);
+ const workspaceOwner=useRef<string|null>(null);
  const [canAddMusic,setCanAddMusic]=useState(false);
  useEffect(()=>{
    let active=true;
@@ -177,16 +178,16 @@ export function MyProjectsGallery(){
   }catch(cause){setError(cause instanceof Error?cause.message:"Unable to rename video.");}
   finally{setBusyId(null);}
  }
- async function refreshTrash(){
+ async function refreshTrash(isCustomer=workspaceOwner.current?.startsWith("customer-")===true){
   const [draft,admin,customer]=await Promise.allSettled([
    api<{items:TrashedProject[]}>("studio-drafts?trash=1"),
    api<{items:TrashedProject[]}>("studio-live?trash=1"),
-   fetch("/api/customer-orders?view=hidden",{credentials:"same-origin",cache:"no-store"})
+   isCustomer?fetch("/api/customer-orders?view=hidden",{credentials:"same-origin",cache:"no-store"})
     .then(async response=>{
       if(!response.ok)return [] as TrashedProject[];
       const data=await response.json() as {items:Array<{id:string;name:string;deletedAt:number}>};
       return (data.items||[]).map(item=>({...item,kind:"customer" as const}));
-    })
+    }):Promise.resolve([] as TrashedProject[])
   ]);
   setTrash([
    ...(draft.status==="fulfilled"?(draft.value.items||[]):[]),
@@ -274,7 +275,17 @@ export function MyProjectsGallery(){
    inFlight=true;lastRead=Date.now();
    if(active)setSyncing(true);
    try{
+    // Mobile browser resume can retain a resolved session promise after cookies
+    // expire or change. Reconcile with the authenticated server principal on every sync.
+    resetSession();
     const session=await ensureSession() as {owner?:string};
+    if(!active)return;
+    const owner=session?.owner;
+    if(typeof owner!=="string"||!owner)throw Error("Workspace unavailable");
+    if(workspaceOwner.current!==owner){
+      workspaceOwner.current=owner;
+      setDrafts([]);setOrders([]);setLive([]);setTrash([]);
+    }
     // The private CMS Super Admin workspace does not have a customer-order
     // cookie. Asking the customer-only endpoint returns an expected 401;
     // never report that as a failure to synchronize the operator's projects.
@@ -285,7 +296,7 @@ export function MyProjectsGallery(){
       isCustomer
         ?fetch("/api/customer-orders?view=mine",{credentials:"same-origin",cache:"no-store"})
           .then(async r=>{
-            if(!r.ok)throw Error("Customer videos unavailable");
+            if(!r.ok)throw Error("Customer videos unavailable (HTTP "+r.status+")");
             return (await r.json() as {orders:CustomerOrder[]}).orders;
           })
         :Promise.resolve([] as CustomerOrder[]),
@@ -296,12 +307,13 @@ export function MyProjectsGallery(){
     if(d.status==="fulfilled"&&Array.isArray(d.value))setDrafts(d.value);
     if(o.status==="fulfilled"&&Array.isArray(o.value))setOrders(o.value);
     if(l.status==="fulfilled"&&Array.isArray(l.value))setLive(l.value);
-    setError(d.status==="rejected"||o.status==="rejected"||l.status==="rejected"
-      ?"Some account videos could not be synchronized. Confirm that you are signed into the same account on desktop and mobile, then tap Sync names."
+    const failed=[d.status==="rejected"?"drafts":null,o.status==="rejected"?"customer orders":null,l.status==="rejected"?"generated videos":null].filter(Boolean);
+    setError(failed.length
+      ?"Could not refresh "+failed.join(", ")+". Your saved videos have not been deleted. Tap Sync names to reconnect; if the issue persists, sign out and sign in again."
       :"");
-    await refreshTrash().catch(()=>{});
+    await refreshTrash(isCustomer).catch(()=>{});
    }catch{
-    if(active)setError("Your videos could not be refreshed. Check your account and connection.");
+    if(active){workspaceOwner.current=null;setDrafts([]);setOrders([]);setLive([]);setTrash([]);setError("Your private workspace could not be refreshed. Sign in again or tap Sync names.");}
    }finally{inFlight=false;if(active){setLoading(false);setSyncing(false);}}
   }
   const onVisibility=()=>{if(!document.hidden)void refresh();};
