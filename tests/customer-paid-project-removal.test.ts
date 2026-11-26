@@ -50,9 +50,10 @@ test("Customer Remove & Restore requires a customer account, CSRF, owned order a
 test("Rename Save PATCHes an owned account title, never hides a paid project",()=>{
  const ui=read("components/my-projects-gallery.tsx");
  const api=read("app/(site)/api/customer-orders/route.ts");
- const rename=ui.split("async function renameProject(item:ProjectItem){")[1]?.split("async function refreshTrash()")[0];
+ const rename=ui.split("async function renameProject(item:ProjectItem){")[1]?.split("async function refreshTrash(")[0];
  const removal=ui.split("async function deleteProject(item:ProjectItem){")[1]?.split(" // Refresh account-owned names")[0];
  assert.ok(rename,"Rename event handler must exist");
+ assert.ok(ui.includes("async function refreshTrash("),"Rename boundary must exist");
  assert.match(rename,/if\(item\.kind==="customer"\)/);
  assert.match(rename,/method:"PATCH"/);
  assert.match(rename,/JSON\.stringify\(\{orderId:id,name:next\}\)/);
