@@ -1,13 +1,15 @@
 /** Owner-scoped immutable R2 objects for Projects videos and songs. */
 import {createHash,randomUUID,randomBytes} from "node:crypto";
-import {readFile,lstat,realpath,mkdtemp,writeFile,rm,copyFile,stat,statfs,readdir} from "node:fs/promises";
+import {lstat,realpath,mkdtemp,rm,copyFile,stat,statfs,readdir,open} from "node:fs/promises";
+import {createReadStream} from "node:fs";
+import {PROJECT_VIDEO_MAX_BYTES} from "./media-limits.ts";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {S3Client,PutObjectCommand,GetObjectCommand,DeleteObjectCommand,HeadObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "../live/r2-config.ts";
 export type ProjectCloudRecord={key:string;sha256:string;bytes:number};
 const sha=(b:Buffer|string)=>createHash("sha256").update(b).digest("hex");
-const MiB=1024*1024,limit=128*MiB,videoLimit=50*MiB;
+const MiB=1024*1024,limit=128*MiB,videoLimit=PROJECT_VIDEO_MAX_BYTES;
 const uuid=/^[a-f0-9-]{36}$/i;
 const customer=/^customer:[a-f0-9-]{36}$/i;
 export const songSlots=["song-original.mp3","song-original.wav","song-original.m4a","song.mp3"] as const;
@@ -26,21 +28,25 @@ export function validProjectCloudRecord(owner:string,project:string,asset:string
  try{return Number.isSafeInteger(record.bytes)&&record.bytes>0&&record.bytes<=byteLimit(asset)&&record.key===projectCloudKey(owner,project,asset,record.sha256,env);}catch{return false;}
 }
 type Sender={send:(command:PutObjectCommand|GetObjectCommand|DeleteObjectCommand)=>Promise<any>};
-export async function verifiedCloudBytes(client:Sender,bucket:string,record:ProjectCloudRecord){
+export async function verifyCloudStream(client:Sender,bucket:string,record:ProjectCloudRecord,consume?:(chunk:Buffer)=>Promise<void>){
  const response=await client.send(new GetObjectCommand({Bucket:bucket,Key:record.key}));
  if(!response.Body||response.ContentLength!==record.bytes||response.Metadata?.["singmotion-sha256"]!==record.sha256)throw Error("Projects R2 metadata mismatch");
- const chunks:Buffer[]=[];let total=0;
- for await(const chunk of response.Body as AsyncIterable<Uint8Array>){total+=chunk.length;if(total>record.bytes||total>limit)throw Error("Projects R2 body exceeds bound");chunks.push(Buffer.from(chunk));}
- const bytes=Buffer.concat(chunks);
- if(bytes.length!==record.bytes||sha(bytes)!==record.sha256)throw Error("Projects R2 checksum mismatch");
- return bytes;
+ if(!Number.isSafeInteger(record.bytes)||record.bytes<1||record.bytes>videoLimit)throw Error("Projects R2 body exceeds bound");
+ const digest=createHash("sha256");let total=0;
+ for await(const chunk of response.Body as AsyncIterable<Uint8Array>){total+=chunk.length;if(total>record.bytes)throw Error("Projects R2 body exceeds bound");digest.update(chunk);if(consume)await consume(Buffer.from(chunk));}
+ if(total!==record.bytes||digest.digest("hex")!==record.sha256)throw Error("Projects R2 checksum mismatch");
+}
+export async function verifiedCloudBytes(client:Sender,bucket:string,record:ProjectCloudRecord){
+ const chunks:Buffer[]=[];
+ await verifyCloudStream(client,bucket,record,async chunk=>{chunks.push(chunk);});
+ return Buffer.concat(chunks,record.bytes);
 }
 export async function mirrorProjectBytes(client:Sender,bucket:string,key:string,bytes:Buffer,mime:string){
  if(bytes.length<1||bytes.length>(mime.startsWith("video/")?videoLimit:limit))throw Error("Projects media exceeds limit");
  const record={key,sha256:sha(bytes),bytes:bytes.length};
  try{await client.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:bytes,ContentLength:bytes.length,ContentType:mime,ContentMD5:createHash("md5").update(bytes).digest("base64"),Metadata:{"singmotion-sha256":record.sha256},CacheControl:"private, no-store",IfNoneMatch:"*"}));}
  catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e;}
- await verifiedCloudBytes(client,bucket,record);
+ await verifyCloudStream(client,bucket,record);
  return record;
 }
 export async function safeLocalProjectVideo(folder:string,asset:string,extension:string){
@@ -58,9 +64,19 @@ export async function safeLocalProjectSong(folder:string,slot:SongSlot){
 export async function mirrorProjectVideo(owner:string,project:string,asset:string,file:string,mime:string){
  if(!projectR2Enabled())throw Error("Projects R2 writes disabled");
  const info=await stat(file);if(info.size<1||info.size>byteLimit(asset))throw Error("Projects media exceeds limit");
- const bytes=await readFile(file);const key=projectCloudKey(owner,project,asset,sha(bytes));
+ const digest=createHash("sha256"),md5=createHash("md5");let total=0;
+ for await(const chunk of createReadStream(file)){total+=chunk.length;if(total>info.size)throw Error("Projects source changed");digest.update(chunk);md5.update(chunk);}
+ if(total!==info.size)throw Error("Projects source changed");
+ const hash=digest.digest("hex"),key=projectCloudKey(owner,project,asset,hash),record={key,sha256:hash,bytes:total};
  const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
- try{return await mirrorProjectBytes(client,config.bucket,key,bytes,mime);}finally{client.destroy();}
+ try{
+  const body=createReadStream(file);
+  try{await client.send(new PutObjectCommand({Bucket:config.bucket,Key:key,Body:body,ContentLength:total,ContentType:mime,ContentMD5:md5.digest("base64"),Metadata:{"singmotion-sha256":hash},CacheControl:"private, no-store",IfNoneMatch:"*"}),{abortSignal:AbortSignal.timeout(180000)});}
+  catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e;}
+  finally{body.destroy();}
+  await verifyCloudStream({send:command=>client.send(command as any,{abortSignal:AbortSignal.timeout(180000)})},config.bucket,record);
+  return record;
+ }finally{client.destroy();}
 }
 export async function readProjectVideo(owner:string,project:string,asset:string,record:ProjectCloudRecord){
  if(!validProjectCloudRecord(owner,project,asset,record))throw Error("Invalid Projects cloud manifest");
@@ -115,7 +131,15 @@ export class ProjectScratch{
   return file;
  }
  async hydrate(owner:string,project:string,asset:string,ext:string,record:ProjectCloudRecord){
-  return this.materialize(asset,ext,record.bytes,async file=>{await writeFile(file,await readProjectVideo(owner,project,asset,record),{flag:"wx",mode:0o600});});
+  if(!validProjectCloudRecord(owner,project,asset,record))throw Error("Invalid Projects cloud manifest");
+  return this.materialize(asset,ext,record.bytes,async file=>{
+   const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
+   try{
+    const handle=await open(file,"wx",0o600);
+    try{await verifyCloudStream({send:command=>client.send(command as any,{abortSignal:AbortSignal.timeout(180000)})},config.bucket,record,async chunk=>{await handle.writeFile(chunk);});}
+    finally{await handle.close();}
+   }finally{client.destroy();}
+  });
  }
  async copy(asset:string,ext:string,source:string){return this.materialize(asset,ext,(await stat(source)).size,async file=>{await copyFile(source,file);});}
  async close(){const folder=this.folder;this.folder=undefined;const bytes=this.bytes;this.bytes=0;try{if(folder)await rm(folder,{recursive:true,force:true});}finally{reserved-=bytes;}}
