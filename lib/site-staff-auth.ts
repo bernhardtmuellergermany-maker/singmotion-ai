@@ -1,6 +1,8 @@
 import type {NextRequest} from "next/server";
 import {NextResponse} from "next/server";
 import {applicationOrigin} from "./request-origin.ts";
+import {createAccountMediaSession,session} from "./db";
+import type {CommerceStore} from "./commerce/store";
 
 /** Existing CMS staff credentials, reused by the existing public login form.
  * Never select a role from the submitted email; only a verified Payload staff
@@ -28,7 +30,7 @@ export async function siteStaffStatus(headers:Headers):Promise<{
  * The CMS token is scoped to the same verified site, never sent in JSON.
  * CMS sessions, roles, password policies and audit hooks stay authoritative.
  */
-export async function tryExistingSuperAdminLogin(req:NextRequest,email:string,password:string):Promise<NextResponse|null>{
+export async function tryExistingSuperAdminLogin(req:NextRequest,email:string,password:string,store:CommerceStore):Promise<NextResponse|null>{
  if(process.env.CMS_ENABLED!=="true"||!process.env.CMS_ORIGIN)return null;
  const origin=applicationOrigin(req.url,req.headers.get("host"));
  if(!origin||origin!==process.env.CMS_ORIGIN||req.headers.get("origin")!==origin)return null;
@@ -47,6 +49,21 @@ export async function tryExistingSuperAdminLogin(req:NextRequest,email:string,pa
    httpOnly:true,secure:new URL(origin).protocol==="https:",sameSite:"strict",
    path:"/",maxAge:3600
   });
+  // Bind the workspace from the same verified staff login, before the browser
+  // can resume a guest draft. A valid customer cookie still takes precedence.
+  if(!store.session(req.cookies.get("sm_customer")?.value||"")){
+   const {studioStaff}=await import("@/cms/studio-access");
+   let owner:string|null=null;
+   try{owner=studioStaff(result.user,req.method,req.headers,process.env);}catch{/* CMS login remains independent of paid Studio authorization. */}
+   if(owner){
+    const previous=req.cookies.get("sm_session")?.value;
+    const prior=session(previous);
+    if(previous&&prior&&/^[a-f0-9-]{36}$/.test(prior.owner))
+     response.cookies.set("sm_guest_session",previous,{httpOnly:true,secure:new URL(origin).protocol==="https:",sameSite:"strict",path:"/",maxAge:30*86400});
+    const media=prior?.owner===owner&&previous?{token:previous,owner}:createAccountMediaSession(owner);
+    response.cookies.set("sm_session",media.token,{httpOnly:true,secure:new URL(origin).protocol==="https:",sameSite:"strict",path:"/",maxAge:30*86400});
+   }
+  }
   return response;
  }catch{return null}
 }
