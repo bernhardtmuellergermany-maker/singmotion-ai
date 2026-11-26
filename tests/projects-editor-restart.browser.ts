@@ -20,7 +20,7 @@ const bundled=await build({stdin:{contents:'import React from "react";import {cr
 const script=bundled.outputFiles[0].contents;
 const css=readFileSync("components/music-video.css");
 const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songName:"Test song",songDurationMs:4000,songStartMs:0,songEndMs:4000,songPositionMs:0,songParts:null,trackMutes:{1:true,2:true,song:false},revision:0,createdAt:1,updatedAt:1,aspectRatio:"16:9"};
-const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
+const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:id==="first"?"lip-sync":"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
 const clips=[{id:"c1",assetId:"first",track:1,timelineStartMs:0,sourceInMs:250,sourceOutMs:1750,syncLocked:false},{id:"c2",assetId:"second",track:2,timelineStartMs:2000,sourceInMs:500,sourceOutMs:2000,syncLocked:false}];
 const server=createServer((req,res)=>{
  const url=new URL(req.url||"/","http://localhost"),p=url.pathname;
@@ -55,6 +55,27 @@ try{
    // Reproduce the paused Android decoder reporting only HAVE_CURRENT_DATA.
    const get=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,"readyState")!.get!;
    Object.defineProperty(HTMLVideoElement.prototype,"readyState",{get(){const actual=get.call(this);return this.paused?Math.min(actual,2):actual;}});
+   // Native compositor callbacks, not only currentTime: inject a delayed
+   // presentation timestamp once while the underlying media clock is normal.
+   const native=HTMLVideoElement.prototype.requestVideoFrameCallback;
+   if(native){
+    const state={armed:false,injected:false,until:0,repairSeeks:0,frames:[] as number[]};
+    Object.assign(window,{__frameTest:state});
+    document.addEventListener("seeking",event=>{
+     const el=event.target;
+     if(state.injected&&el instanceof HTMLVideoElement&&el.dataset.clipId==="c1")state.repairSeeks++;
+    },true);
+    HTMLVideoElement.prototype.requestVideoFrameCallback=function(cb){
+     return native.call(this,(now,meta)=>{
+      const a=document.querySelector<HTMLAudioElement>("audio");
+      if(this.dataset.clipId==="c1"&&this.getAttribute("aria-hidden")==="false"&&a&&!a.paused&&!this.paused&&!this.seeking){
+       state.frames.push(Math.abs(a.currentTime+.25-meta.mediaTime));
+       if(state.armed&&!state.injected&&a.currentTime>.35&&a.currentTime<.85){state.injected=true;state.until=performance.now()+240;}
+      }
+      cb(now,state.injected&&performance.now()<state.until&&this.dataset.clipId==="c1"?{...meta,mediaTime:Math.max(0,meta.mediaTime-.22)}:meta);
+     });
+    };
+   }
   });
   await page.goto(origin);
   const play=page.getByRole("button",{name:"Play",exact:true}),pause=page.getByRole("button",{name:"Pause",exact:true});
@@ -79,6 +100,19 @@ try{
    await pause.click();
    await seek.press("Home");
    await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.seeking&&!v.seeking&&a.currentTime<.035&&Math.abs(v.currentTime-.25)<.04;},{},{timeout:3000});
+  }
+  const nativeFrames=await page.evaluate(()=>((window as any).__frameTest?.frames??[]) as number[]);
+  if(await page.evaluate(()=>!!(window as any).__frameTest)){
+   assert.ok(nativeFrames.length>3,"actual presentation callbacks must be observed");
+   const sorted=nativeFrames.sort((a,b)=>a-b);
+   assert.ok(sorted[Math.floor(sorted.length*.8)]<.14,"native frame/audio timestamp drift");
+   await page.evaluate(()=>{(window as any).__frameTest.armed=true;});
+   await play.click();
+   await page.waitForFunction(()=>{const s=(window as any).__frameTest;return s.injected&&s.repairSeeks>0;},{},{timeout:5000});
+   await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.paused&&!v.paused&&!v.seeking&&a.currentTime>.6&&a.currentTime<1.5&&Math.abs(v.currentTime-a.currentTime-.25)<.10;},{},{timeout:4000});
+   await pause.click();await seek.press("Home");
+   await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.seeking&&!v.seeking&&a.currentTime<.035&&Math.abs(v.currentTime-.25)<.04;},{},{timeout:3000});
+   console.log("PASS: Lip-Sync editor detects delayed presented video frames and resumes with song on "+(mobile?"mobile":"desktop")+" Chromium");
   }
   // Natural EOF followed by Play must reset both clocks, not immediately end again.
   await play.click();await play.waitFor({timeout:10000});
