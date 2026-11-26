@@ -70,7 +70,12 @@ export async function readProjectVideo(owner:string,project:string,asset:string,
 export async function deleteProjectVideo(owner:string,project:string,asset:string,record:ProjectCloudRecord){
  if(!validProjectCloudRecord(owner,project,asset,record))throw Error("Invalid Projects cloud manifest");
  const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
- try{await client.send(new DeleteObjectCommand({Bucket:config.bucket,Key:record.key}));}finally{client.destroy();}
+ try{
+  await client.send(new DeleteObjectCommand({Bucket:config.bucket,Key:record.key}),{abortSignal:AbortSignal.timeout(15000)});
+  try{await client.send(new HeadObjectCommand({Bucket:config.bucket,Key:record.key}),{abortSignal:AbortSignal.timeout(15000)});}
+  catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode===404)return;throw e;}
+  throw Error("Projects R2 deletion not confirmed");
+ }finally{client.destroy();}
 }
 // Direct private Range reads: the browser never sees bucket URLs or credentials.
 export async function projectVideoResponse(req:Request,owner:string,project:string,asset:string,record:ProjectCloudRecord,mime:string,headers:Record<string,string>,downloadName?:string){
