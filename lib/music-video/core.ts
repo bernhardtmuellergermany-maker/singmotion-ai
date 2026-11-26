@@ -181,6 +181,21 @@ export function setMusicAssetRole(id:string,owner:string,assetId:string,role:unk
   }catch(e){connection.exec("ROLLBACK");throw e;}
   return musicDetail(id,owner);
 }
+/** A project alias only: never touch the originating video, its file, or other projects. */
+export function renameMusicAsset(id:string,owner:string,assetId:string,name:unknown,revision:unknown){
+  const title=validatedName(name),project=requireMusicProject(id,owner),asset=musicAsset(id,owner,assetId),connection=database();
+  if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed on another device. Reload to continue.",409);
+  if(asset.name===title)return musicDetail(id,owner);
+  connection.exec("BEGIN IMMEDIATE");
+  try{
+    const changed=connection.prepare("UPDATE music_projects SET revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),id,owner,revision);
+    if(changed.changes!==1)throw new MusicError("Project changed on another device. Reload to continue.",409);
+    const renamed=connection.prepare("UPDATE music_assets SET name=? WHERE id=? AND project_id=?").run(title,assetId,id);
+    if(renamed.changes!==1)throw new MusicError("Asset unavailable.",404);
+    connection.exec("COMMIT");
+  }catch(e){connection.exec("ROLLBACK");throw e;}
+  return musicDetail(id,owner);
+}
 export function removeMusicAsset(id:string,owner:string,assetId:string){
   musicAsset(id,owner,assetId);
   const active=database().prepare("SELECT 1 AS active FROM music_clips WHERE project_id=? AND asset_id=? LIMIT 1").get(id,assetId);
