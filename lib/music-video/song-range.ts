@@ -250,7 +250,9 @@ export function pictureSyncGate(expected:number,media:{currentTime:number;readyS
  const tail=Number.isFinite(media.duration)&&expected>=media.duration-0.05&&expected<=media.duration+0.05;
  if(media.ended&&!tail)return "align";
  if(drift>(running?0.12:0.035))return "align";
- if(media.readyState<3&&!(tail&&media.readyState>=2))return "wait";
+ // A paused decoder may report HAVE_CURRENT_DATA indefinitely until play().
+ // The caller starts both decoders together; actual stalled playback is monitored separately.
+ if(media.readyState<2)return "wait";
  return "ready";
 }
 
@@ -279,4 +281,12 @@ export function previousVisibleClipTransition<T extends {id:string;track:1|2;tim
   if(candidate&&candidate.id!==active?.id)return {clip:candidate,atMs:Math.max(candidate.timelineStartMs,before-250)};
  }
  return undefined;
+}
+
+/** Suppress transient clock jitter during native startup; not a license to
+ * let the song run ahead of a decoder that has genuinely stopped advancing. */
+export function previewRunningGate(expected:number,media:{currentTime:number;readyState:number;seeking:boolean;ended:boolean;duration:number}|null,elapsedSinceStart:number):"wait"|"align"|"ready"{
+ const gate=pictureSyncGate(expected,media,true);
+ if(gate==="align"&&media&&!media.ended&&elapsedSinceStart<180&&Math.abs(expected-media.currentTime)<=0.18)return "ready";
+ return gate;
 }
