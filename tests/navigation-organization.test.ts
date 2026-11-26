@@ -802,7 +802,8 @@ test("lookahead requires bounded buffered runway, not media in intentional gaps"
  assert.equal(nextVisibleClipTransition([clip],0,[18000,20500],{1:true,2:true})?.atMs,18000);
  const editor=read("components/music-video-editor.tsx");
  assert.match(editor,/if\(!clip\)\{[^{}]*presentationDrift\.current=null;[^{}]*return true;\}/);
- assert.ok(editor.includes("return gate===\"ready\";"));
+ assert.ok(editor.includes('if(gate!=="ready")return false;'));
+ assert.match(editor,/function pictureReady\(at:number,running:boolean\)\{[\s\S]*?return true;\s*\}\s*function holdSong/);
  assert.ok(editor.includes("[activeAsset,nextAsset,previousAsset,followingAsset,firstPreviewAsset?byId.get(firstPreviewAsset):undefined]"));
 });
 
