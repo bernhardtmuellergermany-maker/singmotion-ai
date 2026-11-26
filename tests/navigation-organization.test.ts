@@ -636,8 +636,9 @@ test("preview proxies are authorized, bounded and do not replace export original
  assert.ok(api.includes('const asset=musicAsset(id,owner,assetId)'));
  assert.ok(api.includes('if(durationMs>180000)return false'));
  assert.ok(api.includes('if(previewJobs.size)return false'));
- assert.ok(api.includes('while(old.length>=(mobile?8:6))'));
- assert.ok(api.includes('24*1024*1024'));
+ assert.ok(api.includes('while(old.length>=6)'));
+ assert.ok(api.includes('s.size<=previewByteLimit(mobile)'));
+ assert.ok(read("lib/music-video/preview-profile.ts").includes('(mobile?64:24)*1024*1024'));
  assert.ok(api.includes('"private, no-cache"'));
  assert.ok(api.includes('"Vary":"Cookie, Authorization"'));
  assert.ok(editor.includes('preload="auto"'));
@@ -663,8 +664,10 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('syncMobileSong(at,run)'));
  assert.ok(editor.includes('now-lastPaint>=250'));
  assert.ok(api.includes('if(mobile)return json({error:"Mobile preview not ready."},409)'));
- assert.ok(api.includes('mobile?"400k":"800k"'));
- assert.ok(api.includes('["-profile:v","baseline","-level:v","3.1"]'));
+ const profile=read("lib/music-video/preview-profile.ts");
+ assert.ok(profile.includes('mobile?"2200k":"800k"'));
+ assert.ok(profile.includes('mobile?"192k":"96k"'));
+ assert.ok(profile.includes('["-profile:v","baseline","-level:v","3.1"]'));
  assert.ok(editor.includes('onClick={()=>useOriginalOnMobile(activeAsset.id)}'));
 });
 

@@ -12,6 +12,7 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {dataDir,session} from "@/lib/db";
 import {validateAudio,createAudioPreview,probe} from "@/lib/media";
+import {projectPreviewArgs,previewByteLimit,mobilePreviewVersion} from "@/lib/music-video/preview-profile";
 import {AUDIO_LIMIT} from "@/lib/domain";
 import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
@@ -199,19 +200,19 @@ async function songWaveform(id:string):Promise<number[]>{
 }
 
 // Private, disposable preview cache. Never replace or transcode the original for export.
-// One encoder, at most six 24 MiB files; long/unavailable media fall back to the original.
-const previewRoot=(mobile=false)=>{const root=path.join(tmpdir(),mobile?"singmotion-project-mobile-v1":"singmotion-project-preview-v1");return mkdir(root,{recursive:true,mode:0o700}).then(()=>root);};
+// One encoder; at most six mobile 64 MiB or desktop 24 MiB cached files.
+const previewRoot=(mobile=false)=>{const root=path.join(tmpdir(),mobile?mobilePreviewVersion:"singmotion-project-preview-v1");return mkdir(root,{recursive:true,mode:0o700}).then(()=>root);};
 const previewJobs=new Map<string,Promise<boolean>>();
 async function previewPath(id:string,assetId:string,file:string,mobile=false,digest?:string){
   const info=digest?null:await stat(file);
   const key=createHash("sha256").update(id+":"+assetId+":"+(digest??(info!.size+":"+info!.mtimeMs))).digest("hex");
   return path.join(await previewRoot(mobile),key+".mp4");
 }
-async function readyPreview(file:string){
-  return stat(file).then(s=>s.isFile()&&s.size>1024&&s.size<=24*1024*1024).catch(()=>false);
+async function readyPreview(file:string,mobile=false){
+  return stat(file).then(s=>s.isFile()&&s.size>1024&&s.size<=previewByteLimit(mobile)).catch(()=>false);
 }
 async function preparePreview(file:string,target:string,durationMs:number,mobile=false):Promise<boolean>{
-  if(await readyPreview(target))return true;
+  if(await readyPreview(target,mobile))return true;
   if(durationMs>180000)return false;
   const pending=previewJobs.get(target);if(pending)return pending;
   if(previewJobs.size)return false;
@@ -222,11 +223,11 @@ async function preparePreview(file:string,target:string,durationMs:number,mobile
     await Promise.all(names.filter(n=>/^[a-f0-9]{64}\.mp4\.[a-f0-9-]{36}\.tmp\.mp4$/.test(n)).map(n=>rm(path.join(dir,n),{force:true}).catch(()=>{})));
     const entries=await Promise.all(names.filter(n=>/^[a-f0-9]{64}\.mp4$/.test(n)).map(async n=>({file:path.join(dir,n),info:await stat(path.join(dir,n)).catch(()=>null)})));
     const old=entries.filter(e=>e.info).sort((a,b)=>a.info!.mtimeMs-b.info!.mtimeMs);
-    while(old.length>=(mobile?8:6)){const first=old.shift()!;await rm(first.file,{force:true});}
+    while(old.length>=6){const first=old.shift()!;await rm(first.file,{force:true});}
     const temp=target+"."+randomUUID()+".tmp.mp4";
     try{
-      await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",file,"-map","0:v:0","-map","0:a:0?","-sn","-dn","-filter_threads","1","-vf",mobile?"scale=w='min(640,iw)':h='min(640,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1,fps=30":"scale=w='min(854,iw)':h='min(854,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2,setsar=1","-c:v","libx264","-threads","1","-preset","veryfast","-crf",mobile?"26":"24","-maxrate",mobile?"400k":"800k","-bufsize",mobile?"800k":"1600k","-g",mobile?"15":"30",...(mobile?["-profile:v","baseline","-level:v","3.1"]:[]),"-pix_fmt","yuv420p","-c:a","aac","-b:a",mobile?"64k":"96k","-movflags","+faststart",temp],{timeout:90000,maxBuffer:65536});
-      if(!await readyPreview(temp))return false;
+      await promisify(execFile)("ffmpeg",projectPreviewArgs(file,temp,mobile),{timeout:mobile?150000:90000,maxBuffer:65536});
+      if(!await readyPreview(temp,mobile))return false;
       await rename(temp,target);return true;
     }catch{return false;}finally{await rm(temp,{force:true}).catch(()=>{});}
   })();
@@ -309,7 +310,7 @@ async function handler(req:NextRequest,context:Context){
         await mkdir(projectFolder(project.id),{recursive:true,mode:0o700});
         await rename(temp,path.join(projectFolder(project.id),"song-original."+extension));
         if(extension==="mp3")await writeFile(path.join(projectFolder(project.id),"song.mp3"),buffer,{flag:"wx",mode:0o600});
-        else await createAudioPreview(path.join(projectFolder(project.id),"song-original."+extension),path.join(projectFolder(project.id),"song.mp3"));
+        else await createAudioPreview(path.join(projectFolder(project.id),"song-original."+extension),path.join(projectFolder(project.id),"song.mp3"),256);
         return json({project},201);
       }catch(e){
         if(project){removeMusicProject(project.id,owner);await rm(projectFolder(project.id),{recursive:true,force:true});}
@@ -352,7 +353,7 @@ async function handler(req:NextRequest,context:Context){
       const mobile=req.nextUrl.searchParams.get("mobile")==="1";
       const record=asset.sourceKind==="uploaded"?projectCloudRecord(id,owner,assetId):null;
       const cachedTarget=record?await previewPath(id,assetId,"",mobile,record.sha256):null;
-      if(cachedTarget&&await readyPreview(cachedTarget)){
+      if(cachedTarget&&await readyPreview(cachedTarget,mobile)){
        if(req.method==="POST")return json({ready:true,unsupported:false});
        return await streamFile(req,cachedTarget,"video/mp4",true);
       }
@@ -364,7 +365,7 @@ async function handler(req:NextRequest,context:Context){
       const original=files.get(assetId)!;
       const target=cachedTarget??await previewPath(id,assetId,original,mobile);
       if(req.method==="POST")return json({ready:await preparePreview(original,target,asset.durationMs,mobile),unsupported:asset.durationMs>180000});
-      if(await readyPreview(target))return await streamFile(req,target,"video/mp4",true);
+      if(await readyPreview(target,mobile))return await streamFile(req,target,"video/mp4",true);
       // Mobile must not silently fall back to a heavyweight original.
       if(mobile)return json({error:"Mobile preview not ready."},409);
       // Evicted preview: use original, preserving the source clock.

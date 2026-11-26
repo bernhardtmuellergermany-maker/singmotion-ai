@@ -95,10 +95,10 @@ export async function trimAudio(
 }
 
 /** Build a browser-compatible playback copy without modifying uploaded source. */
-export async function createAudioPreview(input: string, output: string) {
+export async function createAudioPreview(input: string, output: string, bitrate: 128 | 256 = 128) {
   await exec("ffmpeg", [
     "-nostdin", "-hide_banner", "-loglevel", "error", "-y",
     "-i", input, "-map", "0:a:0", "-vn", "-codec:a", "libmp3lame",
-    "-b:a", "128k", output,
+    "-b:a", bitrate+"k", output,
   ], { timeout: 120000, maxBuffer: 1024 * 1024 });
 }
