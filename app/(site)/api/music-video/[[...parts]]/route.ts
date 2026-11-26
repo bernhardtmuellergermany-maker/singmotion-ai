@@ -18,7 +18,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
-import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
+import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,readProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
 import {reserveProjectUpload} from "@/lib/music-video/storage";
 import {projectLimits,ProjectCapacityError} from "@/lib/music-video/capacity";
 import {admitProjectOperation} from "@/lib/music-video/core";
@@ -283,8 +283,16 @@ async function originalSongSlot(id:string,owner:string):Promise<SongSlot>{
  throw new MusicError("Original song unavailable.",404);
 }
 async function offloadProjectSong(id:string,owner:string,folder:string,slot:SongSlot){
- if(projectSongRecord(id,owner,slot))return;
- const file=await safeLocalProjectSong(folder,slot),asset=songAssetId(id,slot);
+ const asset=songAssetId(id,slot),existing=projectSongRecord(id,owner,slot);
+ if(existing){
+  // A prior interrupted migration may have committed one slot already.
+  // Reverify that copy and any remaining local original before deleting it.
+  const cloud=await readProjectVideo(owner,id,asset,existing);
+  const file=await safeLocalProjectSong(folder,slot).catch(e=>{if((e as NodeJS.ErrnoException).code==="ENOENT")return null;throw e;});
+  if(file&&!(await readFile(file)).equals(cloud))throw Error("Local song differs from the verified cloud copy");
+  return;
+ }
+ const file=await safeLocalProjectSong(folder,slot);
  const record=await mirrorProjectVideo(owner,id,asset,file,songMime(slot));
  recordProjectSong(id,owner,slot,record);
 }
