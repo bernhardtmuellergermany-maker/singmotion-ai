@@ -38,3 +38,29 @@ test("Projects workspace has no storage panel; authenticated admin retains owner
  assert.ok(route.includes("projectMigrationCandidates(owner)"));
  assert.ok(route.includes("reserveProjectUpload"));
 });
+
+import {projectLimits,reserveProjectOperation,ProjectCapacityError} from "../lib/music-video/capacity.ts";
+test("shared SQLite leases enforce account, global, project and manifest quotas across connections",()=>{
+ const root=mkdtempSync(path.join(tmpdir(),"sm-capacity-"));
+ const file=path.join(root,"music-video.sqlite"),a=new DatabaseSync(file),b=new DatabaseSync(file);
+ const MiB=1024*1024,owner="customer:11111111-1111-4111-8111-111111111111",other="customer:22222222-2222-4222-8222-222222222222";
+ const limits={...projectLimits({}),customerBytes:200*MiB,projects:1,uploadsPerOwner:1,uploadsGlobal:2,exportsGlobal:1,tempBytes:1024*MiB,exportClaim:64*MiB,minFreeBytes:1};
+ try{
+  a.exec("CREATE TABLE music_projects(id TEXT PRIMARY KEY,owner_id TEXT); CREATE TABLE music_asset_cloud(owner_id TEXT,bytes INTEGER,pending_delete INTEGER)");
+  const release=reserveProjectOperation(a,root,owner,"song",10*MiB,limits);
+  assert.throws(()=>reserveProjectOperation(b,root,owner,"video",MiB,limits),ProjectCapacityError);
+  const releaseOther=reserveProjectOperation(b,root,other,"video",MiB,limits);
+  assert.throws(()=>reserveProjectOperation(a,root,"staff:third","video",MiB,limits),ProjectCapacityError);
+  releaseOther();release();release();
+  a.prepare("INSERT INTO music_projects VALUES(?,?)").run("p",owner);
+  assert.throws(()=>reserveProjectOperation(b,root,owner,"song",MiB,limits),/Project limit/);
+  a.prepare("INSERT INTO music_asset_cloud VALUES(?,?,1)").run(owner,200*MiB);
+  assert.throws(()=>reserveProjectOperation(b,root,owner,"video",MiB,limits),/quota/);
+  const exportRelease=reserveProjectOperation(a,root,owner,"export",0,limits);
+  assert.throws(()=>reserveProjectOperation(b,root,other,"export",0,limits),/concurrent/);
+  exportRelease();
+  const next=reserveProjectOperation(b,root,other,"export",0,limits);next();
+  assert.throws(()=>reserveProjectOperation(a,root,other,"video",51*MiB,limits),/File too large/);
+  assert.throws(()=>projectLimits({PROJECTS_UPLOADS_GLOBAL:"0"}),/incorrectly configured/);
+ }finally{a.close();b.close();rmSync(root,{recursive:true,force:true});}
+});
