@@ -130,6 +130,13 @@ async function handler(
     if (method !== "GET") requireOrigin(req);
     const token = req.cookies.get("sm_session")?.value;
     let auth=session(token);
+    // Only a live customer login, not an expired cookie, takes precedence.
+    let activeCustomerId:string|null=null;
+    const customerToken=req.cookies.get("sm_customer")?.value;
+    if(customerToken&&(auth?.owner.startsWith("cms-staff-")||route==="session")){
+      const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+      try{activeCustomerId=store.session(customerToken)??null;}finally{store.close();}
+    }
     // The private media cookie is not itself a customer/staff login.
     // Never serve paid source files from an orphaned account-media session
     // after the principal changed or signed out in another browser tab.
@@ -141,7 +148,7 @@ async function handler(
       }finally{commerce.close()}
     }else if(auth?.owner.startsWith("cms-staff-")){
       let valid=false;
-      if(process.env.CMS_ENABLED==="true"&&!req.cookies.has("sm_customer")){
+      if(process.env.CMS_ENABLED==="true"&&!activeCustomerId){
         const {getPayload}=await import("payload");
         const {default:payloadConfig}=await import("@payload-config");
         const {studioStaff}=await import("@/cms/studio-access");
@@ -177,15 +184,8 @@ async function handler(
       // Existing guest workspaces are never silently claimed or reassigned.
       let accountOwner: string | null = null;
       // Public account wins when CMS and customer cookies coexist.
-      if (process.env.CUSTOMER_ACCOUNTS_ENABLED === "true") {
-        const customerToken = req.cookies.get("sm_customer")?.value;
-        if (customerToken) {
-          const store = new CommerceStore(path.join(dataDir, "commerce.sqlite"));
-          try {
-            const accountId = store.session(customerToken);
-            if (accountId) accountOwner = "customer-" + accountId;
-          } finally { store.close(); }
-        }
+      if (process.env.CUSTOMER_ACCOUNTS_ENABLED === "true" && activeCustomerId) {
+        accountOwner = "customer-" + activeCustomerId;
       }
       // Operator identity is separately authorized and never masquerades as
       // a customer. It can be selected only without an active customer login.
@@ -193,11 +193,21 @@ async function handler(
         const { getPayload } = await import("payload");
         const { default: payloadConfig } = await import("@payload-config");
         const { studioStaff } = await import("@/cms/studio-access");
+        const {hasRole}=await import("@/cms/policy");
         const payload = await getPayload({ config: payloadConfig });
         const identity = await payload.auth({ headers: req.headers });
         try {
           accountOwner = studioStaff(identity.user, method, req.headers, process.env);
-        } catch { accountOwner = null; }
+        } catch (error) {
+          // A verified operator must not silently become a guest on a failed
+          // admission check. Preserve the guest cookie and report the policy rejection.
+          if(hasRole(identity.user,["super-admin","editor"])){
+            const code=error && typeof error==="object" && "code" in error && typeof error.code==="string"?error.code:"STAFF_AUTH_REQUIRED";
+            console.warn("STUDIO_WORKSPACE_DENIED",{code:code==="PILOT_NOT_ALLOWED"?"PILOT_NOT_ALLOWED":"STAFF_AUTH_REQUIRED"});
+            throw new AppError(code==="PILOT_NOT_ALLOWED"?"Studio operator authorization is not enabled for this account. Your saved project is protected.":"Studio operator session or request origin could not be verified. Your saved project is protected.",403);
+          }
+          accountOwner = null;
+        }
       }
       if (accountOwner && auth?.owner !== accountOwner) {
         // Save the guest session cookie until an explicit migration exists.
@@ -217,13 +227,15 @@ async function handler(
         });
         return response;
       }
-      if (auth)
+      if (auth) {
+        const account=auth.owner.startsWith("customer-")||auth.owner.startsWith("cms-staff-");
         return json({
           owner: auth.owner,
           balance: liveCustomer ? 0 : balance(auth.owner),
-          demo: !liveCustomer,
-          account: liveCustomer,
+          demo: !account&&!liveCustomer,
+          account,
         });
+      }
       // Never mint anonymous/demo credits or a guest media workspace in
       // public customer Production. Log in to obtain a private owner session.
       if(liveCustomer)
