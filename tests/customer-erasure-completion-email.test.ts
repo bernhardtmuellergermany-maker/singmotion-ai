@@ -41,8 +41,10 @@ test("deletion confirmation is queued on request but sent only after verified co
   advanceErasureJob(store.db,accountId,"completed");
   const result=await retryCustomerErasureCompletionEmails(file,env,sender);
   assert.equal(result.sent,1);assert.equal(sent,1);
-  assert.match(body,/Bestätigung Ihrer Kontolöschung/);
-  assert.match(body,/3,50/);
+  assert.match(body,/Account deletion confirmation/);
+  assert.match(body,/Your customer account has been successfully deleted/);
+  assert.match(body,/confirmed the refund to your original payment method/);
+  assert.match(body,/3\.50/);
   const row=store.db.prepare("SELECT recipient,sent_at FROM customer_erasure_completion_emails WHERE account_id=?")
    .get(accountId) as {recipient:string|null;sent_at:number|null};
   assert.equal(row.recipient,null);assert.ok(row.sent_at);
