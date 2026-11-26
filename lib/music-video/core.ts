@@ -1,3 +1,4 @@
+import {reserveProjectOperation,type OperationKind} from "./capacity.ts";
 import {DatabaseSync} from "node:sqlite";
 import {mkdirSync} from "node:fs";
 import {randomUUID} from "node:crypto";
@@ -290,3 +291,5 @@ export function projectSongMigrationCandidate(owner:string){
  const row=database().prepare("SELECT p.id FROM music_projects p WHERE p.owner_id=? AND (NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id=p.id||':song.mp3' AND c.pending_delete=0) OR NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id LIKE p.id||':song-original.%' AND c.pending_delete=0)) ORDER BY p.created_at,p.id LIMIT 1").get(owner) as {id:string}|undefined;
  return row?.id??null;
 }
+
+export function admitProjectOperation(root:string,owner:string,kind:OperationKind,bytes:number){return reserveProjectOperation(database(),root,owner,kind,bytes);}
