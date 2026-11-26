@@ -29,7 +29,7 @@ import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimension
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
-  newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,
+  newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,renameMusicAsset,
   projectCloudRecord,recordProjectCloud,projectMigrationCandidates,
   projectSongRecord,recordProjectSong,projectSongMigrationCandidate,
   type MediaKind,type SourceKind,type MusicClip,type MusicAsset,
@@ -541,6 +541,10 @@ async function handler(req:NextRequest,context:Context){
       const asset=musicAsset(id,owner,assetId);
       if(req.method==="PATCH"){
         const body=await jsonBody(req);
+        if(Object.prototype.hasOwnProperty.call(body,"name")){
+          if(Object.prototype.hasOwnProperty.call(body,"role"))throw new MusicError("Rename and role changes must be separate.");
+          return json(renameMusicAsset(id,owner,assetId,body.name,body.revision));
+        }
         return json(setMusicAssetRole(id,owner,assetId,body.role,body.revision));
       }
       if(req.method==="DELETE"){
