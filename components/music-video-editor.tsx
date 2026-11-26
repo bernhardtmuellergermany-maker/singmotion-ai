@@ -1,4 +1,5 @@
 "use client";
+import {PROJECT_VIDEO_MAX_BYTES,PROJECT_VIDEO_MAX_MIB} from "../lib/music-video/media-limits";
 import {memo,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
@@ -775,15 +776,14 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function uploadVideo(file:File){
     if(importBusy.current)return;
-    if(!/\.(mp4|webm)$/i.test(file.name)||file.size<1||file.size>50*1024*1024){
-      setError("Choose an MP4 or WebM video up to 50 MB.");return;
+    if(!/\.(mp4|webm)$/i.test(file.name)||file.size<1||file.size>PROJECT_VIDEO_MAX_BYTES){
+      setError("Choose an MP4 or WebM video up to "+PROJECT_VIDEO_MAX_MIB+" MiB.");return;
     }
     importBusy.current=true;setImporting(true);setError("");
     try{
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Uploading…");
-      const form=new FormData();form.set("video",file);
-      const uploaded=await request<{asset:MusicAsset;cloudStored?:boolean;cloudEnabled?:boolean}>(endpoint+id+"/assets",{method:"POST",body:form});
+      const uploaded=await request<{asset:MusicAsset;cloudStored?:boolean;cloudEnabled?:boolean}>(endpoint+id+"/assets",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-Project-Filename":encodeURIComponent(file.name),"X-Project-Bytes":String(file.size)},body:file});
       await load();setLibraryOpen(true);setFilter("Uploads");setStatus(uploaded.cloudStored?"Saved to cloud":"Saved locally");
       if(uploaded.cloudEnabled&&!uploaded.cloudStored)setError("Cloud verification failed. The original is safe locally; retry migration in Projects.");
     }catch(e){setError(e instanceof Error?e.message:"Upload failed.");setStatus("Saved");}
