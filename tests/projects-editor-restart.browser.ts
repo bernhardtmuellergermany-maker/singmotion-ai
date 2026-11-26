@@ -37,7 +37,7 @@ const server=createServer((req,res)=>{
  if(p==="/editor.js")return send(script,"application/javascript");
  if(p==="/editor.css")return send(css,"text/css");
  if(p==="/api/music-video/fixture-project")return json({project,assets,clips});
- if(p.endsWith("/waveform"))return json({peaks:[.2,.5,.2]});
+ if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
  if(p.includes("/format/"))return json({width:320,height:180});
  if(p.endsWith("/song"))return media(song,"audio/wav");
  if(p.includes("/preview/")&&req.method==="POST")return json({ready:true,unsupported:false});
@@ -59,6 +59,11 @@ try{
   await page.goto(origin);
   const play=page.getByRole("button",{name:"Play",exact:true}),pause=page.getByRole("button",{name:"Pause",exact:true});
   await play.waitFor({timeout:10000});
+  await page.waitForFunction(()=>document.querySelectorAll(".mv-clip .mv-clip-waveform[data-waveform=ready] .mv-wave-shape").length===2&&!!document.querySelector(".mv-song-block .mv-wave-shape"),{},{timeout:10000});
+  assert.equal(await page.locator(".mv-lane.is-audio-muted .mv-wave-shape").count(),2);
+  const firstShape=await page.locator(".mv-clip .mv-wave-shape").first().getAttribute("d");
+  assert.ok(firstShape&&firstShape.length>20);
+  assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
   await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]'),a=document.querySelector<HTMLAudioElement>("audio");return v?.currentSrc.startsWith("blob:")&&v.readyState>=2&&!v.seeking&&Math.abs(v.currentTime-.25)<.05&&a&&a.readyState>=2;},{},{timeout:15000});
   const seek=page.getByRole("slider",{name:"Seek timeline"});
   for(let i=0;i<3;i++){
