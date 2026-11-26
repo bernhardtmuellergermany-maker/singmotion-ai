@@ -79,7 +79,7 @@ test("R2 file transfer streams a conditional upload and verifies every byte",asy
    assert.equal(command.input.ContentLength,content.length);
    assert.equal(command.input.ContentMD5,createHash("md5").update(content).digest("base64"));
    assert.ok(!Buffer.isBuffer(command.input.Body));
-   const chunks:Buffer[]=[];for await(const chunk of command.input.Body)chunks.push(Buffer.from(chunk));remote=Buffer.concat(chunks);
+   const chunks:Buffer[]=[];for await(const chunk of command.input.Body as AsyncIterable<Uint8Array>)chunks.push(Buffer.from(chunk));remote=Buffer.concat(chunks);
    metadata=command.input.Metadata;
    return {};
   }
