@@ -36,7 +36,7 @@ try {
  assert.ok(ready,"Isolated Next did not boot: "+logs.slice(-1000));
  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
  for(const viewport of [{width:1440,height:900},{width:390,height:844},{width:320,height:640}]){
-  const context=await browser.newContext({viewport,serviceWorkers:"block"});
+  const context=await browser.newContext({viewport,serviceWorkers:"block",...(viewport.width<=600?{isMobile:true,hasTouch:true,deviceScaleFactor:1}:{})});
   const requests:string[]=[];
   try{
    await context.route("**/*",async route=>{
@@ -63,7 +63,7 @@ try {
    const details=panel.getByRole("button",{name:"Details",exact:true});
    const extra=panel.locator("#sm-analytics-details");
    if(viewport.width<=600){
-    await expect.poll(async()=>{const rect=await panel.boundingBox();const visibleWidth=await page.evaluate(()=>document.documentElement.clientWidth);return rect?Math.abs(rect.x+rect.width/2-visibleWidth/2):999;},{message:"mobile banner is centered in the visible document width"}).toBeLessThanOrEqual(1);
+    await expect.poll(async()=>{const rect=await panel.boundingBox();const view=await page.evaluate(()=>({width:window.visualViewport?.width??document.documentElement.clientWidth,left:window.visualViewport?.offsetLeft??0}));return rect?Math.abs(rect.x+rect.width/2-(view.left+view.width/2)):999;},{message:"mobile banner is centered in the visible document width"}).toBeLessThanOrEqual(1);
     assert.ok(bounds.height<=205,"compact collapsed mobile banner");
     await expect(details).toBeVisible();
     await expect(details).toHaveAttribute("aria-expanded","false");
