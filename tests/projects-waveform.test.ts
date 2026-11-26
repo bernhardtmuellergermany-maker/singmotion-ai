@@ -94,3 +94,16 @@ test("Lip-Sync clip audio from the same song aligns on the timeline after source
   }
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+test("Lip-Sync presentation gate catches displayed frames that lag despite identical media clocks",async()=>{
+ const {lipSyncFrameDecision,presentedFrameError}=await import("../lib/music-video/presented-frame-sync.ts");
+ const frame={mediaTime:1.82,displayTime:1000,observedAt:1000};
+ assert.equal(lipSyncFrameDecision(2,2,frame,1000,250,true).outOfSync,true);
+ assert.equal(lipSyncFrameDecision(2,2,{...frame,mediaTime:1.97},1000,250,true).outOfSync,false);
+ assert.equal(lipSyncFrameDecision(2,2,{...frame,mediaTime:2.12},1000,250,true).outOfSync,true);
+ assert.equal(lipSyncFrameDecision(2,2,frame,1000,50,true).outOfSync,false);
+ assert.equal(lipSyncFrameDecision(2,1.89,null,1000,250,true).outOfSync,true);
+ assert.equal(lipSyncFrameDecision(2,1.97,null,1000,250,true).rate,1.05);
+ assert.equal(lipSyncFrameDecision(2,2.03,null,1000,250,true).rate,.95);
+ assert.ok(Math.abs(presentedFrameError(2,{...frame,mediaTime:2.016,displayTime:1016},1000,true)!)<.00001);
+});
