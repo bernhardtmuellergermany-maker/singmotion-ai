@@ -33,14 +33,14 @@ export async function requestGuestOrderRecovery(
    expires_at=excluded.expires_at,issued_at=excluded.issued_at`)
   .run(orderId,digest(token),now+20*60_000,now);
  const ok=await sendRightsEmail({
-   to:row.email,subject:"SingMotion AI – Privaten Videozugang wiederherstellen",
-   text:["Du hast einen einmaligen Zugang zu deiner Gastbestellung angefordert.",
-    "Der Link läuft nach 20 Minuten ab und kann nur einmal benutzt werden.",
+   to:row.email,subject:"SingMotion AI – Restore private video access",
+   text:["You requested one-time access to your guest order.",
+    "This link expires in 20 minutes and can only be used once.",
     "",
     origin+"/orders/"+orderId+"#recover="+encodeURIComponent(token),
     "",
-    "Nach der Wiederherstellung sind zuvor gespeicherte Gastlinks nicht mehr gültig.",
-    "Wenn du diese E-Mail nicht angefordert hast, ignoriere sie."].join("\n"),
+    "After access is restored, any previously saved guest links will no longer work.",
+    "If you did not request this email, you can ignore it."].join("\n"),
  },env,sender);
  if(!ok)store.db.prepare("DELETE FROM customer_guest_email_recovery WHERE order_id=? AND code_hash=?")
   .run(orderId,digest(token));
