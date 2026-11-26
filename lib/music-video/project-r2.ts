@@ -1,16 +1,16 @@
 /** Owner-scoped immutable R2 objects for uploaded Projects videos only. */
-import {createHash} from "node:crypto";
+import {createHash,randomUUID,randomBytes} from "node:crypto";
 import {readFile,lstat,realpath,mkdtemp,writeFile,rm,copyFile,stat,statfs} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
-import {S3Client,PutObjectCommand,GetObjectCommand,DeleteObjectCommand} from "@aws-sdk/client-s3";
+import {S3Client,PutObjectCommand,GetObjectCommand,DeleteObjectCommand,HeadObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "../live/r2-config.ts";
 export type ProjectCloudRecord={key:string;sha256:string;bytes:number};
 const sha=(b:Buffer|string)=>createHash("sha256").update(b).digest("hex");
 const MiB=1024*1024,limit=50*MiB;
 const uuid=/^[a-f0-9-]{36}$/i;
 const environment=(env:Record<string,string|undefined>)=>env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"?"staging":env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"?"production":null;
-export function projectR2Enabled(env:Record<string,string|undefined>=process.env){return !!environment(env)&&env.PROJECT_VIDEO_R2_ENABLED==="true";}
+export function projectR2Enabled(env:Record<string,string|undefined>=process.env){return !!environment(env)&&env.PROJECT_VIDEO_R2_ENABLED==="true"&&env.PROJECT_VIDEO_R2_VERIFIED==="true";}
 export function projectCloudKey(owner:string,project:string,asset:string,digest:string,env:Record<string,string|undefined>=process.env){
  const scope=environment(env);
  if(!scope||!/^staff:[A-Za-z0-9_-]{1,100}$/.test(owner)||!uuid.test(project)||!uuid.test(asset)||!/^[a-f0-9]{64}$/.test(digest))throw Error("Invalid Projects cloud identity");
@@ -102,4 +102,29 @@ export class ProjectScratch{
  }
  async copy(asset:string,ext:string,source:string){return this.materialize(asset,ext,(await stat(source)).size,async file=>{await copyFile(source,file);});}
  async close(){const folder=this.folder;this.folder=undefined;const bytes=this.bytes;this.bytes=0;try{if(folder)await rm(folder,{recursive:true,force:true});}finally{reserved-=bytes;}}
+}
+
+// Startup probe uses a unique synthetic object, never actual project/customer data.
+// The parent process grants the child write/migration flag only after this passes.
+export async function projectR2Canary(){
+ if(!environment(process.env)||process.env.PROJECT_VIDEO_R2_ENABLED!=="true")return false;
+ const owner="staff:canary-"+randomUUID(),project=randomUUID(),asset=randomUUID(),bytes=randomBytes(1024);
+ const key=projectCloudKey(owner,project,asset,sha(bytes));
+ const cfg=loadR2Config(),client=new S3Client(r2ClientConfig(cfg));
+ let verified=false,deleted=false;
+ try{
+  const bounded={send:(command:PutObjectCommand|GetObjectCommand|DeleteObjectCommand)=>client.send(command as any,{abortSignal:AbortSignal.timeout(12000)})};
+  const record=await mirrorProjectBytes(bounded,cfg.bucket,key,bytes,"video/mp4");
+  const range=await client.send(new GetObjectCommand({Bucket:cfg.bucket,Key:key,Range:"bytes=10-39"}),{abortSignal:AbortSignal.timeout(12000)});
+  if(!range.Body||range.ContentLength!==30||range.ContentRange!=="bytes 10-39/1024"||!Buffer.from(await range.Body.transformToByteArray()).equals(bytes.subarray(10,40)))throw Error("Projects R2 range verification failed");
+  verified=record.bytes===1024;
+ }catch{/* No provider secrets or object identifiers in logs. */}
+ finally{
+  try{
+   await client.send(new DeleteObjectCommand({Bucket:cfg.bucket,Key:key}),{abortSignal:AbortSignal.timeout(12000)});
+   try{await client.send(new HeadObjectCommand({Bucket:cfg.bucket,Key:key}),{abortSignal:AbortSignal.timeout(12000)});}
+   catch(e){deleted=(e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode===404;}
+  }catch{}finally{client.destroy();}
+ }
+ return verified&&deleted;
 }

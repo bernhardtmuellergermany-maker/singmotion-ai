@@ -75,6 +75,7 @@ function StoragePanel(){
  {error?<p role="alert">Speicherübersicht derzeit nicht verfügbar.</p>:!data?<p role="status">Speicher wird geprüft…</p>:<><div className="sm-insights-stats">
  <Stat label="Railway verfügbar" value={storageSize(data.disk.availableBytes)} detail={"Von "+storageSize(data.disk.totalBytes)+" Dateisystemkapazität"}/>
  <Stat label="Lokale Projects-Dateien" value={storageSize(data.projects.totalBytes)} detail={number(data.projects.projects)+" Projekte"+(data.projects.partial?" · Teilmessung":"")}/>
+ <Stat label="R2 Projects-Videos" value={storageSize(data.projects.cloudVideoBytes)} detail={number(data.projects.cloudVideoObjects)+" registrierte Objekte"}/>
  <Stat label="R2-Quellen (Manifeste)" value={storageSize(data.cloud.sourceBytes)} detail={number(data.cloud.sourceObjects)+" registrierte Objekte"}/>
  <Stat label="R2-Videos (Manifeste)" value={storageSize(data.cloud.videoBytes)} detail={number(data.cloud.videoObjects)+" registrierte Objekte"}/>
  </div><p>Cloud-Werte sind Manifest-Summen, keine unabhängige Bucket-Belegung. Temporäre Provider-Dateien, Backups und nicht registrierte Objekte sind nicht enthalten.</p><p>Automatische Papierkorb-Bereinigung: {data.trashPurgeEnabled?"konfiguriert":"nicht aktiviert"}.</p></>}

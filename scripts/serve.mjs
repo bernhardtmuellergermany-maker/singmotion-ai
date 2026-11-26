@@ -105,6 +105,17 @@ if (process.env.BYTEPLUS_STUDIO_ENABLED === "true") {
   }
 }
 
+// A per-boot private synthetic R2 check gates new Projects writes, never reads.
+// If unavailable, existing originals stay local and the site remains online.
+delete process.env.PROJECT_VIDEO_R2_VERIFIED;
+if(process.env.PROJECT_VIDEO_R2_ENABLED==="true"){
+ try{
+  const {projectR2Canary}=await import("../lib/music-video/project-r2.ts");
+  const verified=await projectR2Canary();
+  if(verified)process.env.PROJECT_VIDEO_R2_VERIFIED="true";
+  console.log("PROJECT_VIDEO_R2_PREFLIGHT "+(verified?"verified":"blocked"));
+ }catch{console.warn("PROJECT_VIDEO_R2_PREFLIGHT blocked");}
+}
 import { spawn } from "node:child_process";
 const web = spawn(
   process.execPath,

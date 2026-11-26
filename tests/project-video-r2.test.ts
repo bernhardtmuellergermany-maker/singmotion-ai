@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {PutObjectCommand,GetObjectCommand} from "@aws-sdk/client-s3";
 import {projectCloudKey,projectR2Enabled,validProjectCloudRecord,mirrorProjectBytes,verifiedCloudBytes} from "../lib/music-video/project-r2.ts";
-const env={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",PROJECT_VIDEO_R2_ENABLED:"true"};
+const env={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",PROJECT_VIDEO_R2_ENABLED:"true",PROJECT_VIDEO_R2_VERIFIED:"true"};
 const prod={...env,RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d"};
 const project="11111111-1111-4111-8111-111111111111",asset="22222222-2222-4222-8222-222222222222";
 const bytes=Buffer.from("test video"),sha256=createHash("sha256").update(bytes).digest("hex");
 test("Projects cloud keys isolate owner and environment, writes are gated",()=>{
  const key=projectCloudKey("staff:a",project,asset,sha256,env),record={key,sha256,bytes:bytes.length};
- assert.ok(projectR2Enabled(env));assert.ok(!projectR2Enabled({}));
+ assert.ok(projectR2Enabled(env));assert.ok(!projectR2Enabled({}));assert.ok(!projectR2Enabled({...env,PROJECT_VIDEO_R2_VERIFIED:"false"}));
  assert.ok(validProjectCloudRecord("staff:a",project,asset,record,env));
  assert.ok(!validProjectCloudRecord("staff:b",project,asset,record,env));
  assert.ok(!validProjectCloudRecord("staff:a",project,asset,record,prod));

@@ -459,7 +459,7 @@ async function handler(req:NextRequest,context:Context){
          try{await offloadProjectVideo(owner,saved);cloudStored=true;}
          catch{console.warn("PROJECT_VIDEO_R2_LOCAL_FALLBACK");}
         }
-        return json({asset:saved,cloudStored},201);
+        return json({asset:saved,cloudStored,cloudEnabled:projectR2Enabled()},201);
       }catch(error){
         if(saved)removeMusicAsset(id,owner,saved.id);
         throw error;

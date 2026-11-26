@@ -753,8 +753,9 @@ export function MusicVideoEditor({id}:{id:string}){
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Uploading…");
       const form=new FormData();form.set("video",file);
-      await request<{asset:MusicAsset}>(endpoint+id+"/assets",{method:"POST",body:form});
-      await load();setLibraryOpen(true);setFilter("Uploads");setStatus("Saved");
+      const uploaded=await request<{asset:MusicAsset;cloudStored?:boolean;cloudEnabled?:boolean}>(endpoint+id+"/assets",{method:"POST",body:form});
+      await load();setLibraryOpen(true);setFilter("Uploads");setStatus(uploaded.cloudStored?"Saved to cloud":"Saved locally");
+      if(uploaded.cloudEnabled&&!uploaded.cloudStored)setError("Cloud verification failed. The original is safe locally; retry migration in Projects.");
     }catch(e){setError(e instanceof Error?e.message:"Upload failed.");setStatus("Saved");}
     finally{importBusy.current=false;setImporting(false);}
   }
