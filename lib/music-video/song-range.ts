@@ -225,3 +225,18 @@ export function firstVisibleVideo<T extends {track:number;timelineStartMs:number
 export function aspectFromDimensions(size:{width:number;height:number}):"9:16"|"16:9"{
  return size.height>size.width?"9:16":"16:9";
 }
+
+/** During an audible song section, video buffering must not interrupt music. */
+export function songOwnsPreviewClock(range:SongPlacement,parts:SongRange[]|null,at:number,muted:boolean):boolean{
+ return !muted&&!!songPartAt(range,parts,at);
+}
+/** A mobile picture follows continuous audio. Avoid repeated decoder seeks for
+ * small timestamp jitter; correct larger errors without touching the song. */
+export function mobileVideoSyncDecision(expected:number,actual:number,playing:boolean,paused:boolean,seeking:boolean):{seek:boolean;rate:number}{
+ if(!playing||paused||seeking)return mediaSyncDecision(expected,actual,playing,paused,seeking);
+ const error=expected-actual,drift=Math.abs(error);
+ if(!Number.isFinite(drift))return {seek:false,rate:1};
+ if(drift>0.300)return {seek:true,rate:1};
+ if(drift<=0.050)return {seek:false,rate:1};
+ return {seek:false,rate:Math.round(Math.max(0.97,Math.min(1.03,1+error/2))*100)/100};
+}

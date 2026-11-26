@@ -600,3 +600,13 @@
 
 .mv-storage{background:#191126;border:1px solid #77518d;border-radius:14px;padding:14px 16px;margin:0 0 16px;display:grid;gap:9px}
 .mv-storage-title{display:flex;align-items:center;gap:10px}.mv-storage-title>svg{color:#d99afa;flex:none}.mv-storage-title>div{flex:1;min-width:0}.mv-storage-title h2{font-size:15px}.mv-storage-title>strong{font-size:19px;white-space:nowrap}.mv-storage p{font-size:12px}.mv-storage-track{display:flex;overflow:hidden;border-radius:5px;gap:2px;height:6px;background:#352746}.mv-storage-track span{flex-basis:0}.mv-storage-audio{background:#8561cd}.mv-storage-video{background:#bf37f8}.mv-storage-other{background:#cc8ad9}.mv-storage-breakdown{display:flex;flex-wrap:wrap;gap:8px 18px;color:#c2a9d3;font-size:12px}.mv-storage-breakdown b{color:#f9f3ff;margin-left:3px}
+
+/* Tap the existing speaker icon to open a compact preview-volume control. */
+.mv-root .mv-preview-volume-panel{position:fixed;z-index:1000;width:224px;max-width:calc(100vw - 16px);box-sizing:border-box;padding:9px 12px;background:#22192e;color:#f7edff;border:1px solid #59436e;border-radius:10px;box-shadow:0 8px 30px #0008}
+.mv-root .mv-volume-heading,.mv-root .mv-volume-footer{display:flex;align-items:center;gap:8px;font-size:12px}
+.mv-root .mv-volume-heading strong{flex:1;font-size:12px;white-space:nowrap}
+.mv-root .mv-volume-heading output{font-variant-numeric:tabular-nums}
+.mv-root .mv-preview-volume-panel button{border:0;background:transparent;color:#e8d2fa;min-height:28px;padding:2px 5px;cursor:pointer}
+.mv-root .mv-preview-volume-panel input[type=range]{width:100%!important;height:38px!important;min-height:0!important;min-width:0!important;margin:0!important;padding:0!important;accent-color:#c03af4;touch-action:pan-y;cursor:pointer}
+.mv-root .mv-volume-footer{justify-content:space-between}.mv-root .mv-volume-footer small{color:#aa9ab8}
+.mv-root .mv-player-volume.is-muted{color:#887b99}

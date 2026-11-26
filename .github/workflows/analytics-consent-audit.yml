@@ -27,4 +27,5 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - run: npm run build
       - run: node --experimental-strip-types tests/projects-native-handoff.browser.ts
+      - run: node --experimental-strip-types tests/projects-song-clock.browser.ts
       - run: node --experimental-strip-types tests/analytics-consent.browser.ts

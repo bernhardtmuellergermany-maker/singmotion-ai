@@ -659,9 +659,11 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('if(mobile!==false||playing||importing)return'));
  assert.ok(editor.includes('if(mobile!==true)return'));
  assert.ok(editor.includes('timer=setTimeout(()=>void prepare(),2000)'));
- assert.ok(editor.includes('const mobileClock=!!mobilePlan?.visible'));
+ assert.ok(editor.includes('const mobileClock=!!mobilePlan?.visible&&!songMaster'));
  assert.ok(editor.includes('clip=mobileRef.current?plan.visible:plan.clock'));
- assert.ok(editor.includes('syncMobileSong(at,run)'));
+ assert.ok(editor.includes('const songMaster=!!part&&!mutesRef.current.song'));
+ assert.ok(!editor.includes('syncMobileSong'));
+ assert.ok(!editor.includes('if(incoming)audio.current?.pause()'));
  assert.ok(editor.includes('now-lastPaint>=250'));
  assert.ok(api.includes('if(mobile)return json({error:"Mobile preview not ready."},409)'));
  const profile=read("lib/music-video/preview-profile.ts");
@@ -697,7 +699,7 @@ test("fractional native playback never publishes the next track before the clock
  assert.ok(editor.includes("const ms=publishedPlaybackMs(at);setPlayhead(ms)"));
  assert.ok(editor.includes('if(error?.name==="AbortError")return'));
  assert.ok(editor.includes("if(outgoing?.id!==incoming?.id)"));
- assert.ok(editor.includes("if(mobilePlan&&!mobileClock)at=Math.min(at,mobilePlan.nextBoundaryMs)"));
+ assert.ok(editor.includes("if(mobilePlan&&!mobileClock&&!songMaster)at=Math.min(at,mobilePlan.nextBoundaryMs)"));
  assert.ok(editor.includes("if(clip&&element.dataset.clipId!==clip.id)return"));
 });
 
@@ -734,4 +736,19 @@ test("native Projects clock advances EOF instead of replaying the previous clip"
  assert.ok(editor.includes('if(action==="ended")return nativeClipClockStep'));
  assert.ok(!editor.includes('element.paused||element.ended'));
  assert.ok(editor.includes('if(!element||element!==video.current)return'));
+});
+
+test("audible song stays master across cuts and gaps and mobile picture tolerates jitter",async()=>{
+ const {songOwnsPreviewClock,mobileVideoSyncDecision}=await import("../lib/music-video/song-range.ts");
+ const range={startMs:0,endMs:5000,positionMs:0},parts=[{startMs:0,endMs:2000},{startMs:3000,endMs:5000}];
+ assert.ok(songOwnsPreviewClock(range,parts,1000,false));assert.ok(!songOwnsPreviewClock(range,parts,2500,false));assert.ok(songOwnsPreviewClock(range,parts,3000,false));assert.ok(!songOwnsPreviewClock(range,parts,1000,true));
+ assert.equal(mobileVideoSyncDecision(1,0.90,true,false,false).seek,false);
+ assert.equal(mobileVideoSyncDecision(1,0.60,true,false,false).seek,true);
+ assert.equal(mobileVideoSyncDecision(1,0.98,true,false,false).rate,1);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('if(current.playbackRate!==1)current.playbackRate=1'));
+ assert.ok(editor.includes('data-volume-anchor={anchor}'));
+ assert.ok(editor.includes('aria-label="Preview volume percent"'));
+ assert.ok(editor.includes('element.volume=gain'));
+ assert.ok(editor.includes('Preview only'));
 });
