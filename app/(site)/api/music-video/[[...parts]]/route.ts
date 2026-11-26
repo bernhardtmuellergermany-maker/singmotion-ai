@@ -21,6 +21,8 @@ import {musicPrincipal} from "@/lib/music-video/auth";
 import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,readProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
 import {reserveProjectUpload} from "@/lib/music-video/storage";
 import {projectLimits,ProjectCapacityError} from "@/lib/music-video/capacity";
+import {PROJECT_LEGACY_MULTIPART_MAX_BYTES} from "@/lib/music-video/media-limits";
+import {parseVideoUpload,writeVideoUpload,VideoUploadError} from "@/lib/music-video/video-upload";
 import {admitProjectOperation} from "@/lib/music-video/core";
 import {retryProjectDeletes} from "@/lib/music-video/project-cleanup";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
@@ -501,9 +503,12 @@ async function handler(req:NextRequest,context:Context){
       }
       cloudRequired();
       const max=projectLimits().videoBytes;
-      releaseAdmission=admitProjectOperation(tmpdir(),owner,"video",max);
-      const {file}=await fileForm(req,max,"video");
-      const extension=file.name.toLowerCase().endsWith(".mp4")?"mp4":file.name.toLowerCase().endsWith(".webm")?"webm":null;
+      const raw=kind==="application/octet-stream"?parseVideoUpload(req.headers,max):null;
+      const legacyMax=Math.min(max,PROJECT_LEGACY_MULTIPART_MAX_BYTES);
+      releaseAdmission=admitProjectOperation(tmpdir(),owner,"video",raw?.size??legacyMax);
+      const file=raw?null:(await fileForm(req,legacyMax,"video")).file;
+      const name=raw?.name??file!.name;
+      const extension=raw?.extension??(name.toLowerCase().endsWith(".mp4")?"mp4":name.toLowerCase().endsWith(".webm")?"webm":null);
       if(!extension)throw new MusicError("Use an MP4 or WebM video.");
       const folder=projectFolder(id);
       await mkdir(folder,{recursive:true,mode:0o700});
@@ -511,16 +516,17 @@ async function handler(req:NextRequest,context:Context){
       let temporary:string;
       let saved:ReturnType<typeof newMusicAsset>|null=null;
       let release:()=>void;
-      try{release=reserveProjectUpload(tmpdir(),file.size,"video");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
+      try{release=reserveProjectUpload(tmpdir(),raw?.size??file!.size,"video");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
       try{
         work=await mkdtemp(path.join(tmpdir(),"sm-project-upload-"));
         temporary=path.join(work,"upload."+extension);
-        await writeFile(temporary,Buffer.from(await file.arrayBuffer()),{flag:"wx",mode:0o600});
+        if(raw)await writeVideoUpload(req.body,temporary,raw.size,AbortSignal.any([req.signal,AbortSignal.timeout(10*60*1000)]));
+        else await writeFile(temporary,Buffer.from(await file!.arrayBuffer()),{flag:"wx",mode:0o600});
         const media=await probe(temporary);
         if(!media.streams.some(v=>v.codec_type==="video"))throw new MusicError("The file does not contain video.");
         const duration=Number(media.format.duration);
         if(!Number.isFinite(duration)||duration<=0||duration>3600)throw new MusicError("Invalid video duration.");
-        saved=newMusicAsset(id,owner,{name:file.name.slice(0,80),kind:"imported",sourceKind:"uploaded",sourceId:extension,durationMs:toMs(duration)});
+        saved=newMusicAsset(id,owner,{name:name.slice(0,80),kind:"imported",sourceKind:"uploaded",sourceId:extension,durationMs:toMs(duration)});
         try{
           const record=await mirrorProjectVideo(owner,id,saved.id,temporary,extension==="webm"?"video/webm":"video/mp4");
           recordProjectCloud(id,owner,saved.id,record);
@@ -574,7 +580,7 @@ async function handler(req:NextRequest,context:Context){
     }
     throw new MusicError("Unknown endpoint.",404);
   }catch(error){
-    if(error instanceof MusicError||error instanceof ProjectCapacityError)return json({error:error.message},error.status);
+    if(error instanceof MusicError||error instanceof ProjectCapacityError||error instanceof VideoUploadError)return json({error:error.message},error.status);
     if((error as NodeJS.ErrnoException)?.code==="ENOENT")return json({error:"Media unavailable."},404);
     console.warn("MUSIC_VIDEO_REQUEST_FAILED",{method:req.method,error:"internal"});
     return json({error:"Unable to complete the request."},500);
