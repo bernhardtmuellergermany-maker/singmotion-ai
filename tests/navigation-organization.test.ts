@@ -734,7 +734,12 @@ test("native Projects clock advances EOF instead of replaying the previous clip"
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes('if(action==="play"&&!state.pending'));
  assert.ok(editor.includes('if(action==="ended")return nativeClipClockStep'));
- assert.ok(!editor.includes('element.paused||element.ended'));
+ // The follower now explicitly rejects ended elements; only the native clock
+ // must never use the old unconditional replay branch.
+ const native=editor.slice(editor.indexOf("function startMutedClock("),editor.indexOf("function audibleSongAt("));
+ assert.ok(native.length>0);
+ assert.ok(!native.includes('element.paused||element.ended'));
+ assert.ok(editor.includes('if(!element.paused||element.ended||element.seeking||followerPlayPending.current.has(element))return;'));
  assert.ok(editor.includes('if(!element||element!==video.current)return'));
 });
 
