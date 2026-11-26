@@ -413,7 +413,7 @@
 }
 
 /* Match all editor text fields to the dark SingMotion form theme, including autofill. */
-.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=file]):not([type=hidden]){
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=file]):not([type=hidden]):not([type=search]){
  color-scheme:dark;
  background:#131d2b!important;
  color:#f4f0fa!important;
@@ -423,7 +423,7 @@
  opacity:1;
 }
 .mv-root.mv-editor input:not([type=range]):not([type=checkbox])::placeholder{color:#a99bb9!important;-webkit-text-fill-color:#a99bb9!important;opacity:1}
-.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):focus{
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=search]):focus{
  background:#172335!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
  border-color:#a76cce!important;
 }
@@ -543,7 +543,7 @@
 
 /* Videos-page toolbar design, shared by the project list and private library. */
 .mv-root .mv-browse-toolbar{display:grid;grid-template-columns:minmax(140px,1fr) auto auto auto;gap:9px;align-items:center;width:100%;min-width:0;margin-bottom:17px}
-.mv-root .mv-browse-search{box-sizing:border-box;display:flex;align-items:center;gap:9px;height:39px;min-width:0;width:100%;margin:0;padding:0 12px;background:#1b1629;border:1px solid #665079;border-radius:12px;color:#c9a6e7}
+.mv-root .mv-browse-search{box-sizing:border-box;display:flex;align-items:center;gap:9px;height:39px;min-width:0;width:100%;margin:0;padding:0 12px;background:#131d2b;border:1px solid #665079;border-radius:12px;color:#c9a6e7;overflow:hidden}
 .mv-root .mv-browse-search>svg{flex:none;width:16px;height:16px}
 .mv-root.mv-editor .mv-browse-search input[type=search],.mv-root.mv-projects .mv-browse-search input[type=search]{box-sizing:border-box;flex:1 1 auto;width:100%!important;min-width:0!important;height:100%!important;padding:0!important;margin:0!important;background:transparent!important;border:0!important;outline:none!important;box-shadow:none!important;border-radius:0!important;color:#f5eafc!important;-webkit-text-fill-color:#f5eafc!important;font-size:12px!important}
 .mv-root .mv-browse-search input::placeholder{color:#a395b9!important;-webkit-text-fill-color:#a395b9!important}
@@ -621,3 +621,8 @@
 .mv-editor .mv-song-wave-title{position:absolute;top:50%;transform:translateY(-50%);left:10px;right:10px;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 3px #10091f,0 0 4px #10091f;pointer-events:none}
 .mv-editor .is-audio-muted .mv-clip-waveform{opacity:.82}
 @media(max-width:700px){.mv-editor .mv-song-wave-title{font-size:11px;left:5px;right:5px}}
+
+/* The rounded search wrapper owns the entire background, including the icon. */
+.mv-root.mv-editor .mv-browse-toolbar .mv-browse-search input[type=search],.mv-root.mv-projects .mv-browse-toolbar .mv-browse-search input[type=search]{appearance:none!important;-webkit-appearance:none!important;color-scheme:dark;min-height:0!important;background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;-webkit-box-shadow:none!important}
+.mv-root.mv-editor .mv-browse-toolbar .mv-browse-search input[type=search]:focus,.mv-root.mv-projects .mv-browse-toolbar .mv-browse-search input[type=search]:focus{background:transparent!important;border:0!important;box-shadow:none!important;-webkit-box-shadow:none!important;outline:none!important}
+.mv-root.mv-editor .mv-browse-toolbar .mv-browse-search input[type=search]:-webkit-autofill,.mv-root.mv-projects .mv-browse-toolbar .mv-browse-search input[type=search]:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #131d2b inset!important}
