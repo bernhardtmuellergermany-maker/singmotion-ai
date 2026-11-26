@@ -39,3 +39,58 @@ test("FFmpeg extracts real video sound and distinguishes a video without an audi
   assert.ok(sound.peaks.slice(65).every(v=>v===0));
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+test("Lip-Sync clip audio from the same song aligns on the timeline after source trimming and song movement",async()=>{
+ const {execFileSync}=await import("node:child_process");
+ const {mkdtempSync,rmSync,writeFileSync}=await import("node:fs");
+ const {tmpdir}=await import("node:os");
+ const path=await import("node:path");
+ const {extractMediaWaveform}=await import("../lib/music-video/waveform-extract.ts");
+ const {songTimeToTimeline,clipSourceTimeMs}=await import("../lib/music-video/song-range.ts");
+ const root=mkdtempSync(path.join(tmpdir(),"sm-wave-alignment-"));
+ try{
+  // Deterministic musical transients, with silence between them, not fake display peaks.
+  const sr=16000,duration=6000,pulses=[1400,2100,3500,4400];
+  const pcm=Buffer.alloc(sr*6*2);
+  for(let i=0;i<sr*6;i++){
+   const ms=i*1000/sr;
+   if(pulses.some(t=>ms>=t&&ms<t+120))pcm.writeInt16LE(Math.round(23000*Math.sin(2*Math.PI*440*i/sr)),i*2);
+  }
+  const raw=path.join(root,"song.raw"),mp3=path.join(root,"song.mp3"),mp4=path.join(root,"lip-sync.mp4");
+  writeFileSync(raw,pcm);
+  const audioInput=["-f","s16le","-ar",String(sr),"-ac","1","-i",raw];
+  execFileSync("ffmpeg",["-nostdin","-v","error",...audioInput,"-c:a","libmp3lame","-b:a","128k",mp3]);
+  execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","color=c=black:s=64x64:r=10","-ss","1.2",...audioInput,"-map","0:v:0","-map","1:a:0","-t","3.6","-c:v","mpeg4","-threads","1","-c:a","aac",mp4]);
+  const song=await extractMediaWaveform(mp3,duration),video=await extractMediaWaveform(mp4,3600);
+  assert.ok(validWaveform(song,duration)&&validWaveform(video,3600));
+  const onsets=(wave:typeof song)=>wave.peaks.flatMap((v,i)=>v>.2&&(i===0||wave.peaks[i-1]<=.2)?[i*wave.durationMs/wave.peaks.length]:[]);
+  const songOnsets=onsets(song),videoOnsets=onsets(video);
+  assert.equal(songOnsets.length,4);assert.equal(videoOnsets.length,4);
+  // The generated video's first frame corresponds to source song time 1.2s.
+  // Its first 400ms are trimmed; song itself begins at source 800ms, placed at 1500ms.
+  const range={startMs:800,endMs:5500,positionMs:1500};
+  const sourceStart=1200;
+  const clip={sourceInMs:400,sourceOutMs:3400,timelineStartMs:songTimeToTimeline(sourceStart+400,range)};
+  for(let i=1;i<pulses.length;i++){
+   const songAt=songTimeToTimeline(songOnsets[i],range);
+   const videoAt=clip.timelineStartMs+videoOnsets[i]-clip.sourceInMs;
+   assert.ok(Math.abs(songAt-videoAt)<=40,"audio transient timeline alignment: "+songAt+" vs "+videoAt);
+   assert.ok(Math.abs(clipSourceTimeMs(clip,songAt)-videoOnsets[i])<=40);
+  }
+  // Validate rendered coordinates against the very same clock, after trimming.
+  const firstPeak=(wave:typeof song,from:number,to:number,width:number)=>{
+   const shape=waveformShape(wave,from,to,width);
+   const points=[...shape.matchAll(/(?:M| L)([0-9.]+),([0-9.]+)/g)];
+   const upper=points.find(p=>Number(p[2])<40);
+   assert.ok(upper);
+   return from+Number(upper[1])/1000*(to-from);
+  };
+  for(const zoom of [44,120,240]){
+   const songFrom=sourceStart+clip.sourceInMs,songTo=sourceStart+clip.sourceOutMs;
+   const width=(clip.sourceOutMs-clip.sourceInMs)/1000*zoom;
+   const songAt=firstPeak(song,songFrom,songTo,width);
+   const videoAt=firstPeak(video,clip.sourceInMs,clip.sourceOutMs,width)+sourceStart;
+   assert.ok(Math.abs(songAt-videoAt)<=Math.max(40,2000/zoom),"rendered peak alignment at zoom "+zoom);
+  }
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
