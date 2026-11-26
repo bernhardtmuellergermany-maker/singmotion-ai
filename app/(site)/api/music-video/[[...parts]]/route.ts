@@ -12,7 +12,8 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {dataDir,session} from "@/lib/db";
 import {validateAudio,createAudioPreview,probe} from "@/lib/media";
-import {pcmWaveform,validWaveform,WAVEFORM_SAMPLE_RATE,type MediaWaveform} from "@/lib/music-video/waveform";
+import {validWaveform,type MediaWaveform} from "@/lib/music-video/waveform";
+import {extractMediaWaveform} from "@/lib/music-video/waveform-extract";
 import {projectPreviewArgs,previewByteLimit,mobilePreviewVersion} from "@/lib/music-video/preview-profile";
 import {AUDIO_LIMIT} from "@/lib/domain";
 import {CommerceStore} from "@/lib/commerce/store";
@@ -201,13 +202,7 @@ async function mediaWaveform(id:string,key:string,durationMs:number,source:()=>P
   if(waveJobs.size>=2)throw new MusicError("Waveform analysis busy; retry shortly.",503);
   const job=(async()=>{
     const file=await source();
-    const media=await probe(file);
-    let waveform:MediaWaveform;
-    if(!media.streams.some(s=>s.codec_type==="audio"))waveform={durationMs,peaks:[],hasAudio:false};
-    else{
-      const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",file,"-map","0:a:0","-vn","-sn","-dn","-ac","1","-af","aresample="+WAVEFORM_SAMPLE_RATE+":async=1:first_pts=0","-ar",String(WAVEFORM_SAMPLE_RATE),"-t",String(durationMs/1000),"-f","s16le","pipe:1"],{encoding:"buffer",timeout:45000,maxBuffer:32*1024*1024});
-      waveform=pcmWaveform(stdout,durationMs);
-    }
+    const waveform=await extractMediaWaveform(file,durationMs);
     // Do not recreate a removed project's or asset's waveform cache.
     verify();
     const temp=cached+"."+randomUUID()+".tmp";
