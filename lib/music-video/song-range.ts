@@ -226,7 +226,7 @@ export function aspectFromDimensions(size:{width:number;height:number}):"9:16"|"
  return size.height>size.width?"9:16":"16:9";
 }
 
-/** During an audible song section, video buffering must not interrupt music. */
+/** The audible song is the time reference; the editor may hold both clocks for buffering. */
 export function songOwnsPreviewClock(range:SongPlacement,parts:SongRange[]|null,at:number,muted:boolean):boolean{
  return !muted&&!!songPartAt(range,parts,at);
 }
@@ -239,4 +239,17 @@ export function mobileVideoSyncDecision(expected:number,actual:number,playing:bo
  if(drift>0.300)return {seek:true,rate:1};
  if(drift<=0.050)return {seek:false,rate:1};
  return {seek:false,rate:Math.round(Math.max(0.97,Math.min(1.03,1+error/2))*100)/100};
+}
+
+/** A shared playback barrier. Small clock jitter is corrected on the follower;
+ * a missing/blocked decoder or a large error holds both streams instead. */
+export function pictureSyncGate(expected:number,media:{currentTime:number;readyState:number;seeking:boolean;ended:boolean;duration:number}|null,running:boolean):"wait"|"align"|"ready"{
+ if(!media||media.readyState<1||media.seeking||!Number.isFinite(media.currentTime)||!Number.isFinite(expected))return "wait";
+ const drift=Math.abs(expected-media.currentTime);
+ // A proxy may be rounded to the nearest frame at EOF.
+ const tail=Number.isFinite(media.duration)&&expected>=media.duration-0.05&&expected<=media.duration+0.05;
+ if(media.ended&&!tail)return "align";
+ if(drift>(running?0.12:0.035))return "align";
+ if(media.readyState<3&&!(tail&&media.readyState>=2))return "wait";
+ return "ready";
 }
