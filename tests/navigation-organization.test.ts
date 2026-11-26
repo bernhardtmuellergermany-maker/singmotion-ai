@@ -859,3 +859,11 @@ test("paused current-frame decoder is allowed to start and transient startup dri
  assert.ok(editor.includes("jointStarted.current&&current.ended"));
  assert.ok(!editor.includes("hasPreviewBuffer(element.buffered"));
 });
+
+
+test("Projects song sections have no visible section numbers and retain accessible selection",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(!editor.includes("mv-song-part-number"));
+ assert.ok(editor.includes('aria-label={"Select song part "+(i+1)}'));
+ assert.ok(editor.includes("currentParts.map((p,i)"));
+});
