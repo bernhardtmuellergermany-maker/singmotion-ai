@@ -18,16 +18,17 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
-import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,readProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
+import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,readProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
 import {reserveProjectUpload} from "@/lib/music-video/storage";
 import {projectLimits,ProjectCapacityError} from "@/lib/music-video/capacity";
 import {admitProjectOperation} from "@/lib/music-video/core";
+import {retryProjectDeletes} from "@/lib/music-video/project-cleanup";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
   newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,
-  projectCloudRecord,recordProjectCloud,projectMigrationCandidates,pendingProjectCloudDeletes,finishProjectCloudDelete,
+  projectCloudRecord,recordProjectCloud,projectMigrationCandidates,
   projectSongRecord,recordProjectSong,projectSongMigrationCandidate,
   type MediaKind,type SourceKind,type MusicClip,type MusicAsset,
 } from "@/lib/music-video/core";
@@ -307,10 +308,7 @@ function cloudRequired(){
  if(!projectR2Enabled())throw new MusicError("Cloud storage is temporarily unavailable. No upload was saved; try again later.",503);
 }
 async function cleanCloudDeletes(owner:string){
- for(const item of pendingProjectCloudDeletes(owner)){
-  try{await deleteProjectVideo(owner,item.projectId,item.assetId,item.record);finishProjectCloudDelete(owner,item.assetId,item.record.key);}
-  catch{console.warn("PROJECT_VIDEO_R2_DELETE_PENDING");}
- }
+ try{await retryProjectDeletes(dataDir,{owner});}catch{console.warn("PROJECT_VIDEO_R2_DELETE_PENDING");}
 }
 async function handler(req:NextRequest,context:Context){
   const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
