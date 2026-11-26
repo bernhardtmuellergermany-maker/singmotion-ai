@@ -759,3 +759,24 @@ test("audible song stays master across cuts and gaps and mobile picture tolerate
  assert.ok(css.includes('writing-mode:vertical-lr;direction:rtl'));
  assert.ok(css.includes('touch-action:none;cursor:pointer'));
 });
+
+test("synchronized preview holds on missing, seeking, buffering or drifting picture",async()=>{
+ const {pictureSyncGate}=await import("../lib/music-video/song-range.ts");
+ const ready={currentTime:2,readyState:4,seeking:false,ended:false,duration:10};
+ assert.equal(pictureSyncGate(2,null,false),"wait");
+ assert.equal(pictureSyncGate(2,{...ready,readyState:1},false),"wait");
+ assert.equal(pictureSyncGate(2,{...ready,readyState:2},true),"wait");
+ assert.equal(pictureSyncGate(2,{...ready,seeking:true},true),"wait");
+ assert.equal(pictureSyncGate(2,{...ready,currentTime:1.8},true),"align");
+ assert.equal(pictureSyncGate(2,{...ready,currentTime:1.94},true),"ready");
+ assert.equal(pictureSyncGate(2,{...ready,currentTime:1.94},false),"align");
+ assert.equal(pictureSyncGate(2,{...ready,currentTime:1.98},false),"ready");
+ assert.equal(pictureSyncGate(10,{...ready,currentTime:9.98,ended:true,readyState:2},true),"ready");
+ assert.equal(pictureSyncGate(2,{...ready,ended:true},false),"align");
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("if(!pictureReady(at,running)){holdSong(at);}"));
+ assert.ok(editor.includes("at=boundary;holdSong(at)"));
+ assert.ok(editor.includes("else{clearSyncHold();startSong(at);}"));
+ assert.ok(editor.includes("if(songMaster){const plan=previewMediaPlan(latest.current,at,mutesRef.current);syncVideo"));
+ assert.ok(editor.includes('preload={trackMutes.song?"none":"auto"}'));
+});
