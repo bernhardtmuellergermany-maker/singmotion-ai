@@ -1,7 +1,7 @@
 "use client";
 import {useEffect,useState} from "react";
 import Link from "next/link";
-import {ensureSession} from "@/lib/client";
+import {ensureSession,resetSession} from "@/lib/client";
 import {quoteVideoCredits} from "@/lib/commerce/video-credit-quote";
 import {parseStudioAccountReturn,STUDIO_ACCOUNT_RESUME_KEY} from "@/lib/studio-account-handoff";
 
@@ -36,6 +36,8 @@ export function StudioAccountResume(){
     if(!identityResponse.ok||identity?.authenticated!==true||
        (identity.kind!=="customer"&&identity.kind!=="staff"))
      throw Error("Sign in to your customer or authorized Studio operator account before transferring your guest project.");
+    // Never reuse a guest workspace promise created before the account handoff.
+    resetSession();
     const workspace=await ensureSession() as {owner?:string};
     const expectedOwnerPrefix=identity.kind==="staff"?"cms-staff-":"customer-";
     if(!workspace.owner?.startsWith(expectedOwnerPrefix))
