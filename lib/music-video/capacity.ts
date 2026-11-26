@@ -1,3 +1,4 @@
+import {PROJECT_VIDEO_MAX_MIB} from "./media-limits.ts";
 import type {DatabaseSync} from "node:sqlite";
 import {randomUUID} from "node:crypto";
 import {statfsSync} from "node:fs";
@@ -17,7 +18,7 @@ export function projectLimits(env:Record<string,string|undefined>=process.env){
  const n=(key:string,def:number,max:number)=>setting(env,"PROJECTS_"+key,def,max);
  return {customerBytes:n("CUSTOMER_STORAGE_MIB",5120,1048576)*MiB,
   projects:n("MAX_PROJECTS",20,1000),audioBytes:n("AUDIO_UPLOAD_MIB",70,70)*MiB,
-  videoBytes:n("VIDEO_UPLOAD_MIB",50,50)*MiB,uploadsPerOwner:n("UPLOADS_PER_OWNER",2,20),
+  videoBytes:n("VIDEO_UPLOAD_MIB",PROJECT_VIDEO_MAX_MIB,PROJECT_VIDEO_MAX_MIB)*MiB,uploadsPerOwner:n("UPLOADS_PER_OWNER",2,20),
   uploadsGlobal:n("UPLOADS_GLOBAL",4,64),exportsPerOwner:n("EXPORTS_PER_OWNER",1,10),
   exportsGlobal:n("EXPORTS_GLOBAL",2,16),tempBytes:n("TEMP_RESERVATION_MIB",4096,65536)*MiB,
   exportClaim:n("EXPORT_RESERVATION_MIB",1536,32768)*MiB,
