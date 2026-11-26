@@ -3,11 +3,6 @@ on:
   push:
     branches:
       - feature/analytics-privacy-audit-20261126
-    paths:
-      - 'components/analytics-consent*'
-      - 'lib/analytics/**'
-      - 'tests/analytics-consent*'
-      - '.github/workflows/analytics-consent-audit.yml'
   workflow_dispatch:
 permissions:
   contents: read
