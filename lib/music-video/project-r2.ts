@@ -61,22 +61,24 @@ export async function safeLocalProjectSong(folder:string,slot:SongSlot){
  if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1||s.size<1||s.size>limit||await realpath(file)!==file)throw Error("Invalid local Projects song");
  return file;
 }
-export async function mirrorProjectVideo(owner:string,project:string,asset:string,file:string,mime:string){
- if(!projectR2Enabled())throw Error("Projects R2 writes disabled");
- const info=await stat(file);if(info.size<1||info.size>byteLimit(asset))throw Error("Projects media exceeds limit");
+/** Streaming file upload and full readback; used by production and the startup canary. */
+export async function mirrorProjectFile(client:Sender,bucket:string,keyForHash:(hash:string)=>string,file:string,mime:string,maxBytes:number){
+ const info=await stat(file);if(!info.isFile()||info.size<1||info.size>maxBytes||info.size>(mime.startsWith("video/")?videoLimit:limit))throw Error("Projects media exceeds limit");
  const digest=createHash("sha256"),md5=createHash("md5");let total=0;
  for await(const chunk of createReadStream(file)){total+=chunk.length;if(total>info.size)throw Error("Projects source changed");digest.update(chunk);md5.update(chunk);}
  if(total!==info.size)throw Error("Projects source changed");
- const hash=digest.digest("hex"),key=projectCloudKey(owner,project,asset,hash),record={key,sha256:hash,bytes:total};
+ const hash=digest.digest("hex"),key=keyForHash(hash),record={key,sha256:hash,bytes:total};
+ const body=createReadStream(file);
+ try{await client.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:body,ContentLength:total,ContentType:mime,ContentMD5:md5.digest("base64"),Metadata:{"singmotion-sha256":hash},CacheControl:"private, no-store",IfNoneMatch:"*"}));}
+ catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e;}
+ finally{body.destroy();}
+ await verifyCloudStream(client,bucket,record);
+ return record;
+}
+export async function mirrorProjectVideo(owner:string,project:string,asset:string,file:string,mime:string){
+ if(!projectR2Enabled())throw Error("Projects R2 writes disabled");
  const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
- try{
-  const body=createReadStream(file);
-  try{await client.send(new PutObjectCommand({Bucket:config.bucket,Key:key,Body:body,ContentLength:total,ContentType:mime,ContentMD5:md5.digest("base64"),Metadata:{"singmotion-sha256":hash},CacheControl:"private, no-store",IfNoneMatch:"*"}),{abortSignal:AbortSignal.timeout(180000)});}
-  catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e;}
-  finally{body.destroy();}
-  await verifyCloudStream({send:command=>client.send(command as any,{abortSignal:AbortSignal.timeout(180000)})},config.bucket,record);
-  return record;
- }finally{client.destroy();}
+ try{return await mirrorProjectFile({send:command=>client.send(command as any,{abortSignal:AbortSignal.timeout(180000)})},config.bucket,hash=>projectCloudKey(owner,project,asset,hash),file,mime,byteLimit(asset));}finally{client.destroy();}
 }
 export async function readProjectVideo(owner:string,project:string,asset:string,record:ProjectCloudRecord){
  if(!validProjectCloudRecord(owner,project,asset,record))throw Error("Invalid Projects cloud manifest");
@@ -152,10 +154,12 @@ export async function projectR2Canary(){
  const owner="staff:canary-"+randomUUID(),project=randomUUID(),asset=randomUUID(),bytes=randomBytes(1024);
  const key=projectCloudKey(owner,project,asset,sha(bytes));
  const cfg=loadR2Config(),client=new S3Client(r2ClientConfig(cfg));
- let verified=false,deleted=false;
+ let verified=false,deleted=false,folder:string|undefined;
  try{
   const bounded={send:(command:PutObjectCommand|GetObjectCommand|DeleteObjectCommand)=>client.send(command as any,{abortSignal:AbortSignal.timeout(12000)})};
-  const record=await mirrorProjectBytes(bounded,cfg.bucket,key,bytes,"video/mp4");
+  folder=await mkdtemp(path.join(tmpdir(),"sm-project-upload-"));
+  const file=path.join(folder,"canary.mp4");await writeFile(file,bytes,{flag:"wx",mode:0o600});
+  const record=await mirrorProjectFile(bounded,cfg.bucket,hash=>projectCloudKey(owner,project,asset,hash),file,"video/mp4",videoLimit);
   const range=await client.send(new GetObjectCommand({Bucket:cfg.bucket,Key:key,Range:"bytes=10-39"}),{abortSignal:AbortSignal.timeout(12000)});
   if(!range.Body||range.ContentLength!==30||range.ContentRange!=="bytes 10-39/1024"||!Buffer.from(await range.Body.transformToByteArray()).equals(bytes.subarray(10,40)))throw Error("Projects R2 range verification failed");
   verified=record.bytes===1024;
@@ -165,7 +169,7 @@ export async function projectR2Canary(){
    await client.send(new DeleteObjectCommand({Bucket:cfg.bucket,Key:key}),{abortSignal:AbortSignal.timeout(12000)});
    try{await client.send(new HeadObjectCommand({Bucket:cfg.bucket,Key:key}),{abortSignal:AbortSignal.timeout(12000)});}
    catch(e){deleted=(e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode===404;}
-  }catch{}finally{client.destroy();}
+  }catch{}finally{client.destroy();if(folder)await rm(folder,{recursive:true,force:true}).catch(()=>{});}
  }
  return verified&&deleted;
 }
