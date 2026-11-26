@@ -30,21 +30,21 @@ export function orderReference(orderId:string):string{
 export function videoReadyEmailText(orderId:string,origin:string,guest:boolean):string{
  const ref=orderReference(orderId),vid=videoReference(orderId);
  return [
-  "Dein SingMotion AI Musikvideo ist fertig!","",
-  "Deine bezahlte Videoproduktion wurde geprüft und sicher gespeichert.",
-  "Auftragsnummer: "+ref,
-  "Videonummer: "+vid,
-  "Privater Bestellbereich: "+origin+"/orders/"+orderId,
+  "Your SingMotion AI music video is ready!","",
+  "Your paid video has been verified and securely stored.",
+  "Order reference: "+ref,
+  "Video reference: "+vid,
+  "Private order page: "+origin+"/orders/"+orderId,
   "",
   guest
-   ? "Ohne Kundenkonto: Öffne den Bestellbereich im ursprünglichen Browser über deinen privaten Bestelllink. Auf einem neuen Gerät kannst du dort einen einmaligen E-Mail-Zugangscode anfordern."
-   : "Melde dich mit deinem Kundenkonto an, um dein Video anzusehen oder herunterzuladen.",
+   ? "Without an account: Open your private order link in the original browser. On a new device, you can request a one-time email access code on the order page."
+   : "Sign in to your account to watch or download your video.",
   guest
-   ? "Erstellst du später ein Konto mit dieser bestätigten E-Mail-Adresse, kannst du dein Gastvideo dort mit einem verifizierten privaten Bestellzugang unter „Gastvideo übernehmen“ hinzufügen."
-   : "Das Video bleibt in deinem persönlichen Bestellbereich verfügbar, solange die angegebene Speicherfrist gilt.",
+   ? "If you later create an account with this verified email address, you can add your guest video using verified private order access through the guest video claim feature."
+   : "Your video remains available on your private order page for the stated retention period.",
   "",
-  "Die Auftrags- oder Videonummer allein berechtigt NICHT zum Zugriff. Teile geheime Bestelllinks und Zugangscodes nicht mit anderen.",
-  "Bei Fragen: support@singmotion.ai",
+  "An order or video reference alone does NOT grant access. Do not share private order links or access codes.",
+  "Questions? support@singmotion.ai",
  ].join("\n");
 }
 
@@ -94,7 +94,7 @@ export async function retryVideoReadyNotifications(
    attempted++;
    // Email contains no secret token, provider URL or private filename.
    const mail={from:env.ACCOUNT_EMAIL_FROM,to:[row.email],
-    subject:"SingMotion AI – Dein Musikvideo ist fertig ("+videoReference(row.order_id)+")",
+    subject:"SingMotion AI – Your music video is ready ("+videoReference(row.order_id)+")",
     text:videoReadyEmailText(row.order_id,origin,!row.account_id)};
    try{
     const response=await sender("https://api.resend.com/emails",{
@@ -188,13 +188,13 @@ export async function retryStudioCreditVideoReadyNotifications(
    // No private R2 URLs, raw provider IDs, tokens or customer file names.
    const mail={
     from:env.ACCOUNT_EMAIL_FROM,to:[entry.email],
-    subject:"SingMotion AI – Dein Musikvideo ist fertig",
-    text:["Dein SingMotion AI Musikvideo ist fertig!","",
-      "Öffne „Videos“, um dein fertiges Video anzusehen oder herunterzuladen:",
+    subject:"SingMotion AI – Your music video is ready",
+    text:["Your SingMotion AI music video is ready!","",
+      "Open Videos to watch or download your completed video:",
       origin+"/videos/live_"+entry.attempt_id,"",
-      "Melde dich dazu mit deinem SingMotion AI Kundenkonto an.",
-      "Du kannst diese E-Mails unter Account Settings → Email notifications deaktivieren.",
-      "Bei Fragen: support@singmotion.ai"].join("\n")
+      "Sign in to your SingMotion AI account to access your video.",
+      "You can turn off these emails in Account Settings → Email notifications.",
+      "Questions? support@singmotion.ai"].join("\n")
    };
    try{
     const response=await sender("https://api.resend.com/emails",{
