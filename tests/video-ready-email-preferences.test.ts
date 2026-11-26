@@ -54,10 +54,10 @@ test("Completed paid credit Studio video sends only verified private link and re
   const another="c3eedab6-1170-45f5-9b10-62f0c76af8bc";
   updateCustomerVideoReadyEmailPreference(f.commerce,account,false);
   await f.completed(id,account,Date.now());
-  let emails:Array<{to:string[];text:string}>=[];
+  let emails:Array<{to:string[];text:string;subject:string}>=[];
   const sender=async (url:RequestInfo|URL,options?:RequestInit)=>{
    assert.equal(String(url),"https://api.resend.com/emails");
-   const email=JSON.parse(String(options?.body)) as {to:string[];text:string};
+   const email=JSON.parse(String(options?.body)) as {to:string[];text:string;subject:string};
    emails.push(email);
    return new Response('{"id":"email_test"}',{status:200});
   };
@@ -72,6 +72,7 @@ test("Completed paid credit Studio video sends only verified private link and re
   result=await retryStudioCreditVideoReadyNotifications(f.root,env,sender as typeof fetch);
   assert.equal(result.sent,2);
   assert.equal(emails.length,2);
+  assert.ok(emails.every(m=>m.subject==="SingMotion AI – Your music video is ready"&&m.text.includes("Open Videos to watch or download your completed video:")&&m.text.includes("You can turn off these emails")));
   assert.ok(emails.some(m=>m.text.includes("/videos/live_"+next)));
   assert.ok(emails.every(m=>!m.text.includes("BytePlus")&&!m.text.includes("R2")&&!m.text.includes("secret")));
   result=await retryStudioCreditVideoReadyNotifications(f.root,env,sender as typeof fetch);
