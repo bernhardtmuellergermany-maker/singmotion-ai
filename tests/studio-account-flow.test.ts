@@ -167,3 +167,19 @@ test("CMS login remains independent; staff guest transfers require operator auth
  assert.match(importer,/studioStaff\(identity\.user,req\.method,req\.headers,process\.env\)/);
  assert.match(importer,/guestToken=req\.cookies\.get\("sm_guest_session"\)\?\.value/);
 });
+
+test("authorized staff login binds private media session and preserves authenticated guest handoff",()=>{
+ const login=read("lib/site-staff-auth.ts");
+ const route=read("app/(site)/api/[...path]/route.ts");
+ const resume=read("components/studio-account-resume.tsx");
+ assert.match(login,/if\(!store\.session\(req\.cookies\.get\("sm_customer"\)/);
+ assert.match(login,/studioStaff\(result\.user,req\.method,req\.headers,process\.env\)/);
+ assert.match(login,/createAccountMediaSession\(owner\)/);
+ assert.match(login,/response\.cookies\.set\("sm_guest_session",previous/);
+ assert.match(login,/response\.cookies\.set\("sm_session",media\.token/);
+ assert.match(route,/activeCustomerId=store\.session\(customerToken\)\?\?null/);
+ assert.match(route,/if\(process\.env\.CMS_ENABLED==="true"&&!activeCustomerId\)/);
+ assert.match(route,/STUDIO_WORKSPACE_DENIED/);
+ assert.match(route,/if\(hasRole\(identity\.user,\["super-admin","editor"\]\)\)/);
+ assert.match(resume,/resetSession\(\);\s*const workspace=await ensureSession\(\)/);
+});
