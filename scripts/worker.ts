@@ -137,7 +137,14 @@ if (process.env.PRODUCTION_POSTGRES_ROOT_CA_PROBE_EXPIRES_AT) {
     }))
     .catch(()=>console.warn("PUBLIC_PG_CA_PROBE_FAILED"));
 }
+let nextProjectsDeleteRetry=0,projectsDeleteRunning=false;
 while (!stopping) {
+  if(!projectsDeleteRunning&&Date.now()>=nextProjectsDeleteRetry&&process.env.PROJECT_VIDEO_R2_VERIFIED==="true"){
+   nextProjectsDeleteRetry=Date.now()+60_000;projectsDeleteRunning=true;
+   void import("../lib/music-video/project-cleanup.ts").then(({retryProjectDeletes})=>retryProjectDeletes(dataDir)).then(result=>{
+    if(result.checked)console.info("PROJECTS_DELETE_RETRY",result);
+   }).catch(()=>console.warn("PROJECTS_DELETE_RETRY unavailable")).finally(()=>{projectsDeleteRunning=false;});
+  }
   await writeFile(path.join(dataDir, "worker-heartbeat"), String(Date.now()));
   await pollStudioProjects(dataDir); // Read-only recovery, independently gated; never submits.
   if(Date.now()>=nextAutomaticCreditRecovery){
