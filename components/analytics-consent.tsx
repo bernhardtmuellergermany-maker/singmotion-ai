@@ -8,8 +8,8 @@ type GoogleWindow = Window & { dataLayer?: unknown[]; gtag?: (...args: unknown[]
 const denied = { analytics_storage: "denied", ad_storage: "denied", ad_user_data: "denied", ad_personalization: "denied" };
 const analyticsOnly = { ...denied, analytics_storage: "granted" };
 const google = () => window as unknown as GoogleWindow;
-function readChoice() {
-  try { return readConsent(localStorage.getItem(CONSENT_KEY)); } catch { return null; }
+function readChoice(key: string) {
+  try { return readConsent(localStorage.getItem(key)); } catch { return null; }
 }
 function disable(id: string) { google()["ga-disable-" + id] = true; }
 function clearAnalyticsCookies() {
@@ -25,26 +25,30 @@ function clearAnalyticsCookies() {
 
 export function AnalyticsConsent({ id, preview }: { id: string | null; preview: boolean }) {
   const pathname = usePathname();
+  const key = CONSENT_KEY + (id ? ":" + id : ":preview");
   const [choice, setChoice] = useState<Choice | null>(null);
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(false);
   const lastPage = useRef<string | null>(null);
   const initialized = useRef(false);
-  const title = publicAnalyticsPage(pathname);
+  const title = publicAnalyticsPage(pathname ?? "");
   const active = Boolean(id || preview);
 
   useEffect(() => {
     if (!active) return;
     const sync = () => {
-      const current = readChoice();
-      if (id && current !== "granted") disable(id);
+      const current = readChoice(key);
+      if (id && current !== "granted") {
+        disable(id);
+        if (initialized.current) clearAnalyticsCookies();
+      }
       setChoice(current);
       setReady(true);
     };
     sync();
     const changed = (event: StorageEvent) => {
-      if (event.key === CONSENT_KEY || event.key === null) sync();
+      if (event.key === key || event.key === null) sync();
     };
     window.addEventListener("storage", changed);
     window.addEventListener("focus", sync);
@@ -55,19 +59,19 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       window.clearInterval(timer);
       if (id) disable(id);
     };
-  }, [active, id]);
+  }, [active, id, key]);
 
   useLayoutEffect(() => {
     if (!id) return;
     // The Google tag is never inserted before affirmative, current consent and a public route.
-    if (!ready || choice !== "granted" || !title || readChoice() !== "granted") {
+    if (!ready || choice !== "granted" || !title || readChoice(key) !== "granted") {
       disable(id);
       lastPage.current = null;
       return;
     }
     const w = google();
     w["ga-disable-" + id] = false;
-    const page = location.origin + pathname;
+    const page = location.origin + (pathname ?? "/");
     if (!initialized.current) {
       w.dataLayer = w.dataLayer || [];
       w.gtag = function () { w.dataLayer?.push(arguments); };
@@ -96,7 +100,7 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       lastPage.current = page;
     }
     return () => { disable(id); };
-  }, [id, ready, choice, title, pathname]);
+  }, [id, ready, choice, title, pathname, key]);
 
   function choose(next: Choice) {
     if (next === "denied" && id) {
@@ -104,7 +108,7 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       clearAnalyticsCookies();
     }
     try {
-      localStorage.setItem(CONSENT_KEY, serializeConsent(next));
+      localStorage.setItem(key, serializeConsent(next));
       setChoice(next);
       setError(false);
       setOpen(false);
