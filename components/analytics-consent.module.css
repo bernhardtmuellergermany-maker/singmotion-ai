@@ -44,9 +44,6 @@
 }
 .settings svg { color: #d99afa; flex-shrink: 0; }
 @media (max-width: 600px) {
-  /* Classic desktop scrollbars can reserve a phantom gutter in a narrow
-     viewport. Mobile should not reserve that desktop-only gutter. */
-  :global(html) { scrollbar-gutter: auto; }
   .panel {
     inset-inline: auto; left: 50%; right: auto; transform: translateX(-50%); margin: 0;
     width: min(354px, calc(100% - 24px));

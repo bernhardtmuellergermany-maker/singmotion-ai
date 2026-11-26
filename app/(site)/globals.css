@@ -2526,3 +2526,6 @@ html::-webkit-scrollbar{width:11px}
 html::-webkit-scrollbar-track{background:#090d16}
 html::-webkit-scrollbar-thumb{background:#38304b;border:3px solid #090d16;border-radius:99px}
 html::-webkit-scrollbar-thumb:hover{background:#7753aa}
+
+/* Mobile touch layouts need no desktop scrollbar reservation. */
+@media (max-width: 600px) { html:root { scrollbar-gutter: auto; } }
