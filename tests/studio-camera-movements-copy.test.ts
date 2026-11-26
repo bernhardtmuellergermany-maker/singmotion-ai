@@ -20,9 +20,11 @@ test("all 34 camera moves are available; nine recommended moves show initially",
  assert.equal(new Set(cameraMovements.map(move=>move.direction)).size,34);
  for(const move of cameraMovements){
   assert.ok(move.direction.startsWith("Camera: "));
-  assert.ok(move.direction.length<=500,move.name);
-  assert.match(move.example,/Movement: .*Speed: .*Framing: .*End: /);
+  assert.ok(move.direction.length<=90,move.name);
+  assert.match(move.example,/^[A-Z][^.?!\n]+\.$/);
+  assert.doesNotMatch(move.example,/Movement:|Speed:|Framing:|End:/);
   assert.equal(move.example,move.text);
+  assert.equal(move.direction,"Camera: "+move.text);
  }
 });
 
@@ -133,4 +135,23 @@ test("quick tip switching preserves personal instructions and whitespace",()=>{
  assert.equal(replaceCameraQuickTip(own+"\n"+a.direction+"\nAdditional manual text.",b),own+"\n"+b.direction+"\nAdditional manual text.");
  assert.equal(replaceCameraQuickTip(own+"\n",a),own+"\n"+a.direction);
  assert.match(read("components/studio-wizard.tsx"),/replaceCameraQuickTip\(draft\.customPrompt,move\)/);
+});
+
+test("short camera directions retain old quick-tip replacement and match the WebP motion distinctions",()=>{
+ const byName=(name:string)=>cameraMovements.find(move=>move.name===name)!;
+ const legacy="Camera: static shot. Movement: hold a single locked camera position for the entire clip. Speed: perfectly still and steady. Framing: the angle, height, lens distance and composition never change. End: finish on the identical framing you opened with.";
+ const personal="Sing naturally.\nCamera: Keep my own framing.";
+ assert.equal(replaceCameraQuickTip(personal+"\n"+legacy,byName("Pan right")),personal+"\n"+byName("Pan right").direction);
+ assert.match(byName("Slow zoom in").text,/without moving the camera/);
+ assert.match(byName("Dolly in").text,/Move the camera smoothly forward/);
+ assert.match(byName("Tilt up").text,/Tilt.*upward from a fixed position/);
+ assert.match(byName("Pedestal up").text,/straight up without tilting/);
+ assert.match(byName("Orbit clockwise").text,/clockwise in a full circle/);
+ assert.match(byName("Orbit counterclockwise").text,/counterclockwise in a full circle/);
+ assert.match(byName("Drone push in").text,/forward and downward/);
+ assert.match(byName("Drone pull back").text,/backward and upward/);
+ const generator=read("scripts/generate-camera-movements.cjs");
+ const names=generator.match(/const names='([^']+)'/);
+ assert.ok(names);
+ assert.deepEqual(cameraMovements.map(m=>m.name.toLowerCase().replace(/[^a-z0-9]+/g,"-")),names[1].split(" "));
 });
