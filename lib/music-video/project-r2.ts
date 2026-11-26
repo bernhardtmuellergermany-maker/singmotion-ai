@@ -1,6 +1,6 @@
 /** Owner-scoped immutable R2 objects for Projects videos and songs. */
 import {createHash,randomUUID,randomBytes} from "node:crypto";
-import {lstat,realpath,mkdtemp,rm,copyFile,stat,statfs,readdir,open} from "node:fs/promises";
+import {lstat,realpath,mkdtemp,rm,copyFile,stat,statfs,readdir,open,writeFile} from "node:fs/promises";
 import {createReadStream} from "node:fs";
 import {PROJECT_VIDEO_MAX_BYTES} from "./media-limits.ts";
 import {tmpdir} from "node:os";
