@@ -130,14 +130,14 @@ export default function CameraMovementsHelp(){
    <div className="sm-camera-callout">
     <Camera size={23} aria-hidden="true"/>
     <div><strong>The best prompt is a short, natural scene.</strong>
-     <p>Camera movement → emotion → say who speaks or sings → specific actions in order → optional background action. A clear start, speed and end frame are more useful than a list of camera keywords.</p>
+     <p>Camera movement → emotion → say who speaks or sings → specific actions in order → optional background action. Use one short sentence to describe what the camera should do.</p>
     </div>
    </div>
    <section className="sm-legal-panel">
     <span className="sm-legal-num">01 / HOW TO WRITE A PROMPT</span>
     <h2>One scene. One camera move. A clear sequence.</h2>
     <p>In <Link href="/studio">Studio</Link>, choose your own music or spoken audio and a reference image. Then use the <strong>Performance prompt</strong> field. The <strong>Camera Movements</strong> buttons insert editable camera directions, and the Advanced camera menu offers presets. For the most reliable interpretation, spell out the movement in your prompt rather than relying only on a preset label.</p>
-    <p>Write who is performing and whether they are <strong>singing, rapping or speaking</strong>. Describe a couple of visible actions using <strong>first → then → finally</strong>. Specify how fast the camera moves and where it stops. Avoid contradicting the source image or asking for several unrelated scenes at once.</p>
+    <p>Write who is performing and whether they are <strong>singing, rapping or speaking</strong>. Describe a couple of visible actions using <strong>first → then → finally</strong>. Keep camera instructions short and direct. Avoid contradicting the source image or asking for several unrelated scenes at once.</p>
     <div className="sm-camera-copy-example"><div><strong>Complete example to copy</strong><p>{readyToCopy}</p></div><PromptCopyButton text={readyToCopy} label="Copy complete performance example"/></div>
     <p className="sm-camera-fineprint">The Studio field currently accepts up to <strong>500 characters</strong>. The voice track determines the words; camera and gesture prompts direct the visual performance. They do not generate a new spoken script.</p>
    </section>
@@ -153,7 +153,7 @@ export default function CameraMovementsHelp(){
    </section>
    <section className="sm-camera-section" id="camera-movements">
     <div className="sm-camera-section-title"><span className="sm-legal-num">03 / CAMERA MOVEMENTS</span><h2>Camera moves and copy-ready instructions</h2>
-     <p>Explore 34 camera movements, with complete English prompts. The recommended and experimental labels are practical guidance, not verified rendering results. These are creative directions, not guaranteed controls. Match the move to your reference image. The full prompts are reproduced from the supplied Mone Motion camera-motion library; shorten longer prompts to fit Studio’s 500-character limit.</p>
+     <p>Explore 34 camera movements, each with one short English prompt matching its illustrative preview. Recommended and experimental labels are guidance, not guarantees. Choose one move that suits your reference image.</p>
     </div>
     {movementGroups.map(group=><section key={group.label} className="sm-camera-rating-group"><h3 className="sm-camera-rating-heading">{group.label} <span>({techniques.filter(t=>t.recommended===group.recommended).length})</span></h3><p>{group.description}</p><div className="sm-camera-techniques">{techniques.filter(t=>t.recommended===group.recommended).map(t=><article key={t.name} className={`sm-camera-technique ${t.recommended?"sm-camera-recommended":"sm-camera-experimental"}`}>
      <div className="sm-camera-technique-top"><span className="sm-camera-number">{t.id}</span><div><h3>{t.name}</h3><small>{t.category}</small><span className={`sm-camera-rating ${t.recommended?"is-recommended":"is-experimental"}`}>{t.recommended?"Recommended":"Experimental"}</span></div></div>
