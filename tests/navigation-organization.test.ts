@@ -626,7 +626,7 @@ test("Projects preview throttles React renders, keeps the exact clock and does n
  assert.ok(editor.includes('endpoint+id+"/waveform"'));
  assert.ok(!editor.includes("decodeAudioData("));
  assert.ok(api.includes('.wave-v2.json'));
- assert.ok(api.includes('pcmWaveform(stdout,durationMs)'));
+ assert.ok(api.includes('extractMediaWaveform(file,durationMs)'));
  assert.ok(api.includes('if(waveJobs.size>=2)'));
  assert.ok(editor.includes('sourceInMs={c.sourceInMs}'));
  assert.ok(editor.includes('sourceInMs={p.startMs}'));
