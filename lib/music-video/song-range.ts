@@ -265,3 +265,18 @@ export function hasPreviewBuffer(ranges:{length:number;start(i:number):number;en
  for(let i=0;i<ranges.length;i++)if(ranges.start(i)<=at+0.04&&ranges.end(i)>=needed-0.04)return true;
  return false;
 }
+
+/** Retain one previous visible decoder for repeated editing across a cut.
+ * A gap has no decoder of its own. Seek the previous clip near its last frame. */
+export function previousVisibleClipTransition<T extends {id:string;track:1|2;timelineStartMs:number;sourceInMs:number;sourceOutMs:number}>(clips:readonly T[],atMs:number,boundaries:readonly number[],mutes:{1:boolean;2:boolean}):{clip:T;atMs:number}|undefined{
+ const active=previewMediaPlan(clips,atMs,mutes).visible;
+ for(let i=boundaries.length-1;i>=0;i--){
+  const boundary=boundaries[i];
+  if(boundary>atMs||boundary<=0)continue;
+  if(atMs-boundary>PREVIEW_LOOKAHEAD_MS)break;
+  const before=Math.max(0,boundary-1);
+  const candidate=previewMediaPlan(clips,before,mutes).visible;
+  if(candidate&&candidate.id!==active?.id)return {clip:candidate,atMs:Math.max(candidate.timelineStartMs,before-250)};
+ }
+ return undefined;
+}
