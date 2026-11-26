@@ -12,6 +12,7 @@ import {stagingDenial} from "@/lib/staging";
 import {applicationOrigin} from "@/lib/request-origin";
 import {dataDir,session} from "@/lib/db";
 import {validateAudio,createAudioPreview,probe} from "@/lib/media";
+import {pcmWaveform,validWaveform,WAVEFORM_SAMPLE_RATE,type MediaWaveform} from "@/lib/music-video/waveform";
 import {projectPreviewArgs,previewByteLimit,mobilePreviewVersion} from "@/lib/music-video/preview-profile";
 import {AUDIO_LIMIT} from "@/lib/domain";
 import {CommerceStore} from "@/lib/commerce/store";
@@ -190,29 +191,31 @@ async function libraryThumbnail(projectId:string,assetId:string,file:string,dura
   thumbnailJobs.set(cached,job);
   try{return await job;}finally{thumbnailJobs.delete(cached);}
 }
-// Cache compact waveform data, not decoded audio in the browser. Bound FFmpeg work.
-const waveJobs=new Map<string,Promise<number[]>>();
-async function songWaveform(id:string,owner:string,scratch:ProjectScratch):Promise<number[]>{
-  const cached=path.join(projectFolder(id),"song.wave-v1.json");
-  const old=await readFile(cached,"utf8").then(v=>JSON.parse(v) as number[]).catch(()=>null);
-  if(old?.length===240)return old;
-  const pending=waveJobs.get(id);if(pending)return pending;
-  if(waveJobs.size>=2)return [];
+// Private waveform cache: only real audio peaks, bounded work and one shared job per source.
+const waveJobs=new Map<string,Promise<MediaWaveform>>();
+async function mediaWaveform(id:string,key:string,durationMs:number,source:()=>Promise<string>,verify:()=>void):Promise<MediaWaveform>{
+  const cached=path.join(projectFolder(id),key+".wave-v2.json");
+  const old=await readFile(cached,"utf8").then(v=>JSON.parse(v) as unknown).catch(()=>null);
+  if(validWaveform(old,durationMs))return old;
+  const pending=waveJobs.get(cached);if(pending)return pending;
+  if(waveJobs.size>=2)throw new MusicError("Waveform analysis busy; retry shortly.",503);
   const job=(async()=>{
-    const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",await songWorkingFile(id,owner,"song.mp3",scratch),"-vn","-sn","-dn","-ac","1","-ar","2000","-t","3600","-f","s16le","pipe:1"],{encoding:"buffer",timeout:30000,maxBuffer:16*1024*1024});
-    const samples=Math.floor(stdout.length/2);
-    if(!samples)return [];
-    const peaks=Array.from({length:240},(_,i)=>{
-      let peak=0;const from=Math.floor(i*samples/240),to=Math.floor((i+1)*samples/240);
-      for(let j=from;j<to;j++)peak=Math.max(peak,Math.abs(stdout.readInt16LE(j*2))/32768);
-      return Math.max(.07,Math.round(peak*1000)/1000);
-    });
+    const file=await source();
+    const media=await probe(file);
+    let waveform:MediaWaveform;
+    if(!media.streams.some(s=>s.codec_type==="audio"))waveform={durationMs,peaks:[],hasAudio:false};
+    else{
+      const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",file,"-map","0:a:0","-vn","-sn","-dn","-ac","1","-af","aresample="+WAVEFORM_SAMPLE_RATE+":async=1:first_pts=0","-ar",String(WAVEFORM_SAMPLE_RATE),"-t",String(durationMs/1000),"-f","s16le","pipe:1"],{encoding:"buffer",timeout:45000,maxBuffer:32*1024*1024});
+      waveform=pcmWaveform(stdout,durationMs);
+    }
+    // Do not recreate a removed project's or asset's waveform cache.
+    verify();
     const temp=cached+"."+randomUUID()+".tmp";
-    try{await writeFile(temp,JSON.stringify(peaks),{flag:"wx",mode:0o600});await rename(temp,cached);}catch{}finally{await rm(temp,{force:true}).catch(()=>{});}
-    return peaks;
+    try{await writeFile(temp,JSON.stringify(waveform),{flag:"wx",mode:0o600});verify();await rename(temp,cached);}catch{}finally{await rm(temp,{force:true}).catch(()=>{});}
+    return waveform;
   })();
-  waveJobs.set(id,job);
-  try{return await job;}finally{waveJobs.delete(id);}
+  waveJobs.set(cached,job);
+  try{return await job;}finally{waveJobs.delete(cached);}
 }
 
 // Private, disposable preview cache. Never replace or transcode the original for export.
@@ -407,9 +410,16 @@ async function handler(req:NextRequest,context:Context){
       if(record)return await projectVideoResponse(req,owner,id,songAssetId(id,"song.mp3"),record,"audio/mpeg",common);
       return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg",true);
     }
-    if(section==="waveform"&&req.method==="GET"&&!assetId){
-      const peaks=await songWaveform(id,owner,scratch).catch(()=>[]);
-      return json({peaks});
+    if(section==="waveform"&&req.method==="GET"){
+      if(!assetId)return json(await mediaWaveform(id,"song",project.songDurationMs,
+        ()=>songWorkingFile(id,owner,"song.mp3",scratch),()=>{requireMusicProject(id,owner);}));
+      const asset=musicAsset(id,owner,assetId);
+      // As with preview/export, a generated staff source needs its verified media workspace.
+      if(asset.sourceKind==="live"&&(!owner.startsWith("staff:")||session(req.cookies.get("sm_session")?.value)?.owner!=="cms-staff-"+owner.slice(6)))
+        throw new MusicError("Open Videos to establish your private media session.",403);
+      return json(await mediaWaveform(id,asset.id,asset.durationMs,
+        async()=>{const files=await exportSources(req,owner,id,musicDetail(id,owner),scratch,[asset.id]);return files.get(asset.id)!;},
+        ()=>{musicAsset(id,owner,asset.id);}));
     }
     if(section==="preview"&&assetId&&validId(assetId)&&(req.method==="GET"||req.method==="POST")){
       const asset=musicAsset(id,owner,assetId);
@@ -550,6 +560,7 @@ async function handler(req:NextRequest,context:Context){
       if(req.method==="DELETE"){
         removeMusicAsset(id,owner,assetId);
         await unlink(path.join(projectFolder(id),asset.id+".thumb-v1.jpg")).catch(()=>{});
+        await unlink(path.join(projectFolder(id),asset.id+".wave-v2.json")).catch(()=>{});
         if(asset.sourceKind==="uploaded")await unlink(path.join(/*turbopackIgnore: true*/ projectFolder(id),asset.id+"."+asset.sourceId)).catch(()=>{});
         await cleanCloudDeletes(owner);
         return json({deleted:true});
