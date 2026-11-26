@@ -6,7 +6,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,previewMediaPlan,nextVisibleClipTransition,publishedPlaybackMs,nativeClipClockStep,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,previewMediaPlan,nextVisibleClipTransition,publishedPlaybackMs,nativeClipClockStep,nativeClockAction,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -859,14 +859,15 @@ export function MusicVideoEditor({id}:{id:string}){
       element.playbackRate=1;
       try{if(Math.abs(element.currentTime-expected)>(element.readyState>=2&&!element.seeking?0.025:0.001))element.currentTime=expected;state.aligned=true;}catch{}
     }
-    // A source switch can abort play() while the replacement source is loading.
-    // Retry on the same element after readiness instead of stopping the entire project.
-    if(!state.pending&&(element.paused||element.ended)&&(fresh||element.readyState>=2&&performance.now()-state.lastAttempt>=150)){
+    // EOF belongs to the timeline, not play(): play() on ended media restarts it.
+    // Wait for alignment/seek completion; never replay the outgoing decoder.
+    const action=nativeClockAction(element,state.aligned);
+    if(action==="play"&&!state.pending&&(fresh||performance.now()-state.lastAttempt>=150)){
       state.pending=true;state.lastAttempt=performance.now();
       void element.play().catch(error=>{
         if(error?.name==="AbortError")return;
         if(playingRef.current&&(mutesRef.current.song||mobileRef.current)&&mutedClockRef.current===state){stopPlayback();setError("Video playback was blocked. Tap Play to retry.");}
-      }).finally(()=>{state.pending=false;if(!playingRef.current)element.pause();});
+      }).finally(()=>{state.pending=false;if(!playingRef.current||mutedPreviewClock(playheadRef.current).element!==element)element.pause();});
     }
     return clock;
   }
@@ -875,9 +876,9 @@ export function MusicVideoEditor({id}:{id:string}){
     const boundary=Math.min(nextBoundaryMs,limit);
     if(!clip)return Math.min(at+elapsed,boundary);
     if(!element)return at; // Wait for the matching media element at a clip transition.
-    if(!mutedClockRef.current?.aligned)return at;
-    if(element.ended)return nativeClipClockStep(clip,at,element.currentTime,boundary,true);
-    if(element.paused||element.seeking||element.readyState<2)return at;
+    const action=nativeClockAction(element,!!mutedClockRef.current?.aligned);
+    if(action==="ended")return nativeClipClockStep(clip,at,element.currentTime,boundary,true);
+    if(action!=="running")return at;
     return nativeClipClockStep(clip,at,element.currentTime,boundary,false);
   }
   // Mobile uses the actual displayed video as clock, including when the song is audible.
@@ -916,7 +917,7 @@ export function MusicVideoEditor({id}:{id:string}){
         at=advanceMutedClock(at,elapsed,timelineEnd);
         const master=mutedPreviewClock(at).element;
         const run=!!master&&!!mutedClockRef.current?.aligned&&mutedClockRef.current.clipId===master.dataset.clipId&&!master.paused&&!master.seeking&&master.readyState>=2;
-        if(!run||now-lastPaint>=100)syncMobileSong(at,run);
+        if(!run||current?.paused||now-lastPaint>=100)syncMobileSong(at,run);
       }else if(mutesRef.current.song){
         if(current&&!current.paused)current.pause();
         at=advanceMutedClock(at,elapsed,timelineEnd);
@@ -1023,6 +1024,8 @@ export function MusicVideoEditor({id}:{id:string}){
   // element when it becomes visible; never start an off-screen clip playing.
   function warmNextVideo(element:HTMLVideoElement,clip:MusicClip,at:number){
     if(element.dataset.clipId!==clip.id||element===video.current||element.readyState<1||element.seeking)return;
+    // A queued metadata event can arrive just after the timeline crossed the cut.
+    if(previewMediaPlan(latest.current,playheadRef.current,mutesRef.current).visible?.id===clip.id)return;
     element.pause();
     const expected=clipSourceTimeMs(clip,at)/1000;
     if(Math.abs(element.currentTime-expected)>0.015){
@@ -1030,7 +1033,13 @@ export function MusicVideoEditor({id}:{id:string}){
     }
   }
   function syncVideo(element:HTMLVideoElement|null,clip:MusicClip|undefined){
+    if(!element||element!==video.current)return;
     const at=playheadRef.current;
+    const visible=previewMediaPlan(latest.current,at,mutesRef.current).visible;
+    if(clip?.id!==visible?.id||element.dataset.clipId!==visible?.id){element.pause();return;}
+    if(playingRef.current&&(mobileRef.current||mutesRef.current.song)){
+      if(mutedPreviewClock(at).element===element){startMutedClock(at);return;}
+    }
     syncMedia(element,clip,at,playingRef.current&&songClockRunning(at));
   }
   function syncTrackAudio(element:HTMLAudioElement|null,clip:MusicClip|undefined,muted:boolean,at:number,run:boolean){
@@ -1047,6 +1056,9 @@ export function MusicVideoEditor({id}:{id:string}){
     syncTrackAudio(trackAudio1.current,activeAudio1,mutesRef.current[1],playheadRef.current,playingRef.current);
     syncTrackAudio(trackAudio2.current,activeAudio2,mutesRef.current[2],playheadRef.current,playingRef.current);
   }
+  // Run after React has attached the promoted decoder's ref, before painting.
+  // This also starts a preloaded clip which no longer emits a canplay event.
+  useLayoutEffect(()=>{syncFollowers();},[activeClip?.id,activeAudio1?.id,activeAudio2?.id,mobileReady,playing,trackMutes]);
   useEffect(()=>{syncFollowers();},[playhead,activeClip,activeAudio1,activeAudio2,trackMutes,playing]);
   const libraryFilters=["All","Lip Sync","B-Roll","AI Video","Uploads"] as const;
   const matchesLibraryFilter=(a:MusicAsset,filter:typeof libraryFilters[number])=>filter==="All"||filter==="Lip Sync"&&a.role==="lip-sync"||filter==="B-Roll"&&a.role==="b-roll"||filter==="AI Video"&&a.kind==="ai-video"||filter==="Uploads"&&a.kind==="imported";

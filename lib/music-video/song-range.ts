@@ -194,6 +194,15 @@ export function nativeClipClockStep(clip:{timelineStartMs:number;sourceInMs:numb
  if(!Number.isFinite(sourceSeconds))return at;
  return Math.min(boundary,Math.max(at,clip.timelineStartMs+sourceSeconds*1000-clip.sourceInMs));
 }
+/** The native decoder can report EOF before the exact timeline cut (proxy frame
+ * rounding). Never call play() on an ended element: browsers restart at zero.
+ * A fresh or seeking decoder must first finish alignment to its clip. */
+export function nativeClockAction(media:{ended:boolean;paused:boolean;seeking:boolean;readyState:number},aligned:boolean):"wait"|"ended"|"play"|"running"{
+ if(!aligned||media.seeking)return "wait";
+ if(media.ended)return "ended";
+ if(media.readyState<2)return "wait";
+ return media.paused?"play":"running";
+}
 /** Seek large errors; gently correct smaller drift without repeatedly seeking a playing decoder. */
 export function mediaSyncDecision(expectedSeconds:number,actualSeconds:number,playing:boolean,paused:boolean,seeking:boolean):{seek:boolean;rate:number}{
  const error=expectedSeconds-actualSeconds,drift=Math.abs(error);

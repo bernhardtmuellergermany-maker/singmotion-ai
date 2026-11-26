@@ -711,3 +711,24 @@ test("next preview decoder seeks to exact picture transition, including covered 
  assert.deepEqual(nextVisibleClipTransition(clips,9000,boundaries,mutes),{clip:next,atMs:12000});
  assert.equal(nextVisibleClipTransition(clips,13000,boundaries,mutes),undefined);
 });
+
+
+test("native Projects clock advances EOF instead of replaying the previous clip",async()=>{
+ const {nativeClockAction,nativeClipClockStep,previewMediaPlan}=await import("../lib/music-video/song-range.ts");
+ const first={id:"first",track:1 as const,timelineStartMs:0,sourceInMs:0,sourceOutMs:1000};
+ const second={id:"second",track:1 as const,timelineStartMs:1000,sourceInMs:200,sourceOutMs:1200};
+ const ended={ended:true,paused:true,seeking:false,readyState:2};
+ assert.equal(nativeClockAction(ended,true),"ended");
+ assert.equal(nativeClockAction({...ended,seeking:true},true),"wait");
+ assert.equal(nativeClockAction(ended,false),"wait");
+ const at=nativeClipClockStep(first,970,0.97,1000,true);
+ assert.equal(at,1000);assert.equal(previewMediaPlan([first,second],at,{1:true,2:true}).visible?.id,"second");
+ assert.equal(nativeClockAction({...ended,ended:false},true),"play");
+ assert.equal(nativeClockAction({...ended,ended:false,paused:false},true),"running");
+ assert.equal(nativeClockAction({...ended,ended:false,readyState:1},true),"wait");
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('if(action==="play"&&!state.pending'));
+ assert.ok(editor.includes('if(action==="ended")return nativeClipClockStep'));
+ assert.ok(!editor.includes('element.paused||element.ended'));
+ assert.ok(editor.includes('if(!element||element!==video.current)return'));
+});
