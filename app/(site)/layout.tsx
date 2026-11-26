@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import {connection} from "next/server";
+import {AnalyticsConsent} from "@/components/analytics-consent";
+import {analyticsConfig} from "@/lib/analytics/consent";
 import {CustomerIdleGuard} from "@/components/customer-idle-guard";
 import {seoPrelaunchMetadataRobots} from "@/lib/seo/search-pages";
 import "./globals.css";
@@ -31,11 +33,13 @@ export async function generateMetadata():Promise<Metadata>{
   icons: { icon: [{ url: "/api/brand-favicon?v=20261101", type: "image/png", sizes: "32x32" }], shortcut: "/api/brand-favicon?v=20261101", apple: "/api/brand-favicon?v=20261101" },
   };
 }
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  await connection();
+  const analytics = analyticsConfig(process.env);
   return (
     <html lang="en">
       <body>
@@ -44,6 +48,7 @@ export default function RootLayout({
           Skip to content
         </a>
         {children}
+        <AnalyticsConsent {...analytics}/>
       </body>
     </html>
   );
