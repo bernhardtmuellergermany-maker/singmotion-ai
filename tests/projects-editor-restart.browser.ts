@@ -9,7 +9,8 @@ import {tmpdir} from "node:os";
 import path from "node:path";
 import {chromium} from "@playwright/test";
 const require=createRequire(import.meta.url);
-const {build}=require("esbuild");
+// Use the existing tsx bundler dependency, including when npm nests it.
+const {build}=createRequire(require.resolve("tsx/package.json"))("esbuild");
 const root=mkdtempSync(path.join(tmpdir(),"projects-replay-"));
 const mp4=path.join(root,"clip.mp4");
 execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","testsrc2=size=320x180:rate=30","-t","4","-an","-c:v","libx264","-threads","1","-pix_fmt","yuv420p","-profile:v","baseline","-g","15","-movflags","+faststart",mp4]);
