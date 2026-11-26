@@ -526,6 +526,12 @@ export function MusicVideoEditor({id}:{id:string}){
     return playing?(sessionSources.current.get(assetId)??cached??networkSource(assetId)):(cached??networkSource(assetId));
   };
   const source=(a:MusicAsset)=>mediaSource(a.id);
+  useLayoutEffect(()=>{
+    if(!playing)return;
+    const attached=new Map<string,string>();
+    for(const element of [...Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>("video[data-asset-id]")??[]),trackAudio1.current,trackAudio2.current])if(element?.dataset.assetId)attached.set(element.dataset.assetId,element.getAttribute("src")||networkSource(element.dataset.assetId));
+    sessionSources.current=attached;
+  },[playing,playhead,mobileReady,cacheVersion]);
   const mediaBoundaries=useMemo(()=>[...new Set(clips.flatMap(c=>[c.timelineStartMs,clipEnd(c)]))].filter(t=>t<timelineEnd).sort((a,b)=>a-b),[clips,timelineEnd]);
   const nextTransition=useMemo(()=>nextVisibleClipTransition(clips,playhead,mediaBoundaries,trackMutes),[clips,playhead,mediaBoundaries,trackMutes]);
   const previousTransition=useMemo(()=>previousVisibleClipTransition(clips,playhead,mediaBoundaries,trackMutes),[clips,playhead,mediaBoundaries,trackMutes]);
@@ -540,7 +546,8 @@ export function MusicVideoEditor({id}:{id:string}){
     const ids=[activeAsset?.id,nextAsset?.id,previousAsset?.id,firstPreviewAsset,followingAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId].filter((v):v is string=>!!v);
     const candidates=ids.filter(a=>mobile?mobileReady.has(a)&&!mobileOriginalRef.current.has(a):previewReady.has(a)).map(a=>({key:cacheKey(a),url:endpoint+id+"/preview/"+a+(mobile?"?mobile=1":"")}));
     // Pin any attached blob URLs, even if a seek has changed the lookahead.
-    const pinned=[...new Set([...ids.slice(0,4),...Array.from(sessionSources.current).filter(([,url])=>url.startsWith("blob:")).map(([a])=>a)])].map(cacheKey);
+    const attached=[...Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>("video[data-asset-id]")??[]),trackAudio1.current,trackAudio2.current];
+    const pinned=[...new Set(attached.filter(v=>v?.getAttribute("src")?.startsWith("blob:")).map(v=>v?.dataset.assetId).filter((v):v is string=>!!v))].map(cacheKey);
     browserCache.current?.update(candidates,pinned);
   },[id,mobile,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,activeAudio1?.assetId,activeAudio2?.assetId,previewReady,mobileReady,playing,cacheVersion]);
   // Prepare a bounded queue while editing or playing. Never swap the source of a mounted decoder.
