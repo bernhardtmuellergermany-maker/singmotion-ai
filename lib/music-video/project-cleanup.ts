@@ -6,7 +6,7 @@ type Row={owner_id:string;project_id:string;asset_id:string;object_key:string;sh
 /** Only process explicit, durable user-authorized deletion manifests.
  * No bucket-wide deletion or filesystem traversal. An absent/inconsistent
  * ownership or reference state is retained for operator review. */
-export async function retryProjectDeletes(root:string,options:{remove?:typeof deleteProjectVideo;env?:Record<string,string|undefined>;now?:number}={}){
+export async function retryProjectDeletes(root:string,options:{remove?:typeof deleteProjectVideo;env?:Record<string,string|undefined>;now?:number;owner?:string}={}){
  const env=options.env??process.env,summary={checked:0,deleted:0,deferred:0};
  if(!projectR2Enabled(env))return summary;
  const file=path.join(realpathSync(root),"music-video.sqlite");
@@ -19,9 +19,10 @@ export async function retryProjectDeletes(root:string,options:{remove?:typeof de
   const has=(name:string)=>!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
   if(!has("music_asset_cloud")||!has("music_projects")||!has("music_assets")||!has("music_clips"))return summary;
   const leases=has("music_operation_leases")?" AND NOT EXISTS(SELECT 1 FROM music_operation_leases l WHERE l.owner_id=c.owner_id AND l.expires_at>?)":"";
-  const sql="SELECT c.* FROM music_asset_cloud c WHERE c.pending_delete=1 AND NOT EXISTS(SELECT 1 FROM music_asset_cloud live WHERE live.object_key=c.object_key AND live.pending_delete=0) AND NOT EXISTS(SELECT 1 FROM music_assets a WHERE a.id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_clips t WHERE t.asset_id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_projects p WHERE p.id=c.project_id AND (p.owner_id!=c.owner_id OR c.asset_id LIKE '%:song%'))"+leases+" ORDER BY c.asset_id LIMIT 2";
+  const sql="SELECT c.* FROM music_asset_cloud c WHERE c.pending_delete=1 AND NOT EXISTS(SELECT 1 FROM music_asset_cloud live WHERE live.object_key=c.object_key AND live.pending_delete=0) AND NOT EXISTS(SELECT 1 FROM music_assets a WHERE a.id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_clips t WHERE t.asset_id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_projects p WHERE p.id=c.project_id AND (p.owner_id!=c.owner_id OR c.asset_id LIKE '%:song%'))"+(options.owner===undefined?"":" AND c.owner_id=?")+leases+" ORDER BY c.asset_id LIMIT 2";
   const statement=db.prepare(sql);
-  const rows=(leases?statement.all(options.now??Date.now()):statement.all()) as Row[];
+  const params:(string|number)[]=[];if(options.owner!==undefined)params.push(options.owner);if(leases)params.push(options.now??Date.now());
+  const rows=statement.all(...params) as Row[];
   for(const row of rows){
    summary.checked++;
    const record:ProjectCloudRecord={key:row.object_key,sha256:row.sha256,bytes:row.bytes};
