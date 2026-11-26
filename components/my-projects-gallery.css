@@ -69,7 +69,7 @@
   box-sizing:border-box!important;display:flex!important;
   flex:none!important;min-width:0!important;width:100%!important;
   align-items:center;gap:9px;height:39px!important;margin:0!important;
-  padding:0 12px!important;background:#1b1629!important;
+  padding:0 12px!important;background:#131d2b!important;overflow:hidden;
   border:1px solid #665079!important;border-radius:12px!important;
   box-shadow:none!important;
 }
@@ -259,3 +259,8 @@
 .sm-projects-trash li button:disabled{opacity:.5;cursor:wait}
 .sm-projects-trash li button:focus-visible{outline:2px solid #e6b9ff;outline-offset:3px}
 @media(max-width:500px){.sm-projects-trash>details>summary{flex-wrap:wrap}.sm-projects-trash>details>summary>span{margin-left:0;flex-basis:100%}.sm-projects-trash li button{width:100%}}
+
+/* Fill the entire rounded search control, not just the native input. */
+.sm-projects-page .sm-projects-toolbar .sm-projects-search input[type=search]{appearance:none!important;-webkit-appearance:none!important;color-scheme:dark;min-height:0!important;background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;-webkit-box-shadow:none!important}
+.sm-projects-page .sm-projects-toolbar .sm-projects-search input[type=search]:focus{background:transparent!important;border:0!important;box-shadow:none!important;-webkit-box-shadow:none!important;outline:none!important}
+.sm-projects-page .sm-projects-toolbar .sm-projects-search input[type=search]:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #131d2b inset!important}
