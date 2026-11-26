@@ -65,6 +65,11 @@ try{
   const firstShape=await page.locator(".mv-clip .mv-wave-shape").first().getAttribute("d");
   assert.ok(firstShape&&firstShape.length>20);
   assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
+  const library=page.locator(".mv-library-heading");await library.click();
+  const search=page.getByRole("searchbox",{name:"Search media"});
+  await search.waitFor();
+  const checkSearch=async()=>{const style=await search.evaluate(el=>({input:getComputedStyle(el).backgroundColor,wrapper:getComputedStyle(el.parentElement!).backgroundColor,shadow:getComputedStyle(el).boxShadow}));assert.deepEqual(style,{input:"rgba(0, 0, 0, 0)",wrapper:"rgb(19, 29, 43)",shadow:"none"});};
+  await checkSearch();await search.focus();await checkSearch();await search.fill("first");assert.equal(await page.locator(".mv-media-card").count(),1);await search.fill("");await library.click();
   await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]'),a=document.querySelector<HTMLAudioElement>("audio");return v?.currentSrc.startsWith("blob:")&&v.readyState>=2&&!v.seeking&&Math.abs(v.currentTime-.25)<.05&&a&&a.readyState>=2;},{},{timeout:15000});
   const seek=page.getByRole("slider",{name:"Seek timeline"});
   for(let i=0;i<3;i++){
