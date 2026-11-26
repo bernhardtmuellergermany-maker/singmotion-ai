@@ -88,7 +88,7 @@ export async function POST(req:NextRequest){
    // Preserve customer-first identity, but recognize the already configured
    // CMS Super Admin using the SAME login form. No new public login route.
    if(input.action==="login"){
-    const staff=await tryExistingSuperAdminLogin(req,input.email,input.password);
+    const staff=await tryExistingSuperAdminLogin(req,input.email,input.password,store);
     if(staff)return staff;
    }
    throw error;
