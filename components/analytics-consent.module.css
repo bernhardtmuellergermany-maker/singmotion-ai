@@ -1,0 +1,22 @@
+.panel {
+  position: fixed; z-index: 90; inset-inline-end: 16px; bottom: 16px;
+  width: min(390px, calc(100% - 32px)); max-height: calc(100dvh - 32px); overflow: auto;
+  padding: 20px; border: 1px solid #c9c6dc; border-radius: 16px;
+  background: #fff; color: #211e36; box-shadow: 0 10px 44px #211e3630;
+  font: 14px/1.5 system-ui, sans-serif;
+}
+.panel h2 { margin: 0 0 8px; font-size: 18px; font-weight: 650; }
+.panel p { margin: 0 0 10px; }
+.panel a { color: #403595; text-decoration: underline; }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.actions button, .close, .settings {
+  background: #fff; color: #312768; border: 1px solid #7466a9; border-radius: 8px;
+  padding: 10px; cursor: pointer; font: 600 13px/1.4 system-ui, sans-serif;
+}
+.actions button:hover, .close:hover, .settings:hover { background: #f0edff; }
+.actions button:focus-visible, .close:focus-visible, .settings:focus-visible {
+  outline: 3px solid #6950c6; outline-offset: 2px;
+}
+.close { margin-top: 8px; width: 100%; }
+.settings { position: fixed; z-index: 85; inset-inline-start: 12px; bottom: 12px; padding: 6px 10px; }
+@media (max-width: 480px) { .panel { bottom: max(12px, env(safe-area-inset-bottom)); } }
