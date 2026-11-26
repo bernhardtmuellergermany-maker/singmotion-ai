@@ -654,7 +654,7 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('activeClip&&(!mobile||mobileReady.has(activeClip.assetId))'));
  assert.ok(editor.includes('nextTransition.atMs-playhead<=PREVIEW_LOOKAHEAD_MS&&(!mobile||mobileReady.has(nextAsset.id))'));
  assert.ok(editor.includes('key={c.id}'));
- assert.ok(editor.includes('warmNextVideo(element,c,nextTransition.atMs)'));
+ assert.ok(editor.includes('warmNextVideo(element,c,transition.atMs)'));
  assert.ok(editor.includes('element===video.current||element.readyState<1||element.seeking'));
  assert.ok(editor.includes('if(mobile!==false||importing)return'));
  assert.ok(editor.includes('if(mobile!==true)return'));
