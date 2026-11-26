@@ -1063,8 +1063,8 @@ export function MusicVideoEditor({id}:{id:string}){
         mutedClockRef.current=null;
         if(current.playbackRate!==1)current.playbackRate=1;
         const end=songTimelineEnd(part);
-        const running=jointStarted.current&&syncHold.current===null&&!current.paused&&!current.seeking;
-        if(running)at=Math.min(end,Math.max(at,part.positionMs,Math.round(current.currentTime*1000)+songOffset(range)));
+        const running=jointStarted.current&&syncHold.current===null;
+        if(running&&!current.paused&&!current.seeking)at=Math.min(end,Math.max(at,part.positionMs,Math.round(current.currentTime*1000)+songOffset(range)));
         if((jointStarted.current&&current.ended)||at>=end){clearSyncHold();jointStarted.current=false;current.pause();at=end;}
         else{
           // At a cut, the next pre-seeked decoder can already be ready. If not,
@@ -1159,7 +1159,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(element.readyState<1)return;
     // An in-flight seek finishes once; its callback aligns to the latest playhead.
     // While the master buffers, pause followers rather than repeatedly seeking them.
-    if(!run&&playingRef.current){element.pause();return;}
+    if(!run&&playingRef.current){if(!(jointStarted.current&&syncHold.current===null&&performance.now()-jointStartTime.current<180))element.pause();return;}
     if(run&&audibleSongAt(at)&&performance.now()-jointStartTime.current<180){if(element.paused)playFollower(element);return;}
     const decision=mobileRef.current&&audibleSongAt(at)&&element instanceof HTMLVideoElement
       ?mobileVideoSyncDecision(expected,element.currentTime,run,element.paused,element.seeking)
