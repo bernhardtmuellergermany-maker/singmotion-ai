@@ -68,6 +68,30 @@ function Detail({data,onClose,onBooked}:{data:CustomerInsightsProfile;onClose:()
 const storageSize=(bytes:number)=>(bytes/1e9).toLocaleString("de-DE",{maximumFractionDigits:3})+" GB";
 function StoragePanel(){
  const [data,setData]=useState<StorageOverview|null>(null),[error,setError]=useState(false),[revision,setRevision]=useState(0);
+ const [cloudStatus,setCloudStatus]=useState<{enabled:boolean;remaining:boolean}|null>(null);
+ const [migrating,setMigrating]=useState(false),[migrationNote,setMigrationNote]=useState(""),[migrationError,setMigrationError]=useState("");
+ useEffect(()=>{
+  const c=new AbortController();setCloudStatus(null);
+  void fetch("/api/music-video/storage-migrate",{credentials:"same-origin",cache:"no-store",signal:c.signal})
+   .then(async r=>{if(!r.ok)throw Error("Unavailable");return await r.json() as {enabled:boolean;remaining:boolean};})
+   .then(status=>{if(!c.signal.aborted)setCloudStatus(status);}).catch(()=>{if(!c.signal.aborted)setCloudStatus(null);});
+  return()=>c.abort();
+ },[revision]);
+ async function migrate(){
+  if(migrating||!cloudStatus?.enabled)return;
+  setMigrating(true);setMigrationNote("");setMigrationError("");
+  let count=0,done=false;
+  try{
+   for(let i=0;i<20&&!done;i++){
+    const res=await fetch("/api/music-video/storage-migrate",{method:"POST",credentials:"same-origin",cache:"no-store"});
+    const result=await res.json() as {migrated:number;done:boolean;error?:string};
+    if(!res.ok)throw Error("Cloud-Migration konnte nicht verifiziert werden. Ungeprüfte Originale bleiben lokal.");
+    count+=result.migrated;done=result.done;setMigrationNote(count+" Videos geprüft und verschoben.");
+   }
+   setMigrationNote(done?count+" Videos migriert. Keine unregistrierten Uploads in deinem Projects-Konto verbleiben.":count+" Videos migriert. Erneut starten, um fortzufahren.");
+  }catch(e){setMigrationError(e instanceof Error?e.message:"Cloud-Migration nicht verfügbar.");}
+  finally{setMigrating(false);setRevision(v=>v+1);}
+ }
  useEffect(()=>{const c=new AbortController();setError(false);
   void fetch("/api/customer-insights?storage=1",{credentials:"same-origin",cache:"no-store",signal:c.signal}).then(async r=>{if(!r.ok)throw Error("Storage unavailable");return await r.json() as {storage:StorageOverview};}).then(r=>{if(!c.signal.aborted)setData(r.storage)}).catch(()=>{if(!c.signal.aborted){setData(null);setError(true)}});return()=>c.abort();
  },[revision]);
@@ -75,10 +99,15 @@ function StoragePanel(){
  {error?<p role="alert">Speicherübersicht derzeit nicht verfügbar.</p>:!data?<p role="status">Speicher wird geprüft…</p>:<><div className="sm-insights-stats">
  <Stat label="Railway verfügbar" value={storageSize(data.disk.availableBytes)} detail={"Von "+storageSize(data.disk.totalBytes)+" Dateisystemkapazität"}/>
  <Stat label="Lokale Projects-Dateien" value={storageSize(data.projects.totalBytes)} detail={number(data.projects.projects)+" Projekte"+(data.projects.partial?" · Teilmessung":"")}/>
+ <Stat label="Lokale Bibliotheksvideos" value={storageSize(data.projects.videoBytes)} detail="Physische Videodateien auf Railway"/>
  <Stat label="R2 Projects-Videos" value={storageSize(data.projects.cloudVideoBytes)} detail={number(data.projects.cloudVideoObjects)+" registrierte Objekte"}/>
  <Stat label="R2-Quellen (Manifeste)" value={storageSize(data.cloud.sourceBytes)} detail={number(data.cloud.sourceObjects)+" registrierte Objekte"}/>
  <Stat label="R2-Videos (Manifeste)" value={storageSize(data.cloud.videoBytes)} detail={number(data.cloud.videoObjects)+" registrierte Objekte"}/>
  </div><p>Cloud-Werte sind Manifest-Summen, keine unabhängige Bucket-Belegung. Temporäre Provider-Dateien, Backups und nicht registrierte Objekte sind nicht enthalten.</p><p>Automatische Papierkorb-Bereinigung: {data.trashPurgeEnabled?"konfiguriert":"nicht aktiviert"}.</p></>}
+ <div className="sm-insights-area-head"><div><h3>Projects-Cloud-Migration</h3><p>Nur Uploads deines angemeldeten Super-Admin-Kontos. Lokale Originale werden erst nach verifizierter Cloud-Kopie entfernt.</p>
+ <p>{cloudStatus===null?"Projects-Cloud-Status nicht verfügbar.":cloudStatus.enabled?"R2-Verbindung verifiziert.":"R2-Speicherung nicht freigegeben."}</p></div>
+ <button type="button" disabled={!cloudStatus?.enabled||migrating} onClick={()=>void migrate()}>{migrating?"Videos werden geprüft…":"Bestehende Uploads nach R2 verschieben"}</button></div>
+ {migrationNote&&<p role="status">{migrationNote}</p>}{migrationError&&<p role="alert">{migrationError}</p>}
  </section>;
 }
 export function CustomerInsightsClient(){

@@ -18,7 +18,7 @@ import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
 import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch} from "@/lib/music-video/project-r2";
-import {projectStorage,reserveProjectUpload} from "@/lib/music-video/storage";
+import {reserveProjectUpload} from "@/lib/music-video/storage";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
@@ -269,6 +269,9 @@ async function handler(req:NextRequest,context:Context){
     if(!owner)throw new MusicError("Music Video Builder access denied.",403);
     if(req.method!=="GET")checkOrigin(req);
     const [id,section,assetId]=(await context.params).parts||[];
+    if(id==="storage-migrate"&&!section&&req.method==="GET"){
+      return json({enabled:projectR2Enabled(),remaining:projectMigrationCandidates(owner).length>0});
+    }
     if(id==="storage-migrate"&&!section&&req.method==="POST"){
       if(!projectR2Enabled())throw new MusicError("Projects cloud storage is not enabled.",409);
       if(migrating)throw new MusicError("A migration is already running.",409);
@@ -284,9 +287,7 @@ async function handler(req:NextRequest,context:Context){
     }
     if(!id){
       if(req.method==="GET"){
-        const projects=listMusicProjects(owner);
-        let storage=null;try{storage=projectStorage(dataDir,owner);}catch{/* Existing projects remain available. */}
-        return json({projects,storage,cloudEnabled:projectR2Enabled()});
+        return json({projects:listMusicProjects(owner)});
       }
       if(req.method!=="POST")throw new MusicError("Unsupported method.",405);
       const {form,file}=await fileForm(req,AUDIO_LIMIT,"song");

@@ -1,13 +1,11 @@
 "use client";
 import Link from "next/link";
 import {useCallback,useEffect,useState} from "react";
-import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2,ChevronDown,RefreshCw,ArrowUpDown,HardDrive} from "lucide-react";
-import type {ProjectStorage} from "@/lib/music-video/storage";
+import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2,ChevronDown,RefreshCw,ArrowUpDown} from "lucide-react";
 import type {MusicProject,MusicProjectSummary,ProjectAspectRatio} from "@/lib/music-video/core";
 import "./music-video.css";
 
-type Payload={projects:MusicProjectSummary[];storage?:ProjectStorage|null;cloudEnabled?:boolean;error?:string};
-const size=(bytes:number)=>bytes>=1e9?(bytes/1e9).toFixed(2)+" GB":(bytes/1e6).toFixed(1)+" MB";
+type Payload={projects:MusicProjectSummary[];error?:string};
 async function api<T>(url:string,init?:RequestInit):Promise<T>{
   const response=await fetch(url,{credentials:"same-origin",cache:"no-store",...init});
   const data=await response.json() as T & {error?:string};
@@ -17,8 +15,6 @@ async function api<T>(url:string,init?:RequestInit):Promise<T>{
 const duration=(ms:number)=>String(Math.floor(ms/60000))+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0");
 export function MusicProjectsClient(){
   const [projects,setProjects]=useState<MusicProjectSummary[]>([]);
-  const [storage,setStorage]=useState<ProjectStorage|null>(null);
-  const [cloudEnabled,setCloudEnabled]=useState(false),[migrating,setMigrating]=useState(false),[migrationNote,setMigrationNote]=useState("");
   const [search,setSearch]=useState("");
   const [projectFilter,setProjectFilter]=useState<"all"|"auto"|"9:16"|"16:9">("all");
   const [newest,setNewest]=useState(true),[refreshing,setRefreshing]=useState(false);
@@ -31,8 +27,8 @@ export function MusicProjectsClient(){
   const [song,setSong]=useState<File|null>(null);
   const refresh=useCallback(async()=>{
     setRefreshing(true);
-    try{const data=await api<Payload>("/api/music-video");setProjects(data.projects||[]);setStorage(data.storage??null);setCloudEnabled(data.cloudEnabled===true);setError("");}
-    catch(e){setStorage(null);setError(e instanceof Error?e.message:"Projects unavailable.");}
+    try{const data=await api<Payload>("/api/music-video");setProjects(data.projects||[]);setError("");}
+    catch(e){setError(e instanceof Error?e.message:"Projects unavailable.");}
     finally{setLoading(false);setRefreshing(false);}
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
@@ -53,18 +49,6 @@ export function MusicProjectsClient(){
     return()=>{document.removeEventListener("pointerdown",outside,true);document.removeEventListener("click",outside,true);document.removeEventListener("keydown",escape);};
   },[]);
 
-  async function migrate(){
-    if(migrating)return;setMigrating(true);setMigrationNote("");setError("");
-    try{
-     let count=0,done=false;
-     for(let i=0;i<20&&!done;i++){
-      const result=await api<{migrated:number;done:boolean}>("/api/music-video/storage-migrate",{method:"POST"});
-      count+=result.migrated;done=result.done;setMigrationNote(count+" videos verified in cloud.");
-     }
-     await refresh();setMigrationNote(done?count+" videos migrated. No unregistered local uploads remain.":count+" videos migrated. Run again to continue.");
-    }catch(e){await refresh();setError(e instanceof Error?e.message:"Cloud migration unavailable.");}
-    finally{setMigrating(false);}
-  }
   async function create(e:React.FormEvent){
     e.preventDefault();
     if(!song||!name.trim()||busy)return;
@@ -92,15 +76,6 @@ export function MusicProjectsClient(){
       <p>Your music video projects, all in one place.</p></div>
       <button className="mv-primary" type="button" onClick={()=>setCreating(true)}><Plus size={17}/> New Project</button>
     </div>
-    <section className="mv-storage" aria-label="Project storage">
-      <div className="mv-storage-title"><HardDrive size={20} aria-hidden="true"/><div><h2>Project storage</h2><p>Local project files · linked original videos are not duplicated here.</p></div><strong>{storage?size(storage.totalBytes):"—"}</strong></div>
-      {storage&&<><div className="mv-storage-track" aria-hidden="true">{([["audio",storage.audioBytes],["video",storage.videoBytes],["other",storage.otherBytes]] as const).map(([key,value])=><span key={key} className={"mv-storage-"+key} style={{flexGrow:value}}/>)}</div>
-      <div className="mv-storage-breakdown"><span>Audio <b>{size(storage.audioBytes)}</b></span><span>Local uploaded clips <b>{size(storage.videoBytes)}</b></span><span>Cloud videos <b>{size(storage.cloudVideoBytes)} · {storage.cloudVideoObjects} files</b></span><span>Other / previews <b>{size(storage.otherBytes)}</b></span></div>
-      {storage.partial&&<p role="status">Partial estimate; some files could not be counted.</p>}</>}
-      {!storage&&!loading&&<p>Storage figures are currently unavailable.</p>}
-      {cloudEnabled&&<><button type="button" className="mv-primary" disabled={migrating||refreshing} onClick={()=>void migrate()}>{migrating?"Verifying and moving videos…":"Move existing uploads to cloud"}</button>{migrationNote&&<p role="status">{migrationNote}</p>}</>}
-      <p>Delete unneeded project uploads using the existing project controls. Original videos in Videos are not deleted by removing a project.</p>
-    </section>
     <div className="mv-browse-toolbar">
       <label className="mv-browse-search"><Search size={16}/><input type="search" aria-label="Search projects" placeholder="Search projects…" value={search} onChange={e=>setSearch(e.target.value)}/></label>
       <label className="mv-browse-filter"><select aria-label="Filter projects by format" value={projectFilter} onChange={e=>setProjectFilter(e.target.value as typeof projectFilter)}>

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync,symlinkSync} from "node:fs";
+import {mkdtempSync,mkdirSync,writeFileSync,rmSync,symlinkSync,readFileSync} from "node:fs";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {DatabaseSync} from "node:sqlite";
@@ -23,4 +23,18 @@ test("project storage is owner scoped, counts physical copies only, and rejects 
   const disk=storageCapacity(root);assert.ok(disk.totalBytes>=disk.availableBytes);
   assert.throws(()=>reserveProjectUpload(root,disk.availableBytes,"video"));
  }finally{rmSync(root,{recursive:true,force:true});}
+});
+
+test("Projects workspace has no storage panel; authenticated admin retains owner-scoped cloud migration",()=>{
+ const projects=readFileSync("components/music-projects-client.tsx","utf8");
+ const admin=readFileSync("components/cms/customer-insights-client.tsx","utf8");
+ const route=readFileSync("app/(site)/api/music-video/[[...parts]]/route.ts","utf8");
+ assert.ok(!projects.includes('aria-label="Project storage"'));
+ assert.ok(!projects.includes("/storage-migrate"));
+ assert.ok(admin.includes("Bestehende Uploads nach R2 verschieben"));
+ assert.ok(admin.includes('fetch("/api/music-video/storage-migrate"'));
+ assert.ok(route.includes("const owner=await musicPrincipal"));
+ assert.ok(route.includes('if(req.method!=="GET")checkOrigin(req)'));
+ assert.ok(route.includes("projectMigrationCandidates(owner)"));
+ assert.ok(route.includes("reserveProjectUpload"));
 });
