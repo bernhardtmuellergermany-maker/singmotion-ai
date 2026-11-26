@@ -35,7 +35,7 @@ try {
  }
  assert.ok(ready,"Isolated Next did not boot: "+logs.slice(-1000));
  browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH}:{})});
- for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+ for(const viewport of [{width:1440,height:900},{width:390,height:844},{width:320,height:640}]){
   const context=await browser.newContext({viewport,serviceWorkers:"block"});
   const requests:string[]=[];
   try{
@@ -60,6 +60,28 @@ try {
    const bounds=await panel.boundingBox();
    assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=viewport.width+1&&bounds.y+bounds.height<=viewport.height+1,"banner fits the viewport");
    assert.ok(bounds.width<=354.5&&bounds.height<=viewport.height*0.42,"compact non-modal banner");
+   const details=panel.getByRole("button",{name:"Details",exact:true});
+   const extra=panel.locator("#sm-analytics-details");
+   if(viewport.width<=600){
+    assert.ok(Math.abs(bounds.x+(bounds.width/2)-(viewport.width/2))<=1,"mobile banner is horizontally centered");
+    assert.ok(bounds.height<=205,"compact collapsed mobile banner");
+    await expect(details).toBeVisible();
+    await expect(details).toHaveAttribute("aria-expanded","false");
+    await expect(extra).toBeHidden();
+    await expect(panel.getByText("Optional Google Analytics measures visits, approximate location and traffic sources. Withdraw consent anytime in Privacy settings.",{exact:true})).toBeVisible();
+    await details.click();
+    await expect(details).toHaveAttribute("aria-expanded","true");
+    await expect(extra).toBeVisible();
+    await expect(reject).toBeVisible();
+    await expect(accept).toBeVisible();
+    assert.equal(requests.length,0,"expanding information never loads Google");
+    await details.click();
+    await expect(extra).toBeHidden();
+    await expect(details).toHaveAttribute("aria-expanded","false");
+   }else{
+    await expect(details).toBeHidden();
+    await expect(panel.getByText("Essential technologies keep SingMotion working. With your permission",{exact:false})).toBeVisible();
+   }
    const appearance=(el:Element)=>{const s=getComputedStyle(el);return [s.backgroundColor,s.color,s.borderColor,s.fontSize,s.fontWeight,s.minHeight];};
    assert.deepEqual(await reject.evaluate(appearance),await accept.evaluate(appearance),"accept and reject have identical visual prominence");
    const rejectBounds=await reject.boundingBox(),acceptBounds=await accept.boundingBox();

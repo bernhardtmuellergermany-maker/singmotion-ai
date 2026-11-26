@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import { ShieldCheck } from "lucide-react";
+import { ChevronDown, ShieldCheck } from "lucide-react";
 import { CONSENT_KEY, readConsent, serializeConsent, publicAnalyticsLocation, sanitizedReferrer, type Choice } from "@/lib/analytics/consent";
 import styles from "./analytics-consent.module.css";
 
@@ -33,6 +33,7 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   const [choice, setChoice] = useState<Choice | null>(null);
   const [ready, setReady] = useState(false);
   const [open, setOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState(false);
   const lastPage = useRef<string | null>(null);
   const initialized = useRef(false);
@@ -167,6 +168,7 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       setChoice(next);
       setError(false);
       setOpen(false);
+      setDetailsOpen(false);
       // Unload an already loaded third-party tag after withdrawal.
       if (next === "denied" && initialized.current) {
         scriptRef.current?.remove();
@@ -186,8 +188,15 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   const show = open || (!choice && Boolean(title));
   return <>
     {show ? <aside className={styles.panel} aria-label="Privacy preferences">
-      <h2><ShieldCheck size={17} aria-hidden="true"/>Privacy preferences</h2>
-      <p>Essential technologies keep SingMotion working. With your permission, Google Analytics 4 measures visits, approximate country and traffic sources. Google may process browser data and identifiers outside the EEA. No advertising tracking.</p>
+      <div className={styles.heading}>
+        <h2><ShieldCheck size={17} aria-hidden="true"/>Privacy preferences</h2>
+        <button type="button" className={styles.detailsToggle} aria-expanded={detailsOpen} aria-controls="sm-analytics-details" onClick={() => setDetailsOpen(value => !value)}>Details <ChevronDown size={14} aria-hidden="true" style={{transform: detailsOpen ? "rotate(180deg)" : undefined}}/></button>
+      </div>
+      <p className={styles.desktopCopy}>Essential technologies keep SingMotion working. With your permission, Google Analytics 4 measures visits, approximate country and traffic sources. Google may process browser data and identifiers outside the EEA. No advertising tracking.</p>
+      <p className={styles.mobileSummary}>Optional Google Analytics measures visits, approximate location and traffic sources. Withdraw consent anytime in Privacy settings.</p>
+      <div className={styles.mobileDetails} id="sm-analytics-details" hidden={!detailsOpen}>
+        <p>Essential technologies keep SingMotion working. Google may process browser data and identifiers outside the EEA. Analytics cookies are configured for up to 180 days. No advertising tracking. Rejecting optional analytics does not restrict the service.</p>
+      </div>
       {preview && !id && <p className={styles.preview}>Preview only: analytics is off. Nothing is sent to Google. We will ask again before activation.</p>}
       <div className={styles.actions}>
         <button type="button" onClick={() => choose("denied")}>Reject optional</button>
