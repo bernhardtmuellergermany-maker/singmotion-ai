@@ -36,3 +36,32 @@ test("migration demands full byte-for-byte readback, not just metadata",async()=
  assert.deepEqual(await verifiedCloudBytes(client,"test",record),bytes);
  stored=Buffer.alloc(bytes.length);await assert.rejects(verifiedCloudBytes(client,"test",record),/checksum/);
 });
+
+import {DatabaseSync} from "node:sqlite";
+import {mkdtempSync,rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import path from "node:path";
+import {retryProjectDeletes} from "../lib/music-video/project-cleanup.ts";
+test("deletion retries preserve live references, owner isolation and failed manifests",async()=>{
+ const root=mkdtempSync(path.join(tmpdir(),"sm-delete-"));
+ const db=new DatabaseSync(path.join(root,"music-video.sqlite"));
+ const owner="customer:33333333-3333-4333-8333-333333333333",key=projectCloudKey(owner,project,asset,sha256,env);
+ try{
+  db.exec("CREATE TABLE music_asset_cloud(owner_id TEXT,project_id TEXT,asset_id TEXT,object_key TEXT,sha256 TEXT,bytes INTEGER,pending_delete INTEGER); CREATE TABLE music_projects(id TEXT,owner_id TEXT); CREATE TABLE music_assets(id TEXT); CREATE TABLE music_clips(asset_id TEXT); CREATE TABLE music_operation_leases(owner_id TEXT,expires_at INTEGER)");
+  db.prepare("INSERT INTO music_asset_cloud VALUES(?,?,?,?,?,?,1)").run(owner,project,asset,key,sha256,bytes.length);
+  let removed=0;
+  const remove=async()=>{removed++;};
+  db.prepare("INSERT INTO music_clips VALUES(?)").run(asset);
+  assert.equal((await retryProjectDeletes(root,{env,remove})).checked,0);
+  db.exec("DELETE FROM music_clips");
+  db.prepare("INSERT INTO music_operation_leases VALUES(?,?)").run(owner,Date.now()+60000);
+  assert.equal((await retryProjectDeletes(root,{env,remove})).checked,0);
+  db.exec("DELETE FROM music_operation_leases");
+  assert.equal((await retryProjectDeletes(root,{env,remove,owner:"staff:a"})).checked,0);
+  assert.equal((await retryProjectDeletes(root,{env,remove:async()=>{throw Error("R2 unavailable")}})).deferred,1);
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM music_asset_cloud").get() as {n:number}).n,1);
+  assert.equal((await retryProjectDeletes(root,{env,remove})).deleted,1);
+  assert.equal(removed,1);
+  assert.equal((db.prepare("SELECT COUNT(*) AS n FROM music_asset_cloud").get() as {n:number}).n,0);
+ }finally{db.close();rmSync(root,{recursive:true,force:true});}
+});
