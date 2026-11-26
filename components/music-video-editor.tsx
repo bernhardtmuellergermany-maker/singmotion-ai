@@ -1286,7 +1286,7 @@ export function MusicVideoEditor({id}:{id:string}){
               <button type="button" className={a.role==="lip-sync"?"active":""} aria-pressed={a.role==="lip-sync"} disabled={importing} onClick={()=>void changeAssetRole(a,"lip-sync")}><Music2 size={13}/> Lip Sync</button>
               <button type="button" className={a.role==="b-roll"?"active":""} aria-pressed={a.role==="b-roll"} disabled={importing} onClick={()=>void changeAssetRole(a,"b-roll")}><Film size={13}/> B-Roll</button>
             </div>
-            {roleChanging===a.id?<small role="status">Saving role…</small>:a.sourceStartMs!==null&&a.sourceEndMs!==null?<small className="mv-source-time">Source: {time(a.sourceStartMs,true)} – {time(a.sourceEndMs,true)}</small>:a.role==="lip-sync"?<small>Set song time manually on the timeline.</small>:null}
+            {roleChanging===a.id?<small role="status">Saving role…</small>:a.sourceStartMs!==null&&a.sourceEndMs!==null?<small className="mv-source-time">Source: {time(a.sourceStartMs,true)} – {time(a.sourceEndMs,true)}</small>:null}
             <div className="mv-media-actions"><button disabled={importing} onClick={()=>addClip(a,a.role==="lip-sync"?1:2,playhead)}><Plus size={14}/> Add to timeline</button>
               <details onToggle={e=>{
                 const menu=e.currentTarget;if(!menu.open)return;
