@@ -81,7 +81,12 @@ try {
    await expect(privatePage.getByRole("button",{name:"Privacy settings"})).toBeVisible();
    assert.equal(requests.length,1);
    // Revocation in another tab disables and unloads the existing tag.
-   await privatePage.evaluate(({key,value})=>localStorage.setItem(key,value),{key,value:serializeConsent("denied")});
+   // Cross-tab revocation intentionally reloads the tracked document. Register before changing storage.
+   await Promise.all([
+    page.waitForNavigation({waitUntil:"domcontentloaded"}),
+    privatePage.evaluate(({key,value})=>localStorage.setItem(key,value),{key,value:serializeConsent("denied")}),
+   ]);
+   await expect(page.getByRole("button",{name:"Privacy settings"})).toBeVisible();
    await expect.poll(()=>page.evaluate(id=>Boolean((window as unknown as Record<string,unknown>)["ga-disable-"+id]),id)).toBe(true);
    await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as Record<string,unknown>).__smMockGoogleTagLoaded))).toBe(false);
    assert.equal(requests.length,1,"revocation must not load another tag");
