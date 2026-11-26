@@ -747,8 +747,15 @@ test("audible song stays master across cuts and gaps and mobile picture tolerate
  assert.equal(mobileVideoSyncDecision(1,0.98,true,false,false).rate,1);
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes('if(current.playbackRate!==1)current.playbackRate=1'));
- assert.ok(editor.includes('data-volume-anchor={anchor}'));
+ assert.ok(editor.includes('data-volume-anchor="player"'));
  assert.ok(editor.includes('aria-label="Preview volume percent"'));
  assert.ok(editor.includes('element.volume=gain'));
- assert.ok(editor.includes('Preview only'));
+ assert.ok(editor.includes('aria-orientation="vertical"'));
+ assert.ok(editor.includes('onClick={()=>toggleTrackMute(track)}'));
+ assert.ok(editor.includes('{playerVolumeButton()}'));
+ assert.ok(!editor.includes('mv-volume-heading'));
+ assert.ok(!editor.includes('mv-volume-footer'));
+ const css=read("components/music-video.css");
+ assert.ok(css.includes('writing-mode:vertical-lr;direction:rtl'));
+ assert.ok(css.includes('touch-action:none;cursor:pointer'));
 });
