@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {createHash} from "node:crypto";
 import {PutObjectCommand,GetObjectCommand} from "@aws-sdk/client-s3";
-import {projectCloudKey,projectR2Enabled,validProjectCloudRecord,mirrorProjectBytes,verifiedCloudBytes} from "../lib/music-video/project-r2.ts";
+import {projectCloudKey,projectR2Enabled,validProjectCloudRecord,mirrorProjectBytes,verifiedCloudBytes,mirrorProjectFile,verifyCloudStream} from "../lib/music-video/project-r2.ts";
 const env={RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",PROJECT_VIDEO_R2_ENABLED:"true",PROJECT_VIDEO_R2_VERIFIED:"true"};
 const prod={...env,RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d"};
 const project="11111111-1111-4111-8111-111111111111",asset="22222222-2222-4222-8222-222222222222";
@@ -21,7 +21,9 @@ test("Projects cloud keys isolate owner and environment, writes are gated",()=>{
  assert.ok(!validProjectCloudRecord("staff:a",project,asset,{...record,key:customerKey},env));
  const slot=project+":song.mp3",songKey=projectCloudKey(customer,project,slot,sha256,env);
  assert.ok(validProjectCloudRecord(customer,project,slot,{key:songKey,sha256,bytes:70*1024*1024},env));
- assert.ok(!validProjectCloudRecord(customer,project,asset,{key:customerKey,sha256,bytes:70*1024*1024},env));
+ assert.ok(validProjectCloudRecord(customer,project,asset,{key:customerKey,sha256,bytes:250*1024*1024},env));
+ assert.ok(!validProjectCloudRecord(customer,project,asset,{key:customerKey,sha256,bytes:250*1024*1024+1},env));
+ assert.ok(!validProjectCloudRecord(customer,project,slot,{key:songKey,sha256,bytes:129*1024*1024},env));
  assert.throws(()=>projectCloudKey(customer,project,asset+":song.mp3",sha256,env));
 });
 test("migration demands full byte-for-byte readback, not just metadata",async()=>{
@@ -64,4 +66,33 @@ test("deletion retries preserve live references, owner isolation and failed mani
   assert.equal(removed,1);
   assert.equal((db.prepare("SELECT COUNT(*) AS n FROM music_asset_cloud").get() as {n:number}).n,0);
  }finally{db.close();rmSync(root,{recursive:true,force:true});}
+});
+
+import {writeFileSync} from "node:fs";
+test("R2 file transfer streams a conditional upload and verifies every byte",async()=>{
+ const root=mkdtempSync(path.join(tmpdir(),"sm-stream-r2-")),file=path.join(root,"test.mp4");
+ const content=Buffer.from("video payload");
+ let remote=Buffer.alloc(0),metadata:Record<string,string>|undefined;
+ const client={async send(command:any){
+  if(command instanceof PutObjectCommand){
+   assert.equal(command.input.IfNoneMatch,"*");
+   assert.equal(command.input.ContentLength,content.length);
+   assert.equal(command.input.ContentMD5,createHash("md5").update(content).digest("base64"));
+   assert.ok(!Buffer.isBuffer(command.input.Body));
+   const chunks:Buffer[]=[];for await(const chunk of command.input.Body)chunks.push(Buffer.from(chunk));remote=Buffer.concat(chunks);
+   metadata=command.input.Metadata;
+   return {};
+  }
+  return {ContentLength:remote.length,Metadata:metadata,Body:[remote.subarray(0,3),remote.subarray(3)]};
+ }};
+ try{
+  writeFileSync(file,content);
+  const key=(hash:string)=>projectCloudKey("staff:a",project,asset,hash,env);
+  const record=await mirrorProjectFile(client,"test",key,file,"video/mp4",250*1024*1024);
+  assert.equal(record.sha256,createHash("sha256").update(content).digest("hex"));
+  let total=0;await verifyCloudStream(client,"test",record,async chunk=>{total+=chunk.length;});
+  assert.equal(total,content.length);
+  remote[0]^=1;
+  await assert.rejects(verifyCloudStream(client,"test",record),/checksum mismatch/);
+ }finally{rmSync(root,{recursive:true,force:true});}
 });
