@@ -19,24 +19,28 @@ try{
    const delay=(ms:number)=>new Promise<void>(r=>setTimeout(r,ms));
    const ready=(m:HTMLMediaElement)=>new Promise<void>((resolve,reject)=>{if(m.readyState>=3)resolve();else{m.addEventListener("canplay",()=>resolve(),{once:true});m.addEventListener("error",()=>reject(Error("Media error")),{once:true});setTimeout(()=>reject(Error("Media timeout")),5000);}});
    song.src=wav;await ready(song);
-   assertGate(pictureSyncGate(0,video,false)==="wait");
+   assertGate("missing picture",pictureSyncGate(0,video,false),"wait");
    await delay(150);const before=song.currentTime;
    video.src=webm;await ready(video);
-   assertGate(pictureSyncGate(0,video,false)==="ready");
+   assertGate("initial picture",pictureSyncGate(0,video,false),"ready");
    await Promise.all([song.play(),video.play()]);await delay(250);
    // Force a decoder stall and verify the common transport holds.
-   video.pause();await delay(200);
-   assertGate(pictureSyncGate(song.currentTime,video,true)==="align");
+   video.pause();
+   // Native audio output starts later than the video on some devices. Wait for
+   // measured media-clock drift, not a fixed wall-clock delay.
+   const deadline=performance.now()+2000;
+   while(song.currentTime-video.currentTime<0.18&&performance.now()<deadline)await delay(25);
+   assertGate("stalled picture",pictureSyncGate(song.currentTime,video,true),"align");
    song.pause();const held=song.currentTime;video.currentTime=held;
    if(video.seeking)await new Promise<void>(resolve=>video.addEventListener("seeked",()=>resolve(),{once:true}));
    await ready(video);await delay(200);
    const stationary=Math.abs(song.currentTime-held)<0.015;
-   assertGate(pictureSyncGate(held,video,false)==="ready");
+   assertGate("realigned picture",pictureSyncGate(held,video,false),"ready");
    await Promise.all([song.play(),video.play()]);await delay(300);
    const drift=Math.abs(song.currentTime-video.currentTime),resumed=song.currentTime-held;
    URL.revokeObjectURL(url);
    return {before,stationary,drift,resumed,rate:song.playbackRate};
-   function assertGate(ok:boolean){if(!ok)throw Error("Unexpected picture gate");}
+   function assertGate(label:string,actual:string,expected:string){if(actual!==expected)throw Error(label+": "+actual+" expected "+expected+"; song="+song.currentTime+" picture="+video.currentTime+" ready="+video.readyState+" seeking="+video.seeking);}
   },{code,wav:"data:audio/wav;base64,"+wav.toString("base64"),webm:"data:video/webm;base64,"+webm.toString("base64")});
   assert.equal(result.before,0);assert.equal(result.stationary,true);assert.ok(result.drift<0.12);assert.ok(result.resumed>0.18);assert.equal(result.rate,1);
   console.log("PASS: synchronized preview waits and resumes at 1x on "+(mobile?"mobile":"desktop")+" Chromium");
