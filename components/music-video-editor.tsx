@@ -8,7 +8,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
 import {ensureSession} from "@/lib/client";
 import {BrowserPreviewCache} from "@/lib/music-video/browser-preview-cache";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,mobileVideoSyncDecision,pictureSyncGate,hasPreviewBuffer,PREVIEW_LOOKAHEAD_MS,songOwnsPreviewClock,previewMediaPlan,nextVisibleClipTransition,previousVisibleClipTransition,publishedPlaybackMs,nativeClipClockStep,nativeClockAction,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,mobileVideoSyncDecision,pictureSyncGate,previewRunningGate,PREVIEW_LOOKAHEAD_MS,songOwnsPreviewClock,previewMediaPlan,nextVisibleClipTransition,previousVisibleClipTransition,publishedPlaybackMs,nativeClipClockStep,nativeClockAction,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -76,6 +76,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const lastFollowerSeek=useRef(new WeakMap<HTMLMediaElement,number>());
   const followerPlayPending=useRef(new WeakSet<HTMLMediaElement>());
   const songPlayPending=useRef(false),syncHold=useRef<number|null>(null);
+  const jointStarted=useRef(false),jointStartTime=useRef(-Infinity);
   const [buffering,setBuffering]=useState(false);
   const previewBox=useRef<HTMLDivElement>(null);
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
@@ -141,7 +142,7 @@ export function MusicVideoEditor({id}:{id:string}){
     mutesRef.current=data.project.trackMutes??initialMutes;setTrackMutes(mutesRef.current);
     partsRef.current=data.project.songParts;setSongParts(data.project.songParts);setPartIndex(0);
     rangeRef.current=range;setSongRange(range);setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));
-    mutedClockRef.current=null;syncHold.current=null;setBuffering(false);playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
+    mutedClockRef.current=null;syncHold.current=null;jointStarted.current=false;setBuffering(false);playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
     const at=Math.min(playheadRef.current,songPartsEnd(range,partsRef.current));
     playheadRef.current=at;setPlayhead(at);
     if(audio.current&&audio.current.readyState>=1)audio.current.currentTime=Math.max(range.startMs,Math.min(range.endMs,at-songOffset(range)))/1000;
@@ -523,7 +524,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const mediaSource=(assetId:string)=>{
     const cached=browserCache.current?.get(cacheKey(assetId));
     // Never change a decoder's source during playback. Adopt cached data when paused.
-    return playing?(sessionSources.current.get(assetId)??cached??networkSource(assetId)):(cached??networkSource(assetId));
+    return playing?((buffering?cached:undefined)??sessionSources.current.get(assetId)??cached??networkSource(assetId)):(cached??networkSource(assetId));
   };
   const source=(a:MusicAsset)=>mediaSource(a.id);
   useLayoutEffect(()=>{
@@ -877,7 +878,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function stopPlayback(){
     if(playingRef.current){const at=publishedPlaybackMs(playheadRef.current);playheadRef.current=at;setPlayhead(at);setMarkerText(time(at,true));}
-    mutedClockRef.current=null;syncHold.current=null;setBuffering(false);playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
+    mutedClockRef.current=null;syncHold.current=null;jointStarted.current=false;setBuffering(false);playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
   function setAt(ms:number,range=rangeRef.current){
     ms=Math.round(ms);playheadRef.current=ms;setPlayhead(ms);
@@ -982,39 +983,58 @@ export function MusicVideoEditor({id}:{id:string}){
     const clip=previewMediaPlan(latest.current,at,mutesRef.current).visible;
     if(!clip)return true;
     const element=pictureAt(clip),expected=clipSourceTimeMs(clip,at)/1000;
-    const gate=pictureSyncGate(expected,element,running);
+    const gate=running?previewRunningGate(expected,element,performance.now()-jointStartTime.current):pictureSyncGate(expected,element,false);
     if(gate==="align"&&element){
       element.pause();element.playbackRate=1;
       if(performance.now()-(lastFollowerSeek.current.get(element)??-Infinity)>=150){
         try{element.currentTime=expected;lastFollowerSeek.current.set(element,performance.now());}catch{}
       }
     }
-    if(gate!=="ready"||!element)return false;
-    // At startup/resume, fill a short runway instead of starting on just one frame.
-    if(!running&&!element.src.startsWith("blob:")&&!hasPreviewBuffer(element.buffered,expected,Math.min(clip.sourceOutMs/1000,Number.isFinite(element.duration)?element.duration:Infinity),0.4))return false;
-    return true;
+    // A paused native decoder may only expose the current decoded frame.
+    // Do not require a future buffered range before calling play().
+    return gate==="ready";
   }
   function holdSong(at:number){
     const current=audio.current;
-    if(syncHold.current===null){syncHold.current=performance.now();}
+    if(syncHold.current===null){syncHold.current=performance.now();jointStarted.current=false;current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();}
     // Hide brief decoder alignment on ordinary replay/seek; show only real waits.
     if(performance.now()-syncHold.current>300)setBuffering(true);
-    current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
     const expected=(at-songOffset(rangeRef.current))/1000;
     if(current&&current.readyState>=1&&!current.seeking&&Math.abs(current.currentTime-expected)>0.035){try{current.currentTime=expected;}catch{}}
     if(performance.now()-syncHold.current>45000){stopPlayback();setError("Video preview is taking too long. Tap Play to retry.");}
   }
   function clearSyncHold(){if(syncHold.current!==null){syncHold.current=null;setBuffering(false);}}
-  function startSong(at:number){
+  function playFollower(element:HTMLMediaElement){
+    if(!element.paused||element.ended||element.seeking||followerPlayPending.current.has(element))return;
+    followerPlayPending.current.add(element);
+    void element.play().catch(error=>{
+      if(error?.name==="NotAllowedError"&&playingRef.current&&element===video.current){stopPlayback();setError("Video playback was blocked. Tap Play to retry.");}
+    }).finally(()=>{followerPlayPending.current.delete(element);if(!playingRef.current||syncHold.current!==null)element.pause();});
+  }
+  function startTogether(at:number):boolean{
     const current=audio.current;
-    if(!current||songPlayPending.current||!current.paused)return;
+    if(!current||current.seeking||current.readyState<1)return false;
     const expected=(at-songOffset(rangeRef.current))/1000;
-    if(current.readyState>=1&&!current.seeking&&Math.abs(current.currentTime-expected)>0.025){try{current.currentTime=expected;}catch{}}
+    if(!jointStarted.current&&(current.ended||Math.abs(current.currentTime-expected)>0.025)){
+      try{current.currentTime=expected;}catch{}
+      return false;
+    }
+    if(current.readyState<2&&!jointStarted.current)return false;
+    if(songPlayPending.current)return jointStarted.current;
+    if(jointStarted.current&&!current.paused)return true;
+    clearSyncHold();
+    jointStarted.current=true;jointStartTime.current=performance.now();
+    const clip=previewMediaPlan(latest.current,at,mutesRef.current).visible;
+    const picture=clip?pictureAt(clip):null;
+    // Start the two native media elements in the same turn, not on the song's
+    // later playing event. This also preserves the user's gesture when ready.
+    if(picture){picture.playbackRate=1;playFollower(picture);}
     songPlayPending.current=true;
     void current.play().catch(error=>{
       if(error?.name==="AbortError")return;
       if(playingRef.current&&!mutesRef.current.song){stopPlayback();setError("Audio playback was blocked. Tap Play to retry.");}
     }).finally(()=>{songPlayPending.current=false;if(!playingRef.current||mutesRef.current.song||syncHold.current!==null)current.pause();});
+    return true;
   }
   useEffect(()=>{
     if(!playing)return;
@@ -1031,21 +1051,21 @@ export function MusicVideoEditor({id}:{id:string}){
       const before=at;
       if(mobilePlan?.visible&&mobileUnavailableRef.current.has(mobilePlan.visible.assetId)){stopPlayback();setError("Mobile preview unavailable for this clip.");return;}
       if(mobileClock){
-        clearSyncHold();
+        clearSyncHold();jointStarted.current=false;
         if(current&&!current.paused)current.pause();
         const nextSong=mutesRef.current.song?timelineEnd:effectiveSongParts(range,partsRef.current).map(p=>songTimeToTimeline(p.startMs,range)).find(p=>p>at)??timelineEnd;
         at=advanceMutedClock(at,elapsed,Math.min(timelineEnd,nextSong));
       }else if(mutesRef.current.song){
-        clearSyncHold();
+        clearSyncHold();jointStarted.current=false;
         if(current&&!current.paused)current.pause();
         at=advanceMutedClock(at,elapsed,timelineEnd);
       }else if(part&&current){
         mutedClockRef.current=null;
         if(current.playbackRate!==1)current.playbackRate=1;
         const end=songTimelineEnd(part);
-        const running=syncHold.current===null&&!current.paused&&!current.seeking;
+        const running=jointStarted.current&&syncHold.current===null&&!current.paused&&!current.seeking;
         if(running)at=Math.min(end,Math.max(at,part.positionMs,Math.round(current.currentTime*1000)+songOffset(range)));
-        if(current.ended||at>=end){clearSyncHold();current.pause();at=end;}
+        if((jointStarted.current&&current.ended)||at>=end){clearSyncHold();jointStarted.current=false;current.pause();at=end;}
         else{
           // At a cut, the next pre-seeked decoder can already be ready. If not,
           // hold at the exact boundary instead of letting the song run ahead.
@@ -1054,10 +1074,10 @@ export function MusicVideoEditor({id}:{id:string}){
           if(boundary<=at&&previewMediaPlan(latest.current,boundary,mutesRef.current).visible?.id!==plan.visible?.id&&!pictureReady(boundary,false)){
             at=boundary;holdSong(at);
           }else if(!pictureReady(at,running)){holdSong(at);}
-          else{clearSyncHold();startSong(at);}
+          else if(!startTogether(at)){holdSong(at);}
         }
       }else{
-        clearSyncHold();mutedClockRef.current=null;current?.pause();
+        clearSyncHold();jointStarted.current=false;mutedClockRef.current=null;current?.pause();
         const next=effectiveSongParts(range,partsRef.current).map(p=>songTimeToTimeline(p.startMs,range)).find(p=>p>at)??timelineEnd;
         at=Math.min(at+elapsed,next,timelineEnd);
       }
@@ -1113,7 +1133,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(usesNativeClock(at)){
       audio.current.pause();startMutedClock(at);syncFollowers();
     }else if(songPartAt(range,partsRef.current,at)){
-      if(pictureReady(at,false)){clearSyncHold();startSong(at);syncFollowers();}
+      if(pictureReady(at,false)&&startTogether(at)){syncFollowers();}
       else holdSong(at);
     }
   }
@@ -1126,7 +1146,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const master=audio.current;
     if(syncHold.current!==null)return false;
     return !songPartAt(rangeRef.current,partsRef.current,at)||
-      (!!master&&!master.paused&&!master.seeking&&master.readyState>=3);
+      (!!master&&!master.paused&&!master.seeking&&master.readyState>=2);
   }
   function syncMedia(element:HTMLMediaElement|null,clip:MusicClip|undefined,at:number,run:boolean){
     if(!element)return;
@@ -1140,6 +1160,7 @@ export function MusicVideoEditor({id}:{id:string}){
     // An in-flight seek finishes once; its callback aligns to the latest playhead.
     // While the master buffers, pause followers rather than repeatedly seeking them.
     if(!run&&playingRef.current){element.pause();return;}
+    if(run&&audibleSongAt(at)&&performance.now()-jointStartTime.current<180){if(element.paused)playFollower(element);return;}
     const decision=mobileRef.current&&audibleSongAt(at)&&element instanceof HTMLVideoElement
       ?mobileVideoSyncDecision(expected,element.currentTime,run,element.paused,element.seeking)
       :mediaSyncDecision(expected,element.currentTime,run,element.paused,element.seeking);
@@ -1149,9 +1170,7 @@ export function MusicVideoEditor({id}:{id:string}){
     }
     if(!run){element.pause();return;}
     // One outstanding play request per decoder; never pile up promises during a seek.
-    if(element.paused&&!element.ended&&!element.seeking&&!followerPlayPending.current.has(element)){
-      followerPlayPending.current.add(element);void element.play().catch(()=>{}).finally(()=>{followerPlayPending.current.delete(element);if(!playingRef.current||syncHold.current!==null)element.pause();});
-    }
+    playFollower(element);
   }
   // Keep adjacent decoders paused and seek them to their warm positions,
   // including a lower track returning after an overlay. Reuse that same keyed
@@ -1184,6 +1203,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function pauseFollowers(){
     if(usesNativeClock(playheadRef.current))return;
+    if(jointStarted.current&&performance.now()-jointStartTime.current<180)return;
     video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
   function syncFollowers(){
