@@ -794,7 +794,7 @@ test("lookahead requires bounded buffered runway, not media in intentional gaps"
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("if(!clip)return true;"));
  assert.ok(editor.includes("hasPreviewBuffer(element.buffered,expected"));
- assert.ok(editor.includes("[activeAsset,nextAsset,previousAsset,followingAsset]"));
+ assert.ok(editor.includes("[activeAsset,nextAsset,previousAsset,followingAsset,firstPreviewAsset?byId.get(firstPreviewAsset):undefined]"));
 });
 
 test("reverse scrubbing retains bounded preceding decoder across cuts and gaps",async()=>{
@@ -811,4 +811,27 @@ test("reverse scrubbing retains bounded preceding decoder across cuts and gaps",
  assert.ok(editor.includes("if(!playingRef.current)alignPausedSong()"));
  assert.ok(editor.includes("previousTransition.clip:undefined"));
  assert.ok(editor.includes("if(visible)syncVideo(e.currentTarget,c);else warm(e.currentTarget)"));
+});
+
+test("project video display names never mutate the original or another project",()=>{
+ const core=read("lib/music-video/core.ts"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),editor=read("components/music-video-editor.tsx");
+ const rename=core.slice(core.indexOf("export function renameMusicAsset"),core.indexOf("export function removeMusicAsset"));
+ assert.ok(rename.includes("requireMusicProject(id,owner)"));
+ assert.ok(rename.includes("musicAsset(id,owner,assetId)"));
+ assert.ok(rename.includes("WHERE id=? AND owner_id=? AND revision=?"));
+ assert.ok(rename.includes("UPDATE music_assets SET name=? WHERE id=? AND project_id=?"));
+ assert.ok(!rename.includes("source_id="));
+ assert.ok(!rename.includes("music_clips"));
+ assert.ok(api.includes("renameMusicAsset(id,owner,assetId,body.name,body.revision)"));
+ assert.ok(editor.includes('title="Rename only in this project"'));
+ assert.ok(editor.includes("body:JSON.stringify({name,revision:revision.current})"));
+});
+test("replay retains a bounded session preview cache and skips network startup runway for complete blobs",()=>{
+ const editor=read("components/music-video-editor.tsx"),cache=read("lib/music-video/browser-preview-cache.ts");
+ assert.ok(editor.includes("firstPreviewAsset=firstVisibleVideo(clips)?.assetId"));
+ assert.ok(editor.includes('!element.src.startsWith("blob:")'));
+ assert.ok(editor.includes("sessionSources.current=attached"));
+ assert.ok(cache.includes('redirect:"error"'));
+ assert.ok(cache.includes("URL.revokeObjectURL"));
+ assert.ok(cache.includes("count!==length"));
 });
