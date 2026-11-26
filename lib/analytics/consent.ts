@@ -29,8 +29,8 @@ export function analyticsConfig(env: Record<string, string | undefined>) {
 const publicPages: Record<string, string> = {
   "/": "SingMotion AI", "/help": "Help", "/help/camera-movements": "Camera movements",
   "/help/ai-video-guides": "AI video guides", "/help/ai-video-generator": "AI video generator",
-  "/help/music-video-generator": "Music video generator", "/help/shorts-video-generator": "Short video generator",
-  "/help/omnihuman-video": "OmniHuman video",
+  "/help/ai-music-video-maker": "Music video generator", "/help/tiktok-reels-shorts": "Short video generator",
+  "/help/omnihuman-ai-video": "OmniHuman video",
 };
 export function publicAnalyticsPage(pathname: string): string | null {
   return Object.hasOwn(publicPages, pathname) ? publicPages[pathname] : null;
