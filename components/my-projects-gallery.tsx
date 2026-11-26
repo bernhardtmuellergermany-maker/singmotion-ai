@@ -181,7 +181,7 @@ export function MyProjectsGallery(){
  async function refreshTrash(isCustomer=workspaceOwner.current?.startsWith("customer-")===true){
   const [draft,admin,customer]=await Promise.allSettled([
    api<{items:TrashedProject[]}>("studio-drafts?trash=1"),
-   api<{items:TrashedProject[]}>("studio-live?trash=1"),
+   api<{items:TrashedProject[]}>("studio-live?gallery=1&trash=1"),
    isCustomer?fetch("/api/customer-orders?view=hidden",{credentials:"same-origin",cache:"no-store"})
     .then(async response=>{
       if(!response.ok)return [] as TrashedProject[];
@@ -300,7 +300,7 @@ export function MyProjectsGallery(){
             return (await r.json() as {orders:CustomerOrder[]}).orders;
           })
         :Promise.resolve([] as CustomerOrder[]),
-      api<{projects:StudioProject[]}>("studio-live",{cache:"no-store"})
+      api<{projects:StudioProject[]}>("studio-live?gallery=1",{cache:"no-store"})
         .then(v=>v.projects||[]),
     ]);
     if(!active)return;

@@ -61,6 +61,35 @@ async function handler(req: NextRequest) {
         blockers: ["Studio paid pilot is disabled."],
       });
     }
+    // Read-only gallery access is separate from paid-generation admission.
+    // A CMS-authenticated Super Admin can list only their own existing videos,
+    // even if the browser's independent media session has not been established.
+    // Active customer accounts retain precedence. No detail, output, or POST
+    // action is allowed through this narrow branch.
+    const query=req.nextUrl.searchParams;
+    if(req.method==="GET"&&query.get("gallery")==="1"&&
+       [...query.keys()].every(k=>k==="gallery"||k==="trash")&&
+       (!query.has("trash")||query.get("trash")==="1")){
+      let customerId:string|null|undefined;
+      const token=req.cookies.get("sm_customer")?.value;
+      if(token){
+        const commerce=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
+        try{customerId=commerce.session(token);}finally{commerce.close();}
+      }
+      if(!customerId){
+        const cms=await getPayload({config:payloadConfig});
+        const identity=await cms.auth({headers:req.headers});
+        const id=String(identity.user?.id??"");
+        if(hasRole(identity.user,["super-admin"])&&/^[A-Za-z0-9_-]{1,100}$/.test(id)){
+          const galleryOwner="cms-staff-"+id;
+          limit(galleryOwner+":studio-gallery",180,60000);
+          runtime=studioRuntime(await openStudioStore(dataDir),dataDir,process.env,true,false);
+          return query.get("trash")==="1"
+            ?json({items:runtime.service.listTrash(galleryOwner)})
+            :json({projects:runtime.service.list(galleryOwner)});
+        }
+      }
+    }
     const mediaAuth=session(req.cookies.get("sm_session")?.value);
     if(!mediaAuth)throw new StudioLiveError("SESSION_REQUIRED","Open Studio to establish your private media session.",401);
     const owner=mediaAuth.owner;
@@ -437,7 +466,9 @@ async function handler(req: NextRequest) {
   } catch (e) {
     if (e instanceof FxReferenceError)
       return json({ error: e.message, code: "BUDGET_REVIEW_REQUIRED" }, 400);
-    if (e instanceof StudioLiveError || e instanceof AppError)
+    if (e instanceof StudioLiveError || e instanceof AppError){
+      if(e instanceof StudioLiveError&&(e.status===401||e.status===403))
+        console.warn("studio-live access rejected",{code:e.code,status:e.status,method:req.method});
       return json(
         {
           error: e.message,
@@ -445,6 +476,7 @@ async function handler(req: NextRequest) {
         },
         e.status,
       );
+    }
     const safe = studioDiagnostic(e);
     console.warn("studio-live operation rejected", { code: safe.code });
     return json({ error: safe.message, code: safe.code }, safe.status);
