@@ -340,7 +340,7 @@ test("one-click export uses top-track render spans and owner-scoped download",as
  assert.ok(editor.includes("onClick={()=>void exportMp4()}"));
  assert.ok(editor.includes("await saveNow()"));
  assert.ok(api.includes("musicExportFile(owner,id,assetId)"));
- assert.ok(api.includes("startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close())"));
+ assert.ok(api.includes("startMusicExport(owner,detail.project,detail.clips,files,songFile,async()=>{try{await scratch.close();}finally{releaseAdmission?.();}})"));
  assert.ok(api.includes("attachment; filename="));
  assert.ok(editor.includes('hidden={!inspectorOpen}'));
 });
@@ -643,7 +643,7 @@ test("preview proxies are authorized, bounded and do not replace export original
  assert.ok(api.includes('"Vary":"Cookie, Authorization"'));
  assert.ok(editor.includes('preload="auto"'));
  assert.ok(editor.includes('playingPreviewRef.current=new Set(previewReadyRef.current)'));
- assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close())'));
+ assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile,async()=>{try{await scratch.close();}finally{releaseAdmission?.();}})'));
  assert.ok(!renderer.includes('preview-v1'));
 });
 
