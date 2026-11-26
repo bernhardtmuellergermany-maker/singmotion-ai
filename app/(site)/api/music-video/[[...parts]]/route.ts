@@ -1,7 +1,7 @@
 import {NextRequest} from "next/server";
 import {createReadStream} from "node:fs";
 import {Readable} from "node:stream";
-import {mkdir,writeFile,rename,rm,stat,unlink,realpath,readFile,readdir} from "node:fs/promises";
+import {mkdir,writeFile,rename,rm,stat,unlink,realpath,readFile,readdir,mkdtemp} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import {createHash} from "node:crypto";
 import path from "node:path";
@@ -18,7 +18,7 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
-import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch} from "@/lib/music-video/project-r2";
+import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,deleteProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
 import {reserveProjectUpload} from "@/lib/music-video/storage";
 import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
@@ -26,6 +26,7 @@ import {
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
   newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,
   projectCloudRecord,recordProjectCloud,projectMigrationCandidates,pendingProjectCloudDeletes,finishProjectCloudDelete,
+  projectSongRecord,recordProjectSong,projectSongMigrationCandidate,
   type MediaKind,type SourceKind,type MusicClip,type MusicAsset,
 } from "@/lib/music-video/core";
 
@@ -176,14 +177,14 @@ async function libraryThumbnail(projectId:string,assetId:string,file:string,dura
 }
 // Cache compact waveform data, not decoded audio in the browser. Bound FFmpeg work.
 const waveJobs=new Map<string,Promise<number[]>>();
-async function songWaveform(id:string):Promise<number[]>{
+async function songWaveform(id:string,owner:string,scratch:ProjectScratch):Promise<number[]>{
   const cached=path.join(projectFolder(id),"song.wave-v1.json");
   const old=await readFile(cached,"utf8").then(v=>JSON.parse(v) as number[]).catch(()=>null);
   if(old?.length===240)return old;
   const pending=waveJobs.get(id);if(pending)return pending;
   if(waveJobs.size>=2)return [];
   const job=(async()=>{
-    const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",path.join(projectFolder(id),"song.mp3"),"-vn","-sn","-dn","-ac","1","-ar","2000","-t","3600","-f","s16le","pipe:1"],{encoding:"buffer",timeout:30000,maxBuffer:16*1024*1024});
+    const {stdout}=await promisify(execFile)("ffmpeg",["-nostdin","-hide_banner","-loglevel","error","-threads","1","-i",await songWorkingFile(id,owner,"song.mp3",scratch),"-vn","-sn","-dn","-ac","1","-ar","2000","-t","3600","-f","s16le","pipe:1"],{encoding:"buffer",timeout:30000,maxBuffer:16*1024*1024});
     const samples=Math.floor(stdout.length/2);
     if(!samples)return [];
     const peaks=Array.from({length:240},(_,i)=>{
@@ -254,7 +255,36 @@ async function offloadProjectVideo(owner:string,asset:MusicAsset){
  const record=await mirrorProjectVideo(owner,asset.projectId,asset.id,file,asset.sourceId==="webm"?"video/webm":"video/mp4");
  recordProjectCloud(asset.projectId,owner,asset.id,record);
  // The manifest and full object readback are durable before removing the local file.
- await unlink(file);
+ await unlink(file).catch(()=>{console.warn("PROJECT_R2_LOCAL_CLEANUP_PENDING");});
+}
+const songMime=(slot:SongSlot)=>slot.endsWith(".wav")?"audio/wav":slot.endsWith(".m4a")?"audio/mp4":"audio/mpeg";
+const originalSlots=songSlots.filter(slot=>slot!=="song.mp3");
+async function songWorkingFile(id:string,owner:string,slot:SongSlot,scratch:ProjectScratch){
+ const record=projectSongRecord(id,owner,slot),asset=songAssetId(id,slot),ext=slot.split(".").pop()!;
+ if(record)return scratch.hydrate(owner,id,asset,ext,record);
+ return scratch.copy(asset,ext,await safeLocalProjectSong(projectFolder(id),slot));
+}
+async function originalSongSlot(id:string,owner:string):Promise<SongSlot>{
+ for(const slot of originalSlots){
+  if(projectSongRecord(id,owner,slot)||await stat(path.join(projectFolder(id),slot)).then(s=>s.isFile()).catch(()=>false))return slot;
+ }
+ throw new MusicError("Original song unavailable.",404);
+}
+async function offloadProjectSong(id:string,owner:string,folder:string,slot:SongSlot){
+ if(projectSongRecord(id,owner,slot))return;
+ const file=await safeLocalProjectSong(folder,slot),asset=songAssetId(id,slot);
+ const record=await mirrorProjectVideo(owner,id,asset,file,songMime(slot));
+ recordProjectSong(id,owner,slot,record);
+}
+async function migrateProjectSong(id:string,owner:string){
+ const folder=projectFolder(id),original=await originalSongSlot(id,owner);
+ await offloadProjectSong(id,owner,folder,original);
+ await offloadProjectSong(id,owner,folder,"song.mp3");
+ // Do not remove either original until both manifests are verified.
+ for(const slot of [original,"song.mp3"] as const)await unlink(path.join(folder,slot)).catch(()=>{});
+}
+function cloudRequired(){
+ if(!projectR2Enabled())throw new MusicError("Cloud storage is temporarily unavailable. No upload was saved; try again later.",503);
 }
 async function cleanCloudDeletes(owner:string){
  for(const item of pendingProjectCloudDeletes(owner)){
@@ -271,7 +301,7 @@ async function handler(req:NextRequest,context:Context){
     if(req.method!=="GET")checkOrigin(req);
     const [id,section,assetId]=(await context.params).parts||[];
     if(id==="storage-migrate"&&!section&&req.method==="GET"){
-      return json({enabled:projectR2Enabled(),remaining:projectMigrationCandidates(owner).length>0});
+      return json({enabled:projectR2Enabled(),remaining:projectMigrationCandidates(owner).length>0||!!projectSongMigrationCandidate(owner)});
     }
     if(id==="storage-migrate"&&!section&&req.method==="POST"){
       if(!projectR2Enabled())throw new MusicError("Projects cloud storage is not enabled.",409);
@@ -280,9 +310,10 @@ async function handler(req:NextRequest,context:Context){
       try{
        await cleanCloudDeletes(owner);
        const asset=projectMigrationCandidates(owner)[0];
-       if(!asset)return json({migrated:0,done:true});
-       await offloadProjectVideo(owner,asset);
-       return json({migrated:1,done:projectMigrationCandidates(owner).length===0});
+       if(asset){await offloadProjectVideo(owner,asset);return json({migrated:1,done:projectMigrationCandidates(owner).length===0&&!projectSongMigrationCandidate(owner)});}
+       const song=projectSongMigrationCandidate(owner);
+       if(song){await migrateProjectSong(song,owner);return json({migrated:1,done:!projectSongMigrationCandidate(owner)});}
+       return json({migrated:0,done:true});
       }catch{throw new MusicError("Cloud migration could not be verified. Unverified originals remain local.",503);}
       finally{migrating=false;}
     }
@@ -291,6 +322,7 @@ async function handler(req:NextRequest,context:Context){
         return json({projects:listMusicProjects(owner)});
       }
       if(req.method!=="POST")throw new MusicError("Unsupported method.",405);
+      cloudRequired();
       const {form,file}=await fileForm(req,AUDIO_LIMIT,"song");
       const title=form.get("name");
       if(typeof title!=="string")throw new MusicError("Project name required.");
@@ -298,24 +330,29 @@ async function handler(req:NextRequest,context:Context){
       if(!extension)throw new MusicError("Use MP3, WAV or M4A audio.");
       const buffer=Buffer.from(await file.arrayBuffer());
       let release:()=>void;
-      try{release=reserveProjectUpload(dataDir,file.size,"audio");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
-      const temp=path.join(dataDir,"music-video","upload-"+randomUUID()+"."+extension);
+      try{release=reserveProjectUpload(tmpdir(),file.size,"audio");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
+      let work:string|undefined;
+      let temp:string|undefined;
       let project:ReturnType<typeof newMusicProject>|null=null;
       try{
-        await mkdir(path.dirname(temp),{recursive:true,mode:0o700});
+        work=await mkdtemp(path.join(tmpdir(),"sm-project-upload-"));
+        temp=path.join(work,"song-original."+extension);
         await writeFile(temp,buffer,{flag:"wx",mode:0o600});
         const duration=await validateAudio(temp);
         const songName=await originalSongTitle(temp)||cleanSongName(file.name.replace(/\.(mp3|wav|m4a)$/i,""))||"Untitled song";
         project=newMusicProject(owner,title,toMs(duration),form.get("aspectRatio")??"auto",songName);
         await mkdir(projectFolder(project.id),{recursive:true,mode:0o700});
-        await rename(temp,path.join(projectFolder(project.id),"song-original."+extension));
-        if(extension==="mp3")await writeFile(path.join(projectFolder(project.id),"song.mp3"),buffer,{flag:"wx",mode:0o600});
-        else await createAudioPreview(path.join(projectFolder(project.id),"song-original."+extension),path.join(projectFolder(project.id),"song.mp3"),256);
+        if(extension==="mp3")await writeFile(path.join(work,"song.mp3"),buffer,{flag:"wx",mode:0o600});
+        else await createAudioPreview(temp,path.join(work,"song.mp3"),256);
+        try{
+          await offloadProjectSong(project.id,owner,work,("song-original."+extension) as SongSlot);
+          await offloadProjectSong(project.id,owner,work,"song.mp3");
+        }catch{throw new MusicError("Song cloud upload could not be verified. Please retry.",503);}
         return json({project},201);
       }catch(e){
-        if(project){removeMusicProject(project.id,owner);await rm(projectFolder(project.id),{recursive:true,force:true});}
+        if(project){removeMusicProject(project.id,owner);await rm(projectFolder(project.id),{recursive:true,force:true});await cleanCloudDeletes(owner);}
         throw e;
-      }finally{try{await rm(temp,{force:true});}finally{release();}}
+      }finally{try{if(work)await rm(work,{recursive:true,force:true});}finally{release();}}
     }
     const project=requireMusicProject(id,owner);
     if(!section){
@@ -342,10 +379,13 @@ async function handler(req:NextRequest,context:Context){
         return json({deleted:true});
       }
     }
-    if(section==="song"&&req.method==="GET"&&!assetId)
+    if(section==="song"&&req.method==="GET"&&!assetId){
+      const record=projectSongRecord(id,owner,"song.mp3");
+      if(record)return await projectVideoResponse(req,owner,id,songAssetId(id,"song.mp3"),record,"audio/mpeg",common);
       return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg",true);
+    }
     if(section==="waveform"&&req.method==="GET"&&!assetId){
-      const peaks=await songWaveform(id).catch(()=>[]);
+      const peaks=await songWaveform(id,owner,scratch).catch(()=>[]);
       return json({peaks});
     }
     if(section==="preview"&&assetId&&validId(assetId)&&(req.method==="GET"||req.method==="POST")){
@@ -395,9 +435,7 @@ async function handler(req:NextRequest,context:Context){
         const body=await jsonBody(req),detail=musicDetail(id,owner);
         if(body.revision!==detail.project.revision)throw new MusicError("Save your latest changes before exporting.",409);
         const files=await exportSources(req,owner,id,detail,scratch,undefined,true);
-        const folder=projectFolder(id);
-        let songFile=path.join(folder,"song.mp3");
-        for(const ext of ["wav","m4a","mp3"]){const candidate=path.join(/*turbopackIgnore: true*/ folder,"song-original."+ext);if(await stat(candidate).then(s=>s.isFile()).catch(()=>false)){songFile=candidate;break;}}
+        const songFile=await songWorkingFile(id,owner,await originalSongSlot(id,owner),scratch);
         try{const job=await startMusicExport(owner,detail.project,detail.clips,files,songFile,()=>scratch.close());exportOwnsScratch=true;return json(job,202);}
         catch(e){throw new MusicError(e instanceof Error?e.message:"Export unavailable.",409);}
       }
@@ -439,33 +477,35 @@ async function handler(req:NextRequest,context:Context){
         const asset=newMusicAsset(id,owner,{...verified,sourceKind,sourceId});
         return json({asset},201);
       }
+      cloudRequired();
       const {file}=await fileForm(req,50*1024*1024,"video");
       const extension=file.name.toLowerCase().endsWith(".mp4")?"mp4":file.name.toLowerCase().endsWith(".webm")?"webm":null;
       if(!extension)throw new MusicError("Use an MP4 or WebM video.");
       const folder=projectFolder(id);
       await mkdir(folder,{recursive:true,mode:0o700});
-      const temporary=path.join(folder,"incoming-"+randomUUID()+"."+extension);
+      let work:string|undefined;
+      let temporary:string;
       let saved:ReturnType<typeof newMusicAsset>|null=null;
       let release:()=>void;
-      try{release=reserveProjectUpload(dataDir,file.size,"video");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
+      try{release=reserveProjectUpload(tmpdir(),file.size,"video");}catch{throw new MusicError("Storage temporarily low. Existing projects are safe; try again later.",507);}
       try{
+        work=await mkdtemp(path.join(tmpdir(),"sm-project-upload-"));
+        temporary=path.join(work,"upload."+extension);
         await writeFile(temporary,Buffer.from(await file.arrayBuffer()),{flag:"wx",mode:0o600});
         const media=await probe(temporary);
         if(!media.streams.some(v=>v.codec_type==="video"))throw new MusicError("The file does not contain video.");
         const duration=Number(media.format.duration);
         if(!Number.isFinite(duration)||duration<=0||duration>3600)throw new MusicError("Invalid video duration.");
         saved=newMusicAsset(id,owner,{name:file.name.slice(0,80),kind:"imported",sourceKind:"uploaded",sourceId:extension,durationMs:toMs(duration)});
-        await rename(temporary,path.join(/*turbopackIgnore: true*/ folder,saved.id+"."+extension));
-        let cloudStored=false;
-        if(projectR2Enabled()){
-         try{await offloadProjectVideo(owner,saved);cloudStored=true;}
-         catch{console.warn("PROJECT_VIDEO_R2_LOCAL_FALLBACK");}
-        }
-        return json({asset:saved,cloudStored,cloudEnabled:projectR2Enabled()},201);
+        try{
+          const record=await mirrorProjectVideo(owner,id,saved.id,temporary,extension==="webm"?"video/webm":"video/mp4");
+          recordProjectCloud(id,owner,saved.id,record);
+        }catch{throw new MusicError("Video cloud upload could not be verified. Please retry.",503);}
+        return json({asset:saved,cloudStored:true,cloudEnabled:true},201);
       }catch(error){
-        if(saved)removeMusicAsset(id,owner,saved.id);
+        if(saved){removeMusicAsset(id,owner,saved.id);await cleanCloudDeletes(owner);}
         throw error;
-      }finally{try{await rm(temporary,{force:true});}finally{release();}}
+      }finally{try{if(work)await rm(work,{recursive:true,force:true});}finally{release();}}
     }
     if(section==="assets"&&assetId){
       const asset=musicAsset(id,owner,assetId);

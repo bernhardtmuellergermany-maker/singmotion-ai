@@ -86,9 +86,9 @@ function StoragePanel(){
     const res=await fetch("/api/music-video/storage-migrate",{method:"POST",credentials:"same-origin",cache:"no-store"});
     const result=await res.json() as {migrated:number;done:boolean;error?:string};
     if(!res.ok)throw Error("Cloud-Migration konnte nicht verifiziert werden. Ungeprüfte Originale bleiben lokal.");
-    count+=result.migrated;done=result.done;setMigrationNote(count+" Videos geprüft und verschoben.");
+    count+=result.migrated;done=result.done;setMigrationNote(count+" Medieneinheiten geprüft und verschoben.");
    }
-   setMigrationNote(done?count+" Videos migriert. Keine unregistrierten Uploads in deinem Projects-Konto verbleiben.":count+" Videos migriert. Erneut starten, um fortzufahren.");
+   setMigrationNote(done?count+" Medieneinheiten migriert. Keine unregistrierten Videos oder Songs in deinem Projects-Konto verbleiben.":count+" Medieneinheiten migriert. Erneut starten, um fortzufahren.");
   }catch(e){setMigrationError(e instanceof Error?e.message:"Cloud-Migration nicht verfügbar.");}
   finally{setMigrating(false);setRevision(v=>v+1);}
  }
@@ -101,6 +101,7 @@ function StoragePanel(){
  <Stat label="Lokale Projects-Dateien" value={storageSize(data.projects.totalBytes)} detail={number(data.projects.projects)+" Projekte"+(data.projects.partial?" · Teilmessung":"")}/>
  <Stat label="Lokale Bibliotheksvideos" value={storageSize(data.projects.videoBytes)} detail="Physische Videodateien auf Railway"/>
  <Stat label="R2 Projects-Videos" value={storageSize(data.projects.cloudVideoBytes)} detail={number(data.projects.cloudVideoObjects)+" registrierte Objekte"}/>
+ <Stat label="R2 Projects-Songs" value={storageSize(data.projects.cloudSongBytes)} detail={number(data.projects.cloudSongObjects)+" registrierte Objekte"}/>
  <Stat label="R2-Quellen (Manifeste)" value={storageSize(data.cloud.sourceBytes)} detail={number(data.cloud.sourceObjects)+" registrierte Objekte"}/>
  <Stat label="R2-Videos (Manifeste)" value={storageSize(data.cloud.videoBytes)} detail={number(data.cloud.videoObjects)+" registrierte Objekte"}/>
  </div><p>Cloud-Werte sind Manifest-Summen, keine unabhängige Bucket-Belegung. Temporäre Provider-Dateien, Backups und nicht registrierte Objekte sind nicht enthalten.</p><p>Automatische Papierkorb-Bereinigung: {data.trashPurgeEnabled?"konfiguriert":"nicht aktiviert"}.</p></>}

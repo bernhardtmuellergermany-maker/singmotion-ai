@@ -1,4 +1,5 @@
 import {hasRole} from "@/cms/policy";
+import {projectR2Enabled} from "./project-r2";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir} from "@/lib/db";
 import path from "node:path";
@@ -14,7 +15,14 @@ export async function musicPrincipal(headers:Headers,customerToken:string):Promi
   // the browser is actively signed in as a regular customer.
   if(customerToken){
     const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
-    try{if(store.session(customerToken))return null;}finally{store.close();}
+    try{
+      const id=store.session(customerToken);
+      if(id){
+        // Separate explicit rollout gate: deployment does not enable customers.
+        if(process.env.MUSIC_VIDEO_CUSTOMER_ENABLED==="true"&&projectR2Enabled()&&store.emailVerified(id)&&/^[a-f0-9-]{36}$/i.test(id))return "customer:"+id;
+        return null;
+      }
+    }finally{store.close();}
   }
   if(process.env.CMS_ENABLED!=="true")return null;
   const {getPayload}=await import("payload");

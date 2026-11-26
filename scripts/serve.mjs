@@ -107,6 +107,10 @@ if (process.env.BYTEPLUS_STUDIO_ENABLED === "true") {
 
 // A per-boot private synthetic R2 check gates new Projects writes, never reads.
 // If unavailable, existing originals stay local and the site remains online.
+try{
+ const {cleanupProjectTemp}=await import("../lib/music-video/project-r2.ts");
+ await cleanupProjectTemp();
+}catch{console.warn("PROJECT_TEMP_CLEANUP_PENDING");}
 delete process.env.PROJECT_VIDEO_R2_VERIFIED;
 if(process.env.PROJECT_VIDEO_R2_ENABLED==="true"){
  try{

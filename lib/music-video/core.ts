@@ -2,7 +2,7 @@ import {DatabaseSync} from "node:sqlite";
 import {mkdirSync} from "node:fs";
 import {randomUUID} from "node:crypto";
 import path from "node:path";
-import type {ProjectCloudRecord} from "./project-r2";
+import type {ProjectCloudRecord,SongSlot} from "./project-r2";
 import {dataDir} from "@/lib/db";
 import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,firstVisibleVideo,type SongRange} from "./song-range.ts";
 
@@ -271,4 +271,22 @@ export function pendingProjectCloudDeletes(owner:string){
 }
 export function finishProjectCloudDelete(owner:string,assetId:string,key:string){
  database().prepare("DELETE FROM music_asset_cloud WHERE owner_id=? AND asset_id=? AND object_key=? AND pending_delete=1").run(owner,assetId,key);
+}
+
+/** Song manifests share the durable deletion queue; slot IDs are namespaced
+ * by their project, never supplied by the browser. */
+export function projectSongRecord(id:string,owner:string,slot:SongSlot):ProjectCloudRecord|null{
+ requireMusicProject(id,owner);
+ const row=database().prepare("SELECT * FROM music_asset_cloud WHERE project_id=? AND owner_id=? AND asset_id=? AND pending_delete=0").get(id,owner,id+":"+slot) as CloudRow|undefined;
+ return row?mapCloud(row):null;
+}
+export function recordProjectSong(id:string,owner:string,slot:SongSlot,record:ProjectCloudRecord){
+ const db=database(),asset=id+":"+slot;
+ db.prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes) SELECT ?,id,owner_id,?,?,? FROM music_projects WHERE id=? AND owner_id=? ON CONFLICT(asset_id) DO NOTHING").run(asset,record.key,record.sha256,record.bytes,id,owner);
+ const current=projectSongRecord(id,owner,slot);
+ if(!current||current.key!==record.key||current.sha256!==record.sha256||current.bytes!==record.bytes)throw Error("Projects song cloud manifest conflict");
+}
+export function projectSongMigrationCandidate(owner:string){
+ const row=database().prepare("SELECT p.id FROM music_projects p WHERE p.owner_id=? AND (NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id=p.id||':song.mp3' AND c.pending_delete=0) OR NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id LIKE p.id||':song-original.%' AND c.pending_delete=0)) ORDER BY p.created_at,p.id LIMIT 1").get(owner) as {id:string}|undefined;
+ return row?.id??null;
 }

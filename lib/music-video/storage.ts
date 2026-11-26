@@ -4,9 +4,9 @@ import {existsSync,lstatSync,realpathSync,readdirSync,statfsSync} from "node:fs"
 import path from "node:path";
 const MiB=1024*1024;
 const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
-export type ProjectStorage={audioBytes:number;videoBytes:number;otherBytes:number;totalBytes:number;projects:number;partial:boolean;cloudVideoBytes:number;cloudVideoObjects:number};
+export type ProjectStorage={audioBytes:number;videoBytes:number;otherBytes:number;totalBytes:number;projects:number;partial:boolean;cloudVideoBytes:number;cloudVideoObjects:number;cloudSongBytes:number;cloudSongObjects:number};
 export type StorageOverview={projects:ProjectStorage;disk:{totalBytes:number;availableBytes:number};cloud:{sourceBytes:number;videoBytes:number;sourceObjects:number;videoObjects:number};trashPurgeEnabled:boolean};
-const empty=():ProjectStorage=>({audioBytes:0,videoBytes:0,otherBytes:0,totalBytes:0,projects:0,partial:false,cloudVideoBytes:0,cloudVideoObjects:0});
+const empty=():ProjectStorage=>({audioBytes:0,videoBytes:0,otherBytes:0,totalBytes:0,projects:0,partial:false,cloudVideoBytes:0,cloudVideoObjects:0,cloudSongBytes:0,cloudSongObjects:0});
 function safeDirectory(folder:string):boolean{
  try{const s=lstatSync(folder);return s.isDirectory()&&!s.isSymbolicLink()&&realpathSync(folder)===folder;}catch{return false;}
 }
@@ -23,9 +23,13 @@ export function projectStorage(root:string,owner?:string):ProjectStorage{
  const folder=path.join(root,"music-video");
  try{
   if(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='music_asset_cloud'").get()){
-   const q="SELECT COALESCE(SUM(bytes),0) AS bytes,COUNT(*) AS count FROM music_asset_cloud WHERE pending_delete=0"+(owner===undefined?"":" AND owner_id=?");
-   const row=(owner===undefined?db.prepare(q).get():db.prepare(q).get(owner)) as {bytes:number;count:number};
-   result.cloudVideoBytes=row.bytes;result.cloudVideoObjects=row.count;
+   const q="SELECT COALESCE(SUM(bytes),0) AS bytes,COUNT(*) AS count FROM music_asset_cloud WHERE pending_delete=0 AND ";
+   for(const song of [false,true]){
+    const sql=q+(song?"asset_id LIKE '%:song%'":"asset_id NOT LIKE '%:song%'")+(owner===undefined?"":" AND owner_id=?");
+    const row=(owner===undefined?db.prepare(sql).get():db.prepare(sql).get(owner)) as {bytes:number;count:number};
+    if(song){result.cloudSongBytes=row.bytes;result.cloudSongObjects=row.count;}
+    else{result.cloudVideoBytes=row.bytes;result.cloudVideoObjects=row.count;}
+   }
   }
   const query=owner===undefined?"SELECT id FROM music_projects ORDER BY id LIMIT 1001":"SELECT id FROM music_projects WHERE owner_id=? ORDER BY id LIMIT 1001";
   const ids=(owner===undefined?db.prepare(query).all():db.prepare(query).all(owner)) as {id:string}[];

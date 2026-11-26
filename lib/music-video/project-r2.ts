@@ -1,23 +1,29 @@
-/** Owner-scoped immutable R2 objects for uploaded Projects videos only. */
+/** Owner-scoped immutable R2 objects for Projects videos and songs. */
 import {createHash,randomUUID,randomBytes} from "node:crypto";
-import {readFile,lstat,realpath,mkdtemp,writeFile,rm,copyFile,stat,statfs} from "node:fs/promises";
+import {readFile,lstat,realpath,mkdtemp,writeFile,rm,copyFile,stat,statfs,readdir} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {S3Client,PutObjectCommand,GetObjectCommand,DeleteObjectCommand,HeadObjectCommand} from "@aws-sdk/client-s3";
 import {loadR2Config,r2ClientConfig} from "../live/r2-config.ts";
 export type ProjectCloudRecord={key:string;sha256:string;bytes:number};
 const sha=(b:Buffer|string)=>createHash("sha256").update(b).digest("hex");
-const MiB=1024*1024,limit=50*MiB;
+const MiB=1024*1024,limit=128*MiB,videoLimit=50*MiB;
 const uuid=/^[a-f0-9-]{36}$/i;
+const customer=/^customer:[a-f0-9-]{36}$/i;
+export const songSlots=["song-original.mp3","song-original.wav","song-original.m4a","song.mp3"] as const;
+export type SongSlot=typeof songSlots[number];
+export const songAssetId=(project:string,slot:SongSlot)=>project+":"+slot;
+const validSongAsset=(project:string,asset:string)=>songSlots.some(slot=>songAssetId(project,slot)===asset);
+const byteLimit=(asset:string)=>uuid.test(asset)?videoLimit:limit;
 const environment=(env:Record<string,string|undefined>)=>env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"?"staging":env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"?"production":null;
 export function projectR2Enabled(env:Record<string,string|undefined>=process.env){return !!environment(env)&&env.PROJECT_VIDEO_R2_ENABLED==="true"&&env.PROJECT_VIDEO_R2_VERIFIED==="true";}
 export function projectCloudKey(owner:string,project:string,asset:string,digest:string,env:Record<string,string|undefined>=process.env){
  const scope=environment(env);
- if(!scope||!/^staff:[A-Za-z0-9_-]{1,100}$/.test(owner)||!uuid.test(project)||!uuid.test(asset)||!/^[a-f0-9]{64}$/.test(digest))throw Error("Invalid Projects cloud identity");
+ if(!scope||!(/^staff:[A-Za-z0-9_-]{1,100}$/.test(owner)||customer.test(owner))||!uuid.test(project)||!(uuid.test(asset)||validSongAsset(project,asset))||!/^[a-f0-9]{64}$/.test(digest))throw Error("Invalid Projects cloud identity");
  return ["projects-video","v1",scope,sha(owner),project,asset,digest].join("/");
 }
 export function validProjectCloudRecord(owner:string,project:string,asset:string,record:ProjectCloudRecord,env:Record<string,string|undefined>=process.env){
- return Number.isSafeInteger(record.bytes)&&record.bytes>0&&record.bytes<=limit&&record.key===projectCloudKey(owner,project,asset,record.sha256,env);
+ try{return Number.isSafeInteger(record.bytes)&&record.bytes>0&&record.bytes<=byteLimit(asset)&&record.key===projectCloudKey(owner,project,asset,record.sha256,env);}catch{return false;}
 }
 type Sender={send:(command:PutObjectCommand|GetObjectCommand|DeleteObjectCommand)=>Promise<any>};
 export async function verifiedCloudBytes(client:Sender,bucket:string,record:ProjectCloudRecord){
@@ -30,7 +36,7 @@ export async function verifiedCloudBytes(client:Sender,bucket:string,record:Proj
  return bytes;
 }
 export async function mirrorProjectBytes(client:Sender,bucket:string,key:string,bytes:Buffer,mime:string){
- if(bytes.length<1||bytes.length>limit)throw Error("Projects video exceeds limit");
+ if(bytes.length<1||bytes.length>(mime.startsWith("video/")?videoLimit:limit))throw Error("Projects media exceeds limit");
  const record={key,sha256:sha(bytes),bytes:bytes.length};
  try{await client.send(new PutObjectCommand({Bucket:bucket,Key:key,Body:bytes,ContentLength:bytes.length,ContentType:mime,ContentMD5:createHash("md5").update(bytes).digest("base64"),Metadata:{"singmotion-sha256":record.sha256},CacheControl:"private, no-store",IfNoneMatch:"*"}));}
  catch(e){if((e as {$metadata?:{httpStatusCode?:number}}).$metadata?.httpStatusCode!==412)throw e;}
@@ -41,11 +47,17 @@ export async function safeLocalProjectVideo(folder:string,asset:string,extension
  if(!uuid.test(asset)||!["mp4","webm"].includes(extension))throw Error("Invalid Projects source");
  const root=await realpath(folder),file=path.join(root,asset+"."+extension);
  const s=await lstat(file);
- if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1||s.size<1||s.size>limit||await realpath(file)!==file)throw Error("Invalid local Projects video");
+ if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1||s.size<1||s.size>videoLimit||await realpath(file)!==file)throw Error("Invalid local Projects video");
+ return file;
+}
+export async function safeLocalProjectSong(folder:string,slot:SongSlot){
+ const root=await realpath(folder),file=path.join(root,slot),s=await lstat(file);
+ if(!s.isFile()||s.isSymbolicLink()||s.nlink!==1||s.size<1||s.size>limit||await realpath(file)!==file)throw Error("Invalid local Projects song");
  return file;
 }
 export async function mirrorProjectVideo(owner:string,project:string,asset:string,file:string,mime:string){
  if(!projectR2Enabled())throw Error("Projects R2 writes disabled");
+ const info=await stat(file);if(info.size<1||info.size>byteLimit(asset))throw Error("Projects media exceeds limit");
  const bytes=await readFile(file);const key=projectCloudKey(owner,project,asset,sha(bytes));
  const config=loadR2Config(),client=new S3Client(r2ClientConfig(config));
  try{return await mirrorProjectBytes(client,config.bucket,key,bytes,mime);}finally{client.destroy();}
@@ -88,7 +100,7 @@ export class ProjectScratch{
  private folder:string|undefined;
  private bytes=0;
  async materialize(asset:string,ext:string,size:number,work:(file:string)=>Promise<void>){
-  if(!uuid.test(asset)||!["mp4","webm"].includes(ext)||size<1||size>limit)throw Error("Invalid Projects scratch source");
+  if(!(uuid.test(asset)||/^[a-f0-9-]{36}:song(?:-original)?\.(mp3|wav|m4a)$/.test(asset))||!["mp4","webm","mp3","wav","m4a"].includes(ext)||size<1||size>byteLimit(asset))throw Error("Invalid Projects scratch source");
   const fs=await statfs(tmpdir());
   if(reserved+size>768*MiB||fs.bavail*fs.bsize-reserved-size<256*MiB)throw Error("Projects temporary storage full");
   reserved+=size;this.bytes+=size;
@@ -127,4 +139,16 @@ export async function projectR2Canary(){
   }catch{}finally{client.destroy();}
  }
  return verified&&deleted;
+}
+
+/** Startup-only cleanup of disposable files left by a terminated previous process.
+ * Never walk DATA_DIR or delete a project original. */
+export async function cleanupProjectTemp(){
+ const root=tmpdir(),names=await readdir(root,{withFileTypes:true});
+ for(const entry of names){
+  if(!entry.isDirectory()||entry.isSymbolicLink())continue;
+  if(!/^(sm-project-source-[A-Za-z0-9]{6}|sm-project-upload-[A-Za-z0-9]{6}|sm-music-export-[A-Za-z0-9]{6}|singmotion-project-mobile-v1|singmotion-project-mobile-720-v2|singmotion-project-preview-v1)$/.test(entry.name))continue;
+  const file=path.join(root,entry.name),info=await lstat(file).catch(()=>null);
+  if(info?.isDirectory()&&!info.isSymbolicLink()&&Date.now()-info.mtimeMs>6*60*60*1000)await rm(file,{recursive:true,force:true}).catch(()=>{});
+ }
 }

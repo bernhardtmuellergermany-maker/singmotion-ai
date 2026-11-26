@@ -14,6 +14,15 @@ test("Projects cloud keys isolate owner and environment, writes are gated",()=>{
  assert.ok(!validProjectCloudRecord("staff:b",project,asset,record,env));
  assert.ok(!validProjectCloudRecord("staff:a",project,asset,record,prod));
  assert.throws(()=>projectCloudKey("customer:a",project,asset,sha256,env));
+ const customer="customer:33333333-3333-4333-8333-333333333333";
+ const customerKey=projectCloudKey(customer,project,asset,sha256,env);
+ assert.notEqual(customerKey,key);
+ assert.ok(validProjectCloudRecord(customer,project,asset,{...record,key:customerKey},env));
+ assert.ok(!validProjectCloudRecord("staff:a",project,asset,{...record,key:customerKey},env));
+ const slot=project+":song.mp3",songKey=projectCloudKey(customer,project,slot,sha256,env);
+ assert.ok(validProjectCloudRecord(customer,project,slot,{key:songKey,sha256,bytes:70*1024*1024},env));
+ assert.ok(!validProjectCloudRecord(customer,project,asset,{key:customerKey,sha256,bytes:70*1024*1024},env));
+ assert.throws(()=>projectCloudKey(customer,project,asset+":song.mp3",sha256,env));
 });
 test("migration demands full byte-for-byte readback, not just metadata",async()=>{
  const key=projectCloudKey("staff:a",project,asset,sha256,env);
