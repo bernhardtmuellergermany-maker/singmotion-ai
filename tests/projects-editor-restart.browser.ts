@@ -61,6 +61,7 @@ try{
   await play.waitFor({timeout:10000});
   await page.waitForFunction(()=>document.querySelectorAll(".mv-clip .mv-clip-waveform[data-waveform=ready] .mv-wave-shape").length===2&&!!document.querySelector(".mv-song-block .mv-wave-shape"),{},{timeout:10000});
   assert.equal(await page.locator(".mv-lane.is-audio-muted .mv-wave-shape").count(),2);
+  for(const shape of await page.locator(".mv-wave-shape").all())assert.equal(await shape.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)");
   const firstShape=await page.locator(".mv-clip .mv-wave-shape").first().getAttribute("d");
   assert.ok(firstShape&&firstShape.length>20);
   assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
