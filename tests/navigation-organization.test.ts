@@ -104,7 +104,7 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
  assert.ok(editor.includes('field==="start"?(parts?partStartText:startText)'));
  assert.ok(editor.includes("apply(moved,true,next)"));
- assert.ok(editor.includes("if(current.ended||at>=end){clearSyncHold();current.pause();at=end;}"));
+ assert.ok(editor.includes("if((jointStarted.current&&current.ended)||at>=end){clearSyncHold();jointStarted.current=false;current.pause();at=end;}"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
  assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
  assert.ok(core.includes("validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start)"));
@@ -628,7 +628,7 @@ test("Projects preview throttles React renders, keeps the exact clock and does n
  assert.ok(api.includes('song.wave-v1.json'));
  assert.ok(api.includes('length:240'));
  assert.ok(editor.includes("lastFollowerSeek.current.get(element)"));
- assert.ok(editor.includes("if(!run&&playingRef.current){element.pause();return;}"));
+ assert.ok(editor.includes("if(!run&&playingRef.current){if(!(jointStarted.current&&syncHold.current===null&&performance.now()-jointStartTime.current<180))element.pause();return;}"));
 });
 test("preview proxies are authorized, bounded and do not replace export originals",()=>{
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),renderer=read("lib/music-video/export.ts");
@@ -765,7 +765,7 @@ test("synchronized preview holds on missing, seeking, buffering or drifting pict
  const ready={currentTime:2,readyState:4,seeking:false,ended:false,duration:10};
  assert.equal(pictureSyncGate(2,null,false),"wait");
  assert.equal(pictureSyncGate(2,{...ready,readyState:1},false),"wait");
- assert.equal(pictureSyncGate(2,{...ready,readyState:2},true),"wait");
+ assert.equal(pictureSyncGate(2,{...ready,readyState:2},true),"ready");
  assert.equal(pictureSyncGate(2,{...ready,seeking:true},true),"wait");
  assert.equal(pictureSyncGate(2,{...ready,currentTime:1.8},true),"align");
  assert.equal(pictureSyncGate(2,{...ready,currentTime:1.94},true),"ready");
@@ -776,7 +776,7 @@ test("synchronized preview holds on missing, seeking, buffering or drifting pict
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("if(!pictureReady(at,running)){holdSong(at);}"));
  assert.ok(editor.includes("at=boundary;holdSong(at)"));
- assert.ok(editor.includes("else{clearSyncHold();startSong(at);}"));
+ assert.ok(editor.includes("else if(!startTogether(at)){holdSong(at);}"));
  assert.ok(editor.includes("if(songMaster){const plan=previewMediaPlan(latest.current,at,mutesRef.current);syncVideo"));
  assert.ok(editor.includes('preload={trackMutes.song?"none":"auto"}'));
 });
@@ -793,7 +793,7 @@ test("lookahead requires bounded buffered runway, not media in intentional gaps"
  assert.equal(nextVisibleClipTransition([clip],0,[18000,20500],{1:true,2:true})?.atMs,18000);
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("if(!clip)return true;"));
- assert.ok(editor.includes("hasPreviewBuffer(element.buffered,expected"));
+ assert.ok(editor.includes("return gate===\"ready\";"));
  assert.ok(editor.includes("[activeAsset,nextAsset,previousAsset,followingAsset,firstPreviewAsset?byId.get(firstPreviewAsset):undefined]"));
 });
 
@@ -829,9 +829,24 @@ test("project video display names never mutate the original or another project",
 test("replay retains a bounded session preview cache and skips network startup runway for complete blobs",()=>{
  const editor=read("components/music-video-editor.tsx"),cache=read("lib/music-video/browser-preview-cache.ts");
  assert.ok(editor.includes("firstPreviewAsset=firstVisibleVideo(clips)?.assetId"));
- assert.ok(editor.includes('!element.src.startsWith("blob:")'));
+ assert.ok(editor.includes("buffering?cached:undefined"));
  assert.ok(editor.includes("sessionSources.current=attached"));
  assert.ok(cache.includes('redirect:"error"'));
  assert.ok(cache.includes("URL.revokeObjectURL"));
  assert.ok(cache.includes("count!==length"));
+});
+
+test("paused current-frame decoder is allowed to start and transient startup drift is bounded",async()=>{
+ const {pictureSyncGate,previewRunningGate}=await import("../lib/music-video/song-range.ts");
+ const media={currentTime:0,readyState:2,seeking:false,ended:false,duration:5};
+ assert.equal(pictureSyncGate(0,media,false),"ready");
+ assert.equal(pictureSyncGate(0,{...media,readyState:1},false),"wait");
+ assert.equal(previewRunningGate(.15,media,100),"ready");
+ assert.equal(previewRunningGate(.15,media,200),"align");
+ assert.equal(previewRunningGate(.25,media,100),"align");
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("if(picture){picture.playbackRate=1;playFollower(picture);}"));
+ assert.ok(editor.includes("function startTogether(at:number):boolean"));
+ assert.ok(editor.includes("jointStarted.current&&current.ended"));
+ assert.ok(!editor.includes("hasPreviewBuffer(element.buffered"));
 });
