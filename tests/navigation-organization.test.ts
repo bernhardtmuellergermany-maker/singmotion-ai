@@ -104,7 +104,7 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
  assert.ok(editor.includes('field==="start"?(parts?partStartText:startText)'));
  assert.ok(editor.includes("apply(moved,true,next)"));
- assert.ok(editor.includes("if(at>=end||current.ended){current.pause();at=end;}"));
+ assert.ok(editor.includes("if(current.ended||at>=end){clearSyncHold();current.pause();at=end;}"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
  assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
  assert.ok(core.includes("validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start)"));
@@ -652,11 +652,11 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('window.matchMedia("(pointer: coarse)")'));
  assert.ok(editor.includes('mobileOriginalRef.current.has(assetId)?"/assets/"+assetId:"/preview/"+assetId+"?mobile=1"'));
  assert.ok(editor.includes('activeClip&&(!mobile||mobileReady.has(activeClip.assetId))'));
- assert.ok(editor.includes('nextTransition.atMs-playhead<=6000&&(!mobile||mobileReady.has(nextAsset.id))'));
+ assert.ok(editor.includes('nextTransition.atMs-playhead<=PREVIEW_LOOKAHEAD_MS&&(!mobile||mobileReady.has(nextAsset.id))'));
  assert.ok(editor.includes('key={c.id}'));
  assert.ok(editor.includes('warmNextVideo(element,c,nextTransition.atMs)'));
  assert.ok(editor.includes('element===video.current||element.readyState<1||element.seeking'));
- assert.ok(editor.includes('if(mobile!==false||playing||importing)return'));
+ assert.ok(editor.includes('if(mobile!==false||importing)return'));
  assert.ok(editor.includes('if(mobile!==true)return'));
  assert.ok(editor.includes('timer=setTimeout(()=>void prepare(),2000)'));
  assert.ok(editor.includes('const mobileClock=!!mobilePlan?.visible&&!songMaster'));
@@ -779,4 +779,20 @@ test("synchronized preview holds on missing, seeking, buffering or drifting pict
  assert.ok(editor.includes("else{clearSyncHold();startSong(at);}"));
  assert.ok(editor.includes("if(songMaster){const plan=previewMediaPlan(latest.current,at,mutesRef.current);syncVideo"));
  assert.ok(editor.includes('preload={trackMutes.song?"none":"auto"}'));
+});
+
+test("lookahead requires bounded buffered runway, not media in intentional gaps",async()=>{
+ const {hasPreviewBuffer,PREVIEW_LOOKAHEAD_MS,nextVisibleClipTransition}=await import("../lib/music-video/song-range.ts");
+ const ranges=(values:number[][])=>({length:values.length,start:(i:number)=>values[i][0],end:(i:number)=>values[i][1]});
+ assert.equal(PREVIEW_LOOKAHEAD_MS,30000);
+ assert.equal(hasPreviewBuffer(ranges([[0,2]]),1,10),false);
+ assert.equal(hasPreviewBuffer(ranges([[0,3]]),1,10),true);
+ assert.equal(hasPreviewBuffer(ranges([[0,1.1],[1.5,4]]),1,10),false);
+ assert.equal(hasPreviewBuffer(ranges([[1,1.3]]),1,1.3),true);
+ const clip={id:"next",track:1 as const,timelineStartMs:18000,sourceInMs:500,sourceOutMs:3000};
+ assert.equal(nextVisibleClipTransition([clip],0,[18000,20500],{1:true,2:true})?.atMs,18000);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("if(!clip)return true;"));
+ assert.ok(editor.includes("hasPreviewBuffer(element.buffered,expected"));
+ assert.ok(editor.includes("[activeAsset,nextAsset,followingAsset]"));
 });
