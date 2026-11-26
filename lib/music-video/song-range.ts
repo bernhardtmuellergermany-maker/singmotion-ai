@@ -253,3 +253,15 @@ export function pictureSyncGate(expected:number,media:{currentTime:number;readyS
  if(media.readyState<3&&!(tail&&media.readyState>=2))return "wait";
  return "ready";
 }
+
+/** Bounded lookahead: decoded media must already cover the next part of a clip.
+ * Ignore intentional timeline gaps; the caller supplies the clip's actual end. */
+export const PREVIEW_LOOKAHEAD_MS=30000;
+export const PREVIEW_START_BUFFER_SECONDS=1.5;
+export function hasPreviewBuffer(ranges:{length:number;start(i:number):number;end(i:number):number},at:number,end:number,seconds=PREVIEW_START_BUFFER_SECONDS){
+ if(!Number.isFinite(at)||!Number.isFinite(end)||end<at)return false;
+ const needed=Math.min(end,at+seconds);
+ if(needed-at<=0.04)return true;
+ for(let i=0;i<ranges.length;i++)if(ranges.start(i)<=at+0.04&&ranges.end(i)>=needed-0.04)return true;
+ return false;
+}
