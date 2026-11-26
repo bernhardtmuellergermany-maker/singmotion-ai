@@ -640,7 +640,7 @@ test("preview proxies are authorized, bounded and do not replace export original
  assert.ok(api.includes('24*1024*1024'));
  assert.ok(api.includes('"private, no-cache"'));
  assert.ok(api.includes('"Vary":"Cookie, Authorization"'));
- assert.ok(editor.includes('preload={visible?"auto":"metadata"}'));
+ assert.ok(editor.includes('preload="auto"'));
  assert.ok(editor.includes('playingPreviewRef.current=new Set(previewReadyRef.current)'));
  assert.ok(api.includes('startMusicExport(owner,detail.project,detail.clips,files,songFile)'));
  assert.ok(!renderer.includes('preview-v1'));
@@ -650,8 +650,11 @@ test("mobile editing uses one native clock and never automatically downloads ori
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
  assert.ok(editor.includes('window.matchMedia("(pointer: coarse)")'));
  assert.ok(editor.includes('mobileOriginalRef.current.has(assetId)?"/assets/"+assetId:"/preview/"+assetId+"?mobile=1"'));
- assert.ok(editor.includes('mobile?(activeClip&&mobileReady.has(activeClip.assetId)?[activeClip]:[])'));
- assert.ok(editor.includes('key={mobile?"mobile-video":c.id}'));
+ assert.ok(editor.includes('activeClip&&(!mobile||mobileReady.has(activeClip.assetId))'));
+ assert.ok(editor.includes('nextTransition.atMs-playhead<=6000&&(!mobile||mobileReady.has(nextAsset.id))'));
+ assert.ok(editor.includes('key={c.id}'));
+ assert.ok(editor.includes('warmNextVideo(element,c,nextTransition.atMs)'));
+ assert.ok(editor.includes('element===video.current||element.readyState<1||element.seeking'));
  assert.ok(editor.includes('if(mobile!==false||playing||importing)return'));
  assert.ok(editor.includes('if(mobile!==true)return'));
  assert.ok(editor.includes('timer=setTimeout(()=>void prepare(),2000)'));
@@ -693,4 +696,18 @@ test("fractional native playback never publishes the next track before the clock
  assert.ok(editor.includes("if(outgoing?.id!==incoming?.id)"));
  assert.ok(editor.includes("if(mobilePlan&&!mobileClock)at=Math.min(at,mobilePlan.nextBoundaryMs)"));
  assert.ok(editor.includes("if(clip&&element.dataset.clipId!==clip.id)return"));
+});
+
+
+test("next preview decoder seeks to exact picture transition, including covered lower track",async()=>{
+ const {nextVisibleClipTransition,clipSourceTimeMs}=await import("../lib/music-video/song-range.ts");
+ const base={id:"base",track:1 as const,timelineStartMs:0,sourceInMs:1000,sourceOutMs:11000};
+ const overlay={id:"overlay",track:2 as const,timelineStartMs:3000,sourceInMs:500,sourceOutMs:2500};
+ const next={id:"next",track:1 as const,timelineStartMs:12000,sourceInMs:800,sourceOutMs:2800};
+ const clips=[base,overlay,next],boundaries=[0,3000,5000,10000,12000,14000],mutes={1:false,2:false};
+ assert.deepEqual(nextVisibleClipTransition(clips,1000,boundaries,mutes),{clip:overlay,atMs:3000});
+ const resumed=nextVisibleClipTransition(clips,4000,boundaries,mutes)!;
+ assert.equal(resumed.clip.id,"base");assert.equal(resumed.atMs,5000);assert.equal(clipSourceTimeMs(resumed.clip,resumed.atMs),6000);
+ assert.deepEqual(nextVisibleClipTransition(clips,9000,boundaries,mutes),{clip:next,atMs:12000});
+ assert.equal(nextVisibleClipTransition(clips,13000,boundaries,mutes),undefined);
 });

@@ -170,6 +170,19 @@ export function previewMediaPlan<T extends {id:string;track:1|2;timelineStartMs:
  return {visible,audio1,audio2,clock,nextBoundaryMs};
 }
 
+/** Find the next change of visible picture rather than just the next clip start.
+ * A lower track can reappear partway through its original source after an overlay.
+ * Gaps are permitted; callers choose a bounded preloading window. */
+export function nextVisibleClipTransition<T extends {id:string;track:1|2;timelineStartMs:number;sourceInMs:number;sourceOutMs:number}>(clips:readonly T[],atMs:number,boundaries:readonly number[],mutes:{1:boolean;2:boolean}):{clip:T;atMs:number}|undefined{
+ const active=previewMediaPlan(clips,atMs,mutes).visible;
+ for(const boundary of boundaries){
+  if(boundary<=atMs)continue;
+  const candidate=previewMediaPlan(clips,boundary,mutes).visible;
+  if(candidate&&candidate.id!==active?.id)return {clip:candidate,atMs:boundary};
+ }
+ return undefined;
+}
+
 /** Use a half-open timeline interval in both the media clock and the rendered clip.
  * Rounding up before a boundary would unmount the media driving that boundary. */
 export function publishedPlaybackMs(at:number):number{
