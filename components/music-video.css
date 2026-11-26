@@ -317,7 +317,6 @@
 .mv-editor .mv-song-block{border-color:#75428f;background:#342043}
 .mv-editor .mv-wave{background:#342043}
 .mv-editor .mv-wave span{background:#bd55e9}
-.mv-editor .mv-song-part-number{position:absolute;top:2px;left:5px;z-index:1;font-size:10px;color:#fff;background:#261331c9;padding:1px 4px;border-radius:3px;pointer-events:none}
 .mv-editor .mv-song-part{border-right:2px solid #b780d3}
 .mv-editor .mv-playhead{border-left:1px solid #f4e9ff}
 .mv-editor .mv-playhead-grip{box-shadow:none}
@@ -620,6 +619,5 @@
 .mv-editor .mv-song-block .mv-clip-waveform{color:#fff}
 .mv-editor .mv-clip-title,.mv-editor .mv-clip-lock{position:relative;z-index:2;text-shadow:0 1px 3px #10091f,0 0 4px #10091f}
 .mv-editor .mv-song-wave-title{position:absolute;top:50%;transform:translateY(-50%);left:10px;right:10px;z-index:2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 3px #10091f,0 0 4px #10091f;pointer-events:none}
-.mv-editor .mv-song-wave-title.is-part{left:26px}
 .mv-editor .is-audio-muted .mv-clip-waveform{opacity:.82}
-@media(max-width:700px){.mv-editor .mv-song-wave-title{font-size:11px;left:5px;right:5px}.mv-editor .mv-song-wave-title.is-part{left:24px}}
+@media(max-width:700px){.mv-editor .mv-song-wave-title{font-size:11px;left:5px;right:5px}}
