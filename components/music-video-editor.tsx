@@ -8,6 +8,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
 import {ensureSession} from "@/lib/client";
 import {BrowserPreviewCache} from "@/lib/music-video/browser-preview-cache";
 import {validWaveform,waveformShape,type MediaWaveform} from "@/lib/music-video/waveform";
+import {lipSyncFrameDecision,presentedFrameError,LIP_SYNC_FRAME_LAG_SECONDS,LIP_SYNC_FRAME_AHEAD_SECONDS,LIP_SYNC_FRAME_PERSIST_MS,type PresentedFrame} from "@/lib/music-video/presented-frame-sync";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,mobileVideoSyncDecision,pictureSyncGate,previewRunningGate,PREVIEW_LOOKAHEAD_MS,songOwnsPreviewClock,previewMediaPlan,nextVisibleClipTransition,previousVisibleClipTransition,publishedPlaybackMs,nativeClipClockStep,nativeClockAction,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
@@ -83,6 +84,10 @@ export function MusicVideoEditor({id}:{id:string}){
   const followerPlayPending=useRef(new WeakSet<HTMLMediaElement>());
   const songPlayPending=useRef(false),syncHold=useRef<number|null>(null);
   const jointStarted=useRef(false),jointStartTime=useRef(-Infinity);
+  const presentedFrame=useRef<{element:HTMLVideoElement;frame:PresentedFrame|null;stop:()=>void}|null>(null);
+  const presentationDrift=useRef<{element:HTMLVideoElement;since:number}|null>(null);
+  const presentationRepair=useRef<{element:HTMLVideoElement;started:number}|null>(null);
+  useEffect(()=>()=>{presentedFrame.current?.stop();presentedFrame.current=null;},[]);
   const [buffering,setBuffering]=useState(false);
   const previewBox=useRef<HTMLDivElement>(null);
   const [songParts,setSongParts]=useState<SongRange[]|null>(null),partsRef=useRef<SongRange[]|null>(null);
@@ -906,6 +911,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{exportBusy.current=false;importBusy.current=false;if(!controller.signal.aborted){setImporting(false);setExporting(false);}exportAbort.current=null;}
   }
   function stopPlayback(){
+    presentationDrift.current=null;presentationRepair.current=null;
     if(playingRef.current){const at=publishedPlaybackMs(playheadRef.current);playheadRef.current=at;setPlayhead(at);setMarkerText(time(at,true));}
     mutedClockRef.current=null;syncHold.current=null;jointStarted.current=false;setBuffering(false);playingRef.current=false;setPlaying(false);audio.current?.pause();video.current?.pause();trackAudio1.current?.pause();trackAudio2.current?.pause();
   }
@@ -1008,20 +1014,70 @@ export function MusicVideoEditor({id}:{id:string}){
     if(video.current?.dataset.clipId===clip.id)return video.current;
     return Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>('video[data-clip-id]')??[]).find(element=>element.dataset.clipId===clip.id)??null;
   }
+  function lipSyncPicture(clip:MusicClip){return detailRef.current?.assets.find(a=>a.id===clip.assetId)?.role==="lip-sync";}
+  function observePresentedFrame(element:HTMLVideoElement){
+    if(presentedFrame.current?.element===element)return;
+    presentedFrame.current?.stop();presentedFrame.current=null;presentationDrift.current=null;presentationRepair.current=null;
+    if(typeof element.requestVideoFrameCallback!=="function"||typeof element.cancelVideoFrameCallback!=="function")return;
+    let callback=0,closed=false;
+    const clear=()=>{watch.frame=null;presentationDrift.current=null;};
+    const events=["seeking","loadstart","emptied"] as const;
+    const watch={element,frame:null as PresentedFrame|null,stop:()=>{closed=true;element.cancelVideoFrameCallback(callback);for(const event of events)element.removeEventListener(event,clear);document.removeEventListener("visibilitychange",clear);}};
+    const capture:VideoFrameRequestCallback=(now,metadata)=>{
+      if(closed)return;
+      if(!element.seeking&&!document.hidden&&Number.isFinite(metadata.mediaTime))watch.frame={mediaTime:metadata.mediaTime,displayTime:metadata.expectedDisplayTime,observedAt:now};
+      callback=element.requestVideoFrameCallback(capture);
+    };
+    for(const event of events)element.addEventListener(event,clear);
+    document.addEventListener("visibilitychange",clear);
+    presentedFrame.current=watch;callback=element.requestVideoFrameCallback(capture);
+  }
   function pictureReady(at:number,running:boolean){
     const clip=previewMediaPlan(latest.current,at,mutesRef.current).visible;
-    if(!clip)return true;
+    if(!clip){presentationDrift.current=null;presentationRepair.current=null;return true;}
     const element=pictureAt(clip),expected=clipSourceTimeMs(clip,at)/1000;
-    const gate=running?previewRunningGate(expected,element,performance.now()-jointStartTime.current):pictureSyncGate(expected,element,false);
+    const now=performance.now(),lipSync=!!element&&lipSyncPicture(clip);
+    if(lipSync&&element)observePresentedFrame(element);
+    else{presentationDrift.current=null;presentationRepair.current=null;}
+    const gate=running?previewRunningGate(expected,element,now-jointStartTime.current):pictureSyncGate(expected,element,false);
     if(gate==="align"&&element){
       element.pause();element.playbackRate=1;
-      if(performance.now()-(lastFollowerSeek.current.get(element)??-Infinity)>=150){
-        try{element.currentTime=expected;lastFollowerSeek.current.set(element,performance.now());}catch{}
+      if(now-(lastFollowerSeek.current.get(element)??-Infinity)>=150){
+        try{element.currentTime=expected;lastFollowerSeek.current.set(element,now);}catch{}
       }
+    }
+    if(gate!=="ready")return false;
+    if(lipSync&&element&&!document.hidden){
+      const watch=presentedFrame.current?.element===element?presentedFrame.current:null;
+      const frame=watch?.frame??null;
+      const repair=presentationRepair.current;
+      if(!running&&repair?.element===element){
+        // After a compositor-driven realignment wait briefly for the new frame.
+        // Some paused mobile decoders only present it when play() resumes.
+        const error=frame?presentedFrameError(expected,frame,now,false):null;
+        if(now-repair.started<300&&(error===null||error>LIP_SYNC_FRAME_LAG_SECONDS||error< -LIP_SYNC_FRAME_AHEAD_SECONDS))return false;
+        presentationRepair.current=null;
+      }
+      if(running){
+        const decision=lipSyncFrameDecision(expected,element.currentTime,frame,now,now-jointStartTime.current,!!audio.current&&!audio.current.paused);
+        if(decision.outOfSync){
+          if(presentationDrift.current?.element!==element)presentationDrift.current={element,since:now};
+          else if(now-presentationDrift.current.since>=LIP_SYNC_FRAME_PERSIST_MS){
+            presentationDrift.current=null;
+            presentationRepair.current={element,started:now};
+            element.pause();element.playbackRate=1;
+            if(watch)watch.frame=null;
+            // currentTime alone can be correct while the displayed picture lags.
+            // Re-decode the exact song-relative frame and hold the song meanwhile.
+            try{element.currentTime=expected;lastFollowerSeek.current.set(element,now);}catch{}
+            return false;
+          }
+        }else presentationDrift.current=null;
+      }else presentationDrift.current=null;
     }
     // A paused native decoder may only expose the current decoded frame.
     // Do not require a future buffered range before calling play().
-    return gate==="ready";
+    return true;
   }
   function holdSong(at:number){
     const current=audio.current;
@@ -1155,6 +1211,7 @@ export function MusicVideoEditor({id}:{id:string}){
     sessionSources.current.clear();
     for(const element of Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>("video[data-asset-id]")??[]))if(element.dataset.assetId)sessionSources.current.set(element.dataset.assetId,element.getAttribute("src")||networkSource(element.dataset.assetId));
     for(const element of [trackAudio1.current,trackAudio2.current])if(element?.dataset.assetId)sessionSources.current.set(element.dataset.assetId,element.getAttribute("src")||networkSource(element.dataset.assetId));
+    presentationDrift.current=null;presentationRepair.current=null;
     playingRef.current=true;setPlaying(true);
     const range=rangeRef.current,at=playheadRef.current;
     // The follower effect and song playing event start the matching clips.
@@ -1190,9 +1247,12 @@ export function MusicVideoEditor({id}:{id:string}){
     // While the master buffers, pause followers rather than repeatedly seeking them.
     if(!run&&playingRef.current){if(!(jointStarted.current&&syncHold.current===null&&performance.now()-jointStartTime.current<180))element.pause();return;}
     if(run&&audibleSongAt(at)&&performance.now()-jointStartTime.current<180){if(element.paused)playFollower(element);return;}
-    const decision=mobileRef.current&&audibleSongAt(at)&&element instanceof HTMLVideoElement
-      ?mobileVideoSyncDecision(expected,element.currentTime,run,element.paused,element.seeking)
-      :mediaSyncDecision(expected,element.currentTime,run,element.paused,element.seeking);
+    const precisePicture=run&&audibleSongAt(at)&&element instanceof HTMLVideoElement&&lipSyncPicture(clip)&&!element.paused&&!element.seeking;
+    const decision=precisePicture
+      ?{seek:false,rate:lipSyncFrameDecision(expected,element.currentTime,null,performance.now(),performance.now()-jointStartTime.current,true).rate}
+      :mobileRef.current&&audibleSongAt(at)&&element instanceof HTMLVideoElement
+        ?mobileVideoSyncDecision(expected,element.currentTime,run,element.paused,element.seeking)
+        :mediaSyncDecision(expected,element.currentTime,run,element.paused,element.seeking);
     if(element.playbackRate!==decision.rate)element.playbackRate=decision.rate;
     if(decision.seek&&(!run||element.paused||performance.now()-(lastFollowerSeek.current.get(element)??-Infinity)>=(mobileRef.current?750:250))){
       try{element.currentTime=expected;lastFollowerSeek.current.set(element,performance.now());}catch{}
