@@ -186,8 +186,8 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   return <>
     {show ? <aside className={styles.panel} aria-label="Privacy preferences">
       <h2>Privacy preferences</h2>
-      <p>Essential technologies keep your account and projects working. Optional Google Analytics measures visits and traffic sources only with your permission. Advertising tracking is not enabled.</p>
-      {preview && !id && <p>Staging preview — no information is sent to Google.</p>}
+      <p>Essential technologies keep your account and projects working. Optional Google Analytics 4 measures visits, approximate country and traffic sources only with your permission. Google may process browser information and identifiers outside the EEA. Advertising tracking is not enabled.</p>
+      {preview && !id && <p>Analytics is currently disabled. No information is sent to Google; this choice is a preview only. We will ask again before analytics is activated.</p>}
       <p><a href="/privacy">Privacy policy</a> · <a href="/cookies">Cookie policy</a></p>
       <div className={styles.actions}>
         <button type="button" onClick={() => choose("denied")}>Reject optional</button>

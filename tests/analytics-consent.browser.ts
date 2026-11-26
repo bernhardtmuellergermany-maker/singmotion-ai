@@ -21,7 +21,7 @@ const server=spawn(process.execPath,["node_modules/next/dist/bin/next","start","
  env:{PATH:process.env.PATH,HOME:process.env.HOME,NODE_ENV:"production",DATA_DIR:root,APP_ORIGIN:origin,
   STAGING_AUTH_ENABLED:"false",DEMO_MODE:"true",GENERATIONS_ENABLED:"false",ADMIN_DEMO_ENABLED:"false",
   CUSTOMER_ACCOUNTS_ENABLED:"true",CUSTOMER_R2_STORAGE_ENABLED:"false",STRIPE_LIVE_ENABLED:"false",
-  RAILWAY_ENVIRONMENT_NAME:"staging",GA4_ENABLED:"true",GA4_MEASUREMENT_ID:id},
+  RAILWAY_ENVIRONMENT_NAME:"production",GA4_ENABLED:"true",GA4_MEASUREMENT_ID:id},
  stdio:["ignore","pipe","pipe"]
 });
 let logs=""; server.stdout?.on("data",x=>logs+=x.toString());server.stderr?.on("data",x=>logs+=x.toString());

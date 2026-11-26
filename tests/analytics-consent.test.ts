@@ -7,7 +7,9 @@ test("analytics defaults off and requires an explicit environment-specific valid
   assert.equal(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"production",GA4_MEASUREMENT_ID:"G-TEST1234"}).id,null);
   assert.equal(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"production",GA4_ENABLED:"true",GA4_MEASUREMENT_ID:"invalid"}).id,null);
   assert.deepEqual(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"staging",GA4_CONSENT_PREVIEW:"true"}),{id:null,preview:true});
-  assert.equal(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"production",GA4_CONSENT_PREVIEW:"true"}).preview,false);
+  assert.equal(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"production",GA4_CONSENT_PREVIEW:"true"}).preview,true);
+  assert.deepEqual(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"production",GA4_CONSENT_PREVIEW:"true",GA4_ENABLED:"false",GA4_MEASUREMENT_ID:"G-TEST1234"}),{id:null,preview:true});
+  assert.equal(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"staging",GA4_ENABLED:"true",GA4_MEASUREMENT_ID:"G-TEST1234"}).id,null);
   assert.equal(analyticsConfig({RAILWAY_ENVIRONMENT_NAME:"production",GA4_ENABLED:"true",GA4_MEASUREMENT_ID:"G-TEST1234"}).id,"G-TEST1234");
 });
 test("consent expires and invalid, future and old-version records fail closed", () => {

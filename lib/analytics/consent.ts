@@ -22,8 +22,8 @@ export function analyticsConfig(env: Record<string, string | undefined>) {
   const stage = env.RAILWAY_ENVIRONMENT_NAME === "staging";
   const production = env.RAILWAY_ENVIRONMENT_NAME === "production";
   const id = env.GA4_MEASUREMENT_ID ?? "";
-  const enabled = (stage || production) && env.GA4_ENABLED === "true" && /^G-[A-Z0-9]{4,20}$/.test(id);
-  return { id: enabled ? id : null, preview: stage && env.GA4_CONSENT_PREVIEW === "true" };
+  const enabled = production && env.GA4_ENABLED === "true" && /^G-[A-Z0-9]{4,20}$/.test(id);
+  return { id: enabled ? id : null, preview: (stage || production) && env.GA4_CONSENT_PREVIEW === "true" };
 }
 // Exact public marketing routes only. No dynamic customer/project IDs, query strings or hashes.
 const publicPages: Record<string, string> = {
