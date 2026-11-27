@@ -14,8 +14,8 @@ const uuid=/^[a-f0-9-]{36}$/i;
 const customer=/^customer:[a-f0-9-]{36}$/i;
 export const songSlots=["song-original.mp3","song-original.wav","song-original.m4a","song.mp3"] as const;
 export type SongSlot=typeof songSlots[number];
-export const songAssetId=(project:string,slot:SongSlot)=>project+":"+slot;
-const validSongAsset=(project:string,asset:string)=>songSlots.some(slot=>songAssetId(project,slot)===asset);
+export const songAssetId=(project:string,slot:SongSlot,version?:string|null)=>project+":"+slot+(version?":"+version:"");
+const validSongAsset=(project:string,asset:string)=>songSlots.some(slot=>{const base=songAssetId(project,slot);return asset===base||(asset.startsWith(base+":")&&uuid.test(asset.slice(base.length+1)));});
 const byteLimit=(asset:string)=>uuid.test(asset)?videoLimit:limit;
 const environment=(env:Record<string,string|undefined>)=>env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041"?"staging":env.RAILWAY_ENVIRONMENT_ID==="36adc41d-7e54-4396-ad1a-fd432ba0441d"?"production":null;
 export function projectR2Enabled(env:Record<string,string|undefined>=process.env){return !!environment(env)&&env.PROJECT_VIDEO_R2_ENABLED==="true"&&env.PROJECT_VIDEO_R2_VERIFIED==="true";}
@@ -123,7 +123,7 @@ export class ProjectScratch{
  private folder:string|undefined;
  private bytes=0;
  async materialize(asset:string,ext:string,size:number,work:(file:string)=>Promise<void>){
-  if(!(uuid.test(asset)||/^[a-f0-9-]{36}:song(?:-original)?\.(mp3|wav|m4a)$/.test(asset))||!["mp4","webm","mp3","wav","m4a"].includes(ext)||size<1||size>byteLimit(asset))throw Error("Invalid Projects scratch source");
+  if(!(uuid.test(asset)||/^[a-f0-9-]{36}:song(?:-original)?\.(mp3|wav|m4a)(?::[a-f0-9-]{36})?$/.test(asset))||!["mp4","webm","mp3","wav","m4a"].includes(ext)||size<1||size>byteLimit(asset))throw Error("Invalid Projects scratch source");
   const fs=await statfs(tmpdir());
   if(reserved+size>768*MiB||fs.bavail*fs.bsize-reserved-size<256*MiB)throw Error("Projects temporary storage full");
   reserved+=size;this.bytes+=size;
