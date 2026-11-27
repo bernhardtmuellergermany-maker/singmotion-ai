@@ -10,7 +10,7 @@ import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {validWaveform,waveformShape,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartAt,songPartsEnd,continuousSongParts,clipSourceTimeMs,mediaSyncDecision,mobileVideoSyncDecision,pictureSyncGate,previewRunningGate,PREVIEW_LOOKAHEAD_MS,songOwnsPreviewClock,previewMediaPlan,nextVisibleClipTransition,previousVisibleClipTransition,publishedPlaybackMs,nativeClipClockStep,nativeClockAction,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -515,22 +515,18 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!project?.id||!frameCanvas.current)return;
     let disposed=false;
     const sameOrigin=(path:string)=>new URL(path,window.location.origin).href;
-    const ready=new Set<string>();
     const resolveSource=async(assetId:string,signal:AbortSignal)=>{
       if(assetId==="song")return sameOrigin(endpoint+id+"/song");
       // Always use the existing hardware-compatible, bounded proxy, not a 250MB original.
       const path=endpoint+id+"/preview/"+encodeURIComponent(assetId)+"?mobile=1";
-      if(!ready.has(assetId)){
-        for(let attempt=0;attempt<24;attempt++){
+      for(let attempt=0;attempt<24;attempt++){
           signal.throwIfAborted();
           const data=await request<{ready:boolean;unsupported?:boolean}>(path,{method:"POST",signal});
-          if(data.ready){ready.add(assetId);break;}
+          if(data.ready)return sameOrigin(path);
           if(data.unsupported)throw Error("This clip exceeds the preview length limit.");
           await new Promise<void>(resolve=>setTimeout(resolve,750));
-        }
-        if(!ready.has(assetId))throw Error("Video preview is still preparing. Tap Play to retry.");
       }
-      return sameOrigin(path);
+      throw Error("Video preview is still preparing. Tap Play to retry.");
     };
     try{
       const instance=new FramePreviewEngine<MusicClip>(frameCanvas.current,resolveSource,{
@@ -549,7 +545,9 @@ export function MusicVideoEditor({id}:{id:string}){
   },[id,project?.id]);
   useLayoutEffect(()=>{
     if(!project?.id||!engine.current)return;
-    engine.current.setTimeline(frameTimeline,previewRatio==="9:16"?480:854,previewRatio==="9:16"?854:480,playheadRef.current);
+    const mobile=window.matchMedia("(pointer: coarse)").matches||/iPhone|iPad|Android|Mobile/i.test(navigator.userAgent);
+    const short=mobile?360:480,long=mobile?640:854;
+    engine.current.setTimeline(frameTimeline,previewRatio==="9:16"?short:long,previewRatio==="9:16"?long:short,playheadRef.current);
   },[id,project?.id,frameTimeline,previewRatio]);
   const progress=timelineProgress(playhead,timelineEnd);
   const markerViewportX=progress.positionMs/1000*zoom-rulerViewport.scrollLeft;
