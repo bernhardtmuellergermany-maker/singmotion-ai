@@ -58,11 +58,11 @@ try{
  for(const mobile of [false,true]){
   const page=await browser.newPage(mobile?{isMobile:true,hasTouch:true,viewport:{width:390,height:844}}:{viewport:{width:1280,height:900}});
   await page.addInitScript(()=>{
-   const state={starts:[] as {when:number;now:number;offset:number;duration:number}[],frames:[] as number[],sampleTimes:[] as number[]};
+   const state={starts:[] as {when:number;now:number;offset:number;duration:number}[],frames:[] as number[],sampleTimes:[] as number[],watchBuffer:false,bufferingFrames:0};
    Object.assign(window,{__frameEngineTest:state});
    const native=AudioBufferSourceNode.prototype.start;
    AudioBufferSourceNode.prototype.start=function(when=0,offset=0,duration?:number){state.starts.push({when,now:this.context.currentTime,offset,duration:duration??0});return duration===undefined?native.call(this,when,offset):native.call(this,when,offset,duration);};
-   const observe=()=>{const canvas=document.querySelector<HTMLCanvasElement>('[data-frame-preview="true"]');if(canvas?.dataset.frame!==undefined){state.frames.push(Number(canvas.dataset.frame));if(canvas.dataset.sourceTime)state.sampleTimes.push(Number(canvas.dataset.sourceTime));}requestAnimationFrame(observe);};requestAnimationFrame(observe);
+   const observe=()=>{const canvas=document.querySelector<HTMLCanvasElement>('[data-frame-preview="true"]');if(canvas?.dataset.frame!==undefined){state.frames.push(Number(canvas.dataset.frame));if(canvas.dataset.sourceTime)state.sampleTimes.push(Number(canvas.dataset.sourceTime));}if(state.watchBuffer&&Array.from(document.querySelectorAll(".mv-player-controls [role=status]")).some(e=>e.textContent?.includes("Buffering")))state.bufferingFrames++;requestAnimationFrame(observe);};requestAnimationFrame(observe);
   });
   const prepareBefore=secondPreparations,downloadBefore=secondDownloads;
   await page.goto(origin);
@@ -120,16 +120,20 @@ try{
   assert.ok(playback.starts.every(s=>s.when>=s.now-.005&&s.duration>0),"audio buffers scheduled on one future clock");
   assert.ok(playback.frames.every((n,i,a)=>i===0||n>=a[i-1]),"no backward frame replay");
   assert.ok(playback.sampleTimes.every((n,i,a)=>i===0||n>=a[i-1]),"no backward decoded timestamp at startup");
+  await page.evaluate(()=>{const s=(window as any).__frameEngineTest;s.watchBuffer=true;s.bufferingFrames=0;});
   const cutStarted=Date.now();
   await page.waitForFunction(()=>Number(document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame)>=75,{},{timeout:4000});
   assert.ok(Date.now()-cutStarted<2700,"preloaded next clip crosses the gap/cut without a long buffer stall");
+  const bufferFrames=await page.evaluate(()=>{const s=(window as any).__frameEngineTest;s.watchBuffer=false;return s.bufferingFrames;});
+  assert.ok(bufferFrames<=6,"next-clip buffering must not interrupt playback visibly: "+bufferFrames+" animation frames");
   assert.equal(await pause.count(),1);
   await seek.press("Home");
   await page.waitForFunction(()=>{const f=Number(document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame);return f>=4&&f<=15;},{},{timeout:15000});
   assert.equal(await pause.count(),1);
   const ruler=await page.locator(".mv-ruler").boundingBox();assert.ok(ruler);
   await page.mouse.move(ruler.x+40,ruler.y+ruler.height/2);await page.mouse.down();
-  await page.mouse.move(ruler.x+8,ruler.y+ruler.height/2,{steps:4});await page.mouse.up();
+  const forward=await heldFrame();assert.equal(await pause.count(),1);
+  await page.mouse.move(ruler.x+8,ruler.y+ruler.height/2,{steps:4});const backward=await heldFrame();assert.ok(backward<forward);assert.equal(await pause.count(),1);await page.mouse.up();
   await page.waitForFunction(()=>{const f=Number(document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame);return f>=4&&f<=20;},{},{timeout:15000});
   assert.equal(await pause.count(),1);
   await pause.click();await jump(1700);
