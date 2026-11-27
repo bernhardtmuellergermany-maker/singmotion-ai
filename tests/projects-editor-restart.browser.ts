@@ -56,7 +56,7 @@ const server=createServer((req,res)=>{
  if(p.includes("/format/"))return json({width:320,height:180});
  if(p.includes("/timeline-preview")){timelineRequests++;res.writeHead(404);res.end();return;}
  if(p.endsWith("/song"))return media(song,"audio/mpeg");
- if(p==="/api/music-video/lock-project/assets/first"&&req.method==="GET")return media(video,"video/mp4");
+ if(p==="/api/music-video/lock-project/assets/first"&&req.method==="GET"){res.writeHead(403);res.end();return;}
  if(p.includes("/assets/")){assetRequests++;res.writeHead(403);res.end();return;}
  if(p.includes("/preview/")&&req.method==="POST"){
   if(p.endsWith("/second")){secondPreparations++;setTimeout(()=>json({ready:true,unsupported:false}),1250);return;}
@@ -456,7 +456,9 @@ try{
   await sort.click();await page.keyboard.press("Escape");assert.equal(await page.locator(".mv-library-select-menu:visible").count(),0);
   await page.getByRole("button",{name:"Preview first",exact:true}).click();
   const preview=page.getByRole("dialog",{name:"Preview first",exact:true});await preview.waitFor();
-  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>(".mv-library-preview-dialog video");return !!v&&v.readyState>=1;},{},{timeout:15000});
+  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>(".mv-library-preview-dialog video");return !!v&&v.readyState>=2&&v.currentTime>.1&&!v.paused;},{},{timeout:15000});
+   assert.ok((await preview.locator("video").getAttribute("src"))?.includes("/preview/first?mobile=1"),"library plays compatible preview even when original endpoint fails");
+   assert.equal(await preview.getByRole("alert").count(),0);
   await preview.getByRole("button",{name:"Close video preview"}).click();await preview.waitFor({state:"hidden"});
   assert.equal(await page.locator(".mv-library-preview-dialog video").count(),0);
   await page.close();console.log("PASS: direct clip eye/lock, save/reload, source restoration, library source sort, used indicators and original video preview at "+width+"px");
