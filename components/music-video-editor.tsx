@@ -771,6 +771,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(edge==="move"){
         const track=([1,2] as const).find(t=>{const rect=videoLanes.current[t]?.getBoundingClientRect();return !!rect&&event.clientY>=rect.top&&event.clientY<rect.bottom;});
         if(track===undefined){valid=false;setDragTrack(null);setDragBlocked(false);setClips(startClips);return;}
+        if(initial.syncLocked&&Math.abs(dx)>3){setError("Sync Lock is active. Tap the clip padlock to unlock before moving horizontally.");}
         const position=initial.syncLocked||Math.abs(dx)<=3?initial.timelineStartMs:
           Math.max(0,Math.min(timelineLimit-(initial.sourceOutMs-initial.sourceInMs),Math.max(0,snapped(initial.timelineStartMs+delta,initial))));
         const result=transferVideoClip(startClips,initial,track,position);
@@ -816,7 +817,11 @@ export function MusicVideoEditor({id}:{id:string}){
   function togglePositionLock(id:string){
     if(importBusy.current||roleBusy.current)return;
     const current=latest.current.find(c=>c.id===id);if(!current)return;
-    apply(latest.current.map(c=>c.id===current.id?{...c,positionLocked:!current.positionLocked}:c));
+    // The clip padlock must reflect both kinds of movement protection.
+    // An explicit unlock also releases Sync Lock, after warning the user.
+    const locked=!!(current.positionLocked||current.syncLocked);
+    if(locked&&current.syncLocked&&!window.confirm("Unlock song synchronization? Moving this clip can break lip sync."))return;
+    apply(latest.current.map(c=>c.id===current.id?{...c,positionLocked:!locked,syncLocked:locked?false:c.syncLocked}:c));
   }
   function toggleLock(){
     if(!selectedClip||selectedClip.positionLocked||!selectedAsset||selectedAsset.role!=="lip-sync"||selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null)return;
@@ -1087,6 +1092,7 @@ export function MusicVideoEditor({id}:{id:string}){
               {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).map(c=>{
                 const a=byId.get(c.assetId);if(!a)return null;
                 const clipWidth=(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom;
+                const movementLocked=!!(c.positionLocked||c.syncLocked);
                 return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(c.positionLocked?" is-position-locked":"")+(clipWidth<48?" is-compact":"")+(armedMedia===c.id?" is-armed":"")}
                     style={{left:c.timelineStartMs/1000*zoom,width:(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom}}
                     tabIndex={0} aria-label={"Select video "+a.name}
@@ -1104,12 +1110,12 @@ export function MusicVideoEditor({id}:{id:string}){
                     onClick={e=>{e.stopPropagation();toggleClipDisplay(c.id);}}>
                     {c.showVideoName?<EyeOff size={13}/>:<Eye size={13}/>}
                   </button>
-                  <button type="button" className={"mv-clip-position-lock"+(c.positionLocked?" is-active":"")} aria-pressed={!!c.positionLocked}
-                    aria-label={(c.positionLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
-                    title={c.positionLocked?"Unlock clip position":"Lock clip position"} disabled={importing}
+                  <button type="button" className={"mv-clip-position-lock"+(movementLocked?" is-active":"")} aria-pressed={movementLocked}
+                    aria-label={(movementLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
+                    title={movementLocked?(c.syncLocked?"Unlock clip and song synchronization":"Unlock clip position"):"Lock clip position"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
                     onClick={e=>{e.stopPropagation();togglePositionLock(c.id);}}>
-                    {c.positionLocked?<Lock size={13}/>:<Unlock size={13}/>}
+                    {movementLocked?<Lock size={13}/>:<Unlock size={13}/>}
                   </button>
                   <button type="button" className="mv-handle mv-handle-end" disabled={c.positionLocked} aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
                 </div>;

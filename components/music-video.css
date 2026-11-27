@@ -695,3 +695,13 @@
 .mv-root.mv-editor .mv-clip.is-compact .mv-clip-display-toggle{left:0}
 .mv-root.mv-editor .mv-clip.is-compact .mv-clip-position-lock{right:auto;left:22px}
 @media(pointer:coarse){.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{width:23px;height:23px}.mv-root.mv-editor .mv-clip.is-compact .mv-clip-position-lock{left:24px}}
+
+/* Keep the middle/lower clip body available for hold-to-move. The eye and
+   lock only occupy the upper corners; trim hit areas stay at the edges. */
+.mv-root.mv-editor .mv-clip .mv-handle{width:min(12px,20%);z-index:6}
+.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{width:min(21px,40%);height:18px;top:1px;min-width:0}
+.mv-root.mv-editor .mv-clip-position-lock{right:1px}.mv-root.mv-editor .mv-clip-display-toggle{left:1px}
+.mv-root.mv-editor .mv-clip.is-compact .mv-clip-position-lock{right:1px;left:auto}
+.mv-root.mv-editor .mv-clip.is-compact .mv-clip-display-toggle{left:1px}
+.mv-root.mv-editor .mv-clip-position-lock svg,.mv-root.mv-editor .mv-clip-display-toggle svg{max-width:100%;height:12px}
+@media(pointer:coarse){.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{width:min(22px,40%);height:19px}}

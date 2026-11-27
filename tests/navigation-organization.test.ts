@@ -955,3 +955,9 @@ test("timeline has an explicit empty selection",()=>{
  assert.ok(editor.includes('beginMediaGesture(e,"viewport",()=>{},clearSelection,false)'));
  assert.ok(editor.includes('{hasSelection&&<><button'));
 });
+
+test("clip padlock reflects Sync Lock and explicit unlock releases movement protection",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("movementLocked=!!(c.positionLocked||c.syncLocked)"));
+ assert.ok(editor.includes("positionLocked:!locked,syncLocked:locked?false:c.syncLocked"));
+});

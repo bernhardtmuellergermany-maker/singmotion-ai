@@ -249,8 +249,35 @@ try{
   assert.equal(lockClips[1].positionLocked,false);
   const wave=save();await second.getByRole("button",{name:"Show waveform: second"}).click();await wave;
   assert.equal(lockClips[1].showVideoName,false);assert.equal(await second.locator(".mv-clip-title").count(),0);
+  // Actual pointer gestures, not only inspector/button state. Drag the
+  // lower middle of the unlocked clip, away from both corner controls.
+  await second.scrollIntoViewIfNeeded();
+  const dragSecond=async(dx:number)=>{
+   const b=await second.boundingBox();assert.ok(b);
+   const x=b.x+b.width/2,y=b.y+b.height-5;
+   assert.equal(await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.closest(".mv-clip")?.getAttribute("aria-label"),{x,y}),"Select video second");
+   if(width<500){
+    const client=await page.context().newCDPSession(page);
+    await client.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y,id:1}]});
+    await page.waitForTimeout(430);
+    await client.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:x+dx,y,id:1}]});
+    await client.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await client.detach();
+   }else{await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y,{steps:5});await page.mouse.up();}
+  };
+  const oldStart=lockClips[1].timelineStartMs;
+  const moved=save();await dragSecond(-20);await moved;
+  assert.notEqual(lockClips[1].timelineStartMs,oldStart,"unlocked video must move with a pointer gesture");
+  const protectedSave=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await protectedSave;
+  const protectedStart=lockClips[1].timelineStartMs;await dragSecond(15);await page.waitForTimeout(800);
+  assert.equal(lockClips[1].timelineStartMs,protectedStart,"locked video must not move");
+  console.log("PASS: unlocked clip moves with "+(width<500?"touch hold":"mouse drag")+"; locked clip stays fixed");
   await select(first);const restored=save();await page.getByRole("button",{name:"Return to source time",exact:true}).click();await restored;
   assert.equal(lockClips[0].timelineStartMs,750);assert.equal(lockClips[0].syncLocked,true);
+  // Restoring source timing must show a closed padlock, not an open one.
+  await first.getByRole("button",{name:"Unlock clip position: first"}).waitFor();
+  page.once("dialog",dialog=>dialog.accept());
+  const syncUnlocked=save();await first.getByRole("button",{name:"Unlock clip position: first"}).click();await syncUnlocked;
+  assert.equal(lockClips[0].syncLocked,false);assert.equal(lockClips[0].positionLocked,false);
   const song=page.getByRole("button",{name:"Select song",exact:true});await song.focus();await song.press("Enter");
   assert.equal(await song.getAttribute("aria-pressed"),"true");
   await page.locator(".mv-main-lane").click({position:{x:5,y:4}});
