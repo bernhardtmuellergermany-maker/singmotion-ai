@@ -790,3 +790,13 @@
  .mv-root.mv-editor .mv-marker-time input[aria-label="Playhead timeline time"]{font-size:16px;width:91px!important;max-width:91px!important}
  .mv-root.mv-editor .mv-marker-time label{padding:0 4px;gap:3px}
 }
+
+/* Alternate adjacent clip colors independently on each chronological track. */
+.mv-root.mv-editor .mv-lane .mv-clip.mv-clip-alt-a{background:#61337e}
+.mv-root.mv-editor .mv-lane .mv-clip.mv-clip-alt-b{background:#8b4fb3}
+/* The entire field, including its icon, uses a single black surface. */
+.mv-root.mv-editor .mv-marker-time label,.mv-root.mv-editor .mv-browse-search,.mv-root.mv-editor .mv-lip-dialog>input[type=search]{background:#000!important;background-image:none!important;color:#fff;color-scheme:dark;box-shadow:none}
+.mv-root.mv-editor .mv-marker-time input[aria-label="Playhead timeline time"],.mv-root.mv-editor .mv-browse-search input[type=search]{background:transparent!important;background-image:none!important;color:#fff!important;box-shadow:none!important;border:0!important;outline:none}
+.mv-root.mv-editor .mv-browse-search svg,.mv-root.mv-editor .mv-marker-time label>svg{color:#fff}
+.mv-root.mv-editor input[type=search]::placeholder{color:#a9a2b2;opacity:1}
+.mv-root.mv-editor .mv-browse-search:focus-within,.mv-root.mv-editor .mv-lip-dialog>input[type=search]:focus-visible{outline:1px solid #c797e8;outline-offset:1px}

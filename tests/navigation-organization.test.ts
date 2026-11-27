@@ -1054,3 +1054,11 @@ test("timeline toolbar uses a magnet and icon-only zoom with direct time submiss
  assert.ok(!editor.includes('aria-label="Go to exact time"'));
  assert.ok(editor.includes('enterKeyHint="go"'));
 });
+
+test("editor alternates clips in chronological order independently for each track",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(editor.includes('sort((a,b)=>a.timelineStartMs-b.timelineStartMs||a.id.localeCompare(b.id)).map((c,i)=>'));
+ assert.ok(editor.includes('i%2===0?" mv-clip-alt-a":" mv-clip-alt-b"'));
+ assert.ok(css.includes('.mv-clip.mv-clip-alt-a{background:#61337e}'));
+ assert.ok(css.includes('.mv-clip.mv-clip-alt-b{background:#8b4fb3}'));
+});

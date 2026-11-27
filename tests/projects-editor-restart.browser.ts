@@ -187,6 +187,8 @@ try{
   await magnet.click();assert.equal(await magnet.getAttribute("aria-pressed"),initialSnap);
   assert.equal(await page.locator(".mv-timeline-toolbar input[type=checkbox],.mv-zoom-buttons output,.mv-marker-time button").count(),0);
   const exactTime=page.getByRole("textbox",{name:"Playhead timeline time"});
+  assert.equal(await exactTime.evaluate(el=>getComputedStyle(el.parentElement!).backgroundColor),"rgb(0, 0, 0)");
+  assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
   await exactTime.fill("00:01.234");await exactTime.press("Enter");
   assert.equal(await page.locator(".mv-progress").inputValue(),"1234");
   await exactTime.press("Escape");
@@ -253,7 +255,7 @@ try{
    assert.equal(await page.evaluate(()=>document.activeElement?.tagName),"DIV","opening must not summon the mobile keyboard");
    const bounds=await dialog.evaluate(el=>{const r=el.getBoundingClientRect(),v=window.visualViewport;return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:v?.width??innerWidth,height:v?.height??innerHeight,x:v?.offsetLeft??0,y:v?.offsetTop??0,overflow:el.scrollWidth>el.clientWidth+1};});
    assert.ok(bounds.left>=bounds.x-1&&bounds.right<=bounds.x+bounds.width+1&&bounds.top>=bounds.y-1&&bounds.bottom<=bounds.y+bounds.height+1&&!bounds.overflow,JSON.stringify(bounds));
-   const search=dialog.getByRole("searchbox",{name:"Search Lip Sync videos"});await search.fill("Completed video 15");
+   const search=dialog.getByRole("searchbox",{name:"Search Lip Sync videos"});assert.equal(await search.evaluate(el=>getComputedStyle(el).backgroundColor),"rgb(0, 0, 0)");await search.fill("Completed video 15");
    assert.equal(await dialog.locator(".mv-lip-list>button").count(),1);
    await dialog.getByRole("button",{name:"Close",exact:true}).click();await dialog.waitFor({state:"hidden"});
    console.log("PASS: Lip Sync dialog fits "+width+"px viewport with long names and a transformed editor; search and close work");

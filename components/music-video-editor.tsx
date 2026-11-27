@@ -1102,11 +1102,11 @@ export function MusicVideoEditor({id}:{id:string}){
               {ticks.map(t=><span key={t.ms} className={t.major?"mv-tick-major":"mv-tick-minor"} aria-hidden={!t.major} style={{left:t.ms/1000*zoom}}>{t.major?<span className="mv-tick-label">{tickStep<1000?time(t.ms,true):time(t.ms)}</span>:null}</span>)}
             </div>
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(trackMutes[track]?" is-audio-muted":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
-              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).map(c=>{
+              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).sort((a,b)=>a.timelineStartMs-b.timelineStartMs||a.id.localeCompare(b.id)).map((c,i)=>{
                 const a=byId.get(c.assetId);if(!a)return null;
                 const clipWidth=(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom;
                 const movementLocked=!!(c.positionLocked||c.syncLocked);
-                return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(c.positionLocked?" is-position-locked":"")+(clipWidth<48?" is-compact":"")+(armedMedia===c.id?" is-armed":"")}
+                return <div key={c.id} className={"mv-clip"+(i%2===0?" mv-clip-alt-a":" mv-clip-alt-b")+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(c.positionLocked?" is-position-locked":"")+(clipWidth<48?" is-compact":"")+(armedMedia===c.id?" is-armed":"")}
                     style={{left:c.timelineStartMs/1000*zoom,width:(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom}}
                     tabIndex={0} aria-label={"Select video "+a.name}
                     onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectVideo(c.id);}}}
