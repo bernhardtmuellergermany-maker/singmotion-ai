@@ -96,3 +96,28 @@ test("R2 file transfer streams a conditional upload and verifies every byte",asy
   await assert.rejects(verifyCloudStream(client,"test",record),/checksum mismatch/);
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+test("frozen customer Projects erasure removes only verified owned projects and retains rows on cloud failure",async()=>{
+ const {mkdtempSync,mkdirSync,writeFileSync,existsSync,rmSync}=await import("node:fs");
+ const {tmpdir}=await import("node:os");const {join}=await import("node:path");
+ const {DatabaseSync}=await import("node:sqlite");
+ const {customerProjectsErasureInventory,eraseCustomerProjects}=await import("../lib/music-video/customer-project-erasure.ts");
+ const root=mkdtempSync(join(tmpdir(),"sm-project-erase-"));
+ const account="33333333-3333-4333-8333-333333333333",owner="customer:"+account,other="customer:44444444-4444-4444-8444-444444444444";
+ const otherProject="55555555-5555-4555-8555-555555555555";
+ try{
+  const db=new DatabaseSync(join(root,"music-video.sqlite"));
+  db.exec("CREATE TABLE music_projects(id TEXT PRIMARY KEY,owner_id TEXT); CREATE TABLE music_assets(id TEXT,project_id TEXT); CREATE TABLE music_clips(project_id TEXT); CREATE TABLE music_asset_cloud(project_id TEXT,asset_id TEXT,owner_id TEXT,object_key TEXT,sha256 TEXT,bytes INTEGER);");
+  db.prepare("INSERT INTO music_projects VALUES(?,?)").run(project,owner);db.prepare("INSERT INTO music_projects VALUES(?,?)").run(otherProject,other);
+  db.prepare("INSERT INTO music_asset_cloud VALUES(?,?,?,?,?,?)").run(project,asset,owner,projectCloudKey(owner,project,asset,sha256,env),sha256,bytes.length);db.close();
+  for(const id of [project,otherProject]){mkdirSync(join(root,"music-video",id),{recursive:true});writeFileSync(join(root,"music-video",id,"song.mp3"),bytes);}
+  assert.deepEqual(customerProjectsErasureInventory(root,account),{musicProjects:1,musicProjectCloudObjects:1});
+  await assert.rejects(eraseCustomerProjects(root,account,{env,remove:async()=>{throw Error("R2 unavailable")}}));
+  assert.equal(customerProjectsErasureInventory(root,account).musicProjects,1);
+  assert.ok(existsSync(join(root,"music-video",project)));
+  const removed:string[]=[];
+  await eraseCustomerProjects(root,account,{env,remove:async(o,p,a)=>{assert.equal(o,owner);assert.equal(p,project);removed.push(a);}});
+  assert.deepEqual(removed,[asset]);assert.deepEqual(customerProjectsErasureInventory(root,account),{musicProjects:0,musicProjectCloudObjects:0});
+  assert.ok(existsSync(join(root,"music-video",otherProject)));assert.ok(!existsSync(join(root,"music-video",project)));
+ }finally{rmSync(root,{recursive:true,force:true});}
+});

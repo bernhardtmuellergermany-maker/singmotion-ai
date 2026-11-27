@@ -89,7 +89,7 @@ export async function runCustomerErasureJobs(
      // A cross-store crash can leave a partially finished media step. Recheck.
      const media=assessCustomerMediaErasure(root,row.id);
      if(media.assets||media.studioProjects||media.providerTasks||
-        media.paidOutputs||media.inputLeases||media.cloudSources)
+        media.paidOutputs||media.inputLeases||media.cloudSources||media.musicProjects||media.musicProjectCloudObjects)
       throw new AccountErasureFinalizationBlocked("MEDIA_NOT_ERASED");
      if(finalizeErasedCustomerData(store,row.id)){result.completed++;result.advanced++;}
     }
@@ -97,7 +97,7 @@ export async function runCustomerErasureJobs(
     const code=safe(issue(e));
     // Diagnostic contains only an allowlisted error code and workflow state.
     console.warn("ACCOUNT_ERASURE_DEFERRED",{code,state:row.state});
-    if(["ACTIVE_MEDIA_JOB","ACTIVE_PAID_PROVIDER_JOB","ACTIVE_OR_UNKNOWN_PROVIDER_JOB",
+    if(["ACTIVE_PROJECT_OPERATION","ACTIVE_MEDIA_JOB","ACTIVE_PAID_PROVIDER_JOB","ACTIVE_OR_UNKNOWN_PROVIDER_JOB",
         "PROVIDER_INPUT_LEASE_ACTIVE","LIVE_PROVIDER_INPUT_LEASE_ACTIVE"].includes(code)){
      result.deferred++;continue; // still processing: retry later, without freezing progress indefinitely
     }

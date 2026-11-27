@@ -20,6 +20,8 @@ import {loadR2Config,r2ClientConfig} from "../live/r2-config.ts";
 import {inputDeliveryPolicy} from "../live/input-policy.ts";
 import type {Asset} from "../domain.ts";
 import {readErasureJob} from "./customer-erasure-job.ts";
+import {customerProjectsErasureInventory,eraseCustomerProjects} from "../music-video/customer-project-erasure.ts";
+import {projectR2Enabled} from "../music-video/project-r2.ts";
 
 type StorageDb={db:DatabaseSync;kind:"demo"|"live"|"commerce"};
 type CloudSource={asset_id:string;key:string;sha256:string;bytes:number};
@@ -40,13 +42,17 @@ export class CustomerMediaErasureBlocked extends Error{
 }
 export type CustomerMediaErasurePlan={
  assets:number;studioProjects:number;providerTasks:number;paidOutputs:number;
- inputLeases:number;cloudSources:number;
+ inputLeases:number;cloudSources:number;musicProjects?:number;musicProjectCloudObjects?:number;
 };
 /** Check the physical removal capability before a customer is frozen or paid
  * out. A successful SQL inventory is not proof that remote R2 object deletion
  * is enabled or that runtime storage credentials are valid.
  */
 export function assertCustomerMediaErasureReady(plan:CustomerMediaErasurePlan):void{
+ if(plan.musicProjectCloudObjects){
+  if(!projectR2Enabled())throw new CustomerMediaErasureBlocked("PROJECTS_MEDIA_CLEANUP_UNAVAILABLE");
+  try{loadR2Config()}catch{throw new CustomerMediaErasureBlocked("PRIVATE_MEDIA_CREDENTIALS_UNAVAILABLE")}
+ }
  if(plan.cloudSources||plan.paidOutputs||plan.inputLeases||plan.providerTasks){
   if(!customerR2Enabled())
    throw new CustomerMediaErasureBlocked("PRIVATE_MEDIA_CLEANUP_UNAVAILABLE");
@@ -241,7 +247,9 @@ export function assessCustomerMediaErasure(root:string,id:string):CustomerMediaE
    .get(id) as {email:string}|undefined;
   if(!profile)throw new CustomerMediaErasureBlocked("ACCOUNT_NOT_FOUND");
   const v=inspect(demo,live,commerce,id,profile.email);
-  return {assets:v.assets.length,studioProjects:v.projectIds.length,
+  const projects=customerProjectsErasureInventory(root,id);
+  const projectCounts=projects.musicProjects||projects.musicProjectCloudObjects?projects:{};
+  return {...projectCounts,assets:v.assets.length,studioProjects:v.projectIds.length,
    providerTasks:v.attempts.length,paidOutputs:v.paid.length,
    inputLeases:v.leases.length,cloudSources:v.sources.length};
  }finally{demo.close();live?.close();commerce.close()}
@@ -278,8 +286,10 @@ export async function eraseCustomerMedia(root:string,id:string,deps:Dependencies
    .get(id) as {email:string}|undefined;
   if(!profile)throw new CustomerMediaErasureBlocked("ACCOUNT_NOT_FOUND");
   const v=inspect(demo,live,commerce,id,profile.email);
+ const projects=customerProjectsErasureInventory(root,id);
+  const projectCounts=projects.musicProjects||projects.musicProjectCloudObjects?projects:{};
   const result:CustomerMediaErasurePlan={
-   assets:v.assets.length,studioProjects:v.projectIds.length,
+   ...projectCounts,assets:v.assets.length,studioProjects:v.projectIds.length,
    providerTasks:v.attempts.length,paidOutputs:v.paid.length,
    inputLeases:v.leases.length,cloudSources:v.sources.length};
   // Verify every authorized local path *before* any irreversible R2 call.
@@ -301,6 +311,10 @@ export async function eraseCustomerMedia(root:string,id:string,deps:Dependencies
     if(!localName.test(filename)||path.resolve(attempt.outputPath)!==path.resolve(root,"live-output",filename))
      throw new CustomerMediaErasureBlocked("INVALID_LIVE_OUTPUT_PATH");
    }
+  }
+  try{await eraseCustomerProjects(root,id)}catch(error){
+   if(error instanceof Error&&error.message==="ACTIVE_PROJECT_OPERATION")throw new CustomerMediaErasureBlocked("ACTIVE_PROJECT_OPERATION");
+   throw new CustomerMediaErasureBlocked("PROJECTS_MEDIA_ERASURE_UNVERIFIED");
   }
   for(const entry of v.leases)
    await leaseDelete(id,entry.order_id,entry.audio_key,entry.image_key);
