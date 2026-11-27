@@ -3,6 +3,7 @@ import Link from "next/link";
 import {useCallback,useEffect,useState} from "react";
 import {Clapperboard,Plus,Search,MoreHorizontal,Trash2,Pencil,Music2,ChevronDown,RefreshCw,ArrowUpDown} from "lucide-react";
 import type {MusicProject,MusicProjectSummary,ProjectAspectRatio} from "@/lib/music-video/core";
+import {SunoSongImport} from "./suno-song-import";
 import "./music-video.css";
 
 type Payload={projects:MusicProjectSummary[];error?:string};
@@ -13,7 +14,7 @@ async function api<T>(url:string,init?:RequestInit):Promise<T>{
   return data;
 }
 const duration=(ms:number)=>String(Math.floor(ms/60000))+":"+String(Math.floor((ms%60000)/1000)).padStart(2,"0");
-export function MusicProjectsClient(){
+export function MusicProjectsClient({sunoEnabled=false}:{sunoEnabled?:boolean}){
   const [projects,setProjects]=useState<MusicProjectSummary[]>([]);
   const [search,setSearch]=useState("");
   const [projectFilter,setProjectFilter]=useState<"all"|"auto"|"9:16"|"16:9">("all");
@@ -32,6 +33,17 @@ export function MusicProjectsClient(){
     finally{setLoading(false);setRefreshing(false);}
   },[]);
   useEffect(()=>{void refresh();},[refresh]);
+  useEffect(()=>{
+    const query=new URLSearchParams(location.search);
+    if(!query.has("suno_connected")&&!query.has("suno_error"))return;
+    setCreating(true);
+    try{
+      const saved=sessionStorage.getItem("sm-project-suno-draft");
+      sessionStorage.removeItem("sm-project-suno-draft");
+      if(saved){const draft=JSON.parse(saved);if(typeof draft.name==="string")setName(draft.name.slice(0,80));
+       if(["auto","9:16","16:9"].includes(draft.aspectRatio))setAspectRatio(draft.aspectRatio);}
+    }catch{}
+  },[]);
   useEffect(()=>{
     const opened=()=>document.querySelectorAll<HTMLDetailsElement>('.mv-projects .mv-card-more[open]');
     const outside=(event:Event)=>{
@@ -100,9 +112,13 @@ export function MusicProjectsClient(){
     </div>:<div className="mv-empty"><Clapperboard size={34}/><h2>{projects.length?"No matching projects":"Create your first music video project"}</h2><p>Start with one song, then arrange your videos on two tracks.</p>
       <button className="mv-primary" onClick={()=>setCreating(true)}>New Project</button></div>}
     {creating&&<div role="presentation" className="mv-dialog-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setCreating(false);}}>
-      <form className="mv-dialog" onSubmit={e=>void create(e)} aria-label="New music video project">
+      <form className="mv-dialog mv-new-project-dialog" noValidate onSubmit={e=>void create(e)} aria-label="New music video project">
         <h2>New Project</h2><label>Project Name<input autoFocus required maxLength={80} value={name} onChange={e=>setName(e.target.value)} placeholder="My Music Video"/></label>
-        <label>Upload Song (MP3, WAV or M4A)<input required type="file" accept=".mp3,.wav,.m4a,audio/*" onChange={e=>setSong(e.target.files?.[0]||null)}/></label>
+        <label>Upload Song (MP3, WAV or M4A)<input type="file" accept=".mp3,.wav,.m4a,audio/*" disabled={busy} onChange={e=>setSong(e.target.files?.[0]||null)}/></label>
+        {sunoEnabled?<SunoSongImport destination="projects" disabled={busy}
+          beforeConnect={()=>{try{sessionStorage.setItem("sm-project-suno-draft",JSON.stringify({name,aspectRatio}));}catch{}}}
+          onImportFile={async file=>{setSong(file);}}/>:<small>Suno import is available on the live website; upload an audio file to test here.</small>}
+        {song&&<p className="mv-selected-song" role="status">Selected song: {song.name}</p>}
         <div className="mv-format-controls" role="group" aria-label="Project video format"><span>Format</span>{(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} disabled={busy} onClick={()=>setAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}</div>
         <div className="mv-dialog-actions"><button type="button" disabled={busy} onClick={()=>setCreating(false)}>Cancel</button><button type="submit" className="mv-primary" disabled={!name.trim()||!song||busy}>{busy?"Creating…":"Create Project"}</button></div>
       </form>

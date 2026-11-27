@@ -3,13 +3,16 @@
 import {useEffect,useId,useRef,useState} from "react";
 import {CheckCircle2,ExternalLink,Link2} from "lucide-react";
 import Image from "next/image";
+import {ensureSession} from "@/lib/client";
 import {normalizeSunoSongLink} from "@/lib/suno-song-link";
 import styles from "./suno-song-import.module.css";
 
 type SunoResult={status?:string;error?:string;message?:string;connected?:boolean};
-export function SunoSongImport({disabled,onImportFile}:{
+export function SunoSongImport({disabled,onImportFile,destination="studio",beforeConnect}:{
  disabled:boolean;
  onImportFile:(file:File)=>Promise<void>;
+ destination?:"studio"|"projects";
+ beforeConnect?:()=>void;
 }){
  const id=useId();
  const linkInput=useRef<HTMLInputElement>(null);
@@ -58,10 +61,15 @@ export function SunoSongImport({disabled,onImportFile}:{
   }
  },[connected,focusAfterConnect,expanded,disabled]);
 
- function connect(){
+ async function connect(){
   if(disabled||working)return;
-  try{if(canonical)sessionStorage.setItem("sm-suno-pending-link",canonical)}catch{}
-  window.location.assign("/api/suno-import/connect");
+  setWorking(true);
+  try{
+   if(destination==="projects")await ensureSession();
+   beforeConnect?.();
+   try{if(canonical)sessionStorage.setItem("sm-suno-pending-link",canonical)}catch{}
+   window.location.assign("/api/suno-import/connect"+(destination==="projects"?"?destination=projects":""));
+  }catch{setNotice("Please sign in again before connecting Suno.");setWorking(false);}
  }
  async function disconnect(){
   if(disabled||working)return;
@@ -88,7 +96,7 @@ export function SunoSongImport({disabled,onImportFile}:{
     if(!blob.size||blob.size>50*1024*1024)throw Error("Suno returned an invalid file size.");
     const name=r.headers.get("x-suno-audio-filename")||"suno-song.mp3";
     setNeedsCredit(false);
-    setNotice("Official Suno MP3 received. Uploading into your private Studio…");
+    setNotice(destination==="projects"?"Official Suno MP3 received. Selected for your new project.":"Official Suno MP3 received. Uploading into your private Studio…");
     await onImportFile(new File([blob],name,{type:"audio/mpeg"}));
     return;
    }
@@ -129,7 +137,7 @@ export function SunoSongImport({disabled,onImportFile}:{
    {invalid&&<p className={styles.error} role="alert">Enter a valid suno.com/s/… or suno.com/song/… link.</p>}
    {canonical&&<p className={styles.ready}>Suno share link recognized.</p>}
    {connected===false&&
-    <button type="button" className={styles.open} disabled={disabled||working} onClick={connect}>
+    <button type="button" className={styles.open} disabled={disabled||working} onClick={()=>void connect()}>
      <Link2 size={17} aria-hidden="true"/> Connect Suno to import
     </button>}
    {connected===true&&canonical&&!needsCredit&&

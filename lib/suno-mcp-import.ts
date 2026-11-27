@@ -32,7 +32,11 @@ export function authorizationUrl(clientId:string,redirectUri:string,pkce:ReturnT
  return uri.toString();
 }
 
-type SunoAuthCookie={owner:string;mediaToken:string;state:string;verifier:string;clientId:string};
+export function sunoReturnDestination(value:unknown):"studio"|"projects"{return value==="projects"?"projects":"studio";}
+export function sunoReturnUrl(destination:unknown,error?:string){
+ return SUNO_APP_ORIGIN+(sunoReturnDestination(destination)==="projects"?"/projects?":"/studio?new=1&")+(error?"suno_error="+encodeURIComponent(error):"suno_connected=1");
+}
+type SunoAuthCookie={owner:string;mediaToken:string;state:string;verifier:string;clientId:string;destination?:"studio"|"projects"};
 export function readSunoOAuthCookie(raw:string|undefined):SunoAuthCookie|null{
  if(!raw||raw.length>2400)return null;
  try{
@@ -42,7 +46,7 @@ export function readSunoOAuthCookie(raw:string|undefined):SunoAuthCookie|null{
      typeof v.state!=="string"||! /^[A-Za-z0-9_-]{40,100}$/.test(v.state)||
      typeof v.verifier!=="string"||! /^[A-Za-z0-9_-]{40,100}$/.test(v.verifier)||
      typeof v.clientId!=="string"||v.clientId.length<8||v.clientId.length>300)return null;
-  return v as SunoAuthCookie;
+  return {...v,destination:sunoReturnDestination(v.destination)} as SunoAuthCookie;
  }catch{return null;}
 }
 export function signSunoAccessToken(mediaToken:string,owner:string,accessToken:string,expiresIn:number){

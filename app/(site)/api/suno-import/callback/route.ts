@@ -2,7 +2,7 @@ import {NextRequest,NextResponse} from "next/server";
 import {stagingDenial} from "@/lib/staging";
 import {session} from "@/lib/db";
 import {SUNO_APP_ORIGIN,SUNO_OAUTH_TOKEN,SUNO_MCP_RESOURCE,sunoProductionOnly,
- readSunoOAuthCookie,signSunoAccessToken} from "@/lib/suno-mcp-import";
+ readSunoOAuthCookie,signSunoAccessToken,sunoReturnUrl} from "@/lib/suno-mcp-import";
 
 export const runtime="nodejs";
 export const dynamic="force-dynamic";
@@ -12,8 +12,9 @@ export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
  if(!sunoProductionOnly()||req.headers.get("host")!=="www.singmotion.ai")
   return NextResponse.json({error:"Not found"},{status:404});
+ const saved=readSunoOAuthCookie(req.cookies.get("sm_suno_oauth")?.value);
  const finish=(error?:string,token?:{cookie:string;ttl:number})=>{
-  const url=SUNO_APP_ORIGIN+"/studio?new=1&"+(error?"suno_error="+encodeURIComponent(error):"suno_connected=1");
+  const url=sunoReturnUrl(saved?.destination,error);
   const response=NextResponse.redirect(url);
   response.headers.set("Cache-Control","private, no-store");
   response.cookies.set("sm_suno_oauth","",{httpOnly:true,secure:true,sameSite:"lax",path:"/api/suno-import",maxAge:0});
@@ -21,7 +22,6 @@ export async function GET(req:NextRequest){
     sameSite:"strict",path:"/api/suno-import",maxAge:token.ttl});
   return response;
  };
- const saved=readSunoOAuthCookie(req.cookies.get("sm_suno_oauth")?.value);
  if(!saved||!session(saved.mediaToken)||session(saved.mediaToken)?.owner!==saved.owner)
   return finish("session");
  const state=req.nextUrl.searchParams.get("state"),code=req.nextUrl.searchParams.get("code");

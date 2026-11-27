@@ -722,3 +722,5 @@
 /* Same touch-action for controls and clip body prevents native tap/scroll
    arbitration from cancelling a stationary hold in Chromium. */
 .mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{touch-action:none;height:min(17px,45%);top:1px}
+
+.mv-root.mv-projects .mv-new-project-dialog{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;gap:15px}.mv-root.mv-projects .mv-selected-song{font-size:13px;color:#eadcff;overflow-wrap:anywhere;margin:0}

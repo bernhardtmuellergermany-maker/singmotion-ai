@@ -691,6 +691,15 @@ export function MusicVideoEditor({id}:{id:string}){
     }
     if(candidate.sourceOutMs<=candidate.sourceInMs){setError("No space before the song ends.");return;}
     let conflicts=overlaps(latest.current,candidate);
+    if(locked&&conflicts.length){
+      const alternate:MusicClip={...candidate,track:track===1?2:1};
+      if(!overlaps(latest.current,alternate).length){
+        if(window.confirm("A video already occupies this source time. Add this Lip Sync at the exact same time on the other video track?")){
+          apply([...latest.current,alternate]);setSelected(alternate.id);
+        }
+        return;
+      }
+    }
     if(conflicts.length){
       const action=window.prompt("Track occupied. Type 'free' to find another space, 'fit' to trim into the available gap, 'replace' to remove conflicting clips, or Cancel.","free");
       if(action===null)return;
@@ -700,7 +709,7 @@ export function MusicVideoEditor({id}:{id:string}){
         apply([...latest.current.filter(c=>!conflicts.some(o=>o.id===c.id)),candidate]);
         setSelected(candidate.id);return;
       }
-      if(locked){setError("Sync-locked lip-sync must remain at the original song position. Choose another track or trim another clip.");return;}
+      if(locked){setError("Both video tracks overlap this source time. Make room at "+time(candidate.timelineStartMs,true)+" to keep the original timing. No song name or audio match is required.");return;}
       if(action!=="free"&&action!=="fit")return;
       if(action==="free"){
         const sorted=latest.current.filter(c=>c.track===track).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);

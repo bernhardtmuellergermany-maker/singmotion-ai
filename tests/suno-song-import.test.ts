@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
 import {normalizeSunoSongLink} from "../lib/suno-song-link.ts";
-import {sunoProductionOnly,pkcePair,authorizationUrl,oauthClientRegistration,
+import {sunoProductionOnly,pkcePair,authorizationUrl,oauthClientRegistration,sunoReturnUrl,sunoReturnDestination,
  SUNO_APP_ORIGIN,signSunoAccessToken,verifySunoAccessToken,isAllowedSunoDownloadUrl,
  extractSunoSongId,resolveSunoSongId,sunoMcpDownload,downloadAuthorizedSunoMp3}
  from "../lib/suno-mcp-import.ts";
@@ -121,7 +121,7 @@ test("unapproved MCP download hosts are rejected and diagnostics never expose si
  }finally{console.warn=originalWarn}
 });
 test("Suno OAuth return opens direct import, confirms connection, and excludes manual fallback",()=>{
- assert.match(callback,/SUNO_APP_ORIGIN\+"\/studio\?new=1&"\+/);
+ assert.match(callback,/sunoReturnUrl\(saved\?\.destination,error\)/);
  assert.match(ui,/setExpanded\(true\)/);
  assert.match(ui,/suno_connected/);
  assert.match(ui,/focusAfterConnect/);
@@ -209,4 +209,15 @@ test("new intent survives remounts until its own owner-scoped draft saves, never
  assert.match(wizard,/location\.searchParams\.get\("new"\) === "1"/);
  assert.match(wizard,/window\.history\.replaceState\(window\.history\.state, "", "\/studio\?draft=" \+ encodeURIComponent\(id\)\)/);
  assert.match(wizard,/sessionStorage\.removeItem\("singmotion-home-audio-handoff"\)/);
+});
+
+test("Projects Suno return is same-origin and strictly allowlisted",()=>{
+ assert.equal(sunoReturnUrl("projects"),SUNO_APP_ORIGIN+"/projects?suno_connected=1");
+ assert.equal(sunoReturnUrl("projects","cancelled"),SUNO_APP_ORIGIN+"/projects?suno_error=cancelled");
+ assert.equal(sunoReturnDestination("https://evil.example"),"studio");
+ assert.equal(sunoReturnUrl("//evil.example"),SUNO_APP_ORIGIN+"/studio?new=1&suno_connected=1");
+ const projects=readFileSync(new URL("../components/music-projects-client.tsx",import.meta.url),"utf8");
+ assert.ok(projects.includes('destination="projects"'));
+ assert.ok(projects.includes("onImportFile={async file=>{setSong(file);}}"));
+ assert.ok(projects.includes('body.set("song",song)'));
 });

@@ -962,3 +962,11 @@ test("clip padlock reflects Sync Lock and explicit unlock releases movement prot
  assert.ok(editor.includes("movementLocked=!!(c.positionLocked||c.syncLocked)"));
  assert.ok(editor.includes("positionLocked:!locked,syncLocked:locked?false:c.syncLocked"));
 });
+
+test("Lip Sync placement is based on source time, not song identity, with alternate track on collision",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current)"));
+ assert.ok(editor.includes("const alternate:MusicClip={...candidate,track:track===1?2:1}"));
+ assert.ok(editor.includes("!overlaps(latest.current,alternate).length"));
+ assert.ok(editor.includes("No song name or audio match is required."));
+});
