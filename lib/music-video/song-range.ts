@@ -405,3 +405,22 @@ export function planSourceTimeInsertion<T extends PositionedClip>(clips:readonly
  }
  return null;
 }
+
+/** Insert ordinary video on the requested track without modifying existing clips.
+ * Prefer the playhead, otherwise the nearest gap that fits the minimum duration. */
+export function planFreeVideoInsertion<T extends PositionedClip>(clips:readonly T[],candidate:T,limit:number,atMs:number):T|null{
+ const length=candidate.sourceOutMs-candidate.sourceInMs,minimum=Math.min(5000,length);
+ if(!Number.isSafeInteger(limit)||!Number.isFinite(atMs)||length<=0||limit<minimum||clips.length>=500)return null;
+ const occupied=clips.filter(c=>c.track===candidate.track&&c.timelineStartMs<limit).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+ const gaps:{start:number;end:number}[]=[];let cursor=0;
+ for(const c of occupied){
+  if(c.timelineStartMs>cursor)gaps.push({start:cursor,end:Math.min(limit,c.timelineStartMs)});
+  cursor=Math.max(cursor,c.timelineStartMs+c.sourceOutMs-c.sourceInMs);
+ }
+ if(cursor<limit)gaps.push({start:cursor,end:limit});
+ const wanted=Math.max(0,Math.min(limit-minimum,Math.round(atMs)));
+ const fits=gaps.filter(g=>g.end-g.start>=minimum).map(g=>({g,start:Math.max(g.start,Math.min(g.end-minimum,wanted))}));
+ fits.sort((a,b)=>Math.abs(a.start-wanted)-Math.abs(b.start-wanted)||a.start-b.start);
+ const fit=fits[0];if(!fit)return null;
+ return {...candidate,timelineStartMs:fit.start,sourceOutMs:candidate.sourceInMs+Math.min(length,fit.g.end-fit.start),syncLocked:false};
+}
