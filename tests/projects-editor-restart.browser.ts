@@ -16,12 +16,16 @@ const mp4=path.join(root,"clip.mp4");
 execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","color=red:size=320x180:rate=30","-t","4","-vf","drawbox=color=green:t=fill:enable='between(t,1,1.999)',drawbox=color=blue:t=fill:enable='gte(t,2)'","-an","-c:v","libx264","-threads","1","-pix_fmt","yuv420p","-profile:v","baseline","-g","15","-movflags","+faststart",mp4]);
 const video=readFileSync(mp4);
 const song=execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","sine=frequency=440:sample_rate=44100","-t","4","-c:a","libmp3lame","-f","mp3","pipe:1"],{maxBuffer:1024*1024});
-const bundled=await build({stdin:{contents:'import React from "react";import {createRoot} from "react-dom/client";import {MusicVideoEditor} from "./components/music-video-editor";import {AddToMusicProject} from "./components/add-to-music-project";createRoot(document.getElementById("root")!).render(location.pathname==="/add-test"?<AddToMusicProject sourceId="fixture" sourceKind="live" enabled/>:<MusicVideoEditor id="fixture-project"/>);',resolveDir:process.cwd(),loader:"tsx"},bundle:true,write:false,format:"iife",platform:"browser",jsx:"automatic",define:{"process.env.NODE_ENV":'"production"'},loader:{".css":"empty"},plugins:[{name:"isolated-link",setup(b:any){b.onResolve({filter:/^next\/link$/},()=>({path:"link",namespace:"fixture"}));b.onLoad({filter:/.*/,namespace:"fixture"},()=>({contents:'import React from "react";export default function Link(p){return React.createElement("a",p)}',loader:"js",resolveDir:process.cwd()}));}}]});
+const bundled=await build({stdin:{contents:'import React from "react";import {createRoot} from "react-dom/client";import {MusicVideoEditor} from "./components/music-video-editor";import {AddToMusicProject} from "./components/add-to-music-project";createRoot(document.getElementById("root")!).render(location.pathname==="/add-test"?<AddToMusicProject sourceId="fixture" sourceKind="live" enabled/>:<MusicVideoEditor id={location.pathname==="/lock-test"?"lock-project":"fixture-project"}/>);',resolveDir:process.cwd(),loader:"tsx"},bundle:true,write:false,format:"iife",platform:"browser",jsx:"automatic",define:{"process.env.NODE_ENV":'"production"'},loader:{".css":"empty"},plugins:[{name:"isolated-link",setup(b:any){b.onResolve({filter:/^next\/link$/},()=>({path:"link",namespace:"fixture"}));b.onLoad({filter:/.*/,namespace:"fixture"},()=>({contents:'import React from "react";export default function Link(p){return React.createElement("a",p)}',loader:"js",resolveDir:process.cwd()}));}}]});
 const script=bundled.outputFiles[0].contents;
 const css=readFileSync("components/music-video.css");
 const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songName:"Test song",songDurationMs:4000,songStartMs:0,songEndMs:4000,songPositionMs:0,songParts:null,trackMutes:{1:true,2:true,song:false},revision:0,createdAt:1,updatedAt:1,aspectRatio:"16:9"};
 const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:id==="first"?"lip-sync":"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
 const clips=[{id:"c1",assetId:"first",track:1,timelineStartMs:0,sourceInMs:250,sourceOutMs:1750,syncLocked:false},{id:"c2",assetId:"second",track:2,timelineStartMs:2000,sourceInMs:500,sourceOutMs:2000,syncLocked:false}];
+let lockProject={...project,id:"lock-project"};
+const lockAssets=assets.map(a=>({...a,projectId:"lock-project",sourceStartMs:a.id==="first"?500:null,sourceEndMs:a.id==="first"?3500:null}));
+const initialLockClips=()=>clips.map(c=>({...c,positionLocked:false,showVideoName:false}));
+let lockClips=initialLockClips();
 let timelineRequests=0,assetRequests=0,secondPreparations=0,secondDownloads=0;
 const server=createServer((req,res)=>{
  const url=new URL(req.url||"/","http://localhost"),p=url.pathname;
@@ -34,10 +38,14 @@ const server=createServer((req,res)=>{
   if(start>end){res.writeHead(416,{"content-range":"bytes */"+bytes.length});res.end();return;}
   res.writeHead(status,{"content-type":type,"content-length":end-start+1,"accept-ranges":"bytes",...(status===206?{"content-range":"bytes "+start+"-"+end+"/"+bytes.length}:{})});res.end(bytes.subarray(start,end+1));
  };
- if(p==="/"||p==="/add-test")return send('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/editor.css"></head><body><div id="root"></div><script src="/editor.js"></script></body></html>',"text/html");
+ if(p==="/"||p==="/add-test"||p==="/lock-test")return send('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/editor.css"></head><body><div id="root"></div><script src="/editor.js"></script></body></html>',"text/html");
  if(p==="/editor.js")return send(script,"application/javascript");
  if(p==="/editor.css")return send(css,"text/css");
  if(p==="/api/music-video/fixture-project")return json({project,assets,clips});
+ if(p==="/api/music-video/lock-project")return json({project:lockProject,assets:lockAssets,clips:lockClips});
+ if(p==="/api/music-video/lock-project/clips"&&req.method==="PATCH"){
+  let raw="";req.on("data",chunk=>raw+=chunk);req.on("end",()=>{lockClips=JSON.parse(raw).clips;lockProject={...lockProject,revision:lockProject.revision+1};json({project:lockProject,assets:lockAssets,clips:lockClips});});return;
+ }
  if(p==="/api/music-video")return json({projects:[{id:"fixture-project",name:"My music video"}]});
  if(p==="/api/music-video/fixture-project/assets"&&req.method==="POST")return json({asset:{id:"fixture-added"}});
  if(p==="/api/session")return json({owner:"cms-staff-fixture"});
@@ -218,6 +226,37 @@ try{
    console.log("PASS: Lip Sync dialog fits "+width+"px viewport with long names and a transformed editor; search and close work");
   }
   await page.close();
+ }
+ // Verify direct clip controls, durable settings, exact source time and empty selection.
+ for(const width of [390,1280]){
+  lockClips=initialLockClips();lockProject={...project,id:"lock-project"};
+  const page=await browser.newPage({viewport:{width,height:844},isMobile:width<500,hasTouch:width<500});
+  await page.goto(origin+"/lock-test");
+  const second=page.getByLabel("Select video second",{exact:true}),first=page.getByLabel("Select video first",{exact:true});
+  await second.waitFor();assert.equal(await page.locator(".mv-clip.is-selected,.mv-song-block.is-selected").count(),0);
+  const select=async(clip:typeof second)=>{await clip.focus();await clip.press("Enter");};
+  const save=()=>page.waitForResponse(r=>r.url().endsWith("/lock-project/clips")&&r.request().method()==="PATCH");
+  await select(second);
+  const locked=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await locked;
+  assert.equal(lockClips[1].positionLocked,true);assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).isDisabled(),true);
+  const named=save();await second.getByRole("button",{name:"Show video name: second"}).click();await named;
+  assert.equal(lockClips[1].showVideoName,true);assert.equal(await second.locator(".mv-clip-title").textContent(),"second");
+  assert.equal(await second.locator(".mv-clip-waveform").count(),0);
+  await page.reload();await second.waitFor();await select(second);
+  assert.equal(await second.getByRole("button",{name:"Unlock clip position: second"}).count(),1);
+  assert.equal(await second.locator(".mv-clip-title").textContent(),"second");
+  const unlocked=save();await second.getByRole("button",{name:"Unlock clip position: second"}).click();await unlocked;
+  assert.equal(lockClips[1].positionLocked,false);
+  const wave=save();await second.getByRole("button",{name:"Show waveform: second"}).click();await wave;
+  assert.equal(lockClips[1].showVideoName,false);assert.equal(await second.locator(".mv-clip-title").count(),0);
+  await select(first);const restored=save();await page.getByRole("button",{name:"Return to source time",exact:true}).click();await restored;
+  assert.equal(lockClips[0].timelineStartMs,750);assert.equal(lockClips[0].syncLocked,true);
+  const song=page.getByRole("button",{name:"Select song",exact:true});await song.focus();await song.press("Enter");
+  assert.equal(await song.getAttribute("aria-pressed"),"true");
+  await page.locator(".mv-main-lane").click({position:{x:5,y:4}});
+  assert.equal(await page.locator(".mv-clip.is-selected,.mv-song-block.is-selected").count(),0);
+  assert.equal(await page.locator(".mv-inspector-body").count(),0);
+  await page.close();console.log("PASS: direct clip eye/lock, save/reload, source restoration and empty selection at "+width+"px");
  }
  // Portal inherits a deliberately dark body foreground, as on the Videos page.
  for(const width of [320,390,1280]){
