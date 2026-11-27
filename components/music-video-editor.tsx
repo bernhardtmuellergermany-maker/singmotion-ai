@@ -806,9 +806,9 @@ export function MusicVideoEditor({id}:{id:string}){
     if(roleBusy.current)return;
     if(!selectedClip||selectedClip.positionLocked)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
   }
-  function togglePositionLock(){
-    if(importBusy.current||!selectedClip)return;
-    const current=latest.current.find(c=>c.id===selectedClip.id);if(!current)return;
+  function togglePositionLock(id:string){
+    if(importBusy.current||roleBusy.current)return;
+    const current=latest.current.find(c=>c.id===id);if(!current)return;
     apply(latest.current.map(c=>c.id===current.id?{...c,positionLocked:!current.positionLocked}:c));
   }
   function toggleLock(){
@@ -843,6 +843,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function changeAssetRole(a:MusicAsset,role:MediaRole){
     if(importBusy.current||a.role===role)return;
+    if(latest.current.some(c=>c.assetId===a.id&&c.positionLocked)){setError("Unlock the clips using this video before changing its role.");return;}
     importBusy.current=true;roleBusy.current=true;setImporting(true);setRoleChanging(a.id);setRoleError("");setError("");
     try{
       stopPlayback();
@@ -888,6 +889,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function deleteAsset(a:MusicAsset){
     if(importBusy.current)return;
+    if(latest.current.some(c=>c.assetId===a.id&&c.positionLocked)){setError("Unlock the clips using this video before removing it.");return;}
     if(!window.confirm("Remove '"+a.name+"' from this project's Library? Original videos in Videos are preserved."))return;
     try{await saveNow();await request(endpoint+id+"/assets/"+a.id,{method:"DELETE"});await load();}
     catch(e){setError(e instanceof Error?e.message:"Could not remove asset.");}
@@ -1046,7 +1048,6 @@ export function MusicVideoEditor({id}:{id:string}){
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
           <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
           <button onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/> Delete</button>
-          {selectedClip&&<button type="button" className={"mv-position-lock"+(selectedClip.positionLocked?" is-active":"")} aria-pressed={!!selectedClip.positionLocked} aria-label={selectedClip.positionLocked?"Unlock clip position":"Lock clip position"} title={selectedClip.positionLocked?"Unlock clip position":"Lock clip position"} disabled={importing} onClick={togglePositionLock}>{selectedClip.positionLocked?<Lock size={16}/>:<Unlock size={16}/>} {selectedClip.positionLocked?"Locked":"Lock"}</button>}
           {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button disabled={importing||selectedClip?.positionLocked} onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
           {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing||selectedClip.positionLocked} onClick={switchVideoTrack}>Switch track</button>}</div>
         <div className="mv-timeline-zoom">
@@ -1083,12 +1084,18 @@ export function MusicVideoEditor({id}:{id:string}){
                     tabIndex={0} aria-label={"Select video "+a.name}
                     onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectVideo(c.id);}}}
                     onContextMenu={e=>e.preventDefault()}
-                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id),!c.positionLocked);}}
+                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle,.mv-clip-position-lock"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id),!c.positionLocked);}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
                   <SongWaveform wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom}/>
                   <span className="mv-clip-title">{c.track===1?<Mic size={12} aria-hidden="true"/>:<Video size={12} aria-hidden="true"/>}<span>{a.name}</span></span>
-                  {c.positionLocked?<Lock className="mv-clip-lock mv-position-lock-icon" size={14} aria-label="Position locked"/>:c.syncLocked&&<Lock className="mv-clip-lock" size={13} aria-label="Sync locked"/>}
+                  <button type="button" className={"mv-clip-position-lock"+(c.positionLocked?" is-active":"")} aria-pressed={!!c.positionLocked}
+                    aria-label={(c.positionLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
+                    title={c.positionLocked?"Unlock clip position":"Lock clip position"} disabled={importing}
+                    onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
+                    onClick={e=>{e.stopPropagation();togglePositionLock(c.id);}}>
+                    {c.positionLocked?<Lock size={13}/>:<Unlock size={13}/>}
+                  </button>
                   <button type="button" className="mv-handle mv-handle-end" disabled={c.positionLocked} aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
                 </div>;
               })}

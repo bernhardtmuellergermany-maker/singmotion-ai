@@ -930,3 +930,11 @@ test("position lock protects ordinary and lip sync clips independently of Sync L
  assert.ok(core.includes("position_locked INTEGER NOT NULL DEFAULT 0"));
  assert.ok(core.includes("positionLocked:!!r.position_locked"));
 });
+
+test("position lock control is on the video clip, not the timeline toolbar",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('togglePositionLock(c.id)'));
+ assert.ok(editor.includes('className={"mv-clip-position-lock"'));
+ assert.ok(!editor.includes('className={"mv-position-lock"'));
+ assert.ok(editor.includes('closest(".mv-handle,.mv-clip-position-lock")'));
+});
