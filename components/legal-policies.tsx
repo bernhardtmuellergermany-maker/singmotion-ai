@@ -151,7 +151,8 @@ const googlePrivacyReferences = [
 export const legalSlugs = Object.keys(pages);
 export function LegalPolicyPage({slug}:{slug:string}){
   const page=pages[slug];
-  const analyticsStatus = analyticsConfig(process.env).id ? "Optional analytics is enabled on Production, subject to your consent." : "Optional analytics is currently disabled; no Google Analytics tag is loaded by this integration.";
+  const analytics = analyticsConfig(process.env);
+  const analyticsStatus = analytics.id ? "Optional analytics is enabled on Production, subject to your consent." : "Optional analytics is currently disabled; no Google Analytics tag is loaded by this integration.";
   if(!page)return null;
   return <div className="sm-legal">
     <SiteHeader/>
@@ -160,6 +161,11 @@ export function LegalPolicyPage({slug}:{slug:string}){
         <Link className="sm-legal-back" href={slug==="legal"?"/":"/legal"}><ArrowLeft size={17} aria-hidden="true"/>{slug==="legal"?"Back to home":"Back to Legals"}</Link>
       </nav>
       <div className="sm-legal-intro"><span className="sm-legal-kicker">SINGMOTION AI · LEGAL & TRUST</span><h1>{slug === "legal" ? "Legals" : page.title}</h1><p>{slug === "legal" ? "Find company details, privacy information, consumer rights and AI & media policies in one place." : page.intro}</p><small>Last updated {slug==="privacy"||slug==="cookies"?"26 November 2026":revision} · Operator details supplied; remaining vendor and legal approvals pending.</small></div>
+      {(slug==="privacy"||slug==="cookies")&&<section id="privacy-settings" className="sm-legal-panel" aria-labelledby="privacy-settings-title">
+        <h2 id="privacy-settings-title">Privacy settings</h2>
+        <p>Change or withdraw your consent to optional analytics at any time. Rejecting optional analytics does not restrict essential functionality.</p>
+        {analytics.id||analytics.preview?<div id="sm-privacy-settings-control"/>:<p>Optional analytics is currently disabled.</p>}
+      </section>}
       {slug === "legal" ? (
         <nav className="sm-legal-topic-grid" aria-label="Legal topics">
           {legalTopics.map((topic) => (
