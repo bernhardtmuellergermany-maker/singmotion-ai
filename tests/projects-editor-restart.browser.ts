@@ -137,6 +137,14 @@ try{
   await play.click();await play.waitFor({timeout:10000});
   await play.click();
   await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.paused&&!v.paused&&a.currentTime>.2&&a.currentTime<1.4&&Math.abs(v.currentTime-a.currentTime-.25)<.18;},{},{timeout:3000});
+  await seek.press("Home");
+  await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio");return a&&!a.paused&&a.currentTime>.12&&a.currentTime<.65;},{},{timeout:3000});
+  assert.equal(await pause.count(),1,"quick-edit seek must retain Play");
+  const ruler=await page.locator(".mv-ruler").boundingBox();assert.ok(ruler);
+  await page.mouse.move(ruler.x+40,ruler.y+ruler.height/2);await page.mouse.down();
+  await page.mouse.move(ruler.x+8,ruler.y+ruler.height/2,{steps:4});await page.mouse.up();
+  await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio");return a&&!a.paused&&a.currentTime>.12&&a.currentTime<.8;},{},{timeout:3000});
+  assert.equal(await pause.count(),1,"quick-edit drag must retain Play");
   console.log("PASS: actual Projects editor starts, seeks and replays from EOF on "+(mobile?"mobile":"desktop")+" Chromium with paused decoder at HAVE_CURRENT_DATA");
   await pause.click();
   await page.getByRole("button",{name:"Synced",exact:true}).click();await seek.press("Home");
@@ -149,7 +157,19 @@ try{
   await pause.click();await seek.press("End");await seek.press("Home");
   await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.seeking&&v.currentTime<.04;});
   await play.click();await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&v.currentTime>.2;});
+  await seek.press("Home");
+  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&!v.seeking&&v.currentTime>.1&&v.currentTime<.65;},{},{timeout:3000});
+  assert.equal(await pause.count(),1,"synced seek must retain Play");
+  const syncedRuler=await page.locator(".mv-ruler").boundingBox();assert.ok(syncedRuler);
+  await page.mouse.move(syncedRuler.x+40,syncedRuler.y+syncedRuler.height/2);await page.mouse.down();
+  await page.mouse.move(syncedRuler.x+8,syncedRuler.y+syncedRuler.height/2,{steps:4});await page.mouse.up();
+  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&!v.seeking&&v.currentTime>.12&&v.currentTime<.8;},{},{timeout:3000});
+  assert.equal(await pause.count(),1,"synced drag must retain Play");
+  await pause.click();await seek.press("Home");await page.waitForTimeout(250);
+  assert.ok(await muxed.evaluate(el=>(el as HTMLVideoElement).paused));
+  assert.equal(await play.count(),1,"explicit pause remains paused after seek");
   assert.equal(previewRequests,requestsBefore+1,"same saved revision reuses one muxed player");
+  console.log("PASS: dragging or seeking backward retains Play in both preview modes; explicit Pause stays paused on "+(mobile?"mobile":"desktop")+" Chromium");
   console.log("PASS: exact rendered timeline uses one native A/V player across pause, seek and replay on "+(mobile?"mobile":"desktop")+" Chromium");
   await page.close();
  }
