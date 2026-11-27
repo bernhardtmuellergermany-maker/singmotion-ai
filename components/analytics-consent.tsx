@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { createPortal } from "react-dom";
 import { ChevronDown, ShieldCheck } from "lucide-react";
 import { CONSENT_KEY, readConsent, serializeConsent, publicAnalyticsLocation, sanitizedReferrer, type Choice } from "@/lib/analytics/consent";
 import styles from "./analytics-consent.module.css";
@@ -35,6 +36,7 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   const [open, setOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [error, setError] = useState(false);
+  const [settingsHost, setSettingsHost] = useState<HTMLElement | null>(null);
   const lastPage = useRef<string | null>(null);
   const initialized = useRef(false);
   const title = publicAnalyticsLocation(pathname ?? "", search, hash);
@@ -157,6 +159,22 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
     return () => document.removeEventListener("click", leave, true);
   }, [id]);
 
+  // The existing consent controller owns the only settings button. Render it
+  // inside the legal page, not as a floating control over private workspaces.
+  useLayoutEffect(() => {
+    setSettingsHost(null);
+    if (!active || (pathname !== "/privacy" && pathname !== "/cookies")) return;
+    const findHost = () => document.getElementById("sm-privacy-settings-control");
+    const host = findHost();
+    if (host) { setSettingsHost(host); return; }
+    const observer = new MutationObserver(() => {
+      const target = findHost();
+      if (target) { setSettingsHost(target); observer.disconnect(); }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [active, pathname]);
+
   function choose(next: Choice) {
     if (next === "denied" && id) {
       disable(id);
@@ -184,10 +202,11 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
   }
 
   if (!active || !ready) return null;
-  // Ask for consent on marketing pages; settings remain reachable on all site pages.
+  // Ask for consent on marketing pages; the inline settings control lives on the privacy and cookie pages.
   const show = open || (!choice && Boolean(title));
   return <>
-    {show ? <aside className={styles.panel} aria-label="Privacy preferences">
+    {settingsHost && (pathname === "/privacy" || pathname === "/cookies") && createPortal(<button type="button" className={styles.settings} onClick={() => setOpen(true)} aria-expanded={show}><ShieldCheck size={16} aria-hidden="true"/>Privacy settings</button>, settingsHost)}
+    {show && <aside className={styles.panel} aria-label="Privacy preferences">
       <div className={styles.heading}>
         <h2><ShieldCheck size={17} aria-hidden="true"/>Privacy preferences</h2>
         <button type="button" className={styles.detailsToggle} aria-expanded={detailsOpen} aria-controls="sm-analytics-details" onClick={() => setDetailsOpen(value => !value)}>Details <ChevronDown size={14} aria-hidden="true" style={{transform: detailsOpen ? "rotate(180deg)" : undefined}}/></button>
@@ -205,6 +224,6 @@ export function AnalyticsConsent({ id, preview }: { id: string | null; preview: 
       <p className={styles.links}><a href="/privacy">Privacy policy</a><span aria-hidden="true">·</span><a href="/cookies">Cookie policy</a></p>
       {error && <p role="alert">Your choice could not be saved. Analytics remains off.</p>}
       {open && choice && <button type="button" className={styles.close} onClick={() => setOpen(false)}>Close settings</button>}
-    </aside> : <button type="button" className={styles.settings} onClick={() => setOpen(true)}><ShieldCheck size={14} aria-hidden="true"/>Privacy settings</button>}
+    </aside>}
   </>;
 }
