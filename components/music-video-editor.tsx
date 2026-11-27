@@ -132,7 +132,30 @@ export function MusicVideoEditor({id}:{id:string}){
   const [search,setSearch]=useState("");
   const [librarySort,setLibrarySort]=useState<"newest"|"oldest"|"source">("newest"),[libraryRefreshing,setLibraryRefreshing]=useState(false);
   const [libraryPreview,setLibraryPreview]=useState<MusicAsset|null>(null),[libraryPreviewError,setLibraryPreviewError]=useState(false);
+  const [libraryPreviewSrc,setLibraryPreviewSrc]=useState<string|null>(null);
   const libraryPreviewDialog=useRef<HTMLDialogElement>(null);
+  useEffect(()=>{
+    if(!libraryPreview)return;
+    const controller=new AbortController(),signal=controller.signal;
+    const original=endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id);
+    const proxy=endpoint+id+"/preview/"+encodeURIComponent(libraryPreview.id)+"?mobile=1";
+    const prepare=async()=>{
+      if(libraryPreview.durationMs<=180000){
+        try{
+          for(let attempt=0;attempt<24;attempt++){
+            signal.throwIfAborted();
+            const data=await request<{ready:boolean;unsupported?:boolean}>(proxy,{method:"POST",signal});
+            if(data.ready){if(!signal.aborted)setLibraryPreviewSrc(proxy);return;}
+            if(data.unsupported)break;
+            await new Promise<void>(resolve=>setTimeout(resolve,750));
+          }
+        }catch{if(signal.aborted)return;}
+      }
+      if(!signal.aborted)setLibraryPreviewSrc(original);
+    };
+    void prepare();
+    return()=>controller.abort();
+  },[id,libraryPreview]);
   useLayoutEffect(()=>{
     if(!libraryPreview)return;
     const dialog=libraryPreviewDialog.current;
@@ -1250,7 +1273,7 @@ export function MusicVideoEditor({id}:{id:string}){
         </div>
         {media.length?<div className="mv-media-grid">{media.map(a=><article key={a.id} className="mv-media-card"
           draggable={assetRename?.id!==a.id} onDragStart={e=>e.dataTransfer.setData("application/x-mvasset",a.id)}>
-          <button type="button" className="mv-media-image" aria-label={"Preview "+a.name} title={"Preview "+a.name} onClick={()=>{stopPlayback();setLibraryPreviewError(false);setLibraryPreview(a);}}><Film size={32}/><img src={endpoint+id+"/thumbnail/"+a.id} alt="" loading="lazy" decoding="async" draggable={false} onError={e=>{e.currentTarget.style.display="none";}} onLoad={e=>{e.currentTarget.style.display="block";}}/><span className="mv-media-duration">{time(a.durationMs)}</span>{usedAssets.has(a.id)&&<span className="mv-media-used" title="Used in timeline" aria-label="Used in timeline"><Check size={13}/></span>}<span className="mv-media-play"><Play size={20}/></span></button>
+          <button type="button" className="mv-media-image" aria-label={"Preview "+a.name} title={"Preview "+a.name} onClick={()=>{stopPlayback();setLibraryPreviewError(false);setLibraryPreviewSrc(null);setLibraryPreview(a);}}><Film size={32}/><img src={endpoint+id+"/thumbnail/"+a.id} alt="" loading="lazy" decoding="async" draggable={false} onError={e=>{e.currentTarget.style.display="none";}} onLoad={e=>{e.currentTarget.style.display="block";}}/><span className="mv-media-duration">{time(a.durationMs)}</span>{usedAssets.has(a.id)&&<span className="mv-media-used" title="Used in timeline" aria-label="Used in timeline"><Check size={13}/></span>}<span className="mv-media-play"><Play size={20}/></span></button>
           <div className="mv-media-info">
             {assetRename?.id===a.id?<form className="mv-asset-rename" onSubmit={e=>{e.preventDefault();void renameProjectAsset(a);}}>
               <input autoFocus aria-label="Video name in this project" maxLength={80} value={assetRename.name} onChange={e=>setAssetRename({id:a.id,name:e.target.value})} onKeyDown={e=>{if(e.key==="Escape")setAssetRename(null);}}/>
@@ -1281,7 +1304,7 @@ export function MusicVideoEditor({id}:{id:string}){
           </div></article>)}</div>:<p className="mv-empty-library">{assets.length?"No matching videos. Try another search or filter.":"No videos in this Library. Import a video or use Add to Project from Videos."}</p>}
       </div>}
     </section>
-    {libraryPreview&&<dialog ref={libraryPreviewDialog} className="mv-library-preview-dialog" aria-label={"Preview "+libraryPreview.name} onCancel={e=>{e.preventDefault();setLibraryPreview(null);}} onClose={()=>setLibraryPreview(null)} onClick={e=>{if(e.target===e.currentTarget)setLibraryPreview(null);}}><div className="mv-library-preview-inner"><div className="mv-library-preview-title"><strong>{libraryPreview.name}</strong><button type="button" aria-label="Close video preview" onClick={()=>setLibraryPreview(null)}><X size={20}/></button></div><video controls autoPlay playsInline preload="metadata" src={endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id)} onError={()=>setLibraryPreviewError(true)}/>{libraryPreviewError&&<p role="alert">Video preview unavailable. Try downloading the original video.</p>}</div></dialog>}
+    {libraryPreview&&<dialog ref={libraryPreviewDialog} className="mv-library-preview-dialog" aria-label={"Preview "+libraryPreview.name} onCancel={e=>{e.preventDefault();setLibraryPreview(null);}} onClose={()=>setLibraryPreview(null)} onClick={e=>{if(e.target===e.currentTarget)setLibraryPreview(null);}}><div className="mv-library-preview-inner"><div className="mv-library-preview-title"><strong>{libraryPreview.name}</strong><button type="button" aria-label="Close video preview" onClick={()=>setLibraryPreview(null)}><X size={20}/></button></div>{libraryPreviewSrc?<video controls autoPlay playsInline preload="metadata" src={libraryPreviewSrc} onError={()=>{const original=endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id);if(libraryPreviewSrc!==original){setLibraryPreviewSrc(original);return;}setLibraryPreviewError(true);}}/>:<p role="status">Preparing video preview…</p>}{libraryPreviewError&&<p role="alert">Video preview unavailable. <a href={endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id)+"?download=1"} download>Download the original video</a>.</p>}</div></dialog>}
     {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready{exportJob.resolution?" · "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p":""}</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
     {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||(exportJob?.resolution?"Preparing "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p MP4 for download.":"Checking source resolution…")}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
     {lipTrack!==null&&typeof document!=="undefined"&&createPortal(<div ref={lipBackdrop} className="mv-root mv-editor mv-dialog-backdrop mv-lip-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
