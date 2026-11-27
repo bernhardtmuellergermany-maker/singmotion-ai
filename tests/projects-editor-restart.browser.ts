@@ -147,6 +147,54 @@ try{
   assert.equal(timelineRequests,0);assert.equal(assetRequests,0);
   console.log("PASS: upcoming proxy prefetched and frames follow held pointer forward/backward before release on "+(mobile?"mobile":"desktop")+" Chromium");
   console.log("PASS: single WebCodecs/Web Audio editor paints exact source frames, gap and trim; playback is monotonic, scrub preserves intent, no server timeline render on "+(mobile?"mobile":"desktop")+" Chromium");
+  await pause.click();
+  const timeline=page.locator(".mv-scroll"),zoomLevel=page.getByLabel("Timeline zoom level");
+  assert.ok((await page.locator(".mv-ruler .mv-tick-major").allTextContents()).includes("00:02"),"default ruler shows two-second steps");
+  assert.ok(await page.locator(".mv-ruler .mv-tick-minor").count()>0);
+  if(mobile){
+   // Real Chromium touch input: pinch on the song, not on the playhead.
+   const client=await page.context().newCDPSession(page);
+   const songBlock=page.locator(".mv-song-block").first();await songBlock.scrollIntoViewIfNeeded();
+   const rect=await timeline.boundingBox(),songRect=await songBlock.boundingBox();assert.ok(rect&&songRect);
+   const cx=rect.x+Math.min(100,rect.width/2),cy=songRect.y+songRect.height/2;
+   const touch=(type:"touchStart"|"touchMove"|"touchEnd",distance=0)=>client.send("Input.dispatchTouchEvent",{type,touchPoints:type==="touchEnd"?[]:[{x:cx-distance/2,y:cy,id:1},{x:cx+distance/2,y:cy,id:2}]});
+   const original=Number((await zoomLevel.textContent())!.replace("×",""));
+   const atBefore=await page.locator(".mv-progress").inputValue();
+   await touch("touchStart",50);await touch("touchMove",110);await touch("touchMove",170);await touch("touchEnd");
+   await page.waitForFunction(()=>Number(document.querySelector("output[aria-label='Timeline zoom level']")?.textContent?.replace("×",""))>2);
+   const zoomed=Number((await zoomLevel.textContent())!.replace("×",""));
+   assert.ok(zoomed>original*2);
+   assert.equal(await page.locator(".mv-progress").inputValue(),atBefore,"pinch must not move playhead");
+   const anchor=await timeline.evaluate(el=>el.scrollLeft);assert.ok(anchor>0,"pinch keeps midpoint time in view");
+   await touch("touchStart",160);await touch("touchMove",80);await touch("touchEnd");
+   await page.waitForFunction(z=>Number(document.querySelector("output[aria-label='Timeline zoom level']")?.textContent?.replace("×",""))<z,zoomed);
+   assert.equal(await page.locator(".mv-progress").inputValue(),atBefore);
+   await client.detach();
+   console.log("PASS: two-finger timeline zoom in/out keeps playhead unchanged on mobile Chromium");
+  }
+  for(let i=0;i<12;i++){const plus=page.getByRole("button",{name:"Zoom in timeline"});if(await plus.isDisabled())break;await plus.click();}
+  await page.waitForFunction(()=>Array.from(document.querySelectorAll(".mv-tick-major")).some(el=>el.textContent?.includes(".")));
+  assert.ok(await page.locator(".mv-ruler .mv-tick-major").count()<20,"only viewport labels rendered");
+  // Use a fast swipe on a blank track with the pointer released; actual
+  // scrollLeft must continue to change, while the clip times stay untouched.
+  await timeline.evaluate(el=>{el.scrollLeft=400;});
+  const lane=page.locator(".mv-main-lane");await lane.scrollIntoViewIfNeeded();
+  const viewport=await timeline.boundingBox(),laneBox=await lane.boundingBox();assert.ok(viewport&&laneBox);
+  const sy=laneBox.y+laneBox.height/2,sx=viewport.x+viewport.width*.75;
+  const before=await timeline.evaluate(el=>el.scrollLeft);
+  if(mobile){
+   const client=await page.context().newCDPSession(page);
+   await client.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:sx,y:sy,id:3}]});
+   await client.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:sx-35,y:sy,id:3}]});
+   await client.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:sx-75,y:sy,id:3}]});
+   const held=await timeline.evaluate(el=>el.scrollLeft);
+   assert.ok(held>before+30,"swipe pans while held");
+   await client.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});
+   await page.waitForFunction(x=>document.querySelector(".mv-scroll")!.scrollLeft>x+8,held,{timeout:2000});
+   await client.detach();
+   console.log("PASS: timeline swipe continues with bounded inertia after touch release on mobile Chromium");
+  }
+  assert.equal(await page.locator(".mv-clip").count(),2);
   await page.close();
  }
 }finally{await browser.close();await new Promise<void>(resolve=>server.close(()=>resolve()));rmSync(root,{recursive:true,force:true});}
