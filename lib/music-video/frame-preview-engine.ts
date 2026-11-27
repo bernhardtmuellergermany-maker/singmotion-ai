@@ -1,7 +1,9 @@
 import {ALL_FORMATS,Input,UrlSource,CanvasSink,AudioBufferSink,type WrappedCanvas,type WrappedAudioBuffer} from "mediabunny";
 import {frameTarget,TIMELINE_FPS,type FrameTimeline,type FrameClip,type AudioSpan} from "./frame-timeline";
 const WINDOW_FRAMES=15,WINDOW_MS=WINDOW_FRAMES*1000/TIMELINE_FPS;
-const FRAME_CACHE_LIMIT=4,SOURCE_CACHE_LIMIT=6;
+const FRAME_CACHE_LIMIT=6,SOURCE_CACHE_LIMIT=6;
+const PLAYBACK_LOOKAHEAD_MS=2000,CLIP_LOOKAHEAD_MS=20000;
+type Pictures=Map<number,WrappedCanvas|null>;
 type Source={input:Input;video?:CanvasSink;audio?:AudioBufferSink|null;audioReady?:Promise<AudioBufferSink|null>;videoReady?:Promise<CanvasSink>};
 type Sound={buffer:AudioBuffer;at:number;offset:number;duration:number};
 type Window={index:number;frames:Map<number,WrappedCanvas|null>;audio:Sound[];start:number;end:number};
@@ -21,6 +23,11 @@ export class FramePreviewEngine<C extends FrameClip>{
  private sources=new Map<string,Promise<Source>>();
  private windows=new Map<number,Window>();
  private loading=new Map<number,Promise<Window>>();
+ private pictures=new Map<number,Pictures>();
+ private pictureLoading=new Map<number,Promise<Pictures>>();
+ private warmClipPending=false;
+ private warmClipAttempts=new Map<string,number>();
+ private scrubWarming=false;
  private controller=new AbortController();
  private version=0;
  private seekVersion=0;
@@ -64,7 +71,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   return pending;
  }
  private trimSources(){
-  if(this.loading.size||this.pendingFrame)return;
+  if(this.loading.size||this.pictureLoading.size||this.pendingFrame||this.warmClipPending)return;
   while(this.sources.size>SOURCE_CACHE_LIMIT){const key=this.sources.keys().next().value!;const input=this.sources.get(key)!;this.sources.delete(key);void input.then(s=>s.input.dispose()).catch(()=>{});}
  }
  private async videoSink(assetId:string){
@@ -81,7 +88,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   const resize=this.canvas.width!==width||this.canvas.height!==height;
   this.clearWarm();this.stopClock();this.version++;this.seekVersion++;this.controller.abort();
   this.controller=new AbortController();for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});
-  this.sources.clear();this.loading.clear();this.windows.clear();this.lastFrame=-1;this.timeline=timeline;
+  this.sources.clear();this.loading.clear();this.windows.clear();this.pictures.clear();this.pictureLoading.clear();this.warmClipAttempts.clear();this.lastFrame=-1;this.timeline=timeline;
   if(resize){this.canvas.width=width;this.canvas.height=height;}this.black();
   this.position=Math.max(0,Math.min(timeline.durationMs,position));this.cb.position(this.position);
   this.requestFrame();if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
@@ -103,16 +110,17 @@ export class FramePreviewEngine<C extends FrameClip>{
   for await(const sample of sink.buffers(sourceStart,sourceEnd))add(sample);
   return result;
  }
- private window(index:number):Promise<Window>{
-  const ready=this.windows.get(index);if(ready)return Promise.resolve(ready);
-  const pending=this.loading.get(index);if(pending)return pending;
+ private pictureWindow(index:number):Promise<Pictures>{
+  const pending=this.pictureLoading.get(index);if(pending)return pending;
+  const ready=this.pictures.get(index);
+  if(ready&&ready.size===Math.min(WINDOW_FRAMES,this.timeline!.frames-index*WINDOW_FRAMES))return Promise.resolve(ready);
   const version=this.version,signal=this.controller.signal,timeline=this.timeline!;
-  const start=index*WINDOW_MS,end=Math.min(timeline.durationMs,start+WINDOW_MS);
+  const frames=ready??new Map<number,WrappedCanvas|null>();
+  this.pictures.set(index,frames);
   const task=(async()=>{
-   const frames=new Map<number,WrappedCanvas|null>();
    const groups=new Map<string,{frame:number;seconds:number}[]>();
-   // Partition by clip id: timestamps within one clip always increase.
    for(let frame=index*WINDOW_FRAMES;frame<Math.min((index+1)*WINDOW_FRAMES,timeline.frames);frame++){
+    if(frames.has(frame))continue;
     const target=frameTarget(timeline,(frame+.00001)*1000/TIMELINE_FPS)!;
     if(!target.clip){frames.set(frame,null);continue;}
     const key=target.clip.id,group=groups.get(key)??[];group.push({frame,seconds:target.sourceMs!/1000});groups.set(key,group);
@@ -124,31 +132,77 @@ export class FramePreviewEngine<C extends FrameClip>{
      signal.throwIfAborted();const target=group[i++];if(!target)break;
      if(!sample)throw Error("Requested video frame is unavailable.");
      frames.set(target.frame,sample);
+     // A frame that arrives while dragging is displayed immediately, not on release.
+     if(version===this.version&&!this.running&&frameTarget(timeline,this.position)?.frame===target.frame)this.paint(target.frame,sample);
     }
     if(i!==group.length)throw Error("Incomplete video frame window.");
    }
-   const audio:Sound[]=[];
-   for(const span of timeline.audio){signal.throwIfAborted();if(span.timelineStartMs<end&&span.timelineEndMs>start)audio.push(...await this.sound(span,start,end));}
-   signal.throwIfAborted();const value={index,frames,audio,start,end};
-   if(version!==this.version)throw new DOMException("Timeline changed","AbortError");
-   this.windows.set(index,value);this.trimWindows();return value;
+   signal.throwIfAborted();if(version!==this.version)throw new DOMException("Timeline changed","AbortError");
+   this.trimWindows();return frames;
+  })();
+  this.pictureLoading.set(index,task);
+  void task.finally(()=>{if(this.pictureLoading.get(index)===task)this.pictureLoading.delete(index);this.trimWindows();this.trimSources();}).catch(()=>{});
+  return task;
+ }
+ private window(index:number):Promise<Window>{
+  const ready=this.windows.get(index);if(ready)return Promise.resolve(ready);
+  const pending=this.loading.get(index);if(pending)return pending;
+  const version=this.version,signal=this.controller.signal,timeline=this.timeline!;
+  const start=index*WINDOW_MS,end=Math.min(timeline.durationMs,start+WINDOW_MS);
+  const task=(async()=>{
+   // Decode picture and audible buffers concurrently, keeping the same exact clock.
+   const audioTask=(async()=>{const audio:Sound[]=[];for(const span of timeline.audio){signal.throwIfAborted();if(span.timelineStartMs<end&&span.timelineEndMs>start)audio.push(...await this.sound(span,start,end));}return audio;})();
+   const [frames,audio]=await Promise.all([this.pictureWindow(index),audioTask]);
+   signal.throwIfAborted();if(version!==this.version)throw new DOMException("Timeline changed","AbortError");
+   const value={index,frames,audio,start,end};this.windows.set(index,value);this.trimWindows();return value;
   })();
   this.loading.set(index,task);
   void task.finally(()=>{if(this.loading.get(index)===task)this.loading.delete(index);this.trimSources();}).catch(()=>{});
   return task;
+ }
+ /** Prepare the next distinct clip before its decoded window is needed.
+  * Keep the original range-based source and warm its first requested frame. */
+ private warmUpcoming(){
+  if(this.closed||!this.timeline||this.dragging||this.warmClipPending)return;
+  const timeline=this.timeline,version=this.version;
+  const current=frameTarget(timeline,this.position),next=timeline.spans.filter(s=>s.clip&&s.startFrame>=(current?.frame??0)&&s.startFrame*1000/TIMELINE_FPS-this.position<=CLIP_LOOKAHEAD_MS&&s.clip.assetId!==current?.clip?.assetId);
+  const candidates=[...new Map(next.map(s=>[s.clip!.assetId,s])).values()].slice(0,2);
+  const span=candidates.find(s=>(!this.sources.has(s.clip!.assetId)||!this.warmClipAttempts.has(s.clip!.id))&&performance.now()-(this.warmClipAttempts.get(s.clip!.id)??-Infinity)>5000);
+  if(!span)return;
+  const clip=span.clip!,key=clip.id;this.warmClipAttempts.set(key,performance.now());
+  this.warmClipPending=true;
+  void (async()=>{const sink=await this.videoSink(clip.assetId);await sink.getCanvas(span.sourceMs/1000);})().catch(()=>{}).finally(()=>{
+   this.warmClipPending=false;this.trimSources();
+   if(version===this.version&&!this.closed)this.warmUpcoming();
+  });
+ }
+ /** Video-only preparation around the moving marker. Never wait for audio or
+  * a full playback window to paint a cached frame. Only one scrub warm job. */
+ private warmScrub(){
+  if(this.closed||!this.timeline||!this.dragging||this.scrubWarming)return;
+  const version=this.version,target=frameTarget(this.timeline,this.position);if(!target)return;
+  const index=Math.floor(target.frame/WINDOW_FRAMES),last=Math.floor((this.timeline.frames-1)/WINDOW_FRAMES);
+  const candidates=[index,index+1,index-1].filter(i=>i>=0&&i<=last);
+  const candidate=candidates.find(i=>!this.pictureLoading.has(i)&&(this.pictures.get(i)?.size??0)<Math.min(WINDOW_FRAMES,this.timeline!.frames-i*WINDOW_FRAMES));
+  if(candidate===undefined)return;
+  this.scrubWarming=true;
+  void this.pictureWindow(candidate).catch(()=>{}).finally(()=>{this.scrubWarming=false;if(version===this.version&&!this.closed&&this.dragging&&Math.floor(this.position/WINDOW_MS)===index)this.warmScrub();});
  }
  private clearWarm(){if(this.idleWarm!==null){clearTimeout(this.idleWarm);this.idleWarm=null;}}
  private warmWhenIdle(){
   this.clearWarm();if(this.intent||this.dragging||!this.timeline||this.closed||this.position>=this.timeline.durationMs)return;
   const version=this.version,seek=this.seekVersion,index=Math.floor(this.position/WINDOW_MS);
   this.idleWarm=setTimeout(()=>{this.idleWarm=null;if(this.intent||this.dragging||this.loading.size||version!==this.version||seek!==this.seekVersion)return;
-   void this.window(index).then(w=>{if(!this.intent&&!this.dragging&&version===this.version&&seek===this.seekVersion&&w.end<this.timeline!.durationMs)return this.window(index+1);}).catch(()=>{});
+   void (async()=>{for(let i=index;i<=index+2;i++){if(this.intent||this.dragging||version!==this.version||seek!==this.seekVersion||i*WINDOW_MS>=this.timeline!.durationMs)break;await this.window(i);}if(version===this.version)this.warmUpcoming();})().catch(()=>{});
   },200);
  }
  private trimWindows(){
   const index=Math.floor(this.position/WINDOW_MS);
-  for(const key of this.windows.keys())if(key<index-1||key>index+2)this.windows.delete(key);
+  const outside=(key:number)=>key<index-1||key>index+4;
+  for(const key of this.windows.keys())if(outside(key))this.windows.delete(key);
+  for(const key of this.pictures.keys())if(outside(key)&&!this.pictureLoading.has(key))this.pictures.delete(key);
   while(this.windows.size>FRAME_CACHE_LIMIT)this.windows.delete(this.windows.keys().next().value!);
+  for(const key of this.pictures.keys()){if(this.pictures.size<=FRAME_CACHE_LIMIT)break;if(!this.pictureLoading.has(key)&&!this.windows.has(key))this.pictures.delete(key);}
  }
  private paint(frame:number,sample:WrappedCanvas|null){
   if(this.lastFrame===frame)return;this.lastFrame=frame;
@@ -156,7 +210,13 @@ export class FramePreviewEngine<C extends FrameClip>{
   this.canvas.dataset.frame=String(frame);this.canvas.dataset.sourceTime=sample?String(sample.timestamp):"";
  }
  private requestFrame(){
-  this.frameWanted=true;if(this.pendingFrame||this.closed||!this.timeline)return;
+  if(this.closed||!this.timeline)return;
+  const latest=frameTarget(this.timeline,this.position);
+  if(latest){const ready=this.pictures.get(Math.floor(latest.frame/WINDOW_FRAMES));
+   // Even an outstanding network seek must not block an already decoded frame.
+   if(!latest.clip||ready?.has(latest.frame)){this.frameWanted=false;this.paint(latest.frame,latest.clip?ready!.get(latest.frame)!:null);this.warmScrub();return;}
+  }
+  this.frameWanted=true;if(this.pendingFrame)return;
   this.pendingFrame=true;
   void (async()=>{
    while(this.frameWanted&&!this.closed){
@@ -164,11 +224,15 @@ export class FramePreviewEngine<C extends FrameClip>{
     const version=this.version,seek=this.seekVersion,target=frameTarget(this.timeline!,this.position);
     if(!target){this.black();continue;}
     try{
-     const ready=this.windows.get(Math.floor(target.frame/WINDOW_FRAMES));
-     const sample=ready?.frames.has(target.frame)?ready.frames.get(target.frame)!:target.clip?await (await this.videoSink(target.clip.assetId)).getCanvas(target.sourceMs!/1000):null;
-     if(version!==this.version||seek!==this.seekVersion||this.closed||this.running)continue;
+     const index=Math.floor(target.frame/WINDOW_FRAMES),ready=this.pictures.get(index);
+     const sample=ready?.has(target.frame)?ready.get(target.frame)!:target.clip?await (await this.videoSink(target.clip.assetId)).getCanvas(target.sourceMs!/1000):null;
+     if(version!==this.version||this.closed||this.running)continue;
      if(target.clip&&!sample)throw Error("Requested video frame is unavailable.");
-     this.paint(target.frame,sample);
+     const frames=this.pictures.get(index)??new Map<number,WrappedCanvas|null>();frames.set(target.frame,sample);this.pictures.set(index,frames);this.trimWindows();
+     // Same frame can cover several millisecond seeks. Do not discard it merely
+     // because the marker moved within that frame while decoding was pending.
+     if(frameTarget(this.timeline!,this.position)?.frame===target.frame)this.paint(target.frame,sample);
+     this.warmScrub();if(!this.dragging)this.warmUpcoming();
     }catch(e){if(version===this.version&&seek===this.seekVersion&&!this.closed)this.fail(e);}
    }
   })().finally(()=>{this.pendingFrame=false;this.trimSources();if(this.frameWanted&&!this.closed)this.requestFrame();});
@@ -201,7 +265,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  pause(){this.intent=false;this.seekVersion++;this.stopClock();this.cb.position(this.position);this.setBuffering(false);this.cb.playing(false);this.warmWhenIdle();}
  seek(ms:number){
   if(!this.timeline||!Number.isFinite(ms))return;
-  this.clearWarm();this.seekVersion++;this.stopClock();this.position=Math.max(0,Math.min(this.timeline.durationMs,ms));this.lastFrame=-1;
+  this.clearWarm();this.seekVersion++;this.stopClock();this.position=Math.max(0,Math.min(this.timeline.durationMs,ms));
   this.cb.position(this.position);this.trimWindows();this.requestFrame();
   if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
  }
@@ -233,7 +297,7 @@ export class FramePreviewEngine<C extends FrameClip>{
     this.anchorTime=this.audio!.currentTime+.08;this.anchorPosition=this.position;
     this.scheduledThrough=this.position;this.schedule(current,this.position);if(next)this.schedule(next,next.start);
     const target=frameTarget(this.timeline!,this.position);if(target&&current.frames.has(target.frame))this.paint(target.frame,current.frames.get(target.frame)!);
-    this.running=true;this.setBuffering(false);this.lastPublish=0;this.raf=requestAnimationFrame(this.tick);
+    this.running=true;this.setBuffering(false);this.lastPublish=0;this.warmUpcoming();this.raf=requestAnimationFrame(this.tick);
    }catch(e){if(version===this.version&&seek===this.seekVersion&&this.intent)this.fail(e);}
    finally{this.starting=false;if(this.intent&&!this.running&&!this.dragging&&!this.closed)this.ensureStart();}
   })();
@@ -248,15 +312,15 @@ export class FramePreviewEngine<C extends FrameClip>{
   if(now-this.lastPublish>=60){this.lastPublish=now;this.cb.position(this.position);}
   if(this.position>=timeline.durationMs){this.cb.position(timeline.durationMs);this.pause();return;}
   if(this.position>=this.scheduledThrough-.001){this.stopClock();this.cb.position(this.position);this.ensureStart();return;}
-  if(this.scheduledThrough<timeline.durationMs&&this.scheduledThrough-this.position<1000){
+  if(this.scheduledThrough<timeline.durationMs&&this.scheduledThrough-this.position<PLAYBACK_LOOKAHEAD_MS){
    const index=Math.floor(this.scheduledThrough/WINDOW_MS),ready=this.windows.get(index);
    // Maintain a bounded lookahead; do not schedule late audio against an old anchor.
    if(ready&&this.anchorTime+(ready.start-this.anchorPosition)/1000>this.audio.currentTime+.035){try{this.schedule(ready,ready.start);}catch(e){this.fail(e);return;}}
-   else if(!ready&&this.scheduledThrough-this.position<1000){
+   else if(!ready&&this.scheduledThrough-this.position<PLAYBACK_LOOKAHEAD_MS){
     void this.window(index).catch(e=>{if(version===this.version&&seek===this.seekVersion&&this.running)this.fail(e);});
    }
   }
-  this.trimWindows();this.raf=requestAnimationFrame(this.tick);
+  this.trimWindows();this.warmUpcoming();this.raf=requestAnimationFrame(this.tick);
  };
- close(){this.clearWarm();this.closed=true;this.intent=false;this.stopClock();this.controller.abort();this.version++;this.seekVersion++;for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});this.sources.clear();this.windows.clear();this.loading.clear();if(this.audio)void this.audio.close().catch(()=>{});}
+ close(){this.clearWarm();this.closed=true;this.intent=false;this.stopClock();this.controller.abort();this.version++;this.seekVersion++;for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});this.sources.clear();this.windows.clear();this.loading.clear();this.pictures.clear();this.pictureLoading.clear();if(this.audio)void this.audio.close().catch(()=>{});}
 }
