@@ -23,7 +23,7 @@ const css=readFileSync("components/music-video.css");
 const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songName:"Test song",songDurationMs:4000,songStartMs:0,songEndMs:4000,songPositionMs:0,songParts:null,trackMutes:{1:true,2:true,song:false},revision:0,createdAt:1,updatedAt:1,aspectRatio:"16:9"};
 const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:id==="first"?"lip-sync":"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
 const clips=[{id:"c1",assetId:"first",track:1,timelineStartMs:0,sourceInMs:250,sourceOutMs:1750,syncLocked:false},{id:"c2",assetId:"second",track:2,timelineStartMs:2000,sourceInMs:500,sourceOutMs:2000,syncLocked:false}];
-let lockProject={...project,id:"lock-project"};
+let lockProject={...project,id:"lock-project",songRemoved:false,songVersion:null as string|null};
 const lockAssets=assets.map(a=>({...a,projectId:"lock-project",createdAt:a.id==="second"?2:1,sourceStartMs:a.id==="first"?500:null,sourceEndMs:a.id==="first"?3500:null}));
 const initialLockClips=()=>clips.map(c=>({...c,positionLocked:false,showVideoName:false}));
 let lockClips=initialLockClips();
@@ -55,6 +55,13 @@ const server=createServer((req,res)=>{
  if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
  if(p.includes("/format/"))return json({width:320,height:180});
  if(p.includes("/timeline-preview")){timelineRequests++;res.writeHead(404);res.end();return;}
+ if(p==="/api/music-video/lock-project/song"&&(req.method==="DELETE"||req.method==="POST")){
+  const removed=req.method==="DELETE";req.resume();req.on("end",()=>{
+   lockProject={...lockProject,songRemoved:removed,songVersion:removed?lockProject.songVersion:"new-song",songName:removed?"":"Replacement song",revision:lockProject.revision+1};
+   if(removed)lockClips=lockClips.map(c=>({...c,syncLocked:false}));
+   json({project:lockProject,assets:lockAssets,clips:lockClips});
+  });return;
+ }
  if(p.endsWith("/song"))return media(song,"audio/mpeg");
  if(p==="/api/music-video/lock-project/assets/first"&&req.method==="GET"){res.writeHead(403);res.end();return;}
  if(p.includes("/assets/")){assetRequests++;res.writeHead(403);res.end();return;}
@@ -285,7 +292,7 @@ try{
  }
  // Verify direct clip controls, durable settings, exact source time and empty selection.
  for(const width of [390,1280]){
-  lockClips=initialLockClips();lockProject={...project,id:"lock-project"};
+  lockClips=initialLockClips();lockProject={...project,id:"lock-project",songRemoved:false,songVersion:null};
   const page=await browser.newPage({viewport:{width,height:844},isMobile:width<500,hasTouch:width<500});
   await page.goto(origin+"/lock-test");
   const second=page.getByLabel("Select video second",{exact:true}),first=page.getByLabel("Select video first",{exact:true});
@@ -461,7 +468,20 @@ try{
    assert.equal(await preview.getByRole("alert").count(),0);
   await preview.getByRole("button",{name:"Close video preview"}).click();await preview.waitFor({state:"hidden"});
   assert.equal(await page.locator(".mv-library-preview-dialog video").count(),0);
-  await page.close();console.log("PASS: direct clip eye/lock, save/reload, source restoration, library source sort, used indicators and original video preview at "+width+"px");
+  const retained=lockClips.map(c=>({...c,syncLocked:false}));
+   await song.focus();await song.press("Enter");
+   const trashSong=page.getByRole("button",{name:"Delete selection",exact:true});
+   assert.equal(await trashSong.isEnabled(),true);
+   page.once("dialog",dialog=>void dialog.accept());
+   await trashSong.click();
+   const addSong=page.getByRole("button",{name:"Add Song",exact:true});await addSong.waitFor();
+   assert.equal(await page.locator(".mv-song-block").count(),0);assert.equal(await page.getByRole("button",{name:"Export MP4"}).isDisabled(),true);
+   assert.deepEqual(lockClips,retained);
+   await page.reload();await addSong.waitFor();
+   await page.getByLabel("Upload replacement song").setInputFiles({name:"replacement.mp3",mimeType:"audio/mpeg",buffer:song});
+   await page.getByRole("button",{name:"Select song",exact:true}).waitFor();
+   assert.equal(await addSong.count(),0);assert.equal(lockProject.songName,"Replacement song");assert.deepEqual(lockClips,retained);
+   await page.close();console.log("PASS: clip controls, library preview, persistent song removal and replacement at "+width+"px");
  }
  // Portal inherits a deliberately dark body foreground, as on the Videos page.
  for(const width of [320,390,1280]){
