@@ -418,7 +418,7 @@ try{
   assert.equal(lockClips[1].timelineStartMs,protectedStart,"locked video must not move");
   console.log("PASS: unlocked clip moves with "+(width<500?"touch hold":"mouse drag")+"; locked clip stays fixed");
   await select(first);const resync=page.getByRole("button",{name:"Re-Sync",exact:true});assert.equal(await resync.isEnabled(),true);assert.equal(await resync.locator("svg").count(),1);await page.mouse.move(0,0);assert.equal(await resync.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");if(width>=500){await resync.hover();const hover=await resync.evaluate(el=>getComputedStyle(el).backgroundColor);await page.getByRole("button",{name:"Delete selection",exact:true}).hover();assert.equal(hover,await page.getByRole("button",{name:"Delete selection",exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor));}assert.ok(await resync.evaluate(el=>{const a=el.querySelector("svg")!.getBoundingClientRect(),b=el.querySelector("span")!.getBoundingClientRect(),c=el.getBoundingClientRect();return Math.abs(a.y+a.height/2-b.y-b.height/2)<1&&Math.abs(a.y+a.height/2-c.y-c.height/2)<1;}),"waveform and text must be vertically centered");const restored=save();await resync.click();await restored;
-  assert.equal(lockClips[0].timelineStartMs,750);assert.equal(lockClips[0].syncLocked,true);
+  assert.equal(lockClips[0].timelineStartMs,500);assert.equal(lockClips[0].sourceInMs,0);assert.equal(lockClips[0].sourceOutMs,1500);assert.equal(lockClips[0].syncLocked,true);
   // Restoring source timing must show a closed padlock, not an open one.
   await first.getByRole("button",{name:"Unlock clip position: first"}).waitFor();
   let unlockDialogs=0;
@@ -481,9 +481,9 @@ try{
    await page.getByLabel("Upload replacement song").setInputFiles({name:"replacement.mp3",mimeType:"audio/mpeg",buffer:song});
    await page.getByRole("button",{name:"Select song",exact:true}).waitFor();
    assert.equal(await addSong.count(),0);assert.equal(lockProject.songName,"Replacement song");assert.deepEqual(lockClips,retained);
-   const restoreAll=page.getByRole("button",{name:"Restore all Lip Sync positions",exact:true});await restoreAll.waitFor();
-   page.once("dialog",dialog=>void dialog.accept());const restoredAfterReplacement=save();await restoreAll.click();await restoredAfterReplacement;
-   assert.equal(lockClips.find(c=>c.id==="c1")?.timelineStartMs,750);assert.equal(lockClips.find(c=>c.id==="c1")?.syncLocked,true);assert.deepEqual(lockClips.find(c=>c.id==="c2"),retained.find(c=>c.id==="c2"));
+   assert.equal(await page.getByRole("button",{name:"Restore all Lip Sync positions",exact:true}).count(),0);
+   await select(first);const restoredAfterReplacement=save();await resync.click();await restoredAfterReplacement;
+   assert.equal(lockClips.find(c=>c.id==="c1")?.timelineStartMs,500);assert.equal(lockClips.find(c=>c.id==="c1")?.syncLocked,true);assert.deepEqual(lockClips.find(c=>c.id==="c2"),retained.find(c=>c.id==="c2"));
    await page.close();console.log("PASS: clip controls, library preview, persistent song removal and replacement at "+width+"px");
  }
  // Portal inherits a deliberately dark body foreground, as on the Videos page.
