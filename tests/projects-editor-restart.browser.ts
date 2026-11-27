@@ -441,9 +441,9 @@ try{
   assert.equal(await page.locator(".mv-media-card .mv-asset-name strong").first().textContent(),"first");
   assert.equal(await page.locator(".mv-media-used").count(),2);
   const filterMenu=page.getByLabel("Filter library videos",{exact:true});
-  await filterMenu.click();await page.getByRole("button",{name:/^B-Roll/}).click();
+  await filterMenu.click();await page.getByRole("group",{name:"Video filters"}).getByRole("button",{name:/^B-Roll/}).click();
   assert.equal(await page.locator(".mv-media-card").count(),1);
-  await filterMenu.click();await page.getByRole("button",{name:/^All videos/}).click();
+  await filterMenu.click();await page.getByRole("group",{name:"Video filters"}).getByRole("button",{name:/^All videos/}).click();
   assert.equal(await page.locator(".mv-media-card").count(),2);
   await sort.click();await page.keyboard.press("Escape");assert.equal(await page.locator(".mv-library-select-menu:visible").count(),0);
   await page.getByRole("button",{name:"Preview first",exact:true}).click();
