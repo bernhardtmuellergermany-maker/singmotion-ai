@@ -626,3 +626,8 @@
 .mv-root.mv-editor .mv-browse-toolbar .mv-browse-search input[type=search],.mv-root.mv-projects .mv-browse-toolbar .mv-browse-search input[type=search]{appearance:none!important;-webkit-appearance:none!important;color-scheme:dark;min-height:0!important;background:transparent!important;background-image:none!important;border:0!important;box-shadow:none!important;-webkit-box-shadow:none!important}
 .mv-root.mv-editor .mv-browse-toolbar .mv-browse-search input[type=search]:focus,.mv-root.mv-projects .mv-browse-toolbar .mv-browse-search input[type=search]:focus{background:transparent!important;border:0!important;box-shadow:none!important;-webkit-box-shadow:none!important;outline:none!important}
 .mv-root.mv-editor .mv-browse-toolbar .mv-browse-search input[type=search]:-webkit-autofill,.mv-root.mv-projects .mv-browse-toolbar .mv-browse-search input[type=search]:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #131d2b inset!important}
+
+.mv-editor .mv-sync-preview-options{display:flex;align-items:center;flex-wrap:wrap;gap:6px;padding:6px 0;color:#bdb0cf;font-size:11px}
+.mv-editor .mv-sync-preview-options button{border:1px solid #665079;border-radius:7px;background:transparent;color:#e6d8f5;padding:5px 9px;font-size:11px}
+.mv-editor .mv-sync-preview-options button[aria-pressed=true]{background:#573070;border-color:#ab73ce;color:#fff}
+.mv-editor .mv-sync-preview-options small{font-size:10px;color:#bdb0cf}
