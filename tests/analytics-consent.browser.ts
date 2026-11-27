@@ -64,11 +64,11 @@ try {
    const extra=panel.locator("#sm-analytics-details");
    if(viewport.width<=600){
     await expect.poll(async()=>{const rect=await panel.boundingBox();const view=await page.evaluate(()=>({width:window.visualViewport?.width??document.documentElement.clientWidth,left:window.visualViewport?.offsetLeft??0}));return rect?Math.abs(rect.x+rect.width/2-(view.left+view.width/2)):999;},{message:"mobile banner is centered in the visible document width"}).toBeLessThanOrEqual(1);
-    assert.ok(bounds.height<=205,"compact collapsed mobile banner");
+    await expect.poll(async()=> (await panel.boundingBox())?.height??999,{message:"compact collapsed mobile banner remains within 205px"}).toBeLessThanOrEqual(205);
     await expect(details).toBeVisible();
     await expect(details).toHaveAttribute("aria-expanded","false");
     await expect(extra).toBeHidden();
-    await expect(panel.getByText("Optional Google Analytics measures visits, approximate location and traffic sources. Withdraw consent anytime in Privacy settings.",{exact:true})).toBeVisible();
+    await expect(panel.getByText("Optional Google Analytics measures visits, approximate location and traffic sources. Change your choice in our Privacy policy.",{exact:true})).toBeVisible();
     await details.click();
     await expect(details).toHaveAttribute("aria-expanded","true");
     await expect(extra).toBeVisible();
