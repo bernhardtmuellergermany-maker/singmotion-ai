@@ -9,7 +9,7 @@ import {ChevronDown,ChevronRight,Check,Film,Lock,Unlock,Video,Mic,Eye,EyeOff,
 import {ensureSession} from "@/lib/client";
 import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
-import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
+import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,timelineFitZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,timelineWaveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,planSourceTimeInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -101,6 +101,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
+  const minimumZoomRef=useRef(MIN_TIMELINE_ZOOM);
   const zoomRef=useRef(44),pendingZoomScroll=useRef<number|null>(null),inertiaFrame=useRef(0);
   const stopInertia=useCallback(()=>{cancelAnimationFrame(inertiaFrame.current);inertiaFrame.current=0;},[]);
   useEffect(()=>()=>stopInertia(),[stopInertia]);
@@ -119,7 +120,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   const applyZoom=useCallback((value:number,anchorMs:number,viewportX:number)=>{
     const el=scroll.current;if(!el)return;
-    const next=clampTimelineZoom(value),left=anchoredScroll(anchorMs,next,viewportX);
+    const next=Math.max(minimumZoomRef.current,clampTimelineZoom(value)),left=anchoredScroll(anchorMs,next,viewportX);
     stopInertia();
     if(next===zoomRef.current&&pendingZoomScroll.current===null){el.scrollLeft=left;return;}
     zoomRef.current=next;pendingZoomScroll.current=left;setZoom(next);
@@ -495,6 +496,16 @@ export function MusicVideoEditor({id}:{id:string}){
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
   const timelineEnd=project?songPartsEnd(songRange,songParts):0;
   const timelineLimit=timelineEnd;
+  const minimumZoom=timelineFitZoom(timelineLimit,rulerViewport.width);
+  // Follow the viewport while fitted, but preserve intentional closer zoom.
+  // Only display scale changes; editable duration and media times stay exact.
+  useLayoutEffect(()=>{
+    const previous=minimumZoomRef.current;
+    minimumZoomRef.current=minimumZoom;
+    if(zoomRef.current<minimumZoom||(minimumZoom!==previous&&zoomRef.current<=previous)){
+      applyZoom(minimumZoom,0,0);
+    }
+  },[minimumZoom,applyZoom]);
   const waveformGridMs=Math.max(4000/zoom,timelineLimit/1200);
   // Source trim can be extended again, but never displays unused source duration.
   const songPlacementLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current))):0;
@@ -689,7 +700,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
   useLayoutEffect(()=>{viewportRef.current={zoom,...rulerViewport};},[zoom,rulerViewport]);
   // The last audible song part is the only end of the editable project.
-  const pixels=project?Math.max(1,timelineLimit/1000*zoom):640;
+  const pixels=Math.max(rulerViewport.width,project?Math.max(1,timelineLimit/1000*zoom):640);
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
   function getDropTime(e:React.DragEvent){
     const rect=e.currentTarget.getBoundingClientRect();
@@ -1203,8 +1214,8 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="button" className="mv-snap-toggle" aria-label="Snap to edges" aria-pressed={snap} title={snap?"Snap to edges: on":"Snap to edges: off"} onClick={()=>setSnap(v=>!v)}><Magnet size={18}/></button>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
             
-            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=MIN_TIMELINE_ZOOM} onClick={()=>zoomBy(1/1.35)}><ZoomOut size={18}/></button>
-            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=MAX_TIMELINE_ZOOM} onClick={()=>zoomBy(1.35)}><ZoomIn size={18}/></button>
+            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=minimumZoom} onClick={()=>zoomBy(1/1.35)}><ZoomOut size={18}/></button>
+            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=Math.max(MAX_TIMELINE_ZOOM,minimumZoom)} onClick={()=>zoomBy(1.35)}><ZoomIn size={18}/></button>
           </div></div>
       </div>
       {hasSelection&&<><button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
