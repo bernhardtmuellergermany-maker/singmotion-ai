@@ -660,7 +660,7 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('key={c.id}'));
  assert.ok(editor.includes('warmNextVideo(element,c,transition.atMs)'));
  assert.ok(editor.includes('element===video.current||element.readyState<1||element.seeking'));
- assert.ok(editor.includes('if(mobile!==false||importing)return'));
+ assert.ok(editor.includes('if(mobile!==false||importing||syncedMode)return'));
  assert.ok(editor.includes('if(mobile!==true)return'));
  assert.ok(editor.includes('timer=setTimeout(()=>void prepare(),2000)'));
  assert.ok(editor.includes('const mobileClock=!!mobilePlan?.visible&&!songMaster'));
@@ -887,4 +887,16 @@ test("opt-in synced review uses one native player and revision-scoped private pr
  assert.ok(renderer.includes('job.previewRevision!==revision'));
  assert.ok(renderer.includes('preview?"28":"20"'));
  assert.ok(renderer.includes('preview?"160k":"320k"'));
+});
+
+
+test("rendered review download is bounded, local and prioritised over clip prefetch",()=>{
+ const editor=read("components/music-video-editor.tsx"),cache=read("lib/music-video/review-cache.ts");
+ assert.ok(editor.includes("if(syncedMode){browserCache.current?.suspend();return;}"));
+ assert.ok(editor.includes('src={syncedPreview!.localUrl}'));
+ assert.ok(editor.includes("URL.revokeObjectURL(url)"));
+ assert.ok(editor.includes("await downloadReview("));
+ assert.ok(cache.includes("count!==length"));
+ assert.ok(cache.includes("count>REVIEW_MAX_BYTES"));
+ assert.ok(cache.includes('redirect:"error"'));
 });
