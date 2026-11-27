@@ -1,5 +1,5 @@
 import {ALL_FORMATS,Input,UrlSource,BlobSource,CanvasSink,AudioBufferSink,type WrappedCanvas,type WrappedAudioBuffer} from "mediabunny";
-import {frameTarget,TIMELINE_FPS,type FrameTimeline,type FrameClip,type AudioSpan} from "./frame-timeline";
+import {frameTarget,sameFrameTimeline,TIMELINE_FPS,type FrameTimeline,type FrameClip,type AudioSpan} from "./frame-timeline";
 const WINDOW_FRAMES=15,WINDOW_MS=WINDOW_FRAMES*1000/TIMELINE_FPS;
 const FRAME_CACHE_LIMIT=6,SOURCE_CACHE_LIMIT=6;
 const PLAYBACK_LOOKAHEAD_MS=2000,CLIP_LOOKAHEAD_MS=20000,LOCAL_PROXY_BYTES=8*1024*1024;
@@ -107,6 +107,9 @@ export class FramePreviewEngine<C extends FrameClip>{
  }
  setTimeline(timeline:FrameTimeline<C>,width:number,height:number,position:number){
   const resize=this.canvas.width!==width||this.canvas.height!==height;
+  // A role/lock/name change may produce fresh clip objects without changing any frame.
+  // Keep current playback, decoded sources and prefetched windows in that case.
+  if(!resize&&!this.trimTarget&&this.timeline&&sameFrameTimeline(this.timeline,timeline)){this.timeline=timeline;return;}
   this.clearWarm();this.stopClock();this.version++;this.seekVersion++;this.controller.abort();
   this.controller=new AbortController();for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});
   this.sources.clear();this.loading.clear();this.windows.clear();this.pictures.clear();this.pictureLoading.clear();this.warmClipAttempts.clear();this.warmClipReady.clear();this.lastFrame=-1;this.timeline=timeline;
