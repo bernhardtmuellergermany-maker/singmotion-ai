@@ -7,6 +7,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import {BrowserPreviewCache} from "@/lib/music-video/browser-preview-cache";
+import {downloadReview} from "@/lib/music-video/review-cache";
 import {validWaveform,waveformShape,type MediaWaveform} from "@/lib/music-video/waveform";
 import {lipSyncFrameDecision,presentedFrameError,LIP_SYNC_FRAME_LAG_SECONDS,LIP_SYNC_FRAME_AHEAD_SECONDS,LIP_SYNC_FRAME_PERSIST_MS,type PresentedFrame} from "@/lib/music-video/presented-frame-sync";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
@@ -19,7 +20,7 @@ const initialMutes:TrackMutes={1:true,2:true,song:false};
 type Detail={project:MusicProject;assets:MusicAsset[];clips:MusicClip[]};
 type ExportJob={id:string;state:"rendering"|"ready"|"failed";progress:number;resolution?:{width:number;height:number};error?:string};
 type SyncedJob=ExportJob&{revision:number};
-type SyncedPreview={job:SyncedJob;key:string};
+type SyncedPreview={job:SyncedJob;key:string;localUrl:string};
 const previewKey=(clips:MusicClip[],range:SongPlacement,parts:SongRange[]|null,mutes:TrackMutes,ratio:ProjectAspectRatio)=>JSON.stringify([clips,range,parts,mutes,ratio]);
 const endpoint="/api/music-video/";
 const uuid=()=>crypto.randomUUID();
@@ -130,6 +131,8 @@ export function MusicVideoEditor({id}:{id:string}){
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
   const [syncedMode,setSyncedMode]=useState(false),[syncedPreview,setSyncedPreview]=useState<SyncedPreview|null>(null),[syncedProgress,setSyncedProgress]=useState<number|null>(null);
+  const [reviewDownloading,setReviewDownloading]=useState(false);
+  useEffect(()=>{const url=syncedPreview?.localUrl;return()=>{if(url)URL.revokeObjectURL(url);};},[syncedPreview?.localUrl]);
   const syncedVideo=useRef<HTMLVideoElement>(null),syncedAbort=useRef<AbortController|null>(null),syncedPendingPlay=useRef(false);
   const syncedSeekTarget=useRef<number|null>(null);
   useEffect(()=>()=>{syncedAbort.current?.abort();},[]);
@@ -592,17 +595,17 @@ export function MusicVideoEditor({id}:{id:string}){
   const followingAsset=followingTransition?byId.get(followingTransition.clip.assetId):undefined;
   const firstPreviewAsset=firstVisibleVideo(clips)?.assetId;
   useEffect(()=>{
-    if(mobile===null)return;
+    if(mobile===null||syncedMode)return;
     const ids=[activeAsset?.id,nextAsset?.id,previousAsset?.id,firstPreviewAsset,followingAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId].filter((v):v is string=>!!v);
     const candidates=ids.filter(a=>mobile?mobileReady.has(a)&&!mobileOriginalRef.current.has(a):previewReady.has(a)).map(a=>({key:cacheKey(a),url:endpoint+id+"/preview/"+a+(mobile?"?mobile=1":"")}));
     // Pin any attached blob URLs, even if a seek has changed the lookahead.
     const attached=[...Array.from(previewBox.current?.querySelectorAll<HTMLVideoElement>("video[data-asset-id]")??[]),trackAudio1.current,trackAudio2.current];
     const pinned=[...new Set(attached.filter(v=>v?.getAttribute("src")?.startsWith("blob:")).map(v=>v?.dataset.assetId).filter((v):v is string=>!!v))].map(cacheKey);
     browserCache.current?.update(candidates,pinned);
-  },[id,mobile,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,activeAudio1?.assetId,activeAudio2?.assetId,previewReady,mobileReady,playing,cacheVersion,buffering]);
+  },[id,mobile,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,activeAudio1?.assetId,activeAudio2?.assetId,previewReady,mobileReady,playing,cacheVersion,buffering,syncedMode]);
   // Prepare a bounded queue while editing or playing. Never swap the source of a mounted decoder.
   useEffect(()=>{
-    if(mobile!==false||importing)return;
+    if(mobile!==false||importing||syncedMode)return;
     const controller=new AbortController();
     const candidates=[activeAsset,nextAsset,previousAsset,followingAsset,firstPreviewAsset?byId.get(firstPreviewAsset):undefined].filter((a):a is MusicAsset=>!!a&&a.durationMs<=180000);
     let timer:ReturnType<typeof setTimeout>|undefined;
@@ -625,10 +628,10 @@ export function MusicVideoEditor({id}:{id:string}){
     };
     void prepare();
     return()=>{controller.abort();if(timer)clearTimeout(timer);};
-  },[id,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,importing,mobile]);
+  },[id,activeAsset?.id,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,importing,mobile,syncedMode]);
   // Mobile never loads originals, and proxy preparation continues during playback.
   useEffect(()=>{
-    if(mobile!==true)return;
+    if(mobile!==true||syncedMode)return;
     const controller=new AbortController();
     const ids=[...new Set([activeAsset?.id,nextAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,previousAsset?.id,followingAsset?.id,firstPreviewAsset].filter((v):v is string=>!!v))];
     let timer:ReturnType<typeof setTimeout>|undefined;
@@ -649,7 +652,7 @@ export function MusicVideoEditor({id}:{id:string}){
     };
     void prepare();
     return()=>{controller.abort();if(timer)clearTimeout(timer);};
-  },[id,mobile,activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,mobileRetry]);
+  },[id,mobile,activeAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId,nextAsset?.id,previousAsset?.id,followingAsset?.id,firstPreviewAsset,mobileRetry,syncedMode]);
   function mobilePreviewFailed(assetId:string,visible=true){
     if(!mobileRef.current)return;
     if(mobileOriginalRef.current.has(assetId)){if(visible){stopPlayback();setError("Original video could not be loaded.");}return;}
@@ -926,7 +929,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{exportBusy.current=false;importBusy.current=false;if(!controller.signal.aborted){setImporting(false);setExporting(false);}exportAbort.current=null;}
   }
   function stopPlayback(){
-    syncedAbort.current?.abort();syncedAbort.current=null;setSyncedProgress(null);syncedPendingPlay.current=false;
+    syncedAbort.current?.abort();syncedAbort.current=null;setSyncedProgress(null);setReviewDownloading(false);syncedPendingPlay.current=false;
     if(playingRef.current&&syncedVideo.current&&!syncedVideo.current.seeking&&syncedSeekTarget.current===null&&!markerDrag.current)playheadRef.current=Math.min(timelineEnd,Math.round(syncedVideo.current.currentTime*1000));
     syncedVideo.current?.pause();
     presentationDrift.current=null;presentationRepair.current=null;
@@ -1258,7 +1261,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function prepareSyncedPreview(){
     if(importBusy.current||syncedAbort.current)return;
-    const controller=new AbortController();syncedAbort.current=controller;setSyncedProgress(0);
+    const controller=new AbortController();syncedAbort.current=controller;setReviewDownloading(false);setSyncedProgress(0);
     try{
       if(saveTimer.current)clearTimeout(saveTimer.current);await saveNow();
       if(controller.signal.aborted)return;
@@ -1274,9 +1277,13 @@ export function MusicVideoEditor({id}:{id:string}){
       }
       if(controller.signal.aborted||dirty.current||revision.current!==savedRevision||currentSnapshotKey()!==key)return;
       if(job.state!=="ready"||job.revision!==savedRevision)throw Error(job.error||"Synced preview unavailable. Tap Play to retry.");
-      syncedPendingPlay.current=true;setSyncedPreview({job,key});
+      setReviewDownloading(true);setSyncedProgress(0);
+      const blob=await downloadReview(endpoint+id+"/timeline-preview/"+job.id+"?media=1",controller.signal,percent=>{if(!controller.signal.aborted)setSyncedProgress(percent);});
+      if(controller.signal.aborted||dirty.current||revision.current!==savedRevision||currentSnapshotKey()!==key)return;
+      const localUrl=URL.createObjectURL(blob);
+      syncedPendingPlay.current=true;setSyncedPreview({job,key,localUrl});
     }catch(e){if(!controller.signal.aborted)setError(e instanceof Error?e.message:"Synced preview unavailable.");}
-    finally{if(syncedAbort.current===controller){syncedAbort.current=null;setSyncedProgress(null);}}
+    finally{if(syncedAbort.current===controller){syncedAbort.current=null;setSyncedProgress(null);setReviewDownloading(false);}}
   }
   useEffect(()=>{
     if(!playing||!syncedActive)return;
@@ -1464,7 +1471,7 @@ export function MusicVideoEditor({id}:{id:string}){
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div ref={previewBox} className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
-        {syncedActive&&<video key={syncedPreview!.job.id} ref={syncedVideo} data-synced-preview="true" playsInline preload="auto" src={endpoint+id+"/timeline-preview/"+syncedPreview!.job.id+"?media=1"} aria-hidden={false} onLoadedMetadata={()=>{alignSyncedVideo();applyPreviewVolume(syncedVideo.current);startSyncedVideo();}} onCanPlay={()=>{setBuffering(false);startSyncedVideo();}} onSeeked={()=>{const element=syncedVideo.current,target=syncedSeekTarget.current;if(element&&target!==null&&Math.abs(element.currentTime-target)<=.025){syncedSeekTarget.current=null;}else if(target!==null||!playingRef.current)alignSyncedVideo();}} onWaiting={()=>{if(playingRef.current)setBuffering(true);}} onPlaying={()=>setBuffering(false)} onEnded={()=>{if(!markerDrag.current&&syncedSeekTarget.current===null){playheadRef.current=timelineEnd;stopPlayback();}}} onError={()=>{stopPlayback();setSyncedPreview(null);setError("Synced preview expired or could not load. Tap Play to prepare it again.");}}/>}
+        {syncedActive&&<video key={syncedPreview!.job.id} ref={syncedVideo} data-synced-preview="true" playsInline preload="auto" src={syncedPreview!.localUrl} aria-hidden={false} onLoadedMetadata={()=>{alignSyncedVideo();applyPreviewVolume(syncedVideo.current);startSyncedVideo();}} onCanPlay={()=>{setBuffering(false);startSyncedVideo();}} onSeeked={()=>{const element=syncedVideo.current,target=syncedSeekTarget.current;if(element&&target!==null&&Math.abs(element.currentTime-target)<=.025){syncedSeekTarget.current=null;}else if(target!==null||!playingRef.current)alignSyncedVideo();}} onWaiting={()=>{if(playingRef.current)setBuffering(true);}} onPlaying={()=>setBuffering(false)} onEnded={()=>{if(!markerDrag.current&&syncedSeekTarget.current===null){playheadRef.current=timelineEnd;stopPlayback();}}} onError={()=>{stopPlayback();setSyncedPreview(null);setError("Synced preview expired or could not load. Tap Play to prepare it again.");}}/>}
         {!syncedActive&&!activeAsset&&!clips.length&&<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
         {!syncedActive&&mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"Mobile preview unavailable.":"Preparing mobile preview…"}</span>{mobileUnsupported&&<><button type="button" onClick={()=>retryMobilePreview(activeAsset.id)}>Retry</button><button type="button" onClick={()=>useOriginalOnMobile(activeAsset.id)}>Use original</button></>}</div>}
         {(!syncedActive&&mobile!==null?[
@@ -1493,7 +1500,7 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-player-controls">
         <button aria-label={syncedProgress!==null?"Cancel preview preparation":playing?"Pause":"Play"} disabled={!playing&&syncedProgress===null&&!wantsSynced&&(mobile===null||mobilePreparing)} onClick={togglePlayback}>{syncedProgress!==null?<X size={19}/>:playing?<Pause size={19}/>:<Play size={19}/>}</button>
         <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
-        {syncedProgress!==null&&<span role="status" className="mv-status">Preparing synced preview… {syncedProgress}%</span>}
+        {syncedProgress!==null&&<span role="status" className="mv-status">{reviewDownloading?"Loading preview locally…":"Preparing synced preview…"} {syncedProgress}%</span>}
         {buffering&&<span role="status" className="mv-status">Buffering video…</span>}
         <div className="mv-progress-wrap">
           <div className="mv-progress-rail" aria-hidden="true"><span style={{width:progress.percent+"%"}}/></div>
