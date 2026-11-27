@@ -57,7 +57,9 @@ export class TimelineClock{
  private anchor=0;
  private running=false;
  private last=0;
- constructor(private readonly durationMs:number,private readonly readAudioClock:()=>number){}
+ private readonly durationMs:number;
+ private readonly readAudioClock:()=>number;
+ constructor(durationMs:number,readAudioClock:()=>number){this.durationMs=durationMs;this.readAudioClock=readAudioClock;}
  get playing(){return this.running;}
  at(){
   const next=this.running?Math.min(this.durationMs,this.position+Math.max(0,this.readAudioClock()-this.anchor)*1000):this.position;
