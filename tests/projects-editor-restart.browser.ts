@@ -37,7 +37,7 @@ assert.equal(await musicTimelinePreviewFile("staff:other",project.id,project.rev
 assert.equal(await musicTimelinePreviewFile(fixtureOwner,project.id,1,job.id),null);
 assert.equal(await musicExportFile(fixtureOwner,project.id,job.id),null);
 const syncedBytes=readFileSync(rendered);
-let previewRequests=0;
+let previewRequests=0,reviewMediaRequests=0;
 const server=createServer((req,res)=>{
  const url=new URL(req.url||"/","http://localhost"),p=url.pathname;
  const send=(data:Buffer|Uint8Array|string,type:string)=>{res.writeHead(200,{"content-type":type});res.end(data);};
@@ -56,7 +56,16 @@ const server=createServer((req,res)=>{
  if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
  if(p.includes("/format/"))return json({width:320,height:180});
  if(p.endsWith("/timeline-preview")&&req.method==="POST"){previewRequests++;return json(status);}
- if(p.endsWith("/timeline-preview/"+job.id))return url.searchParams.has("media")?media(syncedBytes,"video/mp4"):json(status);
+ if(p.endsWith("/timeline-preview/"+job.id)){
+  if(!url.searchParams.has("media"))return json(status);
+  reviewMediaRequests++;
+  assert.equal(req.headers.range,undefined,"review must be fully downloaded, not range streamed");
+  // Deliver a partial response first to exercise slow mobile downloads.
+  const midpoint=Math.floor(syncedBytes.length/2);
+  res.writeHead(200,{"content-type":"video/mp4","content-length":syncedBytes.length});
+  res.write(syncedBytes.subarray(0,midpoint));
+  setTimeout(()=>res.end(syncedBytes.subarray(midpoint)),350);return;
+ }
  if(p.endsWith("/song"))return media(song,"audio/wav");
  if(p.includes("/preview/")&&req.method==="POST")return json({ready:true,unsupported:false});
  if(p.includes("/preview/")||p.includes("/assets/"))return media(video,"video/mp4");
@@ -169,12 +178,16 @@ try{
   await pause.click();
   assert.equal(previewRequests,initialPreviewRequests,"live editing never triggers server timeline render");
   await page.getByRole("button",{name:"Synced review",exact:true}).click();await seek.press("Home");
-  const requestsBefore=previewRequests;
+  const requestsBefore=previewRequests,mediaBefore=reviewMediaRequests;
   await play.click();
   const muxed=page.locator("video[data-synced-preview=true]");
+  await page.getByText(/Loading preview locally…/).waitFor({timeout:10000});
+  assert.equal(await muxed.count(),0,"do not play before complete download");
   await muxed.waitFor({timeout:10000});
   await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&!v.seeking&&v.currentTime>.2;},{},{timeout:5000});
   assert.equal(await page.locator("audio").count(),0);assert.equal(await page.locator(".mv-video-box video").count(),1);
+  assert.ok((await muxed.getAttribute("src"))?.startsWith("blob:"),"review uses local blob");
+  await page.route("**/timeline-preview/**",route=>route.abort());
   await pause.click();await seek.press("End");await seek.press("Home");
   await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.seeking&&v.currentTime<.04;});
   await play.click();await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&v.currentTime>.2;});
@@ -190,6 +203,8 @@ try{
   assert.ok(await muxed.evaluate(el=>(el as HTMLVideoElement).paused));
   assert.equal(await play.count(),1,"explicit pause remains paused after seek");
   assert.equal(previewRequests,requestsBefore+1,"same saved revision reuses one muxed player");
+  assert.equal(reviewMediaRequests,mediaBefore+1,"review seeks and replay never fetch the file again");
+  console.log("PASS: synced review loads completely once and plays/seeks with network blocked on "+(mobile?"mobile":"desktop")+" Chromium");
   console.log("PASS: dragging or seeking backward retains Play in both preview modes; explicit Pause stays paused on "+(mobile?"mobile":"desktop")+" Chromium");
   console.log("PASS: exact rendered timeline uses one native A/V player across pause, seek and replay on "+(mobile?"mobile":"desktop")+" Chromium");
   await page.close();
