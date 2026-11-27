@@ -27,6 +27,8 @@ export class BrowserPreviewCache {
   for(const {key} of this.wanted){const value=this.entries.get(key);if(value){this.entries.delete(key);this.entries.set(key,value);}}
   void this.pump();
  }
+ /** Stop speculative clip downloads while the user loads a rendered review. */
+ suspend(){this.wanted=[];if(this.retry){clearTimeout(this.retry);this.retry=undefined;}this.controller?.abort();}
  private evict(key:string){
   const entry=this.entries.get(key);if(!entry)return;
   URL.revokeObjectURL(entry.url);this.entries.delete(key);this.bytes-=entry.bytes;
@@ -66,7 +68,7 @@ export class BrowserPreviewCache {
      if(count!==length||this.closed)throw Error("Incomplete preview");
      const url=URL.createObjectURL(new Blob(parts,{type:"video/mp4"}));
      this.entries.set(next.key,{url,bytes:count});this.bytes+=count;this.changed();
-    }catch{this.failures.set(next.key,Date.now());}
+    }catch{if(!controller.signal.aborted)this.failures.set(next.key,Date.now());}
     finally{controller.abort();if(this.controller===controller)this.controller=null;}
    }
   }finally{this.running=false;
