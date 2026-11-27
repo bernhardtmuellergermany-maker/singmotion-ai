@@ -1,8 +1,8 @@
-import {ALL_FORMATS,Input,UrlSource,CanvasSink,AudioBufferSink,type WrappedCanvas,type WrappedAudioBuffer} from "mediabunny";
+import {ALL_FORMATS,Input,UrlSource,BlobSource,CanvasSink,AudioBufferSink,type WrappedCanvas,type WrappedAudioBuffer} from "mediabunny";
 import {frameTarget,TIMELINE_FPS,type FrameTimeline,type FrameClip,type AudioSpan} from "./frame-timeline";
 const WINDOW_FRAMES=15,WINDOW_MS=WINDOW_FRAMES*1000/TIMELINE_FPS;
 const FRAME_CACHE_LIMIT=6,SOURCE_CACHE_LIMIT=6;
-const PLAYBACK_LOOKAHEAD_MS=2000,CLIP_LOOKAHEAD_MS=20000;
+const PLAYBACK_LOOKAHEAD_MS=2000,CLIP_LOOKAHEAD_MS=20000,LOCAL_PROXY_BYTES=8*1024*1024;
 type Pictures=Map<number,WrappedCanvas|null>;
 type Source={input:Input;video?:CanvasSink;audio?:AudioBufferSink|null;audioReady?:Promise<AudioBufferSink|null>;videoReady?:Promise<CanvasSink>};
 type Sound={buffer:AudioBuffer;at:number;offset:number;duration:number};
@@ -56,12 +56,30 @@ export class FramePreviewEngine<C extends FrameClip>{
  private black(){this.context.fillStyle="#000";this.context.fillRect(0,0,this.canvas.width,this.canvas.height);}
  private setBuffering(value:boolean){if(this.buffering!==value){this.buffering=value;this.cb.buffering(value);}}
  private fail(error:unknown){if(this.closed||this.controller.signal.aborted)return;this.pause();this.cb.error(error instanceof Error?error.message:"Could not decode preview. Tap Play to retry.");}
- private async source(assetId:string):Promise<Source>{
+ /** Small upcoming proxies are completely local before the cut. A large or
+  * slow response falls back to the bounded range cache; never download originals. */
+ private async localProxy(url:string,signal:AbortSignal):Promise<Blob|null>{
+  const timeout=new AbortController(),abort=()=>timeout.abort();
+  signal.addEventListener("abort",abort,{once:true});const timer=setTimeout(abort,5000);
+  try{
+   signal.throwIfAborted();
+   const response=await fetch(url,{credentials:"same-origin",cache:"no-store",redirect:"error",signal:timeout.signal});
+   const length=Number(response.headers.get("content-length"));
+   if(response.status!==200||response.headers.get("content-type")?.split(";")[0]!=="video/mp4"||!Number.isSafeInteger(length)||length<1||length>LOCAL_PROXY_BYTES||!response.body){await response.body?.cancel().catch(()=>{});return null;}
+   const reader=response.body.getReader(),chunks:Uint8Array<ArrayBuffer>[]=[];let count=0;
+   try{while(true){const {done,value}=await reader.read();if(done)break;count+=value.byteLength;if(count>length||count>LOCAL_PROXY_BYTES)return null;chunks.push(new Uint8Array(value));}}
+   finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+   if(count!==length)return null;signal.throwIfAborted();return new Blob(chunks,{type:"video/mp4"});
+  }catch(e){if(signal.aborted)throw e;return null;}
+  finally{clearTimeout(timer);signal.removeEventListener("abort",abort);timeout.abort();}
+ }
+ private async source(assetId:string,preload=false):Promise<Source>{
   const cached=this.sources.get(assetId);if(cached){this.sources.delete(assetId);this.sources.set(assetId,cached);return cached;}
   const signal=this.controller.signal;
   const pending=(async()=>{
    const url=await this.sourceUrl(assetId,signal);signal.throwIfAborted();
-   const input=new Input({formats:ALL_FORMATS,source:new UrlSource(new Request(url,{credentials:"same-origin",redirect:"error"}),{maxCacheSize:8*1024*1024,parallelism:1,getRetryDelay:attempt=>attempt<3?.5:null})});
+   const blob=preload&&assetId!=="song"?await this.localProxy(url,signal):null;signal.throwIfAborted();
+   const input=new Input({formats:ALL_FORMATS,source:blob?new BlobSource(blob):new UrlSource(new Request(url,{credentials:"same-origin",redirect:"error"}),{maxCacheSize:8*1024*1024,parallelism:1,getRetryDelay:attempt=>attempt<3?.5:null})});
    if(signal.aborted){input.dispose();signal.throwIfAborted();}
    return {input} as Source;
   })();
@@ -74,8 +92,8 @@ export class FramePreviewEngine<C extends FrameClip>{
   if(this.loading.size||this.pictureLoading.size||this.pendingFrame||this.warmClipPending)return;
   while(this.sources.size>SOURCE_CACHE_LIMIT){const key=this.sources.keys().next().value!;const input=this.sources.get(key)!;this.sources.delete(key);void input.then(s=>s.input.dispose()).catch(()=>{});}
  }
- private async videoSink(assetId:string){
-  const s=await this.source(assetId);
+ private async videoSink(assetId:string,preload=false){
+  const s=await this.source(assetId,preload);
   if(!s.videoReady)s.videoReady=(async()=>{const track=await s.input.getPrimaryVideoTrack();if(!track||!await track.canDecode())throw Error("This browser cannot decode the project video. Use an up-to-date Chrome or Safari browser.");return s.video=new CanvasSink(track,{width:this.canvas.width,height:this.canvas.height,fit:"contain",poolSize:0});})();
   return s.videoReady;
  }
@@ -166,12 +184,12 @@ export class FramePreviewEngine<C extends FrameClip>{
   if(this.closed||!this.timeline||this.dragging||this.warmClipPending)return;
   const timeline=this.timeline,version=this.version;
   const current=frameTarget(timeline,this.position),next=timeline.spans.filter(s=>s.clip&&s.startFrame>=(current?.frame??0)&&s.startFrame*1000/TIMELINE_FPS-this.position<=CLIP_LOOKAHEAD_MS&&s.clip.assetId!==current?.clip?.assetId);
-  const candidates=[...new Map(next.map(s=>[s.clip!.assetId,s])).values()].slice(0,2);
+  const candidates=next.filter((s,i)=>next.findIndex(v=>v.clip!.assetId===s.clip!.assetId)===i).slice(0,2);
   const span=candidates.find(s=>(!this.sources.has(s.clip!.assetId)||!this.warmClipAttempts.has(s.clip!.id))&&performance.now()-(this.warmClipAttempts.get(s.clip!.id)??-Infinity)>5000);
   if(!span)return;
   const clip=span.clip!,key=clip.id;this.warmClipAttempts.set(key,performance.now());
   this.warmClipPending=true;
-  void (async()=>{const sink=await this.videoSink(clip.assetId);await sink.getCanvas(span.sourceMs/1000);})().catch(()=>{}).finally(()=>{
+  void (async()=>{const sink=await this.videoSink(clip.assetId,true);await sink.getCanvas(span.sourceMs/1000);})().catch(()=>{}).finally(()=>{
    this.warmClipPending=false;this.trimSources();
    if(version===this.version&&!this.closed)this.warmUpcoming();
   });
@@ -186,7 +204,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   const candidate=candidates.find(i=>!this.pictureLoading.has(i)&&(this.pictures.get(i)?.size??0)<Math.min(WINDOW_FRAMES,this.timeline!.frames-i*WINDOW_FRAMES));
   if(candidate===undefined)return;
   this.scrubWarming=true;
-  void this.pictureWindow(candidate).catch(()=>{}).finally(()=>{this.scrubWarming=false;if(version===this.version&&!this.closed&&this.dragging&&Math.floor(this.position/WINDOW_MS)===index)this.warmScrub();});
+  void this.pictureWindow(candidate).then(()=>{this.scrubWarming=false;if(version===this.version&&!this.closed&&this.dragging&&Math.floor(this.position/WINDOW_MS)===index)this.warmScrub();},()=>{this.scrubWarming=false;});
  }
  private clearWarm(){if(this.idleWarm!==null){clearTimeout(this.idleWarm);this.idleWarm=null;}}
  private warmWhenIdle(){
@@ -214,7 +232,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   const latest=frameTarget(this.timeline,this.position);
   if(latest){const ready=this.pictures.get(Math.floor(latest.frame/WINDOW_FRAMES));
    // Even an outstanding network seek must not block an already decoded frame.
-   if(!latest.clip||ready?.has(latest.frame)){this.frameWanted=false;this.paint(latest.frame,latest.clip?ready!.get(latest.frame)!:null);this.warmScrub();return;}
+   if(!latest.clip||ready?.has(latest.frame)){this.frameWanted=false;this.paint(latest.frame,latest.clip?ready!.get(latest.frame)!:null);this.warmScrub();if(!this.dragging)this.warmUpcoming();return;}
   }
   this.frameWanted=true;if(this.pendingFrame)return;
   this.pendingFrame=true;
