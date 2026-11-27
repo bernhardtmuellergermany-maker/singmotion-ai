@@ -8,6 +8,7 @@ import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
 import {ensureSession} from "@/lib/client";
 import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
+import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
@@ -97,6 +98,34 @@ export function MusicVideoEditor({id}:{id:string}){
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
+  const zoomRef=useRef(44),pendingZoomScroll=useRef<number|null>(null),inertiaFrame=useRef(0);
+  const stopInertia=useCallback(()=>{cancelAnimationFrame(inertiaFrame.current);inertiaFrame.current=0;},[]);
+  useEffect(()=>()=>stopInertia(),[stopInertia]);
+  function glide(scroller:HTMLDivElement,velocity:number){
+    stopInertia();
+    if(Math.abs(velocity)<.08||window.matchMedia("(prefers-reduced-motion: reduce)").matches)return;
+    const start=performance.now();let last=start,position=scroller.scrollLeft;
+    const tick=(now:number)=>{
+      const step=inertiaStep(velocity,now-last);last=now;velocity=step.velocity;position+=step.delta;
+      const max=Math.max(0,scroller.scrollWidth-scroller.clientWidth);
+      scroller.scrollLeft=Math.max(0,Math.min(max,position));
+      if(now-start<650&&Math.abs(velocity)>.035&&position>0&&position<max)inertiaFrame.current=requestAnimationFrame(tick);
+      else inertiaFrame.current=0;
+    };
+    inertiaFrame.current=requestAnimationFrame(tick);
+  }
+  const applyZoom=useCallback((value:number,anchorMs:number,viewportX:number)=>{
+    const el=scroll.current;if(!el)return;
+    const next=clampTimelineZoom(value),left=anchoredScroll(anchorMs,next,viewportX);
+    stopInertia();
+    if(next===zoomRef.current&&pendingZoomScroll.current===null){el.scrollLeft=left;return;}
+    zoomRef.current=next;pendingZoomScroll.current=left;setZoom(next);
+  },[stopInertia]);
+  useLayoutEffect(()=>{if(pendingZoomScroll.current!==null&&scroll.current){scroll.current.scrollLeft=pendingZoomScroll.current;pendingZoomScroll.current=null;}},[zoom]);
+  function zoomBy(factor:number){
+    const el=scroll.current;if(!el)return;
+    const x=el.clientWidth/2;applyZoom(zoomRef.current*factor,(el.scrollLeft+x)*1000/zoomRef.current,x);
+  }
   const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"B-Roll"|"AI Video"|"Uploads">("All");
   const [search,setSearch]=useState("");
   const [libraryNewest,setLibraryNewest]=useState(true),[libraryRefreshing,setLibraryRefreshing]=useState(false);
@@ -276,13 +305,14 @@ export function MusicVideoEditor({id}:{id:string}){
     commitSongRange({startMs:field==="start"?ms:range.startMs,endMs:field==="end"?ms:range.endMs});
   }
   // Mouse editing starts immediately. Touch swipes pan the viewport; stationary holds arm editing.
-  function beginMediaGesture(e:React.PointerEvent,media:string,onHold:()=>void,onTap:()=>void){
+  function beginMediaGesture(e:React.PointerEvent,media:string,onHold:()=>void,onTap:()=>void,allowHold=true){
     if(e.button!==0||!e.isPrimary||importBusy.current||gestureCleanup.current)return;
     e.preventDefault();e.stopPropagation();
-    if(e.pointerType==="mouse"){setArmedMedia(media);onHold();return;}
+    stopInertia();
+    if(e.pointerType==="mouse"&&allowHold){setArmedMedia(media);onHold();return;}
     const pointer=e.pointerId,x=e.clientX,y=e.clientY;
     const scroller=scroll.current,startScroll=scroller?.scrollLeft??0,startY=window.scrollY;
-    let axis:"x"|"y"|null=null;
+    let axis:"x"|"y"|null=null,velocity=0,lastScroll=startScroll,lastMove=performance.now();
     const cleanup=()=>{
       clearTimeout(timer);
       document.removeEventListener("pointermove",move);
@@ -294,12 +324,12 @@ export function MusicVideoEditor({id}:{id:string}){
       if(event.pointerId!==pointer)return;
       const dx=event.clientX-x,dy=event.clientY-y;
       if(!axis){axis=mediaPanAxis(dx,dy);if(axis)clearTimeout(timer);}
-      if(axis==="x"&&scroller)scroller.scrollLeft=startScroll-dx;
+      if(axis==="x"&&scroller){scroller.scrollLeft=startScroll-dx;const now=performance.now(),delta=scroller.scrollLeft-lastScroll;if(delta){velocity=swipeVelocity(velocity,delta,Math.max(1,now-lastMove));lastMove=now;lastScroll=scroller.scrollLeft;}}
       if(axis==="y")window.scrollTo(0,startY-dy);
     };
-    const up=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;move(event);cleanup();if(!axis)onTap();};
+    const up=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;move(event);cleanup();if(!axis)onTap();else if(axis==="x"&&scroller&&performance.now()-lastMove<110)glide(scroller,velocity);};
     const cancel=(event:PointerEvent)=>{if(event.pointerId===pointer)cleanup();};
-    const timer=setTimeout(()=>{if(axis)return;cleanup();if(importBusy.current)return;setArmedMedia(media);onHold();},MEDIA_HOLD_MS);
+    const timer=setTimeout(()=>{if(axis||!allowHold)return;cleanup();if(importBusy.current)return;setArmedMedia(media);onHold();},MEDIA_HOLD_MS);
     gestureCleanup.current=cleanup;
     document.addEventListener("pointermove",move);
     document.addEventListener("pointerup",up);
@@ -356,6 +386,49 @@ export function MusicVideoEditor({id}:{id:string}){
     document.addEventListener("pointercancel",cancel);
   }
   const project=detail?.project,assets=detail?.assets||[];
+  // Capture the second touch before clip dragging or marker scrubbing can
+  // interpret it as a new edit. Cancel the first gesture, then preserve the
+  // timeline time under the moving midpoint until both fingers are lifted.
+  useEffect(()=>{
+    const el=scroll.current,tracks=tracksRef.current;if(!el||!tracks)return;
+    const touches=new Map<number,{x:number;y:number;target:Element}>();
+    let pinch:{distance:number;zoom:number;anchorMs:number}|null=null,blocking=false,cancelling=false;
+    const geometry=()=>{const [a,b]=[...touches.values()];return {distance:Math.max(12,Math.hypot(a.x-b.x,a.y-b.y)),x:(a.x+b.x)/2-el.getBoundingClientRect().left};};
+    const consume=(event:PointerEvent)=>{event.preventDefault();event.stopImmediatePropagation();};
+    const down=(event:PointerEvent)=>{
+      if(!(event.target instanceof Element)||!tracks.contains(event.target))return;
+      stopInertia();
+      if(event.pointerType!=="touch"||(!el.contains(event.target)&&!event.target.closest(".mv-playhead-grip")))return;
+      touches.set(event.pointerId,{x:event.clientX,y:event.clientY,target:event.target});
+      if(touches.size===2&&!blocking){
+        blocking=true;
+        const first=[...touches.entries()][0];
+        cancelling=true;
+        first[1].target.dispatchEvent(new PointerEvent("pointercancel",{bubbles:true,pointerId:first[0],pointerType:"touch",isPrimary:true}));
+        cancelling=false;gestureCleanup.current?.();
+        const g=geometry();
+        pinch={distance:g.distance,zoom:zoomRef.current,anchorMs:(el.scrollLeft+g.x)*1000/zoomRef.current};
+      }
+      if(blocking){consume(event);try{el.setPointerCapture(event.pointerId);}catch{}}
+    };
+    const move=(event:PointerEvent)=>{
+      const touch=touches.get(event.pointerId);if(!touch)return;
+      touch.x=event.clientX;touch.y=event.clientY;
+      if(!blocking)return;consume(event);
+      if(pinch&&touches.size>=2){const g=geometry();applyZoom(pinch.zoom*g.distance/pinch.distance,pinch.anchorMs,g.x);}
+    };
+    const end=(event:PointerEvent)=>{
+      if(cancelling||!touches.has(event.pointerId))return;
+      touches.delete(event.pointerId);
+      if(blocking){consume(event);if(touches.size<2)pinch=null;if(!touches.size)blocking=false;}
+    };
+    document.addEventListener("pointerdown",down,true);
+    document.addEventListener("pointermove",move,{capture:true,passive:false});
+    document.addEventListener("pointerup",end,true);
+    document.addEventListener("pointercancel",end,true);
+    el.addEventListener("wheel",stopInertia,{passive:true});
+    return()=>{stopInertia();document.removeEventListener("pointerdown",down,true);document.removeEventListener("pointermove",move,true);document.removeEventListener("pointerup",end,true);document.removeEventListener("pointercancel",end,true);el.removeEventListener("wheel",stopInertia);};
+  },[project?.id,applyZoom,stopInertia]);
   // The grip sits outside the clipped scroll container, but follows its exact coordinates.
   useLayoutEffect(()=>{
     const tracks=tracksRef.current,scroller=scroll.current,area=trackArea.current;
@@ -890,7 +963,7 @@ export function MusicVideoEditor({id}:{id:string}){
     finally{setLibraryRefreshing(false);}
   }
   if(!detail)return <main className="mv-root"><Link href="/projects">← Projects</Link><p role="status">Loading Music Video Builder…</p><p role="alert">{error}</p></main>;
-  const ticks=Array.from({length:Math.floor(timelineLimit/10000)+1},(_,i)=>i*10000);
+  const {step:tickStep,ticks}=timelineGraduations(timelineLimit,zoom,rulerViewport.scrollLeft,rulerViewport.width);
   return <main id="content" className="mv-root mv-editor">
     <div className="mv-top">
       <div className="mv-name"><Link href="/projects" aria-label="Back to projects">‹</Link>
@@ -942,9 +1015,9 @@ export function MusicVideoEditor({id}:{id:string}){
           <label title="Automatically align clips and the playhead to nearby clip edges"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap to edges</label>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
             
-            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=20} onClick={()=>setZoom(z=>Math.max(20,z-12))}><Minus size={17}/></button>
+            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=MIN_TIMELINE_ZOOM} onClick={()=>zoomBy(1/1.35)}><Minus size={17}/></button>
             <output aria-label="Timeline zoom level">{(zoom/44).toFixed(1)}×</output>
-            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=140} onClick={()=>setZoom(z=>Math.min(140,z+12))}><Plus size={17}/></button>
+            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=MAX_TIMELINE_ZOOM} onClick={()=>zoomBy(1.35)}><Plus size={17}/></button>
           </div></div>
       </div>
       <div className="mv-tracks" ref={tracksRef}>
@@ -955,10 +1028,10 @@ export function MusicVideoEditor({id}:{id:string}){
           </div>)}
           <div className="mv-label mv-audio-label" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
         </div>
-        <div className="mv-scroll" ref={scroll}>
+        <div className="mv-scroll" ref={scroll} onPointerDown={e=>{if(e.target instanceof HTMLElement&&e.target.closest(".mv-lane,.mv-song-lane"))beginMediaGesture(e,"viewport",()=>{},()=>{},false);}}>
           <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
             <div className="mv-ruler" style={{overflow:"hidden"}} onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
-              {ticks.map(t=><span key={t} style={{left:t/1000*zoom}}>{time(t)}</span>)}
+              {ticks.map(t=><span key={t.ms} className={t.major?"mv-tick-major":"mv-tick-minor"} aria-hidden={!t.major} style={{left:t.ms/1000*zoom}}>{t.major?(tickStep<1000?time(t.ms,true):time(t.ms)):null}</span>)}
             </div>
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(trackMutes[track]?" is-audio-muted":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
               {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).map(c=>{
@@ -978,7 +1051,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 </div>;
               })}
             </div>)}
-            <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget)seek(msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left));}}>
+            <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget){const at=msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left);beginMediaGesture(e,"viewport",()=>{},()=>seek(at),false);}}}>
               {songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
