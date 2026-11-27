@@ -207,7 +207,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [videoWaves,setVideoWaves]=useState<Record<string,MediaWaveform>>({});
   const waveCache=useRef<{id:string;items:Record<string,MediaWaveform>}>({id,items:{}});
   const waveAssetKey=useMemo(()=>[...new Set(clips.map(c=>c.assetId))].sort().join(","),[clips]);
-  const scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null);
+  const scroll=useRef<HTMLDivElement>(null),fileInput=useRef<HTMLInputElement>(null),songInput=useRef<HTMLInputElement>(null);
   const revision=useRef(0),latest=useRef<MusicClip[]>([]),dirty=useRef(false),inFlight=useRef<Promise<void>|null>(null);
   const saveTimer=useRef<ReturnType<typeof setTimeout>|null>(null),past=useRef<EditSnapshot[]>([]),future=useRef<EditSnapshot[]>([]);
   const detailRef=useRef<Detail|null>(null);
@@ -249,18 +249,20 @@ export function MusicVideoEditor({id}:{id:string}){
     const controller=new AbortController();
     if(waveCache.current.id!==id){waveCache.current={id,items:{}};setVideoWaves({});setWave(null);}
     const cache=waveCache.current.items;
-    const ids=["song",...waveAssetKey.split(",").filter(Boolean)];
+    const songKey="song:"+String(detail.project.songVersion??"legacy");
+    const ids=[...(detail.project.songRemoved?[]:[songKey]),...waveAssetKey.split(",").filter(Boolean)];
+    if(detail.project.songRemoved)setWave(null);
     async function loadWaves(){
       for(const key of ids){
         if(controller.signal.aborted)return;
-        if(cache[key])continue;
+        if(cache[key]){if(key===songKey)setWave(cache[key]);continue;}
         for(let attempt=0;attempt<3&&!controller.signal.aborted;attempt++){
           try{
-            const data=await request<MediaWaveform>(endpoint+id+"/waveform"+(key==="song"?"":"/"+encodeURIComponent(key)),{signal:controller.signal});
+            const data=await request<MediaWaveform>(endpoint+id+"/waveform"+(key===songKey?"":"/"+encodeURIComponent(key)),{signal:controller.signal});
             if(controller.signal.aborted)return;
             if(!validWaveform(data))break;
             cache[key]=data;
-            if(key==="song")setWave(data);else setVideoWaves(previous=>({...previous,[key]:data}));
+            if(key===songKey)setWave(data);else setVideoWaves(previous=>({...previous,[key]:data}));
             break;
           }catch{
             if(attempt<2&&!controller.signal.aborted)await new Promise(resolve=>setTimeout(resolve,2000*(attempt+1)));
@@ -270,7 +272,7 @@ export function MusicVideoEditor({id}:{id:string}){
     }
     void loadWaves();
     return()=>controller.abort();
-  },[id,detail?.project.id,waveAssetKey]);
+  },[id,detail?.project.id,detail?.project.songRemoved,detail?.project.songVersion,waveAssetKey]);
   async function saveNow():Promise<void>{
     if(inFlight.current){await inFlight.current;if(dirty.current)await saveNow();return;}
     if(!dirty.current)return;
@@ -532,10 +534,10 @@ export function MusicVideoEditor({id}:{id:string}){
   const songPlacementLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current))):0;
   const selectedClip=clips.find(c=>c.id===selected&&c.timelineStartMs<timelineEnd);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
-  const songSelected=selected==="song";
+  const songSelected=selected==="song"&&!project?.songRemoved;
   const hasSelection=songSelected||!!(selectedClip&&selectedAsset);
   function clearSelection(){setSelected(null);setArmedMedia(null);}
-  function selectSong(){setSelected("song");setInspectorOpen(true);}
+  function selectSong(){if(project?.songRemoved)return;setSelected("song");setInspectorOpen(true);}
   useEffect(()=>{setInspectorOpen(true);},[selected,partIndex]);
   const currentParts=effectiveSongParts(songRange,songParts);
   const selectedPart=currentParts[Math.min(partIndex,currentParts.length-1)];
@@ -567,7 +569,8 @@ export function MusicVideoEditor({id}:{id:string}){
     document.addEventListener("pointermove",update);document.addEventListener("pointerup",finish);document.addEventListener("pointercancel",cancel);
   }
   function removeSongPart(){
-    if(importBusy.current||!partsRef.current||partsRef.current.length<2)return;
+    if(importBusy.current)return;
+    if(!partsRef.current||partsRef.current.length<2){void removeEntireSong();return;}
     const i=Math.min(partIndex,partsRef.current.length-1);
     if(i===0){
       const next=removeLeadingSongPart(rangeRef.current,partsRef.current,latest.current);
@@ -658,7 +661,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
     moveSelectedClip(mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms);
   }
-  const originalClipSongTime=selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
+  const originalClipSongTime=!project?.songRemoved&&selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
     ?selectedAsset.sourceStartMs+selectedClip.sourceInMs:null;
 
   const firstAssetId=useMemo(()=>firstVisibleVideo(clips.filter(c=>c.timelineStartMs<timelineEnd))?.assetId,[clips,timelineEnd]);
@@ -677,7 +680,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   // Keep the committed playback timeline and its decoders stable during a trim gesture.
   const previewClips=trimmingVideo.current?latest.current:clips;
-  const frameTimeline=useMemo(()=>makeFrameTimeline(previewClips,songRange,songParts,trackMutes),[previewClips,songRange,songParts,trackMutes]);
+  const frameTimeline=useMemo(()=>makeFrameTimeline(previewClips,songRange,songParts,project?.songRemoved?{...trackMutes,song:true}:trackMutes),[previewClips,songRange,songParts,trackMutes,project?.songRemoved]);
   useLayoutEffect(()=>{
     if(!project?.id||!frameCanvas.current)return;
     let disposed=false;
@@ -735,7 +738,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function addClip(asset:MusicAsset,track:Track,atMs:number){
     if(roleBusy.current)return;
-    const locked=asset.role==="lip-sync"&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null;
+    const locked=!project?.songRemoved&&asset.role==="lip-sync"&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null;
     const length=locked?Math.min(asset.durationMs,asset.sourceEndMs!-asset.sourceStartMs!):asset.durationMs;
     if(!project||length<=0)return;
     const candidate:MusicClip={id:uuid(),assetId:asset.id,track,
@@ -859,7 +862,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(e.key!=="Delete"||e.defaultPrevented||e.repeat||e.ctrlKey||e.metaKey||e.altKey||e.shiftKey||importBusy.current||exportOpen||lipTrack!==null||libraryPreview)return;
       const target=e.target;
       if(target instanceof Element&&(target.closest('input,textarea,select,[contenteditable]:not([contenteditable="false"]),[role="dialog"],details[open]')||(!target.closest(".mv-editor")&&target!==document.body)))return;
-      if(songSelected){if(!partsRef.current||partsRef.current.length<2)return;e.preventDefault();removeSongPart();}
+      if(songSelected){e.preventDefault();removeSongPart();}
       else if(selectedClip&&!selectedClip.positionLocked){e.preventDefault();deleteClip();}
     };
     document.addEventListener("keydown",onDelete);
@@ -943,6 +946,39 @@ export function MusicVideoEditor({id}:{id:string}){
     }catch(e){setLipError(e instanceof Error?e.message:"Unable to insert Lip Sync video.");}
     finally{importBusy.current=false;setImporting(false);}
   }
+  function acceptSongDetail(result:Detail){
+    const range={startMs:result.project.songStartMs,endMs:result.project.songEndMs,positionMs:result.project.songPositionMs};
+    revision.current=result.project.revision;detailRef.current=result;latest.current=result.clips;dirty.current=false;
+    rangeRef.current=range;partsRef.current=result.project.songParts;mutesRef.current=result.project.trackMutes;
+    setDetail(result);setClips(result.clips);setSongRange(range);setSongParts(result.project.songParts);setTrackMutes(result.project.trackMutes);
+    setStartText(time(range.startMs,true));setEndText(time(range.endMs,true));setPartIndex(0);setWave(null);
+    for(const key of Object.keys(waveCache.current.items))if(key.startsWith("song:"))delete waveCache.current.items[key];
+    past.current=[];future.current=[];clearSelection();setAt(0);setPlacementNotice("");setStatus("Saved");
+  }
+  async function removeEntireSong(){
+    if(importBusy.current||project?.songRemoved)return;
+    if(!window.confirm("Remove the song from this project? Video clips and their positions are kept. Song sync locks will be released. This cannot be undone."))return;
+    importBusy.current=true;roleBusy.current=true;setImporting(true);setError("");stopPlayback();
+    try{
+      if(saveTimer.current)clearTimeout(saveTimer.current);await saveNow();
+      const result=await request<Detail>(endpoint+id+"/song",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({revision:revision.current})});
+      acceptSongDetail(result);
+    }catch(e){setError(e instanceof Error?e.message:"Could not remove song.");}
+    finally{importBusy.current=false;roleBusy.current=false;setImporting(false);}
+  }
+  async function uploadReplacementSong(file:File){
+    if(importBusy.current||!project?.songRemoved)return;
+    if(!/\.(mp3|wav|m4a)$/i.test(file.name)||file.size<1||file.size>50*1024*1024){setError("Choose an MP3, WAV or M4A song up to 50 MiB.");return;}
+    importBusy.current=true;roleBusy.current=true;setImporting(true);setError("");stopPlayback();
+    try{
+      if(saveTimer.current)clearTimeout(saveTimer.current);await saveNow();setStatus("Uploading song…");
+      const body=new FormData();body.set("song",file);body.set("revision",String(revision.current));
+      const result=await request<Detail>(endpoint+id+"/song",{method:"POST",body});
+      acceptSongDetail(result);
+      if(result.clips.some(c=>clipEnd(c)>result.project.songEndMs))setPlacementNotice("Some retained video clips extend beyond the new song. They are preserved, but only the song range is visible and exported.");
+    }catch(e){setError(e instanceof Error?e.message:"Could not add song.");setStatus("Saved");}
+    finally{importBusy.current=false;roleBusy.current=false;setImporting(false);}
+  }
   async function uploadVideo(file:File){
     if(importBusy.current)return;
     if(!/\.(mp4|webm)$/i.test(file.name)||file.size<1||file.size>PROJECT_VIDEO_MAX_BYTES){
@@ -974,7 +1010,7 @@ export function MusicVideoEditor({id}:{id:string}){
     }catch(e){setError(e instanceof Error?e.message:"Rename failed.");}
   }
   async function exportMp4(){
-    if(importBusy.current||exportBusy.current||!latest.current.some(c=>c.timelineStartMs<timelineEnd))return;
+    if(importBusy.current||exportBusy.current||project?.songRemoved||!latest.current.some(c=>c.timelineStartMs<timelineEnd))return;
     exportBusy.current=true;importBusy.current=true;setImporting(true);setExporting(true);setExportOpen(true);setExportError("");setExportJob(null);stopPlayback();
     const controller=new AbortController();exportAbort.current=controller;
     try{
@@ -1089,7 +1125,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="submit" aria-label="Save project name"><Check size={17}/></button></form>:
           <button className="mv-project-name-button" title={project!.name+" · Rename project"} aria-label={"Rename project "+project!.name} onClick={()=>setEditingName(true)}><Pencil size={17}/><span>{project!.name}</span></button>}</div>
       <div className="mv-top-actions"><span role="status" className="mv-status">{status}</span>
-        <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!clips.some(c=>c.timelineStartMs<timelineEnd)} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
+        <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!!project?.songRemoved||!clips.some(c=>c.timelineStartMs<timelineEnd)} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
     </div>
     <aside className="mv-experimental-notice mv-experimental-editor" aria-label="Experimental feature"><strong>Experimental · In development</strong><span>Preview and export may change. Keep your original media and download important finished videos.</span></aside>
     <section className="mv-preview" aria-label="Music video preview">
@@ -1171,7 +1207,7 @@ export function MusicVideoEditor({id}:{id:string}){
               })}
             </div>)}
             <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget){const at=msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left);beginMediaGesture(e,"viewport",()=>{},()=>{clearSelection();seek(at);},false);}}}>
-              {songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
+              {project?.songRemoved?<button type="button" className="mv-add-song" disabled={importing} onPointerDown={e=>e.stopPropagation()} onClick={()=>songInput.current?.click()}><Plus size={17}/><Music2 size={17}/> {importing?"Adding song…":"Add Song"}</button>:songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
@@ -1201,7 +1237,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
           <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={17}/></button>
-          <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/></button>
+          <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(!songSelected&&(!selectedClip||selectedClip.positionLocked))}><Trash2 size={17}/></button>
           <button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||songSelected||originalClipSongTime===null||!selectedClip||!!selectedClip.positionLocked} onClick={()=>{if(!songSelected&&originalClipSongTime!==null&&selectedClip&&!selectedClip.positionLocked)moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true);}} title={originalClipSongTime!==null?"Restore Lip Sync · "+time(originalClipSongTime,true):"Select a Lip Sync clip with original song time"} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span></button></div>
         <div className="mv-timeline-zoom">
           <button type="button" className="mv-snap-toggle" aria-label="Snap to edges" aria-pressed={snap} title={snap?"Snap to edges: on":"Snap to edges: off"} onClick={()=>setSnap(v=>!v)}><Magnet size={18}/></button>
@@ -1232,10 +1268,12 @@ export function MusicVideoEditor({id}:{id:string}){
         <InlineTimeField label={songParts?"Part source start":"Source start"} ariaLabel={songParts?"Song part start":"Song start time"} value={songParts?partStartText:startText} onChange={songParts?setPartStartText:setStartText} onConfirm={()=>submitSongField("start")} disabled={importing} placeholder="00:08.918"/>
         <InlineTimeField label={songParts?"Part source end":"Source end"} ariaLabel={songParts?"Song part end":"Song end time"} value={songParts?partEndText:endText} onChange={songParts?setPartEndText:setEndText} onConfirm={()=>submitSongField("end")} disabled={importing} placeholder="00:30.000"/>
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
+        {songParts&&songParts.length>1&&<button type="button" className="mv-outline" disabled={importing} onClick={()=>void removeEntireSong()}><Trash2 size={15}/> Remove entire song</button>}
       </form>}
       </div></>}
       {placementNotice&&<p className="mv-placement-notice" role="status">{placementNotice}</p>}
       {error&&<div className="mv-error" role="alert"><span>{error}</span>{status==="Not saved"&&<button type="button" onClick={()=>void saveNow().then(()=>{setError("");setClips([...latest.current]);}).catch(()=>{})}>Retry save</button>}</div>}
+      <input ref={songInput} hidden type="file" aria-label="Upload replacement song" accept=".mp3,.wav,.m4a,audio/*" onChange={e=>{const file=e.target.files?.[0];if(file)void uploadReplacementSong(file);e.target.value="";}}/>
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file);e.target.value="";
       }}/>
