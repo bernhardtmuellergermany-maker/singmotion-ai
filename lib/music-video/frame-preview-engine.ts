@@ -27,6 +27,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  private pictureLoading=new Map<number,Promise<Pictures>>();
  private warmClipPending=false;
  private warmClipAttempts=new Map<string,number>();
+ private warmClipReady=new Set<string>();
  private scrubWarming=false;
  private controller=new AbortController();
  private version=0;
@@ -94,7 +95,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  }
  private async videoSink(assetId:string,preload=false){
   const s=await this.source(assetId,preload);
-  if(!s.videoReady)s.videoReady=(async()=>{const track=await s.input.getPrimaryVideoTrack();if(!track||!await track.canDecode())throw Error("This browser cannot decode the project video. Use an up-to-date Chrome or Safari browser.");return s.video=new CanvasSink(track,{width:this.canvas.width,height:this.canvas.height,fit:"contain",poolSize:0});})();
+  if(!s.videoReady){const pending=(async()=>{const track=await s.input.getPrimaryVideoTrack();if(!track||!await track.canDecode())throw Error("This browser cannot decode the project video. Use an up-to-date Chrome or Safari browser.");return s.video=new CanvasSink(track,{width:this.canvas.width,height:this.canvas.height,fit:"contain",poolSize:0});})();s.videoReady=pending;void pending.catch(()=>{if(s.videoReady===pending)s.videoReady=undefined;});}
   return s.videoReady;
  }
  private async audioSink(assetId:string){
@@ -106,7 +107,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   const resize=this.canvas.width!==width||this.canvas.height!==height;
   this.clearWarm();this.stopClock();this.version++;this.seekVersion++;this.controller.abort();
   this.controller=new AbortController();for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});
-  this.sources.clear();this.loading.clear();this.windows.clear();this.pictures.clear();this.pictureLoading.clear();this.warmClipAttempts.clear();this.lastFrame=-1;this.timeline=timeline;
+  this.sources.clear();this.loading.clear();this.windows.clear();this.pictures.clear();this.pictureLoading.clear();this.warmClipAttempts.clear();this.warmClipReady.clear();this.lastFrame=-1;this.timeline=timeline;
   if(resize){this.canvas.width=width;this.canvas.height=height;}this.black();
   this.position=Math.max(0,Math.min(timeline.durationMs,position));this.cb.position(this.position);
   this.requestFrame();if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
@@ -185,11 +186,11 @@ export class FramePreviewEngine<C extends FrameClip>{
   const timeline=this.timeline,version=this.version;
   const current=frameTarget(timeline,this.position),next=timeline.spans.filter(s=>s.clip&&s.startFrame>=(current?.frame??0)&&s.startFrame*1000/TIMELINE_FPS-this.position<=CLIP_LOOKAHEAD_MS&&s.clip.assetId!==current?.clip?.assetId);
   const candidates=next.filter((s,i)=>next.findIndex(v=>v.clip!.assetId===s.clip!.assetId)===i).slice(0,2);
-  const span=candidates.find(s=>(!this.sources.has(s.clip!.assetId)||!this.warmClipAttempts.has(s.clip!.id))&&performance.now()-(this.warmClipAttempts.get(s.clip!.id)??-Infinity)>5000);
+  const span=candidates.find(s=>(!this.sources.has(s.clip!.assetId)||!this.warmClipReady.has(s.clip!.id))&&performance.now()-(this.warmClipAttempts.get(s.clip!.id)??-Infinity)>5000);
   if(!span)return;
   const clip=span.clip!,key=clip.id;this.warmClipAttempts.set(key,performance.now());
   this.warmClipPending=true;
-  void (async()=>{const sink=await this.videoSink(clip.assetId,true);await sink.getCanvas(span.sourceMs/1000);})().catch(()=>{}).finally(()=>{
+  void (async()=>{const sink=await this.videoSink(clip.assetId,true);const frame=await sink.getCanvas(span.sourceMs/1000);if(frame&&version===this.version)this.warmClipReady.add(key);})().catch(()=>{}).finally(()=>{
    this.warmClipPending=false;this.trimSources();
    if(version===this.version&&!this.closed)this.warmUpcoming();
   });
