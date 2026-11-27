@@ -22,7 +22,7 @@ const css=readFileSync("components/music-video.css");
 const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songName:"Test song",songDurationMs:4000,songStartMs:0,songEndMs:4000,songPositionMs:0,songParts:null,trackMutes:{1:true,2:true,song:false},revision:0,createdAt:1,updatedAt:1,aspectRatio:"16:9"};
 const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:id==="first"?"lip-sync":"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
 const clips=[{id:"c1",assetId:"first",track:1,timelineStartMs:0,sourceInMs:250,sourceOutMs:1750,syncLocked:false},{id:"c2",assetId:"second",track:2,timelineStartMs:2000,sourceInMs:500,sourceOutMs:2000,syncLocked:false}];
-let timelineRequests=0,assetRequests=0;
+let timelineRequests=0,assetRequests=0,secondPreparations=0,secondDownloads=0;
 const server=createServer((req,res)=>{
  const url=new URL(req.url||"/","http://localhost"),p=url.pathname;
  const send=(data:Buffer|Uint8Array|string,type:string)=>{res.writeHead(200,{"content-type":type});res.end(data);};
@@ -43,8 +43,11 @@ const server=createServer((req,res)=>{
  if(p.includes("/timeline-preview")){timelineRequests++;res.writeHead(404);res.end();return;}
  if(p.endsWith("/song"))return media(song,"audio/mpeg");
  if(p.includes("/assets/")){assetRequests++;res.writeHead(403);res.end();return;}
- if(p.includes("/preview/")&&req.method==="POST")return json({ready:true,unsupported:false});
- if(p.includes("/preview/"))return media(video,"video/mp4");
+ if(p.includes("/preview/")&&req.method==="POST"){
+  if(p.endsWith("/second")){secondPreparations++;setTimeout(()=>json({ready:true,unsupported:false}),1250);return;}
+  return json({ready:true,unsupported:false});
+ }
+ if(p.includes("/preview/")){if(p.endsWith("/second")&&!req.headers.range)secondDownloads++;return media(video,"video/mp4");}
  res.writeHead(404);res.end();
 });
 await new Promise<void>(resolve=>server.listen(0,"127.0.0.1",resolve));
@@ -61,6 +64,7 @@ try{
    AudioBufferSourceNode.prototype.start=function(when=0,offset=0,duration?:number){state.starts.push({when,now:this.context.currentTime,offset,duration:duration??0});return duration===undefined?native.call(this,when,offset):native.call(this,when,offset,duration);};
    const observe=()=>{const canvas=document.querySelector<HTMLCanvasElement>('[data-frame-preview="true"]');if(canvas?.dataset.frame!==undefined){state.frames.push(Number(canvas.dataset.frame));if(canvas.dataset.sourceTime)state.sampleTimes.push(Number(canvas.dataset.sourceTime));}requestAnimationFrame(observe);};requestAnimationFrame(observe);
   });
+  const prepareBefore=secondPreparations,downloadBefore=secondDownloads;
   await page.goto(origin);
   const play=page.getByRole("button",{name:"Play",exact:true}),pause=page.getByRole("button",{name:"Pause",exact:true}),seek=page.getByRole("slider",{name:"Seek timeline"}),canvas=page.locator("canvas[data-frame-preview=true]");
   await play.waitFor({timeout:10000});
@@ -77,12 +81,35 @@ try{
   await page.waitForFunction(()=>{const c=document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]');return c?.dataset.frame==="0"&&Math.abs(Number(c.dataset.sourceTime)-.25)<.04;},{},{timeout:15000});
   const pixel=()=>canvas.evaluate(c=>Array.from((c as HTMLCanvasElement).getContext("2d")!.getImageData(400,240,1,1).data));
   assert.ok((await pixel())[0]>200,"initial source frame is red");
+  await page.waitForFunction(()=>document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame==="0");
+  assert.ok(secondPreparations>prepareBefore,"the next clip begins preparing while the first frame is visible");
   const jump=async(ms:number)=>{await seek.evaluate((el,value)=>{const input=el as HTMLInputElement;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,String(value));input.dispatchEvent(new Event("input",{bubbles:true}));input.dispatchEvent(new Event("change",{bubbles:true}));},ms);};
   // Rapid seeks while paused: last target wins, including the source trim.
   await seek.press("End");await seek.press("Home");await jump(900);
   await page.waitForFunction(()=>{const c=document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]');return c?.dataset.frame==="27"&&Math.abs(Number(c.dataset.sourceTime)-1.15)<.04;},{},{timeout:15000});
   const green=await pixel();assert.ok(green[1]>100&&green[0]<50,"scrubbed frame is green");
   assert.equal(await play.count(),1);
+  // Keep the pointer held throughout the forward and backward moves. Verify
+  // the canvas changes at each location, not just after pointerup.
+  const heldRuler=await page.locator(".mv-ruler").boundingBox();assert.ok(heldRuler);
+  const y=heldRuler.y+heldRuler.height/2;
+  await page.mouse.move(heldRuler.x+15,y);await page.mouse.down();
+  const heldFrame=async()=>{
+   await page.waitForFunction(()=>{
+    const slider=document.querySelector<HTMLInputElement>('.mv-progress'),canvas=document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]');
+    return slider&&canvas?.dataset.frame===String(Math.min(119,Math.floor(Number(slider.value)*30/1000)));
+   },{},{timeout:3000});
+   return Number(await canvas.getAttribute("data-frame"));
+  };
+  const a=await heldFrame();
+  await page.mouse.move(heldRuler.x+36,y,{steps:5});const b=await heldFrame();
+  await page.mouse.move(heldRuler.x+23,y,{steps:5});const d=await heldFrame();
+  assert.ok(a<b&&d<b&&d>a,"live preview follows both directions before pointer release");
+  await page.mouse.up();
+  assert.equal(await play.count(),1);
+  // The intentionally slow next proxy is prepared while editing the first clip.
+  await page.waitForTimeout(1500);
+  assert.ok(secondDownloads>downloadBefore,"small upcoming clip downloaded as a complete local proxy");
   await seek.press("Home");await page.waitForFunction(()=>document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame==="0");
   await page.evaluate(()=>{const s=(window as any).__frameEngineTest;s.frames=[];s.sampleTimes=[];s.starts=[];});
   await play.click();
@@ -93,6 +120,10 @@ try{
   assert.ok(playback.starts.every(s=>s.when>=s.now-.005&&s.duration>0),"audio buffers scheduled on one future clock");
   assert.ok(playback.frames.every((n,i,a)=>i===0||n>=a[i-1]),"no backward frame replay");
   assert.ok(playback.sampleTimes.every((n,i,a)=>i===0||n>=a[i-1]),"no backward decoded timestamp at startup");
+  const cutStarted=Date.now();
+  await page.waitForFunction(()=>Number(document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame)>=75,{},{timeout:4000});
+  assert.ok(Date.now()-cutStarted<2700,"preloaded next clip crosses the gap/cut without a long buffer stall");
+  assert.equal(await pause.count(),1);
   await seek.press("Home");
   await page.waitForFunction(()=>{const f=Number(document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame);return f>=4&&f<=15;},{},{timeout:15000});
   assert.equal(await pause.count(),1);
@@ -110,6 +141,7 @@ try{
   await seek.press("End");await play.click();await pause.waitFor({timeout:10000});
   await page.waitForFunction(()=>{const f=Number(document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]')?.dataset.frame);return f>=4&&f<=20;},{},{timeout:15000});
   assert.equal(timelineRequests,0);assert.equal(assetRequests,0);
+  console.log("PASS: upcoming proxy prefetched and frames follow held pointer forward/backward before release on "+(mobile?"mobile":"desktop")+" Chromium");
   console.log("PASS: single WebCodecs/Web Audio editor paints exact source frames, gap and trim; playback is monotonic, scrub preserves intent, no server timeline render on "+(mobile?"mobile":"desktop")+" Chromium");
   await page.close();
  }
