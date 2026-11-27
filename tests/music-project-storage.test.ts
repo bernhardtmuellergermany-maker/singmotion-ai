@@ -54,6 +54,7 @@ test("shared SQLite leases enforce account, global, project and manifest quotas 
   releaseOther();release();release();
   a.prepare("INSERT INTO music_projects VALUES(?,?)").run("p",owner);
   assert.throws(()=>reserveProjectOperation(b,root,owner,"song",MiB,limits),/Project limit/);
+   const replacement=reserveProjectOperation(b,root,owner,"song-replacement",MiB,limits);replacement();
   a.prepare("INSERT INTO music_asset_cloud VALUES(?,?,1)").run(owner,200*MiB);
   assert.throws(()=>reserveProjectOperation(b,root,owner,"video",MiB,limits),/quota/);
   const exportRelease=reserveProjectOperation(a,root,owner,"export",0,limits);
