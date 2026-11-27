@@ -73,6 +73,23 @@ try{
    // Reproduce the paused Android decoder reporting only HAVE_CURRENT_DATA.
    const get=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,"readyState")!.get!;
    Object.defineProperty(HTMLVideoElement.prototype,"readyState",{get(){const actual=get.call(this);return this.paused?Math.min(actual,2):actual;}});
+   // Reproduce a slow first audio startup. The visible picture must not run
+   // ahead and then seek backwards when the native song clock finally starts.
+   const nativePlay=HTMLMediaElement.prototype.play;
+   const startup={armed:false,delayed:false,audioReleased:false,earlyVideoPlays:0,backwardSeeks:0};
+   Object.assign(window,{__startupTest:startup});
+   const clock=Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype,"currentTime")!;
+   Object.defineProperty(HTMLMediaElement.prototype,"currentTime",{...clock,set(value){
+    if(startup.armed&&this instanceof HTMLVideoElement&&this.dataset.clipId==="c1"&&value<clock.get!.call(this)-.025)startup.backwardSeeks++;
+    clock.set!.call(this,value);
+   }});
+   HTMLMediaElement.prototype.play=function(){
+    if(startup.armed&&this instanceof HTMLAudioElement&&!startup.delayed){
+     startup.delayed=true;return new Promise<void>((resolve,reject)=>setTimeout(()=>{startup.audioReleased=true;nativePlay.call(this).then(resolve,reject);},260));
+    }
+    if(startup.armed&&this instanceof HTMLVideoElement&&this.dataset.clipId==="c1"&&!startup.audioReleased)startup.earlyVideoPlays++;
+    return nativePlay.call(this);
+   };
    // Native compositor callbacks, not only currentTime: inject a delayed
    // presentation timestamp once while the underlying media clock is normal.
    const native=HTMLVideoElement.prototype.requestVideoFrameCallback;
@@ -113,10 +130,12 @@ try{
   await checkSearch();await search.focus();await checkSearch();await search.fill("first");assert.equal(await page.locator(".mv-media-card").count(),1);await search.fill("");await library.click();
   await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]'),a=document.querySelector<HTMLAudioElement>("audio");return v?.currentSrc.startsWith("blob:")&&v.readyState>=2&&!v.seeking&&Math.abs(v.currentTime-.25)<.05&&a&&a.readyState>=2;},{},{timeout:15000});
   const seek=page.getByRole("slider",{name:"Seek timeline"});
+  await page.evaluate(()=>{(window as any).__startupTest.armed=true;});
   for(let i=0;i<3;i++){
    await play.click();
    await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.paused&&!v.paused&&a.currentTime>.25&&Math.abs(v.currentTime-a.currentTime-.25)<.18;},{},{timeout:3000});
    assert.equal(await page.getByText("Buffering video…",{exact:true}).count(),0);
+   if(i===0){const startup=await page.evaluate(()=>{const s=(window as any).__startupTest;s.armed=false;return s;});assert.equal(startup.delayed,true);assert.equal(startup.earlyVideoPlays,0,"picture must not run before the native song starts");assert.equal(startup.backwardSeeks,0,"startup must not replay frames");console.log("PASS: delayed audio startup does not replay visible video frames on "+(mobile?"mobile":"desktop")+" Chromium");}
    await pause.click();
    await seek.press("Home");
    await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.seeking&&!v.seeking&&a.currentTime<.035&&Math.abs(v.currentTime-.25)<.04;},{},{timeout:3000});
