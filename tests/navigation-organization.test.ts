@@ -930,7 +930,7 @@ test("position lock protects ordinary and lip sync clips independently of Sync L
  const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts");
  assert.ok(editor.includes('aria-label="Re-Sync"'));
  assert.ok(editor.includes('selectedAsset?.role==="lip-sync"'));
- assert.ok(editor.includes('<AudioLines size={16} aria-hidden="true"/> Re-Sync'));
+ assert.ok(editor.includes('<AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span>'));
  assert.ok(editor.includes("restore?positionVideoClip(latest.current,{...current,syncLocked:false},position)"));
  assert.ok(core.includes("position_locked INTEGER NOT NULL DEFAULT 0"));
  assert.ok(core.includes("positionLocked:!!r.position_locked"));

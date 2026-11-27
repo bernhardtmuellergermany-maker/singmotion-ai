@@ -817,3 +817,8 @@
 .mv-root.mv-editor .mv-inspector-icon.mv-resync>svg{flex:none;color:inherit}
 .mv-root.mv-editor .mv-inspector-icon.mv-resync:hover:not(:disabled){background:#78439a}
 .mv-root.mv-editor .mv-inspector-icon.mv-resync:disabled{opacity:.45;cursor:not-allowed}
+
+/* Center the waveform and the text line box on the same vertical axis. */
+.mv-root.mv-editor .mv-inspector-icon.mv-resync{display:inline-flex!important;flex-direction:row;align-items:center!important;justify-content:center;vertical-align:middle;line-height:1.2}
+.mv-root.mv-editor .mv-inspector-icon.mv-resync>svg{display:block;align-self:center;width:16px;height:16px;margin:0;transform:none;flex:0 0 16px}
+.mv-root.mv-editor .mv-inspector-icon.mv-resync>span{display:block;align-self:center;line-height:16px;margin:0;white-space:nowrap}

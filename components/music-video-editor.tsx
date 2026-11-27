@@ -1209,7 +1209,7 @@ export function MusicVideoEditor({id}:{id:string}){
             <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
           </div>
         </div>
-        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||!!selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/> Re-Sync</button>}
+        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||!!selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span></button>}
         <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>
