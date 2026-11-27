@@ -870,9 +870,9 @@ test("Projects song sections have no visible section numbers and retain accessib
 });
 
 
-test("synced review uses one native player and revision-scoped private preview without changing export timing",()=>{
+test("opt-in synced review uses one native player and revision-scoped private preview without changing export timing",()=>{
  const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),renderer=read("lib/music-video/export.ts");
- assert.ok(editor.includes("useState(true),[syncedPreview"));
+ assert.ok(editor.includes("useState(false),[syncedPreview"));
  assert.ok(editor.includes('data-synced-preview="true"'));
  assert.ok(editor.includes('{!syncedActive&&<audio'));
  assert.ok(editor.includes("if(!playing||syncedActive)return;"));
