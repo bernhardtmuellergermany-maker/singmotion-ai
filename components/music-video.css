@@ -948,6 +948,6 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
 .mv-root.mv-editor .mv-song-lane .mv-song-block{border:1px solid #75428f;outline:none;box-shadow:none}
 .mv-root.mv-editor .mv-song-lane .mv-song-block:is(.is-selected,.is-armed,:focus-visible){border-color:#e1c4f1;outline:none;box-shadow:none}
 .mv-root.mv-editor .mv-song-handle::before{content:none!important}
-.mv-root.mv-editor .mv-song-lane .mv-add-song{position:sticky;left:8px;top:50%;transform:translateY(-50%);display:inline-flex;align-items:center;justify-content:center;gap:6px;width:auto;min-height:32px;margin-left:8px;padding:5px 12px;border:1px dashed #805c98;border-radius:7px;background:#30203f;color:#eedaf9;font-size:12px;font-weight:600;cursor:pointer}
+.mv-root.mv-editor .mv-song-lane .mv-add-song{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;justify-content:center;gap:6px;width:auto;min-height:32px;margin:0;max-width:calc(100% - 16px);white-space:nowrap;z-index:2;padding:5px 12px;border:1px dashed #805c98;border-radius:7px;background:#30203f;color:#eedaf9;font-size:12px;font-weight:600;cursor:pointer}
 .mv-root.mv-editor .mv-song-lane .mv-add-song:hover:not(:disabled){background:#412b55;border-color:#c797e8;color:#fff}
 .mv-root.mv-editor .mv-song-lane .mv-add-song:disabled{opacity:.5;cursor:wait}
