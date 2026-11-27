@@ -328,7 +328,7 @@ test("song splits preserve absolute time and leave silence for removed intervals
  assert.ok(core.includes("song_parts_json=?"));
  assert.ok(editor.includes("songParts:parts"));
  assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
- assert.ok(editor.includes("songPartAt(range,continuousSongParts(range,partsRef.current),at)"));
+ assert.ok(read("lib/music-video/frame-timeline.ts").includes("effectiveSongParts(range,parts)"));
 });
 test("one-click export uses top-track render spans and owner-scoped download",async()=>{
  const {videoRenderSpans}=await import("../lib/music-video/export.ts");
@@ -447,7 +447,7 @@ test("preview and render share exact source time and correct drift without seek 
  assert.ok(api.includes("const inspected=await probe(file)"));
  assert.ok(api.includes("duration=toMs(measured)"));
  assert.ok(!editor.includes("playing?0.24:0.001"));
- assert.ok(timeline.includes("clipSourceTimeMs(clip,timelineMs)"));
+ assert.ok(timeline.includes("clipSourceTimeMs(span.clip,timelineMs)"));
  assert.ok(engine.includes("frameTarget(timeline,this.position)"));
  assert.ok(!editor.includes("<video"));
 });
