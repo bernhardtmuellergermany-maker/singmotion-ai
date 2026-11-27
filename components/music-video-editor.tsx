@@ -1056,7 +1056,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
           <button onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/> Delete</button>
           {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button disabled={importing||selectedClip?.positionLocked} onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
-          {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing||selectedClip.positionLocked} onClick={switchVideoTrack}>Switch track</button>}</div>
+          {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing||!!selectedClip.positionLocked} onClick={switchVideoTrack}>Switch track</button>}</div>
         <div className="mv-timeline-zoom">
           <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
             <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)}/></label>
@@ -1148,16 +1148,16 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-video-times">
           <div className="mv-time-pair" role="group" aria-label="Original song time">
             <span className="mv-time-pair-heading">Original song time <small>Position in the full, untrimmed song</small></span>
-            <InlineTimeField label="Video start time" ariaLabel="Video start time in original song" value={clipSongText} onChange={v=>updateClipTime(v,"song")} onConfirm={()=>submitClipTime("song")} disabled={importing||selectedClip.positionLocked} placeholder="00:08.918"/>
-            <InlineTimeField label="Video end time" ariaLabel="Video end time in original song" value={clipSongEndText} onChange={v=>updateClipEnd(v,"song")} onConfirm={()=>submitClipEnd("song")} disabled={importing||selectedClip.positionLocked} placeholder="00:18.918"/>
+            <InlineTimeField label="Video start time" ariaLabel="Video start time in original song" value={clipSongText} onChange={v=>updateClipTime(v,"song")} onConfirm={()=>submitClipTime("song")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:08.918"/>
+            <InlineTimeField label="Video end time" ariaLabel="Video end time in original song" value={clipSongEndText} onChange={v=>updateClipEnd(v,"song")} onConfirm={()=>submitClipEnd("song")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
           </div>
           <div className="mv-time-pair" role="group" aria-label="Project timeline">
             <span className="mv-time-pair-heading">Project timeline <small>Position in this music video project</small></span>
-            <InlineTimeField label="Timeline start" ariaLabel="Video start time on timeline" value={clipTimelineText} onChange={v=>updateClipTime(v,"timeline")} onConfirm={()=>submitClipTime("timeline")} disabled={importing||selectedClip.positionLocked} placeholder="00:08.918"/>
-            <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing||selectedClip.positionLocked} placeholder="00:18.918"/>
+            <InlineTimeField label="Timeline start" ariaLabel="Video start time on timeline" value={clipTimelineText} onChange={v=>updateClipTime(v,"timeline")} onConfirm={()=>submitClipTime("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:08.918"/>
+            <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
           </div>
         </div>
-        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon" disabled={importing||selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Return to source time"><Undo2 size={14}/> Return to source time · {time(originalClipSongTime,true)}</button>}
+        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon" disabled={importing||!!selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Return to source time"><Undo2 size={14}/> Return to source time · {time(originalClipSongTime,true)}</button>}
         <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>
