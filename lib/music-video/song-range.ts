@@ -345,60 +345,63 @@ export function removeLeadingSongPart<T extends PositionedClip>(range:SongPlacem
  return {range:nextRange,parts:rest,clips:moved,shiftMs};
 }
 
-/** Source-time first; if occupied, create a short, undoable cut without
- * altering original files or explicitly position-locked clips. */
+/** Keep at least five seconds of a newly inserted generation, starting
+ * at its source start (not a later gap). Shorter real media cannot be padded.
+ * A collision may shorten one edge of each neighbor, never split or delete it. */
 export function planSourceTimeInsertion<T extends PositionedClip>(clips:readonly T[],candidate:T,limit:number,playhead:number):{clips:T[];clip:T;mode:"aligned"|"cut"|"alternate"|"manual"}|null{
- if(!Number.isSafeInteger(limit)||limit<100||clips.length>=500)return null;
+ if(!Number.isSafeInteger(limit)||limit<=0||clips.length>=500)return null;
  const length=candidate.sourceOutMs-candidate.sourceInMs;
  if(length<=0)return null;
+ const minimum=Math.min(5000,length);
+ if(limit<minimum)return null;
  const tracks=[candidate.track,candidate.track===1?2:1] as T["track"][];
  const end=(c:T)=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
- const done=(base:T[],clip:T,mode:"aligned"|"cut"|"alternate"|"manual")=>base.length<500?{clips:[...base,clip],clip,mode}:null;
- const aligned=fitSourceTimeClip(clips,candidate,limit);
- if(aligned)return done([...clips],aligned,"aligned");
- // Shorten exactly one edge of an existing unlocked clip. Never split
- // it into two timeline entries. Retain the longer possible section,
- // preferring its beginning on ties, and keep both source clocks intact.
- function carve(c:T,from:number,to:number,manual:boolean){
-  const options:{old:T;kept:T;start:number;size:number;retained:number;head:boolean}[]=[];
-  for(const old of clips){
-   if(old.track!==c.track||old.positionLocked)continue;
-   const oldEnd=end(old),lo=Math.max(from,old.timelineStartMs),hi=Math.min(to,oldEnd);
-   const size=Math.min(1000,length,hi-lo,Math.max(100,Math.round(length/3)));
-   if(size<100)continue;
-   const headStart=hi-size,tailEnd=lo+size;
-   if(headStart-old.timelineStartMs>=100){
-    options.push({old,kept:{...old,sourceOutMs:old.sourceInMs+headStart-old.timelineStartMs},start:headStart,size,retained:headStart-old.timelineStartMs,head:true});
+ const done=(base:T[],clip:T,mode:"aligned"|"cut"|"alternate"|"manual")=>({clips:[...base,clip],clip,mode});
+ const sourceStart=candidate.timelineStartMs;
+ // Source start and source-in stay identical even when we shorten the insert.
+ if(sourceStart>=0&&sourceStart+minimum<=limit){
+  for(const track of tracks){
+   const maxLength=Math.min(length,limit-sourceStart);
+   const occupied=clips.filter(c=>c.track===track).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+   const freeLength=Math.min(maxLength,...occupied.filter(c=>end(c)>sourceStart).map(c=>Math.max(0,c.timelineStartMs-sourceStart)));
+   if(freeLength>=minimum){
+    const inserted={...candidate,track,sourceOutMs:candidate.sourceInMs+freeLength};
+    return done([...clips],inserted,track===candidate.track?"aligned":"alternate");
    }
-   if(oldEnd-tailEnd>=100){
-    options.push({old,kept:{...old,timelineStartMs:tailEnd,sourceInMs:old.sourceInMs+tailEnd-old.timelineStartMs},start:lo,size,retained:oldEnd-tailEnd,head:false});
-   }
+   const finish=sourceStart+minimum;
+   let blocked=false,changed=false;
+   const base=clips.map(old=>{
+    if(old.track!==track||old.timelineStartMs>=finish||end(old)<=sourceStart)return old;
+    if(old.positionLocked){blocked=true;return old;}
+    const head=sourceStart-old.timelineStartMs,tail=end(old)-finish;
+    // Preserve the longer remaining side; never make a second fragment.
+    const minKeep=Math.min(100,end(old)-old.timelineStartMs);
+    if(Math.max(head,tail)<minKeep){blocked=true;return old;}
+    changed=true;
+    return head>=tail?{...old,sourceOutMs:old.sourceInMs+head}:
+      {...old,timelineStartMs:finish,sourceInMs:old.sourceInMs+finish-old.timelineStartMs};
+   });
+   if(!blocked&&changed)return done(base,{...candidate,track,sourceOutMs:candidate.sourceInMs+minimum},"cut");
   }
-  options.sort((a,b)=>b.retained-a.retained||Number(b.head)-Number(a.head)||a.start-b.start);
-  const option=options[0];if(!option)return null;
-  const {old,kept,start,size}=option;
-  const sourceIn=manual?c.sourceInMs:c.sourceInMs+start-c.timelineStartMs;
-  const inserted={...c,timelineStartMs:start,sourceInMs:sourceIn,sourceOutMs:sourceIn+size,syncLocked:manual?false:c.syncLocked};
-  return done(clips.map(x=>x.id===old.id?kept:x),inserted,manual?"manual":"cut");
+  // A protected or fully covered clip must not silently disappear.
+  return null;
  }
- const cut=carve(candidate,Math.max(0,candidate.timelineStartMs),Math.min(limit,end(candidate)),false);
- if(cut)return cut;
- const alternate={...candidate,track:tracks[1]};
- const alternateFit=fitSourceTimeClip(clips,alternate,limit);
- if(alternateFit)return done([...clips],alternateFit,"alternate");
- const altCut=carve(alternate,Math.max(0,candidate.timelineStartMs),Math.min(limit,end(candidate)),false);
- if(altCut)return altCut;
- // No visible intersection with source time (e.g. after a song cut).
- // Prefer the closest actual gap and clearly release sync lock.
+ // Original source start is outside the trimmed timeline. A real free gap
+ // can still accept the beginning of the media, explicitly without sync lock.
  for(const track of tracks){
   const occupied=clips.filter(c=>c.track===track&&c.timelineStartMs<limit).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
   const gaps:{start:number;end:number}[]=[];let cursor=0;
-  for(const old of occupied){if(old.timelineStartMs>cursor)gaps.push({start:cursor,end:old.timelineStartMs});cursor=Math.max(cursor,end(old));}
+  for(const old of occupied){
+   if(old.timelineStartMs>cursor)gaps.push({start:cursor,end:Math.min(limit,old.timelineStartMs)});
+   cursor=Math.max(cursor,end(old));
+  }
   if(cursor<limit)gaps.push({start:cursor,end:limit});
-  const wanted=Math.max(0,Math.min(limit-100,Math.round(playhead)));
-  const gap=gaps.filter(g=>g.end-g.start>=100).sort((a,b)=>Math.abs(Math.max(a.start,Math.min(a.end-100,wanted))-wanted)-Math.abs(Math.max(b.start,Math.min(b.end-100,wanted))-wanted))[0];
-  if(gap){const size=Math.min(length,gap.end-gap.start);const start=Math.max(gap.start,Math.min(gap.end-size,wanted));return done([...clips],{...candidate,track,timelineStartMs:start,sourceOutMs:candidate.sourceInMs+size,syncLocked:false},"manual");}
+  const wanted=Math.max(0,Math.min(limit-minimum,Math.round(playhead)));
+  const gap=gaps.filter(g=>g.end-g.start>=minimum).sort((a,b)=>Math.abs(Math.max(a.start,Math.min(a.end-minimum,wanted))-wanted)-Math.abs(Math.max(b.start,Math.min(b.end-minimum,wanted))-wanted))[0];
+  if(gap){
+   const size=Math.min(length,gap.end-gap.start),start=Math.max(gap.start,Math.min(gap.end-size,wanted));
+   return done([...clips],{...candidate,track,timelineStartMs:start,sourceOutMs:candidate.sourceInMs+size,syncLocked:false},"manual");
+  }
  }
- for(const track of tracks){const result=carve({...candidate,track},0,limit,true);if(result)return result;}
  return null;
 }

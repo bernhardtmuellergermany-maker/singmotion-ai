@@ -702,16 +702,16 @@ export function MusicVideoEditor({id}:{id:string}){
       // Use the current refs: importing can reload the project before React rerenders.
       const limit=songPartsEnd(rangeRef.current,partsRef.current);
       const plan=planSourceTimeInsertion(latest.current,candidate,limit,atMs);
-      if(!plan){setError("No editable space remains on either video track. Unlock a position-locked clip or shorten a clip first.");return;}
+      if(!plan){setError("Not enough space for the video at its source start (at least 5 seconds, or the actual length if shorter). Unlock or shorten neighboring clips, or extend the song.");return;}
       apply(plan.clips);setSelected(plan.clip.id);
-      if(plan.mode==="cut")setPlacementNotice("Inserted a short section at the original source time and shortened the neighboring clip. Drag the edges to adjust the transition. Undo restores the previous edit.");
-      if(plan.mode==="manual")setPlacementNotice("Original source time is outside the available space. Inserted an unlocked section for manual alignment. Use Return to source time when available.");
+      if(plan.mode==="cut")setPlacementNotice("Inserted from the original source start and shortened neighboring clips. Drag the edges to adjust the transition. Undo restores the previous edit.");
+      if(plan.mode==="manual")setPlacementNotice("Original source start is outside the available song range. Inserted from the beginning of the video in a free space, unlocked for manual alignment.");
       if(plan.mode==="alternate")setPlacementNotice("Inserted at the original source time on the other video track.");
       return;
     }
     if(candidate.timelineStartMs<0){setError("The video starts before the timeline.");return;}
     if(clipEnd(candidate)>timelineLimit)candidate.sourceOutMs=Math.max(0,timelineLimit-candidate.timelineStartMs);
-    if(candidate.sourceOutMs<=candidate.sourceInMs){setError("No space before the song ends.");return;}
+    if(candidate.sourceOutMs-candidate.sourceInMs<Math.min(5000,length)){setError("Not enough space for at least 5 seconds of this video before the song ends.");return;}
     let conflicts=overlaps(latest.current,candidate);
     if(conflicts.length){
       const action=window.prompt("Track occupied. Type 'free' to find another space, 'fit' to trim into the available gap, 'replace' to remove conflicting clips, or Cancel.","free");
@@ -735,7 +735,7 @@ export function MusicVideoEditor({id}:{id:string}){
       }else{
         const nextEdge=Math.min(...conflicts.map(c=>c.timelineStartMs).filter(n=>n>candidate.timelineStartMs),timelineLimit);
         candidate.sourceOutMs=Math.min(candidate.sourceOutMs,nextEdge-candidate.timelineStartMs);
-        if(candidate.sourceOutMs<=0){setError("No room for trimming here.");return;}
+        if(candidate.sourceOutMs-candidate.sourceInMs<Math.min(5000,length)){setError("Not enough free space for at least 5 seconds of this video.");return;}
       }
       conflicts=overlaps(latest.current,candidate);
       if(conflicts.length){setError("No collision-free position found.");return;}
@@ -1267,7 +1267,7 @@ export function MusicVideoEditor({id}:{id:string}){
     {lipTrack!==null&&typeof document!=="undefined"&&createPortal(<div ref={lipBackdrop} className="mv-root mv-editor mv-dialog-backdrop mv-lip-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
       <div ref={lipDialog} tabIndex={-1} className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
         <h2>Insert Lip Sync · {lipTrack===1?"Main track":"Video 2"}</h2>
-        <p>Choose a completed Lip Sync video. Original source time is preferred; if needed, a short editable section will be inserted. Use the same song for accurate synchronization.</p>
+        <p>Choose a completed Lip Sync video. Original source start is preferred. At least five seconds are inserted when the source permits. Use the same song for accurate synchronization.</p>
         <input type="search" placeholder="Search completed videos…" aria-label="Search Lip Sync videos" value={lipSearch} onChange={e=>setLipSearch(e.target.value)}/>
         {lipLoading?<p role="status">Loading your videos…</p>:<div className="mv-lip-list">
           {lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).map(s=><button key={s.id} type="button" disabled={importing}

@@ -999,29 +999,34 @@ test("deleting the leading song part ripples every clip, preserving original lip
  assert.equal(removeLeadingSongPart(range,[parts[0]],[a]),null);
 });
 
-test("source-time insertion works on empty trimmed tracks and squeezes into occupied time without overlap",async()=>{
+test("source insertion keeps at least five seconds at the source start and only trims neighboring edges",async()=>{
  const {planSourceTimeInsertion}=await import("../lib/music-video/song-range.ts");
  const a={id:"a",track:1,timelineStartMs:0,sourceInMs:0,sourceOutMs:10000,syncLocked:true,positionLocked:false};
  const b={...a,id:"b",timelineStartMs:2000,sourceOutMs:5000};
  const fresh=planSourceTimeInsertion([],b,10000,0)!;
  assert.equal(fresh.mode,"aligned");assert.deepEqual(fresh.clip,b);
- const outside=planSourceTimeInsertion([],{...b,timelineStartMs:-9000},4000,0)!;
+ const outside=planSourceTimeInsertion([],{...b,timelineStartMs:-9000},8000,0)!;
  assert.equal(outside.mode,"manual");assert.equal(outside.clip.timelineStartMs,0);assert.equal(outside.clip.syncLocked,false);
+ assert.equal(outside.clip.sourceOutMs,5000);
+ assert.equal(planSourceTimeInsertion([],b,4000,0),null);
  const cut=planSourceTimeInsertion([a],b,10000,0)!;
  assert.equal(cut.mode,"cut");assert.equal(cut.clips.length,2);
- assert.equal(cut.clip.timelineStartMs-cut.clip.sourceInMs,2000);
- const sorted=cut.clips.sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
- assert.equal(sorted[0].timelineStartMs+sorted[0].sourceOutMs-sorted[0].sourceInMs,sorted[1].timelineStartMs);
- const kept=cut.clips.find(c=>c.id==="a")!;
- assert.equal(kept.timelineStartMs-kept.sourceInMs,0);
- assert.ok(kept.sourceOutMs-kept.sourceInMs<a.sourceOutMs-a.sourceInMs);
- assert.ok(kept.sourceInMs===a.sourceInMs||kept.sourceOutMs===a.sourceOutMs);
- const tail=planSourceTimeInsertion([a],{...b,timelineStartMs:6000,sourceOutMs:4000},10000,0)!;
- assert.equal(tail.clips.length,2);assert.equal(tail.clips.find(c=>c.id==="a")!.sourceInMs,0);
+ assert.deepEqual(cut.clip,b);
+ assert.deepEqual(cut.clips.find(c=>c.id==="a"),{...a,timelineStartMs:7000,sourceInMs:7000});
+ const tail=planSourceTimeInsertion([{...a,sourceOutMs:15000}],{...b,timelineStartMs:8000,sourceOutMs:10000},20000,0)!;
+ assert.equal(tail.mode,"cut");assert.equal(tail.clip.timelineStartMs,8000);assert.equal(tail.clip.sourceInMs,0);assert.equal(tail.clip.sourceOutMs,5000);
+ assert.deepEqual(tail.clips.find(c=>c.id==="a"),{...a,sourceOutMs:8000});
+ const free=planSourceTimeInsertion([{...a,timelineStartMs:8000,sourceOutMs:3000}],{...b,sourceOutMs:10000},20000,0)!;
+ assert.equal(free.clip.sourceOutMs,6000);
  const locked={...a,positionLocked:true};
  const alt=planSourceTimeInsertion([locked],b,10000,0)!;
  assert.equal(alt.mode,"alternate");assert.equal(alt.clip.track,2);assert.deepEqual(alt.clips[0],locked);
  assert.equal(planSourceTimeInsertion([locked,{...locked,id:"other",track:2}],b,10000,0),null);
+ const covered={...a,id:"covered",timelineStartMs:3000,sourceOutMs:1000};
+ const keep=planSourceTimeInsertion([covered],b,10000,0)!;
+ assert.equal(keep.clip.track,2);assert.deepEqual(keep.clips[0],covered);
+ const short=planSourceTimeInsertion([],{...b,sourceOutMs:3000},10000,0)!;
+ assert.equal(short.clip.sourceOutMs,3000);
 });
 
 test("unlocking Lip Sync directly does not ask for confirmation",()=>{
