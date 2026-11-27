@@ -327,3 +327,20 @@ export function rollVideoBoundary<T extends PositionedClip>(clips:readonly T[],c
  const delta=Math.max(lower,Math.min(upper,Math.round(deltaMs)));
  return clips.map(c=>c.id===left.id?{...c,sourceOutMs:c.sourceOutMs+delta}:c.id===right.id?{...c,timelineStartMs:c.timelineStartMs+delta,sourceInMs:c.sourceInMs+delta}:c);
 }
+
+/** Removing the first song part is one global ripple edit. All clips,
+ * including position/sync locked clips, move by the same timeline offset.
+ * Media before zero is trimmed non-destructively; original assets remain. */
+export function removeLeadingSongPart<T extends PositionedClip>(range:SongPlacement,parts:SongRange[],clips:readonly T[]):{range:SongPlacement;parts:SongRange[]|null;clips:T[];shiftMs:number}|null{
+ if(parts.length<2||!validSongParts(parts,range))return null;
+ const rest=parts.slice(1),first=rest[0],shiftMs=songTimeToTimeline(first.startMs,range);
+ const nextRange={...range,startMs:first.startMs,positionMs:0};
+ const moved:T[]=[];
+ for(const clip of clips){
+  const start=clip.timelineStartMs-shiftMs,end=start+clip.sourceOutMs-clip.sourceInMs;
+  if(end<=0)continue;
+  const cut=Math.max(0,-start);
+  moved.push({...clip,timelineStartMs:Math.max(0,start),sourceInMs:clip.sourceInMs+cut});
+ }
+ return {range:nextRange,parts:rest,clips:moved,shiftMs};
+}

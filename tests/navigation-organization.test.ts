@@ -982,3 +982,17 @@ test("Lip Sync insertion trims overlap without changing the original source mapp
  assert.ok(editor.includes("timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current)"));
  assert.ok(editor.includes("fitSourceTimeClip(latest.current,candidate,timelineLimit)"));
 });
+
+test("deleting the leading song part ripples every clip, preserving original lip sync and locks",async()=>{
+ const {removeLeadingSongPart,songOffset}=await import("../lib/music-video/song-range.ts");
+ const range={startMs:0,endMs:15000,positionMs:0},parts=[{startMs:0,endMs:5000},{startMs:5000,endMs:15000}];
+ const a={id:"a",track:1,timelineStartMs:2000,sourceInMs:0,sourceOutMs:6000,syncLocked:true,positionLocked:true};
+ const b={id:"b",track:2,timelineStartMs:8000,sourceInMs:0,sourceOutMs:4000,syncLocked:false,positionLocked:true};
+ const gone={...b,id:"gone",timelineStartMs:0,sourceOutMs:1000};
+ const result=removeLeadingSongPart(range,parts,[a,b,gone])!;
+ assert.equal(result.shiftMs,5000);assert.deepEqual(result.range,{startMs:5000,endMs:15000,positionMs:0});
+ assert.deepEqual(result.clips,[{...a,timelineStartMs:0,sourceInMs:3000},{...b,timelineStartMs:3000}]);
+ assert.equal(result.clips[0].timelineStartMs,2000+result.clips[0].sourceInMs+songOffset(result.range));
+ assert.deepEqual(result.parts,[parts[1]]);
+ assert.equal(removeLeadingSongPart(range,[parts[0]],[a]),null);
+});

@@ -12,7 +12,7 @@ import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,waveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,fitSourceTimeClip,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,fitSourceTimeClip,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -30,6 +30,7 @@ const time=(ms:number,precise=false)=>{
 const signedTime=(ms:number)=>(ms<0?"-":"")+time(Math.abs(ms),true);
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
   const response=await fetch(url,{cache:"no-store",credentials:"same-origin",...init});
+  if(response.status===401||response.status===403)throw new Error("Project access expired or unavailable. Sign in again with the same account, then retry. Unsaved edits are not yet stored.");
   const data=await response.json() as T&{error?:string};
   if(!response.ok)throw new Error(data.error||"Request failed.");
   return data;
@@ -262,7 +263,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(saveTimer.current)clearTimeout(saveTimer.current);
     saveTimer.current=setTimeout(()=>{void saveNow().catch(()=>{});},600);
   };
-  useEffect(()=>()=>{if(saveTimer.current)clearTimeout(saveTimer.current);},[]);
+  useEffect(()=>{
+    const protect=(e:BeforeUnloadEvent)=>{if(dirty.current){e.preventDefault();e.returnValue="";}};
+    window.addEventListener("beforeunload",protect);
+    return()=>{window.removeEventListener("beforeunload",protect);if(saveTimer.current)clearTimeout(saveTimer.current);};
+  },[]);
   function apply(next:MusicClip[],record=true,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current,ratio=ratioRef.current){
     if(roleBusy.current)return;
     if(record){past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current,aspectRatio:ratioRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
@@ -521,6 +526,13 @@ export function MusicVideoEditor({id}:{id:string}){
   function removeSongPart(){
     if(importBusy.current||!partsRef.current||partsRef.current.length<2)return;
     const i=Math.min(partIndex,partsRef.current.length-1);
+    if(i===0){
+      const next=removeLeadingSongPart(rangeRef.current,partsRef.current,latest.current);
+      if(!next)return;
+      const at=Math.max(0,playheadRef.current-next.shiftMs);
+      apply(next.clips,true,next.range,next.parts);setPartIndex(0);setAt(at,next.range);
+      return;
+    }
     apply(latest.current,true,rangeRef.current,partsRef.current.filter((_,j)=>j!==i));setPartIndex(Math.max(0,i-1));
   }
   function splitSong(){
@@ -1122,7 +1134,7 @@ export function MusicVideoEditor({id}:{id:string}){
                   <div className="mv-clip-drag-surface" aria-hidden="true"/>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
                   {c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>:
-                    <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={Math.min(clipWidth,Math.max(40,Math.min(360,clipWidth*.34)))}/>}
+                    <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/> }
                   <button type="button" className="mv-clip-display-toggle" aria-pressed={!!c.showVideoName}
                     aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
                     title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
@@ -1192,7 +1204,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
       </form>}
       </div></>}
-      {error&&<p className="mv-error" role="alert">{error}</p>}
+      {error&&<div className="mv-error" role="alert"><span>{error}</span>{status==="Not saved"&&<button type="button" onClick={()=>void saveNow().then(()=>{setError("");setClips([...latest.current]);}).catch(()=>{})}>Retry save</button>}</div>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file);e.target.value="";
       }}/>

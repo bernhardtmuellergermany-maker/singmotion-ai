@@ -56,7 +56,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  }
  private black(){this.context.fillStyle="#000";this.context.fillRect(0,0,this.canvas.width,this.canvas.height);}
  private setBuffering(value:boolean){if(this.buffering!==value){this.buffering=value;this.cb.buffering(value);}}
- private fail(error:unknown){if(this.closed||this.controller.signal.aborted)return;this.pause();this.cb.error(error instanceof Error?error.message:"Could not decode preview. Tap Play to retry.");}
+ private fail(error:unknown){if(this.closed||this.controller.signal.aborted)return;this.pause();const message=error instanceof Error?error.message:"";this.cb.error(/\b(?:401|403)\b|Project access expired/i.test(message)?"Project access expired or unavailable. Sign in again with the same account before retrying.":"Could not load project preview. Tap Play to retry.");}
  /** Small upcoming proxies are completely local before the cut. A large or
   * slow response falls back to the bounded range cache; never download originals. */
  private async localProxy(url:string,signal:AbortSignal):Promise<Blob|null>{

@@ -724,3 +724,11 @@
 .mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{touch-action:none;height:min(17px,45%);top:1px}
 
 .mv-root.mv-projects .mv-new-project-dialog{max-height:calc(100dvh - 32px);overflow-y:auto;overscroll-behavior:contain;gap:15px}.mv-root.mv-projects .mv-selected-song{font-size:13px;color:#eadcff;overflow-wrap:anywhere;margin:0}
+
+/* Time-aligned waveform: crop only the outer pixels, never squeeze the
+   recording into a smaller width. Both lanes retain the same ms/pixel. */
+.mv-root.mv-editor .mv-clip .mv-waveform-bars,.mv-root.mv-editor .mv-song-block .mv-waveform-bars{inset:auto 0;left:0;right:0;top:50%;width:auto;height:24px;transform:translateY(-50%);color:#fff;opacity:1}
+.mv-root.mv-editor .mv-clip .mv-waveform-bars{clip-path:inset(0 min(10px,12%))}
+.mv-root.mv-editor .mv-song-block .mv-waveform-bars{clip-path:none}
+.mv-root.mv-editor .mv-song-block .mv-song-wave-title{top:1px;font-size:10px;line-height:10px}
+.mv-root.mv-editor .mv-error>button{margin-left:12px;padding:6px 12px;border:1px solid currentColor;border-radius:6px;background:transparent;color:inherit}

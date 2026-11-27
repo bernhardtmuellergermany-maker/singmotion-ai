@@ -89,9 +89,10 @@ try{
    assert.deepEqual(style,{fill:"none",stroke:"rgb(255, 255, 255)",cap:"round"});
   }
   const videoWave=await page.locator(".mv-clip .mv-waveform-bars").first().evaluate(el=>{
-   const w=el.getBoundingClientRect(),c=el.parentElement!.getBoundingClientRect();return {ratio:w.width/c.width,offset:Math.abs(w.x+w.width/2-c.x-c.width/2)};
+   const w=el.getBoundingClientRect(),c=el.parentElement!.getBoundingClientRect(),s=getComputedStyle(el);return {ratio:w.width/c.width,offset:Math.abs(w.x+w.width/2-c.x-c.width/2),height:w.height,clipPath:s.clipPath};
   });
-  assert.ok(videoWave.ratio<.8&&videoWave.offset<1,"video waveform is compact and centered");
+  assert.ok(videoWave.ratio>.95&&videoWave.offset<1&&videoWave.clipPath!=="none","video waveform has edge padding without changing the source time scale");
+  assert.equal(await page.locator(".mv-song-block .mv-waveform-bars").first().evaluate(el=>el.getBoundingClientRect().height),videoWave.height);
   const songWave=await page.locator(".mv-song-block .mv-waveform-bars").first().evaluate(el=>el.getBoundingClientRect().width/el.parentElement!.getBoundingClientRect().width);
   assert.ok(songWave>.95,"song waveform retains time-axis width");
   assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
