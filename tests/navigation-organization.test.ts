@@ -1017,3 +1017,9 @@ test("source-time insertion works on empty trimmed tracks and squeezes into occu
  assert.equal(alt.mode,"alternate");assert.equal(alt.clip.track,2);assert.deepEqual(alt.clips[0],locked);
  assert.equal(planSourceTimeInsertion([locked,{...locked,id:"other",track:2}],b,10000,0,()=>"new"),null);
 });
+
+test("unlocking Lip Sync directly does not ask for confirmation",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(!editor.includes("Unlock song synchronization? Moving this clip can break lip sync."));
+ assert.ok(editor.includes("positionLocked:!locked,syncLocked:locked?false:c.syncLocked"));
+});

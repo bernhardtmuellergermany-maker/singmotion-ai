@@ -857,14 +857,12 @@ export function MusicVideoEditor({id}:{id:string}){
     if(importBusy.current||roleBusy.current)return;
     const current=latest.current.find(c=>c.id===id);if(!current)return;
     // The clip padlock must reflect both kinds of movement protection.
-    // An explicit unlock also releases Sync Lock, after warning the user.
+    // An explicit unlock also releases Sync Lock immediately.
     const locked=!!(current.positionLocked||current.syncLocked);
-    if(locked&&current.syncLocked&&!window.confirm("Unlock song synchronization? Moving this clip can break lip sync."))return;
     apply(latest.current.map(c=>c.id===current.id?{...c,positionLocked:!locked,syncLocked:locked?false:c.syncLocked}:c));
   }
   function toggleLock(){
     if(!selectedClip||selectedClip.positionLocked||!selectedAsset||selectedAsset.role!=="lip-sync"||selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null)return;
-    if(selectedClip.syncLocked&&!window.confirm("Unlock song synchronization? Moving this clip can break lip sync."))return;
     const lock=!selectedClip.syncLocked;
     if(lock&&(selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null||selectedClip.timelineStartMs!==selectedAsset.sourceStartMs+selectedClip.sourceInMs+songOffset(rangeRef.current)||clipEnd(selectedClip)>selectedAsset.sourceEndMs+songOffset(rangeRef.current))){
       setError("Move this clip back to its original song position before relocking.");return;

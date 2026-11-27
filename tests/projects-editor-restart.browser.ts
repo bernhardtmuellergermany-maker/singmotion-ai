@@ -305,8 +305,11 @@ try{
   assert.equal(lockClips[0].timelineStartMs,750);assert.equal(lockClips[0].syncLocked,true);
   // Restoring source timing must show a closed padlock, not an open one.
   await first.getByRole("button",{name:"Unlock clip position: first"}).waitFor();
-  page.once("dialog",dialog=>dialog.accept());
+  let unlockDialogs=0;
+  const rejectUnexpectedDialog=async(dialog:import("@playwright/test").Dialog)=>{unlockDialogs++;await dialog.dismiss();};
+  page.on("dialog",rejectUnexpectedDialog);
   const syncUnlocked=save();await first.getByRole("button",{name:"Unlock clip position: first"}).click();await syncUnlocked;
+  page.off("dialog",rejectUnexpectedDialog);assert.equal(unlockDialogs,0,"unlock must not open a confirmation dialog");
   assert.equal(lockClips[0].syncLocked,false);assert.equal(lockClips[0].positionLocked,false);
   const song=page.getByRole("button",{name:"Select song",exact:true});await song.focus();await song.press("Enter");
   assert.equal(await song.getAttribute("aria-pressed"),"true");
