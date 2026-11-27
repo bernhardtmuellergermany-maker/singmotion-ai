@@ -279,8 +279,8 @@ test("timeline zoom is visibly separate from playback progress",()=>{
  assert.ok(editor.includes('role="group" aria-label="Timeline zoom"'));
  assert.ok(editor.includes('aria-label="Zoom out timeline"'));
  assert.ok(editor.includes('aria-label="Zoom in timeline"'));
- assert.ok(editor.includes('setZoom(z=>Math.max(20,z-12))'));
- assert.ok(editor.includes('setZoom(z=>Math.min(140,z+12))'));
+ assert.ok(editor.includes('zoomBy(1/1.35)'));
+ assert.ok(editor.includes('zoomBy(1.35)'));
  assert.ok(!editor.includes('aria-label="Timeline zoom" type="range"'));
  assert.ok(editor.includes('value={progress.positionMs}'));
  assert.ok(css.includes(".mv-timeline-zoom .mv-zoom-buttons"));
@@ -419,7 +419,7 @@ test("desktop mouse starts editing immediately; touch retains long-press scrolli
  const editor=read("components/music-video-editor.tsx");
  const gesture=editor.slice(editor.indexOf("function beginMediaGesture("),editor.indexOf("function dragSong(e:"));
  assert.ok(gesture.includes('if(e.pointerType==="mouse"&&allowHold){setArmedMedia(media);onHold();return;}'));
- assert.ok(gesture.indexOf('if(e.pointerType==="mouse")')<gesture.indexOf("setTimeout("));
+ assert.ok(gesture.indexOf('if(e.pointerType==="mouse"&&allowHold)')<gesture.indexOf("setTimeout("));
  assert.ok(gesture.includes("mediaPanAxis(dx,dy)"));
  assert.ok(gesture.includes("},MEDIA_HOLD_MS)"));
  assert.ok(!gesture.includes("immediate&&"));
