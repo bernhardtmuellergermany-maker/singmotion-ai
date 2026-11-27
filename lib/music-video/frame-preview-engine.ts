@@ -40,6 +40,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  private pendingFrame=false;
  private frameWanted=false;
  private starting=false;
+ private idleWarm:ReturnType<typeof setTimeout>|null=null;
  constructor(canvas:HTMLCanvasElement,private readonly sourceUrl:SourceUrl,private readonly cb:Callbacks){
   this.canvas=canvas;
   const context=canvas.getContext("2d",{alpha:false});if(!context)throw Error("Canvas preview unavailable.");
@@ -78,12 +79,12 @@ export class FramePreviewEngine<C extends FrameClip>{
  }
  setTimeline(timeline:FrameTimeline<C>,width:number,height:number,position:number){
   const resize=this.canvas.width!==width||this.canvas.height!==height;
-  this.stopClock();this.version++;this.seekVersion++;this.controller.abort();
+  this.clearWarm();this.stopClock();this.version++;this.seekVersion++;this.controller.abort();
   this.controller=new AbortController();for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});
   this.sources.clear();this.loading.clear();this.windows.clear();this.lastFrame=-1;this.timeline=timeline;
   if(resize){this.canvas.width=width;this.canvas.height=height;}this.black();
   this.position=Math.max(0,Math.min(timeline.durationMs,position));this.cb.position(this.position);
-  this.requestFrame();if(this.intent&&!this.dragging)this.ensureStart();
+  this.requestFrame();if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
  }
  setVolume(value:number){this.volume=Math.max(0,Math.min(1,value));if(this.gain&&this.audio)this.gain.gain.setValueAtTime(this.volume,this.audio.currentTime);}
  private async sound(span:AudioSpan,start:number,end:number):Promise<Sound[]>{
@@ -136,6 +137,14 @@ export class FramePreviewEngine<C extends FrameClip>{
   void task.finally(()=>{if(this.loading.get(index)===task)this.loading.delete(index);this.trimSources();}).catch(()=>{});
   return task;
  }
+ private clearWarm(){if(this.idleWarm!==null){clearTimeout(this.idleWarm);this.idleWarm=null;}}
+ private warmWhenIdle(){
+  this.clearWarm();if(this.intent||this.dragging||!this.timeline||this.closed||this.position>=this.timeline.durationMs)return;
+  const version=this.version,seek=this.seekVersion,index=Math.floor(this.position/WINDOW_MS);
+  this.idleWarm=setTimeout(()=>{this.idleWarm=null;if(this.intent||this.dragging||this.loading.size||version!==this.version||seek!==this.seekVersion)return;
+   void this.window(index).then(w=>{if(!this.intent&&!this.dragging&&version===this.version&&seek===this.seekVersion&&w.end<this.timeline!.durationMs)return this.window(index+1);}).catch(()=>{});
+  },200);
+ }
  private trimWindows(){
   const index=Math.floor(this.position/WINDOW_MS);
   for(const key of this.windows.keys())if(key<index-1||key>index+2)this.windows.delete(key);
@@ -169,7 +178,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   // The output timestamp refers to samples actually reaching the audio device,
   // not the ahead-of-output rendering clock.
   const ts=ctx.getOutputTimestamp?.();
-  if(ts&&Number.isFinite(ts.contextTime)&&ts.performanceTime>0){
+  if(ts&&typeof ts.contextTime==="number"&&Number.isFinite(ts.contextTime)&&typeof ts.performanceTime==="number"&&ts.performanceTime>0){
    return Math.min(ctx.currentTime,ts.contextTime+Math.max(0,performance.now()-ts.performanceTime)/1000);
   }
   return Math.max(0,ctx.currentTime-(ctx.outputLatency||ctx.baseLatency||0));
@@ -184,19 +193,19 @@ export class FramePreviewEngine<C extends FrameClip>{
   if(this.audio.state!=="running")await this.audio.resume();
  }
  async play(){
-  if(this.closed||!this.timeline||this.intent)return;
+  if(this.closed||!this.timeline||this.intent)return;this.clearWarm();
   if(this.position>=this.timeline.durationMs)this.seek(0);
   this.intent=true;this.cb.playing(true);
   try{await this.openAudio();if(this.intent&&!this.closed)this.ensureStart();}catch(e){this.fail(e);}
  }
- pause(){this.intent=false;this.seekVersion++;this.stopClock();this.cb.position(this.position);this.setBuffering(false);this.cb.playing(false);}
+ pause(){this.intent=false;this.seekVersion++;this.stopClock();this.cb.position(this.position);this.setBuffering(false);this.cb.playing(false);this.warmWhenIdle();}
  seek(ms:number){
   if(!this.timeline||!Number.isFinite(ms))return;
-  this.seekVersion++;this.stopClock();this.position=Math.max(0,Math.min(this.timeline.durationMs,ms));this.lastFrame=-1;
+  this.clearWarm();this.seekVersion++;this.stopClock();this.position=Math.max(0,Math.min(this.timeline.durationMs,ms));this.lastFrame=-1;
   this.cb.position(this.position);this.trimWindows();this.requestFrame();
-  if(this.intent&&!this.dragging)this.ensureStart();
+  if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
  }
- scrub(value:boolean){this.dragging=value;if(value){this.seekVersion++;this.stopClock();}else if(this.intent)this.ensureStart();}
+ scrub(value:boolean){if(this.dragging===value)return;this.dragging=value;if(value){this.clearWarm();this.seekVersion++;this.stopClock();}else if(this.intent)this.ensureStart();else this.warmWhenIdle();}
  private schedule(window:Window,from:number){
   const ctx=this.audio!;
   for(const sample of window.audio){
@@ -249,5 +258,5 @@ export class FramePreviewEngine<C extends FrameClip>{
   }
   this.trimWindows();this.raf=requestAnimationFrame(this.tick);
  };
- close(){this.closed=true;this.intent=false;this.stopClock();this.controller.abort();this.version++;this.seekVersion++;for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});this.sources.clear();this.windows.clear();this.loading.clear();if(this.audio)void this.audio.close().catch(()=>{});}
+ close(){this.clearWarm();this.closed=true;this.intent=false;this.stopClock();this.controller.abort();this.version++;this.seekVersion++;for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});this.sources.clear();this.windows.clear();this.loading.clear();if(this.audio)void this.audio.close().catch(()=>{});}
 }
