@@ -619,7 +619,9 @@ test("the timeline and export stop at the last retained song part, not the sourc
  const editor=read("components/music-video-editor.tsx"),renderer=read("lib/music-video/export.ts");
  assert.ok(editor.includes("const timelineEnd=project?songPartsEnd(songRange,songParts):0"));
  assert.ok(editor.includes("const timelineLimit=timelineEnd"));
- assert.ok(editor.includes("Math.max(1,timelineLimit/1000*zoom)"));
+ assert.ok(editor.includes("Math.max(rulerViewport.width,project?Math.max(1,timelineLimit/1000*zoom):640)"));
+ assert.ok(editor.includes("timelineFitZoom(timelineLimit,rulerViewport.width)"));
+ assert.ok(!editor.includes('className="mv-song-wave-title"'));
  assert.ok(editor.includes("c.track===track&&c.timelineStartMs<timelineLimit"));
  assert.ok(editor.includes("Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs"));
  assert.ok(editor.includes("if(end>timelineLimit)"));
@@ -912,7 +914,7 @@ test("frame engine warms upcoming clips and paints during continuous drag indepe
 
 
 test("adaptive timeline graduations have readable major marks and bounded visible minor marks",async()=>{
- const {timelineGraduations,clampTimelineZoom,anchoredScroll,swipeVelocity,inertiaStep}=await import("../lib/music-video/timeline-gestures.ts");
+ const {timelineGraduations,clampTimelineZoom,timelineFitZoom,anchoredScroll,swipeVelocity,inertiaStep}=await import("../lib/music-video/timeline-gestures.ts");
  for(const [zoom,step] of [[20,5000],[44,2000],[100,1000],[200,500],[880,100]]){
   const scale=timelineGraduations(7200000,zoom,0,390);assert.equal(scale.step,step);
   assert.ok(scale.ticks.length<50);assert.ok(scale.ticks.some(t=>!t.major));
@@ -920,6 +922,9 @@ test("adaptive timeline graduations have readable major marks and bounded visibl
  }
  const scrolled=timelineGraduations(7200000,880,100000,390);assert.ok(scrolled.ticks.length<50&&scrolled.ticks[0].ms>0);
  assert.equal(clampTimelineZoom(1),20);assert.equal(clampTimelineZoom(9999),880);
+ assert.equal(timelineFitZoom(4000,1120),280);assert.equal(timelineFitZoom(4000,260),65);
+ assert.equal(timelineFitZoom(600000,1120),20);assert.equal(timelineFitZoom(0,320),20);
+ assert.equal(timelineFitZoom(100,1120),11200);
  assert.equal(anchoredScroll(4000,100,150),250);
  assert.equal(anchoredScroll(0,100,150),0);
  const speed=swipeVelocity(0,100,50),step=inertiaStep(speed,16);
