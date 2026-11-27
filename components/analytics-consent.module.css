@@ -47,26 +47,30 @@
     width: min(354px, calc(100% - 24px));
     bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 6px));
     max-height: calc(100dvh - 36px);
-    padding: 9px 12px 10px; border-radius: 13px;
-    font-size: 12px; line-height: 1.4;
+    padding: 8px 12px; border-radius: 13px;
+    font-size: 12px; line-height: 1.35;
+    -webkit-text-size-adjust: 100%; text-size-adjust: 100%;
   }
-  .panel h2 { margin: 0; font-size: 14px; gap: 5px; }
+  .panel h2 { margin: 0; padding: 0; font-size: 14px; line-height: 1.2; gap: 5px; }
+  .panel p { font-size: 12px; line-height: 1.35; padding: 0; }
+  .panel .mobileDetails[hidden] { display: none; }
   .heading { margin-bottom: 3px; }
   .detailsToggle {
     display: inline-flex; align-items: center; justify-content: center; gap: 4px;
-    min-height: 44px; padding: 0 2px 0 8px; flex-shrink: 0;
+    height: 44px; min-height: 44px; margin: 0; padding: 0 2px 0 8px; flex-shrink: 0;
     color: #e4b4ff; background: transparent; border: 0;
     font: inherit; font-weight: 650; cursor: pointer;
   }
   .detailsToggle:focus-visible { outline: 2px solid #efb5ff; outline-offset: 2px; border-radius: 5px; }
   .panel .desktopCopy { display: none; }
-  .panel .mobileSummary { display: block; margin-bottom: 8px; }
+  .panel .mobileSummary { display: block; margin: 0 0 6px; }
   .mobileDetails:not([hidden]) {
     display: block; margin: 0 0 8px; padding: 8px 0 0; border-top: 1px solid #77518d;
   }
   .mobileDetails p { margin: 0; }
-  .panel .links { margin-top: 7px; justify-content: center; }
-  .actions button { font-size: 12px; padding: 6px; }
+  .panel .links { margin: 6px 0 0; justify-content: center; }
+  .panel .links a { font-size: 12px; line-height: 1.35; }
+  .actions button { font-size: 12px; padding: 6px; margin: 0; min-height: 44px; line-height: 1.25; }
 }
 @media (prefers-reduced-motion: reduce) {
   .actions button, .close, .settings { transition: none; }
