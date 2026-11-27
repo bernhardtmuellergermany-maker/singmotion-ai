@@ -418,7 +418,7 @@ test("muted song uses one native clip clock without duplicate visible audio",asy
 test("desktop mouse starts editing immediately; touch retains long-press scrolling",()=>{
  const editor=read("components/music-video-editor.tsx");
  const gesture=editor.slice(editor.indexOf("function beginMediaGesture("),editor.indexOf("function dragSong(e:"));
- assert.ok(gesture.includes('if(e.pointerType==="mouse"){setArmedMedia(media);onHold();return;}'));
+ assert.ok(gesture.includes('if(e.pointerType==="mouse"&&allowHold){setArmedMedia(media);onHold();return;}'));
  assert.ok(gesture.indexOf('if(e.pointerType==="mouse")')<gesture.indexOf("setTimeout("));
  assert.ok(gesture.includes("mediaPanAxis(dx,dy)"));
  assert.ok(gesture.includes("},MEDIA_HOLD_MS)"));
@@ -881,4 +881,25 @@ test("frame engine warms upcoming clips and paints during continuous drag indepe
  assert.ok(engine.includes("if(!latest.clip||ready?.has(latest.frame))"));
  assert.ok(engine.includes("this.warmScrub()"));
  assert.ok(engine.includes("frameTarget(this.timeline!,this.position)?.frame===target.frame"));
+});
+
+
+test("adaptive timeline graduations have readable major marks and bounded visible minor marks",async()=>{
+ const {timelineGraduations,clampTimelineZoom,anchoredScroll,swipeVelocity,inertiaStep}=await import("../lib/music-video/timeline-gestures.ts");
+ for(const [zoom,step] of [[20,5000],[44,2000],[100,1000],[200,500],[880,100]]){
+  const scale=timelineGraduations(7200000,zoom,0,390);assert.equal(scale.step,step);
+  assert.ok(scale.ticks.length<50);assert.ok(scale.ticks.some(t=>!t.major));
+  assert.ok(scale.ticks.filter(t=>t.major).every(t=>t.ms%step===0));
+ }
+ const scrolled=timelineGraduations(7200000,880,100000,390);assert.ok(scrolled.ticks.length<50&&scrolled.ticks[0].ms>0);
+ assert.equal(clampTimelineZoom(1),20);assert.equal(clampTimelineZoom(9999),880);
+ assert.equal(anchoredScroll(4000,100,150),250);
+ assert.equal(anchoredScroll(0,100,150),0);
+ const speed=swipeVelocity(0,100,50),step=inertiaStep(speed,16);
+ assert.ok(step.delta>0&&step.velocity<speed);assert.ok(inertiaStep(-speed,16).delta<0);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes("timelineGraduations(timelineLimit,zoom,rulerViewport.scrollLeft,rulerViewport.width)"));
+ assert.ok(editor.includes("pinch.zoom*g.distance/pinch.distance"));
+ assert.ok(editor.includes('new PointerEvent("pointercancel"'));
+ assert.ok(editor.includes("glide(scroller,velocity)"));
 });
