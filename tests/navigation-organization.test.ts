@@ -963,10 +963,22 @@ test("clip padlock reflects Sync Lock and explicit unlock releases movement prot
  assert.ok(editor.includes("positionLocked:!locked,syncLocked:locked?false:c.syncLocked"));
 });
 
-test("Lip Sync placement is based on source time, not song identity, with alternate track on collision",()=>{
+test("Lip Sync insertion trims overlap without changing the original source mapping",async()=>{
+ const {fitSourceTimeClip,rollVideoBoundary}=await import("../lib/music-video/song-range.ts");
+ const first={id:"first",track:1,timelineStartMs:1000,sourceInMs:0,sourceOutMs:4000,syncLocked:true};
+ const second={id:"second",track:1,timelineStartMs:3500,sourceInMs:0,sourceOutMs:4000,syncLocked:true};
+ const fitted=fitSourceTimeClip([first],second,9000)!;
+ assert.deepEqual(fitted,{...second,timelineStartMs:5000,sourceInMs:1500});
+ assert.equal(fitted.timelineStartMs-fitted.sourceInMs,second.timelineStartMs-second.sourceInMs);
+ assert.equal(fitSourceTimeClip([first],{...second,sourceOutMs:1000},9000),null);
+ assert.deepEqual(fitSourceTimeClip([],second,6000),{...second,sourceOutMs:2500});
+ assert.deepEqual(fitSourceTimeClip([],{...second,timelineStartMs:-500},9000),{...second,timelineStartMs:0,sourceInMs:500});
+ const left={...first,sourceOutMs:4000},right=fitted;
+ const rolled=rollVideoBoundary([left,right],right,"start",-1000,()=>5000)!;
+ assert.deepEqual(rolled,[{...left,sourceOutMs:3000},{...right,timelineStartMs:4000,sourceInMs:500}]);
+ assert.deepEqual(rollVideoBoundary(rolled,rolled[0],"end",1000,()=>5000),[left,right]);
+ assert.equal(rollVideoBoundary([{...left,positionLocked:true},right],right,"start",-1000,()=>5000),null);
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current)"));
- assert.ok(editor.includes("const alternate:MusicClip={...candidate,track:track===1?2:1}"));
- assert.ok(editor.includes("!overlaps(latest.current,alternate).length"));
- assert.ok(editor.includes("No song name or audio match is required."));
+ assert.ok(editor.includes("fitSourceTimeClip(latest.current,candidate,timelineLimit)"));
 });

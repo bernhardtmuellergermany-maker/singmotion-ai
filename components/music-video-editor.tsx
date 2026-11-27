@@ -12,7 +12,7 @@ import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,waveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,fitSourceTimeClip,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -684,22 +684,15 @@ export function MusicVideoEditor({id}:{id:string}){
     const candidate:MusicClip={id:uuid(),assetId:asset.id,track,
       timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current):Math.max(0,Math.round(atMs/100)*100),
       sourceInMs:0,sourceOutMs:length,syncLocked:locked};
-    if(candidate.timelineStartMs<0){setError("This Lip Sync clip starts before the timeline. Move the song right first.");return;}
-    if(clipEnd(candidate)>timelineLimit){
-      if(locked){setError("Lip-sync source cut extends beyond the song.");return;}
-      candidate.sourceOutMs=Math.max(0,timelineLimit-candidate.timelineStartMs);
+    if(locked){
+      const fitted=fitSourceTimeClip(latest.current,candidate,timelineLimit);
+      if(!fitted){setError("No free section at this video's original source time on this track. Shorten a neighboring clip or use the other track.");return;}
+      setError("");apply([...latest.current,fitted]);setSelected(fitted.id);return;
     }
+    if(candidate.timelineStartMs<0){setError("The video starts before the timeline.");return;}
+    if(clipEnd(candidate)>timelineLimit)candidate.sourceOutMs=Math.max(0,timelineLimit-candidate.timelineStartMs);
     if(candidate.sourceOutMs<=candidate.sourceInMs){setError("No space before the song ends.");return;}
     let conflicts=overlaps(latest.current,candidate);
-    if(locked&&conflicts.length){
-      const alternate:MusicClip={...candidate,track:track===1?2:1};
-      if(!overlaps(latest.current,alternate).length){
-        if(window.confirm("A video already occupies this source time. Add this Lip Sync at the exact same time on the other video track?")){
-          apply([...latest.current,alternate]);setSelected(alternate.id);
-        }
-        return;
-      }
-    }
     if(conflicts.length){
       const action=window.prompt("Track occupied. Type 'free' to find another space, 'fit' to trim into the available gap, 'replace' to remove conflicting clips, or Cancel.","free");
       if(action===null)return;
@@ -709,7 +702,6 @@ export function MusicVideoEditor({id}:{id:string}){
         apply([...latest.current.filter(c=>!conflicts.some(o=>o.id===c.id)),candidate]);
         setSelected(candidate.id);return;
       }
-      if(locked){setError("Both video tracks overlap this source time. Make room at "+time(candidate.timelineStartMs,true)+" to keep the original timing. No song name or audio match is required.");return;}
       if(action!=="free"&&action!=="fit")return;
       if(action==="free"){
         const sorted=latest.current.filter(c=>c.track===track).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
@@ -771,14 +763,14 @@ export function MusicVideoEditor({id}:{id:string}){
     const startX=e.clientX,startY=e.clientY,pointer=e.pointerId,startScroll=scroll.current?.scrollLeft??0;
     const startClips=latest.current;
     let dragged=false;
-    let next=initial,valid=true;
+    let next=initial,valid=true,rolled:MusicClip[]|null=null;
     const calculate=(event:PointerEvent)=>{
       const dx=event.clientX-startX+(scroll.current?.scrollLeft??0)-startScroll;
       const dy=event.clientY-startY;
       if(Math.abs(dx)>2||Math.abs(dy)>2)dragged=true;
       if(!dragged)return;
       const delta=Math.round(dx/zoom*1000);
-      valid=true;
+      valid=true;rolled=null;
       if(edge==="move"){
         const track=([1,2] as const).find(t=>{const rect=videoLanes.current[t]?.getBoundingClientRect();return !!rect&&event.clientY>=rect.top&&event.clientY<rect.bottom;});
         if(track===undefined){valid=false;setDragTrack(null);setDragBlocked(false);setClips(startClips);return;}
@@ -789,9 +781,10 @@ export function MusicVideoEditor({id}:{id:string}){
         valid=result.status==="ok"&&clipEnd(result.clip)<=timelineLimit;setDragTrack(track);setDragBlocked(!valid);
         next=valid&&result.status==="ok"?result.clip:initial;
       }else{
-        next=trimVideoClip(startClips,initial,edge,delta,sourceLimit(initial,asset),timelineLimit);
+        rolled=rollVideoBoundary(startClips,initial,edge,delta,c=>{const a=byId.get(c.assetId);return a?sourceLimit(c,a):c.sourceOutMs;});
+        next=rolled?.find(c=>c.id===initial.id)??trimVideoClip(startClips,initial,edge,delta,sourceLimit(initial,asset),timelineLimit);
       }
-      setClips(startClips.map(c=>c.id===next.id?next:c));
+      setClips(rolled??startClips.map(c=>c.id===next.id?next:c));
     };
     const update=(event:PointerEvent)=>{if(event.pointerId===pointer)calculate(event);};
     const cleanup=()=>{
@@ -802,7 +795,8 @@ export function MusicVideoEditor({id}:{id:string}){
       if(event.pointerId!==pointer)return;
       calculate(event);cleanup();
       if(!valid){setClips(startClips);setError("Drop onto a free position on Video 1 or Video 2. The video was not moved.");return;}
-      commitVideoEdit(initial,next);
+      if(rolled){if(JSON.stringify(rolled)!==JSON.stringify(startClips))apply(rolled);else setClips(latest.current);setSelected(initial.id);stopPlayback();setAt(Math.min(playheadRef.current,timelineLimit));}
+      else commitVideoEdit(initial,next);
     };
     const cancel=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;cleanup();setClips(startClips);};
     document.addEventListener("pointermove",update);document.addEventListener("pointerup",finish);document.addEventListener("pointercancel",cancel);

@@ -294,3 +294,36 @@ export function previewRunningGate(expected:number,media:{currentTime:number;rea
  if(gate==="align"&&media&&!media.ended&&elapsedSinceStart<180&&Math.abs(expected-media.currentTime)<=0.18)return "ready";
  return gate;
 }
+
+/** Place the first free source-aligned section on the chosen track. Never
+ * move the original media clock, overwrite neighbors or modify the asset. */
+export function fitSourceTimeClip<T extends PositionedClip>(clips:readonly T[],clip:T,timelineLimit:number):T|null{
+ const originalStart=clip.timelineStartMs,end=Math.min(timelineLimit,originalStart+clip.sourceOutMs-clip.sourceInMs);
+ let start=Math.max(0,originalStart);
+ const occupied=clips.filter(c=>c.track===clip.track&&c.id!==clip.id).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+ const fit=(from:number,to:number)=>({...clip,timelineStartMs:from,sourceInMs:clip.sourceInMs+from-originalStart,sourceOutMs:clip.sourceInMs+to-originalStart});
+ for(const old of occupied){
+  const oldEnd=old.timelineStartMs+old.sourceOutMs-old.sourceInMs;
+  if(oldEnd<=start)continue;
+  if(old.timelineStartMs>=end)break;
+  const freeEnd=Math.min(end,old.timelineStartMs);
+  if(freeEnd-start>=100)return fit(start,freeEnd);
+  start=Math.max(start,oldEnd);
+  if(start>=end)return null;
+ }
+ return end-start>=100?fit(start,end):null;
+}
+/** A rolling cut changes both adjoining source-aligned clips atomically.
+ * Position locks protect the boundary. Source limits prevent invented frames. */
+export function rollVideoBoundary<T extends PositionedClip>(clips:readonly T[],clip:T,edge:"start"|"end",deltaMs:number,sourceDuration:(c:T)=>number):T[]|null{
+ if(!clip.syncLocked||clip.positionLocked)return null;
+ const end=(c:T)=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
+ const neighbor=clips.find(c=>c.id!==clip.id&&c.track===clip.track&&c.syncLocked&&!c.positionLocked&&(edge==="start"?end(c)===clip.timelineStartMs:c.timelineStartMs===end(clip)));
+ if(!neighbor)return null;
+ const left=edge==="start"?neighbor:clip,right=edge==="start"?clip:neighbor;
+ const lower=Math.max(left.sourceInMs+Math.min(100,left.sourceOutMs-left.sourceInMs)-left.sourceOutMs,-right.sourceInMs);
+ const upper=Math.min(sourceDuration(left)-left.sourceOutMs,right.sourceOutMs-right.sourceInMs-Math.min(100,right.sourceOutMs-right.sourceInMs));
+ if(lower>upper)return null;
+ const delta=Math.max(lower,Math.min(upper,Math.round(deltaMs)));
+ return clips.map(c=>c.id===left.id?{...c,sourceOutMs:c.sourceOutMs+delta}:c.id===right.id?{...c,timelineStartMs:c.timelineStartMs+delta,sourceInMs:c.sourceInMs+delta}:c);
+}
