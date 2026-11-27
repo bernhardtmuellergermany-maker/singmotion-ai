@@ -892,3 +892,16 @@
 
 .mv-root.mv-editor .mv-library-icon-select[data-active=true]{background:#352147;color:#e4b5ff}
 .mv-root.mv-editor .mv-library-icon-select[data-active=true]::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:#d8a2f6;pointer-events:none}
+
+/* Keep compact library sizing bounded on narrow viewports, including after rotation. */
+.mv-root.mv-editor .mv-library,.mv-root.mv-editor .mv-library-content,.mv-root.mv-editor .mv-library-tools,.mv-root.mv-editor .mv-library-header{min-width:0;max-width:100%}
+.mv-root.mv-editor .mv-media-info{grid-template-columns:minmax(0,1fr);min-width:0}
+.mv-root.mv-editor .mv-media-actions,.mv-root.mv-editor .mv-media-role,.mv-root.mv-editor .mv-library-imports{min-width:0;max-width:100%}
+.mv-root.mv-editor .mv-library-icon-select{position:relative;overflow:hidden}
+.mv-root.mv-editor .mv-library-imports button{white-space:nowrap}
+@media(max-width:360px){
+ .mv-root.mv-editor .mv-media-grid{grid-template-columns:minmax(0,1fr)}
+ .mv-root.mv-editor .mv-library-tools .mv-browse-toolbar{grid-template-columns:minmax(0,1fr) repeat(3,32px)}
+ .mv-root.mv-editor .mv-library-tools .mv-browse-control,.mv-root.mv-editor .mv-library-icon-select{width:32px;min-width:32px}
+ .mv-root.mv-editor .mv-library-imports button{padding-inline:7px}
+}

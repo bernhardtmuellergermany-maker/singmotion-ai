@@ -254,7 +254,14 @@ try{
   for(const width of mobile?[390,320]:[1280]){
    if(mobile)await page.setViewportSize({width,height:600});
    await page.evaluate(()=>{document.getElementById("root")!.style.transform="translateZ(0)";});
-   await page.getByRole("button",{name:"Insert Lip Sync",exact:true}).click();
+   const insert=page.getByRole("button",{name:"Insert Lip Sync",exact:true});
+   // A viewport resize while the page is scrolled can change the mobile visual
+   // viewport and scroll anchor. Center the real control after reflow, then
+   // verify that the normal pointer hit target is the button (never force it).
+   await page.waitForFunction(w=>Math.abs(window.innerWidth-w)<2,width);
+   await insert.evaluate(el=>el.scrollIntoView({block:"center",inline:"nearest",behavior:"instant"}));
+   await page.waitForFunction(()=>{const el=Array.from(document.querySelectorAll("button")).find(b=>b.textContent?.trim()==="Insert Lip Sync");if(!el)return false;const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);return !!hit&&el.contains(hit);},{},{timeout:5000}).catch(async e=>{console.log("Library hit test",await insert.evaluate(el=>{const r=el.getBoundingClientRect(),v=visualViewport;return {rect:r.toJSON(),hit:document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)?.outerHTML.slice(0,250),innerWidth,innerHeight,scrollY,scrollWidth:document.documentElement.scrollWidth,viewport:v?{width:v.width,height:v.height,scale:v.scale,top:v.offsetTop,left:v.offsetLeft}:null};}));throw e;});
+   await insert.click();
    const dialog=page.getByRole("dialog",{name:"Insert Lip Sync"});
    await dialog.getByRole("button",{name:/Long video/}).waitFor();
    await dialog.locator(".mv-lip-thumbnail img").first().evaluate(el=>{(el as HTMLImageElement).loading="eager";});
