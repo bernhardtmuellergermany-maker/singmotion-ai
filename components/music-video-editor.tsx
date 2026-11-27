@@ -12,7 +12,7 @@ import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,timelineFitZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,timelineWaveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,restoreClipPlacements,trimVideoClip,planSourceTimeInsertion,planFreeVideoInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,resetClipToSourceStart,trimVideoClip,planSourceTimeInsertion,planFreeVideoInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -634,18 +634,18 @@ export function MusicVideoEditor({id}:{id:string}){
       if(ms!==null)setClipSongText(signedTime(timelineToSongTime(ms,rangeRef.current)));
     }
   }
-  function moveSelectedClip(position:number,restore=false){
+  function moveSelectedClip(position:number){
     if(importBusy.current||!selectedClip||!selectedAsset)return;
     const current=latest.current.find(c=>c.id===selectedClip.id);
     if(!current)return;
     if(current.positionLocked){setError("Unlock the clip position before moving it.");return;}
-    if(!restore&&position+current.sourceOutMs-current.sourceInMs>timelineLimit){setError("The video must fit within the song.");return;}
-    const result=restore?positionVideoClip(latest.current,{...current,syncLocked:false},position):positionVideoClip(latest.current,current,position);
+    if(position+current.sourceOutMs-current.sourceInMs>timelineLimit){setError("The video must fit within the song.");return;}
+    const result=positionVideoClip(latest.current,current,position);
     if(result.status!=="ok"){
       setError(result.status==="collision"?"That position is occupied on Video "+current.track+". The clip was not moved.":result.status==="locked"?"Sync Lock is enabled. Unlock this clip before moving it away from its original song position.":"The complete clip must fit within the timeline.");
       return;
     }
-    const candidate={...result.clip,syncLocked:restore||current.syncLocked};
+    const candidate=result.clip;
     if(candidate.timelineStartMs!==current.timelineStartMs||candidate.syncLocked!==current.syncLocked)
       apply(latest.current.map(c=>c.id===current.id?candidate:c));
     setClipSongText(signedTime(timelineToSongTime(position,rangeRef.current)));setClipTimelineText(time(position,true));
@@ -661,29 +661,23 @@ export function MusicVideoEditor({id}:{id:string}){
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
     moveSelectedClip(mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms);
   }
-  const originalClipSongTime=!project?.songRemoved&&selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
-    ?selectedAsset.sourceStartMs+selectedClip.sourceInMs:null;
-
-  const canRestoreLipSync=!!(project?.songRestore||project?.songVersion)&&!project?.songRemoved&&clips.some(c=>byId.get(c.assetId)?.role==="lip-sync");
-  function restoreAllLipSync(){
-    if(importBusy.current||project?.songRemoved)return;
-    const saved=new Map(project?.songRestore?.clips.map(c=>[c.id,c])??[]);
-    const targets:MusicClip[]=[];
-    for(const current of latest.current){
-      const a=byId.get(current.assetId);if(a?.role!=="lip-sync")continue;
-      const old=saved.get(current.id);
-      if(old&&old.assetId===current.assetId&&old.sourceInMs>=0&&old.sourceOutMs<=a.durationMs){
-        const aligned=a.sourceStartMs!==null&&a.sourceEndMs!==null&&a.sourceStartMs+old.sourceOutMs<=a.sourceEndMs&&old.timelineStartMs===songTimeToTimeline(a.sourceStartMs+old.sourceInMs,rangeRef.current);
-        targets.push({...current,track:old.track,timelineStartMs:old.timelineStartMs,sourceInMs:old.sourceInMs,sourceOutMs:old.sourceOutMs,syncLocked:old.syncLocked&&aligned});
-      }else if(a.sourceStartMs!==null&&a.sourceEndMs!==null&&a.sourceStartMs+current.sourceOutMs<=a.sourceEndMs){
-        targets.push({...current,timelineStartMs:songTimeToTimeline(a.sourceStartMs+current.sourceInMs,rangeRef.current),syncLocked:true});
-      }
+  const originalClipSongTime=!project?.songRemoved&&selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null
+    ?selectedAsset.sourceStartMs:null;
+  function resyncSelectedClip(){
+    if(importBusy.current||roleBusy.current||project?.songRemoved||!selectedClip||selectedAsset?.role!=="lip-sync"||selectedAsset.sourceStartMs===null||selectedAsset.sourceEndMs===null)return;
+    const current=latest.current.find(c=>c.id===selectedClip.id);if(!current)return;
+    const result=resetClipToSourceStart(latest.current,current,{sourceStartMs:selectedAsset.sourceStartMs,sourceEndMs:selectedAsset.sourceEndMs,durationMs:selectedAsset.durationMs},rangeRef.current,timelineLimit);
+    if(result.status!=="ok"){
+      setError(result.status==="collision"?"Original source start is occupied on this track. Move the blocking clip first.":result.status==="locked"?"Unlock the clip position before Re-Sync.":"Original source start is outside the current song range. Extend or reposition the song first.");return;
     }
-    if(!targets.length){setError("No saved Lip Sync source times are available.");return;}
-    if(!window.confirm("Restore all Lip Sync clips to their saved positions and source trims? Existing B-Roll clips will not be changed."))return;
-    const result=restoreClipPlacements(latest.current,targets);
-    if(result.status!=="ok"){setError(result.status==="locked"?"Unlock the affected clip positions before restoring. No clips were changed.":result.status==="collision"?"Saved positions overlap another clip on the same track. Move the blocking clip first. No clips were changed.":"A saved position is outside the timeline. No clips were changed.");return;}
-    stopPlayback();apply(result.clips);setError("");setPlacementNotice("Lip Sync positions restored. Check synchronization if you chose a different song. Clips beyond the song end remain saved.");
+    const candidate=result.clip,position=candidate.timelineStartMs;
+    stopPlayback();
+    if(JSON.stringify(candidate)!==JSON.stringify(current))apply(latest.current.map(c=>c.id===current.id?candidate:c));
+    setError("");setClipSongText(signedTime(selectedAsset.sourceStartMs));setClipTimelineText(time(position,true));setAt(position);
+    if(candidate.sourceOutMs-candidate.sourceInMs<current.sourceOutMs-current.sourceInMs)setPlacementNotice("Re-Sync restored the original start; the clip was shortened to the available recorded source.");
+    else if(candidate.sourceInMs!==current.sourceInMs)setPlacementNotice("Re-Sync restored the original video start and kept the clip duration.");
+    else setPlacementNotice("");
+    requestAnimationFrame(()=>{const el=scroll.current;if(el){const x=position/1000*zoom;if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);}});
   }
   const firstAssetId=useMemo(()=>firstVisibleVideo(clips.filter(c=>c.timelineStartMs<timelineEnd))?.assetId,[clips,timelineEnd]);
   useEffect(()=>{
@@ -1259,7 +1253,7 @@ export function MusicVideoEditor({id}:{id:string}){
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
           <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={17}/></button>
           <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(!songSelected&&(!selectedClip||selectedClip.positionLocked))}><Trash2 size={17}/></button>
-          <button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||songSelected||originalClipSongTime===null||!selectedClip||!!selectedClip.positionLocked} onClick={()=>{if(!songSelected&&originalClipSongTime!==null&&selectedClip&&!selectedClip.positionLocked)moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true);}} title={originalClipSongTime!==null?"Restore Lip Sync · "+time(originalClipSongTime,true):"Select a Lip Sync clip with original song time"} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span></button>{canRestoreLipSync&&<button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing} onClick={restoreAllLipSync} title="Restore all Lip Sync positions and source trims" aria-label="Restore all Lip Sync positions"><RefreshCw size={15}/><span>Restore all</span></button>}</div>
+          <button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||songSelected||originalClipSongTime===null||!selectedClip||!!selectedClip.positionLocked} onClick={resyncSelectedClip} title={originalClipSongTime!==null?"Restore Lip Sync to original source start · "+time(originalClipSongTime,true):"Select a Lip Sync clip with original song time"} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span></button></div>
         <div className="mv-timeline-zoom">
           <button type="button" className="mv-snap-toggle" aria-label="Snap to edges" aria-pressed={snap} title={snap?"Snap to edges: on":"Snap to edges: off"} onClick={()=>setSnap(v=>!v)}><Magnet size={18}/></button>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
