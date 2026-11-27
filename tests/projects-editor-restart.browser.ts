@@ -323,6 +323,19 @@ try{
   });
   assert.deepEqual(controls,{centered:true,white:true,hidden:true,separate:true,cursor:"ew-resize"});
 
+  // The actual hit surface must advertise selection, without stealing trim cursor.
+  assert.equal(await second.locator(".mv-clip-drag-surface").evaluate(el=>getComputedStyle(el).cursor),"pointer");
+  const songBody=page.getByRole("button",{name:"Select song",exact:true});
+  assert.equal(await songBody.evaluate(el=>getComputedStyle(el).cursor),"pointer");
+  if(width>=500){
+   await page.mouse.move(0,0);
+   const base=await second.evaluate(el=>getComputedStyle(el).backgroundImage);
+   await second.locator(".mv-clip-drag-surface").hover({position:{x:Math.floor((await second.boundingBox())!.width/2),y:5}});
+   const over=await second.evaluate(el=>getComputedStyle(el).backgroundImage);
+   assert.notEqual(over,base,"clip hover subtly overlays the existing color");
+   await page.mouse.move(0,0);
+   assert.equal(await second.evaluate(el=>getComputedStyle(el).backgroundImage),base,"hover clears on leave");
+  }
   const selectedStyle=await second.evaluate(el=>{const s=getComputedStyle(el);return {outline:s.outlineStyle,border:s.borderTopWidth,shadow:s.boxShadow};});
   assert.deepEqual(selectedStyle,{outline:"none",border:"1px",shadow:"none"});
   // Real mouse/touch trim: the selected source frame must change before release.
@@ -351,6 +364,7 @@ try{
   await select(second);
   const locked=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await locked;
   assert.equal(lockClips[1].positionLocked,true);
+  assert.equal(await second.locator(".mv-clip-drag-surface").evaluate(el=>getComputedStyle(el).cursor),"pointer","locked clip remains selectable");
   assert.equal(await second.getByRole("button",{name:"Unlock clip position: second"}).evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).count(),0);assert.equal(await page.getByRole("button",{name:"Delete selection",exact:true}).isDisabled(),true);
   const named=save();await second.getByRole("button",{name:"Show video name: second"}).click();await named;
   assert.equal(lockClips[1].showVideoName,true);assert.equal(await second.locator(".mv-clip-title").textContent(),"second");
