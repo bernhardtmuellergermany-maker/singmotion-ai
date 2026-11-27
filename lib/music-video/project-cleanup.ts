@@ -19,7 +19,10 @@ export async function retryProjectDeletes(root:string,options:{remove?:typeof de
   const has=(name:string)=>!!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(name);
   if(!has("music_asset_cloud")||!has("music_projects")||!has("music_assets")||!has("music_clips"))return summary;
   const leases=has("music_operation_leases")?" AND NOT EXISTS(SELECT 1 FROM music_operation_leases l WHERE l.owner_id=c.owner_id AND l.expires_at>?)":"";
-  const sql="SELECT c.* FROM music_asset_cloud c WHERE c.pending_delete=1 AND NOT EXISTS(SELECT 1 FROM music_asset_cloud live WHERE live.object_key=c.object_key AND live.pending_delete=0) AND NOT EXISTS(SELECT 1 FROM music_assets a WHERE a.id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_clips t WHERE t.asset_id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_projects p WHERE p.id=c.project_id AND (p.owner_id!=c.owner_id OR c.asset_id LIKE '%:song%'))"+(options.owner===undefined?"":" AND c.owner_id=?")+leases+" ORDER BY c.asset_id LIMIT 2";
+  const columns=db.prepare("PRAGMA table_info(music_projects)").all() as {name:string}[];
+  const versioned=columns.some(c=>c.name==="song_removed")&&columns.some(c=>c.name==="song_version");
+  const songGuard=versioned?"c.asset_id LIKE '%:song%' AND p.song_removed=0 AND (p.song_version IS NULL OR c.asset_id LIKE '%:'||p.song_version)":"c.asset_id LIKE '%:song%'";
+  const sql="SELECT c.* FROM music_asset_cloud c WHERE c.pending_delete=1 AND NOT EXISTS(SELECT 1 FROM music_asset_cloud live WHERE live.object_key=c.object_key AND live.pending_delete=0) AND NOT EXISTS(SELECT 1 FROM music_assets a WHERE a.id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_clips t WHERE t.asset_id=c.asset_id) AND NOT EXISTS(SELECT 1 FROM music_projects p WHERE p.id=c.project_id AND (p.owner_id!=c.owner_id OR ("+songGuard+")))"+(options.owner===undefined?"":" AND c.owner_id=?")+leases+" ORDER BY c.asset_id LIMIT 2";
   const statement=db.prepare(sql);
   const params:(string|number)[]=[];if(options.owner!==undefined)params.push(options.owner);if(leases)params.push(options.now??Date.now());
   const rows=statement.all(...params) as Row[];
