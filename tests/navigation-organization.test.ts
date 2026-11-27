@@ -454,7 +454,13 @@ test("preview and render share exact source time and correct drift without seek 
  assert.ok(!editor.includes("playing?0.24:0.001"));
  assert.ok(timeline.includes("clipSourceTimeMs(span.clip,timelineMs)"));
  assert.ok(engine.includes("frameTarget(timeline,this.position)"));
- assert.ok(!editor.includes("<video"));
+ const libraryPreviewStart=editor.indexOf('{libraryPreview&&<dialog');
+ assert.ok(libraryPreviewStart>=0);
+ const libraryPreviewEnd=editor.indexOf('</dialog>}',libraryPreviewStart);
+ assert.ok(libraryPreviewEnd>libraryPreviewStart);
+ const libraryPreview=editor.slice(libraryPreviewStart,libraryPreviewEnd);
+ assert.ok(libraryPreview.includes('<video controls autoPlay playsInline preload="metadata"'));
+ assert.ok(![editor.slice(0,libraryPreviewStart),editor.slice(libraryPreviewEnd)].some(part=>part.includes("<video")));
 });
 
 test("auto export follows first visible video orientation; explicit format overrides it",async()=>{
@@ -672,7 +678,13 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(engine.includes("maxCacheSize:8*1024*1024"));
  assert.ok(engine.includes("FRAME_CACHE_LIMIT=6"));
  assert.ok(!editor.includes("<audio"));
- assert.ok(!editor.includes("<video"));
+ const libraryPreviewStart=editor.indexOf('{libraryPreview&&<dialog');
+ assert.ok(libraryPreviewStart>=0);
+ const libraryPreviewEnd=editor.indexOf('</dialog>}',libraryPreviewStart);
+ assert.ok(libraryPreviewEnd>libraryPreviewStart);
+ const libraryPreview=editor.slice(libraryPreviewStart,libraryPreviewEnd);
+ assert.ok(libraryPreview.includes('<video controls autoPlay playsInline preload="metadata"'));
+ assert.ok(![editor.slice(0,libraryPreviewStart),editor.slice(libraryPreviewEnd)].some(part=>part.includes("<video")));
 });
 
 test("fractional native playback never publishes the next track before the clock reaches its boundary",async()=>{
@@ -863,7 +875,13 @@ test("Projects has one frame-driven preview, not two modes or a server render du
  assert.ok(!editor.includes("Synced review"));
  assert.ok(!editor.includes("/timeline-preview"));
  assert.ok(!editor.includes("<audio"));
- assert.ok(!editor.includes("<video"));
+ const libraryPreviewStart=editor.indexOf('{libraryPreview&&<dialog');
+ assert.ok(libraryPreviewStart>=0);
+ const libraryPreviewEnd=editor.indexOf('</dialog>}',libraryPreviewStart);
+ assert.ok(libraryPreviewEnd>libraryPreviewStart);
+ const libraryPreview=editor.slice(libraryPreviewStart,libraryPreviewEnd);
+ assert.ok(libraryPreview.includes('<video controls autoPlay playsInline preload="metadata"'));
+ assert.ok(![editor.slice(0,libraryPreviewStart),editor.slice(libraryPreviewEnd)].some(part=>part.includes("<video")));
  assert.ok(engine.includes("new AudioContext"));
  assert.ok(engine.includes("sink.canvasesAtTimestamps"));
  assert.ok(engine.includes("node.start("));
@@ -1086,4 +1104,12 @@ test("Re-Sync stays in the timeline toolbar and is disabled for noneligible sele
  assert.ok(toolbar.includes('aria-label="Re-Sync"'));
  assert.ok(toolbar.includes('disabled={importing||songSelected||originalClipSongTime===null||!selectedClip||!!selectedClip.positionLocked}'));
  assert.equal(editor.match(/aria-label="Re-Sync"/g)?.length,1);
+});
+
+test("library original preview is explicitly opened, pauses timeline playback and unmounts on close",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('useState<MusicAsset|null>(null)'));
+ assert.ok(editor.includes('onClick={()=>{stopPlayback();setLibraryPreviewError(false);setLibraryPreview(a);}}'));
+ assert.ok(editor.includes('src={endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id)}'));
+ assert.ok(editor.includes('aria-label="Close video preview" onClick={()=>setLibraryPreview(null)}'));
 });
