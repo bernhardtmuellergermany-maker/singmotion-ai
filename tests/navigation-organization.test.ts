@@ -164,7 +164,7 @@ test("video start time supports exact song-relative placement and collision prot
  assert.ok(editor.includes("positionVideoClip(latest.current,current,position)"));
  assert.ok(editor.includes("songTimeToTimeline(ms,rangeRef.current)"));
  assert.ok(editor.includes("Restore Lip Sync"));
- assert.ok(editor.includes("syncLocked:restore||current.syncLocked"));
+ assert.ok(editor.includes("resetClipToSourceStart(latest.current,current"));
  assert.ok(editor.includes("apply(latest.current.map(c=>c.id===current.id?candidate:c))"));
 });
 
@@ -958,7 +958,7 @@ test("position lock protects ordinary and lip sync clips independently of Sync L
  assert.ok(editor.includes('aria-label="Re-Sync"'));
  assert.ok(editor.includes('selectedAsset?.role==="lip-sync"'));
  assert.ok(editor.includes('<AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span>'));
- assert.ok(editor.includes("restore?positionVideoClip(latest.current,{...current,syncLocked:false},position)"));
+ assert.ok(editor.includes("resetClipToSourceStart(latest.current,current"));
  assert.ok(core.includes("position_locked INTEGER NOT NULL DEFAULT 0"));
  assert.ok(core.includes("positionLocked:!!r.position_locked"));
 });
@@ -1173,19 +1173,18 @@ test("a removed song leaves a persistent editable project and a replace action",
 });
 
 
-test("saved Lip Sync placements restore atomically without overwriting unrelated clips",async()=>{
- const {restoreClipPlacements}=await import("../lib/music-video/song-range.ts");
- const a={id:"a",track:1,timelineStartMs:0,sourceInMs:200,sourceOutMs:1200,syncLocked:false,positionLocked:false};
- const b={...a,id:"b",timelineStartMs:1000};
- const other={...a,id:"other",track:2};
- const first={...a,timelineStartMs:1000,syncLocked:true},second={...b,timelineStartMs:0,sourceInMs:300,sourceOutMs:1300};
- const restored=restoreClipPlacements([a,b,other],[first,second]);
- assert.equal(restored.status,"ok");
- if(restored.status==="ok"){assert.deepEqual(restored.clips,[first,second,other]);}
- assert.equal(restoreClipPlacements([a,b],[first]).status,"collision");
- assert.equal(restoreClipPlacements([{...a,positionLocked:true},b],[first,second]).status,"locked");
+test("Re-Sync resets only the selected clip to its exact original source start",async()=>{
+ const {resetClipToSourceStart}=await import("../lib/music-video/song-range.ts");
+ const clip={id:"a",track:1,timelineStartMs:6000,sourceInMs:250,sourceOutMs:1750,syncLocked:false,positionLocked:false};
+ const asset={sourceStartMs:5000,sourceEndMs:9000,durationMs:4000},range={startMs:0,endMs:10000,positionMs:0};
+ const other={...clip,id:"b",track:2,timelineStartMs:5000};
+ assert.deepEqual(resetClipToSourceStart([clip,other],clip,asset,range,10000),{status:"ok",clip:{...clip,timelineStartMs:5000,sourceInMs:0,sourceOutMs:1500,syncLocked:true}});
+ assert.equal(resetClipToSourceStart([clip,{...other,track:1}],clip,asset,range,10000).status,"collision");
+ assert.equal(resetClipToSourceStart([clip],{...clip,positionLocked:true},asset,range,10000).status,"locked");
+ assert.equal(resetClipToSourceStart([clip],clip,asset,range,4000).status,"bounds");
+ const offset=resetClipToSourceStart([clip],clip,asset,{startMs:1000,endMs:10000,positionMs:0},9000);
+ assert.equal(offset.status,"ok");if(offset.status==="ok")assert.equal(offset.clip.timelineStartMs,4000);
  const core=read("lib/music-video/core.ts"),editor=read("components/music-video-editor.tsx");
- assert.ok(core.includes("song_restore_json"));
- assert.ok(core.includes("JSON.stringify(snapshot)"));
- assert.ok(editor.includes('aria-label="Restore all Lip Sync positions"'));
+ assert.ok(core.includes("song_restore_json"));assert.ok(core.includes("JSON.stringify(snapshot)"));
+ assert.ok(!editor.includes("Restore all"));assert.ok(editor.includes("?selectedAsset.sourceStartMs:null"));
 });
