@@ -631,3 +631,5 @@
 .mv-editor .mv-sync-preview-options button{border:1px solid #665079;border-radius:7px;background:transparent;color:#e6d8f5;padding:5px 9px;font-size:11px}
 .mv-editor .mv-sync-preview-options button[aria-pressed=true]{background:#573070;border-color:#ab73ce;color:#fff}
 .mv-editor .mv-sync-preview-options small{font-size:10px;color:#bdb0cf}
+
+.mv-editor .mv-video-box .mv-frame-canvas{display:block;width:100%;height:100%;object-fit:contain;background:#000;position:absolute;inset:0}
