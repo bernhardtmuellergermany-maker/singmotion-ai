@@ -274,10 +274,11 @@ try{
   await page.goto(origin+"/lock-test");
   const second=page.getByLabel("Select video second",{exact:true}),first=page.getByLabel("Select video first",{exact:true});
   await second.waitFor();assert.equal(await page.locator(".mv-clip.is-selected,.mv-song-block.is-selected").count(),0);
+  assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).isVisible(),true);assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).isDisabled(),true);
   const select=async(clip:typeof second)=>{await clip.focus();await clip.press("Enter");};
   const save=()=>page.waitForResponse(r=>r.url().endsWith("/lock-project/clips")&&r.request().method()==="PATCH");
   await select(second);
-  assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).count(),0,"B-roll must not offer Re-Sync");
+  assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).isDisabled(),true,"B-roll must not enable Re-Sync");
   const appearance=await second.evaluate(el=>{
    const eye=el.querySelector(".mv-clip-display-toggle")!,lock=el.querySelector(".mv-clip-position-lock")!;
    const a=getComputedStyle(eye),b=getComputedStyle(lock);

@@ -1185,7 +1185,8 @@ export function MusicVideoEditor({id}:{id:string}){
         <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
           <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
           <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
-          <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/></button></div>
+          <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/></button>
+          <button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||songSelected||originalClipSongTime===null||!selectedClip||!!selectedClip.positionLocked} onClick={()=>{if(!songSelected&&originalClipSongTime!==null&&selectedClip&&!selectedClip.positionLocked)moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true);}} title={originalClipSongTime!==null?"Restore Lip Sync · "+time(originalClipSongTime,true):"Select a Lip Sync clip with original song time"} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span></button></div>
         <div className="mv-timeline-zoom">
           <button type="button" className="mv-snap-toggle" aria-label="Snap to edges" aria-pressed={snap} title={snap?"Snap to edges: on":"Snap to edges: off"} onClick={()=>setSnap(v=>!v)}><Magnet size={18}/></button>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
@@ -1209,7 +1210,6 @@ export function MusicVideoEditor({id}:{id:string}){
             <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
           </div>
         </div>
-        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||!!selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/><span>Re-Sync</span></button>}
         <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>
