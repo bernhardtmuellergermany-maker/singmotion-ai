@@ -402,7 +402,7 @@ async function handler(req:NextRequest,context:Context){
       const body=await jsonBody(req);
       const result=detachProjectSong(id,owner,body.revision);
       // Only legacy local song slots are removed; no project video is touched.
-      await Promise.all(songSlots.map(slot=>unlink(path.join(projectFolder(id),slot)).catch(()=>{})));
+      await Promise.all([...songSlots,(project.songVersion?"song-"+project.songVersion:"song")+".wave-v2.json"].map(slot=>unlink(path.join(projectFolder(id),slot)).catch(()=>{})));
       await cleanCloudDeletes(owner);
       return json(result);
     }
@@ -410,7 +410,7 @@ async function handler(req:NextRequest,context:Context){
       if(!project.songRemoved)throw new MusicError("Remove the current song first.",409);
       cloudRequired();
       const max=Math.min(AUDIO_LIMIT,projectLimits().audioBytes);
-      releaseAdmission=admitProjectOperation(tmpdir(),owner,"song",max);
+      releaseAdmission=admitProjectOperation(tmpdir(),owner,"song-replacement",max);
       const {form,file}=await fileForm(req,max,"song");
       const revision=Number(form.get("revision"));
       if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed. Reload to continue.",409);
