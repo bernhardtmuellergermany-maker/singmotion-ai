@@ -82,6 +82,18 @@ try{
  }
  await page.getByText("Delete account permanently",{exact:true}).click();
  const form=page.locator("#privacy .sm-settings-deletion-disclosure form");
+ // Wait for the expanded form and its responsive CSS to settle before measuring.
+ // Keep the original geometry requirements: a genuinely stacked desktop form fails.
+ await page.waitForFunction(()=>{
+  const form=document.querySelector("#privacy .sm-settings-deletion-disclosure form");
+  const fields=form?.querySelectorAll("input:not([type=hidden])");
+  if(!fields||fields.length<2)return false;
+  const password=Array.from(fields).find(e=>e.getAttribute("type")==="password");
+  const confirm=Array.from(fields).find(e=>e!==password);
+  if(!password||!confirm)return false;
+  const a=password.getBoundingClientRect(),b=confirm.getBoundingClientRect();
+  return a.width>0&&b.width>0&&Math.abs(a.y-b.y)<9&&a.right<b.left;
+ },{},{timeout:5000});
  const desktopForm=await form.boundingBox();
  const passwordField=await form.getByLabel("Account password").boundingBox();
  const confirmationField=await form.getByRole("textbox",{name:"Type DELETE MY ACCOUNT"}).boundingBox();
