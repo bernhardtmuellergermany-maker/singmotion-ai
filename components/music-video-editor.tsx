@@ -3,7 +3,7 @@ import {PROJECT_VIDEO_MAX_BYTES,PROJECT_VIDEO_MAX_MIB} from "../lib/music-video/
 import {memo,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {createPortal} from "react-dom";
-import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
+import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,Eye,EyeOff,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
 import {ensureSession} from "@/lib/client";
@@ -806,6 +806,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(roleBusy.current)return;
     if(!selectedClip||selectedClip.positionLocked)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
   }
+  function toggleClipDisplay(id:string){
+    if(importBusy.current||roleBusy.current)return;
+    const current=latest.current.find(c=>c.id===id);if(!current)return;
+    apply(latest.current.map(c=>c.id===id?{...c,showVideoName:!current.showVideoName}:c));
+  }
   function togglePositionLock(id:string){
     if(importBusy.current||roleBusy.current)return;
     const current=latest.current.find(c=>c.id===id);if(!current)return;
@@ -1079,16 +1084,24 @@ export function MusicVideoEditor({id}:{id:string}){
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(trackMutes[track]?" is-audio-muted":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
               {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).map(c=>{
                 const a=byId.get(c.assetId);if(!a)return null;
-                return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(c.positionLocked?" is-position-locked":"")+(armedMedia===c.id?" is-armed":"")}
+                const clipWidth=(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom;
+                return <div key={c.id} className={"mv-clip"+(selected===c.id?" is-selected":"")+(c.syncLocked?" is-locked":"")+(c.positionLocked?" is-position-locked":"")+(clipWidth<48?" is-compact":"")+(armedMedia===c.id?" is-armed":"")}
                     style={{left:c.timelineStartMs/1000*zoom,width:(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom}}
                     tabIndex={0} aria-label={"Select video "+a.name}
                     onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectVideo(c.id);}}}
                     onContextMenu={e=>e.preventDefault()}
-                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle,.mv-clip-position-lock"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id),!c.positionLocked);}}
+                    onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle,.mv-clip-position-lock,.mv-clip-display-toggle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id),!c.positionLocked);}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
-                  <SongWaveform wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom}/>
-                  <span className="mv-clip-title">{c.track===1?<Mic size={12} aria-hidden="true"/>:<Video size={12} aria-hidden="true"/>}<span>{a.name}</span></span>
+                  {c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>:
+                    <SongWaveform wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/>}
+                  <button type="button" className="mv-clip-display-toggle" aria-pressed={!!c.showVideoName}
+                    aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
+                    title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
+                    onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
+                    onClick={e=>{e.stopPropagation();toggleClipDisplay(c.id);}}>
+                    {c.showVideoName?<EyeOff size={13}/>:<Eye size={13}/>}
+                  </button>
                   <button type="button" className={"mv-clip-position-lock"+(c.positionLocked?" is-active":"")} aria-pressed={!!c.positionLocked}
                     aria-label={(c.positionLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
                     title={c.positionLocked?"Unlock clip position":"Lock clip position"} disabled={importing}

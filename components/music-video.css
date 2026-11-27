@@ -681,3 +681,17 @@
 .mv-root.mv-editor .mv-clip:has(.mv-clip-position-lock) .mv-clip-title{max-width:calc(100% - 26px)}
 .mv-root.mv-editor .mv-clip-position-lock>svg{pointer-events:none}
 @media(pointer:coarse){.mv-root.mv-editor .mv-clip-position-lock{width:28px;height:30px;min-width:28px;right:3px}.mv-root.mv-editor .mv-clip:has(.mv-clip-position-lock) .mv-clip-title{max-width:calc(100% - 30px)}}
+
+/* Left eye switches only the clip's display. Right lock controls editing.
+   The lower part remains free for moving/trimming even on short clips. */
+.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{position:absolute;z-index:7;top:2px;transform:none;display:grid;place-items:center;width:21px;height:20px;min-width:0;padding:0;border:1px solid #c5a3dd;border-radius:5px;background:#241532;color:#fff;cursor:pointer;touch-action:manipulation;pointer-events:auto}
+.mv-root.mv-editor .mv-clip-position-lock{right:2px}
+.mv-root.mv-editor .mv-clip-display-toggle{left:2px}
+.mv-root.mv-editor .mv-clip-position-lock.is-active{color:#ffdf9c;background:#47341f;border-color:#e8b85d}
+.mv-root.mv-editor .mv-clip-display-toggle>svg{pointer-events:none}
+.mv-root.mv-editor .mv-clip-display-toggle:focus-visible{outline:2px solid white;outline-offset:1px}
+.mv-root.mv-editor .mv-clip:has(.mv-clip-position-lock) .mv-clip-title{max-width:100%;align-self:flex-end;margin-bottom:3px}
+.mv-root.mv-editor .mv-clip.is-compact:not(.is-selected):not(:focus-within) :is(.mv-clip-position-lock,.mv-clip-display-toggle){opacity:0;pointer-events:none}
+.mv-root.mv-editor .mv-clip.is-compact .mv-clip-display-toggle{left:0}
+.mv-root.mv-editor .mv-clip.is-compact .mv-clip-position-lock{right:auto;left:22px}
+@media(pointer:coarse){.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{width:23px;height:23px}.mv-root.mv-editor .mv-clip.is-compact .mv-clip-position-lock{left:24px}}

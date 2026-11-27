@@ -936,5 +936,14 @@ test("position lock control is on the video clip, not the timeline toolbar",()=>
  assert.ok(editor.includes('togglePositionLock(c.id)'));
  assert.ok(editor.includes('className={"mv-clip-position-lock"'));
  assert.ok(!editor.includes('className={"mv-position-lock"'));
- assert.ok(editor.includes('closest(".mv-handle,.mv-clip-position-lock")'));
+ assert.ok(editor.includes('closest(".mv-handle,.mv-clip-position-lock,.mv-clip-display-toggle")'));
+});
+
+test("per-clip eye switches only the displayed waveform or name",()=>{
+ const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts");
+ assert.ok(editor.includes("toggleClipDisplay(c.id)"));
+ assert.ok(editor.includes("showVideoName:!current.showVideoName"));
+ assert.ok(editor.includes("c.showVideoName?<span className="));
+ assert.ok(core.includes("show_video_name INTEGER NOT NULL DEFAULT 0"));
+ assert.ok(core.includes("showVideoName:!!r.show_video_name"));
 });
