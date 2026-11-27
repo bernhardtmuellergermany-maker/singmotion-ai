@@ -28,7 +28,7 @@ function validatedAspectRatio(value:unknown):ProjectAspectRatio{
  return value;
 }
 export type MusicProject = {
-  id:string; ownerId:string; name:string; songName:string|null; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
+  id:string; ownerId:string; name:string; songName:string|null; songRemoved?:boolean; songVersion?:string|null; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
   revision:number; createdAt:number; updatedAt:number; aspectRatio:ProjectAspectRatio;
 };
 export class MusicError extends Error {
@@ -51,6 +51,8 @@ function database():DatabaseSync{
   opened.exec("BEGIN IMMEDIATE");
   try{
     const columns=opened.prepare("PRAGMA table_info(music_projects)").all() as {name:string}[];
+    if(!columns.some(c=>c.name==="song_removed"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_removed INTEGER NOT NULL DEFAULT 0");
+    if(!columns.some(c=>c.name==="song_version"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_version TEXT DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_name"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_name TEXT DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_start_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_start_ms INTEGER NOT NULL DEFAULT 0");
     if(!columns.some(c=>c.name==="song_end_ms"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_end_ms INTEGER DEFAULT NULL");
@@ -85,10 +87,10 @@ function database():DatabaseSync{
   db=opened;
   return opened;
 }
-type ProjectRow={id:string;owner_id:string;name:string;song_name:string|null;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
+type ProjectRow={id:string;owner_id:string;name:string;song_name:string|null;song_removed:number;song_version:string|null;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
 type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;role:MediaRole|null;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number;position_locked:number;show_video_name:number};
-const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songName:r.song_name??null,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
+const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songName:r.song_name??null,songRemoved:!!r.song_removed,songVersion:r.song_version??null,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
 const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll"),sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked,positionLocked:!!r.position_locked,showVideoName:!!r.show_video_name});
 export function requireMusicProject(id:string,owner:string):MusicProject{
@@ -299,8 +301,9 @@ export function finishProjectCloudDelete(owner:string,assetId:string,key:string)
 /** Song manifests share the durable deletion queue; slot IDs are namespaced
  * by their project, never supplied by the browser. */
 export function projectSongRecord(id:string,owner:string,slot:SongSlot):ProjectCloudRecord|null{
- requireMusicProject(id,owner);
- const row=database().prepare("SELECT * FROM music_asset_cloud WHERE project_id=? AND owner_id=? AND asset_id=? AND pending_delete=0").get(id,owner,id+":"+slot) as CloudRow|undefined;
+ const project=requireMusicProject(id,owner);
+ if(project.songRemoved)return null;
+ const row=database().prepare("SELECT * FROM music_asset_cloud WHERE project_id=? AND owner_id=? AND asset_id=? AND pending_delete=0").get(id,owner,id+":"+slot+(project.songVersion?":"+project.songVersion:"")) as CloudRow|undefined;
  return row?mapCloud(row):null;
 }
 export function recordProjectSong(id:string,owner:string,slot:SongSlot,record:ProjectCloudRecord){
@@ -310,8 +313,41 @@ export function recordProjectSong(id:string,owner:string,slot:SongSlot,record:Pr
  if(!current||current.key!==record.key||current.sha256!==record.sha256||current.bytes!==record.bytes)throw Error("Projects song cloud manifest conflict");
 }
 export function projectSongMigrationCandidate(owner:string){
- const row=database().prepare("SELECT p.id FROM music_projects p WHERE p.owner_id=? AND (NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id=p.id||':song.mp3' AND c.pending_delete=0) OR NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id LIKE p.id||':song-original.%' AND c.pending_delete=0)) ORDER BY p.created_at,p.id LIMIT 1").get(owner) as {id:string}|undefined;
+ const row=database().prepare("SELECT p.id FROM music_projects p WHERE p.owner_id=? AND p.song_removed=0 AND p.song_version IS NULL AND (NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id=p.id||':song.mp3' AND c.pending_delete=0) OR NOT EXISTS(SELECT 1 FROM music_asset_cloud c WHERE c.project_id=p.id AND c.owner_id=p.owner_id AND c.asset_id LIKE p.id||':song-original.%' AND c.pending_delete=0)) ORDER BY p.created_at,p.id LIMIT 1").get(owner) as {id:string}|undefined;
  return row?.id??null;
+}
+
+/** Remove only the song; video positions and position locks remain intact. */
+export function detachProjectSong(id:string,owner:string,revision:unknown){
+ const project=requireMusicProject(id,owner),db=database();
+ if(project.songRemoved||!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed. Reload to continue.",409);
+ db.exec("BEGIN IMMEDIATE");
+ try{
+  const changed=db.prepare("UPDATE music_projects SET song_removed=1,song_name=NULL,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=0").run(Date.now(),id,owner,revision);
+  if(changed.changes!==1)throw new MusicError("Project changed. Reload to continue.",409);
+  db.prepare("UPDATE music_asset_cloud SET pending_delete=1 WHERE project_id=? AND owner_id=? AND asset_id LIKE ?").run(id,owner,id+":song%");
+  db.prepare("UPDATE music_clips SET sync_locked=0 WHERE project_id=?").run(id);
+  db.exec("COMMIT");
+ }catch(e){db.exec("ROLLBACK");throw e;}
+ return musicDetail(id,owner);
+}
+/** Each replacement has unique immutable cloud IDs, so an old deletion cannot delete it. */
+export function attachProjectSong(id:string,owner:string,revision:unknown,version:string,name:string,duration:number,records:{slot:SongSlot;record:ProjectCloudRecord}[]){
+ const project=requireMusicProject(id,owner),db=database();
+ if(!project.songRemoved||!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed. Reload to continue.",409);
+ if(!validId(version)||!validSongRange(0,duration,duration)||duration>MAX_TIMELINE_MS||records.length!==2||!records.some(r=>r.slot==="song.mp3")||!records.some(r=>r.slot.startsWith("song-original.")))throw new MusicError("Invalid replacement song.");
+ db.exec("BEGIN IMMEDIATE");
+ try{
+  const changed=db.prepare("UPDATE music_projects SET song_removed=0,song_version=?,song_name=?,song_duration_ms=?,song_start_ms=0,song_end_ms=?,song_position_ms=0,song_parts_json=NULL,track_mute_mask=track_mute_mask & 3,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=1").run(version,validatedSongName(name),duration,duration,Date.now(),id,owner,revision);
+  if(changed.changes!==1)throw new MusicError("Project changed. Reload to continue.",409);
+  const insert=db.prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes) VALUES (?,?,?,?,?,?)");
+  for(const {slot,record} of records)insert.run(id+":"+slot+":"+version,id,owner,record.key,record.sha256,record.bytes);
+  db.exec("COMMIT");
+ }catch(e){db.exec("ROLLBACK");throw e;}
+ return musicDetail(id,owner);
+}
+export function queueUnusedSongUpload(id:string,owner:string,version:string,slot:SongSlot,record:ProjectCloudRecord){
+ database().prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes,pending_delete) VALUES (?,?,?,?,?,?,1) ON CONFLICT(asset_id) DO NOTHING").run(id+":"+slot+":"+version,id,owner,record.key,record.sha256,record.bytes);
 }
 
 export function admitProjectOperation(root:string,owner:string,kind:OperationKind,bytes:number){return reserveProjectOperation(database(),root,owner,kind,bytes);}
