@@ -12,7 +12,7 @@ import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,timelineFitZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,timelineWaveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,planSourceTimeInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,planSourceTimeInsertion,planFreeVideoInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -36,8 +36,6 @@ async function request<T>(url:string,init?:RequestInit):Promise<T>{
   return data;
 }
 const clipEnd=(c:MusicClip)=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
-const overlaps=(clips:MusicClip[],target:MusicClip)=>clips.filter(c=>c.id!==target.id&&c.track===target.track&&
-  target.timelineStartMs<clipEnd(c)&&clipEnd(target)>c.timelineStartMs);
 function InlineTimeField({label,ariaLabel,value,onChange,onConfirm,disabled,placeholder}:{label:string;ariaLabel:string;value:string;onChange:(value:string)=>void;onConfirm:()=>void;disabled:boolean;placeholder?:string}){
   return <div className="mv-inline-time">
     <label>{label}<input aria-label={ariaLabel} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} onKeyDown={e=>{if(e.key==="Enter"){e.preventDefault();if(!disabled)onConfirm();}}}/></label>
@@ -205,7 +203,7 @@ export function MusicVideoEditor({id}:{id:string}){
   },[id]);
   useEffect(()=>{void load().catch(e=>setError(e instanceof Error?e.message:"Project unavailable."));},[load]);
   useEffect(()=>{
-    const opened=()=>document.querySelectorAll<HTMLDetailsElement>('.mv-editor .mv-media-actions details[open]');
+    const opened=()=>document.querySelectorAll<HTMLDetailsElement>('.mv-editor .mv-media-actions details[open],.mv-editor .mv-library-icon-select[open]');
     const outside=(event:Event)=>{
       const target=event.target;
       if(!(target instanceof Node))return;
@@ -731,38 +729,11 @@ export function MusicVideoEditor({id}:{id:string}){
       if(plan.mode==="alternate")setPlacementNotice("Inserted at the original source time on the other video track.");
       return;
     }
-    if(candidate.timelineStartMs<0){setError("The video starts before the timeline.");return;}
-    if(clipEnd(candidate)>timelineLimit)candidate.sourceOutMs=Math.max(0,timelineLimit-candidate.timelineStartMs);
-    if(candidate.sourceOutMs-candidate.sourceInMs<Math.min(5000,length)){setError("Not enough space for at least 5 seconds of this video before the song ends.");return;}
-    let conflicts=overlaps(latest.current,candidate);
-    if(conflicts.length){
-      const action=window.prompt("Track occupied. Type 'free' to find another space, 'fit' to trim into the available gap, 'replace' to remove conflicting clips, or Cancel.","free");
-      if(action===null)return;
-      if(action==="replace"){
-        if(conflicts.some(c=>c.positionLocked)){setError("Unlock the conflicting video before replacing it.");return;}
-        if(!window.confirm("Replace "+conflicts.length+" existing timeline clip(s)? Media will remain in the Library."))return;
-        apply([...latest.current.filter(c=>!conflicts.some(o=>o.id===c.id)),candidate]);
-        setSelected(candidate.id);return;
-      }
-      if(action!=="free"&&action!=="fit")return;
-      if(action==="free"){
-        const sorted=latest.current.filter(c=>c.track===track).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
-        let position=0;
-        for(const old of sorted){
-          if(position+length<=old.timelineStartMs)break;
-          position=Math.max(position,clipEnd(old));
-        }
-        if(position+length>timelineLimit){setError("No free position for this video.");return;}
-        candidate.timelineStartMs=position;
-      }else{
-        const nextEdge=Math.min(...conflicts.map(c=>c.timelineStartMs).filter(n=>n>candidate.timelineStartMs),timelineLimit);
-        candidate.sourceOutMs=Math.min(candidate.sourceOutMs,nextEdge-candidate.timelineStartMs);
-        if(candidate.sourceOutMs-candidate.sourceInMs<Math.min(5000,length)){setError("Not enough free space for at least 5 seconds of this video.");return;}
-      }
-      conflicts=overlaps(latest.current,candidate);
-      if(conflicts.length){setError("No collision-free position found.");return;}
-    }
-    apply([...latest.current,candidate]);setSelected(candidate.id);
+    const limit=songPartsEnd(rangeRef.current,partsRef.current);
+    const fit=planFreeVideoInsertion(latest.current,candidate,limit,atMs);
+    if(!fit){setError("Not enough free space on the "+(track===2?"Video":"Lip-Sync")+" track for this video (at least 5 seconds, or its actual length if shorter).");return;}
+    apply([...latest.current,fit]);setSelected(fit.id);
+    if(fit.timelineStartMs!==candidate.timelineStartMs)setPlacementNotice("Inserted in the nearest available space on the "+(track===2?"Video":"Lip-Sync")+" track. Existing clips are unchanged.");
   }
   function onDrop(e:React.DragEvent,track:Track){
     e.preventDefault();
@@ -928,7 +899,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Saving…");
       await persistAssetRole(a,role);
-      if(filter==="Lip Sync"||filter==="B-Roll")setFilter(role==="lip-sync"?"Lip Sync":"B-Roll");
+
       setStatus("Saved");
     }catch(e){setRoleError(e instanceof Error?e.message:"Could not change the video role.");setStatus(dirty.current?"Not saved":"Saved");}
     finally{roleBusy.current=false;importBusy.current=false;setImporting(false);setRoleChanging(null);}
@@ -960,7 +931,7 @@ export function MusicVideoEditor({id}:{id:string}){
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Uploading…");
       const uploaded=await request<{asset:MusicAsset;cloudStored?:boolean;cloudEnabled?:boolean}>(endpoint+id+"/assets",{method:"POST",headers:{"Content-Type":"application/octet-stream","X-Project-Filename":encodeURIComponent(file.name),"X-Project-Bytes":String(file.size)},body:file});
-      await load();setLibraryOpen(true);setFilter("Uploads");setStatus(uploaded.cloudStored?"Saved to cloud":"Saved locally");
+      await load();setLibraryOpen(true);setFilter("All");setSearch("");setStatus(uploaded.cloudStored?"Saved to cloud":"Saved locally");
       if(uploaded.cloudEnabled&&!uploaded.cloudStored)setError("Cloud verification failed. The original is safe locally; retry migration in Projects.");
     }catch(e){setError(e instanceof Error?e.message:"Upload failed.");setStatus("Saved");}
     finally{importBusy.current=false;setImporting(false);}
@@ -1259,11 +1230,19 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-library-tools">
           <div className="mv-browse-toolbar">
             <label className="mv-browse-search"><Search size={16}/><input type="search" placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></label>
-            <label className="mv-browse-filter mv-library-icon-select" data-active={filter!=="All"} title={"Filter: "+filter}><ListFilter size={17} aria-hidden="true"/><select aria-label="Filter library videos" value={filter} onChange={e=>setFilter(e.target.value as typeof filter)}>
-              {libraryFilters.map(f=><option key={f} value={f}>{f==="All"?"All videos":f} ({assets.filter(a=>matchesLibraryFilter(a,f)).length})</option>)}
-            </select></label>
+            <details className="mv-browse-filter mv-library-icon-select" data-active={filter!=="All"}>
+              <summary aria-label="Filter library videos" title={"Filter: "+(filter==="All"?"All videos":filter)}><ListFilter size={17} aria-hidden="true"/></summary>
+              <div className="mv-library-select-menu" role="group" aria-label="Video filters">
+                {libraryFilters.map(f=><button key={f} type="button" aria-pressed={filter===f} onClick={ev=>{const menu=ev.currentTarget.closest("details");setFilter(f);if(menu){menu.open=false;menu.querySelector("summary")?.focus();}}}><span>{f==="All"?"All videos":f}</span><small>{assets.filter(a=>matchesLibraryFilter(a,f)).length}</small>{filter===f?<Check size={14}/>:<span className="mv-select-check-space"/>}</button>)}
+              </div>
+            </details>
             <button type="button" className="mv-browse-control" disabled={importing||libraryRefreshing} onClick={()=>void refreshLibrary()} title="Refresh library" aria-label="Refresh library"><RefreshCw size={15}/></button>
-            <label className="mv-browse-filter mv-library-icon-select" data-active={librarySort!=="newest"} title={librarySort==="source"?"Sort: Source Time":librarySort==="newest"?"Sort: Newest first":"Sort: Oldest first"}><ArrowUpDown size={17} aria-hidden="true"/><select aria-label="Sort library videos" value={librarySort} onChange={e=>setLibrarySort(e.target.value as typeof librarySort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="source">Source Time</option></select></label>
+            <details className="mv-browse-filter mv-library-icon-select" data-active={librarySort!=="newest"}>
+              <summary aria-label="Sort library videos" title={librarySort==="source"?"Sort: Source Time":librarySort==="newest"?"Sort: Newest first":"Sort: Oldest first"}><ArrowUpDown size={17} aria-hidden="true"/></summary>
+              <div className="mv-library-select-menu" role="group" aria-label="Video sort order">
+                {([["newest","Newest first"],["oldest","Oldest first"],["source","Source Time"]] as const).map(([value,label])=><button key={value} type="button" aria-pressed={librarySort===value} onClick={ev=>{const menu=ev.currentTarget.closest("details");setLibrarySort(value);if(menu){menu.open=false;menu.querySelector("summary")?.focus();}}}><span>{label}</span>{librarySort===value?<Check size={14}/>:<span className="mv-select-check-space"/>}</button>)}
+              </div>
+            </details>
           </div>
           <div className="mv-library-imports">
           <button className="mv-outline" disabled={importing} onClick={()=>void openLipSync(1)}><Music2 size={16}/> Insert Lip Sync</button>
