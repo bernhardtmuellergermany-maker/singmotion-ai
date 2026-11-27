@@ -107,7 +107,7 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
  assert.ok(editor.includes('field==="start"?(parts?partStartText:startText)'));
  assert.ok(editor.includes("apply(moved,true,next)"));
- assert.ok(editor.includes("makeFrameTimeline(clips,songRange,songParts,trackMutes)"));
+ assert.ok(editor.includes("makeFrameTimeline(previewClips,songRange,songParts,trackMutes)"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
  assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
  assert.ok(core.includes("validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start)"));
@@ -383,7 +383,7 @@ test("each timeline lane persists audio mute and the cut button follows selectio
  assert.ok(editor.includes("trackMutes:mutes"));
  assert.ok(editor.includes('muteButton("song","song")'));
  assert.ok(editor.includes("muteButton(track,"));
- assert.ok(editor.includes("makeFrameTimeline(clips,songRange,songParts,trackMutes)"));
+ assert.ok(editor.includes("makeFrameTimeline(previewClips,songRange,songParts,trackMutes)"));
  assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
  assert.ok(!editor.includes("> Split video</button>"));
  assert.ok(!editor.includes("> Split song</button>"));
@@ -1061,4 +1061,13 @@ test("editor alternates clips in chronological order independently for each trac
  assert.ok(editor.includes('i%2===0?" mv-clip-alt-a":" mv-clip-alt-b"'));
  assert.ok(css.includes('.mv-clip.mv-clip-alt-a{background:#61337e}'));
  assert.ok(css.includes('.mv-clip.mv-clip-alt-b{background:#8b4fb3}'));
+});
+
+test("video trim inspection uses actual clip source edges and stable playback decoders",()=>{
+ const editor=read("components/music-video-editor.tsx"),engine=read("lib/music-video/frame-preview-engine.ts");
+ assert.ok(editor.includes("trimmingVideo.current?latest.current:clips"));
+ assert.ok(editor.includes('edge==="start"?clip.sourceInMs:Math.max(clip.sourceInMs,clip.sourceOutMs-1)'));
+ assert.ok(editor.includes("showTrimFrame(next,edge)"));
+ assert.ok(engine.includes("this.trimTarget!==target||this.version!==version"));
+ assert.ok(engine.includes("sink.getCanvas(target.sourceMs/1000)"));
 });
