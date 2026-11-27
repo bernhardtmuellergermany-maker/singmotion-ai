@@ -664,7 +664,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const originalClipSongTime=!project?.songRemoved&&selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&selectedAsset.sourceStartMs+selectedClip.sourceOutMs<=selectedAsset.sourceEndMs
     ?selectedAsset.sourceStartMs+selectedClip.sourceInMs:null;
 
-  const canRestoreLipSync=!project?.songRemoved&&clips.some(c=>byId.get(c.assetId)?.role==="lip-sync");
+  const canRestoreLipSync=!!(project?.songRestore||project?.songVersion)&&!project?.songRemoved&&clips.some(c=>byId.get(c.assetId)?.role==="lip-sync");
   function restoreAllLipSync(){
     if(importBusy.current||project?.songRemoved)return;
     const saved=new Map(project?.songRestore?.clips.map(c=>[c.id,c])??[]);
@@ -1228,7 +1228,7 @@ export function MusicVideoEditor({id}:{id:string}){
               })}
             </div>)}
             <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget){const at=msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left);beginMediaGesture(e,"viewport",()=>{},()=>{clearSelection();seek(at);},false);}}}>
-              {project?.songRemoved?<button type="button" className="mv-add-song" disabled={importing} onPointerDown={e=>e.stopPropagation()} onClick={()=>songInput.current?.click()}><Plus size={17}/><Music2 size={17}/> {importing?"Adding song…":"Add Song"}</button>:songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
+              {project?.songRemoved?<button type="button" className="mv-add-song" style={rulerViewport.width?{left:rulerViewport.scrollLeft+rulerViewport.width/2}:undefined} disabled={importing} onPointerDown={e=>e.stopPropagation()} onClick={()=>songInput.current?.click()}><Plus size={17}/><Music2 size={17}/> {importing?"Adding song…":"Add Song"}</button>:songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
