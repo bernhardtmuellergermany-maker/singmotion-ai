@@ -256,7 +256,7 @@ test("exact video end and hold-to-edit preserve the source timing and scroll int
  assert.ok(editor.includes("scroller.scrollLeft=startScroll-dx"));
  assert.ok(editor.includes('beginMediaGesture(e,c.id,()=>movePointer(e,c,"move")'));
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e)'));
- assert.ok(editor.includes('track===1?"Lip-Sync":"Video"'));
+ assert.ok(editor.includes('track===1?"Lip-Sync":"B-Roll"'));
  assert.ok(editor.includes('track===1?<Mic size={18}/>:<Video size={18}/>'));
  assert.ok(editor.includes('<Music2 size={18}/><strong>Song</strong>'));
 });
