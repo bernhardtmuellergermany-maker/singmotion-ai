@@ -1103,19 +1103,19 @@ export function MusicVideoEditor({id}:{id:string}){
                   <div className="mv-clip-drag-surface" aria-hidden="true"/>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
                   {c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>:
-                    <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/>}
+                    <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={Math.min(clipWidth,Math.max(40,Math.min(360,clipWidth*.34)))}/>}
                   <button type="button" className="mv-clip-display-toggle" aria-pressed={!!c.showVideoName}
                     aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
                     title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();toggleClipDisplay(c.id);}}>
+                    onClick={e=>{e.stopPropagation();if(e.detail>0)e.currentTarget.blur();toggleClipDisplay(c.id);}}>
                     {c.showVideoName?<EyeOff size={17}/>:<Eye size={17}/>}
                   </button>
                   <button type="button" className={"mv-clip-position-lock"+(movementLocked?" is-active":"")} aria-pressed={movementLocked}
                     aria-label={(movementLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
                     title={movementLocked?(c.syncLocked?"Unlock clip and song synchronization":"Unlock clip position"):"Lock clip position"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();togglePositionLock(c.id);}}>
+                    onClick={e=>{e.stopPropagation();if(e.detail>0)e.currentTarget.blur();togglePositionLock(c.id);}}>
                     {movementLocked?<Lock size={16}/>:<Unlock size={16}/>}
                   </button>
                   <button type="button" className="mv-handle mv-handle-end" disabled={c.positionLocked} aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
@@ -1127,7 +1127,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
-                <SongWaveform wave={wave} sourceInMs={songRange.startMs} sourceOutMs={songRange.endMs} width={(songRange.endMs-songRange.startMs)/1000*zoom}/>
+                <SongWaveform bars wave={wave} sourceInMs={songRange.startMs} sourceOutMs={songRange.endMs} width={(songRange.endMs-songRange.startMs)/1000*zoom}/>
                 <span className="mv-song-wave-title">{project!.songName||"Song"}</span>
               </div>
               {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")}
@@ -1136,7 +1136,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong)}
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}/>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
-                <SongWaveform wave={wave} sourceInMs={p.startMs} sourceOutMs={p.endMs} width={(p.endMs-p.startMs)/1000*zoom}/>
+                <SongWaveform bars wave={wave} sourceInMs={p.startMs} sourceOutMs={p.endMs} width={(p.endMs-p.startMs)/1000*zoom}/>
                 <span className="mv-song-wave-title">{project!.songName||"Song"}</span>
                 {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}/>)}
               </div>)}
