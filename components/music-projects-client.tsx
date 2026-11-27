@@ -102,7 +102,7 @@ export function MusicProjectsClient({sunoEnabled=false}:{sunoEnabled?:boolean}){
       {filtered.map(p=><article key={p.id} className="mv-project-card">
         <Link href={"/projects/"+p.id} className="mv-project-link">
           <div className="mv-project-art"><Music2 size={38}/>{p.thumbnailAssetId&&<img key={p.thumbnailAssetId} src={"/api/music-video/"+p.id+"/thumbnail/"+p.thumbnailAssetId} alt="" loading="lazy" decoding="async" draggable={false} onError={e=>{e.currentTarget.style.display="none";}}/>}<span>{p.aspectRatio==="auto"?"Auto":p.aspectRatio}</span></div>
-          <strong>{p.name}</strong><p>{duration(p.songDurationMs)} · Edited {new Date(p.updatedAt).toLocaleDateString("en-GB")}</p>
+          <strong>{p.name}</strong><p>{p.songRemoved?"No song":duration(p.songDurationMs)} · Edited {new Date(p.updatedAt).toLocaleDateString("en-GB")}</p>
         </Link>
         <details className="mv-card-more"><summary aria-label={"Project options for "+p.name}><MoreHorizontal size={18}/></summary>
           <div><Link href={"/projects/"+p.id}><Pencil size={14}/> Edit</Link><button onClick={()=>void rename(p)}><Pencil size={14}/> Rename</button>
