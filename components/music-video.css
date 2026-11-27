@@ -638,3 +638,9 @@
 .mv-editor .mv-scroll{touch-action:none;overscroll-behavior-x:contain;scroll-behavior:auto;user-select:none}
 .mv-editor .mv-ruler .mv-tick-major{top:3px;height:25px;padding-left:4px;line-height:14px;pointer-events:none;font-variant-numeric:tabular-nums}
 .mv-editor .mv-ruler .mv-tick-minor{top:auto;bottom:0;height:7px;padding:0;border-left:1px solid #76528b;opacity:.65;pointer-events:none}
+
+/* Keep the explanatory Projects introduction readable without squeezing the creation button. */
+.mv-projects .mv-heading>div{min-width:0;max-width:760px}
+.mv-projects .mv-heading p{line-height:1.55}
+.mv-projects .mv-heading>.mv-primary{flex-shrink:0;white-space:nowrap}
+@media(max-width:600px){.mv-projects .mv-heading{flex-wrap:wrap;gap:12px}.mv-projects .mv-heading>div{flex-basis:100%}}
