@@ -36,11 +36,9 @@
 }
 .close { margin-top: 8px; width: 100%; }
 .settings {
-  position: fixed; z-index: 85; inset-inline-start: 12px;
-  bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) + 4px));
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  border-radius: 999px; padding: 7px 11px; background: #130f20;
-  color: #e8d8f5; border-color: #76588f; font-size: 11px;
+  border-radius: 9px; padding: 8px 14px; background: #130f20;
+  color: #e8d8f5; border-color: #76588f; font-size: 13px;
 }
 .settings svg { color: #d99afa; flex-shrink: 0; }
 @media (max-width: 600px) {
