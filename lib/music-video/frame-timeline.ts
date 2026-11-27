@@ -31,6 +31,16 @@ export function makeFrameTimeline<C extends FrameClip>(clips:readonly C[],range:
  }
  return {durationMs,frames,spans,audio};
 }
+/** Compare only data that determines decoded pictures and mixed audio.
+ * Editor-only metadata (role, sync lock, name visibility) does not invalidate media. */
+export function sameFrameTimeline(a:FrameTimeline,b:FrameTimeline):boolean{
+ if(a.durationMs!==b.durationMs||a.frames!==b.frames||a.spans.length!==b.spans.length||a.audio.length!==b.audio.length)return false;
+ return a.spans.every((s,i)=>{
+  const t=b.spans[i],c=s.clip,d=t.clip;
+  return s.startFrame===t.startFrame&&s.endFrame===t.endFrame&&s.sourceMs===t.sourceMs&&
+   (c===null||d===null?c===d:c.id===d.id&&c.assetId===d.assetId&&c.track===d.track&&c.timelineStartMs===d.timelineStartMs&&c.sourceInMs===d.sourceInMs&&c.sourceOutMs===d.sourceOutMs);
+ })&&a.audio.every((s,i)=>{const t=b.audio[i];return s.assetId===t.assetId&&s.lane===t.lane&&s.timelineStartMs===t.timelineStartMs&&s.timelineEndMs===t.timelineEndMs&&s.sourceStartMs===t.sourceStartMs;});
+}
 /** Map any scrub position to the frame the export would show there.
  * At EOF retain the last output frame for paused inspection. */
 export function frameTarget<C extends FrameClip>(timeline:FrameTimeline<C>,ms:number):FrameTarget<C>|null{
