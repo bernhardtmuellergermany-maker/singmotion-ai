@@ -481,6 +481,9 @@ try{
    await page.getByLabel("Upload replacement song").setInputFiles({name:"replacement.mp3",mimeType:"audio/mpeg",buffer:song});
    await page.getByRole("button",{name:"Select song",exact:true}).waitFor();
    assert.equal(await addSong.count(),0);assert.equal(lockProject.songName,"Replacement song");assert.deepEqual(lockClips,retained);
+   const restoreAll=page.getByRole("button",{name:"Restore all Lip Sync positions",exact:true});await restoreAll.waitFor();
+   page.once("dialog",dialog=>void dialog.accept());const restoredAfterReplacement=save();await restoreAll.click();await restoredAfterReplacement;
+   assert.equal(lockClips.find(c=>c.id==="c1")?.timelineStartMs,750);assert.equal(lockClips.find(c=>c.id==="c1")?.syncLocked,true);assert.deepEqual(lockClips.find(c=>c.id==="c2"),retained.find(c=>c.id==="c2"));
    await page.close();console.log("PASS: clip controls, library preview, persistent song removal and replacement at "+width+"px");
  }
  // Portal inherits a deliberately dark body foreground, as on the Videos page.
