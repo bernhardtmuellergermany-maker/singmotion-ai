@@ -541,7 +541,7 @@ test("project and library browse toolbars offer search, matching filters, refres
  for(const page of [client,editor]){
   assert.ok(page.includes('className="mv-browse-toolbar"'));
   assert.ok(page.includes('className="mv-browse-search"'));
-  assert.ok(page.includes('className="mv-browse-filter"'));
+  assert.ok(/className="mv-browse-filter(?: |")/.test(page));
   assert.ok(page.includes("Newest first"));
   assert.ok(page.includes("Oldest first"));
  }

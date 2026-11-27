@@ -1248,11 +1248,11 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-library-tools">
           <div className="mv-browse-toolbar">
             <label className="mv-browse-search"><Search size={16}/><input type="search" placeholder="Search library…" aria-label="Search media" value={search} onChange={e=>setSearch(e.target.value)}/></label>
-            <label className="mv-browse-filter mv-library-icon-select" title={"Filter: "+filter}><ListFilter size={17} aria-hidden="true"/><select aria-label="Filter library videos" value={filter} onChange={e=>setFilter(e.target.value as typeof filter)}>
+            <label className="mv-browse-filter mv-library-icon-select" data-active={filter!=="All"} title={"Filter: "+filter}><ListFilter size={17} aria-hidden="true"/><select aria-label="Filter library videos" value={filter} onChange={e=>setFilter(e.target.value as typeof filter)}>
               {libraryFilters.map(f=><option key={f} value={f}>{f==="All"?"All videos":f} ({assets.filter(a=>matchesLibraryFilter(a,f)).length})</option>)}
             </select></label>
             <button type="button" className="mv-browse-control" disabled={importing||libraryRefreshing} onClick={()=>void refreshLibrary()} title="Refresh library" aria-label="Refresh library"><RefreshCw size={15}/></button>
-            <label className="mv-browse-filter mv-library-icon-select" title={librarySort==="source"?"Sort: Source Time":librarySort==="newest"?"Sort: Newest first":"Sort: Oldest first"}><ArrowUpDown size={17} aria-hidden="true"/><select aria-label="Sort library videos" value={librarySort} onChange={e=>setLibrarySort(e.target.value as typeof librarySort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="source">Source Time</option></select></label>
+            <label className="mv-browse-filter mv-library-icon-select" data-active={librarySort!=="newest"} title={librarySort==="source"?"Sort: Source Time":librarySort==="newest"?"Sort: Newest first":"Sort: Oldest first"}><ArrowUpDown size={17} aria-hidden="true"/><select aria-label="Sort library videos" value={librarySort} onChange={e=>setLibrarySort(e.target.value as typeof librarySort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="source">Source Time</option></select></label>
           </div>
           <div className="mv-library-imports">
           <button className="mv-outline" disabled={importing} onClick={()=>void openLipSync(1)}><Music2 size={16}/> Insert Lip Sync</button>

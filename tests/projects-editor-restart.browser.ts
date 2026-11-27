@@ -400,7 +400,7 @@ try{
   assert.equal(await page.locator(".mv-media-used").count(),2);
   await page.getByRole("button",{name:"Preview first",exact:true}).click();
   const preview=page.getByRole("dialog",{name:"Preview first",exact:true});await preview.waitFor();
-  await preview.locator("video").evaluate(async el=>{const v=el as HTMLVideoElement;if(v.readyState>=1)return;await new Promise<void>((resolve,reject)=>{v.addEventListener("loadedmetadata",()=>resolve(),{once:true});v.addEventListener("error",()=>reject(Error("Preview failed")),{once:true});});});
+  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>(".mv-library-preview-dialog video");return !!v&&v.readyState>=1;},{},{timeout:15000});
   await preview.getByRole("button",{name:"Close video preview"}).click();await preview.waitFor({state:"hidden"});
   assert.equal(await page.locator(".mv-library-preview-dialog video").count(),0);
   await page.close();console.log("PASS: direct clip eye/lock, save/reload, source restoration, library source sort, used indicators and original video preview at "+width+"px");
