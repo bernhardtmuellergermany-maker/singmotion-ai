@@ -482,8 +482,10 @@ export function MusicVideoEditor({id}:{id:string}){
   const songPlacementLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current))):0;
   const selectedClip=clips.find(c=>c.id===selected&&c.timelineStartMs<timelineEnd);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
-  const songSelected=!selectedClip||!selectedAsset;
-  function selectSong(){setSelected(null);setInspectorOpen(true);}
+  const songSelected=selected==="song";
+  const hasSelection=songSelected||!!(selectedClip&&selectedAsset);
+  function clearSelection(){setSelected(null);setArmedMedia(null);}
+  function selectSong(){setSelected("song");setInspectorOpen(true);}
   useEffect(()=>{setInspectorOpen(true);},[selected,partIndex]);
   const currentParts=effectiveSongParts(songRange,songParts);
   const selectedPart=currentParts[Math.min(partIndex,currentParts.length-1)];
@@ -1076,7 +1078,7 @@ export function MusicVideoEditor({id}:{id:string}){
           </div>)}
           <div className="mv-label mv-audio-label" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
         </div>
-        <div className="mv-scroll" ref={scroll} onPointerDown={e=>{if(e.target instanceof HTMLElement&&e.target.closest(".mv-lane,.mv-song-lane"))beginMediaGesture(e,"viewport",()=>{},()=>{},false);}}>
+        <div className="mv-scroll" ref={scroll} onPointerDown={e=>{if(e.target instanceof HTMLElement&&e.target.closest(".mv-lane,.mv-song-lane"))beginMediaGesture(e,"viewport",()=>{},clearSelection,false);}}>
           <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
             <div className="mv-ruler" style={{overflow:"hidden"}} onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
               {ticks.map(t=><span key={t.ms} className={t.major?"mv-tick-major":"mv-tick-minor"} aria-hidden={!t.major} style={{left:t.ms/1000*zoom}}>{t.major?(tickStep<1000?time(t.ms,true):time(t.ms)):null}</span>)}
@@ -1113,7 +1115,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 </div>;
               })}
             </div>)}
-            <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget){const at=msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left);beginMediaGesture(e,"viewport",()=>{},()=>seek(at),false);}}}>
+            <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget){const at=msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left);beginMediaGesture(e,"viewport",()=>{},()=>{clearSelection();seek(at);},false);}}}>
               {songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
@@ -1140,7 +1142,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
         </div>
       </div>
-      <button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
+      {hasSelection&&<><button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>e.preventDefault()}>
         <div className="mv-video-times">
@@ -1163,7 +1165,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <InlineTimeField label={songParts?"Part source end":"Source end"} ariaLabel={songParts?"Song part end":"Song end time"} value={songParts?partEndText:endText} onChange={songParts?setPartEndText:setEndText} onConfirm={()=>submitSongField("end")} disabled={importing} placeholder="00:30.000"/>
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
       </form>}
-      </div>
+      </div></>}
       {error&&<p className="mv-error" role="alert">{error}</p>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file);e.target.value="";

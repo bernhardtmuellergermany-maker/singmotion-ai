@@ -291,8 +291,8 @@ test("timeline zoom is visibly separate from playback progress",()=>{
 
 test("timeline uses full width and media is added from the library",()=>{
  const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
- assert.ok(editor.includes('const songSelected=!selectedClip||!selectedAsset'));
- assert.ok(editor.includes('function selectSong(){setSelected(null);setInspectorOpen(true);}'));
+ assert.ok(editor.includes('const songSelected=selected==="song"'));
+ assert.ok(editor.includes('function selectSong(){setSelected("song");setInspectorOpen(true);}'));
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e),selectSong)'));
  assert.ok(editor.includes('aria-label="Select song" aria-pressed={songSelected}'));
  assert.ok(editor.includes('!songSelected&&selectedClip&&selectedAsset?<form'));
@@ -946,4 +946,12 @@ test("per-clip eye switches only the displayed waveform or name",()=>{
  assert.ok(editor.includes("c.showVideoName?<span className="));
  assert.ok(core.includes("show_video_name INTEGER NOT NULL DEFAULT 0"));
  assert.ok(core.includes("showVideoName:!!r.show_video_name"));
+});
+
+test("timeline has an explicit empty selection",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('const songSelected=selected==="song"'));
+ assert.ok(editor.includes('function clearSelection(){setSelected(null);'));
+ assert.ok(editor.includes('beginMediaGesture(e,"viewport",()=>{},clearSelection,false)'));
+ assert.ok(editor.includes('{hasSelection&&<><button'));
 });
