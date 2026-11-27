@@ -268,12 +268,12 @@ try{
   assert.equal(lockClips[1].showVideoName,false);assert.equal(await second.locator(".mv-clip-title").count(),0);
   // Actual pointer gestures, not only inspector/button state. Drag the
   // lower middle of the unlocked clip, away from both corner controls.
-  await second.scrollIntoViewIfNeeded();
+  await select(second);await second.scrollIntoViewIfNeeded();
   const dragSecond=async(dx:number)=>{
    const b=await second.locator(".mv-clip-drag-surface").boundingBox();assert.ok(b);
    const x=b.x+b.width/2,y=b.y+b.height*.76;
-   const hit=await page.evaluate(({x,y})=>document.elementFromPoint(x,y)?.className,{x,y});
-   assert.equal(hit,"mv-clip-drag-surface","drag must hit the free clip body, not a control");
+   const hit=await page.evaluate(({x,y})=>{const el=document.elementFromPoint(x,y);return {target:el?.getAttribute("class"),clip:el?.closest(".mv-clip")?.getAttribute("aria-label")};},{x,y});
+   assert.deepEqual(hit,{target:"mv-clip-drag-surface",clip:"Select video second"},"drag must hit the free clip body, not a control");
    if(width<500){
     const client=await page.context().newCDPSession(page);
     await client.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y,id:1}]});
@@ -285,7 +285,12 @@ try{
    }else{await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x+dx,y,{steps:5});await page.mouse.up();}
   };
   const oldStart=lockClips[1].timelineStartMs;
-  const moved=save();await dragSecond(-28);await moved;
+  try{
+   await Promise.all([save(),dragSecond(-28)]);
+  }catch(e){
+   console.error("CLIP_DRAG_DIAGNOSTIC",JSON.stringify(await second.evaluate(el=>({className:el.className,rect:{x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height},active:document.activeElement?.getAttribute("class"),error:document.querySelector(".mv-error")?.textContent}))));
+   throw e;
+  }
   assert.notEqual(lockClips[1].timelineStartMs,oldStart,"unlocked video must move with a pointer gesture");
   const protectedSave=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await protectedSave;
   const protectedStart=lockClips[1].timelineStartMs;await dragSecond(15);await page.waitForTimeout(800);

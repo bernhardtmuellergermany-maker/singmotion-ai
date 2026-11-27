@@ -1108,14 +1108,14 @@ export function MusicVideoEditor({id}:{id:string}){
                     aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
                     title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();if(e.detail>0)e.currentTarget.blur();toggleClipDisplay(c.id);}}>
+                    onClick={e=>{e.stopPropagation();toggleClipDisplay(c.id);}}>
                     {c.showVideoName?<EyeOff size={17}/>:<Eye size={17}/>}
                   </button>
                   <button type="button" className={"mv-clip-position-lock"+(movementLocked?" is-active":"")} aria-pressed={movementLocked}
                     aria-label={(movementLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
                     title={movementLocked?(c.syncLocked?"Unlock clip and song synchronization":"Unlock clip position"):"Lock clip position"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();if(e.detail>0)e.currentTarget.blur();togglePositionLock(c.id);}}>
+                    onClick={e=>{e.stopPropagation();togglePositionLock(c.id);}}>
                     {movementLocked?<Lock size={16}/>:<Unlock size={16}/>}
                   </button>
                   <button type="button" className="mv-handle mv-handle-end" disabled={c.positionLocked} aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
