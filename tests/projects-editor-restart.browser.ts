@@ -84,7 +84,11 @@ try{
   assert.equal(await page.getByRole("button",{name:"Synced review",exact:true}).count(),0);
   await page.waitForFunction(()=>document.querySelectorAll(".mv-clip .mv-clip-waveform[data-waveform=ready] .mv-wave-shape").length===2&&!!document.querySelector(".mv-song-block .mv-wave-shape"),{},{timeout:10000});
   assert.equal(await page.locator(".mv-lane.is-audio-muted .mv-wave-shape").count(),2);
-  for(const shape of await page.locator(".mv-wave-shape").all())assert.equal(await shape.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)");
+  for(const shape of await page.locator(".mv-clip .mv-wave-shape").all()){
+   const style=await shape.evaluate(el=>{const s=getComputedStyle(el);return {fill:s.fill,stroke:s.stroke,cap:s.strokeLinecap};});
+   assert.deepEqual(style,{fill:"none",stroke:"rgb(255, 255, 255)",cap:"round"});
+  }
+  for(const shape of await page.locator(".mv-song-block .mv-wave-shape").all())assert.equal(await shape.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)");
   assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
   const library=page.locator(".mv-library-heading");await library.click();
   const search=page.getByRole("searchbox",{name:"Search media"});await search.waitFor();
