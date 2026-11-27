@@ -1,7 +1,8 @@
 "use client";
 import {useEffect,useState} from "react";
 import {createPortal} from "react-dom";
-import {FolderPlus,Plus} from "lucide-react";
+import {FolderPlus,Plus,CheckCircle2} from "lucide-react";
+import "./music-video.css";
 
 type Target={id:string;name:string};
 export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
@@ -46,18 +47,18 @@ export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
       <FolderPlus size={15}/> Add to Project
     </button>
     {open&&typeof document!=="undefined"&&createPortal(
-      <div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
-        <div className="mv-dialog" role="dialog" aria-modal="true" aria-label="Add video to music project">
-          <h2>Add to Project</h2>
-          {complete?<p role="status">Video added to the selected project's Library. It has not been placed on the timeline.</p>:
-            projects.length?<div style={{display:"grid",gap:9,maxHeight:350,overflowY:"auto"}}>
+      <div className="mv-root mv-dialog-backdrop mv-add-project-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)setOpen(false);}}>
+        <div className="mv-dialog mv-add-project-dialog" role="dialog" aria-modal="true" aria-label="Add video to music project">
+          <h2>{complete?"Added to Project":"Add to Project"}</h2>
+          {complete?<div className="mv-add-project-success" role="status"><CheckCircle2 size={24} aria-hidden="true"/><p>The video was added to the selected project's Library. It has not been placed on the timeline yet.</p></div>:
+            projects.length?<div className="mv-add-project-list">
               {projects.map(p=><button type="button" key={p.id} disabled={busy} onClick={()=>void add(p.id)}
-                style={{display:"flex",alignItems:"center",gap:9,padding:12,border:"1px solid #8952aa",borderRadius:10,background:"#2a173e",textAlign:"left",color:"#fff"}}>
-                <Plus size={16}/> {p.name}
+                className="mv-add-project-choice">
+                <Plus size={16}/> <span>{p.name}</span>
               </button>)}
             </div>:<p>No music video projects yet. Create one under Projects first.</p>}
-          {error&&<p role="alert" style={{color:"#ffb8c6"}}>{error}</p>}
-          <div className="mv-dialog-actions"><button type="button" disabled={busy} onClick={()=>setOpen(false)}>Close</button></div>
+          {error&&<p role="alert" className="mv-add-project-error">{error}</p>}
+          <div className="mv-dialog-actions"><button className="mv-primary mv-add-project-close" type="button" disabled={busy} onClick={()=>setOpen(false)}>Close</button></div>
         </div>
       </div>,document.body)}
   </>;

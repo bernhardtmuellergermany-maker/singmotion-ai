@@ -16,7 +16,7 @@ const mp4=path.join(root,"clip.mp4");
 execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","color=red:size=320x180:rate=30","-t","4","-vf","drawbox=color=green:t=fill:enable='between(t,1,1.999)',drawbox=color=blue:t=fill:enable='gte(t,2)'","-an","-c:v","libx264","-threads","1","-pix_fmt","yuv420p","-profile:v","baseline","-g","15","-movflags","+faststart",mp4]);
 const video=readFileSync(mp4);
 const song=execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","sine=frequency=440:sample_rate=44100","-t","4","-c:a","libmp3lame","-f","mp3","pipe:1"],{maxBuffer:1024*1024});
-const bundled=await build({stdin:{contents:'import React from "react";import {createRoot} from "react-dom/client";import {MusicVideoEditor} from "./components/music-video-editor";createRoot(document.getElementById("root")!).render(<MusicVideoEditor id="fixture-project"/>);',resolveDir:process.cwd(),loader:"tsx"},bundle:true,write:false,format:"iife",platform:"browser",jsx:"automatic",define:{"process.env.NODE_ENV":'"production"'},loader:{".css":"empty"},plugins:[{name:"isolated-link",setup(b:any){b.onResolve({filter:/^next\/link$/},()=>({path:"link",namespace:"fixture"}));b.onLoad({filter:/.*/,namespace:"fixture"},()=>({contents:'import React from "react";export default function Link(p){return React.createElement("a",p)}',loader:"js",resolveDir:process.cwd()}));}}]});
+const bundled=await build({stdin:{contents:'import React from "react";import {createRoot} from "react-dom/client";import {MusicVideoEditor} from "./components/music-video-editor";import {AddToMusicProject} from "./components/add-to-music-project";createRoot(document.getElementById("root")!).render(location.pathname==="/add-test"?<AddToMusicProject sourceId="fixture" sourceKind="live" enabled/>:<MusicVideoEditor id="fixture-project"/>);',resolveDir:process.cwd(),loader:"tsx"},bundle:true,write:false,format:"iife",platform:"browser",jsx:"automatic",define:{"process.env.NODE_ENV":'"production"'},loader:{".css":"empty"},plugins:[{name:"isolated-link",setup(b:any){b.onResolve({filter:/^next\/link$/},()=>({path:"link",namespace:"fixture"}));b.onLoad({filter:/.*/,namespace:"fixture"},()=>({contents:'import React from "react";export default function Link(p){return React.createElement("a",p)}',loader:"js",resolveDir:process.cwd()}));}}]});
 const script=bundled.outputFiles[0].contents;
 const css=readFileSync("components/music-video.css");
 const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songName:"Test song",songDurationMs:4000,songStartMs:0,songEndMs:4000,songPositionMs:0,songParts:null,trackMutes:{1:true,2:true,song:false},revision:0,createdAt:1,updatedAt:1,aspectRatio:"16:9"};
@@ -34,10 +34,12 @@ const server=createServer((req,res)=>{
   if(start>end){res.writeHead(416,{"content-range":"bytes */"+bytes.length});res.end();return;}
   res.writeHead(status,{"content-type":type,"content-length":end-start+1,"accept-ranges":"bytes",...(status===206?{"content-range":"bytes "+start+"-"+end+"/"+bytes.length}:{})});res.end(bytes.subarray(start,end+1));
  };
- if(p==="/")return send('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/editor.css"></head><body><div id="root"></div><script src="/editor.js"></script></body></html>',"text/html");
+ if(p==="/"||p==="/add-test")return send('<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="/editor.css"></head><body><div id="root"></div><script src="/editor.js"></script></body></html>',"text/html");
  if(p==="/editor.js")return send(script,"application/javascript");
  if(p==="/editor.css")return send(css,"text/css");
  if(p==="/api/music-video/fixture-project")return json({project,assets,clips});
+ if(p==="/api/music-video")return json({projects:[{id:"fixture-project",name:"My music video"}]});
+ if(p==="/api/music-video/fixture-project/assets"&&req.method==="POST")return json({asset:{id:"fixture-added"}});
  if(p==="/api/session")return json({owner:"cms-staff-fixture"});
  if(p==="/api/music-video/fixture-project/lip-sync")return json({videos:Array.from({length:16},(_,i)=>({id:"lip-"+i,name:i===0?"Long video "+("UnbrokenName".repeat(25)):"Completed video "+i,durationMs:2000,sourceStartMs:0,sourceEndMs:2000}))});
  if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
@@ -216,5 +218,22 @@ try{
    console.log("PASS: Lip Sync dialog fits "+width+"px viewport with long names and a transformed editor; search and close work");
   }
   await page.close();
+ }
+ // Portal inherits a deliberately dark body foreground, as on the Videos page.
+ for(const width of [320,390,1280]){
+  const page=await browser.newPage({viewport:{width,height:600},isMobile:width<500,hasTouch:width<500});
+  await page.goto(origin+"/add-test");await page.evaluate(()=>{document.body.style.color="#24243d";});
+  await page.getByRole("button",{name:"Add to Project",exact:true}).click();
+  const dialog=page.getByRole("dialog",{name:"Add video to music project"});
+  const choice=dialog.getByRole("button",{name:"My music video"});await choice.waitFor();
+  assert.equal(await choice.evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");await choice.click();
+  await dialog.getByRole("heading",{name:"Added to Project"}).waitFor();
+  const status=dialog.getByRole("status").locator("p"),close=dialog.getByRole("button",{name:"Close",exact:true});
+  assert.equal(await status.evaluate(el=>getComputedStyle(el).color),"rgb(227, 255, 242)");
+  assert.equal(await dialog.getByRole("heading").evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");
+  assert.equal(await close.evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");
+  const box=await dialog.boundingBox();assert.ok(box&&box.x>=0&&box.x+box.width<=width+1&&box.y>=0&&box.y+box.height<=601);
+  await close.click();await dialog.waitFor({state:"hidden"});await page.close();
+  console.log("PASS: Add to Project dialog selection, success contrast and Close at "+width+"px");
  }
 }finally{await browser.close();await new Promise<void>(resolve=>server.close(()=>resolve()));rmSync(root,{recursive:true,force:true});}
