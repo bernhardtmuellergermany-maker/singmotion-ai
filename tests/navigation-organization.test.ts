@@ -868,3 +868,20 @@ test("Projects song sections have no visible section numbers and retain accessib
  assert.ok(editor.includes('aria-label={"Select song part "+(i+1)}'));
  assert.ok(editor.includes("currentParts.map((p,i)"));
 });
+
+
+test("synced review uses one native player and revision-scoped private preview without changing export timing",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),renderer=read("lib/music-video/export.ts");
+ assert.ok(editor.includes("useState(true),[syncedPreview"));
+ assert.ok(editor.includes('data-synced-preview="true"'));
+ assert.ok(editor.includes('{!syncedActive&&<audio'));
+ assert.ok(editor.includes("if(!playing||syncedActive)return;"));
+ assert.ok(editor.includes("syncedPreview.job.revision===revision.current"));
+ assert.ok(editor.includes("currentSnapshotKey()!==key"));
+ assert.ok(api.includes('if(section==="timeline-preview")'));
+ assert.ok(api.includes('musicTimelinePreviewFile(owner,id,current.revision,assetId)'));
+ assert.ok(api.includes('admitProjectOperation(tmpdir(),owner,"export",0)'));
+ assert.ok(renderer.includes('job.previewRevision!==revision'));
+ assert.ok(renderer.includes('preview?"28":"20"'));
+ assert.ok(renderer.includes('preview?"160k":"320k"'));
+});
