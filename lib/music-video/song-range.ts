@@ -424,3 +424,21 @@ export function planFreeVideoInsertion<T extends PositionedClip>(clips:readonly 
  const fit=fits[0];if(!fit)return null;
  return {...candidate,timelineStartMs:fit.start,sourceOutMs:candidate.sourceInMs+Math.min(length,fit.g.end-fit.start),syncLocked:false};
 }
+
+
+/** Restore all requested clip placements together, so clips being restored do
+ * not temporarily block one another. Never overwrite unrelated or locked edits. */
+export function restoreClipPlacements<T extends PositionedClip>(clips:readonly T[],targets:readonly T[]):{status:"ok";clips:T[]}|{status:"collision"|"locked"|"bounds"}{
+ const byId=new Map(targets.map(c=>[c.id,c]));
+ const next=clips.map(c=>{
+  const target=byId.get(c.id);
+  return target?{...c,timelineStartMs:target.timelineStartMs,sourceInMs:target.sourceInMs,sourceOutMs:target.sourceOutMs,track:target.track,syncLocked:target.syncLocked}:c;
+ });
+ for(const c of clips){const t=byId.get(c.id);if(t&&c.positionLocked&&(t.timelineStartMs!==c.timelineStartMs||t.track!==c.track||t.sourceInMs!==c.sourceInMs||t.sourceOutMs!==c.sourceOutMs))return {status:"locked"};}
+ for(const c of next){if(!Number.isSafeInteger(c.timelineStartMs)||c.timelineStartMs<0||c.sourceInMs<0||c.sourceOutMs<=c.sourceInMs||c.timelineStartMs+c.sourceOutMs-c.sourceInMs>MAX_TIMELINE_MS)return {status:"bounds"};}
+ for(const track of [1,2]){
+  const sorted=next.filter(c=>c.track===track).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+  if(sorted.some((c,i)=>i>0&&c.timelineStartMs<sorted[i-1].timelineStartMs+sorted[i-1].sourceOutMs-sorted[i-1].sourceInMs))return {status:"collision"};
+ }
+ return {status:"ok",clips:next};
+}
