@@ -38,6 +38,8 @@ const server=createServer((req,res)=>{
  if(p==="/editor.js")return send(script,"application/javascript");
  if(p==="/editor.css")return send(css,"text/css");
  if(p==="/api/music-video/fixture-project")return json({project,assets,clips});
+ if(p==="/api/session")return json({owner:"cms-staff-fixture"});
+ if(p==="/api/music-video/fixture-project/lip-sync")return json({videos:Array.from({length:16},(_,i)=>({id:"lip-"+i,name:i===0?"Long video "+("UnbrokenName".repeat(25)):"Completed video "+i,durationMs:2000,sourceStartMs:0,sourceEndMs:2000}))});
  if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
  if(p.includes("/format/"))return json({width:320,height:180});
  if(p.includes("/timeline-preview")){timelineRequests++;res.writeHead(404);res.end();return;}
@@ -195,6 +197,24 @@ try{
    console.log("PASS: timeline swipe continues with bounded inertia after touch release on mobile Chromium");
   }
   assert.equal(await page.locator(".mv-clip").count(),2);
+  // Reproduce a transformed editor ancestor and long names, then verify the
+  // body-portal dialog stays inside the actual mobile viewport at 390/320px.
+  if(!(await page.getByRole("button",{name:"Insert Lip Sync",exact:true}).isVisible()))await page.locator(".mv-library-heading").click();
+  for(const width of mobile?[390,320]:[1280]){
+   if(mobile)await page.setViewportSize({width,height:600});
+   await page.evaluate(()=>{document.getElementById("root")!.style.transform="translateZ(0)";});
+   await page.getByRole("button",{name:"Insert Lip Sync",exact:true}).click();
+   const dialog=page.getByRole("dialog",{name:"Insert Lip Sync"});
+   await dialog.getByRole("button",{name:/Long video/}).waitFor();
+   assert.equal(await dialog.evaluate(el=>el.parentElement?.parentElement===document.body),true);
+   assert.equal(await page.evaluate(()=>document.activeElement?.tagName),"DIV","opening must not summon the mobile keyboard");
+   const bounds=await dialog.evaluate(el=>{const r=el.getBoundingClientRect(),v=window.visualViewport;return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:v?.width??innerWidth,height:v?.height??innerHeight,x:v?.offsetLeft??0,y:v?.offsetTop??0,overflow:el.scrollWidth>el.clientWidth+1};});
+   assert.ok(bounds.left>=bounds.x-1&&bounds.right<=bounds.x+bounds.width+1&&bounds.top>=bounds.y-1&&bounds.bottom<=bounds.y+bounds.height+1&&!bounds.overflow,JSON.stringify(bounds));
+   const search=dialog.getByRole("searchbox",{name:"Search Lip Sync videos"});await search.fill("Completed video 15");
+   assert.equal(await dialog.locator(".mv-lip-list>button").count(),1);
+   await dialog.getByRole("button",{name:"Close",exact:true}).click();await dialog.waitFor({state:"hidden"});
+   console.log("PASS: Lip Sync dialog fits "+width+"px viewport with long names and a transformed editor; search and close work");
+  }
   await page.close();
  }
 }finally{await browser.close();await new Promise<void>(resolve=>server.close(()=>resolve()));rmSync(root,{recursive:true,force:true});}

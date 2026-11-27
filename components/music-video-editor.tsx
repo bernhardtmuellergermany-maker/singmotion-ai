@@ -2,6 +2,7 @@
 import {PROJECT_VIDEO_MAX_BYTES,PROJECT_VIDEO_MAX_MIB} from "../lib/music-video/media-limits";
 import {memo,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
+import {createPortal} from "react-dom";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
@@ -135,6 +136,36 @@ export function MusicVideoEditor({id}:{id:string}){
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
   const [importing,setImporting]=useState(false);
   const importBusy=useRef(false),roleBusy=useRef(false);
+  const lipBackdrop=useRef<HTMLDivElement>(null),lipDialog=useRef<HTMLDivElement>(null);
+  useLayoutEffect(()=>{
+    if(lipTrack===null)return;
+    const backdrop=lipBackdrop.current,dialog=lipDialog.current;
+    if(!backdrop||!dialog)return;
+    const previous=document.activeElement instanceof HTMLElement?document.activeElement:null;
+    const viewport=window.visualViewport;
+    // The portal escapes transformed/scrolled editor ancestors. Follow the
+    // actual visible viewport during zoom and on-screen keyboard changes.
+    const fit=()=>{
+      if(!viewport)return;
+      Object.assign(backdrop.style,{left:viewport.offsetLeft+"px",top:viewport.offsetTop+"px",
+        width:viewport.width+"px",height:viewport.height+"px"});
+    };
+    fit();viewport?.addEventListener("resize",fit);viewport?.addEventListener("scroll",fit);
+    dialog.focus({preventScroll:true});
+    const key=(event:KeyboardEvent)=>{
+      if(event.key==="Escape"&&!importBusy.current){event.preventDefault();setLipTrack(null);}
+      if(event.key==="Tab"){
+        const items=Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled),input:not(:disabled)"));
+        const first=items[0],last=items.at(-1);
+        if(!first||!last)return;
+        if(event.shiftKey&&(document.activeElement===first||document.activeElement===dialog)){event.preventDefault();last.focus();}
+        else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+      }
+    };
+    dialog.addEventListener("keydown",key);
+    return()=>{viewport?.removeEventListener("resize",fit);viewport?.removeEventListener("scroll",fit);
+      dialog.removeEventListener("keydown",key);if(previous?.isConnected)previous.focus({preventScroll:true});};
+  },[lipTrack]);
   const [exportJob,setExportJob]=useState<ExportJob|null>(null),[exportError,setExportError]=useState(""),[exportOpen,setExportOpen]=useState(false),[exporting,setExporting]=useState(false);
   const exportAbort=useRef<AbortController|null>(null),exportBusy=useRef(false);
   useEffect(()=>()=>exportAbort.current?.abort(),[]);
@@ -1164,11 +1195,11 @@ export function MusicVideoEditor({id}:{id:string}){
     </section>
     {exportJob?.state==="ready"&&!exportOpen&&<div className="mv-export-toast" role="status"><Check size={20}/><div><strong>MP4 ready{exportJob.resolution?" · "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p":""}</strong><small>Download requested. <a href={endpoint+id+"/export/"+exportJob.id+"?download=1"} download>Download again</a></small></div><button type="button" aria-label="Dismiss export notice" onClick={()=>setExportJob(null)}><X size={17}/></button></div>}
     {exportOpen&&<div className="mv-dialog-backdrop"><div className="mv-dialog mv-export-dialog" role="dialog" aria-modal="true" aria-label="Export MP4"><div className="mv-export-symbol"><Download size={32}/></div><h2>{exportError?"Export failed":"Exporting your video…"}</h2><p>{exportError||(exportJob?.resolution?"Preparing "+Math.min(exportJob.resolution.width,exportJob.resolution.height)+"p MP4 for download.":"Checking source resolution…")}</p>{!exportError&&<><div className="mv-export-meter" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={exportJob?.progress??0}><span style={{width:(exportJob?.progress??0)+"%"}}/></div><strong>{exportJob?.progress??0}%</strong></>}{!exporting&&<button className="mv-outline" onClick={()=>setExportOpen(false)}>Close</button>}</div></div>}
-    {lipTrack!==null&&<div className="mv-dialog-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
-      <div className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
+    {lipTrack!==null&&typeof document!=="undefined"&&createPortal(<div ref={lipBackdrop} className="mv-root mv-editor mv-dialog-backdrop mv-lip-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
+      <div ref={lipDialog} tabIndex={-1} className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
         <h2>Insert Lip Sync · {lipTrack===1?"Main track":"Video 2"}</h2>
         <p>Choose a completed Lip Sync video. It will be placed at its original song time with Sync Lock enabled. Use the same song for accurate synchronization.</p>
-        <input autoFocus placeholder="Search completed videos…" aria-label="Search Lip Sync videos" value={lipSearch} onChange={e=>setLipSearch(e.target.value)}/>
+        <input type="search" placeholder="Search completed videos…" aria-label="Search Lip Sync videos" value={lipSearch} onChange={e=>setLipSearch(e.target.value)}/>
         {lipLoading?<p role="status">Loading your videos…</p>:<div className="mv-lip-list">
           {lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).map(s=><button key={s.id} type="button" disabled={importing||s.sourceStartMs>=project!.songDurationMs||s.sourceEndMs>project!.songDurationMs}
             onClick={()=>void insertLipSync(s,lipTrack)}>
@@ -1179,6 +1210,6 @@ export function MusicVideoEditor({id}:{id:string}){
         {lipError&&<p role="alert" className="mv-error">{lipError}</p>}
         <div className="mv-dialog-actions"><button type="button" disabled={importing} onClick={()=>setLipTrack(null)}>Close</button></div>
       </div>
-    </div>}
+    </div>,document.body)}
   </main>;
 }
