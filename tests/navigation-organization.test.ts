@@ -1171,3 +1171,21 @@ test("a removed song leaves a persistent editable project and a replace action",
  assert.ok(api.includes('attachProjectSong(id,owner,revision,version,songName,duration,records)'));
  assert.ok(api.includes('if(req.method==="POST"&&project.songRemoved)throw new MusicError("Add a song before exporting.",409)'));
 });
+
+
+test("saved Lip Sync placements restore atomically without overwriting unrelated clips",async()=>{
+ const {restoreClipPlacements}=await import("../lib/music-video/song-range.ts");
+ const a={id:"a",track:1,timelineStartMs:0,sourceInMs:200,sourceOutMs:1200,syncLocked:false,positionLocked:false};
+ const b={...a,id:"b",timelineStartMs:1000};
+ const other={...a,id:"other",track:2};
+ const first={...a,timelineStartMs:1000,syncLocked:true},second={...b,timelineStartMs:0,sourceInMs:300,sourceOutMs:1300};
+ const restored=restoreClipPlacements([a,b,other],[first,second]);
+ assert.equal(restored.status,"ok");
+ if(restored.status==="ok"){assert.deepEqual(restored.clips,[first,second,other]);}
+ assert.equal(restoreClipPlacements([a,b],[first]).status,"collision");
+ assert.equal(restoreClipPlacements([{...a,positionLocked:true},b],[first,second]).status,"locked");
+ const core=read("lib/music-video/core.ts"),editor=read("components/music-video-editor.tsx");
+ assert.ok(core.includes("song_restore_json"));
+ assert.ok(core.includes("JSON.stringify(snapshot)"));
+ assert.ok(editor.includes('aria-label="Restore all Lip Sync positions"'));
+});
