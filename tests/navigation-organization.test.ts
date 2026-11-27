@@ -661,7 +661,7 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('"?mobile=1"'));
  assert.ok(editor.includes('if(data.unsupported)throw Error'));
  assert.ok(engine.includes("maxCacheSize:8*1024*1024"));
- assert.ok(engine.includes("FRAME_CACHE_LIMIT=4"));
+ assert.ok(engine.includes("FRAME_CACHE_LIMIT=6"));
  assert.ok(!editor.includes("<audio"));
  assert.ok(!editor.includes("<video"));
 });
@@ -780,8 +780,8 @@ test("lookahead requires bounded buffered runway, not media in intentional gaps"
  assert.equal(nextVisibleClipTransition([clip],0,[18000,20500],{1:true,2:true})?.atMs,18000);
  const engine=read("lib/music-video/frame-preview-engine.ts");
  assert.ok(engine.includes("frames.set(frame,null)"));
- assert.ok(engine.includes("FRAME_CACHE_LIMIT=4"));
- assert.ok(engine.includes("this.scheduledThrough-this.position<1000"));
+ assert.ok(engine.includes("FRAME_CACHE_LIMIT=6"));
+ assert.ok(engine.includes("this.scheduledThrough-this.position<PLAYBACK_LOOKAHEAD_MS"));
 });
 
 
@@ -816,7 +816,7 @@ test("project video display names never mutate the original or another project",
 });
 test("frame replay retains bounded windows and private ranged source caches",()=>{
  const engine=read("lib/music-video/frame-preview-engine.ts");
- assert.ok(engine.includes("FRAME_CACHE_LIMIT=4"));
+ assert.ok(engine.includes("FRAME_CACHE_LIMIT=6"));
  assert.ok(engine.includes("SOURCE_CACHE_LIMIT=6"));
  assert.ok(engine.includes("maxCacheSize:8*1024*1024"));
  assert.ok(engine.includes('redirect:"error"'));
@@ -868,4 +868,17 @@ test("frame player invalidates late seeks and does not re-render the project on 
  assert.ok(engine.includes("version!==this.version"));
  assert.ok(engine.includes("this.controller.abort()"));
  assert.ok(!editor.includes("downloadReview"));
+});
+
+
+test("frame engine warms upcoming clips and paints during continuous drag independently of audio",()=>{
+ const engine=read("lib/music-video/frame-preview-engine.ts");
+ assert.ok(engine.includes("CLIP_LOOKAHEAD_MS=20000"));
+ assert.ok(engine.includes("PLAYBACK_LOOKAHEAD_MS=2000"));
+ assert.ok(engine.includes("LOCAL_PROXY_BYTES=8*1024*1024"));
+ assert.ok(engine.includes("new BlobSource(blob)"));
+ assert.ok(engine.includes("this.pictureWindow(index)"));
+ assert.ok(engine.includes("if(!latest.clip||ready?.has(latest.frame))"));
+ assert.ok(engine.includes("this.warmScrub()"));
+ assert.ok(engine.includes("frameTarget(this.timeline!,this.position)?.frame===target.frame"));
 });
