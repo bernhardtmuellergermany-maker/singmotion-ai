@@ -839,7 +839,8 @@ test("project video display names never mutate the original or another project",
 test("replay retains a bounded session preview cache and skips network startup runway for complete blobs",()=>{
  const editor=read("components/music-video-editor.tsx"),cache=read("lib/music-video/browser-preview-cache.ts");
  assert.ok(editor.includes("firstPreviewAsset=firstVisibleVideo(clips)?.assetId"));
- assert.ok(editor.includes("buffering?cached:undefined"));
+ assert.ok(editor.includes("return playing?(sessionSources.current.get(assetId)??cached??networkSource(assetId))"));
+ assert.ok(!editor.includes("buffering?cached:undefined"));
  assert.ok(editor.includes("sessionSources.current=attached"));
  assert.ok(cache.includes('redirect:"error"'));
  assert.ok(cache.includes("URL.revokeObjectURL"));
@@ -855,7 +856,9 @@ test("paused current-frame decoder is allowed to start and transient startup dri
  assert.equal(previewRunningGate(.15,media,200),"align");
  assert.equal(previewRunningGate(.25,media,100),"align");
  const editor=read("components/music-video-editor.tsx");
- assert.ok(editor.includes("if(picture){picture.playbackRate=1;playFollower(picture);}"));
+ assert.ok(editor.includes("if(picture){picture.pause();picture.playbackRate=1;}"));
+ assert.ok(editor.includes("if(songPlayPending.current){element.pause();return;}"));
+ assert.ok(editor.includes("element.currentTime-expected>.045"));
  assert.ok(editor.includes("function startTogether(at:number):boolean"));
  assert.ok(editor.includes("jointStarted.current&&current.ended"));
  assert.ok(!editor.includes("hasPreviewBuffer(element.buffered"));
