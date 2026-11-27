@@ -105,7 +105,12 @@ try{
   assert.equal(await page.locator(".mv-song-block .mv-waveform-bars").first().evaluate(el=>el.getBoundingClientRect().height),videoWave.height);
   const songWave=await page.locator(".mv-song-block .mv-waveform-bars").first().evaluate(el=>el.getBoundingClientRect().width/el.parentElement!.getBoundingClientRect().width);
   assert.ok(songWave>.95,"song waveform retains time-axis width");
-  assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
+  assert.equal(await page.locator(".mv-song-wave-title").count(),0,"song waveform has no visible title");
+  await page.waitForFunction(()=>{
+   const viewport=document.querySelector(".mv-scroll"),area=document.querySelector(".mv-track-area"),song=document.querySelector(".mv-song-block");
+   return !!viewport&&!!area&&!!song&&Math.abs(area.getBoundingClientRect().width-viewport.clientWidth)<=1&&Math.abs(song.getBoundingClientRect().width-viewport.clientWidth)<=2;
+  },{},{timeout:10000});
+  assert.equal(await page.getByRole("button",{name:"Zoom out timeline"}).isDisabled(),true,"minimum zoom fills viewport");
   const library=page.locator(".mv-library-heading");await library.click();
   const search=page.getByRole("searchbox",{name:"Search media"});await search.waitFor();
   const checkSearch=async()=>{const style=await search.evaluate(el=>({input:getComputedStyle(el).backgroundColor,wrapper:getComputedStyle(el.parentElement!).backgroundColor,shadow:getComputedStyle(el).boxShadow}));assert.deepEqual(style,{input:"rgba(0, 0, 0, 0)",wrapper:"rgb(0, 0, 0)",shadow:"none"});};
@@ -202,7 +207,7 @@ try{
   assert.equal(await page.locator(".mv-progress").inputValue(),"1234");
   await exactTime.press("Escape");
   console.log("PASS: compact toolbar magnet toggle and exact time entry at "+(mobile?"mobile":"desktop")+" viewport");
-  assert.ok((await page.locator(".mv-ruler .mv-tick-major").allTextContents()).includes("00:02"),"default ruler shows two-second steps");
+  assert.ok((await page.locator(".mv-ruler .mv-tick-major").allTextContents()).some(label=>label.startsWith("00:02")),"fitted ruler still shows the exact two-second position");
   assert.ok(await page.locator(".mv-ruler .mv-tick-minor").count()>0);
   if(mobile){
    // Real Chromium touch input: pinch on the song, not on the playhead.
@@ -214,7 +219,7 @@ try{
    const original=await zoomLevel();
    const atBefore=await page.locator(".mv-progress").inputValue();
    await touch("touchStart",50);await touch("touchMove",110);await touch("touchMove",170);await touch("touchEnd");
-   await page.waitForFunction(()=>(document.querySelector(".mv-track-area")?.getBoundingClientRect().width??0)/(4*44)>2);
+   await page.waitForFunction(z=>(document.querySelector(".mv-track-area")?.getBoundingClientRect().width??0)/(4*44)>z*2,original);
    const zoomed=await zoomLevel();
    assert.ok(zoomed>original*2);
    assert.equal(await page.locator(".mv-progress").inputValue(),atBefore,"pinch must not move playhead");
@@ -309,6 +314,7 @@ try{
   const trim=first.locator(".mv-handle-end");await trim.scrollIntoViewIfNeeded();
   const rect=await trim.boundingBox();assert.ok(rect);
   const tx=Math.round(rect.x+rect.width/2),ty=Math.round(rect.y+rect.height/2);
+  const trimDelta=Math.round((await first.evaluate(el=>el.getBoundingClientRect().width))*350/1500);
   const inspect=async()=>await page.waitForFunction(()=>{
    const c=document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]');
    return c?.dataset.trimAsset==="first"&&Number(c.dataset.trimSourceMs)<1700&&Number(c.dataset.trimSourceMs)>1000&&Math.abs(Number(c.dataset.sourceTime)*1000-Number(c.dataset.trimSourceMs))<45;
@@ -318,11 +324,11 @@ try{
    const client=await page.context().newCDPSession(page);
    await client.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:tx,y:ty,id:6}]});
    await page.waitForFunction(()=>document.querySelector('.mv-clip[aria-label="Select video first"]')?.classList.contains("is-armed"),{},{timeout:3000});
-   await client.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:tx-16,y:ty,id:6}]});
+   await client.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:tx-trimDelta,y:ty,id:6}]});
    await inspect();
    await client.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await client.detach();
   }else{
-   await page.mouse.move(tx,ty);await page.mouse.down();await page.mouse.move(tx-16,ty,{steps:4});await inspect();await page.mouse.up();
+   await page.mouse.move(tx,ty);await page.mouse.down();await page.mouse.move(tx-trimDelta,ty,{steps:4});await inspect();await page.mouse.up();
   }
   await trimSaved;assert.ok(lockClips[0].sourceOutMs<1750);
   const restoreTrim=save();await page.getByRole("button",{name:"Undo",exact:true}).click();await restoreTrim;assert.equal(lockClips[0].sourceOutMs,1750);
