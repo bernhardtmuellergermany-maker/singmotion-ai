@@ -271,11 +271,15 @@ try{
   await select(second);await second.scrollIntoViewIfNeeded();
   const dragSecond=async(dx:number)=>{
    const b=await second.locator(".mv-clip-drag-surface").boundingBox();assert.ok(b);
-   const x=b.x+b.width/2,y=b.y+b.height*.76;
+   const x=Math.round(b.x+b.width/2),y=Math.floor(b.y+b.height-5);
    const hit=await page.evaluate(({x,y})=>{const el=document.elementFromPoint(x,y);return {target:el?.getAttribute("class"),clip:el?.closest(".mv-clip")?.getAttribute("aria-label")};},{x,y});
    assert.deepEqual(hit,{target:"mv-clip-drag-surface",clip:"Select video second"},"drag must hit the free clip body, not a control");
    if(width<500){
     const client=await page.context().newCDPSession(page);
+    await page.evaluate(()=>{
+     const events:unknown[]=[];Object.assign(window,{__clipPointerLog:events});
+     for(const type of ["pointerdown","pointercancel","pointerup","touchstart","touchend"])document.addEventListener(type,e=>{const p=e as PointerEvent,t=e.target as Element;events.push({type,target:t?.getAttribute("class"),pointerType:p.pointerType,primary:p.isPrimary,button:p.button,x:p.clientX,y:p.clientY});},{capture:true,once:true});
+    });
     await client.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x,y,id:1}]});
     if(!(await second.evaluate(el=>el.classList.contains("is-position-locked")))){
      await page.waitForFunction(()=>document.querySelector('.mv-clip[aria-label="Select video second"]')?.classList.contains("is-armed"),{},{timeout:3000});
@@ -288,7 +292,7 @@ try{
   try{
    await Promise.all([save(),dragSecond(-28)]);
   }catch(e){
-   console.error("CLIP_DRAG_DIAGNOSTIC",JSON.stringify(await second.evaluate(el=>({className:el.className,rect:{x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height},active:document.activeElement?.getAttribute("class"),error:document.querySelector(".mv-error")?.textContent}))));
+   console.error("CLIP_DRAG_DIAGNOSTIC",JSON.stringify(await second.evaluate(el=>({className:el.className,rect:{x:el.getBoundingClientRect().x,y:el.getBoundingClientRect().y,width:el.getBoundingClientRect().width,height:el.getBoundingClientRect().height},active:document.activeElement?.getAttribute("class"),error:document.querySelector(".mv-error")?.textContent,events:(window as any).__clipPointerLog}))));
    throw e;
   }
   assert.notEqual(lockClips[1].timelineStartMs,oldStart,"unlocked video must move with a pointer gesture");

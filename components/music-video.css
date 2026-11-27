@@ -718,3 +718,7 @@
 .mv-root.mv-editor .mv-waveform-bars .mv-wave-shape{fill:none;stroke:currentColor;stroke-width:2.3;stroke-linecap:round;vector-effect:non-scaling-stroke;opacity:1}
 .mv-root.mv-editor .mv-song-block .mv-song-wave-title{top:2px;transform:none;font-size:10px;line-height:11px;left:8px;right:8px;text-shadow:none}
 .mv-root.mv-editor .mv-song-block{border-radius:10px}
+
+/* Same touch-action for controls and clip body prevents native tap/scroll
+   arbitration from cancelling a stationary hold in Chromium. */
+.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{touch-action:none;height:min(17px,45%);top:1px}

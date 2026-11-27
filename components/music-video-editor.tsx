@@ -337,8 +337,10 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   // Mouse editing starts immediately. Touch swipes pan the viewport; stationary holds arm editing.
   function beginMediaGesture(e:React.PointerEvent,media:string,onHold:()=>void,onTap:()=>void,allowHold=true){
-    if(e.button!==0||!e.isPrimary||importBusy.current||gestureCleanup.current)return;
+    if(e.button!==0||!e.isPrimary||importBusy.current)return;
     e.preventDefault();e.stopPropagation();
+    // A new primary press supersedes an abandoned hold (e.g. OS touch cancel).
+    gestureCleanup.current?.();
     stopInertia();
     if(e.pointerType==="mouse"&&allowHold){setArmedMedia(media);onHold();return;}
     const pointer=e.pointerId,x=e.clientX,y=e.clientY;
@@ -809,6 +811,20 @@ export function MusicVideoEditor({id}:{id:string}){
     if(roleBusy.current)return;
     if(!selectedClip||selectedClip.positionLocked)return;apply(latest.current.filter(c=>c.id!==selectedClip.id));setSelected(null);
   }
+  function clipControlPointer(e:React.PointerEvent<HTMLButtonElement>,clip:MusicClip,action:()=>void){
+    e.stopPropagation();
+    if(e.pointerType!=="touch")return;
+    // Chromium may expand a nearby icon's touch target. A tap still activates
+    // the icon, while holding it can move an unlocked clip, just like its body.
+    beginMediaGesture(e,clip.id,()=>movePointer(e,clip,"move"),action,!clip.positionLocked);
+  }
+  function clipControlClick(e:React.MouseEvent<HTMLButtonElement>,action:()=>void){
+    e.stopPropagation();
+    // Touch activation is handled on pointer-up by beginMediaGesture.
+    // Mouse and keyboard activation retain the native button behavior.
+    if((e.nativeEvent as PointerEvent).pointerType==="touch")return;
+    action();
+  }
   function toggleClipDisplay(id:string){
     if(importBusy.current||roleBusy.current)return;
     const current=latest.current.find(c=>c.id===id);if(!current)return;
@@ -1107,15 +1123,15 @@ export function MusicVideoEditor({id}:{id:string}){
                   <button type="button" className="mv-clip-display-toggle" aria-pressed={!!c.showVideoName}
                     aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
                     title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
-                    onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();toggleClipDisplay(c.id);}}>
+                    onPointerDown={e=>clipControlPointer(e,c,()=>toggleClipDisplay(c.id))} onKeyDown={e=>e.stopPropagation()}
+                    onClick={e=>clipControlClick(e,()=>toggleClipDisplay(c.id))}>
                     {c.showVideoName?<EyeOff size={17}/>:<Eye size={17}/>}
                   </button>
                   <button type="button" className={"mv-clip-position-lock"+(movementLocked?" is-active":"")} aria-pressed={movementLocked}
                     aria-label={(movementLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
                     title={movementLocked?(c.syncLocked?"Unlock clip and song synchronization":"Unlock clip position"):"Lock clip position"} disabled={importing}
-                    onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
-                    onClick={e=>{e.stopPropagation();togglePositionLock(c.id);}}>
+                    onPointerDown={e=>clipControlPointer(e,c,()=>togglePositionLock(c.id))} onKeyDown={e=>e.stopPropagation()}
+                    onClick={e=>clipControlClick(e,()=>togglePositionLock(c.id))}>
                     {movementLocked?<Lock size={16}/>:<Unlock size={16}/>}
                   </button>
                   <button type="button" className="mv-handle mv-handle-end" disabled={c.positionLocked} aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
