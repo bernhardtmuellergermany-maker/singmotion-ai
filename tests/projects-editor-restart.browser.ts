@@ -436,9 +436,9 @@ try{
   assert.equal(lockClips.length,1);assert.equal(lockClips[0].id,"c2");
   const undone=save();await page.getByRole("button",{name:"Undo",exact:true}).click();await undone;
   assert.equal(lockClips.length,2,"keyboard deletion is undoable");
-  const song=page.getByRole("button",{name:"Select song",exact:true});await song.focus();await song.press("Enter");
-  assert.equal(await song.getAttribute("aria-pressed"),"true");
-  const songBorder=await song.evaluate(el=>{const s=getComputedStyle(el);return {widths:[s.borderTopWidth,s.borderRightWidth,s.borderBottomWidth,s.borderLeftWidth],colors:[s.borderTopColor,s.borderRightColor,s.borderBottomColor,s.borderLeftColor],outline:s.outlineStyle,shadow:s.boxShadow};});
+  const songClip=page.getByRole("button",{name:"Select song",exact:true});await songClip.focus();await songClip.press("Enter");
+  assert.equal(await songClip.getAttribute("aria-pressed"),"true");
+  const songBorder=await songClip.evaluate(el=>{const s=getComputedStyle(el);return {widths:[s.borderTopWidth,s.borderRightWidth,s.borderBottomWidth,s.borderLeftWidth],colors:[s.borderTopColor,s.borderRightColor,s.borderBottomColor,s.borderLeftColor],outline:s.outlineStyle,shadow:s.boxShadow};});
   assert.deepEqual(songBorder,{widths:Array(4).fill("1px"),colors:Array(4).fill("rgb(225, 196, 241)"),outline:"none",shadow:"none"});
   for(const edge of ["start","end"]){
    const handle=page.getByRole("button",{name:"Trim song "+edge,exact:true});
@@ -469,7 +469,7 @@ try{
   await preview.getByRole("button",{name:"Close video preview"}).click();await preview.waitFor({state:"hidden"});
   assert.equal(await page.locator(".mv-library-preview-dialog video").count(),0);
   const retained=lockClips.map(c=>({...c,syncLocked:false}));
-   await song.focus();await song.press("Enter");
+   await songClip.focus();await songClip.press("Enter");
    const trashSong=page.getByRole("button",{name:"Delete selection",exact:true});
    assert.equal(await trashSong.isEnabled(),true);
    page.once("dialog",dialog=>void dialog.accept());
