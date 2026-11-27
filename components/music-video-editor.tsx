@@ -1329,7 +1329,11 @@ export function MusicVideoEditor({id}:{id:string}){
     // Ignore stale media callbacks from the previous clip/source during a handoff.
     if(clip&&element.dataset.clipId!==clip.id)return;
     if(clip)applyPreviewVolume(element);
-    if(markerDrag.current&&playingRef.current){element.pause();return;}
+    if(markerDrag.current&&playingRef.current){
+      element.pause();element.playbackRate=1;
+      if(clip&&at>=clip.timelineStartMs&&at<clipEnd(clip)&&element.readyState>=1&&!element.seeking){const expected=clipSourceTimeMs(clip,at)/1000;if(Math.abs(element.currentTime-expected)>.015)try{element.currentTime=expected;}catch{}}
+      return;
+    }
     if(playingRef.current&&usesNativeClock(at)&&mutedPreviewClock(at).element===element)return;
     if(!clip||at<clip.timelineStartMs||at>=clipEnd(clip)){element.pause();element.playbackRate=1;return;}
     const expected=clipSourceTimeMs(clip,at)/1000;
@@ -1371,7 +1375,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const visible=previewMediaPlan(latest.current,at,mutesRef.current).visible;
     if(clip?.id!==visible?.id||element.dataset.clipId!==visible?.id){element.pause();return;}
     if(clip)applyPreviewVolume(element);
-    if(markerDrag.current&&playingRef.current){element.pause();return;}
+    if(markerDrag.current&&playingRef.current){syncMedia(element,clip,at,false);return;}
     if(playingRef.current&&usesNativeClock(at)){
       if(mutedPreviewClock(at).element===element){startMutedClock(at);return;}
     }
@@ -1446,7 +1450,7 @@ export function MusicVideoEditor({id}:{id:string}){
     </div>
     <section className="mv-preview" aria-label="Music video preview">
       <div ref={previewBox} className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
-        {syncedActive&&<video key={syncedPreview!.job.id} ref={syncedVideo} data-synced-preview="true" playsInline preload="auto" src={endpoint+id+"/timeline-preview/"+syncedPreview!.job.id+"?media=1"} aria-hidden={false} onLoadedMetadata={()=>{alignSyncedVideo();applyPreviewVolume(syncedVideo.current);startSyncedVideo();}} onCanPlay={()=>{setBuffering(false);startSyncedVideo();}} onSeeked={()=>{if(syncedSeekTarget.current!==null||!playingRef.current)alignSyncedVideo();}} onWaiting={()=>{if(playingRef.current)setBuffering(true);}} onPlaying={()=>setBuffering(false)} onEnded={()=>{if(!markerDrag.current&&syncedSeekTarget.current===null){playheadRef.current=timelineEnd;stopPlayback();}}} onError={()=>{stopPlayback();setSyncedPreview(null);setError("Synced preview expired or could not load. Tap Play to prepare it again.");}}/>}
+        {syncedActive&&<video key={syncedPreview!.job.id} ref={syncedVideo} data-synced-preview="true" playsInline preload="auto" src={endpoint+id+"/timeline-preview/"+syncedPreview!.job.id+"?media=1"} aria-hidden={false} onLoadedMetadata={()=>{alignSyncedVideo();applyPreviewVolume(syncedVideo.current);startSyncedVideo();}} onCanPlay={()=>{setBuffering(false);startSyncedVideo();}} onSeeked={()=>{const element=syncedVideo.current,target=syncedSeekTarget.current;if(element&&target!==null&&Math.abs(element.currentTime-target)<=.025){syncedSeekTarget.current=null;}else if(target!==null||!playingRef.current)alignSyncedVideo();}} onWaiting={()=>{if(playingRef.current)setBuffering(true);}} onPlaying={()=>setBuffering(false)} onEnded={()=>{if(!markerDrag.current&&syncedSeekTarget.current===null){playheadRef.current=timelineEnd;stopPlayback();}}} onError={()=>{stopPlayback();setSyncedPreview(null);setError("Synced preview expired or could not load. Tap Play to prepare it again.");}}/>}
         {!syncedActive&&!activeAsset&&!clips.length&&<div className="mv-preview-empty"><Film size={40}/><span>Arrange clips to preview your music video</span></div>}
         {!syncedActive&&mobilePreparing&&activeAsset&&<div className="mv-preview-empty"><Film size={32}/><span>{mobileUnsupported?"Mobile preview unavailable.":"Preparing mobile preview…"}</span>{mobileUnsupported&&<><button type="button" onClick={()=>retryMobilePreview(activeAsset.id)}>Retry</button><button type="button" onClick={()=>useOriginalOnMobile(activeAsset.id)}>Use original</button></>}</div>}
         {(!syncedActive&&mobile!==null?[
