@@ -294,6 +294,21 @@ try{
   const select=async(clip:typeof second)=>{await clip.focus();await clip.press("Enter");};
   const save=()=>page.waitForResponse(r=>r.url().endsWith("/lock-project/clips")&&r.request().method()==="PATCH");
   await select(second);
+  const cut=page.getByRole("button",{name:"Split selected video",exact:true}),trash=page.getByRole("button",{name:"Delete selection",exact:true});
+  const markerInput=page.getByRole("textbox",{name:"Playhead timeline time"});
+  await markerInput.fill("00:02.500");await markerInput.press("Enter");
+  assert.equal(await cut.isEnabled(),true);assert.equal(await trash.isEnabled(),true);
+  await page.mouse.move(0,0);
+  const toolbarStyle=(el:Element)=>{const s=getComputedStyle(el),r=el.getBoundingClientRect(),svg=el.querySelector("svg")!.getBoundingClientRect();return {background:s.backgroundColor,color:s.color,border:s.borderTopWidth,radius:s.borderRadius,padding:s.padding,cursor:s.cursor,width:r.width,height:r.height,iconWidth:svg.width,iconHeight:svg.height};};
+  const normal=await trash.evaluate(toolbarStyle);
+  assert.deepEqual(await cut.evaluate(toolbarStyle),normal,"enabled cut matches delete at rest");
+  if(width>=500){
+   await cut.hover();const hover=await cut.evaluate(toolbarStyle);
+   await trash.hover();assert.deepEqual(await trash.evaluate(toolbarStyle),hover,"enabled cut and delete have identical hover");
+   assert.notEqual(hover.background,normal.background,"hover visibly highlights both controls");
+  }
+  await markerInput.fill("00:00.000");await markerInput.press("Enter");await select(second);
+  assert.equal(await cut.isDisabled(),true,"cut remains disabled outside selected clip");
   assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).isDisabled(),true,"B-roll must not enable Re-Sync");
   const appearance=await second.evaluate(el=>{
    const eye=el.querySelector(".mv-clip-display-toggle")!,lock=el.querySelector(".mv-clip-position-lock")!;
