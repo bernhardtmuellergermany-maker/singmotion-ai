@@ -98,7 +98,8 @@ try{
   await page.goto(origin);
   const play=page.getByRole("button",{name:"Play",exact:true}),pause=page.getByRole("button",{name:"Pause",exact:true});
   await play.waitFor({timeout:10000});
-  await page.getByRole("button",{name:"Quick edit",exact:true}).click();
+  assert.equal(await page.getByRole("button",{name:"Live",exact:true}).getAttribute("aria-pressed"),"true","live playback must be the default");
+  const initialPreviewRequests=previewRequests;
   await page.waitForFunction(()=>document.querySelectorAll(".mv-clip .mv-clip-waveform[data-waveform=ready] .mv-wave-shape").length===2&&!!document.querySelector(".mv-song-block .mv-wave-shape"),{},{timeout:10000});
   assert.equal(await page.locator(".mv-lane.is-audio-muted .mv-wave-shape").count(),2);
   for(const shape of await page.locator(".mv-wave-shape").all())assert.equal(await shape.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)");
@@ -147,7 +148,8 @@ try{
   assert.equal(await pause.count(),1,"quick-edit drag must retain Play");
   console.log("PASS: actual Projects editor starts, seeks and replays from EOF on "+(mobile?"mobile":"desktop")+" Chromium with paused decoder at HAVE_CURRENT_DATA");
   await pause.click();
-  await page.getByRole("button",{name:"Synced",exact:true}).click();await seek.press("Home");
+  assert.equal(previewRequests,initialPreviewRequests,"live editing never triggers server timeline render");
+  await page.getByRole("button",{name:"Synced review",exact:true}).click();await seek.press("Home");
   const requestsBefore=previewRequests;
   await play.click();
   const muxed=page.locator("video[data-synced-preview=true]");
