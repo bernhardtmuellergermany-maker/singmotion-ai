@@ -913,3 +913,17 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
  .mv-root.mv-editor .mv-tracks,.mv-root.mv-editor .mv-timeline,.mv-root.mv-editor .mv-scroll{min-width:0;max-width:100%;box-sizing:border-box}
  .mv-root.mv-editor .mv-media-grid,.mv-root.mv-editor .mv-media-card{min-width:0;max-width:100%;box-sizing:border-box}
 }
+
+/* Clips are selectable across their whole body, including position-locked clips.
+   Keep the dedicated trim handles and active drag cursors independent. */
+.mv-root.mv-editor .mv-lane .mv-clip,
+.mv-root.mv-editor .mv-song-lane .mv-song-block{cursor:pointer}
+.mv-root.mv-editor .mv-clip .mv-clip-drag-surface{cursor:inherit}
+.mv-root.mv-editor .mv-lane .mv-clip:not(.is-position-locked):is(:active,.is-armed),
+.mv-root.mv-editor .mv-song-lane .mv-song-block:is(:active,.is-armed){cursor:grabbing}
+@media(hover:hover) and (pointer:fine){
+ .mv-root.mv-editor .mv-lane .mv-clip:hover:not(.is-armed):not(:active),
+ .mv-root.mv-editor .mv-song-lane .mv-song-block:hover:not(.is-armed):not(:active){
+  background-image:linear-gradient(rgb(255 255 255 / 5%),rgb(255 255 255 / 5%));
+ }
+}
