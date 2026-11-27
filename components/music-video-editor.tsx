@@ -1275,12 +1275,12 @@ export function MusicVideoEditor({id}:{id:string}){
     {lipTrack!==null&&typeof document!=="undefined"&&createPortal(<div ref={lipBackdrop} className="mv-root mv-editor mv-dialog-backdrop mv-lip-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget&&!importing)setLipTrack(null);}}>
       <div ref={lipDialog} tabIndex={-1} className="mv-dialog mv-lip-dialog" role="dialog" aria-modal="true" aria-label="Insert Lip Sync">
         <h2>Insert Lip Sync · {lipTrack===1?"Main track":"Video 2"}</h2>
-        <p>Choose a completed Lip Sync video. It will be placed at its original song time with Sync Lock enabled. Use the same song for accurate synchronization.</p>
+        <p>Choose a completed Lip Sync video. Original source time is preferred; if needed, a short editable section will be inserted. Use the same song for accurate synchronization.</p>
         <input type="search" placeholder="Search completed videos…" aria-label="Search Lip Sync videos" value={lipSearch} onChange={e=>setLipSearch(e.target.value)}/>
         {lipLoading?<p role="status">Loading your videos…</p>:<div className="mv-lip-list">
           {lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).map(s=><button key={s.id} type="button" disabled={importing}
             onClick={()=>void insertLipSync(s,lipTrack)}>
-            <Music2 size={19}/><span><strong>{s.name}</strong><small>{time(s.sourceStartMs,true)} – {time(s.sourceEndMs,true)} · {time(s.durationMs)}</small></span><Plus size={18}/>
+            <div className="mv-lip-thumbnail" aria-hidden="true"><Film size={19}/><img src={endpoint+id+"/lip-thumbnail/"+encodeURIComponent(s.id)} alt="" loading="lazy" decoding="async" draggable={false} onError={e=>{e.currentTarget.style.display="none";}}/></div><span><strong>{s.name}</strong><small>{time(s.sourceStartMs,true)} – {time(s.sourceEndMs,true)} · {time(s.durationMs)}</small></span><Plus size={18}/>
           </button>)}
           {!lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).length&&<p>No matching completed Lip Sync videos.</p>}
         </div>}

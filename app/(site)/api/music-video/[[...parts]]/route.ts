@@ -474,6 +474,20 @@ async function handler(req:NextRequest,context:Context){
         return json(job);
       }
     }
+    if(section==="lip-thumbnail"&&assetId&&validId(assetId)&&req.method==="GET"){
+      // Project ownership was checked above. Recheck the live video owner and
+      // availability before serving even a cached still; never expose a public URL.
+      const mediaOwner=projectLiveOwner(req,owner);
+      const live=await openStudioStore(dataDir);
+      try{
+        const service=studioRuntime(live,dataDir,process.env,owner.startsWith("staff:"),false).service;
+        const p=service.view(assetId,mediaOwner);
+        if(!p.outputReady||p.hidden||service.trashedAt(assetId,mediaOwner)!==null)throw new MusicError("Source video unavailable.",404);
+        const file=await service.output(assetId,mediaOwner);
+        const image=await libraryThumbnail(id,"live-"+assetId,file,toMs(p.durationSeconds));
+        return new Response(new Uint8Array(image),{headers:{...common,"Content-Type":"image/jpeg","Content-Length":String(image.length)}});
+      }finally{live.db.close();}
+    }
     if(section==="lip-sync"&&!assetId&&req.method==="GET"){
       const mediaOwner=projectLiveOwner(req,owner);
       const live=await openStudioStore(dataDir);

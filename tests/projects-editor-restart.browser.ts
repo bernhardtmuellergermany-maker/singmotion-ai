@@ -15,6 +15,7 @@ const root=mkdtempSync(path.join(tmpdir(),"projects-replay-"));
 const mp4=path.join(root,"clip.mp4");
 execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","color=red:size=320x180:rate=30","-t","4","-vf","drawbox=color=green:t=fill:enable='between(t,1,1.999)',drawbox=color=blue:t=fill:enable='gte(t,2)'","-an","-c:v","libx264","-threads","1","-pix_fmt","yuv420p","-profile:v","baseline","-g","15","-movflags","+faststart",mp4]);
 const video=readFileSync(mp4);
+const lipStill=execFileSync("ffmpeg",["-nostdin","-v","error","-i",mp4,"-frames:v","1","-c:v","mjpeg","-threads","1","-f","image2pipe","pipe:1"],{maxBuffer:512*1024});
 const song=execFileSync("ffmpeg",["-nostdin","-v","error","-f","lavfi","-i","sine=frequency=440:sample_rate=44100","-t","4","-c:a","libmp3lame","-f","mp3","pipe:1"],{maxBuffer:1024*1024});
 const bundled=await build({stdin:{contents:'import React from "react";import {createRoot} from "react-dom/client";import {MusicVideoEditor} from "./components/music-video-editor";import {AddToMusicProject} from "./components/add-to-music-project";createRoot(document.getElementById("root")!).render(location.pathname==="/add-test"?<AddToMusicProject sourceId="fixture" sourceKind="live" enabled/>:<MusicVideoEditor id={location.pathname==="/lock-test"?"lock-project":"fixture-project"}/>);',resolveDir:process.cwd(),loader:"tsx"},bundle:true,write:false,format:"iife",platform:"browser",jsx:"automatic",define:{"process.env.NODE_ENV":'"production"'},loader:{".css":"empty"},plugins:[{name:"isolated-link",setup(b:any){b.onResolve({filter:/^next\/link$/},()=>({path:"link",namespace:"fixture"}));b.onLoad({filter:/.*/,namespace:"fixture"},()=>({contents:'import React from "react";export default function Link(p){return React.createElement("a",p)}',loader:"js",resolveDir:process.cwd()}));}}]});
 const script=bundled.outputFiles[0].contents;
@@ -49,6 +50,7 @@ const server=createServer((req,res)=>{
  if(p==="/api/music-video")return json({projects:[{id:"fixture-project",name:"My music video"}]});
  if(p==="/api/music-video/fixture-project/assets"&&req.method==="POST")return json({asset:{id:"fixture-added"}});
  if(p==="/api/session")return json({owner:"cms-staff-fixture"});
+ if(p.startsWith("/api/music-video/fixture-project/lip-thumbnail/"))return send(lipStill,"image/jpeg");
  if(p==="/api/music-video/fixture-project/lip-sync")return json({videos:Array.from({length:16},(_,i)=>({id:"lip-"+i,name:i===0?"Long video "+("UnbrokenName".repeat(25)):"Completed video "+i,durationMs:2000,sourceStartMs:0,sourceEndMs:2000}))});
  if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
  if(p.includes("/format/"))return json({width:320,height:180});
@@ -233,6 +235,9 @@ try{
    await page.getByRole("button",{name:"Insert Lip Sync",exact:true}).click();
    const dialog=page.getByRole("dialog",{name:"Insert Lip Sync"});
    await dialog.getByRole("button",{name:/Long video/}).waitFor();
+   await dialog.locator(".mv-lip-thumbnail img").first().evaluate(el=>{(el as HTMLImageElement).loading="eager";});
+   await page.waitForFunction(()=>{const im=document.querySelector<HTMLImageElement>(".mv-lip-thumbnail img");return !!im?.complete&&im.naturalWidth>0;});
+   assert.equal(await dialog.locator(".mv-lip-thumbnail").count(),16);
    assert.equal(await dialog.evaluate(el=>el.parentElement?.parentElement===document.body),true);
    assert.equal(await page.evaluate(()=>document.activeElement?.tagName),"DIV","opening must not summon the mobile keyboard");
    const bounds=await dialog.evaluate(el=>{const r=el.getBoundingClientRect(),v=window.visualViewport;return {left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:v?.width??innerWidth,height:v?.height??innerHeight,x:v?.offsetLeft??0,y:v?.offsetTop??0,overflow:el.scrollWidth>el.clientWidth+1};});

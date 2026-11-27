@@ -738,3 +738,8 @@
 /* Keep the preview directly above the timeline; edit controls follow the song. */
 .mv-root.mv-editor .mv-timeline-toolbar{border-radius:0 0 9px 9px;border-top:1px solid #44324f}
 .mv-root.mv-editor .mv-timeline-toolbar:has(+.mv-inspector-toggle){border-radius:0}
+
+/* Small private stills make similarly named generations recognizable. */
+.mv-root.mv-editor .mv-lip-thumbnail{position:relative;flex:0 0 64px;width:64px;height:64px;display:grid;place-items:center;overflow:hidden;border-radius:6px;background:#171020;color:#bba3d2}
+.mv-root.mv-editor .mv-lip-thumbnail img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#171020}
+@media(max-width:480px){.mv-root.mv-editor .mv-lip-thumbnail{flex-basis:52px;width:52px;height:52px}}

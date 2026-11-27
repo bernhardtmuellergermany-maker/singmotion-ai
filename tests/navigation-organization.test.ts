@@ -1023,3 +1023,13 @@ test("unlocking Lip Sync directly does not ask for confirmation",()=>{
  assert.ok(!editor.includes("Unlock song synchronization? Moving this clip can break lip sync."));
  assert.ok(editor.includes("positionLocked:!locked,syncLocked:locked?false:c.syncLocked"));
 });
+
+test("Lip Sync picker serves small private stills with source owner checks",()=>{
+ const editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(editor.includes('endpoint+id+"/lip-thumbnail/"+encodeURIComponent(s.id)'));
+ const route=api.slice(api.indexOf('if(section==="lip-thumbnail"'),api.indexOf('if(section==="lip-sync"'));
+ assert.ok(route.includes("projectLiveOwner(req,owner)"));
+ assert.ok(route.includes("service.view(assetId,mediaOwner)"));
+ assert.ok(route.includes("service.trashedAt(assetId,mediaOwner)"));
+ assert.ok(route.includes('libraryThumbnail(id,"live-"+assetId'));
+});
