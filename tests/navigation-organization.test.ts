@@ -480,7 +480,7 @@ test("auto export follows first visible video orientation; explicit format overr
 test("video inspector groups source start/end before timeline start/end",()=>{
  const editor=read("components/music-video-editor.tsx");
  const start=editor.indexOf('className="mv-video-times"');
- const end=editor.indexOf('{originalClipSongTime!==null',start);
+ const end=editor.indexOf('<span className="mv-inspector-duration">',start);
  assert.ok(start>=0&&end>start);
  const labels=[...editor.slice(start,end).matchAll(/<InlineTimeField label="([^"]+)"/g)].map(m=>m[1]);
  assert.deepEqual(labels,["Video start time","Video end time","Timeline start","Timeline end"]);
@@ -1072,4 +1072,15 @@ test("video trim inspection uses actual clip source edges and stable playback de
  assert.ok(editor.includes("showTrimFrame(next,edge)"));
  assert.ok(engine.includes("this.trimTarget!==target||this.version!==version"));
  assert.ok(engine.includes("sink.getCanvas(target.sourceMs/1000)"));
+});
+
+test("Re-Sync stays in the timeline toolbar and is disabled for noneligible selections",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ const start=editor.indexOf('<div className="mv-timeline-toolbar">');
+ const end=editor.indexOf('{hasSelection&&',start);
+ assert.ok(start>=0&&end>start);
+ const toolbar=editor.slice(start,end);
+ assert.ok(toolbar.includes('aria-label="Re-Sync"'));
+ assert.ok(toolbar.includes('disabled={importing||songSelected||originalClipSongTime===null||!selectedClip||!!selectedClip.positionLocked}'));
+ assert.equal(editor.match(/aria-label="Re-Sync"/g)?.length,1);
 });
