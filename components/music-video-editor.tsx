@@ -731,9 +731,9 @@ export function MusicVideoEditor({id}:{id:string}){
     }
     const limit=songPartsEnd(rangeRef.current,partsRef.current);
     const fit=planFreeVideoInsertion(latest.current,candidate,limit,atMs);
-    if(!fit){setError("Not enough free space on the "+(track===2?"Video":"Lip-Sync")+" track for this video (at least 5 seconds, or its actual length if shorter).");return;}
+    if(!fit){setError("Not enough free space on the "+(track===2?"B-Roll":"Lip-Sync")+" track for this video (at least 5 seconds, or its actual length if shorter).");return;}
     apply([...latest.current,fit]);setSelected(fit.id);
-    if(fit.timelineStartMs!==candidate.timelineStartMs)setPlacementNotice("Inserted in the nearest available space on the "+(track===2?"Video":"Lip-Sync")+" track. Existing clips are unchanged.");
+    if(fit.timelineStartMs!==candidate.timelineStartMs)setPlacementNotice("Inserted in the nearest available space on the "+(track===2?"B-Roll":"Lip-Sync")+" track. Existing clips are unchanged.");
   }
   function onDrop(e:React.DragEvent,track:Track){
     e.preventDefault();
@@ -1104,8 +1104,8 @@ export function MusicVideoEditor({id}:{id:string}){
             <button type="submit" className="mv-marker-confirm" aria-label="Confirm playhead time" title="Confirm playhead time"><Check size={15} aria-hidden="true"/></button>
           </form>
           </div>
-          {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"Video · Overlay"}>
-            {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"Video"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"Video audio")}
+          {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"B-Roll · Overlay"}>
+            {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"B-Roll"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"B-Roll audio")}
           </div>)}
           <div className="mv-label mv-audio-label" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
         </div>
@@ -1274,7 +1274,7 @@ export function MusicVideoEditor({id}:{id:string}){
               }}><summary aria-label={"Options for "+a.name}><MoreHorizontal size={17}/></summary>
                 <div className="mv-library-menu" onClick={e=>{if((e.target as HTMLElement).closest("button,a")){const menu=e.currentTarget.closest("details");if(menu)menu.open=false;}}}>
                   <button type="button" onClick={()=>addClip(a,1,playhead)}><Mic size={14}/> Add to Lip-Sync</button>
-                  <button type="button" onClick={()=>addClip(a,2,playhead)}><Video size={14}/> Add to Video</button>
+                  <button type="button" onClick={()=>addClip(a,2,playhead)}><Video size={14}/> Add to B-Roll</button>
                   <a href={endpoint+id+"/assets/"+a.id+"?download=1"} download><Download size={14}/> Download video</a>
                   <button type="button" onClick={()=>void deleteAsset(a)}><Trash2 size={14}/> Remove from Library</button>
                 </div>
