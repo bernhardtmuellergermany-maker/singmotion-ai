@@ -968,7 +968,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   async function uploadReplacementSong(file:File){
     if(importBusy.current||!project?.songRemoved)return;
-    if(!/\.(mp3|wav|m4a)$/i.test(file.name)||file.size<1||file.size>50*1024*1024){setError("Choose an MP3, WAV or M4A song up to 50 MiB.");return;}
+    if(!/\.(mp3|wav|m4a)$/i.test(file.name)||file.size<1||file.size>70*1024*1024){setError("Choose an MP3, WAV or M4A song up to 70 MiB.");return;}
     importBusy.current=true;roleBusy.current=true;setImporting(true);setError("");stopPlayback();
     try{
       if(saveTimer.current)clearTimeout(saveTimer.current);await saveNow();setStatus("Uploading song…");
