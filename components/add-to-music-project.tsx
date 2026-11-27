@@ -17,7 +17,8 @@ export function AddToMusicProject({sourceId,sourceKind,enabled,menu=false}:{
       .then(r=>{if(active)setAllowed(r.ok);}).catch(()=>{});
     return()=>{active=false;};
   },[enabled]);
-  if(!allowed)return null;
+  // Legacy paid-order files remain downloadable in Videos; direct export is not supported yet.
+  if(!allowed||sourceKind==="paid")return null;
   async function show(){
     setError("");setComplete(false);setOpen(true);
     try{

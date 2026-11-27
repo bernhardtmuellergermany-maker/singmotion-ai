@@ -16,7 +16,6 @@ import {validWaveform,type MediaWaveform} from "@/lib/music-video/waveform";
 import {extractMediaWaveform} from "@/lib/music-video/waveform-extract";
 import {projectPreviewArgs,previewByteLimit,mobilePreviewVersion} from "@/lib/music-video/preview-profile";
 import {AUDIO_LIMIT} from "@/lib/domain";
-import {CommerceStore} from "@/lib/commerce/store";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
@@ -96,19 +95,26 @@ async function streamFile(req:NextRequest,filename:string,mime:string,revalidate
       ...(status===206?{"Content-Range":"bytes "+start+"-"+end+"/"+size}:{})}
   });
 }
+// The caller has authenticated musicPrincipal. Match its exact media session.
+function projectLiveOwner(req:NextRequest,owner:string){
+  const logged=session(req.cookies.get("sm_session")?.value);
+  if(owner.startsWith("staff:")){
+    if(logged?.owner!=="cms-staff-"+owner.slice(6))throw new MusicError("Open Videos while signed into this account.",403);
+    return logged.owner;
+  }
+  if(owner.startsWith("customer:")&&logged?.owner==="customer-"+owner.slice(9))return logged.owner;
+  throw new MusicError("Open Videos while signed into this account.",403);
+}
 async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind,ref:string){
   if(!validId(ref))throw new MusicError("Invalid source video.",400);
-  if(sourceKind==="live"&&owner.startsWith("staff:")){
-    // The source cannot be associated by its UUID alone; verify the
-    // authenticated staff media workspace and actual completed output.
-    const logged=session(req.cookies.get("sm_session")?.value);
-    if(logged?.owner!=="cms-staff-"+owner.slice(6))throw new MusicError("Open Videos while signed into this account.",403);
+  if(sourceKind==="live"){
+    const mediaOwner=projectLiveOwner(req,owner);
     const live=await openStudioStore(dataDir);
     try{
-      const service=studioRuntime(live,dataDir,process.env,true,false).service;
-      const p=service.view(ref,logged.owner);
-      if(!p.outputReady||p.hidden||service.trashedAt(ref,logged.owner)!==null)throw new MusicError("Only available completed videos can be added.",409);
-      const file=await service.output(ref,logged.owner);
+      const service=studioRuntime(live,dataDir,process.env,owner.startsWith("staff:"),false).service;
+      const p=service.view(ref,mediaOwner);
+      if(!p.outputReady||p.hidden||service.trashedAt(ref,mediaOwner)!==null)throw new MusicError("Only available completed videos can be added.",409);
+      const file=await service.output(ref,mediaOwner);
       // The prepared provider audio may have been slowed down; the delivered MP4 is authoritative for clip length.
       const inspected=await probe(file);
       const stream=inspected.streams.find(s=>s.codec_type==="video");
@@ -119,18 +125,8 @@ async function sourceMetadata(req:NextRequest,owner:string,sourceKind:SourceKind
         sourceStartMs:from,sourceEndMs:to};
     }finally{live.db.close();}
   }
-  if(sourceKind==="paid"&&owner.startsWith("customer:")){
-    const accountId=owner.slice(9);
-    const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
-    try{
-      store.ownedOrder(ref,accountId,undefined);
-      if(!store.ownedDeliveredVideoAsset(ref,accountId,undefined))throw new MusicError("Video is not ready.",409);
-      const row=store.db.prepare("SELECT CASE WHEN json_valid(media_json) THEN json_extract(media_json,\'$.durationSeconds\') ELSE NULL END AS duration_seconds FROM customer_prepared_media WHERE order_id=?").get(ref) as {duration_seconds?:number}|undefined;
-      const duration=Number(row?.duration_seconds);
-      if(!Number.isFinite(duration)||duration<=0)throw new MusicError("Video duration unavailable.",409);
-      return {kind:"ai-video" as MediaKind,name:"Generated video",durationMs:toMs(duration),sourceStartMs:null,sourceEndMs:null};
-    }finally{store.close();}
-  }
+  if(sourceKind==="paid"&&owner.startsWith("customer:"))
+    throw new MusicError("Download this older video from Videos and upload its MP4 in Projects.",409);
   throw new MusicError("Source video access denied.",403);
 }
 async function exportSources(req:NextRequest,owner:string,id:string,detail:ReturnType<typeof musicDetail>,scratch:ProjectScratch,assetIds=detail.clips.map(c=>c.assetId),snapshot=false){
@@ -145,15 +141,14 @@ async function exportSources(req:NextRequest,owner:string,id:string,detail:Retur
       else{const file=await safeLocalProjectVideo(projectFolder(id),aid,a.sourceId);
        files.set(aid,snapshot?await scratch.copy(aid,a.sourceId,file):file);}
 
-    }else if(a.sourceKind==="live"&&a.sourceId&&owner.startsWith("staff:")){
-      const logged=session(req.cookies.get("sm_session")?.value);
-      if(logged?.owner!=="cms-staff-"+owner.slice(6))throw new MusicError("Open Videos to establish your private media session.",403);
+    }else if(a.sourceKind==="live"&&a.sourceId){
+      const mediaOwner=projectLiveOwner(req,owner);
       const live=await openStudioStore(dataDir);
       try{
-        const service=studioRuntime(live,dataDir,process.env,true,false).service;
-        const p=service.view(a.sourceId,logged.owner);
-        if(!p.outputReady||p.hidden||service.trashedAt(a.sourceId,logged.owner)!==null)throw new MusicError("A SingMotion source video is unavailable.",409);
-        files.set(aid,await service.output(a.sourceId,logged.owner));
+        const service=studioRuntime(live,dataDir,process.env,owner.startsWith("staff:"),false).service;
+        const p=service.view(a.sourceId,mediaOwner);
+        if(!p.outputReady||p.hidden||service.trashedAt(a.sourceId,mediaOwner)!==null)throw new MusicError("A SingMotion source video is unavailable.",409);
+        files.set(aid,await service.output(a.sourceId,mediaOwner));
       }finally{live.db.close();}
     }else throw new MusicError("This source cannot be exported in the private editor.",409);
   }
@@ -409,9 +404,7 @@ async function handler(req:NextRequest,context:Context){
       if(!assetId)return json(await mediaWaveform(id,"song",project.songDurationMs,
         ()=>songWorkingFile(id,owner,"song.mp3",scratch),()=>{requireMusicProject(id,owner);}));
       const asset=musicAsset(id,owner,assetId);
-      // As with preview/export, a generated staff source needs its verified media workspace.
-      if(asset.sourceKind==="live"&&(!owner.startsWith("staff:")||session(req.cookies.get("sm_session")?.value)?.owner!=="cms-staff-"+owner.slice(6)))
-        throw new MusicError("Open Videos to establish your private media session.",403);
+      if(asset.sourceKind==="live")projectLiveOwner(req,owner);
       return json(await mediaWaveform(id,asset.id,asset.durationMs,
         async()=>{const files=await exportSources(req,owner,id,musicDetail(id,owner),scratch,[asset.id]);return files.get(asset.id)!;},
         ()=>{musicAsset(id,owner,asset.id);}));
@@ -482,13 +475,11 @@ async function handler(req:NextRequest,context:Context){
       }
     }
     if(section==="lip-sync"&&!assetId&&req.method==="GET"){
-      const logged=session(req.cookies.get("sm_session")?.value);
-      if(!owner.startsWith("staff:")||logged?.owner!=="cms-staff-"+owner.slice(6))
-        throw new MusicError("Open Studio to establish your private media session.",403);
+      const mediaOwner=projectLiveOwner(req,owner);
       const live=await openStudioStore(dataDir);
       try{
-        const service=studioRuntime(live,dataDir,process.env,true,false).service;
-        const videos=service.list(logged.owner).filter(p=>p.outputReady&&!p.hidden)
+        const service=studioRuntime(live,dataDir,process.env,owner.startsWith("staff:"),false).service;
+        const videos=service.list(mediaOwner).filter(p=>p.outputReady&&!p.hidden)
           .map(p=>({id:p.id,name:p.displayName||p.projectName||p.artistName||"Lip Sync",
             durationMs:toMs(p.durationSeconds),sourceStartMs:toMs(p.selection.start),sourceEndMs:toMs(p.selection.end)}))
           .filter(p=>p.sourceStartMs>=0&&p.sourceEndMs>p.sourceStartMs);

@@ -50,7 +50,7 @@ test("homepage navigation dropdown stays outside isolated video viewport and abo
 });
 
 
-test("unreleased Projects stays CMS Super Admin only across page/API/menu",()=>{
+test("Experimental Projects requires verified customer rollout or CMS Super Admin across page/API/menu",()=>{
  const auth=read("lib/music-video/auth.ts");
  const menu=read("components/global-menu.tsx");
  const page=read("app/(site)/projects/page.tsx");
@@ -65,6 +65,9 @@ test("unreleased Projects stays CMS Super Admin only across page/API/menu",()=>{
  assert.match(menu,/fetch\("\/api\/music-video"/);
  assert.doesNotMatch(menu,/auth\?\.authenticated&&auth\.kind==="customer"|staffRole==="super-admin"/);
  assert.match(menu,/musicEnabled&&<Link href="\/projects"/);
+ assert.match(menu,/sm-projects-experimental-tag">Experimental/);
+ assert.match(read("components/music-projects-client.tsx"),/Experimental · In development/);
+ assert.match(read("components/music-video-editor.tsx"),/Experimental · In development/);
  for(const s of [page,detail,api])assert.match(s,/musicPrincipal\(/);
  assert.match(api,/if\(!owner\)throw new MusicError\("Music Video Builder access denied\.",403\)/);
 });
@@ -80,9 +83,9 @@ test("Projects offers owned completed Lip Sync insertion and separate user video
  assert.ok(editor.includes('filter==="Uploads"&&a.kind==="imported"'));
  assert.ok(api.includes('section==="lip-sync"'));
  assert.ok(api.includes('logged?.owner!=="cms-staff-"+owner.slice(6)'));
- assert.ok(api.includes('service.list(logged.owner).filter(p=>p.outputReady&&!p.hidden)'));
- assert.ok(api.includes('service.trashedAt(ref,logged.owner)!==null'));
- assert.ok(api.includes('await service.output(ref,logged.owner)'));
+ assert.ok(api.includes('service.list(mediaOwner).filter(p=>p.outputReady&&!p.hidden)'));
+ assert.ok(api.includes('service.trashedAt(ref,mediaOwner)!==null'));
+ assert.ok(api.includes('await service.output(ref,mediaOwner)'));
  assert.ok(api.includes('if(!media.streams.some(v=>v.codec_type==="video"))'));
 });
 
@@ -902,4 +905,12 @@ test("adaptive timeline graduations have readable major marks and bounded visibl
  assert.ok(editor.includes("pinch.zoom*g.distance/pinch.distance"));
  assert.ok(editor.includes('new PointerEvent("pointercancel"'));
  assert.ok(editor.includes("glide(scroller,velocity)"));
+});
+
+test("Experimental Projects requires matching authenticated customer media owner",()=>{
+ const api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.match(api,/owner\.startsWith\("customer:"\)&&logged\?\.owner==="customer-"\+owner\.slice\(9\)/);
+ assert.match(api,/service\.view\(a\.sourceId,mediaOwner\)/);
+ assert.match(api,/service\.output\(a\.sourceId,mediaOwner\)/);
+ assert.match(api,/requireMusicProject\(id,owner\)/);
 });
