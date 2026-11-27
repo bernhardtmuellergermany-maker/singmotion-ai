@@ -76,6 +76,7 @@ export function MusicProjectsClient(){
       <p>Turn individual videos into a complete music video. Start with your song, combine Lip Sync performances with B-Roll and your own video clips, and arrange them on a synchronized timeline. Preview, trim and edit your scenes, then export your finished music video as an MP4.</p></div>
       <button className="mv-primary" type="button" onClick={()=>setCreating(true)}><Plus size={17}/> New Project</button>
     </div>
+    <aside className="mv-experimental-notice" aria-label="Experimental feature"><strong>Experimental · In development</strong><span>Projects is an early-access feature and is still in development. Editing, preview and export may change or occasionally have issues. Keep a copy of your original media and download important finished videos.</span></aside>
     <div className="mv-browse-toolbar">
       <label className="mv-browse-search"><Search size={16}/><input type="search" aria-label="Search projects" placeholder="Search projects…" value={search} onChange={e=>setSearch(e.target.value)}/></label>
       <label className="mv-browse-filter"><select aria-label="Filter projects by format" value={projectFilter} onChange={e=>setProjectFilter(e.target.value as typeof projectFilter)}>

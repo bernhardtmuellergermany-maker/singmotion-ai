@@ -4,15 +4,9 @@ import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir} from "@/lib/db";
 import path from "node:path";
 
-/** Private, unreleased Projects feature.
- * A customer cookie or an accidentally enabled customer rollout flag
- * must NEVER grant access to pages or any music-video API operation.
- * Super Admin CMS authentication is a separate, server-verified session.
- */
+/** Experimental Projects: verified customer sessions require the explicit rollout flag and verified private R2 storage. */
 export async function musicPrincipal(headers:Headers,customerToken:string):Promise<string|null>{
-  // Public Studio/customer identity takes precedence when both independent
-  // cookies coexist. Never display the unreleased Projects experiment while
-  // the browser is actively signed in as a regular customer.
+  // A valid customer session always takes precedence over an independent CMS cookie.
   if(customerToken){
     const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
     try{

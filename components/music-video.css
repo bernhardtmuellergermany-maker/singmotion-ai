@@ -644,3 +644,5 @@
 .mv-projects .mv-heading p{line-height:1.55}
 .mv-projects .mv-heading>.mv-primary{flex-shrink:0;white-space:nowrap}
 @media(max-width:600px){.mv-projects .mv-heading{flex-wrap:wrap;gap:12px}.mv-projects .mv-heading>div{flex-basis:100%}}
+
+.mv-experimental-notice{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;margin:0 0 16px;padding:12px 15px;border:1px solid #8b6a42;border-radius:12px;background:#30251e;color:#f2d6ac;font-size:13px;line-height:1.5}.mv-experimental-notice strong{color:#ffdb9c;font-size:13px}.mv-experimental-notice span{flex:1 1 260px;min-width:0}.mv-experimental-editor{margin:5px 0 12px;padding:8px 12px;font-size:12px}.mv-experimental-editor strong{font-size:12px}

@@ -7,8 +7,7 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
   const [musicEnabled,setMusicEnabled]=useState(false);
   useEffect(()=>{
     let active=true,serial=0;
-    // Only the protected music-video API can prove CMS Super Admin access.
-    // Customer authentication is independent and must never expose Projects.
+    // The protected API confirms staff or verified customer access.
     const check=()=>{
       const current=++serial;
       setMusicEnabled(false);
@@ -39,7 +38,7 @@ export function GlobalMenu({ openInNewTab = false }: { openInNewTab?: boolean } 
   return <details ref={menu} className="sm-global-menu">
     <summary aria-label="More options" title="More options"><MoreVertical size={19}/></summary>
     <nav className="sm-global-menu-list" aria-label="More options">
-      {musicEnabled&&<Link href="/projects" target={openInNewTab?"_blank":undefined} rel={openInNewTab?"noopener noreferrer":undefined} onClick={()=>{if(menu.current)menu.current.open=false;}}>Projects</Link>}
+      {musicEnabled&&<Link href="/projects" target={openInNewTab?"_blank":undefined} rel={openInNewTab?"noopener noreferrer":undefined} onClick={()=>{if(menu.current)menu.current.open=false;}}>Projects <span className="sm-projects-experimental-tag">Experimental</span></Link>}
       {([
         { href: "/videos", label: "Videos" },
         { href: "/help", label: "Help" },

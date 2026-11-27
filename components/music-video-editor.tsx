@@ -974,6 +974,7 @@ export function MusicVideoEditor({id}:{id:string}){
       <div className="mv-top-actions"><span role="status" className="mv-status">{status}</span>
         <button className="mv-primary mv-export-button" type="button" aria-label="Export MP4" title="Export MP4" disabled={importing||!clips.some(c=>c.timelineStartMs<timelineEnd)} onClick={()=>void exportMp4()}><Download size={17}/><span>{exporting?"Exporting…":"Export"}</span></button></div>
     </div>
+    <aside className="mv-experimental-notice mv-experimental-editor" aria-label="Experimental feature"><strong>Experimental · In development</strong><span>Preview and export may change. Keep your original media and download important finished videos.</span></aside>
     <section className="mv-preview" aria-label="Music video preview">
       <div ref={previewBox} className={"mv-video-box"+(previewRatio==="9:16"?" is-portrait":"")}>
         <canvas ref={frameCanvas} className="mv-frame-canvas" data-frame-preview="true" aria-label="Video preview" width={854} height={480}/>

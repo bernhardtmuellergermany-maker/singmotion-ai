@@ -289,3 +289,5 @@
  flex-shrink:1;min-width:0}
 .sm-site-header-left{min-width:0}
 @media(max-width:390px){.sm-campaign-logo-badge{max-width:73px;font-size:8px;padding:3px 5px}}
+
+.sm-projects-experimental-tag{display:inline-block;margin-inline-start:5px;padding:2px 6px;border:1px solid #937247;border-radius:5px;color:#ffdb9c;background:#33271e;font-size:10px;font-weight:650;line-height:1.4;vertical-align:middle;white-space:nowrap}
