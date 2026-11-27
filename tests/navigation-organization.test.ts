@@ -78,7 +78,7 @@ test("Projects offers owned completed Lip Sync insertion and separate user video
  assert.ok(editor.includes("Upload video"));
  assert.ok(editor.includes('await ensureSession()'));
  assert.ok(editor.includes('addClip(a,track,source.sourceStartMs)'));
- assert.ok(editor.includes('await load();setLibraryOpen(true);setFilter("Uploads")'));
+ assert.ok(editor.includes('await load();setLibraryOpen(true);setFilter("All");setSearch("")'));
  assert.ok(!editor.includes("if(track!==null)addClip(result.asset,track,playhead)"));
  assert.ok(editor.includes('filter==="Uploads"&&a.kind==="imported"'));
  assert.ok(api.includes('section==="lip-sync"'));
@@ -554,7 +554,7 @@ test("project and library browse toolbars offer search, matching filters, refres
  assert.ok(client.includes('aria-label="Refresh projects"'));
  assert.ok(editor.includes('aria-label="Refresh library"'));
  assert.ok(editor.includes('librarySort==="newest"?b.createdAt-a.createdAt:a.createdAt-b.createdAt'));
- assert.ok(editor.includes('<option value="source">Source Time</option>'));
+ assert.ok(editor.includes('["source","Source Time"]'));assert.ok(editor.includes('className="mv-library-select-menu"'));
  assert.ok(editor.includes("a.sourceStartMs??Infinity"));
  assert.ok(editor.includes("usedAssets.has(a.id)"));
  assert.ok(client.includes("newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt"));
@@ -1118,4 +1118,22 @@ test("library original preview is explicitly opened, pauses timeline playback an
  assert.ok(editor.includes('onClick={()=>{stopPlayback();setLibraryPreviewError(false);setLibraryPreview(a);}}'));
  assert.ok(editor.includes('src={endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id)}'));
  assert.ok(editor.includes('aria-label="Close video preview" onClick={()=>setLibraryPreview(null)}'));
+});
+
+
+test("ordinary video finds space on the requested track even at song end",async()=>{
+ const {planFreeVideoInsertion}=await import("../lib/music-video/song-range.ts");
+ const lip={id:"lip",track:1,timelineStartMs:0,sourceInMs:0,sourceOutMs:20000,syncLocked:true,positionLocked:true};
+ const video={id:"broll",track:2,timelineStartMs:0,sourceInMs:0,sourceOutMs:10000,syncLocked:false};
+ const result=planFreeVideoInsertion([lip],video,20000,20000)!;
+ assert.equal(result.track,2);assert.equal(result.timelineStartMs,15000);assert.equal(result.sourceOutMs,5000);
+ assert.equal(planFreeVideoInsertion([lip],video,20000,0)!.sourceOutMs,10000);
+ const occupied={...video,id:"other",timelineStartMs:14000,sourceOutMs:6000};
+ const fit=planFreeVideoInsertion([lip,occupied],video,20000,19000)!;
+ assert.equal(fit.timelineStartMs,9000);assert.equal(fit.sourceOutMs,5000);
+ assert.equal(planFreeVideoInsertion([lip,{...occupied,timelineStartMs:0,sourceOutMs:20000}],video,20000,0),null);
+ assert.equal(planFreeVideoInsertion([lip],{...video,sourceOutMs:2000},20000,20000)!.timelineStartMs,18000);
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('planFreeVideoInsertion(latest.current,candidate,limit,atMs)'));
+ assert.ok(editor.includes('addClip(a,a.role==="lip-sync"?1:2,playhead)'));
 });
