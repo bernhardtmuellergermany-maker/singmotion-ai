@@ -19,7 +19,7 @@ import {AUDIO_LIMIT} from "@/lib/domain";
 import {openStudioStore} from "@/lib/live/studio";
 import {studioRuntime} from "@/lib/live/studio-runtime";
 import {musicPrincipal} from "@/lib/music-video/auth";
-import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,readProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot} from "@/lib/music-video/project-r2";
+import {projectR2Enabled,safeLocalProjectVideo,mirrorProjectVideo,readProjectVideo,projectVideoResponse,ProjectScratch,safeLocalProjectSong,songAssetId,songSlots,type SongSlot,type ProjectCloudRecord} from "@/lib/music-video/project-r2";
 import {reserveProjectUpload} from "@/lib/music-video/storage";
 import {projectLimits,ProjectCapacityError} from "@/lib/music-video/capacity";
 import {PROJECT_LEGACY_MULTIPART_MAX_BYTES} from "@/lib/music-video/media-limits";
@@ -32,7 +32,7 @@ import {
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
   newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,renameMusicAsset,
   projectCloudRecord,recordProjectCloud,projectMigrationCandidates,
-  projectSongRecord,recordProjectSong,projectSongMigrationCandidate,
+  projectSongRecord,recordProjectSong,projectSongMigrationCandidate,detachProjectSong,attachProjectSong,queueUnusedSongUpload,
   type MediaKind,type SourceKind,type MusicClip,type MusicAsset,
 } from "@/lib/music-video/core";
 
@@ -268,13 +268,16 @@ async function offloadProjectVideo(owner:string,asset:MusicAsset){
 const songMime=(slot:SongSlot)=>slot.endsWith(".wav")?"audio/wav":slot.endsWith(".m4a")?"audio/mp4":"audio/mpeg";
 const originalSlots=songSlots.filter(slot=>slot!=="song.mp3");
 async function songWorkingFile(id:string,owner:string,slot:SongSlot,scratch:ProjectScratch){
- const record=projectSongRecord(id,owner,slot),asset=songAssetId(id,slot),ext=slot.split(".").pop()!;
+ const project=requireMusicProject(id,owner);if(project.songRemoved)throw new MusicError("Add a song first.",409);
+ const record=projectSongRecord(id,owner,slot),asset=songAssetId(id,slot,project.songVersion),ext=slot.split(".").pop()!;
  if(record)return scratch.hydrate(owner,id,asset,ext,record);
+ if(project.songVersion)throw new MusicError("Song unavailable.",404);
  return scratch.copy(asset,ext,await safeLocalProjectSong(projectFolder(id),slot));
 }
 async function originalSongSlot(id:string,owner:string):Promise<SongSlot>{
+ const project=requireMusicProject(id,owner);if(project.songRemoved)throw new MusicError("Add a song first.",409);
  for(const slot of originalSlots){
-  if(projectSongRecord(id,owner,slot)||await stat(path.join(projectFolder(id),slot)).then(s=>s.isFile()).catch(()=>false))return slot;
+  if(projectSongRecord(id,owner,slot)||(!project.songVersion&&await stat(path.join(projectFolder(id),slot)).then(s=>s.isFile()).catch(()=>false)))return slot;
  }
  throw new MusicError("Original song unavailable.",404);
 }
@@ -373,7 +376,7 @@ async function handler(req:NextRequest,context:Context){
     const project=requireMusicProject(id,owner);
     if(!section){
       if(req.method==="GET"){
-        if(!project.songName){
+        if(!project.songName&&!project.songRemoved&&!project.songVersion){
           for(const ext of ["mp3","wav","m4a"]){
             const file=path.join(projectFolder(id),"song-original."+ext);
             if(!await stat(file).then(s=>s.isFile()).catch(()=>false))continue;
@@ -395,14 +398,54 @@ async function handler(req:NextRequest,context:Context){
         return json({deleted:true});
       }
     }
+    if(section==="song"&&!assetId&&req.method==="DELETE"){
+      const body=await jsonBody(req);
+      const result=detachProjectSong(id,owner,body.revision);
+      // Only legacy local song slots are removed; no project video is touched.
+      await Promise.all(songSlots.map(slot=>unlink(path.join(projectFolder(id),slot)).catch(()=>{})));
+      await cleanCloudDeletes(owner);
+      return json(result);
+    }
+    if(section==="song"&&!assetId&&req.method==="POST"){
+      if(!project.songRemoved)throw new MusicError("Remove the current song first.",409);
+      cloudRequired();
+      const max=Math.min(AUDIO_LIMIT,projectLimits().audioBytes);
+      releaseAdmission=admitProjectOperation(tmpdir(),owner,"song",max);
+      const {form,file}=await fileForm(req,max,"song");
+      const revision=Number(form.get("revision"));
+      if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed. Reload to continue.",409);
+      const extension=file.name.toLowerCase().endsWith(".mp3")?"mp3":file.name.toLowerCase().endsWith(".wav")?"wav":file.name.toLowerCase().endsWith(".m4a")?"m4a":null;
+      if(!extension)throw new MusicError("Use MP3, WAV or M4A audio.");
+      const version=randomUUID(),original=("song-original."+extension) as SongSlot;
+      const records:{slot:SongSlot;record:ProjectCloudRecord}[]=[];
+      const release=reserveProjectUpload(tmpdir(),file.size,"audio");let work:string|undefined;
+      try{
+        work=await mkdtemp(path.join(tmpdir(),"sm-project-song-"));
+        const input=path.join(work,original),preview=path.join(work,"song.mp3");
+        const bytes=Buffer.from(await file.arrayBuffer());await writeFile(input,bytes,{flag:"wx",mode:0o600});
+        const duration=toMs(await validateAudio(input));
+        const songName=await originalSongTitle(input)||cleanSongName(file.name.replace(/\.(mp3|wav|m4a)$/i,""))||"Untitled song";
+        if(extension==="mp3")await writeFile(preview,bytes,{flag:"wx",mode:0o600});else await createAudioPreview(input,preview,256);
+        for(const slot of [original,"song.mp3"] as const)records.push({slot,record:await mirrorProjectVideo(owner,id,songAssetId(id,slot,version),path.join(work,slot),songMime(slot))});
+        return json(attachProjectSong(id,owner,revision,version,songName,duration,records),201);
+      }catch(error){
+        for(const {slot,record} of records)queueUnusedSongUpload(id,owner,version,slot,record);
+        await cleanCloudDeletes(owner);throw error;
+      }finally{try{if(work)await rm(work,{recursive:true,force:true});}finally{release();}}
+    }
     if(section==="song"&&req.method==="GET"&&!assetId){
+      if(project.songRemoved)throw new MusicError("Add a song first.",404);
       const record=projectSongRecord(id,owner,"song.mp3");
-      if(record)return await projectVideoResponse(req,owner,id,songAssetId(id,"song.mp3"),record,"audio/mpeg",common);
+      if(record)return await projectVideoResponse(req,owner,id,songAssetId(id,"song.mp3",project.songVersion),record,"audio/mpeg",common);
+      if(project.songVersion)throw new MusicError("Song unavailable.",404);
       return await streamFile(req,path.join(projectFolder(project.id),"song.mp3"),"audio/mpeg",true);
     }
     if(section==="waveform"&&req.method==="GET"){
-      if(!assetId)return json(await mediaWaveform(id,"song",project.songDurationMs,
-        ()=>songWorkingFile(id,owner,"song.mp3",scratch),()=>{requireMusicProject(id,owner);}));
+      if(!assetId){
+        if(project.songRemoved)throw new MusicError("Add a song first.",404);
+        return json(await mediaWaveform(id,project.songVersion?"song-"+project.songVersion:"song",project.songDurationMs,
+          ()=>songWorkingFile(id,owner,"song.mp3",scratch),()=>{const current=requireMusicProject(id,owner);if(current.songRemoved||current.songVersion!==project.songVersion)throw new MusicError("Song changed.",409);}));
+      }
       const asset=musicAsset(id,owner,assetId);
       if(asset.sourceKind==="live")projectLiveOwner(req,owner);
       return json(await mediaWaveform(id,asset.id,asset.durationMs,
@@ -452,6 +495,7 @@ async function handler(req:NextRequest,context:Context){
       return json(await inspectVideoDimensions(files.get(assetId)!));
     }
     if(section==="export"){
+      if(req.method==="POST"&&project.songRemoved)throw new MusicError("Add a song before exporting.",409);
       if(!assetId&&req.method==="POST"){
         const body=await jsonBody(req),detail=musicDetail(id,owner);
         if(body.revision!==detail.project.revision)throw new MusicError("Save your latest changes before exporting.",409);
