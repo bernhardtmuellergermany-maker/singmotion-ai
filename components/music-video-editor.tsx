@@ -129,7 +129,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
   const [playing,setPlaying]=useState(false),[zoom,setZoom]=useState(44),[snap,setSnap]=useState(true);
-  const [syncedMode,setSyncedMode]=useState(true),[syncedPreview,setSyncedPreview]=useState<SyncedPreview|null>(null),[syncedProgress,setSyncedProgress]=useState<number|null>(null);
+  const [syncedMode,setSyncedMode]=useState(false),[syncedPreview,setSyncedPreview]=useState<SyncedPreview|null>(null),[syncedProgress,setSyncedProgress]=useState<number|null>(null);
   const syncedVideo=useRef<HTMLVideoElement>(null),syncedAbort=useRef<AbortController|null>(null),syncedPendingPlay=useRef(false);
   const syncedSeekTarget=useRef<number|null>(null);
   useEffect(()=>()=>{syncedAbort.current?.abort();},[]);
@@ -1475,7 +1475,7 @@ export function MusicVideoEditor({id}:{id:string}){
         {(["auto","9:16","16:9"] as const).map(ratio=><button key={ratio} type="button" aria-pressed={aspectRatio===ratio} title={ratio==="auto"?"Use the first visible video’s format":ratio==="9:16"?"Portrait":"Landscape"} disabled={importing} onClick={()=>changeAspectRatio(ratio)}>{ratio==="auto"?"Auto":ratio}</button>)}
         {aspectRatio==="auto"&&autoFormat?.assetId===firstAssetId&&<small>{previewRatio}</small>}
       </div>
-      {clips.length>0&&<div className="mv-sync-preview-options"><span>Preview</span><button type="button" aria-pressed={syncedMode} onClick={()=>{if(!syncedMode){stopPlayback();setSyncedMode(true);}}}>Synced</button><button type="button" aria-pressed={!syncedMode} onClick={()=>{if(syncedMode){stopPlayback();setSyncedMode(false);}}}>Quick edit</button><small>{syncedMode?"One audio/video clock":"Instant editing preview"}</small></div>}
+      {clips.length>0&&<div className="mv-sync-preview-options"><span>Preview</span><button type="button" aria-pressed={syncedMode} onClick={()=>{if(!syncedMode){stopPlayback();setSyncedMode(true);}}}>Synced review</button><button type="button" aria-pressed={!syncedMode} onClick={()=>{if(syncedMode){stopPlayback();syncedSeekTarget.current=null;setSyncedPreview(null);setSyncedMode(false);}}}>Live</button><small>{syncedMode?"Rendered review · prepares after edits":"Instant editing preview"}</small></div>}
       <div className="mv-player-controls">
         <button aria-label={syncedProgress!==null?"Cancel preview preparation":playing?"Pause":"Play"} disabled={!playing&&syncedProgress===null&&!wantsSynced&&(mobile===null||mobilePreparing)} onClick={togglePlayback}>{syncedProgress!==null?<X size={19}/>:playing?<Pause size={19}/>:<Play size={19}/>}</button>
         <span className="mv-clock">{time(progress.positionMs,true)} / {time(timelineEnd,true)}</span>
