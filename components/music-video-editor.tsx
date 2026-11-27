@@ -10,9 +10,9 @@ import {ensureSession} from "@/lib/client";
 import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
-import {validWaveform,waveformShape,waveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
+import {validWaveform,waveformShape,timelineWaveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,fitSourceTimeClip,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,planSourceTimeInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -44,8 +44,8 @@ function InlineTimeField({label,ariaLabel,value,onChange,onConfirm,disabled,plac
     <button type="button" className="mv-inline-confirm" disabled={disabled} title={"Confirm "+label.toLowerCase()} aria-label={"Confirm "+ariaLabel.toLowerCase()} onClick={onConfirm}><Check size={15}/></button>
   </div>;
 }
-const SongWaveform=memo(function SongWaveform({wave,sourceInMs,sourceOutMs,width,bars=false}:{wave?:MediaWaveform|null;sourceInMs:number;sourceOutMs:number;width:number;bars?:boolean}){
-  const shape=wave?(bars?waveformBars(wave,sourceInMs,sourceOutMs,width):waveformShape(wave,sourceInMs,sourceOutMs,width)):"";
+const SongWaveform=memo(function SongWaveform({wave,sourceInMs,sourceOutMs,width,bars=false,timelineStartMs=0,gridMs=100}:{wave?:MediaWaveform|null;sourceInMs:number;sourceOutMs:number;width:number;bars?:boolean;timelineStartMs?:number;gridMs?:number}){
+  const shape=wave?(bars?timelineWaveformBars(wave,sourceInMs,sourceOutMs,timelineStartMs,gridMs):waveformShape(wave,sourceInMs,sourceOutMs,width)):"";
   return <div className={"mv-clip-waveform"+(bars?" mv-waveform-bars":"")} aria-hidden="true" data-waveform={wave?(wave.hasAudio?"ready":"silent"):"pending"}>
     {wave?.hasAudio&&<svg viewBox="0 0 1000 100" preserveAspectRatio="none" focusable="false">
       {!bars&&<path className="mv-wave-center" d="M0 50H1000"/>}
@@ -133,6 +133,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [libraryNewest,setLibraryNewest]=useState(true),[libraryRefreshing,setLibraryRefreshing]=useState(false);
   const [assetRename,setAssetRename]=useState<{id:string;name:string}|null>(null);
   const [error,setError]=useState(""),[status,setStatus]=useState("Saved");
+  const [placementNotice,setPlacementNotice]=useState("");
   const [lipTrack,setLipTrack]=useState<Track|null>(null),[lipSources,setLipSources]=useState<LipSyncSource[]>([]);
   const [lipLoading,setLipLoading]=useState(false),[lipSearch,setLipSearch]=useState(""),[lipError,setLipError]=useState("");
   const [importing,setImporting]=useState(false);
@@ -280,7 +281,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(changed)displaySong(range);
     const at=timelineProgress(playheadRef.current,songPartsEnd(range,parts)).positionMs;
     if(changed||partsChanged||at!==Math.round(playheadRef.current)){stopPlayback();setAt(at,range);}
-    latest.current=next;setClips(next);setError("");queue();
+    latest.current=next;setClips(next);setError("");setPlacementNotice("");queue();
   }
   function undo(){
     if(roleBusy.current)return;
@@ -485,6 +486,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
   const timelineEnd=project?songPartsEnd(songRange,songParts):0;
   const timelineLimit=timelineEnd;
+  const waveformGridMs=Math.max(4000/zoom,timelineLimit/1200);
   // Source trim can be extended again, but never displays unused source duration.
   const songPlacementLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current))):0;
   const selectedClip=clips.find(c=>c.id===selected&&c.timelineStartMs<timelineEnd);
@@ -697,9 +699,15 @@ export function MusicVideoEditor({id}:{id:string}){
       timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current):Math.max(0,Math.round(atMs/100)*100),
       sourceInMs:0,sourceOutMs:length,syncLocked:locked};
     if(locked){
-      const fitted=fitSourceTimeClip(latest.current,candidate,timelineLimit);
-      if(!fitted){setError("No free section at this video's original source time on this track. Shorten a neighboring clip or use the other track.");return;}
-      setError("");apply([...latest.current,fitted]);setSelected(fitted.id);return;
+      // Use the current refs: importing can reload the project before React rerenders.
+      const limit=songPartsEnd(rangeRef.current,partsRef.current);
+      const plan=planSourceTimeInsertion(latest.current,candidate,limit,atMs,uuid);
+      if(!plan){setError("No editable space remains on either video track. Unlock a position-locked clip or shorten a clip first.");return;}
+      apply(plan.clips);setSelected(plan.clip.id);
+      if(plan.mode==="cut")setPlacementNotice("Inserted a short section at the original source time. Drag the cut edges to adjust the transition. Undo restores the previous edit.");
+      if(plan.mode==="manual")setPlacementNotice("Original source time is outside the available space. Inserted an unlocked section for manual alignment. Use Return to source time when available.");
+      if(plan.mode==="alternate")setPlacementNotice("Inserted at the original source time on the other video track.");
+      return;
     }
     if(candidate.timelineStartMs<0){setError("The video starts before the timeline.");return;}
     if(clipEnd(candidate)>timelineLimit)candidate.sourceOutMs=Math.max(0,timelineLimit-candidate.timelineStartMs);
@@ -1134,7 +1142,7 @@ export function MusicVideoEditor({id}:{id:string}){
                   <div className="mv-clip-drag-surface" aria-hidden="true"/>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
                   {c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>:
-                    <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/> }
+                    <SongWaveform bars timelineStartMs={c.timelineStartMs} gridMs={waveformGridMs} wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/> }
                   <button type="button" className="mv-clip-display-toggle" aria-pressed={!!c.showVideoName}
                     aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
                     title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
@@ -1158,7 +1166,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
-                <SongWaveform bars wave={wave} sourceInMs={songRange.startMs} sourceOutMs={songRange.endMs} width={(songRange.endMs-songRange.startMs)/1000*zoom}/>
+                <SongWaveform bars timelineStartMs={songRange.positionMs} gridMs={waveformGridMs} wave={wave} sourceInMs={songRange.startMs} sourceOutMs={songRange.endMs} width={(songRange.endMs-songRange.startMs)/1000*zoom}/>
                 <span className="mv-song-wave-title">{project!.songName||"Song"}</span>
               </div>
               {(["start","end"] as const).map(edge=><button type="button" key={edge} className={"mv-song-handle "+edge+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")}
@@ -1167,7 +1175,7 @@ export function MusicVideoEditor({id}:{id:string}){
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSongEdge(e,edge),selectSong)}
                 onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const range=rangeRef.current;
                   commitSongRange(moveSongEdge(range,edge,(edge==="start"?range.startMs:range.endMs)+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),project!.songDurationMs));}}/>)}</>:currentParts.map((p,i)=><div key={i} className={"mv-song-block mv-song-part"+(songSelected&&i===Math.min(partIndex,currentParts.length-1)?" is-selected":"")+(armedMedia==="song-part-"+i?" is-armed":"")} role="button" tabIndex={0} aria-label={"Select song part "+(i+1)} aria-pressed={songSelected&&i===Math.min(partIndex,currentParts.length-1)} style={{left:songTimeToTimeline(p.startMs,songRange)/1000*zoom,width:(p.endMs-p.startMs)/1000*zoom}} onContextMenu={e=>e.preventDefault()} onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-part-edge"))beginMediaGesture(e,"song-part-"+i,()=>{selectPart(i);dragSong(e);},()=>selectPart(i));}} onKeyDown={e=>{if(e.target===e.currentTarget&&(e.key==="Enter"||e.key===" ")){e.preventDefault();selectPart(i);}}}>
-                <SongWaveform bars wave={wave} sourceInMs={p.startMs} sourceOutMs={p.endMs} width={(p.endMs-p.startMs)/1000*zoom}/>
+                <SongWaveform bars timelineStartMs={songTimeToTimeline(p.startMs,songRange)} gridMs={waveformGridMs} wave={wave} sourceInMs={p.startMs} sourceOutMs={p.endMs} width={(p.endMs-p.startMs)/1000*zoom}/>
                 <span className="mv-song-wave-title">{project!.songName||"Song"}</span>
                 {songSelected&&i===Math.min(partIndex,currentParts.length-1)&&(["start","end"] as const).map(edge=><button key={edge} type="button" className={"mv-song-handle is-selected mv-part-edge "+edge} aria-label={"Trim song part "+edge} onPointerDown={e=>beginMediaGesture(e,"song-part-"+i,()=>trimPartEdge(e,i,edge),()=>selectPart(i))} onKeyDown={e=>{if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();e.stopPropagation();const d=(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1);editPart(edge==="start"?p.startMs+d:p.startMs,edge==="end"?p.endMs+d:p.endMs);}}/>)}
               </div>)}
@@ -1204,6 +1212,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <span className="mv-inspector-duration">Duration <b>{time(selectedPart.endMs-selectedPart.startMs,true)}</b></span>
       </form>}
       </div></>}
+      {placementNotice&&<p className="mv-placement-notice" role="status">{placementNotice}</p>}
       {error&&<div className="mv-error" role="alert"><span>{error}</span>{status==="Not saved"&&<button type="button" onClick={()=>void saveNow().then(()=>{setError("");setClips([...latest.current]);}).catch(()=>{})}>Retry save</button>}</div>}
       <input ref={fileInput} hidden type="file" accept=".mp4,.webm,video/mp4,video/webm" onChange={e=>{
         const file=e.target.files?.[0];if(file)void uploadVideo(file);e.target.value="";
@@ -1271,7 +1280,7 @@ export function MusicVideoEditor({id}:{id:string}){
         <p>Choose a completed Lip Sync video. It will be placed at its original song time with Sync Lock enabled. Use the same song for accurate synchronization.</p>
         <input type="search" placeholder="Search completed videos…" aria-label="Search Lip Sync videos" value={lipSearch} onChange={e=>setLipSearch(e.target.value)}/>
         {lipLoading?<p role="status">Loading your videos…</p>:<div className="mv-lip-list">
-          {lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).map(s=><button key={s.id} type="button" disabled={importing||s.sourceStartMs>=project!.songDurationMs||s.sourceEndMs>project!.songDurationMs}
+          {lipSources.filter(s=>s.name.toLowerCase().includes(lipSearch.toLowerCase())).map(s=><button key={s.id} type="button" disabled={importing}
             onClick={()=>void insertLipSync(s,lipTrack)}>
             <Music2 size={19}/><span><strong>{s.name}</strong><small>{time(s.sourceStartMs,true)} – {time(s.sourceEndMs,true)} · {time(s.durationMs)}</small></span><Plus size={18}/>
           </button>)}

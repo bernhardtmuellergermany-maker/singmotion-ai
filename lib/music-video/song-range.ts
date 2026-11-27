@@ -344,3 +344,53 @@ export function removeLeadingSongPart<T extends PositionedClip>(range:SongPlacem
  }
  return {range:nextRange,parts:rest,clips:moved,shiftMs};
 }
+
+/** Source-time first; if occupied, create a short, undoable cut without
+ * altering original files or explicitly position-locked clips. */
+export function planSourceTimeInsertion<T extends PositionedClip>(clips:readonly T[],candidate:T,limit:number,playhead:number,newId:()=>string):{clips:T[];clip:T;mode:"aligned"|"cut"|"alternate"|"manual"}|null{
+ if(!Number.isSafeInteger(limit)||limit<100||clips.length>=500)return null;
+ const length=candidate.sourceOutMs-candidate.sourceInMs;
+ if(length<=0)return null;
+ const tracks=[candidate.track,candidate.track===1?2:1] as T["track"][];
+ const end=(c:T)=>c.timelineStartMs+c.sourceOutMs-c.sourceInMs;
+ const done=(base:T[],clip:T,mode:"aligned"|"cut"|"alternate"|"manual")=>base.length<500?{clips:[...base,clip],clip,mode}:null;
+ const aligned=fitSourceTimeClip(clips,candidate,limit);
+ if(aligned)return done([...clips],aligned,"aligned");
+ // A rolling cut inside an existing unlocked clip. Keep both surviving
+ // pieces, and keep their source-to-timeline relation exactly unchanged.
+ function carve(c:T,from:number,to:number,manual:boolean){
+  const old=clips.filter(x=>x.track===c.track&&!x.positionLocked)
+    .map(x=>({x,start:Math.max(from,x.timelineStartMs+100),end:Math.min(to,end(x)-100)}))
+    .filter(x=>x.end-x.start>=100)
+    .sort((a,b)=>(b.end-b.start)-(a.end-a.start)||a.start-b.start)[0];
+  if(!old)return null;
+  const size=Math.min(1000,length,old.end-old.start,Math.max(100,Math.round(length/3)));
+  if(size<100)return null;
+  const start=Math.round((old.start+old.end-size)/2),finish=start+size;
+  const left={...old.x,sourceOutMs:old.x.sourceInMs+start-old.x.timelineStartMs};
+  const right={...old.x,id:newId(),timelineStartMs:finish,sourceInMs:old.x.sourceInMs+finish-old.x.timelineStartMs};
+  const sourceIn=manual?c.sourceInMs:c.sourceInMs+start-c.timelineStartMs;
+  const inserted={...c,timelineStartMs:start,sourceInMs:sourceIn,sourceOutMs:sourceIn+size,syncLocked:manual?false:c.syncLocked};
+  return done([...clips.filter(x=>x.id!==old.x.id),left,right],inserted,manual?"manual":"cut");
+ }
+ const cut=carve(candidate,Math.max(0,candidate.timelineStartMs),Math.min(limit,end(candidate)),false);
+ if(cut)return cut;
+ const alternate={...candidate,track:tracks[1]};
+ const alternateFit=fitSourceTimeClip(clips,alternate,limit);
+ if(alternateFit)return done([...clips],alternateFit,"alternate");
+ const altCut=carve(alternate,Math.max(0,candidate.timelineStartMs),Math.min(limit,end(candidate)),false);
+ if(altCut)return altCut;
+ // No visible intersection with source time (e.g. after a song cut).
+ // Prefer the closest actual gap and clearly release sync lock.
+ for(const track of tracks){
+  const occupied=clips.filter(c=>c.track===track&&c.timelineStartMs<limit).sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+  const gaps:{start:number;end:number}[]=[];let cursor=0;
+  for(const old of occupied){if(old.timelineStartMs>cursor)gaps.push({start:cursor,end:old.timelineStartMs});cursor=Math.max(cursor,end(old));}
+  if(cursor<limit)gaps.push({start:cursor,end:limit});
+  const wanted=Math.max(0,Math.min(limit-100,Math.round(playhead)));
+  const gap=gaps.filter(g=>g.end-g.start>=100).sort((a,b)=>Math.abs(Math.max(a.start,Math.min(a.end-100,wanted))-wanted)-Math.abs(Math.max(b.start,Math.min(b.end-100,wanted))-wanted))[0];
+  if(gap){const size=Math.min(length,gap.end-gap.start);const start=Math.max(gap.start,Math.min(gap.end-size,wanted));return done([...clips],{...candidate,track,timelineStartMs:start,sourceOutMs:candidate.sourceInMs+size,syncLocked:false},"manual");}
+ }
+ for(const track of tracks){const result=carve({...candidate,track},0,limit,true);if(result)return result;}
+ return null;
+}

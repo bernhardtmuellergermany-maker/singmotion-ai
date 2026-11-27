@@ -732,3 +732,5 @@
 .mv-root.mv-editor .mv-song-block .mv-waveform-bars{clip-path:none}
 .mv-root.mv-editor .mv-song-block .mv-song-wave-title{top:1px;font-size:10px;line-height:10px}
 .mv-root.mv-editor .mv-error>button{margin-left:12px;padding:6px 12px;border:1px solid currentColor;border-radius:6px;background:transparent;color:inherit}
+
+.mv-root.mv-editor .mv-placement-notice{color:#eadcff;background:#30203f;border:1px solid #664b82;border-radius:8px;padding:10px 14px;font-size:13px}

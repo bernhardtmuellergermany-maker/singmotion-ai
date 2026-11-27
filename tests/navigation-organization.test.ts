@@ -980,7 +980,7 @@ test("Lip Sync insertion trims overlap without changing the original source mapp
  assert.equal(rollVideoBoundary([{...left,positionLocked:true},right],right,"start",-1000,()=>5000),null);
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current)"));
- assert.ok(editor.includes("fitSourceTimeClip(latest.current,candidate,timelineLimit)"));
+ assert.ok(editor.includes("planSourceTimeInsertion(latest.current,candidate,limit,atMs,uuid)"));
 });
 
 test("deleting the leading song part ripples every clip, preserving original lip sync and locks",async()=>{
@@ -995,4 +995,25 @@ test("deleting the leading song part ripples every clip, preserving original lip
  assert.equal(result.clips[0].timelineStartMs,2000+result.clips[0].sourceInMs+songOffset(result.range));
  assert.deepEqual(result.parts,[parts[1]]);
  assert.equal(removeLeadingSongPart(range,[parts[0]],[a]),null);
+});
+
+test("source-time insertion works on empty trimmed tracks and squeezes into occupied time without overlap",async()=>{
+ const {planSourceTimeInsertion}=await import("../lib/music-video/song-range.ts");
+ const a={id:"a",track:1,timelineStartMs:0,sourceInMs:0,sourceOutMs:10000,syncLocked:true,positionLocked:false};
+ const b={...a,id:"b",timelineStartMs:2000,sourceOutMs:5000};
+ const fresh=planSourceTimeInsertion([],b,10000,0,()=>"new")!;
+ assert.equal(fresh.mode,"aligned");assert.deepEqual(fresh.clip,b);
+ const outside=planSourceTimeInsertion([],{...b,timelineStartMs:-9000},4000,0,()=>"new")!;
+ assert.equal(outside.mode,"manual");assert.equal(outside.clip.timelineStartMs,0);assert.equal(outside.clip.syncLocked,false);
+ const cut=planSourceTimeInsertion([a],b,10000,0,()=>"new")!;
+ assert.equal(cut.mode,"cut");assert.equal(cut.clips.length,3);
+ assert.equal(cut.clip.timelineStartMs-cut.clip.sourceInMs,2000);
+ const sorted=cut.clips.sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
+ assert.equal(sorted[0].timelineStartMs+sorted[0].sourceOutMs-sorted[0].sourceInMs,sorted[1].timelineStartMs);
+ assert.equal(sorted[1].timelineStartMs+sorted[1].sourceOutMs-sorted[1].sourceInMs,sorted[2].timelineStartMs);
+ assert.equal(sorted[2].timelineStartMs-sorted[2].sourceInMs,0);
+ const locked={...a,positionLocked:true};
+ const alt=planSourceTimeInsertion([locked],b,10000,0,()=>"new")!;
+ assert.equal(alt.mode,"alternate");assert.equal(alt.clip.track,2);assert.deepEqual(alt.clips[0],locked);
+ assert.equal(planSourceTimeInsertion([locked,{...locked,id:"other",track:2}],b,10000,0,()=>"new"),null);
 });

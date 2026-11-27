@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {pcmWaveform,validWaveform,waveformShape,waveformBars,waveformPointCount,WAVEFORM_MAX_POINTS} from "../lib/music-video/waveform.ts";
+import {pcmWaveform,validWaveform,waveformShape,waveformBars,timelineWaveformBars,waveformPointCount,WAVEFORM_MAX_POINTS} from "../lib/music-video/waveform.ts";
 
 test("real waveform peaks retain source timing, including silence and short audio streams",()=>{
  const pcm=Buffer.alloc(2000*2);
@@ -116,4 +116,15 @@ test("rounded clip bars use real source peaks and bounded time-proportional samp
  assert.ok(!waveformBars(wave,400,1000,100).includes("5.00 V95.00"));
  assert.equal(waveformBars({...wave,hasAudio:false},0,1000,100),"");
  assert.equal(waveformBars(wave,500,500,100),"");
+});
+
+test("song and video bars share one absolute timeline sampling grid",()=>{
+ const peaks=Array.from({length:500},(_,i)=>i%7/7);
+ const song={durationMs:10000,hasAudio:true,peaks};
+ const clip={durationMs:4000,hasAudio:true,peaks:peaks.slice(100,300)};
+ const read=(shape:string,start:number,duration:number)=>[...shape.matchAll(/M([0-9.]+),([0-9.]+) V([0-9.]+)/g)].map(m=>({at:Math.round(start+Number(m[1])/1000*duration),height:Number(m[3])-Number(m[2])}));
+ const all=read(timelineWaveformBars(song,0,10000,0,100),0,10000);
+ const local=read(timelineWaveformBars(clip,0,4000,2000,100),2000,4000);
+ assert.deepEqual(local,all.filter(b=>b.at>=2000&&b.at<6000));
+ assert.ok(timelineWaveformBars(clip,0,4000,2037,100).startsWith("M3.250,"));
 });

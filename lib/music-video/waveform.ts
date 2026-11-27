@@ -59,3 +59,26 @@ export function waveformBars(w:MediaWaveform,sourceInMs:number,sourceOutMs:numbe
  }
  return bars.join(" ");
 }
+
+/** Both song and clip use the same absolute timeline grid, so the bar
+ * centers and sampling windows do not drift with independent clip widths.
+ * The source PCM remains real; amplitude differences are not fabricated. */
+export function timelineWaveformBars(w:MediaWaveform,sourceInMs:number,sourceOutMs:number,timelineStartMs:number,gridMs:number):string{
+ const duration=sourceOutMs-sourceInMs;
+ if(!w.hasAudio||!w.peaks.length||duration<=0||!Number.isFinite(gridMs)||gridMs<=0||!Number.isFinite(timelineStartMs))return "";
+ const end=timelineStartMs+duration,step=gridMs;
+ const bars:string[]=[];
+ for(let i=Math.max(0,Math.floor(timelineStartMs/step));i*step<end&&bars.length<1202;i++){
+  const center=(i+.5)*step;
+  if(center<timelineStartMs||center>=end)continue;
+  const from=Math.max(0,sourceInMs,sourceInMs+i*step-timelineStartMs);
+  const to=Math.min(w.durationMs,sourceOutMs,sourceInMs+(i+1)*step-timelineStartMs);
+  if(to<=from)continue;
+  const first=Math.max(0,Math.min(w.peaks.length-1,Math.floor(from/w.durationMs*w.peaks.length)));
+  const last=Math.max(first,Math.min(w.peaks.length-1,Math.ceil(to/w.durationMs*w.peaks.length)-1));
+  let peak=0;for(let j=first;j<=last;j++)peak=Math.max(peak,w.peaks[j]);
+  const x=((center-timelineStartMs)/duration*1000).toFixed(3),height=Math.max(.7,peak*45);
+  bars.push("M"+x+","+(50-height).toFixed(2)+" V"+(50+height).toFixed(2));
+ }
+ return bars.join(" ");
+}
