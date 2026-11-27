@@ -53,9 +53,9 @@ async function inspectExportResolution(spans:RenderSpan[],files:Map<string,strin
  }
  return chooseExportResolution(dimensions,aspectRatio);
 }
-type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;progress:number;resolution?:{width:number;height:number};folder?:string;error?:string;previewRevision?:number};
+type Job={id:string;owner:string;projectId:string;name:string;state:"rendering"|"ready"|"failed";created:number;progress:number;resolution?:ExportResolution;folder?:string;error?:string};
 const jobs=new Map<string,Job>();
-const publicJob=(j:Job)=>({id:j.id,state:j.state,progress:j.progress,resolution:j.resolution,error:j.error,...(j.previewRevision===undefined?{}:{revision:j.previewRevision})});
+const publicJob=(j:Job)=>({id:j.id,state:j.state,progress:j.progress,resolution:j.resolution,error:j.error});
 function expire(job:Job){const timer=setTimeout(()=>{jobs.delete(job.id);if(job.folder)void rm(job.folder,{recursive:true,force:true}).catch(()=>{});},30*60*1000);timer.unref();}
 async function cleanup(){
  for(const [id,j] of jobs)if(j.state!=="rendering"&&Date.now()-j.created>30*60*1000){jobs.delete(id);if(j.folder)await rm(j.folder,{recursive:true,force:true});}
@@ -103,9 +103,7 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
  const parts=effectiveSongParts(range,project.songParts);
  const duration=songPartsEnd(range,project.songParts);
  const spans=videoRenderSpans(clips,duration);
- const originalResolution=await inspectExportResolution(spans,files,project.aspectRatio);
- const preview=job.previewRevision!==undefined;
- const resolution=preview?(originalResolution.height>originalResolution.width?{width:480,height:854}:{width:854,height:480}):originalResolution;job.resolution=resolution;
+ const resolution=await inspectExportResolution(spans,files,project.aspectRatio);job.resolution=resolution;
  const {width,height}=resolution;
  const folder=await mkdtemp(path.join(tmpdir(),"sm-music-export-"));job.folder=folder;
  const started=Date.now(),remaining=()=>Math.max(1,Math.min(180000,20*60*1000-(Date.now()-started)));
@@ -116,7 +114,7 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
   const input=span.clip?["-ss",seconds(span.sourceMs),"-i",files.get(span.clip.assetId)!]:["-f","lavfi","-i","color=c=black:s="+width+"x"+height+":r=30"];
   await ffmpeg([...input,"-map","0:v:0","-an","-sn","-dn","-filter_threads","1",
    "-vf","scale="+width+":"+height+":force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,pad="+width+":"+height+":(ow-iw)/2:(oh-ih)/2:black,setsar=1,fps=30,tpad=stop_mode=clone:stop_duration=1",
-   "-frames:v",String(frames),"-c:v","libx264","-threads","2","-preset","veryfast","-crf",preview?"28":"20",...(preview?["-profile:v","baseline","-level:v","3.1","-g","15","-maxrate","900k","-bufsize","1800k"]:[]),"-pix_fmt","yuv420p","-video_track_timescale","30000",out],remaining());
+   "-frames:v",String(frames),"-c:v","libx264","-threads","2","-preset","veryfast","-crf","20","-pix_fmt","yuv420p","-video_track_timescale","30000",out],remaining());
   const {stdout}=await exec("ffprobe",["-v","error","-select_streams","v:0","-show_entries","stream=nb_frames","-of","default=nw=1:nk=1",out],{timeout:15000,maxBuffer:1024});
   if(Number(stdout.trim())!==frames)throw new Error("incomplete video span");
   names.push(name);job.progress=Math.floor(span.endFrame/spans.at(-1)!.endFrame*90);
@@ -157,9 +155,8 @@ async function render(job:Job,project:MusicProject,clips:MusicClip[],files:Map<s
  if(mixLabels.length===0)graph.push("anullsrc=r=48000:cl=stereo,atrim=duration="+frameSeconds(totalFrames)+"[aout]");
  else if(mixLabels.length===1)graph.push(mixLabels[0]+"anull[aout]");
  else graph.push(mixLabels.join("")+"amix=inputs="+mixLabels.length+":duration=longest:normalize=0,alimiter=limit=0.95:level=0:latency=1[aout]");
- await ffmpeg(["-f","concat","-safe","1","-i",list,"-i",songFile,...audioInputs,"-filter_complex_threads","1","-filter_complex",graph.join(";"),"-map","0:v:0","-map","[aout]","-c:v","copy","-c:a","aac","-b:a",preview?"160k":"320k","-t",frameSeconds(totalFrames),"-movflags","+faststart",path.join(folder,"result.mp4")],remaining());
- const bytes=(await stat(path.join(folder,"result.mp4"))).size;
- if(bytes<1000||(preview&&bytes>128*1024*1024))throw new Error("invalid rendered media size");
+ await ffmpeg(["-f","concat","-safe","1","-i",list,"-i",songFile,...audioInputs,"-filter_complex_threads","1","-filter_complex",graph.join(";"),"-map","0:v:0","-map","[aout]","-c:v","copy","-c:a","aac","-b:a","320k","-t",frameSeconds(totalFrames),"-movflags","+faststart",path.join(folder,"result.mp4")],remaining());
+ if((await stat(path.join(folder,"result.mp4"))).size<1000)throw new Error("empty export");
  for(const n of [...names,"concat.txt",...audioTemp])await rm(path.join(folder,n),{force:true});
 }
 export async function startMusicExport(owner:string,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string,releaseSources:()=>Promise<void>=async()=>{}){
@@ -169,7 +166,7 @@ export async function startMusicExport(owner:string,project:MusicProject,clips:M
  if(!clips.some(c=>c.timelineStartMs<duration))throw new Error("Add at least one video within the song before exporting.");
  if(duration>limitMs||videoRenderSpans(clips,duration).length>120)throw new Error("MP4 export currently supports up to 10 minutes and 120 video sections.");
  if([...jobs.values()].some(j=>j.state==="rendering"))throw new Error("An export is already rendering. Try again after it finishes.");
- if([...jobs.values()].filter(j=>j.previewRevision===undefined).length>=4)throw new Error("Export capacity is temporarily full. Try again later.");
+ if(jobs.size>=4)throw new Error("Export capacity is temporarily full. Try again later.");
  const job:Job={id:randomUUID(),owner,projectId:project.id,name:project.name,state:"rendering",created:Date.now(),progress:0};
  jobs.set(job.id,job);
  void render(job,project,clips,files,songFile).then(()=>{job.state="ready";job.progress=100;job.created=Date.now();expire(job);}).catch(async()=>{
@@ -180,47 +177,10 @@ export async function startMusicExport(owner:string,project:MusicProject,clips:M
 }
 export async function musicExportStatus(owner:string,projectId:string,id:string){
  await cleanup();const job=jobs.get(id);
- return job?.owner===owner&&job.projectId===projectId&&job.previewRevision===undefined?publicJob(job):null;
+ return job?.owner===owner&&job.projectId===projectId?publicJob(job):null;
 }
 export async function musicExportFile(owner:string,projectId:string,id:string){
  await cleanup();const job=jobs.get(id);
- if(!job||job.owner!==owner||job.projectId!==projectId||job.previewRevision!==undefined||job.state!=="ready"||!job.folder)return null;
+ if(!job||job.owner!==owner||job.projectId!==projectId||job.state!=="ready"||!job.folder)return null;
  return {file:path.join(job.folder,"result.mp4"),name:job.name};
-}
-
-/** The review preview is a low-resolution mux of the exact saved timeline.
- * It uses the export renderer's original timestamps, trims, gaps, mix and
- * frame quantization; no independent browser song/video clocks. */
-export async function findMusicTimelinePreview(owner:string,projectId:string,revision:number){
- await cleanup();
- const job=[...jobs.values()].find(j=>j.owner===owner&&j.projectId===projectId&&j.previewRevision===revision&&j.state!=="failed");
- if(!job)return null;
- if(job.state==="ready"&&(!job.folder||!(await stat(path.join(job.folder,"result.mp4")).catch(()=>null))?.isFile()))return null;
- return publicJob(job);
-}
-export async function startMusicTimelinePreview(owner:string,project:MusicProject,clips:MusicClip[],files:Map<string,string>,songFile:string,releaseSources:()=>Promise<void>){
- await cleanup();
- const duration=songPartsEnd({startMs:project.songStartMs,endMs:project.songEndMs,positionMs:project.songPositionMs},project.songParts);
- if(!clips.some(c=>c.timelineStartMs<duration)||duration>limitMs||videoRenderSpans(clips,duration).length>120)throw new Error("Synced preview supports up to 10 minutes and 120 video sections.");
- if([...jobs.values()].some(j=>j.state==="rendering"))throw new Error("A video is already rendering. Try again after it finishes.");
- // Preview cache never consumes the full-resolution export result slots.
- // Retain at most four ready/failed previews globally, evict oldest first.
- const previews=[...jobs.values()].filter(j=>j.previewRevision!==undefined).sort((a,b)=>a.created-b.created);
- while(previews.length>=4){const old=previews.shift()!;jobs.delete(old.id);if(old.folder)await rm(old.folder,{recursive:true,force:true}).catch(()=>{});}
- const job:Job={id:randomUUID(),owner,projectId:project.id,name:project.name,state:"rendering",created:Date.now(),progress:0,previewRevision:project.revision};
- jobs.set(job.id,job);
- void render(job,project,clips,files,songFile).then(()=>{job.state="ready";job.progress=100;job.created=Date.now();expire(job);}).catch(async()=>{
-  job.state="failed";job.error="Synced preview could not be prepared. Your original files and edits are safe.";job.created=Date.now();expire(job);
-  if(job.folder)await rm(job.folder,{recursive:true,force:true}).catch(()=>{});
- }).finally(()=>releaseSources().catch(()=>{}));
- return publicJob(job);
-}
-export async function musicTimelinePreviewStatus(owner:string,projectId:string,revision:number,id:string){
- await cleanup();const job=jobs.get(id);
- return job?.owner===owner&&job.projectId===projectId&&job.previewRevision===revision?publicJob(job):null;
-}
-export async function musicTimelinePreviewFile(owner:string,projectId:string,revision:number,id:string){
- await cleanup();const job=jobs.get(id);
- if(!job||job.owner!==owner||job.projectId!==projectId||job.previewRevision!==revision||job.state!=="ready"||!job.folder)return null;
- return path.join(job.folder,"result.mp4");
 }
