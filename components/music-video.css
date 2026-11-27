@@ -800,3 +800,13 @@
 .mv-root.mv-editor .mv-browse-search svg,.mv-root.mv-editor .mv-marker-time label>svg{color:#fff}
 .mv-root.mv-editor input[type=search]::placeholder{color:#a9a2b2;opacity:1}
 .mv-root.mv-editor .mv-browse-search:focus-within,.mv-root.mv-editor .mv-lip-dialog>input[type=search]:focus-visible{outline:1px solid #c797e8;outline-offset:1px}
+
+/* Exact playhead entry replaces the static TIME label in the pinned ruler. */
+.mv-root.mv-editor .mv-ruler-spacer{padding:2px 3px;letter-spacing:normal;min-width:0}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time{display:flex;width:100%;min-width:0;max-width:100%;margin:0}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time label{width:100%;min-width:0;box-sizing:border-box;padding:0 2px;gap:0;border-radius:5px}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time input[aria-label="Playhead timeline time"]{display:block;flex:1 1 auto;width:100%!important;max-width:none!important;min-width:0!important;height:24px!important;min-height:0!important;padding:0!important;text-align:center;font:500 12px/24px ui-monospace,SFMono-Regular,Consolas,monospace!important;letter-spacing:0;-webkit-text-fill-color:#fff!important;border-radius:0!important}
+@media(max-width:760px){
+ .mv-root.mv-editor .mv-track-labels{flex:0 0 88px;min-width:88px}
+ .mv-root.mv-editor .mv-ruler-spacer .mv-marker-time input[aria-label="Playhead timeline time"]{font-size:12px!important}
+}

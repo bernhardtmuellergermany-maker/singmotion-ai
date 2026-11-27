@@ -3,7 +3,7 @@ import {PROJECT_VIDEO_MAX_BYTES,PROJECT_VIDEO_MAX_MIB} from "../lib/music-video/
 import {memo,useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from "react";
 import Link from "next/link";
 import {createPortal} from "react-dom";
-import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,Eye,EyeOff,
+import {ChevronDown,ChevronRight,Check,Film,Lock,Unlock,Video,Mic,Eye,EyeOff,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
   Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown,Magnet,ZoomIn,ZoomOut} from "lucide-react";
 import {ensureSession} from "@/lib/client";
@@ -1105,7 +1105,11 @@ export function MusicVideoEditor({id}:{id:string}){
     <section className="mv-timeline" aria-label="Timeline editor">
       <div className="mv-tracks" ref={tracksRef}>
         <div className="mv-track-labels">
-          <div className="mv-label mv-ruler-spacer"><span>TIME</span></div>
+          <div className="mv-label mv-ruler-spacer">
+          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
+            <label title="Playhead time · Enter to apply"><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
+          </form>
+          </div>
           {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"Video · Overlay"}>
             {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"Video"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"Video audio")}
           </div>)}
@@ -1183,9 +1187,6 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
           <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/></button></div>
         <div className="mv-timeline-zoom">
-          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
-            <label title="Playhead time · Enter to apply"><Clock3 size={15} aria-hidden="true"/><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
-          </form>
           <button type="button" className="mv-snap-toggle" aria-label="Snap to edges" aria-pressed={snap} title={snap?"Snap to edges: on":"Snap to edges: off"} onClick={()=>setSnap(v=>!v)}><Magnet size={18}/></button>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
             

@@ -107,7 +107,7 @@ try{
   assert.equal(await page.locator(".mv-song-wave-title").textContent(),"Test song");
   const library=page.locator(".mv-library-heading");await library.click();
   const search=page.getByRole("searchbox",{name:"Search media"});await search.waitFor();
-  const checkSearch=async()=>{const style=await search.evaluate(el=>({input:getComputedStyle(el).backgroundColor,wrapper:getComputedStyle(el.parentElement!).backgroundColor,shadow:getComputedStyle(el).boxShadow}));assert.deepEqual(style,{input:"rgba(0, 0, 0, 0)",wrapper:"rgb(19, 29, 43)",shadow:"none"});};
+  const checkSearch=async()=>{const style=await search.evaluate(el=>({input:getComputedStyle(el).backgroundColor,wrapper:getComputedStyle(el.parentElement!).backgroundColor,shadow:getComputedStyle(el).boxShadow}));assert.deepEqual(style,{input:"rgba(0, 0, 0, 0)",wrapper:"rgb(0, 0, 0)",shadow:"none"});};
   await checkSearch();await search.focus();await checkSearch();await search.fill("first");assert.equal(await page.locator(".mv-media-card").count(),1);await search.fill("");await library.click();
   await page.waitForFunction(()=>{const c=document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]');return c?.dataset.frame==="0"&&Math.abs(Number(c.dataset.sourceTime)-.25)<.04;},{},{timeout:15000});
   const pixel=()=>canvas.evaluate(c=>Array.from((c as HTMLCanvasElement).getContext("2d")!.getImageData(400,240,1,1).data));
@@ -187,6 +187,10 @@ try{
   await magnet.click();assert.equal(await magnet.getAttribute("aria-pressed"),initialSnap);
   assert.equal(await page.locator(".mv-timeline-toolbar input[type=checkbox],.mv-zoom-buttons output,.mv-marker-time button").count(),0);
   const exactTime=page.getByRole("textbox",{name:"Playhead timeline time"});
+  assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time input").count(),1);
+  assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time svg,.mv-timeline-toolbar .mv-marker-time").count(),0);
+  assert.ok(await exactTime.evaluate(el=>{const a=el.getBoundingClientRect(),b=el.closest(".mv-track-labels")!.getBoundingClientRect();return a.left>=b.left&&a.right<=b.right&&el.scrollWidth<=el.clientWidth+1;}),"time field must fit in the pinned track column");
+
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el.parentElement!).backgroundColor),"rgb(0, 0, 0)");
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
   await exactTime.fill("00:01.234");await exactTime.press("Enter");
