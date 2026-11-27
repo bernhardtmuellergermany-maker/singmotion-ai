@@ -40,3 +40,22 @@ export function waveformShape(w:MediaWaveform,sourceInMs:number,sourceOutMs:numb
  }
  return "M"+top.join(" L")+" L"+bottom.reverse().join(" L")+" Z";
 }
+
+/** Rounded individual bars, sampled from the actual source interval. The x
+ * coordinate remains proportional to media time, including silent sections. */
+export function waveformBars(w:MediaWaveform,sourceInMs:number,sourceOutMs:number,width:number):string{
+ if(!w.hasAudio||!w.peaks.length||sourceOutMs<=sourceInMs||width<=0)return "";
+ const from=Math.max(0,Math.min(w.durationMs,sourceInMs)),to=Math.max(from,Math.min(w.durationMs,sourceOutMs));
+ if(to<=from)return "";
+ const points=Math.max(1,Math.min(1200,Math.floor(width/4),Math.ceil((to-from)/w.durationMs*w.peaks.length)));
+ const bars:string[]=[];
+ for(let i=0;i<points;i++){
+  const a=from+(to-from)*i/points,b=from+(to-from)*(i+1)/points;
+  const first=Math.max(0,Math.min(w.peaks.length-1,Math.floor(a/w.durationMs*w.peaks.length)));
+  const last=Math.max(first,Math.min(w.peaks.length-1,Math.ceil(b/w.durationMs*w.peaks.length)-1));
+  let peak=0;for(let j=first;j<=last;j++)peak=Math.max(peak,w.peaks[j]);
+  const x=((i+.5)/points*1000).toFixed(2),height=Math.max(.7,peak*45);
+  bars.push("M"+x+","+(50-height).toFixed(2)+" V"+(50+height).toFixed(2));
+ }
+ return bars.join(" ");
+}

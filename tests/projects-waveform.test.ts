@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {pcmWaveform,validWaveform,waveformShape,waveformPointCount,WAVEFORM_MAX_POINTS} from "../lib/music-video/waveform.ts";
+import {pcmWaveform,validWaveform,waveformShape,waveformBars,waveformPointCount,WAVEFORM_MAX_POINTS} from "../lib/music-video/waveform.ts";
 
 test("real waveform peaks retain source timing, including silence and short audio streams",()=>{
  const pcm=Buffer.alloc(2000*2);
@@ -106,4 +106,14 @@ test("Lip-Sync presentation gate catches displayed frames that lag despite ident
  assert.equal(lipSyncFrameDecision(2,1.96,null,1000,250,true).rate,1.06);
  assert.equal(lipSyncFrameDecision(2,2.04,null,1000,250,true).rate,.94);
  assert.ok(Math.abs(presentedFrameError(2,{...frame,mediaTime:2.016,displayTime:1016},1000,true)!)<.00001);
+});
+
+test("rounded clip bars use real source peaks and bounded time-proportional sampling",()=>{
+ const wave={durationMs:1000,hasAudio:true,peaks:[0,0,.5,1,0,0,0,0,0,0]};
+ const bars=waveformBars(wave,0,1000,100);
+ assert.equal(bars.match(/M/g)?.length,10);
+ assert.ok(bars.includes("M350.00,5.00 V95.00"));
+ assert.ok(!waveformBars(wave,400,1000,100).includes("5.00 V95.00"));
+ assert.equal(waveformBars({...wave,hasAudio:false},0,1000,100),"");
+ assert.equal(waveformBars(wave,500,500,100),"");
 });

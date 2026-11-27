@@ -10,7 +10,7 @@ import {ensureSession} from "@/lib/client";
 import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
-import {validWaveform,waveformShape,type MediaWaveform} from "@/lib/music-video/waveform";
+import {validWaveform,waveformShape,waveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
 import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,trimVideoClip,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
@@ -43,11 +43,11 @@ function InlineTimeField({label,ariaLabel,value,onChange,onConfirm,disabled,plac
     <button type="button" className="mv-inline-confirm" disabled={disabled} title={"Confirm "+label.toLowerCase()} aria-label={"Confirm "+ariaLabel.toLowerCase()} onClick={onConfirm}><Check size={15}/></button>
   </div>;
 }
-const SongWaveform=memo(function SongWaveform({wave,sourceInMs,sourceOutMs,width}:{wave?:MediaWaveform|null;sourceInMs:number;sourceOutMs:number;width:number}){
-  const shape=wave?waveformShape(wave,sourceInMs,sourceOutMs,width):"";
-  return <div className="mv-clip-waveform" aria-hidden="true" data-waveform={wave?(wave.hasAudio?"ready":"silent"):"pending"}>
+const SongWaveform=memo(function SongWaveform({wave,sourceInMs,sourceOutMs,width,bars=false}:{wave?:MediaWaveform|null;sourceInMs:number;sourceOutMs:number;width:number;bars?:boolean}){
+  const shape=wave?(bars?waveformBars(wave,sourceInMs,sourceOutMs,width):waveformShape(wave,sourceInMs,sourceOutMs,width)):"";
+  return <div className={"mv-clip-waveform"+(bars?" mv-waveform-bars":"")} aria-hidden="true" data-waveform={wave?(wave.hasAudio?"ready":"silent"):"pending"}>
     {wave?.hasAudio&&<svg viewBox="0 0 1000 100" preserveAspectRatio="none" focusable="false">
-      <path className="mv-wave-center" d="M0 50H1000"/>
+      {!bars&&<path className="mv-wave-center" d="M0 50H1000"/>}
       {shape&&<path className="mv-wave-shape" d={shape}/>}
     </svg>}
   </div>;
@@ -1101,21 +1101,21 @@ export function MusicVideoEditor({id}:{id:string}){
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle,.mv-clip-position-lock,.mv-clip-display-toggle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id),!c.positionLocked);}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
-                  {c.showVideoName?<span className="mv-clip-title">{c.track===1?<Mic size={12} aria-hidden="true"/>:<Video size={12} aria-hidden="true"/>}<span>{a.name}</span></span>:
-                    <SongWaveform wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/>}
+                  {c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>:
+                    <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/>}
                   <button type="button" className="mv-clip-display-toggle" aria-pressed={!!c.showVideoName}
                     aria-label={(c.showVideoName?"Show waveform: ":"Show video name: ")+a.name}
                     title={c.showVideoName?"Show waveform":"Show video name"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
                     onClick={e=>{e.stopPropagation();toggleClipDisplay(c.id);}}>
-                    {c.showVideoName?<EyeOff size={13}/>:<Eye size={13}/>}
+                    {c.showVideoName?<EyeOff size={17}/>:<Eye size={17}/>}
                   </button>
                   <button type="button" className={"mv-clip-position-lock"+(movementLocked?" is-active":"")} aria-pressed={movementLocked}
                     aria-label={(movementLocked?"Unlock clip position: ":"Lock clip position: ")+a.name}
                     title={movementLocked?(c.syncLocked?"Unlock clip and song synchronization":"Unlock clip position"):"Lock clip position"} disabled={importing}
                     onPointerDown={e=>e.stopPropagation()} onKeyDown={e=>e.stopPropagation()}
                     onClick={e=>{e.stopPropagation();togglePositionLock(c.id);}}>
-                    {movementLocked?<Lock size={13}/>:<Unlock size={13}/>}
+                    {movementLocked?<Lock size={16}/>:<Unlock size={16}/>}
                   </button>
                   <button type="button" className="mv-handle mv-handle-end" disabled={c.positionLocked} aria-label="Trim clip end" title="Drag with mouse or hold on touch to trim end" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"end"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"end")}/>
                 </div>;

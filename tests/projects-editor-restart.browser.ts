@@ -237,6 +237,12 @@ try{
   const select=async(clip:typeof second)=>{await clip.focus();await clip.press("Enter");};
   const save=()=>page.waitForResponse(r=>r.url().endsWith("/lock-project/clips")&&r.request().method()==="PATCH");
   await select(second);
+  const appearance=await second.evaluate(el=>{
+   const eye=el.querySelector(".mv-clip-display-toggle")!,lock=el.querySelector(".mv-clip-position-lock")!;
+   const a=getComputedStyle(eye),b=getComputedStyle(lock);
+   return {clip:getComputedStyle(el).backgroundColor,eye:a.backgroundColor,lock:b.backgroundColor,eyeBorder:a.borderTopWidth,lockBorder:b.borderTopWidth};
+  });
+  assert.deepEqual(appearance,{clip:"rgb(97, 51, 126)",eye:"rgba(0, 0, 0, 0)",lock:"rgba(0, 0, 0, 0)",eyeBorder:"0px",lockBorder:"0px"});
   const locked=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await locked;
   assert.equal(lockClips[1].positionLocked,true);assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).isDisabled(),true);
   const named=save();await second.getByRole("button",{name:"Show video name: second"}).click();await named;

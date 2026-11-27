@@ -558,7 +558,8 @@ test("project and library menus dismiss on outside clicks and Escape; clip detai
   assert.ok(page.includes('event.key!=="Escape"'));
   assert.ok(page.includes('document.removeEventListener("pointerdown",outside,true)'));
  }
- assert.ok(editor.includes('c.track===1?<Mic size={12}'));
+ assert.ok(editor.includes('c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>'));
+ assert.ok(editor.includes('track===1?<Mic size={18}/>:<Video size={18}/>'));
  assert.ok(!editor.includes("🎤"));
  assert.ok(!editor.includes("🎬"));
  assert.ok(!editor.includes("<small>Drag a clip or handle with the mouse."));
