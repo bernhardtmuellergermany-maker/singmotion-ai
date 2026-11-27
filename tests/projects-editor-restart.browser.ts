@@ -80,6 +80,13 @@ try{
   await page.goto(origin);
   const play=page.getByRole("button",{name:"Play",exact:true}),pause=page.getByRole("button",{name:"Pause",exact:true}),seek=page.getByRole("slider",{name:"Seek timeline"}),canvas=page.locator("canvas[data-frame-preview=true]");
   await play.waitFor({timeout:10000});
+  const toolbarLayout=await page.locator(".mv-timeline-toolbar").evaluate(el=>{
+   const song=document.querySelector(".mv-song-lane")!,tracks=document.querySelector(".mv-tracks")!;
+   const a=el.getBoundingClientRect(),b=song.getBoundingClientRect();
+   return {afterTracks:tracks.nextElementSibling===el,belowSong:a.top>=b.bottom-1,withinViewport:a.left>=-1&&a.right<=window.innerWidth+1};
+  });
+  assert.deepEqual(toolbarLayout,{afterTracks:true,belowSong:true,withinViewport:true});
+  console.log("PASS: edit toolbar below song lane at "+(mobile?"mobile":"desktop")+" viewport");
   assert.equal(await page.locator("video,audio").count(),0);
   assert.equal(await page.getByRole("button",{name:"Synced review",exact:true}).count(),0);
   await page.waitForFunction(()=>document.querySelectorAll(".mv-clip .mv-clip-waveform[data-waveform=ready] .mv-wave-shape").length===2&&!!document.querySelector(".mv-song-block .mv-wave-shape"),{},{timeout:10000});

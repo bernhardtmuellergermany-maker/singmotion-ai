@@ -734,3 +734,7 @@
 .mv-root.mv-editor .mv-error>button{margin-left:12px;padding:6px 12px;border:1px solid currentColor;border-radius:6px;background:transparent;color:inherit}
 
 .mv-root.mv-editor .mv-placement-notice{color:#eadcff;background:#30203f;border:1px solid #664b82;border-radius:8px;padding:10px 14px;font-size:13px}
+
+/* Keep the preview directly above the timeline; edit controls follow the song. */
+.mv-root.mv-editor .mv-timeline-toolbar{border-radius:0 0 9px 9px;border-top:1px solid #44324f}
+.mv-root.mv-editor .mv-timeline-toolbar:has(+.mv-inspector-toggle){border-radius:0}

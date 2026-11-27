@@ -1092,26 +1092,6 @@ export function MusicVideoEditor({id}:{id:string}){
       <input type="range" min={0} max={100} step={1} value={previewVolume} aria-label="Preview volume percent" aria-orientation="vertical" aria-valuetext={previewVolume+"%"} onChange={e=>changePreviewVolume(Number(e.target.value))}/>
     </div>}
     <section className="mv-timeline" aria-label="Timeline editor">
-      <div className="mv-timeline-toolbar">
-        <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
-          <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
-          <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
-          <button onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/> Delete</button>
-          {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button disabled={importing||selectedClip?.positionLocked} onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
-          {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing||!!selectedClip.positionLocked} onClick={switchVideoTrack}>Switch track</button>}</div>
-        <div className="mv-timeline-zoom">
-          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
-            <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)}/></label>
-            <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
-          </form>
-          <label title="Automatically align clips and the playhead to nearby clip edges"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap to edges</label>
-          <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
-            
-            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=MIN_TIMELINE_ZOOM} onClick={()=>zoomBy(1/1.35)}><Minus size={17}/></button>
-            <output aria-label="Timeline zoom level">{(zoom/44).toFixed(1)}×</output>
-            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=MAX_TIMELINE_ZOOM} onClick={()=>zoomBy(1.35)}><Plus size={17}/></button>
-          </div></div>
-      </div>
       <div className="mv-tracks" ref={tracksRef}>
         <div className="mv-track-labels">
           <div className="mv-label mv-ruler-spacer"/>
@@ -1185,6 +1165,26 @@ export function MusicVideoEditor({id}:{id:string}){
           <button ref={playheadGrip} type="button" className="mv-playhead-grip" style={{left:rulerViewport.left+markerViewportX,visibility:markerVisible?"visible":"hidden"}} role="slider" aria-label="Move playhead" aria-valuemin={0} aria-valuemax={timelineEnd} aria-valuenow={Math.round(playhead)} aria-valuetext={time(playhead,true)} title={"Drag playhead · "+time(playhead,true)}
                 onPointerDown={e=>scrubMarker(e,true)} onPointerMove={updateMarker} onPointerUp={releaseMarker} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)} onKeyDown={markerKey}/>
         </div>
+      </div>
+      <div className="mv-timeline-toolbar">
+        <div><button aria-label="Undo" disabled={!past.current.length} onClick={undo}><Undo2 size={17}/></button>
+          <button aria-label="Redo" disabled={!future.current.length} onClick={redo}><Redo2 size={17}/></button>
+          <button type="button" className="mv-cut-button" onClick={songSelected?splitSong:split} disabled={importing||(songSelected?(!splitSongPart(songRange,songParts,playhead)||playhead<songTimeToTimeline(selectedPart.startMs,songRange)+100||playhead>songTimeToTimeline(selectedPart.endMs,songRange)-100):!selectedClip||selectedClip.positionLocked||playhead-selectedClip.timelineStartMs<100||clipEnd(selectedClip)-playhead<100)} title={songSelected?"Split selected song at playhead":"Split selected video at playhead"} aria-label={songSelected?"Split selected song":"Split selected video"}><Scissors size={18}/></button>
+          <button onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/> Delete</button>
+          {selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null&&<button disabled={importing||selectedClip?.positionLocked} onClick={toggleLock}>{selectedClip?.syncLocked?<Lock size={16}/>:<Unlock size={16}/>} Sync</button>}
+          {selectedClip&&<button title="Move clip to the other video track at the same time" disabled={importing||!!selectedClip.positionLocked} onClick={switchVideoTrack}>Switch track</button>}</div>
+        <div className="mv-timeline-zoom">
+          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
+            <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)}/></label>
+            <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
+          </form>
+          <label title="Automatically align clips and the playhead to nearby clip edges"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap to edges</label>
+          <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
+            
+            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=MIN_TIMELINE_ZOOM} onClick={()=>zoomBy(1/1.35)}><Minus size={17}/></button>
+            <output aria-label="Timeline zoom level">{(zoom/44).toFixed(1)}×</output>
+            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=MAX_TIMELINE_ZOOM} onClick={()=>zoomBy(1.35)}><Plus size={17}/></button>
+          </div></div>
       </div>
       {hasSelection&&<><button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
