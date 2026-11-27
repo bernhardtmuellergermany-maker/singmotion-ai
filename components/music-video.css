@@ -390,8 +390,6 @@
 .mv-editor .mv-label>.mv-track-mute:hover:not(:disabled){background:#352147;color:#f6eaff}
 .mv-editor .mv-lane.is-audio-muted .mv-clip{border-color:#78568e}
 .mv-editor .mv-song-lane.is-audio-muted .mv-wave span{opacity:.35}
-.mv-editor .mv-timeline-toolbar .mv-cut-button{min-width:30px;padding:4px 6px}
-.mv-editor .mv-timeline-toolbar .mv-cut-button:not(:disabled){color:#e9b3ff;background:#372046}
 .mv-editor .mv-timeline-toolbar,.mv-editor .mv-timeline-toolbar>div{min-width:0;max-width:100%}
 @media(max-width:760px){
  .mv-editor .mv-label>.mv-track-mute{width:24px;height:21px;padding:2px}
