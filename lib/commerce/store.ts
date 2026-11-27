@@ -131,7 +131,7 @@ export class CommerceStore {
     });
     return id;
   }
-  googleLogin(subject:string,email:string){
+  googleLogin(subject:string,email:string,allowRegistration=true){
     email=email.trim().toLowerCase();
     if(!/^[^\s@]{1,100}@[^\s@]{1,150}\.[^\s@]{2,30}$/.test(email)||!/^\d{8,32}$/.test(subject))throw Error("Invalid Google account");
     return this.tx(()=>{
@@ -139,6 +139,7 @@ export class CommerceStore {
       const existing=this.db.prepare("SELECT account_id FROM customer_google_identities WHERE google_sub=?").get(subject) as {account_id:string}|undefined;
       let id=existing?.account_id;
       if(!id){
+        if(!allowRegistration)throw Error("Registration not enabled");
         if(this.db.prepare("SELECT id FROM customer_accounts WHERE email=?").get(email))throw Error("An account with this email already exists. Sign in with its password.");
         id=randomUUID();
         this.db.prepare("INSERT INTO customer_accounts VALUES(?,?,?,?)").run(id,email,"google-only:"+randomBytes(32).toString("hex"),Date.now());

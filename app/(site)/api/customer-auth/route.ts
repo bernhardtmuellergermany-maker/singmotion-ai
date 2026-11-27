@@ -3,7 +3,7 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,limit,createAccountMediaSession,revokeMediaSession,session} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled,customerAccountSettingsAccessible} from "@/lib/commerce/customer-live-config";
+import {productionCustomerReleaseApproved,productionPrivateCustomerPreviewEnabled,customerAccountSettingsAccessible,existingCustomerAccountAccessEnabled} from "@/lib/commerce/customer-live-config";
 import {publicCreditReleaseApproved} from "@/lib/commerce/public-credit-release";
 import {assessProductionSandboxPilot} from "@/lib/commerce/customer-sandbox-pilot-policy";
 import {protectedProductionLivePilotApproved} from "@/lib/commerce/protected-production-live-pilot";
@@ -13,10 +13,11 @@ import {sendCustomerVerificationEmail} from "@/lib/commerce/verification-email";
 import {siteStaffStatus,tryExistingSuperAdminLogin} from "@/lib/site-staff-auth";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 const accountsEnvironment=()=> (process.env.SINGMOTION_ISOLATED_ERASURE_TEST==="true" && customerAccountSettingsAccessible(process.env)) || process.env.RAILWAY_ENVIRONMENT_ID==="dfaeabed-03df-43ed-aa71-50f343a75041" || productionCustomerReleaseApproved(process.env) || publicCreditReleaseApproved(process.env) || productionPrivateCustomerPreviewEnabled(process.env) || assessProductionSandboxPilot(process.env).ready || protectedProductionLivePilotApproved(process.env) || privateInternationalCreditBetaEnabled(process.env);
+const customerAccess=()=>process.env.CUSTOMER_ACCOUNTS_ENABLED==="true"&&(accountsEnvironment()||existingCustomerAccountAccessEnabled(process.env));
 const json=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:{"Cache-Control":"private, no-store"}});
 export async function GET(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(!accountsEnvironment()){
+ if(!customerAccess()){
   const staff=await siteStaffStatus(req.headers);
   return staff?json(staff):json({error:"Accounts unavailable"},403);
  }
@@ -32,7 +33,6 @@ export async function GET(req:NextRequest){
 }
 export async function POST(req:NextRequest){
  const denied=stagingDenial(req.headers.get("authorization"));if(denied)return denied;
- if(!accountsEnvironment()||process.env.CUSTOMER_ACCOUNTS_ENABLED!=="true")return json({error:"Accounts not enabled"},503);
  const origin=applicationOrigin(req.url,req.headers.get("host"));
  if(!origin||req.headers.get("origin")!==origin)return json({error:"Invalid origin"},403);
  if(Number(req.headers.get("content-length"))>2048)return json({error:"Request too large"},413);
@@ -48,6 +48,11 @@ export async function POST(req:NextRequest){
    if(normalized.length<=254)limit("customer-auth-email:"+normalized,12,15*60000);
   }
  }catch{return json({error:"Too many attempts. Please try again later."},429)}
+ // Do not open registration or paid features when the launch gate is closed.
+ if(input.action==="register"&&(!accountsEnvironment()||!customerAccess()))return json({error:"Registration not enabled"},503);
+ // Staff authentication remains independent of customer admission. The helper
+ // verifies the existing Payload role and exact CMS origin before minting a token.
+ if(!customerAccess()&&!(input.action==="login"&&process.env.CMS_ENABLED==="true"))return json({error:"Accounts not enabled"},503);
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   if(input.action==="change-password"){
@@ -83,7 +88,7 @@ export async function POST(req:NextRequest){
   let registrationId:string|undefined;
   if(input.action==="register")registrationId=store.register(input.email,input.password);
   let token:string;
-  try{token=store.login(input.email,input.password);}
+  try{if(!customerAccess())throw Error("Customer accounts disabled");token=store.login(input.email,input.password);}
   catch(error){
    // Preserve customer-first identity, but recognize the already configured
    // CMS Super Admin using the SAME login form. No new public login route.

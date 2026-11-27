@@ -3,7 +3,7 @@ import path from "node:path";
 import {CommerceStore,CUSTOMER_IDLE_MINUTES} from "@/lib/commerce/store";
 import {dataDir,session,revokeMediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {customerAccountSettingsAccessible} from "@/lib/commerce/customer-live-config";
+import {customerAccountSettingsAccessible,existingCustomerAccountAccessEnabled} from "@/lib/commerce/customer-live-config";
 import {applicationOrigin} from "@/lib/request-origin";
 
 export const runtime="nodejs";
@@ -17,7 +17,7 @@ const shape=(policy:{idleMinutes:number;lastActivity:number})=>({
 async function handler(req:NextRequest){
  const denial=stagingDenial(req.headers.get("authorization"));
  if(denial)return denial;
- if(!customerAccountSettingsAccessible(process.env))return json({error:"Unavailable"},403);
+ if(!customerAccountSettingsAccessible(process.env)&&!existingCustomerAccountAccessEnabled(process.env))return json({error:"Unavailable"},403);
  if(req.method!=="GET"){
   const origin=applicationOrigin(req.url,req.headers.get("host"));
   if(!origin||req.headers.get("origin")!==origin)return json({error:"Invalid origin"},403);

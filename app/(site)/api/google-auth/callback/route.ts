@@ -3,7 +3,7 @@ import path from "node:path";
 import {CommerceStore} from "@/lib/commerce/store";
 import {dataDir,createAccountMediaSession,session,revokeMediaSession} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost} from "@/lib/customer-identity-origin";
+import {customerIdentityOrigin,googleLoginReady,trustedIdentityHost,customerIdentityRegistrationAllowed} from "@/lib/customer-identity-origin";
 import {parseStudioAccountReturn,parseAccountReturn} from "@/lib/studio-account-handoff";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
@@ -38,7 +38,7 @@ export async function GET(req:NextRequest){
   if(identity.aud!==process.env.GOOGLE_OAUTH_CLIENT_ID||!["accounts.google.com","https://accounts.google.com"].includes(identity.iss||"")||identity.nonce!==saved.nonce||identity.email_verified!=="true"||!identity.sub||!identity.email||Number(identity.exp)*1000<Date.now())return go("Google identity verification failed");
   const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
   let account:{id:string;token:string};
-  try{account=store.googleLogin(identity.sub,identity.email);}finally{store.close();}
+  try{account=store.googleLogin(identity.sub,identity.email,customerIdentityRegistrationAllowed(process.env));}finally{store.close();}
   const media=createAccountMediaSession("customer-"+account.id);
   const old=req.cookies.get("sm_session")?.value;
   const owner=old?session(old)?.owner:null;
@@ -66,6 +66,7 @@ export async function GET(req:NextRequest){
   // password account. Explain this specific, safe recovery step to the user.
   if(error instanceof Error&&error.message==="An account with this email already exists. Sign in with its password.")
    return go("This email already has a password account. Sign in with your password instead.");
+  if(error instanceof Error&&error.message==="Registration not enabled")return go("New account registration is currently unavailable. Existing Google accounts can still sign in.");
   return go("Google sign-in could not be completed. Please try again.");
  }
 }

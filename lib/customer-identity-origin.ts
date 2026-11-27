@@ -1,6 +1,6 @@
 import { applicationOrigin } from "./request-origin.ts";
 import {assessProductionSandboxPilot} from "./commerce/customer-sandbox-pilot-policy.ts";
-import { productionCustomerReleaseApproved, productionPrivateCustomerPreviewEnabled, PRODUCTION_RAILWAY_ENVIRONMENT_ID, customerAccountSettingsAccessible } from "./commerce/customer-live-config.ts";
+import { productionCustomerReleaseApproved, productionPrivateCustomerPreviewEnabled, PRODUCTION_RAILWAY_ENVIRONMENT_ID, customerAccountSettingsAccessible, existingCustomerAccountAccessEnabled } from "./commerce/customer-live-config.ts";
 import {publicCreditReleaseApproved} from "./commerce/public-credit-release.ts";
 import {privateInternationalCreditBetaEnabled} from "./commerce/private-international-credit-beta.ts";
 
@@ -26,7 +26,7 @@ export function customerIdentityOrigin(env: Env): string | null {
     return env.APP_ORIGIN || null;
   const candidate = id === STAGING ? STAGING_ORIGIN :
     id === PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
-    (productionPrivateCustomerPreviewEnabled(env) || productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || assessProductionSandboxPilot(env).ready || privateInternationalCreditBetaEnabled(env)) ?
+    (customerIdentityRegistrationAllowed(env) || existingCustomerAccountAccessEnabled(env)) ?
       PRODUCTION_ORIGIN : null;
   if (!candidate || env.APP_ORIGIN !== candidate) return null;
   return applicationOrigin(candidate + "/api/customer-auth", new URL(candidate).host, env) === candidate ? candidate : null;
@@ -41,4 +41,12 @@ export function passwordResetReady(env: Env): boolean {
 }
 export function trustedIdentityHost(host: string | null, canonical: string): boolean {
   return host === new URL(canonical).host;
+}
+
+/** The existing Google sign-in path may create a new account only under its
+ * original registration gate. Existing identities never depend on checkout. */
+export function customerIdentityRegistrationAllowed(env: Env): boolean {
+ return env.CUSTOMER_ACCOUNTS_ENABLED==="true" && (env.RAILWAY_ENVIRONMENT_ID===STAGING ||
+  (env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
+   (productionPrivateCustomerPreviewEnabled(env)||productionCustomerReleaseApproved(env)||publicCreditReleaseApproved(env)||assessProductionSandboxPilot(env).ready||privateInternationalCreditBetaEnabled(env))));
 }

@@ -5,11 +5,11 @@ import {CreditWallet} from "@/lib/commerce/credit-wallet";
 import {PlanLedger,PLAN_RULES} from "@/lib/commerce/plans";
 import {dataDir} from "@/lib/db";
 import {stagingDenial} from "@/lib/staging";
-import {customerAccountSettingsAccessible} from "@/lib/commerce/customer-live-config";
+import {customerAccountSettingsAccessible,existingCustomerAccountAccessEnabled} from "@/lib/commerce/customer-live-config";
 export const runtime="nodejs";export const dynamic="force-dynamic";
 export async function GET(req:NextRequest){
  const denial=stagingDenial(req.headers.get("authorization"));if(denial)return denial;
- if(!customerAccountSettingsAccessible(process.env))return NextResponse.json({error:"Unavailable"},{status:403});
+ if(!customerAccountSettingsAccessible(process.env)&&!existingCustomerAccountAccessEnabled(process.env))return NextResponse.json({error:"Unavailable"},{status:403});
  const store=new CommerceStore(path.join(dataDir,"commerce.sqlite"));
  try{
   const id=store.session(req.cookies.get("sm_customer")?.value||"");

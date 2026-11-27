@@ -1,7 +1,7 @@
 import {test} from "node:test";
 import assert from "node:assert/strict";
 import {readFileSync} from "node:fs";
-import {customerIdentityOrigin,googleLoginReady,passwordResetReady,trustedIdentityHost} from "../lib/customer-identity-origin.ts";
+import {customerIdentityOrigin,googleLoginReady,passwordResetReady,trustedIdentityHost,customerIdentityRegistrationAllowed} from "../lib/customer-identity-origin.ts";
 const stage="dfaeabed-03df-43ed-aa71-50f343a75041";
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 const root="https://www.singmotion.ai";
@@ -25,17 +25,12 @@ test("Google and reset use the exact approved production HTTPS domain in a prote
  assert.equal(googleLoginReady({...preview,GOOGLE_OAUTH_CLIENT_ID:"id",GOOGLE_OAUTH_CLIENT_SECRET:"secret"}),true);
  assert.equal(passwordResetReady({...preview,RESEND_API_KEY:"re_synthetic",ACCOUNT_EMAIL_FROM:"SingMotion AI <no-reply@singmotion.ai>"}),true);
 });
-test("incorrect origin, unreviewed production, and unsafe public flags disable all customer identity endpoints",()=>{
+test("incorrect origin, disabled accounts and unknown environments disable identity endpoints",()=>{
  for(const changes of [
   {APP_ORIGIN:"https://singmotion-ai-production.up.railway.app"},
   {APP_ORIGIN:"http://www.singmotion.ai"},
   {APP_ORIGIN:"https://www.singmotion.ai/"},
   {APP_ORIGIN:"https://evil.test"},
-  {PRODUCTION_PRIVATE_CUSTOMER_PREVIEW_ENABLED:"false"},
-  {STAGING_AUTH_ENABLED:"false"},
-  {PRODUCTION_PUBLIC_ACCESS_ENABLED:"true"},
-  {PUBLIC_CUSTOMER_LAUNCH_APPROVED:"true"},
-  {STRIPE_LIVE_CHECKOUT_ENABLED:"true"},
   {CUSTOMER_ACCOUNTS_ENABLED:"false"},
   {RAILWAY_ENVIRONMENT_ID:"unknown"},
  ]){
@@ -65,4 +60,19 @@ test("Google callback failure returns to direct login with visible, one-time fee
  assert.match(account,/search\.delete\("google_error"\)/);
  assert.match(account,/role="alert" aria-live="assertive"/);
  assert.match(login,/<AccountPanel active=\{true\}\/>/);
+});
+
+test("production existing accounts retain canonical sign-in and reset while registration stays closed",()=>{
+ const env={...preview,PRODUCTION_PRIVATE_CUSTOMER_PREVIEW_ENABLED:"false",GOOGLE_OAUTH_CLIENT_ID:"id",GOOGLE_OAUTH_CLIENT_SECRET:"secret",RESEND_API_KEY:"key",ACCOUNT_EMAIL_FROM:"no-reply@singmotion.ai"};
+ assert.equal(customerIdentityOrigin(env),root);
+ assert.equal(googleLoginReady(env),true);
+ assert.equal(passwordResetReady(env),true);
+ assert.equal(customerIdentityRegistrationAllowed(env),false);
+ assert.equal(customerIdentityRegistrationAllowed(preview),true);
+ const route=readFileSync(new URL("../app/(site)/api/customer-auth/route.ts",import.meta.url),"utf8");
+ assert.match(route,/existingCustomerAccountAccessEnabled\(process.env\)/);
+ assert.match(route,/input.action==="register"&&\(!accountsEnvironment\(\)\|\|!customerAccess\(\)\)/);
+ assert.match(route,/stagingDenial\(req.headers.get\("authorization"\)\)/);
+ const callback=readFileSync(new URL("../app/(site)/api/google-auth/callback/route.ts",import.meta.url),"utf8");
+ assert.match(callback,/store.googleLogin\(identity.sub,identity.email,customerIdentityRegistrationAllowed\(process.env\)\)/);
 });

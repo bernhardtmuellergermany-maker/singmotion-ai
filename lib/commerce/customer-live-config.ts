@@ -90,3 +90,12 @@ export function customerAccountSettingsAccessible(env:Record<string,string|undef
    productionCustomerReleaseApproved(env) || publicCreditReleaseApproved(env) || productionPrivateCustomerPreviewEnabled(env) ||
    assessProductionSandboxPilot(env).ready || protectedProductionLivePilotApproved(env) || privateInternationalCreditBetaEnabled(env));
 }
+
+/** Existing account authentication is independent of approval to acquire new
+ * customers or take money. Every caller must still enforce stagingDenial,
+ * the canonical origin for mutations, and a verified account/staff session.
+ * Never use this helper for registration, checkout or paid dispatch. */
+export function existingCustomerAccountAccessEnabled(env:Record<string,string|undefined>):boolean{
+ return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
+  env.CUSTOMER_ACCOUNTS_ENABLED==="true" && env.APP_ORIGIN==="https://www.singmotion.ai";
+}
