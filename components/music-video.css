@@ -905,3 +905,13 @@
  .mv-root.mv-editor .mv-library-tools .mv-browse-control,.mv-root.mv-editor .mv-library-icon-select{width:32px;min-width:32px}
  .mv-root.mv-editor .mv-library-imports button{padding-inline:7px}
 }
+
+/* Keep the editor's visual viewport independent of horizontally zoomed timeline
+   descendants and transformed ancestors. Unlike overflow:hidden, clip does not
+   create another scrolling container or alter vertical dialog/menu overflow. */
+main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:clip;overflow-y:visible}
+.mv-root.mv-editor .mv-library-content,.mv-root.mv-editor .mv-library-header{box-sizing:border-box}
+@media(max-width:760px){
+ .mv-root.mv-editor .mv-tracks,.mv-root.mv-editor .mv-timeline,.mv-root.mv-editor .mv-scroll{min-width:0;max-width:100%;box-sizing:border-box}
+ .mv-root.mv-editor .mv-media-grid,.mv-root.mv-editor .mv-media-card{min-width:0;max-width:100%;box-sizing:border-box}
+}
