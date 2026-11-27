@@ -27,7 +27,7 @@ import {PROJECT_LEGACY_MULTIPART_MAX_BYTES} from "@/lib/music-video/media-limits
 import {parseVideoUpload,writeVideoUpload,VideoUploadError} from "@/lib/music-video/video-upload";
 import {admitProjectOperation} from "@/lib/music-video/core";
 import {retryProjectDeletes} from "@/lib/music-video/project-cleanup";
-import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions,findMusicTimelinePreview,startMusicTimelinePreview,musicTimelinePreviewStatus,musicTimelinePreviewFile} from "@/lib/music-video/export";
+import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimensions} from "@/lib/music-video/export";
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
@@ -457,31 +457,6 @@ async function handler(req:NextRequest,context:Context){
       const detail=musicDetail(id,owner);
       const files=await exportSources(req,owner,id,detail,scratch,[assetId]);
       return json(await inspectVideoDimensions(files.get(assetId)!));
-    }
-    if(section==="timeline-preview"){
-      if(!assetId&&req.method==="POST"){
-        const body=await jsonBody(req),detail=musicDetail(id,owner);
-        if(body.revision!==detail.project.revision)throw new MusicError("Save your latest changes before preparing the synced preview.",409);
-        const existing=await findMusicTimelinePreview(owner,id,detail.project.revision);
-        if(existing)return json(existing,existing.state==="ready"?200:202);
-        releaseAdmission=admitProjectOperation(tmpdir(),owner,"export",0);
-        const files=await exportSources(req,owner,id,detail,scratch,undefined,true);
-        const songFile=await songWorkingFile(id,owner,await originalSongSlot(id,owner),scratch);
-        if(requireMusicProject(id,owner).revision!==detail.project.revision)throw new MusicError("Project changed. Prepare the latest preview.",409);
-        try{const job=await startMusicTimelinePreview(owner,detail.project,detail.clips,files,songFile,async()=>{try{await scratch.close();}finally{releaseAdmission?.();}});exportOwnsScratch=true;return json(job,202);}
-        catch(e){throw new MusicError(e instanceof Error?e.message:"Synced preview unavailable.",409);}
-      }
-      if(assetId&&validId(assetId)&&req.method==="GET"){
-        const current=requireMusicProject(id,owner);
-        if(req.nextUrl.searchParams.has("media")){
-          const file=await musicTimelinePreviewFile(owner,id,current.revision,assetId);
-          if(!file)throw new MusicError("Preview expired or project changed. Tap Play to prepare it again.",404);
-          return await streamFile(req,file,"video/mp4",true);
-        }
-        const job=await musicTimelinePreviewStatus(owner,id,current.revision,assetId);
-        if(!job)throw new MusicError("Preview expired or project changed.",404);
-        return json(job);
-      }
     }
     if(section==="export"){
       if(!assetId&&req.method==="POST"){
