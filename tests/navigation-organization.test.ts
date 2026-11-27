@@ -1124,7 +1124,7 @@ test("library original preview is explicitly opened, pauses timeline playback an
 test("ordinary video finds space on the requested track even at song end",async()=>{
  const {planFreeVideoInsertion}=await import("../lib/music-video/song-range.ts");
  const lip={id:"lip",track:1,timelineStartMs:0,sourceInMs:0,sourceOutMs:20000,syncLocked:true,positionLocked:true};
- const video={id:"broll",track:2,timelineStartMs:0,sourceInMs:0,sourceOutMs:10000,syncLocked:false};
+ const video={id:"broll",track:2,timelineStartMs:0,sourceInMs:0,sourceOutMs:10000,syncLocked:false,positionLocked:false};
  const result=planFreeVideoInsertion([lip],video,20000,20000)!;
  assert.equal(result.track,2);assert.equal(result.timelineStartMs,15000);assert.equal(result.sourceOutMs,5000);
  assert.equal(planFreeVideoInsertion([lip],video,20000,0)!.sourceOutMs,10000);
