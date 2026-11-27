@@ -431,6 +431,14 @@ try{
   assert.equal(lockClips.length,2,"keyboard deletion is undoable");
   const song=page.getByRole("button",{name:"Select song",exact:true});await song.focus();await song.press("Enter");
   assert.equal(await song.getAttribute("aria-pressed"),"true");
+  const songBorder=await song.evaluate(el=>{const s=getComputedStyle(el);return {widths:[s.borderTopWidth,s.borderRightWidth,s.borderBottomWidth,s.borderLeftWidth],colors:[s.borderTopColor,s.borderRightColor,s.borderBottomColor,s.borderLeftColor],outline:s.outlineStyle,shadow:s.boxShadow};});
+  assert.deepEqual(songBorder,{widths:Array(4).fill("1px"),colors:Array(4).fill("rgb(225, 196, 241)"),outline:"none",shadow:"none"});
+  for(const edge of ["start","end"]){
+   const handle=page.getByRole("button",{name:"Trim song "+edge,exact:true});
+   assert.equal(await handle.isEnabled(),true);
+   const style=await handle.evaluate(el=>{const s=getComputedStyle(el);return {mark:getComputedStyle(el,"::before").content,cursor:s.cursor,events:s.pointerEvents,width:el.getBoundingClientRect().width,background:s.backgroundColor};});
+   assert.equal(style.mark,"none");assert.equal(style.cursor,"ew-resize");assert.equal(style.events,"auto");assert.ok(style.width>0);assert.equal(style.background,"rgba(0, 0, 0, 0)");
+  }
   await page.locator(".mv-main-lane").click({position:{x:5,y:4}});
   assert.equal(await page.locator(".mv-clip.is-selected,.mv-song-block.is-selected").count(),0);
   assert.equal(await page.locator(".mv-inspector-body").count(),0);
