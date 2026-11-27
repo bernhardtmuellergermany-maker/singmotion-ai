@@ -766,3 +766,27 @@
 .mv-root.mv-editor .mv-ruler .mv-tick-label{position:absolute;top:auto;bottom:12px;left:3px;border:0;padding:0;color:#e8ddf2;font-size:10px;font-weight:500;line-height:13px;white-space:nowrap}
 .mv-root.mv-editor .mv-playhead-overlay .mv-playhead-grip{top:16px;height:14px;width:16px;min-width:16px;border-radius:3px 3px 5px 5px;background:#cd35fc!important}
 .mv-root.mv-editor .mv-playhead-grip:before{top:3px;bottom:3px}
+
+/* Compact icon-only editing controls, directly below the song. */
+.mv-root.mv-editor .mv-timeline-toolbar{gap:6px 10px;padding:6px 9px}
+.mv-root.mv-editor .mv-timeline-toolbar>div{gap:3px;flex-wrap:nowrap}
+.mv-root.mv-editor .mv-timeline-toolbar>div.mv-timeline-zoom{display:flex;flex:0 0 auto;width:auto;align-items:center;gap:4px;max-width:100%}
+.mv-root.mv-editor .mv-timeline-toolbar button{display:inline-flex;align-items:center;justify-content:center;width:30px;min-width:30px;height:32px;min-height:32px;padding:4px;color:#fff;border:0;box-shadow:none;background:transparent}
+.mv-root.mv-editor .mv-timeline-toolbar button:disabled{opacity:.35;cursor:default}
+.mv-root.mv-editor .mv-timeline-toolbar button:focus-visible{outline:2px solid #e9c5ff;outline-offset:1px}
+.mv-root.mv-editor .mv-timeline-toolbar .mv-snap-toggle[aria-pressed=true]{background:#713498;color:#fff}
+.mv-root.mv-editor .mv-timeline-toolbar .mv-snap-toggle[aria-pressed=false]{color:#887a96}
+.mv-root.mv-editor .mv-timeline-toolbar .mv-marker-time{width:auto;flex:0 0 auto;min-width:0}
+.mv-root.mv-editor .mv-marker-time label{display:flex;align-items:center;gap:4px;padding:0 6px;border:1px solid #44354f;border-radius:7px;background:#15111f;color:#fff}
+.mv-root.mv-editor .mv-marker-time label>svg{flex:none;color:#fff}
+.mv-root.mv-editor .mv-marker-time input[aria-label="Playhead timeline time"]{width:89px!important;max-width:89px!important;height:30px!important;padding:0!important;border:0!important;background:transparent!important;box-shadow:none!important;color:#fff;font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;outline:none}
+.mv-root.mv-editor .mv-marker-time label:focus-within{border-color:#c797e8;outline:1px solid #c797e8}
+.mv-root.mv-editor .mv-timeline-zoom .mv-zoom-buttons{display:flex;gap:2px;margin:0;padding:0;background:transparent;border:0}
+@media(max-width:480px){
+ .mv-root.mv-editor .mv-timeline-toolbar{justify-content:space-between;gap:4px;padding:5px}
+ .mv-root.mv-editor .mv-timeline-toolbar>div{gap:1px}
+ .mv-root.mv-editor .mv-timeline-toolbar>div.mv-timeline-zoom{gap:2px}
+ .mv-root.mv-editor .mv-timeline-toolbar button{width:28px;min-width:28px;height:32px}
+ .mv-root.mv-editor .mv-marker-time input[aria-label="Playhead timeline time"]{font-size:16px;width:91px!important;max-width:91px!important}
+ .mv-root.mv-editor .mv-marker-time label{padding:0 4px;gap:3px}
+}

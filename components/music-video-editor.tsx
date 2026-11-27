@@ -5,7 +5,7 @@ import Link from "next/link";
 import {createPortal} from "react-dom";
 import {ChevronDown,ChevronRight,Check,Clock3,Film,Lock,Unlock,Video,Mic,Eye,EyeOff,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown,Magnet,ZoomIn,ZoomOut} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
@@ -1169,15 +1169,13 @@ export function MusicVideoEditor({id}:{id:string}){
           <button type="button" aria-label="Delete selection" title="Delete selection (Delete)" onClick={songSelected?removeSongPart:deleteClip} disabled={importing||(songSelected?(!songParts||songParts.length<2):!selectedClip||selectedClip.positionLocked)}><Trash2 size={17}/></button></div>
         <div className="mv-timeline-zoom">
           <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
-            <label>Playhead <input aria-label="Playhead timeline time" value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)}/></label>
-            <button type="submit" onPointerDown={e=>e.preventDefault()} title="Go to exact time" aria-label="Go to exact time"><Check size={15}/></button>
+            <label title="Playhead time · Enter to apply"><Clock3 size={15} aria-hidden="true"/><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
           </form>
-          <label title="Automatically align clips and the playhead to nearby clip edges"><input type="checkbox" checked={snap} onChange={e=>setSnap(e.target.checked)}/> Snap to edges</label>
+          <button type="button" className="mv-snap-toggle" aria-label="Snap to edges" aria-pressed={snap} title={snap?"Snap to edges: on":"Snap to edges: off"} onClick={()=>setSnap(v=>!v)}><Magnet size={18}/></button>
           <div className="mv-zoom-buttons" role="group" aria-label="Timeline zoom">
             
-            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=MIN_TIMELINE_ZOOM} onClick={()=>zoomBy(1/1.35)}><Minus size={17}/></button>
-            <output aria-label="Timeline zoom level">{(zoom/44).toFixed(1)}×</output>
-            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=MAX_TIMELINE_ZOOM} onClick={()=>zoomBy(1.35)}><Plus size={17}/></button>
+            <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=MIN_TIMELINE_ZOOM} onClick={()=>zoomBy(1/1.35)}><ZoomOut size={18}/></button>
+            <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=MAX_TIMELINE_ZOOM} onClick={()=>zoomBy(1.35)}><ZoomIn size={18}/></button>
           </div></div>
       </div>
       {hasSelection&&<><button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>

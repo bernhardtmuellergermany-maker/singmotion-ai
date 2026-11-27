@@ -1039,3 +1039,13 @@ test("Lip Sync picker serves small private stills with source owner checks",()=>
  assert.ok(route.includes("service.trashedAt(assetId,mediaOwner)"));
  assert.ok(route.includes('libraryThumbnail(id,"live-"+assetId'));
 });
+
+test("timeline toolbar uses a magnet and icon-only zoom with direct time submission",()=>{
+ const editor=read("components/music-video-editor.tsx");
+ assert.ok(editor.includes('aria-label="Snap to edges" aria-pressed={snap}'));
+ assert.ok(editor.includes("<Magnet size={18}/>"));
+ assert.ok(editor.includes("<ZoomOut size={18}/>")&&editor.includes("<ZoomIn size={18}/>"));
+ assert.ok(!editor.includes('aria-label="Timeline zoom level"'));
+ assert.ok(!editor.includes('aria-label="Go to exact time"'));
+ assert.ok(editor.includes('enterKeyHint="go"'));
+});
