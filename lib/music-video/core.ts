@@ -262,6 +262,7 @@ export function saveMusicClips(id:string,owner:string,revision:unknown,clips:Mus
   if(!mutes||typeof mutes!=="object"||typeof mutes[1]!=="boolean"||typeof mutes[2]!=="boolean"||typeof mutes.song!=="boolean")throw new MusicError("Invalid track mute settings.");
   const ratio=aspectRatio===undefined?project.aspectRatio:validatedAspectRatio(aspectRatio);
   const muteMask=(mutes[1]?1:0)|(mutes[2]?2:0)|(mutes.song?4:0);
+  if(project.songRemoved&&clips.some(c=>c.syncLocked))throw new MusicError("Add a song before enabling Sync Lock.",409);
   const accepted=validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start);
   connection.exec("BEGIN IMMEDIATE");
   try{
@@ -308,7 +309,7 @@ export function projectSongRecord(id:string,owner:string,slot:SongSlot):ProjectC
 }
 export function recordProjectSong(id:string,owner:string,slot:SongSlot,record:ProjectCloudRecord){
  const db=database(),asset=id+":"+slot;
- db.prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes) SELECT ?,id,owner_id,?,?,? FROM music_projects WHERE id=? AND owner_id=? ON CONFLICT(asset_id) DO NOTHING").run(asset,record.key,record.sha256,record.bytes,id,owner);
+ db.prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes) SELECT ?,id,owner_id,?,?,? FROM music_projects WHERE id=? AND owner_id=? AND song_removed=0 AND song_version IS NULL ON CONFLICT(asset_id) DO NOTHING").run(asset,record.key,record.sha256,record.bytes,id,owner);
  const current=projectSongRecord(id,owner,slot);
  if(!current||current.key!==record.key||current.sha256!==record.sha256||current.bytes!==record.bytes)throw Error("Projects song cloud manifest conflict");
 }
@@ -323,7 +324,9 @@ export function detachProjectSong(id:string,owner:string,revision:unknown){
  if(project.songRemoved||!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed. Reload to continue.",409);
  db.exec("BEGIN IMMEDIATE");
  try{
-  const changed=db.prepare("UPDATE music_projects SET song_removed=1,song_name=NULL,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=0").run(Date.now(),id,owner,revision);
+  const extent=db.prepare("SELECT MAX(timeline_start_ms+source_out_ms-source_in_ms) AS end_ms FROM music_clips WHERE project_id=?").get(id) as {end_ms:number|null};
+  const duration=Math.max(10000,project.songDurationMs,project.songPositionMs+project.songEndMs-project.songStartMs,extent.end_ms??0);
+  const changed=db.prepare("UPDATE music_projects SET song_removed=1,song_name=NULL,song_duration_ms=?,song_start_ms=0,song_end_ms=?,song_position_ms=0,song_parts_json=NULL,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=0").run(duration,duration,Date.now(),id,owner,revision);
   if(changed.changes!==1)throw new MusicError("Project changed. Reload to continue.",409);
   db.prepare("UPDATE music_asset_cloud SET pending_delete=1 WHERE project_id=? AND owner_id=? AND asset_id LIKE ?").run(id,owner,id+":song%");
   db.prepare("UPDATE music_clips SET sync_locked=0 WHERE project_id=?").run(id);
