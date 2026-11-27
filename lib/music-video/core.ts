@@ -5,7 +5,7 @@ import {randomUUID} from "node:crypto";
 import path from "node:path";
 import type {ProjectCloudRecord,SongSlot} from "./project-r2";
 import {dataDir} from "@/lib/db";
-import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,firstVisibleVideo,type SongRange} from "./song-range.ts";
+import {validSongRange,validSongPlacement,MAX_TIMELINE_MS,validSongParts,firstVisibleVideo,type SongPlacement,type SongRange} from "./song-range.ts";
 
 export type Track = 1 | 2;
 export type AudioTrack = Track | "song";
@@ -27,8 +27,9 @@ function validatedAspectRatio(value:unknown):ProjectAspectRatio{
  if(value!=="auto"&&value!=="16:9"&&value!=="9:16")throw new MusicError("Choose Auto, 16:9 or 9:16.");
  return value;
 }
+export type SongRestore={range:SongPlacement;parts:SongRange[]|null;durationMs:number;clips:MusicClip[]};
 export type MusicProject = {
-  id:string; ownerId:string; name:string; songName:string|null; songRemoved?:boolean; songVersion?:string|null; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
+  id:string; ownerId:string; name:string; songName:string|null; songRemoved?:boolean; songVersion?:string|null; songRestore?:SongRestore|null; songDurationMs:number; songStartMs:number; songEndMs:number; songPositionMs:number; songParts:SongRange[]|null; trackMutes:TrackMutes;
   revision:number; createdAt:number; updatedAt:number; aspectRatio:ProjectAspectRatio;
 };
 export class MusicError extends Error {
@@ -51,6 +52,7 @@ function database():DatabaseSync{
   opened.exec("BEGIN IMMEDIATE");
   try{
     const columns=opened.prepare("PRAGMA table_info(music_projects)").all() as {name:string}[];
+    if(!columns.some(c=>c.name==="song_restore_json"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_restore_json TEXT DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_removed"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_removed INTEGER NOT NULL DEFAULT 0");
     if(!columns.some(c=>c.name==="song_version"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_version TEXT DEFAULT NULL");
     if(!columns.some(c=>c.name==="song_name"))opened.exec("ALTER TABLE music_projects ADD COLUMN song_name TEXT DEFAULT NULL");
@@ -87,10 +89,10 @@ function database():DatabaseSync{
   db=opened;
   return opened;
 }
-type ProjectRow={id:string;owner_id:string;name:string;song_name:string|null;song_removed:number;song_version:string|null;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
+type ProjectRow={id:string;owner_id:string;name:string;song_name:string|null;song_removed:number;song_version:string|null;song_restore_json:string|null;song_duration_ms:number;song_start_ms:number;song_end_ms:number|null;song_position_ms:number|null;song_parts_json:string|null;track_mute_mask:number;aspect_ratio:ProjectAspectRatio;revision:number;created_at:number;updated_at:number};
 type AssetRow={id:string;project_id:string;name:string;kind:MediaKind;role:MediaRole|null;source_kind:SourceKind;source_id:string|null;duration_ms:number;source_start_ms:number|null;source_end_ms:number|null;created_at:number};
 type ClipRow={id:string;asset_id:string;track:Track;timeline_start_ms:number;source_in_ms:number;source_out_ms:number;sync_locked:number;position_locked:number;show_video_name:number};
-const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songName:r.song_name??null,songRemoved:!!r.song_removed,songVersion:r.song_version??null,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
+const mapProject=(r:ProjectRow):MusicProject=>({id:r.id,ownerId:r.owner_id,name:r.name,songName:r.song_name??null,songRemoved:!!r.song_removed,songVersion:r.song_version??null,songRestore:r.song_restore_json?JSON.parse(r.song_restore_json) as SongRestore:null,songDurationMs:r.song_duration_ms,songStartMs:r.song_start_ms,songEndMs:r.song_end_ms??r.song_duration_ms,songPositionMs:r.song_position_ms??r.song_start_ms,songParts:r.song_parts_json?JSON.parse(r.song_parts_json) as SongRange[]:null,trackMutes:{1:!!(r.track_mute_mask&1),2:!!(r.track_mute_mask&2),song:!!(r.track_mute_mask&4)},revision:r.revision,createdAt:r.created_at,updatedAt:r.updated_at,aspectRatio:r.aspect_ratio==="9:16"||r.aspect_ratio==="16:9"?r.aspect_ratio:"auto"});
 const mapAsset=(r:AssetRow):MusicAsset=>({id:r.id,projectId:r.project_id,name:r.name,kind:r.kind,role:r.role??(r.kind==="lip-sync"?"lip-sync":"b-roll"),sourceKind:r.source_kind,sourceId:r.source_id,durationMs:r.duration_ms,sourceStartMs:r.source_start_ms,sourceEndMs:r.source_end_ms,createdAt:r.created_at});
 const mapClip=(r:ClipRow):MusicClip=>({id:r.id,assetId:r.asset_id,track:r.track,timelineStartMs:r.timeline_start_ms,sourceInMs:r.source_in_ms,sourceOutMs:r.source_out_ms,syncLocked:!!r.sync_locked,positionLocked:!!r.position_locked,showVideoName:!!r.show_video_name});
 export function requireMusicProject(id:string,owner:string):MusicProject{
@@ -320,13 +322,15 @@ export function projectSongMigrationCandidate(owner:string){
 
 /** Remove only the song; video positions and position locks remain intact. */
 export function detachProjectSong(id:string,owner:string,revision:unknown){
- const project=requireMusicProject(id,owner),db=database();
+ const detail=musicDetail(id,owner),project=detail.project,db=database();
  if(project.songRemoved||!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed. Reload to continue.",409);
  db.exec("BEGIN IMMEDIATE");
  try{
+  const roles=new Set(detail.assets.filter(a=>a.role==="lip-sync").map(a=>a.id));
+  const snapshot:SongRestore={range:{startMs:project.songStartMs,endMs:project.songEndMs,positionMs:project.songPositionMs},parts:project.songParts,durationMs:project.songDurationMs,clips:detail.clips.filter(c=>roles.has(c.assetId))};
   const extent=db.prepare("SELECT MAX(timeline_start_ms+source_out_ms-source_in_ms) AS end_ms FROM music_clips WHERE project_id=?").get(id) as {end_ms:number|null};
   const duration=Math.max(10000,project.songDurationMs,project.songPositionMs+project.songEndMs-project.songStartMs,extent.end_ms??0);
-  const changed=db.prepare("UPDATE music_projects SET song_removed=1,song_name=NULL,song_duration_ms=?,song_start_ms=0,song_end_ms=?,song_position_ms=0,song_parts_json=NULL,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=0").run(duration,duration,Date.now(),id,owner,revision);
+  const changed=db.prepare("UPDATE music_projects SET song_removed=1,song_name=NULL,song_restore_json=?,song_duration_ms=?,song_start_ms=0,song_end_ms=?,song_position_ms=0,song_parts_json=NULL,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=0").run(JSON.stringify(snapshot),duration,duration,Date.now(),id,owner,revision);
   if(changed.changes!==1)throw new MusicError("Project changed. Reload to continue.",409);
   db.prepare("UPDATE music_asset_cloud SET pending_delete=1 WHERE project_id=? AND owner_id=? AND asset_id LIKE ?").run(id,owner,id+":song%");
   db.prepare("UPDATE music_clips SET sync_locked=0 WHERE project_id=?").run(id);
@@ -341,7 +345,21 @@ export function attachProjectSong(id:string,owner:string,revision:unknown,versio
  if(!validId(version)||!validSongRange(0,duration,duration)||duration>MAX_TIMELINE_MS||records.length!==2||!records.some(r=>r.slot==="song.mp3")||!records.some(r=>r.slot.startsWith("song-original.")))throw new MusicError("Invalid replacement song.");
  db.exec("BEGIN IMMEDIATE");
  try{
-  const changed=db.prepare("UPDATE music_projects SET song_removed=0,song_version=?,song_name=?,song_duration_ms=?,song_start_ms=0,song_end_ms=?,song_position_ms=0,song_parts_json=NULL,track_mute_mask=track_mute_mask & 3,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=1").run(version,validatedSongName(name),duration,duration,Date.now(),id,owner,revision);
+  const previous=project.songRestore;
+  // Preserve the old song clock offset if the new recording supports it.
+  // Different-length replacements keep their full duration where possible.
+  const range=previous&&validSongPlacement(previous.range,duration)?previous.range:{startMs:0,endMs:duration,positionMs:0};
+  const parts=previous&&range===previous.range&&previous.parts&&validSongParts(previous.parts,range)?previous.parts:null;
+  const changed=db.prepare("UPDATE music_projects SET song_removed=0,song_version=?,song_name=?,song_duration_ms=?,song_start_ms=?,song_end_ms=?,song_position_ms=?,song_parts_json=?,track_mute_mask=track_mute_mask & 3,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=1").run(version,validatedSongName(name),duration,range.startMs,range.endMs,range.positionMs,parts===null?null:JSON.stringify(parts),Date.now(),id,owner,revision);
+  // Reapply only previously active locks whose exact original media mapping
+  // still matches. Never move, trim or overwrite edits made while songless.
+  const oldLocks=new Map(previous?.clips.filter(c=>c.syncLocked).map(c=>[c.id,c])??[]);
+  const detail=musicDetail(id,owner),assets=new Map(detail.assets.map(a=>[a.id,a]));
+  const lock=db.prepare("UPDATE music_clips SET sync_locked=1 WHERE project_id=? AND id=?");
+  for(const clip of detail.clips){
+   const old=oldLocks.get(clip.id),asset=assets.get(clip.assetId);
+   if(old&&asset?.role==="lip-sync"&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null&&old.assetId===clip.assetId&&old.timelineStartMs===clip.timelineStartMs&&old.sourceInMs===clip.sourceInMs&&old.sourceOutMs===clip.sourceOutMs&&clip.timelineStartMs===asset.sourceStartMs+clip.sourceInMs+range.positionMs-range.startMs&&asset.sourceStartMs+clip.sourceOutMs<=asset.sourceEndMs)lock.run(id,clip.id);
+  }
   if(changed.changes!==1)throw new MusicError("Project changed. Reload to continue.",409);
   const insert=db.prepare("INSERT INTO music_asset_cloud(asset_id,project_id,owner_id,object_key,sha256,bytes) VALUES (?,?,?,?,?,?)");
   for(const {slot,record} of records)insert.run(id+":"+slot+":"+version,id,owner,record.key,record.sha256,record.bytes);
