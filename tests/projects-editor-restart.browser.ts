@@ -265,10 +265,18 @@ try{
    return {clip:getComputedStyle(el).backgroundColor,eye:a.backgroundColor,lock:b.backgroundColor,eyeBorder:a.borderTopWidth,lockBorder:b.borderTopWidth};
   });
   assert.deepEqual(appearance,{clip:"rgb(97, 51, 126)",eye:"rgba(0, 0, 0, 0)",lock:"rgba(0, 0, 0, 0)",eyeBorder:"0px",lockBorder:"0px"});
+  const controls=await second.evaluate(el=>{
+   const c=el.getBoundingClientRect(),eye=el.querySelector(".mv-clip-display-toggle")!,lock=el.querySelector(".mv-clip-position-lock")!,start=el.querySelector(".mv-handle-start")!,end=el.querySelector(".mv-handle-end")!;
+   const a=eye.getBoundingClientRect(),b=lock.getBoundingClientRect(),s=start.getBoundingClientRect(),t=end.getBoundingClientRect();
+   return {centered:[a,b,s,t].every(r=>Math.abs(r.y+r.height/2-c.y-c.height/2)<1),white:[eye,lock].every(e=>getComputedStyle(e).color==="rgb(255, 255, 255)"),hidden:[start,end].every(e=>getComputedStyle(e,"::before").content==="none"),separate:s.right<=a.left+.5&&a.right<=b.left+.5&&b.right<=t.left+.5,cursor:getComputedStyle(start).cursor};
+  });
+  assert.deepEqual(controls,{centered:true,white:true,hidden:true,separate:true,cursor:"ew-resize"});
+
   const selectedStyle=await second.evaluate(el=>{const s=getComputedStyle(el);return {outline:s.outlineStyle,border:s.borderTopWidth,shadow:s.boxShadow};});
   assert.deepEqual(selectedStyle,{outline:"none",border:"1px",shadow:"none"});
   const locked=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await locked;
-  assert.equal(lockClips[1].positionLocked,true);assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).isDisabled(),true);
+  assert.equal(lockClips[1].positionLocked,true);
+  assert.equal(await second.getByRole("button",{name:"Unlock clip position: second"}).evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).isDisabled(),true);
   const named=save();await second.getByRole("button",{name:"Show video name: second"}).click();await named;
   assert.equal(lockClips[1].showVideoName,true);assert.equal(await second.locator(".mv-clip-title").textContent(),"second");
   assert.equal(await second.locator(".mv-clip-waveform").count(),0);
