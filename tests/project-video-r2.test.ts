@@ -121,3 +121,22 @@ test("frozen customer Projects erasure removes only verified owned projects and 
   assert.ok(existsSync(join(root,"music-video",otherProject)));assert.ok(!existsSync(join(root,"music-video",project)));
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+
+test("replacement song cloud keys isolate generations and cleanup protects the active song",async()=>{
+ const root=mkdtempSync(path.join(tmpdir(),"sm-song-replace-")),db=new DatabaseSync(path.join(root,"music-video.sqlite"));
+ const owner="staff:a",old=project+":song.mp3",current=old+":"+asset;
+ const record=(id:string)=>({key:projectCloudKey(owner,project,id,sha256,env),sha256,bytes:bytes.length});
+ assert.notEqual(record(old).key,record(current).key);
+ assert.ok(validProjectCloudRecord(owner,project,current,record(current),env));
+ assert.ok(!validProjectCloudRecord(owner,project,current,record(old),env));
+ try{
+  db.exec("CREATE TABLE music_asset_cloud(owner_id TEXT,project_id TEXT,asset_id TEXT,object_key TEXT,sha256 TEXT,bytes INTEGER,pending_delete INTEGER); CREATE TABLE music_projects(id TEXT,owner_id TEXT,song_removed INTEGER,song_version TEXT); CREATE TABLE music_assets(id TEXT); CREATE TABLE music_clips(asset_id TEXT)");
+  db.prepare("INSERT INTO music_projects VALUES(?,?,0,?)").run(project,owner,asset);
+  for(const id of [old,current])db.prepare("INSERT INTO music_asset_cloud VALUES(?,?,?,?,?,?,1)").run(owner,project,id,record(id).key,sha256,bytes.length);
+  const removed:string[]=[];const remove=async(_owner:string,_project:string,id:string)=>{removed.push(id);};
+  assert.equal((await retryProjectDeletes(root,{env,remove})).deleted,1);assert.deepEqual(removed,[old]);
+  db.exec("UPDATE music_projects SET song_removed=1");
+  assert.equal((await retryProjectDeletes(root,{env,remove})).deleted,1);assert.deepEqual(removed,[old,current]);
+ }finally{db.close();rmSync(root,{recursive:true,force:true});}
+});
