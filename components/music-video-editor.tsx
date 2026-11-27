@@ -179,7 +179,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const exportAbort=useRef<AbortController|null>(null),exportBusy=useRef(false);
   useEffect(()=>()=>exportAbort.current?.abort(),[]);
   const [inspectorOpen,setInspectorOpen]=useState(true);
-  const [roleChanging,setRoleChanging]=useState<string|null>(null),[roleError,setRoleError]=useState("");
+  const [roleChanging,setRoleChanging]=useState<{id:string;role:MediaRole}|null>(null),[roleError,setRoleError]=useState("");
   const [wave,setWave]=useState<MediaWaveform|null>(null),[editingName,setEditingName]=useState(false),[newName,setNewName]=useState("");
   const [videoWaves,setVideoWaves]=useState<Record<string,MediaWaveform>>({});
   const waveCache=useRef<{id:string;items:Record<string,MediaWaveform>}>({id,items:{}});
@@ -893,9 +893,8 @@ export function MusicVideoEditor({id}:{id:string}){
   async function changeAssetRole(a:MusicAsset,role:MediaRole){
     if(importBusy.current||a.role===role)return;
     if(latest.current.some(c=>c.assetId===a.id&&c.positionLocked)){setError("Unlock the clips using this video before changing its role.");return;}
-    importBusy.current=true;roleBusy.current=true;setImporting(true);setRoleChanging(a.id);setRoleError("");setError("");
+    importBusy.current=true;roleBusy.current=true;setImporting(true);setRoleChanging({id:a.id,role});setRoleError("");setError("");
     try{
-      stopPlayback();
       if(saveTimer.current)clearTimeout(saveTimer.current);
       await saveNow();setStatus("Saving…");
       await persistAssetRole(a,role);
@@ -1260,10 +1259,10 @@ export function MusicVideoEditor({id}:{id:string}){
             </form>:<div className="mv-asset-name"><strong title={a.name}>{a.name}</strong><button type="button" title="Rename only in this project" aria-label={"Rename "+a.name+" in this project"} disabled={importing} onClick={()=>setAssetRename({id:a.id,name:a.name})}><Pencil size={14}/></button></div>}
             <small>{a.sourceKind==="live"?"SingMotion":a.sourceKind==="uploaded"?"Uploaded video":"Generated video"}</small>
             <div className="mv-media-role" role="group" aria-label={"Role of "+a.name}>
-              <button type="button" className={a.role==="lip-sync"?"active":""} aria-pressed={a.role==="lip-sync"} disabled={importing} onClick={()=>void changeAssetRole(a,"lip-sync")}><Music2 size={13}/> Lip Sync</button>
-              <button type="button" className={a.role==="b-roll"?"active":""} aria-pressed={a.role==="b-roll"} disabled={importing} onClick={()=>void changeAssetRole(a,"b-roll")}><Film size={13}/> B-Roll</button>
+              <button type="button" className={(roleChanging?.id===a.id?roleChanging.role:a.role)==="lip-sync"?"active":""} aria-pressed={(roleChanging?.id===a.id?roleChanging.role:a.role)==="lip-sync"} disabled={importing} onClick={()=>void changeAssetRole(a,"lip-sync")}><Music2 size={13}/> Lip Sync</button>
+              <button type="button" className={(roleChanging?.id===a.id?roleChanging.role:a.role)==="b-roll"?"active":""} aria-pressed={(roleChanging?.id===a.id?roleChanging.role:a.role)==="b-roll"} disabled={importing} onClick={()=>void changeAssetRole(a,"b-roll")}><Film size={13}/> B-Roll</button>
             </div>
-            {roleChanging===a.id?<small role="status">Saving role…</small>:a.sourceStartMs!==null&&a.sourceEndMs!==null?<small className="mv-source-time">Source: {time(a.sourceStartMs,true)} – {time(a.sourceEndMs,true)}</small>:null}
+            {roleChanging?.id===a.id?<small role="status">Saving role…</small>:a.sourceStartMs!==null&&a.sourceEndMs!==null?<small className="mv-source-time">Source: {time(a.sourceStartMs,true)} – {time(a.sourceEndMs,true)}</small>:null}
             <div className="mv-media-actions"><button disabled={importing} aria-label={"Add "+a.name+" to timeline"} title="Add to timeline" onClick={()=>addClip(a,a.role==="lip-sync"?1:2,playhead)}><Plus size={14}/> Add</button>
               <details onToggle={e=>{
                 const menu=e.currentTarget;if(!menu.open)return;
