@@ -73,7 +73,7 @@ export function MusicProjectsClient(){
   const filtered=projects.filter(p=>(projectFilter==="all"||p.aspectRatio===projectFilter)&&(p.name+" "+(p.songName||"")).toLowerCase().includes(search.trim().toLowerCase())).sort((a,b)=>newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt);
   return <main id="content" className="mv-root mv-projects">
     <div className="mv-heading"><div><div className="mv-heading-title"><Clapperboard size={30}/><h1>Projects</h1></div>
-      <p>Your music video projects, all in one place.</p></div>
+      <p>Turn individual videos into a complete music video. Start with your song, combine Lip Sync performances with B-Roll and your own video clips, and arrange them on a synchronized timeline. Preview, trim and edit your scenes, then export your finished music video as an MP4.</p></div>
       <button className="mv-primary" type="button" onClick={()=>setCreating(true)}><Plus size={17}/> New Project</button>
     </div>
     <div className="mv-browse-toolbar">
