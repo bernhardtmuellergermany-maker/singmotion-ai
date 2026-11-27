@@ -168,7 +168,7 @@ async function handler(
         throw new AppError("No preserved guest workspace.", 404);
       const response = json({ owner: guest.owner, demo: true, restored: true });
       response.cookies.set("sm_session", guestToken!, {
-        httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+        httpOnly: true, secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || stagingEnabled() || req.nextUrl.protocol === "https:",
         sameSite: "strict", path: "/", maxAge: 30 * 86400,
       });
       return response;
@@ -217,12 +217,12 @@ async function handler(
           previousGuestProjectsPreserved: !!auth && !auth.owner.startsWith("customer-") && !auth.owner.startsWith("cms-staff-")});
         if (auth && token && !auth.owner.startsWith("customer-") && !auth.owner.startsWith("cms-staff-")) {
           response.cookies.set("sm_guest_session", token, {
-            httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+            httpOnly: true, secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || stagingEnabled() || req.nextUrl.protocol === "https:",
             sameSite: "strict", path: "/", maxAge: 30 * 86400,
           });
         }
         response.cookies.set("sm_session", created.token, {
-          httpOnly: true, secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+          httpOnly: true, secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || stagingEnabled() || req.nextUrl.protocol === "https:",
           sameSite: "strict", path: "/", maxAge: 30 * 86400,
         });
         return response;
@@ -250,7 +250,7 @@ async function handler(
       });
       response.cookies.set("sm_session", created.token, {
         httpOnly: true,
-        secure: stagingEnabled() || req.nextUrl.protocol === "https:",
+        secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || stagingEnabled() || req.nextUrl.protocol === "https:",
         sameSite: "strict",
         path: "/",
         maxAge: 30 * 86400,

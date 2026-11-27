@@ -9,6 +9,8 @@ import {
 } from "@/lib/db";
 import { stagingDenial } from "@/lib/staging";
 import { applicationOrigin } from "@/lib/request-origin";
+import { productionExistingAccountRecoveryEnabled } from "@/lib/commerce/customer-live-config";
+import { customerIdentityRegistrationAllowed } from "@/lib/customer-identity-origin";
 import { sendCustomerVerificationEmail } from "@/lib/commerce/verification-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,14 +79,14 @@ async function handler(req: NextRequest) {
       r.cookies.set("sm_session", "", {
         httpOnly: true,
         sameSite: "strict",
-        secure: req.nextUrl.protocol === "https:",
+        secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || req.nextUrl.protocol === "https:",
         path: "/",
         maxAge: 0,
       });
       r.cookies.set("sm_customer", "", {
         httpOnly: true,
         sameSite: "strict",
-        secure: req.nextUrl.protocol === "https:",
+        secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || req.nextUrl.protocol === "https:",
         path: "/",
         maxAge: 0,
       });
@@ -97,6 +99,8 @@ async function handler(req: NextRequest) {
       b.password.length > 256
     )
       return json({ error: "Valid email and password required." }, 400);
+    if(b.action==="register"&&productionExistingAccountRecoveryEnabled(process.env)&&!customerIdentityRegistrationAllowed(process.env))
+      return json({error:"Registration not enabled"},503);
     const registrationId = b.action === "register" ? store.register(b.email,b.password) : undefined;
     if (b.action !== "login" && b.action !== "register")
       return json({ error: "Unknown action." }, 400);
@@ -114,14 +118,14 @@ async function handler(req: NextRequest) {
     r.cookies.set("sm_session", media.token, {
       httpOnly: true,
       sameSite: "strict",
-      secure: req.nextUrl.protocol === "https:",
+      secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || req.nextUrl.protocol === "https:",
       path: "/",
       maxAge: 86400,
     });
     r.cookies.set("sm_customer", session, {
       httpOnly: true,
       sameSite: "lax",
-      secure: req.nextUrl.protocol === "https:",
+      secure: Boolean(process.env.RAILWAY_ENVIRONMENT_ID) || req.nextUrl.protocol === "https:",
       path: "/",
       maxAge: 86400,
     });

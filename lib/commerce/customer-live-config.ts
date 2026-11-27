@@ -99,3 +99,14 @@ export function existingCustomerAccountAccessEnabled(env:Record<string,string|un
  return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID &&
   env.CUSTOMER_ACCOUNTS_ENABLED==="true" && env.APP_ORIGIN==="https://www.singmotion.ai";
 }
+
+/** Explicit incident-recovery access to the already operating website. This
+ * never attests a paid launch, never opens Staging, and cannot coexist with an
+ * independently approved private paid pilot. All account routes must still
+ * authenticate identities and all mutations must verify their configured Origin. */
+export function productionExistingAccountRecoveryEnabled(env:Record<string,string|undefined>):boolean{
+ return env.PRODUCTION_EXISTING_ACCOUNT_ACCESS_ENABLED==="true" && existingCustomerAccountAccessEnabled(env) &&
+  env.DEMO_MODE==="true" && env.GENERATIONS_ENABLED==="false" && env.ADMIN_DEMO_ENABLED==="false" &&
+  env.BYTEPLUS_LIVE_TEST_ENABLED!=="true" && !privateInternationalCreditBetaEnabled(env) &&
+  !protectedProductionLivePilotApproved(env) && !assessProductionSandboxPilot(env).ready;
+}

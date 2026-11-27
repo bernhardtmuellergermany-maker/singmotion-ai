@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { stagingAccess, stagingDenial, stagingEnabled, PRIVATE_GATE_COOKIE, PRIVATE_GATE_TTL_SECONDS, issuePrivateGateTicket, validPrivateGateTicket, privateGateMutationOriginAllowed, privateGateCredentialKind } from "./lib/staging";
-import {seoIndexablePath} from "./lib/seo/search-pages";
+import {seoIndexablePath,seoPubliclyIndexable} from "./lib/seo/search-pages";
 
 // No matcher exclusions: APIs, public media, Next assets and RSC requests are private.
 export function proxy(request: NextRequest) {
@@ -62,7 +62,7 @@ export function proxy(request: NextRequest) {
       maxAge: PRIVATE_GATE_TTL_SECONDS,
     });
   }
-  if (stagingEnabled()) {
+  if (stagingEnabled() || !seoPubliclyIndexable()) {
     response.headers.set("Cache-Control", "private, no-store");
     response.headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }

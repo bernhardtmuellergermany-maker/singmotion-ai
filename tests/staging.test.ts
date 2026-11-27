@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import {productionExistingAccountRecoveryEnabled} from "../lib/commerce/customer-live-config.ts";
+import {seoPubliclyIndexable} from "../lib/seo/search-pages.ts";
+import {publicCreditReleaseApproved} from "../lib/commerce/public-credit-release.ts";
 import {
   stagingAccess,
   stagingEnabled,
@@ -115,4 +118,16 @@ test("mobile CMS POST trusts configured public HTTPS origin, not internal Railwa
   const split = {...config, APP_ORIGIN:"https://app.example", CMS_ORIGIN:"https://cms.example"};
   assert.equal(privateGateMutationOriginAllowed("https://cms.example", "/api/cms/staff/login", internal, split), true);
   assert.equal(privateGateMutationOriginAllowed("https://app.example", "/api/cms/staff/login", internal, split), false);
+});
+
+test("explicit Production existing-account recovery removes browser Basic challenge only on safe canonical Production and does not approve sales or indexing",()=>{
+ const recovery={...env,RAILWAY_ENVIRONMENT_ID:"36adc41d-7e54-4396-ad1a-fd432ba0441d",APP_ORIGIN:"https://www.singmotion.ai",CUSTOMER_ACCOUNTS_ENABLED:"true",PRODUCTION_EXISTING_ACCOUNT_ACCESS_ENABLED:"true"};
+ assert.equal(productionExistingAccountRecoveryEnabled(recovery),true);
+ assert.equal(stagingAccess(null,recovery),200);
+ assert.equal(publicCreditReleaseApproved(recovery),false);
+ assert.equal(seoPubliclyIndexable(recovery),false);
+ for(const patch of [{PRODUCTION_EXISTING_ACCOUNT_ACCESS_ENABLED:"false"},{RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041"},{APP_ORIGIN:"https://evil.test"},{CUSTOMER_ACCOUNTS_ENABLED:"false"},{ADMIN_DEMO_ENABLED:"true"},{GENERATIONS_ENABLED:"true"},{DEMO_MODE:"false"},{BYTEPLUS_LIVE_TEST_ENABLED:"true"}]){
+  assert.equal(productionExistingAccountRecoveryEnabled({...recovery,...patch}),false);
+  assert.equal(stagingEnabled({...recovery,...patch}),true);
+ }
 });

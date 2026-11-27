@@ -7,7 +7,7 @@ import {productionCustomerReleaseApproved} from "../lib/commerce/customer-live-c
 import {stripeCreditTopupsLiveEnabled} from "../lib/commerce/credit-wallet.ts";
 import {customerCreditStudioBetaEnabled} from "../lib/commerce/customer-credit-studio-beta.ts";
 import {stagingAccess,stagingEnabled} from "../lib/staging.ts";
-import {customerIdentityOrigin,googleLoginReady,passwordResetReady} from "../lib/customer-identity-origin.ts";
+import {customerIdentityOrigin,googleLoginReady,passwordResetReady,customerIdentityRegistrationAllowed} from "../lib/customer-identity-origin.ts";
 
 const production="36adc41d-7e54-4396-ad1a-fd432ba0441d";
 function approved():Record<string,string>{
@@ -67,7 +67,13 @@ test("public prepaid Credit customers can register and use verified canonical id
  const origin=readFileSync(new URL("../lib/customer-identity-origin.ts",import.meta.url),"utf8");
  assert.match(auth,/publicCreditReleaseApproved\(process\.env\)/);
  assert.match(origin,/publicCreditReleaseApproved\(env\)/);
- assert.equal(customerIdentityOrigin({...env,LEGAL_REVIEW_APPROVED:"false"}),null);
+ const paused={...env,LEGAL_REVIEW_APPROVED:"false"};
+ assert.equal(customerIdentityOrigin(paused),"https://www.singmotion.ai","existing identity remains available behind the access gate");
+ assert.equal(customerIdentityRegistrationAllowed(paused),false);
+ assert.equal(customerIdentityRegistrationAllowed(env),true);
+ assert.equal(stagingEnabled(paused),true);
+ assert.equal(stripeCreditTopupsLiveEnabled(paused),false);
+ assert.equal(customerCreditStudioBetaEnabled(paused),false);
  assert.equal(customerIdentityOrigin({...env,APP_ORIGIN:"https://evil.test"}),null);
  assert.equal(customerIdentityOrigin({...env,RAILWAY_ENVIRONMENT_ID:"dfaeabed-03df-43ed-aa71-50f343a75041",APP_ORIGIN:"https://www.singmotion.ai"}),null);
 });

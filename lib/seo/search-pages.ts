@@ -1,4 +1,5 @@
-import {stagingEnabled} from "../staging.ts";
+import {productionCustomerReleaseApproved} from "../commerce/customer-live-config.ts";
+import {publicCreditReleaseApproved} from "../commerce/public-credit-release.ts";
 import {PRODUCTION_RAILWAY_ENVIRONMENT_ID} from "../commerce/customer-live-config.ts";
 
 export const SITE_ORIGIN="https://www.singmotion.ai";
@@ -120,7 +121,9 @@ export const SEO_PUBLIC_PATHS=[
 ];
 /** Search indexing remains locked behind the existing independent public release. */
 export function seoPubliclyIndexable(env:Record<string,string|undefined>=process.env){
- return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID&&!stagingEnabled(env);
+ return env.RAILWAY_ENVIRONMENT_ID===PRODUCTION_RAILWAY_ENVIRONMENT_ID&&
+  env.PRODUCTION_PUBLIC_ACCESS_ENABLED==="true"&&env.STAGING_AUTH_ENABLED!=="true"&&
+  (productionCustomerReleaseApproved(env)||publicCreditReleaseApproved(env));
 }
 /** A second, HTML-level fail-closed defense alongside robots.txt and X-Robots-Tag.
  * Do not regard a non-staging Production environment as public without the
