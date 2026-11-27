@@ -825,6 +825,7 @@
 
 /* Keep Re-Sync available in a fixed toolbar position even without selection. */
 .mv-root.mv-editor .mv-timeline-toolbar{flex-wrap:wrap}
-.mv-root.mv-editor .mv-timeline-toolbar .mv-resync{width:auto;min-width:0;flex:0 0 auto;height:32px;min-height:32px;padding:4px 8px;gap:5px;border:1px solid #806294;background:#61337e;color:#fff;font-size:12px}
-.mv-root.mv-editor .mv-timeline-toolbar .mv-resync:disabled{opacity:1;background:#292432;color:#81788c;border-color:#443c4d;cursor:not-allowed}
+.mv-root.mv-editor .mv-timeline-toolbar .mv-resync{width:auto;min-width:0;flex:0 0 auto;height:32px;min-height:32px;padding:4px 8px;gap:5px;border:0;background:transparent;color:#fff;font-size:12px;border-radius:6px;box-shadow:none}
+.mv-root.mv-editor .mv-timeline-toolbar .mv-resync:hover:not(:disabled){background:#352147;color:#fff}
+.mv-root.mv-editor .mv-timeline-toolbar .mv-resync:disabled{opacity:.35;background:transparent;color:#fff;cursor:default}
 @media(max-width:760px){.mv-root.mv-editor .mv-timeline-toolbar .mv-resync{padding-inline:5px;gap:3px;font-size:11px}}
