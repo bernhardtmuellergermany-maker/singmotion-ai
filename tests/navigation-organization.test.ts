@@ -107,7 +107,7 @@ test("song trimming is millisecond precise, validated and non-destructive",async
  assert.ok(editor.includes("dragSongEdge(e,edge)"));
  assert.ok(editor.includes('field==="start"?(parts?partStartText:startText)'));
  assert.ok(editor.includes("apply(moved,true,next)"));
- assert.ok(editor.includes("makeFrameTimeline(previewClips,songRange,songParts,trackMutes)"));
+ assert.ok(editor.includes("makeFrameTimeline(previewClips,songRange,songParts,project?.songRemoved?{...trackMutes,song:true}:trackMutes)"));
  assert.ok(api.includes("body.songStartMs,body.songEndMs"));
  assert.ok(core.includes("song_start_ms=?,song_end_ms=?"));
  assert.ok(core.includes("validateMusicClips(clips,assets,MAX_TIMELINE_MS,position-start)"));
@@ -274,7 +274,7 @@ test("library role is distinct from immutable media provenance and source timing
  assert.ok(editor.includes('changeAssetRole(a,"b-roll")'));
  assert.ok(editor.includes('filter==="B-Roll"&&a.role==="b-roll"'));
  assert.ok(editor.includes('filter==="Uploads"&&a.kind==="imported"'));
- assert.ok(editor.includes('const locked=asset.role==="lip-sync"&&asset.sourceStartMs'));
+ assert.ok(editor.includes('const locked=!project?.songRemoved&&asset.role==="lip-sync"&&asset.sourceStartMs'));
  assert.ok(editor.includes('a.role==="lip-sync"?1:2'));
  assert.ok(editor.includes('persistAssetRole(existing,"lip-sync")'));
 });
@@ -383,7 +383,7 @@ test("each timeline lane persists audio mute and the cut button follows selectio
  assert.ok(editor.includes("trackMutes:mutes"));
  assert.ok(editor.includes('muteButton("song","song")'));
  assert.ok(editor.includes("muteButton(track,"));
- assert.ok(editor.includes("makeFrameTimeline(previewClips,songRange,songParts,trackMutes)"));
+ assert.ok(editor.includes("makeFrameTimeline(previewClips,songRange,songParts,project?.songRemoved?{...trackMutes,song:true}:trackMutes)"));
  assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
  assert.ok(!editor.includes("> Split video</button>"));
  assert.ok(!editor.includes("> Split song</button>"));
@@ -1159,4 +1159,15 @@ test("metadata-only role changes preserve decoded preview and audio timeline",as
  const role=editor.slice(editor.indexOf("async function changeAssetRole("),editor.indexOf("async function insertLipSync("));
  assert.ok(!role.includes("stopPlayback()"));assert.ok(role.includes("await saveNow()"));assert.ok(role.includes("await persistAssetRole(a,role)"));
  assert.ok(editor.includes("roleChanging?.id===a.id?roleChanging.role:a.role"));
+});
+
+
+test("a removed song leaves a persistent editable project and a replace action",()=>{
+ const core=read("lib/music-video/core.ts"),editor=read("components/music-video-editor.tsx"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts");
+ assert.ok(core.includes("ADD COLUMN song_removed INTEGER NOT NULL DEFAULT 0"));
+ const detach=core.slice(core.indexOf("export function detachProjectSong"),core.indexOf("export function attachProjectSong"));
+ assert.ok(detach.includes("UPDATE music_clips SET sync_locked=0"));assert.ok(!detach.includes("DELETE FROM music_clips"));
+ assert.ok(editor.includes('className="mv-add-song"'));assert.ok(editor.includes('void removeEntireSong()'));assert.ok(editor.includes('void uploadReplacementSong(file)'));
+ assert.ok(api.includes('attachProjectSong(id,owner,revision,version,songName,duration,records)'));
+ assert.ok(api.includes('if(req.method==="POST"&&project.songRemoved)throw new MusicError("Add a song before exporting.",409)'));
 });
