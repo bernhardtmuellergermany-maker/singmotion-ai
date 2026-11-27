@@ -1100,6 +1100,7 @@ export function MusicVideoEditor({id}:{id:string}){
                     onContextMenu={e=>e.preventDefault()}
                     onPointerDown={e=>{if(!(e.target as HTMLElement).closest(".mv-handle,.mv-clip-position-lock,.mv-clip-display-toggle"))beginMediaGesture(e,c.id,()=>movePointer(e,c,"move"),()=>selectVideo(c.id),!c.positionLocked);}}
                     title={a.name+" · "+time(c.timelineStartMs,true)}>
+                  <div className="mv-clip-drag-surface" aria-hidden="true"/>
                   <button type="button" className="mv-handle mv-handle-start" disabled={c.positionLocked} aria-label="Trim clip start" title="Drag with mouse or hold on touch to trim start" onPointerDown={e=>beginMediaGesture(e,c.id,()=>movePointer(e,c,"start"),()=>selectVideo(c.id))} onKeyDown={e=>keyboardTrim(e,c,"start")}/>
                   {c.showVideoName?<span className="mv-clip-title"><span>{a.name}</span></span>:
                     <SongWaveform bars wave={videoWaves[c.assetId]} sourceInMs={c.sourceInMs} sourceOutMs={Math.min(c.sourceOutMs,c.sourceInMs+timelineLimit-c.timelineStartMs)} width={clipWidth}/>}

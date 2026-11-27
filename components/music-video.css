@@ -694,3 +694,9 @@
 .mv-root.mv-editor .mv-clip-position-lock svg,.mv-root.mv-editor .mv-clip-display-toggle svg{max-width:100%;pointer-events:none}
 .mv-root.mv-editor .mv-clip.is-compact:not(.is-selected):not(:focus-within) :is(.mv-clip-position-lock,.mv-clip-display-toggle){opacity:0;pointer-events:none}
 @media(pointer:coarse){.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{width:min(24px,40%);height:21px}}
+
+/* Keep a real, uninterrupted touch target under the waveform and title.
+   Corner buttons sit above it; narrow trim handles are separate. */
+.mv-root.mv-editor .mv-clip-drag-surface{position:absolute;inset:0;z-index:3;touch-action:none;cursor:inherit;border-radius:inherit}
+.mv-root.mv-editor .mv-clip-position-lock,.mv-root.mv-editor .mv-clip-display-toggle{height:min(19px,48%);width:min(22px,40%)}
+.mv-root.mv-editor .mv-clip .mv-handle{width:min(10px,18%)}
