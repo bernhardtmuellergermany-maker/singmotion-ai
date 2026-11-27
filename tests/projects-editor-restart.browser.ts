@@ -287,6 +287,29 @@ try{
 
   const selectedStyle=await second.evaluate(el=>{const s=getComputedStyle(el);return {outline:s.outlineStyle,border:s.borderTopWidth,shadow:s.boxShadow};});
   assert.deepEqual(selectedStyle,{outline:"none",border:"1px",shadow:"none"});
+  // Real mouse/touch trim: the selected source frame must change before release.
+  const trim=first.locator(".mv-handle-end");await trim.scrollIntoViewIfNeeded();
+  const rect=await trim.boundingBox();assert.ok(rect);
+  const tx=Math.round(rect.x+rect.width/2),ty=Math.round(rect.y+rect.height/2);
+  const inspect=async()=>await page.waitForFunction(()=>{
+   const c=document.querySelector<HTMLCanvasElement>('[data-frame-preview=true]');
+   return c?.dataset.trimAsset==="first"&&Number(c.dataset.trimSourceMs)<1700&&Number(c.dataset.trimSourceMs)>1000&&Math.abs(Number(c.dataset.sourceTime)*1000-Number(c.dataset.trimSourceMs))<45;
+  },{},{timeout:15000});
+  const trimSaved=save();
+  if(width<500){
+   const client=await page.context().newCDPSession(page);
+   await client.send("Input.dispatchTouchEvent",{type:"touchStart",touchPoints:[{x:tx,y:ty,id:6}]});
+   await page.waitForFunction(()=>document.querySelector('.mv-clip[aria-label="Select video first"]')?.classList.contains("is-armed"),{},{timeout:3000});
+   await client.send("Input.dispatchTouchEvent",{type:"touchMove",touchPoints:[{x:tx-16,y:ty,id:6}]});
+   await inspect();
+   await client.send("Input.dispatchTouchEvent",{type:"touchEnd",touchPoints:[]});await client.detach();
+  }else{
+   await page.mouse.move(tx,ty);await page.mouse.down();await page.mouse.move(tx-16,ty,{steps:4});await inspect();await page.mouse.up();
+  }
+  await trimSaved;assert.ok(lockClips[0].sourceOutMs<1750);
+  const restoreTrim=save();await page.getByRole("button",{name:"Undo",exact:true}).click();await restoreTrim;assert.equal(lockClips[0].sourceOutMs,1750);
+  console.log("PASS: held trim displays the selected source frame before release at "+width+"px");
+  await select(second);
   const locked=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await locked;
   assert.equal(lockClips[1].positionLocked,true);
   assert.equal(await second.getByRole("button",{name:"Unlock clip position: second"}).evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).count(),0);assert.equal(await page.getByRole("button",{name:"Delete selection",exact:true}).isDisabled(),true);

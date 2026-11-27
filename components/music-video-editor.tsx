@@ -60,6 +60,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const [trackMutes,setTrackMutes]=useState<TrackMutes>(initialMutes),mutesRef=useRef<TrackMutes>(initialMutes);
   const frameCanvas=useRef<HTMLCanvasElement>(null);
   const engine=useRef<FramePreviewEngine<MusicClip>|null>(null);
+  const trimmingVideo=useRef(false);
   const [previewVolume,setPreviewVolume]=useState(100);
   const volumeRef=useRef(100);
   const [volumePopup,setVolumePopup]=useState<{left:number;top:number}|null>(null);
@@ -271,6 +272,7 @@ export function MusicVideoEditor({id}:{id:string}){
   },[]);
   function apply(next:MusicClip[],record=true,range=rangeRef.current,parts=partsRef.current,mutes=mutesRef.current,ratio=ratioRef.current){
     if(roleBusy.current)return;
+    engine.current?.clearTrimPreview();
     if(record){past.current.push({clips:latest.current,range:rangeRef.current,parts:partsRef.current,mutes:mutesRef.current,aspectRatio:ratioRef.current});if(past.current.length>40)past.current.shift();future.current=[];}
     const changed=range.startMs!==rangeRef.current.startMs||range.endMs!==rangeRef.current.endMs||range.positionMs!==rangeRef.current.positionMs;
     ratioRef.current=ratio;setAspectRatio(ratio);
@@ -634,7 +636,9 @@ export function MusicVideoEditor({id}:{id:string}){
     if(importBusy.current||roleBusy.current||ratio===ratioRef.current)return;
     apply(latest.current,true,rangeRef.current,partsRef.current,mutesRef.current,ratio);
   }
-  const frameTimeline=useMemo(()=>makeFrameTimeline(clips,songRange,songParts,trackMutes),[clips,songRange,songParts,trackMutes]);
+  // Keep the committed playback timeline and its decoders stable during a trim gesture.
+  const previewClips=trimmingVideo.current?latest.current:clips;
+  const frameTimeline=useMemo(()=>makeFrameTimeline(previewClips,songRange,songParts,trackMutes),[previewClips,songRange,songParts,trackMutes]);
   useLayoutEffect(()=>{
     if(!project?.id||!frameCanvas.current)return;
     let disposed=false;
@@ -757,6 +761,14 @@ export function MusicVideoEditor({id}:{id:string}){
     return clip.syncLocked&&asset.sourceStartMs!==null&&asset.sourceEndMs!==null
       ?Math.min(asset.durationMs,asset.sourceEndMs-asset.sourceStartMs):asset.durationMs;
   }
+  function showTrimFrame(clip:MusicClip,edge:"start"|"end"){
+    const sourceMs=edge==="start"?clip.sourceInMs:Math.max(clip.sourceInMs,clip.sourceOutMs-1);
+    engine.current?.previewTrimFrame(clip.assetId,sourceMs);
+  }
+  function finishTrimFrame(clip:MusicClip,edge:"start"|"end"){
+    const at=edge==="start"?clip.timelineStartMs:Math.max(clip.timelineStartMs,clipEnd(clip)-1);
+    setAt(at);showTrimFrame(clip,edge);
+  }
   function keyboardTrim(e:React.KeyboardEvent<HTMLButtonElement>,clip:MusicClip,edge:"start"|"end"){
     if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;
     e.preventDefault();e.stopPropagation();
@@ -764,7 +776,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const current=latest.current.find(c=>c.id===clip.id),asset=byId.get(clip.assetId);
     if(!current||!asset||current.positionLocked)return;
     const next=trimVideoClip(latest.current,current,edge,(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1),sourceLimit(current,asset),timelineLimit);
-    commitVideoEdit(current,next);
+    commitVideoEdit(current,next);finishTrimFrame(next,edge);
   }
   function movePointer(e:React.PointerEvent,clip:MusicClip,edge:"start"|"end"|"move"){
     if(e.button!==0||importBusy.current)return;
@@ -772,6 +784,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!asset||!initial||!project||initial.positionLocked)return;
     e.stopPropagation();e.preventDefault();
     selectVideo(clip.id);setError("");stopPlayback();
+    if(edge!=="move"){trimmingVideo.current=true;showTrimFrame(initial,edge);}else engine.current?.clearTrimPreview();
     const startX=e.clientX,startY=e.clientY,pointer=e.pointerId,startScroll=scroll.current?.scrollLeft??0;
     const startClips=latest.current;
     let dragged=false;
@@ -795,6 +808,7 @@ export function MusicVideoEditor({id}:{id:string}){
       }else{
         rolled=rollVideoBoundary(startClips,initial,edge,delta,c=>{const a=byId.get(c.assetId);return a?sourceLimit(c,a):c.sourceOutMs;});
         next=rolled?.find(c=>c.id===initial.id)??trimVideoClip(startClips,initial,edge,delta,sourceLimit(initial,asset),timelineLimit);
+        showTrimFrame(next,edge);
       }
       setClips(rolled??startClips.map(c=>c.id===next.id?next:c));
     };
@@ -805,12 +819,13 @@ export function MusicVideoEditor({id}:{id:string}){
     };
     const finish=(event:PointerEvent)=>{
       if(event.pointerId!==pointer)return;
-      calculate(event);cleanup();
+      calculate(event);cleanup();trimmingVideo.current=false;
       if(!valid){setClips(startClips);setError("Drop onto a free position on Video 1 or Video 2. The video was not moved.");return;}
       if(rolled){if(JSON.stringify(rolled)!==JSON.stringify(startClips))apply(rolled);else setClips(latest.current);setSelected(initial.id);stopPlayback();setAt(Math.min(playheadRef.current,timelineLimit));}
       else commitVideoEdit(initial,next);
+      if(edge!=="move")finishTrimFrame(next,edge);
     };
-    const cancel=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;cleanup();setClips(startClips);};
+    const cancel=(event:PointerEvent)=>{if(event.pointerId!==pointer)return;cleanup();trimmingVideo.current=false;setClips(startClips);if(edge!=="move"){engine.current?.clearTrimPreview();setAt(playheadRef.current);}};
     document.addEventListener("pointermove",update);document.addEventListener("pointerup",finish);document.addEventListener("pointercancel",cancel);
   }
   function split(){

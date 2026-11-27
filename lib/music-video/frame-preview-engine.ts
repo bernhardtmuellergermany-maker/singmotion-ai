@@ -46,6 +46,8 @@ export class FramePreviewEngine<C extends FrameClip>{
  private buffering=false;
  private scheduled=new Set<AudioBufferSourceNode>();
  private pendingFrame=false;
+ private trimTarget:{assetId:string;sourceMs:number}|null=null;
+ private trimPending=false;
  private frameWanted=false;
  private starting=false;
  private idleWarm:ReturnType<typeof setTimeout>|null=null;
@@ -90,7 +92,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   return pending;
  }
  private trimSources(){
-  if(this.loading.size||this.pictureLoading.size||this.pendingFrame||this.warmClipPending)return;
+  if(this.loading.size||this.pictureLoading.size||this.pendingFrame||this.trimPending||this.warmClipPending)return;
   while(this.sources.size>SOURCE_CACHE_LIMIT){const key=this.sources.keys().next().value!;const input=this.sources.get(key)!;this.sources.delete(key);void input.then(s=>s.input.dispose()).catch(()=>{});}
  }
  private async videoSink(assetId:string,preload=false){
@@ -108,9 +110,9 @@ export class FramePreviewEngine<C extends FrameClip>{
   this.clearWarm();this.stopClock();this.version++;this.seekVersion++;this.controller.abort();
   this.controller=new AbortController();for(const p of this.sources.values())void p.then(s=>s.input.dispose()).catch(()=>{});
   this.sources.clear();this.loading.clear();this.windows.clear();this.pictures.clear();this.pictureLoading.clear();this.warmClipAttempts.clear();this.warmClipReady.clear();this.lastFrame=-1;this.timeline=timeline;
-  if(resize){this.canvas.width=width;this.canvas.height=height;}this.black();
+  if(resize){this.canvas.width=width;this.canvas.height=height;}if(resize||!this.trimTarget)this.black();
   this.position=Math.max(0,Math.min(timeline.durationMs,position));this.cb.position(this.position);
-  this.requestFrame();if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
+  if(this.trimTarget)this.requestTrimFrame();else this.requestFrame();if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
  }
  setVolume(value:number){this.volume=Math.max(0,Math.min(1,value));if(this.gain&&this.audio)this.gain.gain.setValueAtTime(this.volume,this.audio.currentTime);}
  private async sound(span:AudioSpan,start:number,end:number):Promise<Sound[]>{
@@ -182,7 +184,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  /** Prepare the next distinct clip before its decoded window is needed.
   * Keep the original range-based source and warm its first requested frame. */
  private warmUpcoming(){
-  if(this.closed||!this.timeline||this.dragging||this.warmClipPending)return;
+  if(this.closed||!this.timeline||this.trimTarget||this.dragging||this.warmClipPending)return;
   const timeline=this.timeline,version=this.version;
   const current=frameTarget(timeline,this.position),next=timeline.spans.filter(s=>s.clip&&s.startFrame>=(current?.frame??0)&&s.startFrame*1000/TIMELINE_FPS-this.position<=CLIP_LOOKAHEAD_MS&&s.clip.assetId!==current?.clip?.assetId);
   const candidates=next.filter((s,i)=>next.findIndex(v=>v.clip!.assetId===s.clip!.assetId)===i).slice(0,2);
@@ -198,7 +200,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  /** Video-only preparation around the moving marker. Never wait for audio or
   * a full playback window to paint a cached frame. Only one scrub warm job. */
  private warmScrub(){
-  if(this.closed||!this.timeline||!this.dragging||this.scrubWarming)return;
+  if(this.closed||!this.timeline||this.trimTarget||!this.dragging||this.scrubWarming)return;
   const version=this.version,target=frameTarget(this.timeline,this.position);if(!target)return;
   const index=Math.floor(target.frame/WINDOW_FRAMES),last=Math.floor((this.timeline.frames-1)/WINDOW_FRAMES);
   const candidates=[index,index+1,index-1].filter(i=>i>=0&&i<=last);
@@ -209,7 +211,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  }
  private clearWarm(){if(this.idleWarm!==null){clearTimeout(this.idleWarm);this.idleWarm=null;}}
  private warmWhenIdle(){
-  this.clearWarm();if(this.intent||this.dragging||!this.timeline||this.closed||this.position>=this.timeline.durationMs)return;
+  this.clearWarm();if(this.trimTarget||this.intent||this.dragging||!this.timeline||this.closed||this.position>=this.timeline.durationMs)return;
   const version=this.version,seek=this.seekVersion,index=Math.floor(this.position/WINDOW_MS);
   this.idleWarm=setTimeout(()=>{this.idleWarm=null;if(this.intent||this.dragging||this.loading.size||version!==this.version||seek!==this.seekVersion)return;
    void (async()=>{for(let i=index;i<=index+2;i++){if(this.intent||this.dragging||version!==this.version||seek!==this.seekVersion||i*WINDOW_MS>=this.timeline!.durationMs)break;await this.window(i);}if(version===this.version)this.warmUpcoming();})().catch(()=>{});
@@ -224,12 +226,51 @@ export class FramePreviewEngine<C extends FrameClip>{
   for(const key of this.pictures.keys()){if(this.pictures.size<=FRAME_CACHE_LIMIT)break;if(!this.pictureLoading.has(key)&&!this.windows.has(key))this.pictures.delete(key);}
  }
  private paint(frame:number,sample:WrappedCanvas|null){
-  if(this.lastFrame===frame)return;this.lastFrame=frame;
+  if(this.trimTarget||this.lastFrame===frame)return;this.lastFrame=frame;
   if(!sample)this.black();else this.context.drawImage(sample.canvas,0,0,this.canvas.width,this.canvas.height);
   this.canvas.dataset.frame=String(frame);this.canvas.dataset.sourceTime=sample?String(sample.timestamp):"";
  }
+ /** Inspect the exact source edge, regardless of compositing/track priority.
+  * One in-flight decode; only the newest requested edge may paint. */
+ previewTrimFrame(assetId:string,sourceMs:number){
+  if(this.closed||!Number.isFinite(sourceMs))return;
+  if(this.trimTarget?.assetId===assetId&&this.trimTarget.sourceMs===sourceMs)return;
+  this.clearWarm();this.trimTarget={assetId,sourceMs:Math.max(0,sourceMs)};
+  this.requestTrimFrame();
+ }
+ clearTrimPreview(){
+  if(!this.trimTarget)return;
+  this.trimTarget=null;this.lastFrame=-1;
+  delete this.canvas.dataset.trimAsset;delete this.canvas.dataset.trimSourceMs;
+ }
+ private requestTrimFrame(){
+  if(this.closed||this.trimPending||!this.trimTarget)return;
+  this.trimPending=true;
+  void (async()=>{
+   while(!this.closed&&this.trimTarget){
+    const target=this.trimTarget,version=this.version;
+    try{
+     const sink=await this.videoSink(target.assetId);
+     const sample=await sink.getCanvas(target.sourceMs/1000);
+     if(this.closed||!this.trimTarget)return;
+     if(this.trimTarget!==target||this.version!==version)continue;
+     if(!sample)throw Error("Requested trim frame unavailable.");
+     this.context.drawImage(sample.canvas,0,0,this.canvas.width,this.canvas.height);
+     this.lastFrame=-1;
+     this.canvas.dataset.trimAsset=target.assetId;
+     this.canvas.dataset.trimSourceMs=String(target.sourceMs);
+     this.canvas.dataset.sourceTime=String(sample.timestamp);
+     return;
+    }catch(e){
+     if(this.closed||!this.trimTarget)return;
+     if(this.trimTarget!==target||version!==this.version)continue;
+     this.fail(e);return;
+    }
+   }
+  })().finally(()=>{this.trimPending=false;this.trimSources();});
+ }
  private requestFrame(){
-  if(this.closed||!this.timeline)return;
+  if(this.closed||!this.timeline||this.trimTarget)return;
   const latest=frameTarget(this.timeline,this.position);
   if(latest){const ready=this.pictures.get(Math.floor(latest.frame/WINDOW_FRAMES));
    // Even an outstanding network seek must not block an already decoded frame.
@@ -252,7 +293,7 @@ export class FramePreviewEngine<C extends FrameClip>{
      // because the marker moved within that frame while decoding was pending.
      if(frameTarget(this.timeline!,this.position)?.frame===target.frame)this.paint(target.frame,sample);
      this.warmScrub();if(!this.dragging)this.warmUpcoming();
-    }catch(e){if(version===this.version&&seek===this.seekVersion&&!this.closed)this.fail(e);}
+    }catch(e){if(version===this.version&&seek===this.seekVersion&&!this.closed&&!this.trimTarget)this.fail(e);}
    }
   })().finally(()=>{this.pendingFrame=false;this.trimSources();if(this.frameWanted&&!this.closed)this.requestFrame();});
  }
@@ -276,7 +317,7 @@ export class FramePreviewEngine<C extends FrameClip>{
   if(this.audio.state!=="running")await this.audio.resume();
  }
  async play(){
-  if(this.closed||!this.timeline||this.intent)return;this.clearWarm();
+  if(this.closed||!this.timeline||this.intent)return;this.clearTrimPreview();this.clearWarm();
   if(this.position>=this.timeline.durationMs)this.seek(0);
   this.intent=true;this.cb.playing(true);
   try{await this.openAudio();if(this.intent&&!this.closed)this.ensureStart();}catch(e){this.fail(e);}
@@ -284,7 +325,7 @@ export class FramePreviewEngine<C extends FrameClip>{
  pause(){this.intent=false;this.seekVersion++;this.stopClock();this.cb.position(this.position);this.setBuffering(false);this.cb.playing(false);this.warmWhenIdle();}
  seek(ms:number){
   if(!this.timeline||!Number.isFinite(ms))return;
-  this.clearWarm();this.seekVersion++;this.stopClock();this.position=Math.max(0,Math.min(this.timeline.durationMs,ms));
+  this.clearTrimPreview();this.clearWarm();this.seekVersion++;this.stopClock();this.position=Math.max(0,Math.min(this.timeline.durationMs,ms));
   this.cb.position(this.position);this.trimWindows();this.requestFrame();
   if(this.intent&&!this.dragging)this.ensureStart();else this.warmWhenIdle();
  }
