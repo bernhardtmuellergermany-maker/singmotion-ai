@@ -24,7 +24,7 @@ const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songNa
 const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:id==="first"?"lip-sync":"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
 const clips=[{id:"c1",assetId:"first",track:1,timelineStartMs:0,sourceInMs:250,sourceOutMs:1750,syncLocked:false},{id:"c2",assetId:"second",track:2,timelineStartMs:2000,sourceInMs:500,sourceOutMs:2000,syncLocked:false}];
 let lockProject={...project,id:"lock-project"};
-const lockAssets=assets.map(a=>({...a,projectId:"lock-project",sourceStartMs:a.id==="first"?500:null,sourceEndMs:a.id==="first"?3500:null}));
+const lockAssets=assets.map(a=>({...a,projectId:"lock-project",createdAt:a.id==="second"?2:1,sourceStartMs:a.id==="first"?500:null,sourceEndMs:a.id==="first"?3500:null}));
 const initialLockClips=()=>clips.map(c=>({...c,positionLocked:false,showVideoName:false}));
 let lockClips=initialLockClips();
 let timelineRequests=0,assetRequests=0,secondPreparations=0,secondDownloads=0;
@@ -56,6 +56,7 @@ const server=createServer((req,res)=>{
  if(p.includes("/format/"))return json({width:320,height:180});
  if(p.includes("/timeline-preview")){timelineRequests++;res.writeHead(404);res.end();return;}
  if(p.endsWith("/song"))return media(song,"audio/mpeg");
+ if(p==="/api/music-video/lock-project/assets/first"&&req.method==="GET")return media(video,"video/mp4");
  if(p.includes("/assets/")){assetRequests++;res.writeHead(403);res.end();return;}
  if(p.includes("/preview/")&&req.method==="POST"){
   if(p.endsWith("/second")){secondPreparations++;setTimeout(()=>json({ready:true,unsupported:false}),1250);return;}
@@ -391,7 +392,18 @@ try{
   await page.locator(".mv-main-lane").click({position:{x:5,y:4}});
   assert.equal(await page.locator(".mv-clip.is-selected,.mv-song-block.is-selected").count(),0);
   assert.equal(await page.locator(".mv-inspector-body").count(),0);
-  await page.close();console.log("PASS: direct clip eye/lock, save/reload, source restoration and empty selection at "+width+"px");
+  await page.locator(".mv-library-heading").click();
+  const sort=page.getByLabel("Sort library videos");
+  assert.equal(await page.locator(".mv-media-card .mv-asset-name strong").first().textContent(),"second");
+  await sort.selectOption("source");
+  assert.equal(await page.locator(".mv-media-card .mv-asset-name strong").first().textContent(),"first");
+  assert.equal(await page.locator(".mv-media-used").count(),2);
+  await page.getByRole("button",{name:"Preview first",exact:true}).click();
+  const preview=page.getByRole("dialog",{name:"Preview first",exact:true});await preview.waitFor();
+  await preview.locator("video").evaluate(async el=>{const v=el as HTMLVideoElement;if(v.readyState>=1)return;await new Promise<void>((resolve,reject)=>{v.addEventListener("loadedmetadata",()=>resolve(),{once:true});v.addEventListener("error",()=>reject(Error("Preview failed")),{once:true});});});
+  await preview.getByRole("button",{name:"Close video preview"}).click();await preview.waitFor({state:"hidden"});
+  assert.equal(await page.locator(".mv-library-preview-dialog video").count(),0);
+  await page.close();console.log("PASS: direct clip eye/lock, save/reload, source restoration, library source sort, used indicators and original video preview at "+width+"px");
  }
  // Portal inherits a deliberately dark body foreground, as on the Videos page.
  for(const width of [320,390,1280]){

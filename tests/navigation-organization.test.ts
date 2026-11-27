@@ -547,7 +547,10 @@ test("project and library browse toolbars offer search, matching filters, refres
  }
  assert.ok(client.includes('aria-label="Refresh projects"'));
  assert.ok(editor.includes('aria-label="Refresh library"'));
- assert.ok(editor.includes("libraryNewest?b.createdAt-a.createdAt:a.createdAt-b.createdAt"));
+ assert.ok(editor.includes('librarySort==="newest"?b.createdAt-a.createdAt:a.createdAt-b.createdAt'));
+ assert.ok(editor.includes('<option value="source">Source Time</option>'));
+ assert.ok(editor.includes("a.sourceStartMs??Infinity"));
+ assert.ok(editor.includes("usedAssets.has(a.id)"));
  assert.ok(client.includes("newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt"));
  assert.ok(css.includes(".mv-root .mv-format-controls>span{margin-right:5px}"));
 });
