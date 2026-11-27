@@ -757,3 +757,12 @@
 .mv-root.mv-editor .mv-clip.is-position-locked .mv-handle{display:none;pointer-events:none}
 .mv-root.mv-editor .mv-clip .mv-waveform-bars{clip-path:inset(0 var(--mv-content-inset))}
 .mv-root.mv-editor .mv-clip .mv-clip-title,.mv-root.mv-editor .mv-clip.is-compact .mv-clip-title{top:50%;max-width:calc(100% - var(--mv-content-inset) - var(--mv-content-inset));margin:0}
+
+/* A quiet, clearly graduated time ruler, with the playhead on the lower edge. */
+.mv-root.mv-editor .mv-ruler,.mv-root.mv-editor .mv-ruler-spacer{height:30px;background:#20172c;border-top:0;border-bottom:1px solid #51405e;box-sizing:border-box}
+.mv-root.mv-editor .mv-ruler-spacer{display:flex;justify-content:center;align-items:center;color:#bfaad0;font-size:9px;font-weight:700;letter-spacing:.12em}
+.mv-root.mv-editor .mv-ruler>span.mv-tick-major{top:auto;bottom:0;height:11px;border-left:1px solid #aa90bc;padding:0;opacity:1;line-height:normal}
+.mv-root.mv-editor .mv-ruler>span.mv-tick-minor{height:5px;border-color:#776586;opacity:.8}
+.mv-root.mv-editor .mv-ruler .mv-tick-label{position:absolute;top:auto;bottom:12px;left:3px;border:0;padding:0;color:#e8ddf2;font-size:10px;font-weight:500;line-height:13px;white-space:nowrap}
+.mv-root.mv-editor .mv-playhead-overlay .mv-playhead-grip{top:16px;height:14px;width:16px;min-width:16px;border-radius:3px 3px 5px 5px;background:#cd35fc!important}
+.mv-root.mv-editor .mv-playhead-grip:before{top:3px;bottom:3px}

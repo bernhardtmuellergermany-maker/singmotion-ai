@@ -347,7 +347,7 @@ export function removeLeadingSongPart<T extends PositionedClip>(range:SongPlacem
 
 /** Source-time first; if occupied, create a short, undoable cut without
  * altering original files or explicitly position-locked clips. */
-export function planSourceTimeInsertion<T extends PositionedClip>(clips:readonly T[],candidate:T,limit:number,playhead:number,newId:()=>string):{clips:T[];clip:T;mode:"aligned"|"cut"|"alternate"|"manual"}|null{
+export function planSourceTimeInsertion<T extends PositionedClip>(clips:readonly T[],candidate:T,limit:number,playhead:number):{clips:T[];clip:T;mode:"aligned"|"cut"|"alternate"|"manual"}|null{
  if(!Number.isSafeInteger(limit)||limit<100||clips.length>=500)return null;
  const length=candidate.sourceOutMs-candidate.sourceInMs;
  if(length<=0)return null;
@@ -356,22 +356,30 @@ export function planSourceTimeInsertion<T extends PositionedClip>(clips:readonly
  const done=(base:T[],clip:T,mode:"aligned"|"cut"|"alternate"|"manual")=>base.length<500?{clips:[...base,clip],clip,mode}:null;
  const aligned=fitSourceTimeClip(clips,candidate,limit);
  if(aligned)return done([...clips],aligned,"aligned");
- // A rolling cut inside an existing unlocked clip. Keep both surviving
- // pieces, and keep their source-to-timeline relation exactly unchanged.
+ // Shorten exactly one edge of an existing unlocked clip. Never split
+ // it into two timeline entries. Retain the longer possible section,
+ // preferring its beginning on ties, and keep both source clocks intact.
  function carve(c:T,from:number,to:number,manual:boolean){
-  const old=clips.filter(x=>x.track===c.track&&!x.positionLocked)
-    .map(x=>({x,start:Math.max(from,x.timelineStartMs+100),end:Math.min(to,end(x)-100)}))
-    .filter(x=>x.end-x.start>=100)
-    .sort((a,b)=>(b.end-b.start)-(a.end-a.start)||a.start-b.start)[0];
-  if(!old)return null;
-  const size=Math.min(1000,length,old.end-old.start,Math.max(100,Math.round(length/3)));
-  if(size<100)return null;
-  const start=Math.round((old.start+old.end-size)/2),finish=start+size;
-  const left={...old.x,sourceOutMs:old.x.sourceInMs+start-old.x.timelineStartMs};
-  const right={...old.x,id:newId(),timelineStartMs:finish,sourceInMs:old.x.sourceInMs+finish-old.x.timelineStartMs};
+  const options:{old:T;kept:T;start:number;size:number;retained:number;head:boolean}[]=[];
+  for(const old of clips){
+   if(old.track!==c.track||old.positionLocked)continue;
+   const oldEnd=end(old),lo=Math.max(from,old.timelineStartMs),hi=Math.min(to,oldEnd);
+   const size=Math.min(1000,length,hi-lo,Math.max(100,Math.round(length/3)));
+   if(size<100)continue;
+   const headStart=hi-size,tailEnd=lo+size;
+   if(headStart-old.timelineStartMs>=100){
+    options.push({old,kept:{...old,sourceOutMs:old.sourceInMs+headStart-old.timelineStartMs},start:headStart,size,retained:headStart-old.timelineStartMs,head:true});
+   }
+   if(oldEnd-tailEnd>=100){
+    options.push({old,kept:{...old,timelineStartMs:tailEnd,sourceInMs:old.sourceInMs+tailEnd-old.timelineStartMs},start:lo,size,retained:oldEnd-tailEnd,head:false});
+   }
+  }
+  options.sort((a,b)=>b.retained-a.retained||Number(b.head)-Number(a.head)||a.start-b.start);
+  const option=options[0];if(!option)return null;
+  const {old,kept,start,size}=option;
   const sourceIn=manual?c.sourceInMs:c.sourceInMs+start-c.timelineStartMs;
   const inserted={...c,timelineStartMs:start,sourceInMs:sourceIn,sourceOutMs:sourceIn+size,syncLocked:manual?false:c.syncLocked};
-  return done([...clips.filter(x=>x.id!==old.x.id),left,right],inserted,manual?"manual":"cut");
+  return done(clips.map(x=>x.id===old.id?kept:x),inserted,manual?"manual":"cut");
  }
  const cut=carve(candidate,Math.max(0,candidate.timelineStartMs),Math.min(limit,end(candidate)),false);
  if(cut)return cut;

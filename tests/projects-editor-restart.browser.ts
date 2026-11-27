@@ -276,7 +276,7 @@ try{
   assert.deepEqual(selectedStyle,{outline:"none",border:"1px",shadow:"none"});
   const locked=save();await second.getByRole("button",{name:"Lock clip position: second"}).click();await locked;
   assert.equal(lockClips[1].positionLocked,true);
-  assert.equal(await second.getByRole("button",{name:"Unlock clip position: second"}).evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).isDisabled(),true);
+  assert.equal(await second.getByRole("button",{name:"Unlock clip position: second"}).evaluate(el=>getComputedStyle(el).color),"rgb(255, 255, 255)");assert.equal(await page.getByRole("button",{name:"Switch track",exact:true}).count(),0);assert.equal(await page.getByRole("button",{name:"Delete selection",exact:true}).isDisabled(),true);
   const named=save();await second.getByRole("button",{name:"Show video name: second"}).click();await named;
   assert.equal(lockClips[1].showVideoName,true);assert.equal(await second.locator(".mv-clip-title").textContent(),"second");
   assert.equal(await second.locator(".mv-clip-waveform").count(),0);
@@ -331,6 +331,15 @@ try{
   const syncUnlocked=save();await first.getByRole("button",{name:"Unlock clip position: first"}).click();await syncUnlocked;
   page.off("dialog",rejectUnexpectedDialog);assert.equal(unlockDialogs,0,"unlock must not open a confirmation dialog");
   assert.equal(lockClips[0].syncLocked,false);assert.equal(lockClips[0].positionLocked,false);
+  await select(first);
+  const field=page.getByRole("textbox",{name:"Playhead timeline time"});
+  await field.focus();await field.press("Home");await field.press("Delete");
+  assert.equal(lockClips.length,2,"Delete in a time input must not delete a clip");
+  await select(first);
+  const deleted=save();await first.press("Delete");await deleted;
+  assert.equal(lockClips.length,1);assert.equal(lockClips[0].id,"c2");
+  const undone=save();await page.getByRole("button",{name:"Undo",exact:true}).click();await undone;
+  assert.equal(lockClips.length,2,"keyboard deletion is undoable");
   const song=page.getByRole("button",{name:"Select song",exact:true});await song.focus();await song.press("Enter");
   assert.equal(await song.getAttribute("aria-pressed"),"true");
   await page.locator(".mv-main-lane").click({position:{x:5,y:4}});

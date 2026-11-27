@@ -184,7 +184,9 @@ test("video trim and track transfer preserve media and synchronization",async()=
  assert.ok(editor.includes("videoLanes.current[t]?.getBoundingClientRect()"));
  assert.ok(editor.includes("trimVideoClip(startClips,initial,edge,delta,sourceLimit(initial,asset),timelineLimit)"));
  assert.ok(editor.includes("transferVideoClip(startClips,initial,track,position)"));
- assert.ok(editor.includes("onClick={switchVideoTrack}"));
+ assert.ok(!editor.includes("onClick={switchVideoTrack}"));
+ assert.ok(!editor.includes("onClick={toggleLock}"));
+ assert.ok(editor.includes('aria-label="Delete selection"'));
  assert.ok(editor.includes('document.addEventListener("pointercancel",cancel)'));
  assert.ok(!editor.includes("draggable={!c.syncLocked}"));
 });
@@ -980,7 +982,7 @@ test("Lip Sync insertion trims overlap without changing the original source mapp
  assert.equal(rollVideoBoundary([{...left,positionLocked:true},right],right,"start",-1000,()=>5000),null);
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes("timelineStartMs:locked?asset.sourceStartMs!+songOffset(rangeRef.current)"));
- assert.ok(editor.includes("planSourceTimeInsertion(latest.current,candidate,limit,atMs,uuid)"));
+ assert.ok(editor.includes("planSourceTimeInsertion(latest.current,candidate,limit,atMs)"));
 });
 
 test("deleting the leading song part ripples every clip, preserving original lip sync and locks",async()=>{
@@ -1001,21 +1003,25 @@ test("source-time insertion works on empty trimmed tracks and squeezes into occu
  const {planSourceTimeInsertion}=await import("../lib/music-video/song-range.ts");
  const a={id:"a",track:1,timelineStartMs:0,sourceInMs:0,sourceOutMs:10000,syncLocked:true,positionLocked:false};
  const b={...a,id:"b",timelineStartMs:2000,sourceOutMs:5000};
- const fresh=planSourceTimeInsertion([],b,10000,0,()=>"new")!;
+ const fresh=planSourceTimeInsertion([],b,10000,0)!;
  assert.equal(fresh.mode,"aligned");assert.deepEqual(fresh.clip,b);
- const outside=planSourceTimeInsertion([],{...b,timelineStartMs:-9000},4000,0,()=>"new")!;
+ const outside=planSourceTimeInsertion([],{...b,timelineStartMs:-9000},4000,0)!;
  assert.equal(outside.mode,"manual");assert.equal(outside.clip.timelineStartMs,0);assert.equal(outside.clip.syncLocked,false);
- const cut=planSourceTimeInsertion([a],b,10000,0,()=>"new")!;
- assert.equal(cut.mode,"cut");assert.equal(cut.clips.length,3);
+ const cut=planSourceTimeInsertion([a],b,10000,0)!;
+ assert.equal(cut.mode,"cut");assert.equal(cut.clips.length,2);
  assert.equal(cut.clip.timelineStartMs-cut.clip.sourceInMs,2000);
  const sorted=cut.clips.sort((a,b)=>a.timelineStartMs-b.timelineStartMs);
  assert.equal(sorted[0].timelineStartMs+sorted[0].sourceOutMs-sorted[0].sourceInMs,sorted[1].timelineStartMs);
- assert.equal(sorted[1].timelineStartMs+sorted[1].sourceOutMs-sorted[1].sourceInMs,sorted[2].timelineStartMs);
- assert.equal(sorted[2].timelineStartMs-sorted[2].sourceInMs,0);
+ const kept=cut.clips.find(c=>c.id==="a")!;
+ assert.equal(kept.timelineStartMs-kept.sourceInMs,0);
+ assert.ok(kept.sourceOutMs-kept.sourceInMs<a.sourceOutMs-a.sourceInMs);
+ assert.ok(kept.sourceInMs===a.sourceInMs||kept.sourceOutMs===a.sourceOutMs);
+ const tail=planSourceTimeInsertion([a],{...b,timelineStartMs:6000,sourceOutMs:4000},10000,0)!;
+ assert.equal(tail.clips.length,2);assert.equal(tail.clips.find(c=>c.id==="a")!.sourceInMs,0);
  const locked={...a,positionLocked:true};
- const alt=planSourceTimeInsertion([locked],b,10000,0,()=>"new")!;
+ const alt=planSourceTimeInsertion([locked],b,10000,0)!;
  assert.equal(alt.mode,"alternate");assert.equal(alt.clip.track,2);assert.deepEqual(alt.clips[0],locked);
- assert.equal(planSourceTimeInsertion([locked,{...locked,id:"other",track:2}],b,10000,0,()=>"new"),null);
+ assert.equal(planSourceTimeInsertion([locked,{...locked,id:"other",track:2}],b,10000,0),null);
 });
 
 test("unlocking Lip Sync directly does not ask for confirmation",()=>{
