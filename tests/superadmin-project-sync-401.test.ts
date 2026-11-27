@@ -45,3 +45,17 @@ test("Super Admin gallery reads are owner scoped and independent of paid Studio 
  assert.ok(route.slice(end).includes('verifiedOwner!==owner'));
  assert.ok(route.slice(end).includes('studioStaff(user,req.method,req.headers,process.env)'));
 });
+
+test("existing customer gallery and saved outputs remain readable when new paid admission is paused",()=>{
+ const route=readFileSync(new URL("../app/(site)/api/studio-live/route.ts",import.meta.url),"utf8");
+ const auth=route.indexOf("if(isCustomerMedia){");
+ const gate=route.indexOf('if(!customerBeta&&req.method!=="GET")',auth);
+ const verify=route.indexOf('owner!=="customer-"+customerId||!commerce.emailVerified(customerId)',gate);
+ const reads=route.indexOf('if (req.method === "GET") {',verify);
+ assert.ok(auth>=0&&gate>auth&&verify>gate&&reads>verify);
+ assert.match(route,/service\.output\(id, owner\)/);
+ assert.match(route,/service\.listTrash\(owner\)/);
+ assert.match(route,/isCustomerMedia&&!customerBeta\?service\.view\(id,owner\):await service\.withCurrentBudget/);
+ assert.match(route,/if\(isCustomerMedia&&!customerBeta\)\s*return json\(\{budget:null,superAdmin:false,customerBeta:false,pilot:true,available:false,\s*projects:service\.list\(owner\)/);
+ assert.ok(gate<route.indexOf("const body = JSON.parse"));
+});

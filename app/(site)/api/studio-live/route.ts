@@ -100,7 +100,10 @@ async function handler(req: NextRequest) {
     let actor:string;
     let isSuperAdmin=false;
     if(isCustomerMedia){
-      if(!customerBeta)
+      // Existing private video reads must survive a pause in new paid jobs.
+      // Keep ALL mutations (including submit/poll) behind the original paid gate.
+      // A media cookie alone never authorizes an account's gallery or MP4.
+      if(!customerBeta&&req.method!=="GET")
         throw new StudioLiveError("CUSTOMER_BETA_DISABLED","Customer Credit Studio beta is not enabled for this environment.",503);
       const origin=applicationOrigin(req.url,req.headers.get("host"));
       if(req.method!=="GET"&&(!origin||req.headers.get("origin")!==origin))
@@ -216,7 +219,13 @@ async function handler(req: NextRequest) {
         });
       }
       if (id)
-        return json(await service.withCurrentBudget(service.view(id, owner)));
+        return json(isCustomerMedia&&!customerBeta?service.view(id,owner):await service.withCurrentBudget(service.view(id, owner)));
+      // Do not consult provider readiness or claim new generation is available
+      // for a customer whose paid admission is paused. The existing list is
+      // still authoritative and strictly filtered by the verified owner.
+      if(isCustomerMedia&&!customerBeta)
+        return json({budget:null,superAdmin:false,customerBeta:false,pilot:true,available:false,
+          projects:service.list(owner),blockers:["New paid video generation is temporarily unavailable."]});
       const blockers: string[] = [];
       try {
         studioGate(service.config);
