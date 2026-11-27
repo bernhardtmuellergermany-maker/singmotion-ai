@@ -1137,3 +1137,21 @@ test("ordinary video finds space on the requested track even at song end",async(
  assert.ok(editor.includes('planFreeVideoInsertion(latest.current,candidate,limit,atMs)'));
  assert.ok(editor.includes('addClip(a,a.role==="lip-sync"?1:2,playhead)'));
 });
+
+
+test("metadata-only role changes preserve decoded preview and audio timeline",async()=>{
+ const {makeFrameTimeline,sameFrameTimeline}=await import("../lib/music-video/frame-timeline.ts");
+ const clip={id:"clip",assetId:"asset",track:2 as const,timelineStartMs:0,sourceInMs:0,sourceOutMs:4000,syncLocked:true,showVideoName:false};
+ const range={startMs:0,endMs:5000,positionMs:0},mutes={song:false,1:true,2:false};
+ const before=makeFrameTimeline([clip],range,null,mutes);
+ assert.equal(sameFrameTimeline(before,makeFrameTimeline([{...clip,syncLocked:false,showVideoName:true}],range,null,mutes)),true);
+ assert.equal(sameFrameTimeline(before,makeFrameTimeline([{...clip,timelineStartMs:100}],range,null,mutes)),false);
+ assert.equal(sameFrameTimeline(before,makeFrameTimeline([{...clip,sourceInMs:100}],range,null,mutes)),false);
+ assert.equal(sameFrameTimeline(before,makeFrameTimeline([clip],range,null,{...mutes,2:true})),false);
+ assert.equal(sameFrameTimeline(before,makeFrameTimeline([clip],{...range,endMs:4500},null,mutes)),false);
+ const engine=read("lib/music-video/frame-preview-engine.ts"),editor=read("components/music-video-editor.tsx");
+ assert.ok(engine.indexOf("sameFrameTimeline(this.timeline,timeline)")<engine.indexOf("this.controller.abort();",engine.indexOf("setTimeline(")));
+ const role=editor.slice(editor.indexOf("async function changeAssetRole("),editor.indexOf("async function insertLipSync("));
+ assert.ok(!role.includes("stopPlayback()"));assert.ok(role.includes("await saveNow()"));assert.ok(role.includes("await persistAssetRole(a,role)"));
+ assert.ok(editor.includes("roleChanging?.id===a.id?roleChanging.role:a.role"));
+});
