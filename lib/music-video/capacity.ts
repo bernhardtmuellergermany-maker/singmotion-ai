@@ -4,7 +4,7 @@ import {randomUUID} from "node:crypto";
 import {statfsSync} from "node:fs";
 
 const MiB=1024*1024;
-export type OperationKind="song"|"video"|"export";
+export type OperationKind="song"|"song-replacement"|"video"|"export";
 export class ProjectCapacityError extends Error {
  readonly status:number;
  constructor(message:string,status=429){super(message);this.status=status;}
@@ -31,9 +31,10 @@ export type ProjectLimits=ReturnType<typeof projectLimits>;
  * All workers must share this same SQLite database/volume. */
 export function reserveProjectOperation(db:DatabaseSync,root:string,owner:string,kind:OperationKind,mediaBytes:number,limits=projectLimits(),now=Date.now()){
  if(!Number.isSafeInteger(mediaBytes)||mediaBytes<0||(kind!=="export"&&mediaBytes<1))throw new ProjectCapacityError("Invalid reservation.",400);
- if((kind==="song"&&mediaBytes>limits.audioBytes)||(kind==="video"&&mediaBytes>limits.videoBytes))throw new ProjectCapacityError("File too large.",413);
- const cloudBytes=kind==="song"?mediaBytes+128*MiB:kind==="video"?mediaBytes:0;
- const tempBytes=kind==="export"?limits.exportClaim:mediaBytes*2+(kind==="song"?128:16)*MiB;
+ const songUpload=kind==="song"||kind==="song-replacement";
+ if((songUpload&&mediaBytes>limits.audioBytes)||(kind==="video"&&mediaBytes>limits.videoBytes))throw new ProjectCapacityError("File too large.",413);
+ const cloudBytes=songUpload?mediaBytes+128*MiB:kind==="video"?mediaBytes:0;
+ const tempBytes=kind==="export"?limits.exportClaim:mediaBytes*2+(songUpload?128:16)*MiB;
  const id=randomUUID();
  db.exec("CREATE TABLE IF NOT EXISTS music_operation_leases (id TEXT PRIMARY KEY,owner_id TEXT NOT NULL,kind TEXT NOT NULL,cloud_bytes INTEGER NOT NULL,temp_bytes INTEGER NOT NULL,expires_at INTEGER NOT NULL)");
  db.exec("CREATE INDEX IF NOT EXISTS music_operation_leases_owner ON music_operation_leases(owner_id,kind)");
