@@ -573,7 +573,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const mediaSource=(assetId:string)=>{
     const cached=browserCache.current?.get(cacheKey(assetId));
     // Never change a decoder's source during playback. Adopt cached data when paused.
-    return playing?((buffering?cached:undefined)??sessionSources.current.get(assetId)??cached??networkSource(assetId)):(cached??networkSource(assetId));
+    return playing?(sessionSources.current.get(assetId)??cached??networkSource(assetId)):(cached??networkSource(assetId));
   };
   const source=(a:MusicAsset)=>mediaSource(a.id);
   useLayoutEffect(()=>{
@@ -1073,6 +1073,12 @@ export function MusicVideoEditor({id}:{id:string}){
     const now=performance.now(),lipSync=!!element&&lipSyncPicture(clip);
     if(lipSync&&element)observePresentedFrame(element);
     else{presentationDrift.current=null;presentationRepair.current=null;}
+    // Never rewind an already presented frame just because its clock is ahead.
+    // Freeze the picture briefly and let the audible master catch up instead.
+    if(running&&element&&!element.seeking&&!element.ended&&element.readyState>=2&&element.currentTime-expected>.045){
+      element.pause();element.playbackRate=1;presentationDrift.current=null;return true;
+    }
+    if(running&&songPlayPending.current&&element&&!element.seeking&&element.readyState>=2&&!element.ended)return true;
     const gate=running?previewRunningGate(expected,element,now-jointStartTime.current):pictureSyncGate(expected,element,false);
     if(gate==="align"&&element){
       element.pause();element.playbackRate=1;
@@ -1094,7 +1100,9 @@ export function MusicVideoEditor({id}:{id:string}){
       }
       if(running){
         const decision=lipSyncFrameDecision(expected,element.currentTime,frame,now,now-jointStartTime.current,!!audio.current&&!audio.current.paused);
-        if(decision.outOfSync){
+        // A slightly leading compositor frame is not fixed by seeking backwards.
+        const frameError=frame?presentedFrameError(expected,frame,now,true):null;
+        if(decision.outOfSync&&(element.currentTime<expected-.085||frameError!==null&&frameError>LIP_SYNC_FRAME_LAG_SECONDS)){
           if(presentationDrift.current?.element!==element)presentationDrift.current={element,since:now};
           else if(now-presentationDrift.current.since>=LIP_SYNC_FRAME_PERSIST_MS){
             presentationDrift.current=null;
@@ -1145,9 +1153,9 @@ export function MusicVideoEditor({id}:{id:string}){
     jointStarted.current=true;jointStartTime.current=performance.now();
     const clip=previewMediaPlan(latest.current,at,mutesRef.current).visible;
     const picture=clip?pictureAt(clip):null;
-    // Start the two native media elements in the same turn, not on the song's
-    // later playing event. This also preserves the user's gesture when ready.
-    if(picture){picture.playbackRate=1;playFollower(picture);}
+    // Keep the aligned picture stationary until the native song start resolves.
+    // Starting the picture first can show frames that must later be replayed.
+    if(picture){picture.pause();picture.playbackRate=1;}
     songPlayPending.current=true;
     void current.play().catch(error=>{
       if(error?.name==="AbortError")return;
@@ -1320,7 +1328,7 @@ export function MusicVideoEditor({id}:{id:string}){
       return !clip||!!element&&!element.paused&&!element.seeking&&element.readyState>=2;
     }
     const master=audio.current;
-    if(syncHold.current!==null)return false;
+    if(syncHold.current!==null||songPlayPending.current)return false;
     return !songPartAt(rangeRef.current,partsRef.current,at)||
       (!!master&&!master.paused&&!master.seeking&&master.readyState>=2);
   }
@@ -1341,6 +1349,12 @@ export function MusicVideoEditor({id}:{id:string}){
     // An in-flight seek finishes once; its callback aligns to the latest playhead.
     // While the master buffers, pause followers rather than repeatedly seeking them.
     if(!run&&playingRef.current){if(!(jointStarted.current&&syncHold.current===null&&performance.now()-jointStartTime.current<180))element.pause();return;}
+    if(run&&audibleSongAt(at)&&element instanceof HTMLVideoElement){
+      if(songPlayPending.current){element.pause();return;}
+      // A video ahead of the master waits; do not seek backwards or replay frames.
+      if(!element.seeking&&!element.ended&&element.currentTime-expected>.045){element.pause();element.playbackRate=1;return;}
+      if(!element.seeking&&element.paused&&element.currentTime>=expected-.025){element.playbackRate=1;playFollower(element);return;}
+    }
     if(run&&audibleSongAt(at)&&performance.now()-jointStartTime.current<180){if(element.paused)playFollower(element);return;}
     const precisePicture=run&&audibleSongAt(at)&&element instanceof HTMLVideoElement&&lipSyncPicture(clip)&&!element.paused&&!element.seeking;
     const decision=precisePicture
