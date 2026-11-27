@@ -558,7 +558,8 @@ test("project and library browse toolbars offer search, matching filters, refres
  assert.ok(editor.includes("a.sourceStartMs??Infinity"));
  assert.ok(editor.includes("usedAssets.has(a.id)"));
  assert.ok(client.includes("newest?b.updatedAt-a.updatedAt:a.updatedAt-b.updatedAt"));
- assert.ok(css.includes(".mv-root .mv-format-controls>span{margin-right:5px}"));
+ assert.ok(editor.includes('aria-label="Project video format"'));
+ assert.ok(!editor.includes("<span>Format</span>"));
 });
 
 test("project and library menus dismiss on outside clicks and Escape; clip details stay compact",()=>{
