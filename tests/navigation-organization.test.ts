@@ -661,7 +661,7 @@ test("mobile editing uses one native clock and never automatically downloads ori
  assert.ok(editor.includes('warmNextVideo(element,c,transition.atMs)'));
  assert.ok(editor.includes('element===video.current||element.readyState<1||element.seeking'));
  assert.ok(editor.includes('if(mobile!==false||importing||syncedMode)return'));
- assert.ok(editor.includes('if(mobile!==true)return'));
+ assert.ok(editor.includes('if(mobile!==true||syncedMode)return'));
  assert.ok(editor.includes('timer=setTimeout(()=>void prepare(),2000)'));
  assert.ok(editor.includes('const mobileClock=!!mobilePlan?.visible&&!songMaster'));
  assert.ok(editor.includes('clip=mobileRef.current?plan.visible:plan.clock'));
