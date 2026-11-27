@@ -294,7 +294,7 @@ test("timeline zoom is visibly separate from playback progress",()=>{
 test("timeline uses full width and media is added from the library",()=>{
  const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
  assert.ok(editor.includes('const songSelected=selected==="song"'));
- assert.ok(editor.includes('function selectSong(){setSelected("song");setInspectorOpen(true);}'));
+ assert.ok(editor.includes('function selectSong(){if(project?.songRemoved)return;setSelected("song");setInspectorOpen(true);}'));
  assert.ok(editor.includes('beginMediaGesture(e,"song",()=>dragSong(e),selectSong)'));
  assert.ok(editor.includes('aria-label="Select song" aria-pressed={songSelected}'));
  assert.ok(editor.includes('!songSelected&&selectedClip&&selectedAsset?<form'));
