@@ -927,3 +927,18 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
   background-image:linear-gradient(rgb(255 255 255 / 5%),rgb(255 255 255 / 5%));
  }
 }
+
+/* SingMotion library filter/sort menus, rather than platform-native select popups. */
+.mv-root.mv-editor .mv-library-icon-select{overflow:visible;display:block}
+.mv-root.mv-editor .mv-library-icon-select>summary{display:grid;place-items:center;width:100%;height:100%;cursor:pointer;list-style:none;border-radius:6px}
+.mv-root.mv-editor .mv-library-icon-select>summary::-webkit-details-marker{display:none}
+.mv-root.mv-editor .mv-library-icon-select[open]{z-index:35;background:#352147;color:#e4b5ff}
+.mv-root.mv-editor .mv-library-icon-select>summary:focus-visible{outline:2px solid #c797e8;outline-offset:1px}
+.mv-root.mv-editor .mv-library-select-menu{position:absolute;top:calc(100% + 5px);right:0;width:184px;max-width:calc(100vw - 36px);box-sizing:border-box;display:grid;gap:2px;padding:5px;background:#21172d;color:#fff;border:1px solid #665079;border-radius:9px;box-shadow:0 8px 22px #0008}
+.mv-root.mv-editor .mv-library-icon-select:not([open]) .mv-library-select-menu{display:none}
+.mv-root.mv-editor .mv-library-select-menu>button{display:flex;align-items:center;gap:8px;width:100%;min-height:32px;box-sizing:border-box;padding:6px 8px;border:0;border-radius:5px;background:transparent;color:#e6d9f0;font:inherit;font-size:12px;text-align:left;cursor:pointer}
+.mv-root.mv-editor .mv-library-select-menu>button>span:first-child{flex:1;min-width:0;white-space:nowrap}
+.mv-root.mv-editor .mv-library-select-menu>button>small{color:#b9a4ca;font-size:11px}
+.mv-root.mv-editor .mv-library-select-menu>button>svg,.mv-root.mv-editor .mv-select-check-space{width:14px;flex:0 0 14px}
+.mv-root.mv-editor .mv-library-select-menu>button[aria-pressed=true]{background:#3c2551;color:#f1d8ff}
+.mv-root.mv-editor .mv-library-select-menu>button:hover,.mv-root.mv-editor .mv-library-select-menu>button:focus-visible{background:#503266}
