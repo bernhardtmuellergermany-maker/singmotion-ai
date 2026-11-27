@@ -348,8 +348,9 @@ export function attachProjectSong(id:string,owner:string,revision:unknown,versio
   const previous=project.songRestore;
   // Preserve the old song clock offset if the new recording supports it.
   // Different-length replacements keep their full duration where possible.
-  const range=previous&&validSongPlacement(previous.range,duration)?previous.range:{startMs:0,endMs:duration,positionMs:0};
-  const parts=previous&&range===previous.range&&previous.parts&&validSongParts(previous.parts,range)?previous.parts:null;
+  const priorRange=previous?{...previous.range,endMs:previous.range.endMs===previous.durationMs?duration:Math.min(previous.range.endMs,duration)}:null;
+  const range=priorRange&&validSongPlacement(priorRange,duration)?priorRange:{startMs:0,endMs:duration,positionMs:0};
+  const parts=previous&&range===priorRange&&previous.parts&&validSongParts(previous.parts,range)?previous.parts:null;
   const changed=db.prepare("UPDATE music_projects SET song_removed=0,song_version=?,song_name=?,song_duration_ms=?,song_start_ms=?,song_end_ms=?,song_position_ms=?,song_parts_json=?,track_mute_mask=track_mute_mask & 3,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=? AND song_removed=1").run(version,validatedSongName(name),duration,range.startMs,range.endMs,range.positionMs,parts===null?null:JSON.stringify(parts),Date.now(),id,owner,revision);
   // Reapply only previously active locks whose exact original media mapping
   // still matches. Never move, trim or overwrite edits made while songless.
