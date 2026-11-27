@@ -2,6 +2,10 @@ export const MIN_TIMELINE_ZOOM=20,MAX_TIMELINE_ZOOM=880;
 export function clampTimelineZoom(value:number){
  return Math.max(MIN_TIMELINE_ZOOM,Math.min(MAX_TIMELINE_ZOOM,value));
 }
+/** Minimum pixels/second that keeps the complete edited duration across the viewport. */
+export function timelineFitZoom(durationMs:number,width:number){
+ return durationMs>0&&width>0?Math.max(MIN_TIMELINE_ZOOM,width*1000/durationMs):MIN_TIMELINE_ZOOM;
+}
 export function anchoredScroll(anchorMs:number,zoom:number,viewportX:number){
  return Math.max(0,anchorMs*zoom/1000-viewportX);
 }
