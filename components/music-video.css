@@ -942,3 +942,9 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
 .mv-root.mv-editor .mv-library-select-menu>button>svg,.mv-root.mv-editor .mv-select-check-space{width:14px;flex:0 0 14px}
 .mv-root.mv-editor .mv-library-select-menu>button[aria-pressed=true]{background:#3c2551;color:#f1d8ff}
 .mv-root.mv-editor .mv-library-select-menu>button:hover,.mv-root.mv-editor .mv-library-select-menu>button:focus-visible{background:#503266}
+
+/* Song selection uses the same inward, single-pixel border as video clips.
+   Trim targets remain transparent, pointer-active and keyboard accessible. */
+.mv-root.mv-editor .mv-song-lane .mv-song-block{border:1px solid #75428f;outline:none;box-shadow:none}
+.mv-root.mv-editor .mv-song-lane .mv-song-block:is(.is-selected,.is-armed,:focus-visible){border-color:#e1c4f1;outline:none;box-shadow:none}
+.mv-root.mv-editor .mv-song-handle::before{content:none!important}
