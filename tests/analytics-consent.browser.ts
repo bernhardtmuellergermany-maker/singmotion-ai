@@ -6,7 +6,7 @@ import {mkdtemp,rm} from "node:fs/promises";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {chromium,expect} from "@playwright/test";
-import {CONSENT_KEY,serializeConsent} from "../lib/analytics/consent.ts";
+import {CONSENT_KEY} from "../lib/analytics/consent.ts";
 const root=await mkdtemp(path.join(tmpdir(),"sm-analytics-browser-"));
 const reserve=createServer();
 await new Promise<void>(resolve=>reserve.listen(0,"127.0.0.1",resolve));
@@ -90,12 +90,19 @@ try {
    await expect(panel.getByRole("link",{name:"Cookie policy"})).toBeVisible();
    assert.equal(requests.length,0,"no tag before consent");
    await reject.click();
-   await expect(page.getByRole("button",{name:"Privacy settings"})).toBeVisible();
+   await expect(page.getByRole("button",{name:"Privacy settings"})).toHaveCount(0);
    await page.reload();
-   await expect(page.getByRole("button",{name:"Privacy settings"})).toBeVisible();
+   await expect(page.getByRole("button",{name:"Privacy settings"})).toHaveCount(0);
    assert.equal(requests.length,0,"no tag after rejection and reload");
-   await page.getByRole("button",{name:"Privacy settings"}).click();
+   await page.goto(origin+"/privacy");
+   const inline=page.locator("#privacy-settings").getByRole("button",{name:"Privacy settings",exact:true});
+   await expect(inline).toBeVisible();
+   assert.notEqual(await inline.evaluate(el=>getComputedStyle(el).position),"fixed");
+   await inline.click();
    await accept.click();
+   assert.equal(requests.length,0,"consent changes on legal pages do not load Google");
+   await page.goto(origin+"/");
+   await expect(page.getByRole("button",{name:"Privacy settings"})).toHaveCount(0);
    await expect.poll(()=>requests.length).toBe(1);
    await page.waitForFunction(()=>Boolean((window as unknown as Record<string,unknown>).__smMockGoogleTagLoaded));
    const queue=await page.evaluate(()=>((window as unknown as {dataLayer:unknown[]}).dataLayer||[]).map(entry=>Array.from(entry as ArrayLike<unknown>)));
@@ -107,23 +114,28 @@ try {
    // Query-bearing homepage and private page must never load Google, even with a previous grant.
    const privatePage=await context.newPage();
    await privatePage.goto(origin+"/?card=projects");
-   await expect(privatePage.getByRole("button",{name:"Privacy settings"})).toBeVisible();
+   await expect(privatePage.getByRole("button",{name:"Privacy settings"})).toHaveCount(0);
    assert.equal(requests.length,1);
-   await privatePage.goto(origin+"/privacy");
-   await expect(privatePage.getByRole("button",{name:"Privacy settings"})).toBeVisible();
+   await privatePage.goto(origin+"/cookies");
+   const cookieSettings=privatePage.locator("#privacy-settings").getByRole("button",{name:"Privacy settings",exact:true});
+   await expect(cookieSettings).toBeVisible();
+   assert.notEqual(await cookieSettings.evaluate(el=>getComputedStyle(el).position),"fixed");
+   await cookieSettings.click();
+   await expect(privatePage.getByRole("button",{name:"Reject optional",exact:true})).toBeVisible();
    assert.equal(requests.length,1);
    // Revocation in another tab disables and unloads the existing tag.
    // Cross-tab revocation intentionally reloads the tracked document. Register before changing storage.
    await Promise.all([
     page.waitForNavigation({waitUntil:"domcontentloaded"}),
-    privatePage.evaluate(({key,value})=>localStorage.setItem(key,value),{key,value:serializeConsent("denied")}),
+    privatePage.getByRole("button",{name:"Reject optional",exact:true}).click(),
    ]);
-   await expect(page.getByRole("button",{name:"Privacy settings"})).toBeVisible();
+   await expect(page.getByRole("button",{name:"Privacy settings"})).toHaveCount(0);
    await expect.poll(()=>page.evaluate(id=>Boolean((window as unknown as Record<string,unknown>)["ga-disable-"+id]),id)).toBe(true);
    await expect.poll(()=>page.evaluate(()=>Boolean((window as unknown as Record<string,unknown>).__smMockGoogleTagLoaded))).toBe(false);
    assert.equal(requests.length,1,"revocation must not load another tag");
+   assert.equal(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)??"null")?.choice,key),"denied");
    await page.reload();
-   await expect(page.getByRole("button",{name:"Privacy settings"})).toBeVisible();
+   await expect(page.getByRole("button",{name:"Privacy settings"})).toHaveCount(0);
    assert.equal(requests.length,1);
    console.log("PASS: isolated analytics consent browser test "+viewport.width+"px; no real Google requests");
   }finally{await context.close();}
