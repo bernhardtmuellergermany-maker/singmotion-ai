@@ -160,7 +160,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const detailRef=useRef<Detail|null>(null);
   const load=useCallback(async()=>{
     const data=await request<Detail>(endpoint+id);
-    syncedAbort.current?.abort();syncedAbort.current=null;syncedPendingPlay.current=false;syncedSeekTarget.current=null;syncedVideo.current?.pause();setSyncedPreview(null);setSyncedProgress(null);
+    syncedAbort.current?.abort();syncedAbort.current=null;syncedPendingPlay.current=false;syncedSeekTarget.current=null;syncedVideo.current?.pause();setSyncedPreview(null);setSyncedProgress(null);setReviewDownloading(false);
     detailRef.current=data;revision.current=data.project.revision;latest.current=data.clips;dirty.current=false;
     const range={startMs:data.project.songStartMs,endMs:data.project.songEndMs,positionMs:data.project.songPositionMs};
     ratioRef.current=data.project.aspectRatio??"auto";setAspectRatio(ratioRef.current);
@@ -595,7 +595,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const followingAsset=followingTransition?byId.get(followingTransition.clip.assetId):undefined;
   const firstPreviewAsset=firstVisibleVideo(clips)?.assetId;
   useEffect(()=>{
-    if(mobile===null||syncedMode)return;
+    if(syncedMode){browserCache.current?.suspend();return;}
+    if(mobile===null)return;
     const ids=[activeAsset?.id,nextAsset?.id,previousAsset?.id,firstPreviewAsset,followingAsset?.id,activeAudio1?.assetId,activeAudio2?.assetId].filter((v):v is string=>!!v);
     const candidates=ids.filter(a=>mobile?mobileReady.has(a)&&!mobileOriginalRef.current.has(a):previewReady.has(a)).map(a=>({key:cacheKey(a),url:endpoint+id+"/preview/"+a+(mobile?"?mobile=1":"")}));
     // Pin any attached blob URLs, even if a seek has changed the lookahead.
