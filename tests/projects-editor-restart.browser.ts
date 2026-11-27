@@ -8,6 +8,8 @@ import {mkdtempSync,readFileSync,rmSync} from "node:fs";
 import {tmpdir} from "node:os";
 import path from "node:path";
 import {chromium} from "@playwright/test";
+import {startMusicTimelinePreview,musicTimelinePreviewStatus,musicTimelinePreviewFile,musicExportFile} from "../lib/music-video/export.ts";
+import type {MusicProject,MusicClip} from "../lib/music-video/core.ts";
 const require=createRequire(import.meta.url);
 // Use the existing tsx bundler dependency, including when npm nests it.
 const {build}=createRequire(require.resolve("tsx/package.json"))("esbuild");
@@ -22,6 +24,20 @@ const css=readFileSync("components/music-video.css");
 const project={id:"fixture-project",ownerId:"staff:fixture",name:"Replay",songName:"Test song",songDurationMs:4000,songStartMs:0,songEndMs:4000,songPositionMs:0,songParts:null,trackMutes:{1:true,2:true,song:false},revision:0,createdAt:1,updatedAt:1,aspectRatio:"16:9"};
 const assets=["first","second"].map(id=>({id,projectId:project.id,name:id,kind:"imported",role:id==="first"?"lip-sync":"b-roll",sourceKind:"uploaded",sourceId:"mp4",durationMs:4000,sourceStartMs:null,sourceEndMs:null,createdAt:1}));
 const clips=[{id:"c1",assetId:"first",track:1,timelineStartMs:0,sourceInMs:250,sourceOutMs:1750,syncLocked:false},{id:"c2",assetId:"second",track:2,timelineStartMs:2000,sourceInMs:500,sourceOutMs:2000,syncLocked:false}];
+const songFile=path.join(root,"song.wav");
+const {writeFileSync}=await import("node:fs");writeFileSync(songFile,song);
+const fixtureOwner="staff:fixture";
+const job=await startMusicTimelinePreview(fixtureOwner,project as MusicProject,clips as MusicClip[],new Map(assets.map(a=>[a.id,mp4])),songFile,async()=>{});
+let status=job;
+const deadline=Date.now()+60000;
+while(status.state==="rendering"&&Date.now()<deadline){await new Promise(r=>setTimeout(r,100));status=(await musicTimelinePreviewStatus(fixtureOwner,project.id,project.revision,job.id))!;}
+assert.equal(status.state,"ready");
+const rendered=await musicTimelinePreviewFile(fixtureOwner,project.id,project.revision,job.id);assert.ok(rendered);
+assert.equal(await musicTimelinePreviewFile("staff:other",project.id,project.revision,job.id),null);
+assert.equal(await musicTimelinePreviewFile(fixtureOwner,project.id,1,job.id),null);
+assert.equal(await musicExportFile(fixtureOwner,project.id,job.id),null);
+const syncedBytes=readFileSync(rendered);
+let previewRequests=0;
 const server=createServer((req,res)=>{
  const url=new URL(req.url||"/","http://localhost"),p=url.pathname;
  const send=(data:Buffer|Uint8Array|string,type:string)=>{res.writeHead(200,{"content-type":type});res.end(data);};
@@ -39,6 +55,8 @@ const server=createServer((req,res)=>{
  if(p==="/api/music-video/fixture-project")return json({project,assets,clips});
  if(p.includes("/waveform"))return json({durationMs:4000,hasAudio:true,peaks:Array.from({length:200},(_,i)=>i<50?.2:i<100?.8:.1)});
  if(p.includes("/format/"))return json({width:320,height:180});
+ if(p.endsWith("/timeline-preview")&&req.method==="POST"){previewRequests++;return json(status);}
+ if(p.endsWith("/timeline-preview/"+job.id))return url.searchParams.has("media")?media(syncedBytes,"video/mp4"):json(status);
  if(p.endsWith("/song"))return media(song,"audio/wav");
  if(p.includes("/preview/")&&req.method==="POST")return json({ready:true,unsupported:false});
  if(p.includes("/preview/")||p.includes("/assets/"))return media(video,"video/mp4");
@@ -80,6 +98,7 @@ try{
   await page.goto(origin);
   const play=page.getByRole("button",{name:"Play",exact:true}),pause=page.getByRole("button",{name:"Pause",exact:true});
   await play.waitFor({timeout:10000});
+  await page.getByRole("button",{name:"Quick edit",exact:true}).click();
   await page.waitForFunction(()=>document.querySelectorAll(".mv-clip .mv-clip-waveform[data-waveform=ready] .mv-wave-shape").length===2&&!!document.querySelector(".mv-song-block .mv-wave-shape"),{},{timeout:10000});
   assert.equal(await page.locator(".mv-lane.is-audio-muted .mv-wave-shape").count(),2);
   for(const shape of await page.locator(".mv-wave-shape").all())assert.equal(await shape.evaluate(el=>getComputedStyle(el).fill),"rgb(255, 255, 255)");
@@ -119,6 +138,19 @@ try{
   await play.click();
   await page.waitForFunction(()=>{const a=document.querySelector<HTMLAudioElement>("audio"),v=document.querySelector<HTMLVideoElement>('video[aria-hidden="false"]');return a&&v&&!a.paused&&!v.paused&&a.currentTime>.2&&a.currentTime<1.4&&Math.abs(v.currentTime-a.currentTime-.25)<.18;},{},{timeout:3000});
   console.log("PASS: actual Projects editor starts, seeks and replays from EOF on "+(mobile?"mobile":"desktop")+" Chromium with paused decoder at HAVE_CURRENT_DATA");
+  await pause.click();
+  await page.getByRole("button",{name:"Synced",exact:true}).click();await seek.press("Home");
+  const requestsBefore=previewRequests;
+  await play.click();
+  const muxed=page.locator("video[data-synced-preview=true]");
+  await muxed.waitFor({timeout:10000});
+  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&!v.seeking&&v.currentTime>.2;},{},{timeout:5000});
+  assert.equal(await page.locator("audio").count(),0);assert.equal(await page.locator(".mv-video-box video").count(),1);
+  await pause.click();await seek.press("End");await seek.press("Home");
+  await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.seeking&&v.currentTime<.04;});
+  await play.click();await page.waitForFunction(()=>{const v=document.querySelector<HTMLVideoElement>("video[data-synced-preview=true]");return v&&!v.paused&&v.currentTime>.2;});
+  assert.equal(previewRequests,requestsBefore+1,"same saved revision reuses one muxed player");
+  console.log("PASS: exact rendered timeline uses one native A/V player across pause, seek and replay on "+(mobile?"mobile":"desktop")+" Chromium");
   await page.close();
  }
 }finally{await browser.close();await new Promise<void>(resolve=>server.close(()=>resolve()));rmSync(root,{recursive:true,force:true});}
