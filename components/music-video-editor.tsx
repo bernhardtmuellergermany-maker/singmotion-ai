@@ -5,7 +5,7 @@ import Link from "next/link";
 import {createPortal} from "react-dom";
 import {ChevronDown,ChevronRight,Check,Film,Lock,Unlock,Video,Mic,Eye,EyeOff,
   Maximize,Minus,MoreHorizontal,Music2,Pause,Pencil,Play,Plus,Redo2,Scissors,
-  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown,Magnet,ZoomIn,ZoomOut} from "lucide-react";
+  Search,Trash2,Undo2,Upload,Download,X,Volume2,VolumeX,RefreshCw,ArrowUpDown,Magnet,ZoomIn,ZoomOut,AudioLines} from "lucide-react";
 import {ensureSession} from "@/lib/client";
 import {FramePreviewEngine} from "@/lib/music-video/frame-preview-engine";
 import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
@@ -1209,7 +1209,7 @@ export function MusicVideoEditor({id}:{id:string}){
             <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
           </div>
         </div>
-        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon" disabled={importing||!!selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Return to source time"><Undo2 size={14}/> Return to source time · {time(originalClipSongTime,true)}</button>}
+        {originalClipSongTime!==null&&<button type="button" className="mv-outline mv-inspector-icon mv-resync" disabled={importing||!!selectedClip.positionLocked} onClick={()=>moveSelectedClip(songTimeToTimeline(originalClipSongTime,rangeRef.current),true)} title={"Restore Lip Sync · "+time(originalClipSongTime,true)} aria-label="Re-Sync"><AudioLines size={16} aria-hidden="true"/> Re-Sync</button>}
         <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
       </form>:
       <form className="mv-song-trim mv-song-position" onSubmit={e=>e.preventDefault()}>

@@ -413,7 +413,7 @@
 }
 
 /* Match all editor text fields to the dark SingMotion form theme, including autofill. */
-.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=file]):not([type=hidden]):not([type=search]){
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=file]):not([type=hidden]):not([type=search]):not([aria-label="Playhead timeline time"]){
  color-scheme:dark;
  background:#131d2b!important;
  color:#f4f0fa!important;
@@ -423,7 +423,7 @@
  opacity:1;
 }
 .mv-root.mv-editor input:not([type=range]):not([type=checkbox])::placeholder{color:#a99bb9!important;-webkit-text-fill-color:#a99bb9!important;opacity:1}
-.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=search]):focus{
+.mv-root.mv-editor input:not([type=range]):not([type=checkbox]):not([type=search]):not([aria-label="Playhead timeline time"]):focus{
  background:#172335!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
  border-color:#a76cce!important;
 }
@@ -810,3 +810,10 @@
  .mv-root.mv-editor .mv-track-labels{flex:0 0 88px;min-width:88px}
  .mv-root.mv-editor .mv-ruler-spacer .mv-marker-time input[aria-label="Playhead timeline time"]{font-size:12px!important}
 }
+
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time input[aria-label="Playhead timeline time"],.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time input[aria-label="Playhead timeline time"]:focus{background:transparent!important;background-image:none!important;box-shadow:none!important;-webkit-box-shadow:none!important;border:0!important;outline:none!important}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time input[aria-label="Playhead timeline time"]:-webkit-autofill{-webkit-box-shadow:0 0 0 1000px #000 inset!important}
+.mv-root.mv-editor .mv-inspector-icon.mv-resync{white-space:nowrap;gap:6px;color:#fff;border-color:#806294;background:#61337e;font-weight:600;padding:6px 10px;min-height:34px;border-radius:7px}
+.mv-root.mv-editor .mv-inspector-icon.mv-resync>svg{flex:none;color:inherit}
+.mv-root.mv-editor .mv-inspector-icon.mv-resync:hover:not(:disabled){background:#78439a}
+.mv-root.mv-editor .mv-inspector-icon.mv-resync:disabled{opacity:.45;cursor:not-allowed}

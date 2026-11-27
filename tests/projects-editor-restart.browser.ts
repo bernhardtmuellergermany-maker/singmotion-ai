@@ -193,6 +193,7 @@ try{
 
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el.parentElement!).backgroundColor),"rgb(0, 0, 0)");
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
+  await exactTime.focus();assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
   await exactTime.fill("00:01.234");await exactTime.press("Enter");
   assert.equal(await page.locator(".mv-progress").inputValue(),"1234");
   await exactTime.press("Escape");
@@ -276,6 +277,7 @@ try{
   const select=async(clip:typeof second)=>{await clip.focus();await clip.press("Enter");};
   const save=()=>page.waitForResponse(r=>r.url().endsWith("/lock-project/clips")&&r.request().method()==="PATCH");
   await select(second);
+  assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).count(),0,"B-roll must not offer Re-Sync");
   const appearance=await second.evaluate(el=>{
    const eye=el.querySelector(".mv-clip-display-toggle")!,lock=el.querySelector(".mv-clip-position-lock")!;
    const a=getComputedStyle(eye),b=getComputedStyle(lock);
@@ -361,7 +363,7 @@ try{
   const protectedStart=lockClips[1].timelineStartMs;await dragSecond(15);await page.waitForTimeout(800);
   assert.equal(lockClips[1].timelineStartMs,protectedStart,"locked video must not move");
   console.log("PASS: unlocked clip moves with "+(width<500?"touch hold":"mouse drag")+"; locked clip stays fixed");
-  await select(first);const restored=save();await page.getByRole("button",{name:"Return to source time",exact:true}).click();await restored;
+  await select(first);const resync=page.getByRole("button",{name:"Re-Sync",exact:true});assert.equal(await resync.isEnabled(),true);assert.equal(await resync.locator("svg").count(),1);const restored=save();await resync.click();await restored;
   assert.equal(lockClips[0].timelineStartMs,750);assert.equal(lockClips[0].syncLocked,true);
   // Restoring source timing must show a closed padlock, not an open one.
   await first.getByRole("button",{name:"Unlock clip position: first"}).waitFor();
