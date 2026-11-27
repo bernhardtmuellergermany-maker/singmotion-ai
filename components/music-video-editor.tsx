@@ -1107,7 +1107,8 @@ export function MusicVideoEditor({id}:{id:string}){
         <div className="mv-track-labels">
           <div className="mv-label mv-ruler-spacer">
           <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
-            <label title="Playhead time · Enter to apply"><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
+            <label title="Playhead time · Enter or checkmark to apply"><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
+            <button type="submit" className="mv-marker-confirm" aria-label="Confirm playhead time" title="Confirm playhead time"><Check size={15} aria-hidden="true"/></button>
           </form>
           </div>
           {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"Video · Overlay"}>

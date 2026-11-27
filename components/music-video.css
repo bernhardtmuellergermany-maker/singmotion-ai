@@ -829,3 +829,13 @@
 .mv-root.mv-editor .mv-timeline-toolbar .mv-resync:hover:not(:disabled){background:#352147;color:#fff}
 .mv-root.mv-editor .mv-timeline-toolbar .mv-resync:disabled{opacity:.35;background:transparent;color:#fff;cursor:default}
 @media(max-width:760px){.mv-root.mv-editor .mv-timeline-toolbar .mv-resync{padding-inline:5px;gap:3px;font-size:11px}}
+
+/* Compact confirmation within the black, pinned playhead time field. */
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time{gap:0;align-items:center;box-sizing:border-box;border:1px solid #44354f;border-radius:5px;background:#000;padding:0;height:26px}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time label{flex:1 1 auto;width:auto;border:0;padding:0 1px;outline:none;min-width:0}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time:focus-within{border-color:#c797e8}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-time>.mv-marker-confirm{box-sizing:border-box;display:grid;place-items:center;flex:0 0 21px;width:21px;min-width:21px;max-width:21px;height:24px;min-height:0;padding:0;margin:0;border:0;border-left:1px solid #44354f;border-radius:0 4px 4px 0;background:transparent;box-shadow:none;color:#fff;cursor:pointer}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-confirm>svg{display:block;color:inherit;flex:none}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-confirm:hover{background:#352147}
+.mv-root.mv-editor .mv-ruler-spacer .mv-marker-confirm:focus-visible{outline:1px solid #c797e8;outline-offset:-2px}
+@media(max-width:760px){.mv-root.mv-editor .mv-track-labels{flex:0 0 110px;min-width:110px}}

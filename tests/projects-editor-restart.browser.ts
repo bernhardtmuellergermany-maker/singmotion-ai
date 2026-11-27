@@ -185,15 +185,18 @@ try{
   const initialSnap=await magnet.getAttribute("aria-pressed");
   await magnet.click();assert.notEqual(await magnet.getAttribute("aria-pressed"),initialSnap);
   await magnet.click();assert.equal(await magnet.getAttribute("aria-pressed"),initialSnap);
-  assert.equal(await page.locator(".mv-timeline-toolbar input[type=checkbox],.mv-zoom-buttons output,.mv-marker-time button").count(),0);
+  assert.equal(await page.locator(".mv-timeline-toolbar input[type=checkbox],.mv-zoom-buttons output,.mv-timeline-toolbar .mv-marker-time button").count(),0);
   const exactTime=page.getByRole("textbox",{name:"Playhead timeline time"});
   assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time input").count(),1);
-  assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time svg,.mv-timeline-toolbar .mv-marker-time").count(),0);
+  assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time label svg,.mv-timeline-toolbar .mv-marker-time").count(),0);
   assert.ok(await exactTime.evaluate(el=>{const a=el.getBoundingClientRect(),b=el.closest(".mv-track-labels")!.getBoundingClientRect();return a.left>=b.left&&a.right<=b.right&&el.scrollWidth<=el.clientWidth+1;}),"time field must fit in the pinned track column");
 
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el.parentElement!).backgroundColor),"rgb(0, 0, 0)");
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
   await exactTime.focus();assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
+  const confirmTime=page.getByRole("button",{name:"Confirm playhead time",exact:true});
+  assert.equal(await confirmTime.isVisible(),true);
+  await exactTime.fill("00:00.918");await confirmTime.click();assert.equal(await page.locator(".mv-progress").inputValue(),"918");
   await exactTime.fill("00:01.234");await exactTime.press("Enter");
   assert.equal(await page.locator(".mv-progress").inputValue(),"1234");
   await exactTime.press("Escape");
