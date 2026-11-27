@@ -28,7 +28,8 @@ export function validSongPlacement(r:SongPlacement,duration:number):boolean{
 export function trimSongPlacement(original:SongPlacement,range:SongRange):SongPlacement{
  return {...range,positionMs:Math.max(0,range.startMs+songOffset(original))};
 }
-export function shiftLockedClips<T extends {syncLocked:boolean;timelineStartMs:number;sourceInMs:number;sourceOutMs:number;track:number}>(clips:T[],delta:number):T[]|null{
+export function shiftLockedClips<T extends {syncLocked:boolean;positionLocked?:boolean;timelineStartMs:number;sourceInMs:number;sourceOutMs:number;track:number}>(clips:T[],delta:number):T[]|null{
+ if(delta!==0&&clips.some(c=>c.syncLocked&&c.positionLocked))return null;
  const moved=clips.map(c=>c.syncLocked?{...c,timelineStartMs:c.timelineStartMs+delta}:c);
  if(moved.some(c=>c.timelineStartMs<0||c.timelineStartMs+c.sourceOutMs-c.sourceInMs>MAX_TIMELINE_MS))return null;
  for(const track of [1,2]){
@@ -47,17 +48,18 @@ export function parseRelativeSongTime(text:string):number|null{
  const value=parseSongTime(trimmed.slice(1));
  return value===null?null:-value;
 }
-type PositionedClip={id:string;track:number;timelineStartMs:number;sourceInMs:number;sourceOutMs:number;syncLocked:boolean};
+type PositionedClip={id:string;track:number;timelineStartMs:number;sourceInMs:number;sourceOutMs:number;syncLocked:boolean;positionLocked?:boolean};
 export function positionVideoClip<T extends PositionedClip>(clips:readonly T[],clip:T,position:number):{status:"ok";clip:T}|{status:"bounds"|"collision"|"locked"}{
  const length=clip.sourceOutMs-clip.sourceInMs;
  if(!Number.isSafeInteger(position)||position<0||length<=0||position+length>MAX_TIMELINE_MS)return {status:"bounds"};
- if(clip.syncLocked&&position!==clip.timelineStartMs)return {status:"locked"};
+ if((clip.syncLocked||clip.positionLocked)&&position!==clip.timelineStartMs)return {status:"locked"};
  if(clips.some(c=>c.id!==clip.id&&c.track===clip.track&&position<c.timelineStartMs+c.sourceOutMs-c.sourceInMs&&position+length>c.timelineStartMs))return {status:"collision"};
  return {status:"ok",clip:{...clip,timelineStartMs:position}};
 }
 
 /** Trim without changing the source-to-timeline mapping; clamp to neighboring clips. */
 export function trimVideoClip<T extends PositionedClip>(clips:readonly T[],clip:T,edge:"start"|"end",deltaMs:number,sourceDuration:number,timelineLimit=MAX_TIMELINE_MS):T{
+ if(clip.positionLocked)return clip;
  const min=Math.min(100,clip.sourceOutMs-clip.sourceInMs);
  const end=clip.timelineStartMs+clip.sourceOutMs-clip.sourceInMs;
  const others=clips.filter(c=>c.id!==clip.id&&c.track===clip.track);
@@ -76,6 +78,7 @@ export function trimVideoClip<T extends PositionedClip>(clips:readonly T[],clip:
 }
 export function transferVideoClip<T extends PositionedClip>(clips:readonly T[],clip:T,track:T["track"],position:number):{status:"ok";clip:T}|{status:"bounds"|"collision"|"locked"}{
  if(track!==1&&track!==2)return {status:"bounds"};
+ if(clip.positionLocked&&(track!==clip.track||position!==clip.timelineStartMs))return {status:"locked"};
  return positionVideoClip(clips,{...clip,track},clip.syncLocked?clip.timelineStartMs:position);
 }
 
@@ -86,6 +89,7 @@ export function trimSongAtPlayhead(range:SongPlacement,atMs:number,edge:"start"|
  return edge==="start"?{...range,startMs:source,positionMs:at}:{...range,endMs:source};
 }
 export function splitVideoAtPlayhead<T extends PositionedClip>(clip:T,atMs:number,rightId:string):[T,T]|null{
+ if(clip.positionLocked)return null;
  const at=Math.round(atMs),inPoint=clip.sourceInMs+at-clip.timelineStartMs;
  if(!Number.isSafeInteger(at)||inPoint-clip.sourceInMs<100||clip.sourceOutMs-inPoint<100)return null;
  return [{...clip,sourceOutMs:inPoint},{...clip,id:rightId,timelineStartMs:at,sourceInMs:inPoint}];

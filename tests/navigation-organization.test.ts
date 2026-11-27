@@ -914,3 +914,19 @@ test("Experimental Projects requires matching authenticated customer media owner
  assert.match(api,/service\.output\(a\.sourceId,mediaOwner\)/);
  assert.match(api,/requireMusicProject\(id,owner\)/);
 });
+
+test("position lock protects ordinary and lip sync clips independently of Sync Lock",async()=>{
+ const {positionVideoClip,transferVideoClip,trimVideoClip,splitVideoAtPlayhead,shiftLockedClips}=await import("../lib/music-video/song-range.ts");
+ const clip={id:"a",track:1,timelineStartMs:1000,sourceInMs:0,sourceOutMs:2000,syncLocked:false,positionLocked:true};
+ assert.equal(positionVideoClip([clip],clip,2000).status,"locked");
+ assert.equal(transferVideoClip([clip],clip,2,1000).status,"locked");
+ assert.deepEqual(trimVideoClip([clip],clip,"start",500,3000),clip);
+ assert.equal(splitVideoAtPlayhead(clip,1500,"b"),null);
+ assert.equal(shiftLockedClips([{...clip,syncLocked:true}],100),null);
+ assert.equal(positionVideoClip([clip],{...clip,positionLocked:false},2000).status,"ok");
+ const editor=read("components/music-video-editor.tsx"),core=read("lib/music-video/core.ts");
+ assert.ok(editor.includes('aria-label="Return to source time"'));
+ assert.ok(editor.includes("restore?positionVideoClip(latest.current,{...current,syncLocked:false},position)"));
+ assert.ok(core.includes("position_locked INTEGER NOT NULL DEFAULT 0"));
+ assert.ok(core.includes("positionLocked:!!r.position_locked"));
+});
