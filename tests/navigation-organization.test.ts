@@ -1112,11 +1112,16 @@ test("Re-Sync stays in the timeline toolbar and is disabled for noneligible sele
  assert.equal(editor.match(/aria-label="Re-Sync"/g)?.length,1);
 });
 
-test("library original preview is explicitly opened, pauses timeline playback and unmounts on close",()=>{
+test("library compatible preview is explicitly opened, pauses timeline playback and unmounts on close",()=>{
  const editor=read("components/music-video-editor.tsx");
  assert.ok(editor.includes('useState<MusicAsset|null>(null)'));
- assert.ok(editor.includes('onClick={()=>{stopPlayback();setLibraryPreviewError(false);setLibraryPreview(a);}}'));
- assert.ok(editor.includes('src={endpoint+id+"/assets/"+encodeURIComponent(libraryPreview.id)}'));
+ assert.ok(editor.includes('onClick={()=>{stopPlayback();setLibraryPreviewError(false);setLibraryPreviewSrc(null);setLibraryPreview(a);}}'));
+ assert.ok(editor.includes('src={libraryPreviewSrc}'));
+ assert.ok(editor.includes('const proxy=endpoint+id+"/preview/"+encodeURIComponent(libraryPreview.id)+"?mobile=1"'));
+ assert.ok(editor.includes('>(proxy,{method:"POST",signal})'));
+ assert.ok(editor.includes('if(data.ready){if(!signal.aborted)setLibraryPreviewSrc(proxy);return;}'));
+ assert.ok(editor.includes('Preparing video preview…'));
+ assert.ok(editor.includes('setLibraryPreviewSrc(original)'));
  assert.ok(editor.includes('aria-label="Close video preview" onClick={()=>setLibraryPreview(null)}'));
 });
 
