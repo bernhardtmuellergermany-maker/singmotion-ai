@@ -30,7 +30,7 @@ import {startMusicExport,musicExportStatus,musicExportFile,inspectVideoDimension
 import {
   MusicError,validId,projectFolder,requireMusicProject,listMusicProjects,
   newMusicProject,musicDetail,renameMusicProject,renameMusicSong,fillMusicSongName,removeMusicProject,
-  newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,renameMusicAsset,
+  newMusicAsset,musicAsset,removeMusicAsset,saveMusicClips,setMusicAssetRole,renameMusicAsset,setUploadedAssetSourceTime,
   projectCloudRecord,recordProjectCloud,projectMigrationCandidates,
   projectSongRecord,recordProjectSong,projectSongMigrationCandidate,detachProjectSong,attachProjectSong,queueUnusedSongUpload,
   type MediaKind,type SourceKind,type MusicClip,type MusicAsset,
@@ -595,6 +595,10 @@ async function handler(req:NextRequest,context:Context){
       const asset=musicAsset(id,owner,assetId);
       if(req.method==="PATCH"){
         const body=await jsonBody(req);
+        if(Object.prototype.hasOwnProperty.call(body,"sourceStartMs")||Object.prototype.hasOwnProperty.call(body,"sourceEndMs")){
+          if(Object.prototype.hasOwnProperty.call(body,"name")||Object.prototype.hasOwnProperty.call(body,"role"))throw new MusicError("Source time changes must be separate.");
+          return json(setUploadedAssetSourceTime(id,owner,assetId,body.sourceStartMs,body.sourceEndMs,body.revision));
+        }
         if(Object.prototype.hasOwnProperty.call(body,"name")){
           if(Object.prototype.hasOwnProperty.call(body,"role"))throw new MusicError("Rename and role changes must be separate.");
           return json(renameMusicAsset(id,owner,assetId,body.name,body.revision));
