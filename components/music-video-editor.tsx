@@ -538,7 +538,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const selectedClip=clips.find(c=>c.id===selected&&c.timelineStartMs<timelineEnd);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
   const selectedSourceAssetId=selectedAsset?.id,selectedSourceStart=selectedAsset?.sourceStartMs,selectedSourceEnd=selectedAsset?.sourceEndMs;
-  useEffect(()=>{setManualSourceStart(selectedSourceStart==null?"":time(selectedSourceStart,true));setManualSourceEnd(selectedSourceEnd==null?"":time(selectedSourceEnd,true));},[selectedSourceAssetId,selectedSourceStart,selectedSourceEnd]);
+  useLayoutEffect(()=>{setManualSourceStart(selectedSourceStart==null?"":time(selectedSourceStart,true));setManualSourceEnd(selectedSourceEnd==null?"":time(selectedSourceEnd,true));},[selectedSourceAssetId,selectedSourceStart,selectedSourceEnd]);
   const songSelected=selected==="song"&&!project?.songRemoved;
   const hasSelection=songSelected||!!(selectedClip&&selectedAsset);
   function clearSelection(){setSelected(null);setArmedMedia(null);}
