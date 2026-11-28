@@ -970,3 +970,7 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
  .mv-root.mv-editor .mv-track-origin>.mv-track-mute{width:28px;height:25px;padding:3px}
  .mv-root.mv-editor .mv-timeline-toolbar>.mv-marker-toolbar{margin-left:auto}
 }
+
+/* Original generation timestamps are reference metadata, not edit controls. */
+.mv-root.mv-editor .mv-clip-position .mv-source-readonly{display:flex;flex-direction:column;gap:4px;min-width:0;color:#c1b2cf}
+.mv-root.mv-editor .mv-clip-position .mv-source-readonly input[readonly]{min-height:38px;padding:6px 8px!important;cursor:default;color:#c1b2cf;background:#181326;border-color:#44354f;box-shadow:none;font-variant-numeric:tabular-nums}
