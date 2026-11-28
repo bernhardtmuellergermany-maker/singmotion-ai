@@ -951,3 +951,22 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
 .mv-root.mv-editor .mv-song-lane .mv-add-song{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:inline-flex;align-items:center;justify-content:center;gap:6px;width:auto;min-height:32px;margin:0;max-width:calc(100% - 16px);white-space:nowrap;z-index:2;padding:5px 12px;border:1px dashed #805c98;border-radius:7px;background:#30203f;color:#eedaf9;font-size:12px;font-weight:600;cursor:pointer}
 .mv-root.mv-editor .mv-song-lane .mv-add-song:hover:not(:disabled){background:#412b55;border-color:#c797e8;color:#fff}
 .mv-root.mv-editor .mv-song-lane .mv-add-song:disabled{opacity:.5;cursor:wait}
+
+
+/* Controls belong to each scrolling lane, before time zero. They are not
+   a sticky label column and never cover playable frames or trim handles. */
+.mv-root.mv-editor .mv-scroll{--mv-track-origin-width:126px;position:relative}
+.mv-root.mv-editor .mv-track-area{margin-left:var(--mv-track-origin-width);flex:none}
+.mv-root.mv-editor .mv-track-origin{position:absolute;right:100%;top:0;bottom:0;width:var(--mv-track-origin-width);height:auto;box-sizing:border-box;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:6px;padding:0 6px;border:0;border-bottom:1px solid #392d49;background:#181326;z-index:1;cursor:grab}
+.mv-root.mv-editor .mv-song-lane>.mv-track-origin{background:#241733}
+.mv-root.mv-editor .mv-track-origin strong{flex:1;min-width:0;font-size:12px;white-space:nowrap}
+.mv-root.mv-editor .mv-track-origin>.mv-track-mute{flex:none;width:25px;height:25px;cursor:pointer}
+.mv-root.mv-editor .mv-timeline-toolbar>.mv-marker-toolbar{flex:0 0 110px;width:110px;min-width:110px;height:30px;padding:0;background:transparent;border:0}
+@media(max-width:760px){
+ .mv-root.mv-editor .mv-scroll{--mv-track-origin-width:36px}
+ .mv-root.mv-editor .mv-track-origin{flex-direction:column;justify-content:center;gap:1px;padding:1px 0}
+ .mv-root.mv-editor .mv-track-origin strong{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+ .mv-root.mv-editor .mv-track-origin>svg{width:16px;height:16px;flex:none}
+ .mv-root.mv-editor .mv-track-origin>.mv-track-mute{width:28px;height:25px;padding:3px}
+ .mv-root.mv-editor .mv-timeline-toolbar>.mv-marker-toolbar{margin-left:auto}
+}
