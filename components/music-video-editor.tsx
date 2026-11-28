@@ -12,7 +12,7 @@ import {makeFrameTimeline} from "@/lib/music-video/frame-timeline";
 import {MIN_TIMELINE_ZOOM,MAX_TIMELINE_ZOOM,clampTimelineZoom,timelineFitZoom,anchoredScroll,timelineGraduations,swipeVelocity,inertiaStep} from "@/lib/music-video/timeline-gestures";
 import {validWaveform,waveformShape,timelineWaveformBars,type MediaWaveform} from "@/lib/music-video/waveform";
 import type {MusicAsset,MusicClip,MusicProject,Track,MediaRole,AudioTrack,TrackMutes,ProjectAspectRatio} from "@/lib/music-video/core";
-import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,parseRelativeSongTime,positionVideoClip,resetClipToSourceStart,trimVideoClip,planSourceTimeInsertion,planFreeVideoInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
+import {parseSongTime,validSongRange,moveSongEdge,validSongPlacement,trimSongPlacement,shiftLockedClips,songOffset,songTimelineEnd,MAX_TIMELINE_MS,songTimeToTimeline,timelineToSongTime,positionVideoClip,resetClipToSourceStart,trimVideoClip,planSourceTimeInsertion,planFreeVideoInsertion,rollVideoBoundary,transferVideoClip,splitVideoAtPlayhead,snapPlayhead,timelineProgress,setVideoEnd,MEDIA_HOLD_MS,mediaPanAxis,effectiveSongParts,validSongParts,splitSongPart,songPartsEnd,removeLeadingSongPart,firstVisibleVideo,aspectFromDimensions,type SongRange,type SongPlacement} from "@/lib/music-video/song-range";
 import "./music-video.css";
 
 type LipSyncSource={id:string;name:string;durationMs:number;sourceStartMs:number;sourceEndMs:number};
@@ -27,7 +27,6 @@ const time=(ms:number,precise=false)=>{
   return String(Math.floor(n/60000)).padStart(2,"0")+":"+String(Math.floor(n%60000/1000)).padStart(2,"0")+
     (precise?"."+String(n%1000).padStart(3,"0"):"");
 };
-const signedTime=(ms:number)=>(ms<0?"-":"")+time(Math.abs(ms),true);
 async function request<T>(url:string,init?:RequestInit):Promise<T>{
   const response=await fetch(url,{cache:"no-store",credentials:"same-origin",...init});
   if(response.status===401||response.status===403)throw new Error("Project access expired or unavailable. Sign in again with the same account, then retry. Unsaved edits are not yet stored.");
@@ -92,10 +91,8 @@ export function MusicVideoEditor({id}:{id:string}){
   useEffect(()=>{if(!playingRef.current)setMarkerText(time(playhead,true));},[playhead]);
   const [dragTrack,setDragTrack]=useState<Track|null>(null),[dragBlocked,setDragBlocked]=useState(false);
   const videoLanes=useRef<Partial<Record<Track,HTMLDivElement|null>>>({});
-  const [clipSongText,setClipSongText]=useState("00:00.000"),[clipTimelineText,setClipTimelineText]=useState("00:00.000");
-  const clipTimeMode=useRef<"song"|"timeline">("song");
-  const [clipEndText,setClipEndText]=useState("00:00.000"),[clipSongEndText,setClipSongEndText]=useState("00:00.000");
-  const clipEndMode=useRef<"song"|"timeline">("timeline");
+  const [clipTimelineText,setClipTimelineText]=useState("00:00.000");
+  const [clipEndText,setClipEndText]=useState("00:00.000");
   const [armedMedia,setArmedMedia]=useState<string|null>(null);
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
@@ -596,48 +593,19 @@ export function MusicVideoEditor({id}:{id:string}){
   const selectedStart=selectedClip?.timelineStartMs;
   const selectedId=selectedClip?.id;
   const selectedEnd=selectedClip?clipEnd(selectedClip):undefined;
-  const offset=songOffset(songRange);
-  useEffect(()=>{
-    if(selectedStart===undefined)return;
-    setClipSongText(signedTime(selectedStart-offset));setClipTimelineText(time(selectedStart,true));clipTimeMode.current="song";
-  },[selectedId,selectedStart,offset]);
-  useEffect(()=>{
-    if(selectedEnd===undefined)return;
-    setClipEndText(time(selectedEnd,true));setClipSongEndText(signedTime(selectedEnd-offset));clipEndMode.current="timeline";
-  },[selectedId,selectedEnd,offset]);
-  function updateClipEnd(text:string,mode:"song"|"timeline"){
-    clipEndMode.current=mode;
-    if(mode==="timeline"){
-      setClipEndText(text);const ms=parseSongTime(text);
-      if(ms!==null)setClipSongEndText(signedTime(timelineToSongTime(ms,rangeRef.current)));
-    }else{
-      setClipSongEndText(text);const ms=parseRelativeSongTime(text);
-      if(ms!==null)setClipEndText(signedTime(songTimeToTimeline(ms,rangeRef.current)));
-    }
-  }
-  function submitClipEnd(mode=clipEndMode.current){
+  useEffect(()=>{if(selectedStart!==undefined)setClipTimelineText(time(selectedStart,true));},[selectedId,selectedStart]);
+  useEffect(()=>{if(selectedEnd!==undefined)setClipEndText(time(selectedEnd,true));},[selectedId,selectedEnd]);
+  function submitClipEnd(){
     if(importBusy.current||!selectedClip||!selectedAsset)return;
     const current=latest.current.find(c=>c.id===selectedClip.id);if(!current)return;
     if(current.positionLocked){setError("Unlock the clip position before editing it.");return;}
-    const ms=mode==="song"?parseRelativeSongTime(clipSongEndText):parseSongTime(clipEndText);
+    const ms=parseSongTime(clipEndText);
     if(ms===null){setError("Enter a valid end time, e.g. 00:08.918.");return;}
-    const end=mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms;
+    const end=ms;
     if(end>timelineLimit){setError("The video must end within the song.");return;}
     const next=setVideoEnd(latest.current,current,end,sourceLimit(current,selectedAsset));
     if(!next){setError("The requested end does not fit the available video length or free space on this track. The clip was not changed.");return;}
-    commitVideoEdit(current,next);setClipEndText(time(end,true));setClipSongEndText(signedTime(timelineToSongTime(end,rangeRef.current)));setError("");
-  }
-  function updateClipTime(text:string,mode:"song"|"timeline"){
-    clipTimeMode.current=mode;
-    if(mode==="song"){
-      setClipSongText(text);
-      const ms=parseRelativeSongTime(text);
-      if(ms!==null)setClipTimelineText(signedTime(songTimeToTimeline(ms,rangeRef.current)));
-    }else{
-      setClipTimelineText(text);
-      const ms=parseSongTime(text);
-      if(ms!==null)setClipSongText(signedTime(timelineToSongTime(ms,rangeRef.current)));
-    }
+    commitVideoEdit(current,next);setClipEndText(time(end,true));setError("");
   }
   function moveSelectedClip(position:number){
     if(importBusy.current||!selectedClip||!selectedAsset)return;
@@ -653,7 +621,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const candidate=result.clip;
     if(candidate.timelineStartMs!==current.timelineStartMs||candidate.syncLocked!==current.syncLocked)
       apply(latest.current.map(c=>c.id===current.id?candidate:c));
-    setClipSongText(signedTime(timelineToSongTime(position,rangeRef.current)));setClipTimelineText(time(position,true));
+    setClipTimelineText(time(position,true));
     setError("");stopPlayback();setAt(Math.min(position,timelineLimit));
     requestAnimationFrame(()=>{
       const el=scroll.current;if(!el)return;
@@ -661,10 +629,10 @@ export function MusicVideoEditor({id}:{id:string}){
       if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);
     });
   }
-  function submitClipTime(mode=clipTimeMode.current){
-    const ms=mode==="song"?parseRelativeSongTime(clipSongText):parseSongTime(clipTimelineText);
+  function submitClipTime(){
+    const ms=parseSongTime(clipTimelineText);
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
-    moveSelectedClip(mode==="song"?songTimeToTimeline(ms,rangeRef.current):ms);
+    moveSelectedClip(ms);
   }
   const originalClipSongTime=!project?.songRemoved&&selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null
     ?selectedAsset.sourceStartMs:null;
@@ -678,7 +646,7 @@ export function MusicVideoEditor({id}:{id:string}){
     const candidate=result.clip,position=candidate.timelineStartMs;
     stopPlayback();
     if(JSON.stringify(candidate)!==JSON.stringify(current))apply(latest.current.map(c=>c.id===current.id?candidate:c));
-    setError("");setClipSongText(signedTime(selectedAsset.sourceStartMs));setClipTimelineText(time(position,true));setAt(position);
+    setError("");setClipTimelineText(time(position,true));setAt(position);
     if(candidate.sourceOutMs-candidate.sourceInMs<current.sourceOutMs-current.sourceInMs)setPlacementNotice("Re-Sync restored the original start; the clip was shortened to the available recorded source.");
     else if(candidate.sourceInMs!==current.sourceInMs)setPlacementNotice("Re-Sync restored the original video start and kept the clip duration.");
     else setPlacementNotice("");
@@ -1270,14 +1238,14 @@ export function MusicVideoEditor({id}:{id:string}){
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>e.preventDefault()}>
         <div className="mv-video-times">
           <div className="mv-time-pair" role="group" aria-label="Original song time">
-            <span className="mv-time-pair-heading">Original song time <small>Position in the full, untrimmed song</small></span>
-            <InlineTimeField label="Video start time" ariaLabel="Video start time in original song" value={clipSongText} onChange={v=>updateClipTime(v,"song")} onConfirm={()=>submitClipTime("song")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:08.918"/>
-            <InlineTimeField label="Video end time" ariaLabel="Video end time in original song" value={clipSongEndText} onChange={v=>updateClipEnd(v,"song")} onConfirm={()=>submitClipEnd("song")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
+            <span className="mv-time-pair-heading">Original song time <small>Fixed source times from generation · read-only</small></span>
+            <label className="mv-source-readonly">Source start<input aria-label="Video start time in original song" readOnly value={selectedAsset.sourceStartMs===null?"Unavailable":time(selectedAsset.sourceStartMs,true)}/></label>
+            <label className="mv-source-readonly">Source end<input aria-label="Video end time in original song" readOnly value={selectedAsset.sourceEndMs===null?"Unavailable":time(selectedAsset.sourceEndMs,true)}/></label>
           </div>
           <div className="mv-time-pair" role="group" aria-label="Project timeline">
             <span className="mv-time-pair-heading">Project timeline <small>Position in this music video project</small></span>
-            <InlineTimeField label="Timeline start" ariaLabel="Video start time on timeline" value={clipTimelineText} onChange={v=>updateClipTime(v,"timeline")} onConfirm={()=>submitClipTime("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:08.918"/>
-            <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={v=>updateClipEnd(v,"timeline")} onConfirm={()=>submitClipEnd("timeline")} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
+            <InlineTimeField label="Timeline start" ariaLabel="Video start time on timeline" value={clipTimelineText} onChange={setClipTimelineText} onConfirm={submitClipTime} disabled={importing||!!selectedClip.positionLocked} placeholder="00:08.918"/>
+            <InlineTimeField label="Timeline end" ariaLabel="Video end time on timeline" value={clipEndText} onChange={setClipEndText} onConfirm={submitClipEnd} disabled={importing||!!selectedClip.positionLocked} placeholder="00:18.918"/>
           </div>
         </div>
         <span className="mv-inspector-duration">Duration <b>{time(selectedClip.sourceOutMs-selectedClip.sourceInMs,true)}</b></span>
