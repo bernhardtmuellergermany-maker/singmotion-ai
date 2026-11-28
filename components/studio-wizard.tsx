@@ -1117,7 +1117,7 @@ export function StudioWizard({
           </div>
           <div className="sm-performance-ideas">
             <h2>Camera Movements</h2>
-            <p className="sm-camera-chip-caption"><span className="sm-camera-chip-rating is-recommended">Recommended</span> for OmniHuman 2.0 · Suggested starting points, not guaranteed results.</p>
+            <p className="sm-camera-chip-caption"><span className="sm-camera-chip-rating is-recommended">Recommended</span></p>
             <div className="sm-performance-chips" role="group" aria-label="Add camera movement to prompt">
               {featuredCameraMovements.map(move=><button key={move.id} type="button"
                 aria-label={`Add ${move.name} camera movement to prompt`}
