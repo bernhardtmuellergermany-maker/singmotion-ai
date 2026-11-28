@@ -93,6 +93,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const videoLanes=useRef<Partial<Record<Track,HTMLDivElement|null>>>({});
   const [clipTimelineText,setClipTimelineText]=useState("00:00.000");
   const [clipEndText,setClipEndText]=useState("00:00.000");
+  const [manualSourceStart,setManualSourceStart]=useState(""),[manualSourceEnd,setManualSourceEnd]=useState("");
   const [armedMedia,setArmedMedia]=useState<string|null>(null);
   const gestureCleanup=useRef<(()=>void)|null>(null);
   useEffect(()=>()=>gestureCleanup.current?.(),[]);
@@ -536,6 +537,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const songPlacementLimit=project?Math.min(MAX_TIMELINE_MS,Math.max(project.songDurationMs,songTimelineEnd(rangeRef.current))):0;
   const selectedClip=clips.find(c=>c.id===selected&&c.timelineStartMs<timelineEnd);
   const selectedAsset=selectedClip?byId.get(selectedClip.assetId):null;
+  const selectedSourceAssetId=selectedAsset?.id,selectedSourceStart=selectedAsset?.sourceStartMs,selectedSourceEnd=selectedAsset?.sourceEndMs;
+  useEffect(()=>{setManualSourceStart(selectedSourceStart==null?"":time(selectedSourceStart,true));setManualSourceEnd(selectedSourceEnd==null?"":time(selectedSourceEnd,true));},[selectedSourceAssetId,selectedSourceStart,selectedSourceEnd]);
   const songSelected=selected==="song"&&!project?.songRemoved;
   const hasSelection=songSelected||!!(selectedClip&&selectedAsset);
   function clearSelection(){setSelected(null);setArmedMedia(null);}
@@ -633,6 +636,23 @@ export function MusicVideoEditor({id}:{id:string}){
     const ms=parseSongTime(clipTimelineText);
     if(ms===null){setError("Enter seconds or MM:SS.mmm, for example 00:08.918.");return;}
     moveSelectedClip(ms);
+  }
+  async function saveManualSourceTime(){
+    if(importBusy.current||roleBusy.current||selectedAsset?.sourceKind!=="uploaded")return;
+    const asset=selectedAsset,start=parseSongTime(manualSourceStart);
+    const end=manualSourceEnd.trim()?parseSongTime(manualSourceEnd):start===null?null:start+asset.durationMs;
+    if(start===null||end===null||!validSongRange(start,end,MAX_TIMELINE_MS)){setError("Enter a valid source start and end, at least 100 ms apart.");return;}
+    importBusy.current=true;roleBusy.current=true;setImporting(true);setError("");
+    try{
+      if(saveTimer.current)clearTimeout(saveTimer.current);
+      await saveNow();setStatus("Saving…");
+      const result=await request<Detail>(endpoint+id+"/assets/"+asset.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({sourceStartMs:start,sourceEndMs:end,revision:revision.current})});
+      revision.current=result.project.revision;detailRef.current=result;latest.current=result.clips;dirty.current=false;
+      setDetail(result);setClips(result.clips);past.current=[];future.current=[];
+      setManualSourceStart(time(start,true));setManualSourceEnd(time(end,true));setStatus("Saved");
+      setPlacementNotice(asset.role==="lip-sync"?"Source time saved. Select Re-Sync to align the clip.":"Source time saved. Set the video role to Lip Sync to use Re-Sync.");
+    }catch(err){setError(err instanceof Error?err.message:"Unable to save source time.");setStatus(dirty.current?"Not saved":"Saved");}
+    finally{importBusy.current=false;roleBusy.current=false;setImporting(false);}
   }
   const originalClipSongTime=!project?.songRemoved&&selectedClip&&selectedAsset?.role==="lip-sync"&&selectedAsset.sourceStartMs!==null&&selectedAsset.sourceEndMs!==null
     ?selectedAsset.sourceStartMs:null;
@@ -1238,9 +1258,16 @@ export function MusicVideoEditor({id}:{id:string}){
       {!songSelected&&selectedClip&&selectedAsset?<form className="mv-song-trim mv-clip-position" onSubmit={e=>e.preventDefault()}>
         <div className="mv-video-times">
           <div className="mv-time-pair" role="group" aria-label="Original song time">
-            <span className="mv-time-pair-heading">Original song time <small>Fixed source times from generation · read-only</small></span>
+            <span className="mv-time-pair-heading">Original song time <small>{selectedAsset.sourceKind==="uploaded"?"Manual source time · independent of timeline position":"Fixed source times from generation · read-only"}</small></span>
+            {selectedAsset.sourceKind==="uploaded"?<>
+              <label className="mv-source-manual">Source start<input aria-label="Video start time in original song" value={manualSourceStart} disabled={importing} placeholder="00:08.918" onChange={ev=>setManualSourceStart(ev.target.value)} onKeyDown={ev=>{if(ev.key==="Enter"){ev.preventDefault();void saveManualSourceTime();}}}/></label>
+              <label className="mv-source-manual">Source end<input aria-label="Video end time in original song" value={manualSourceEnd} disabled={importing} placeholder="Auto from video duration" onChange={ev=>setManualSourceEnd(ev.target.value)} onKeyDown={ev=>{if(ev.key==="Enter"){ev.preventDefault();void saveManualSourceTime();}}}/></label>
+              <button type="button" className="mv-outline mv-save-source-time" disabled={importing||!manualSourceStart.trim()} onClick={()=>void saveManualSourceTime()}><Check size={15}/> Save source time</button>
+              <small className="mv-source-hint">Leave end empty to use the full video duration. Save, then use Re-Sync on a Lip Sync clip.</small>
+            </>:<>
             <label className="mv-source-readonly">Source start<input aria-label="Video start time in original song" readOnly value={selectedAsset.sourceStartMs===null?"Unavailable":time(selectedAsset.sourceStartMs,true)}/></label>
             <label className="mv-source-readonly">Source end<input aria-label="Video end time in original song" readOnly value={selectedAsset.sourceEndMs===null?"Unavailable":time(selectedAsset.sourceEndMs,true)}/></label>
+            </>}
           </div>
           <div className="mv-time-pair" role="group" aria-label="Project timeline">
             <span className="mv-time-pair-heading">Project timeline <small>Position in this music video project</small></span>
