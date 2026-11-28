@@ -216,7 +216,7 @@ test("draggable playhead cuts on exact timeline milliseconds without breaking sy
  assert.ok(!editor.includes("Trim end at playhead"));
  assert.ok(editor.includes("onClick={songSelected?splitSong:split}"));
  assert.ok(editor.includes('muteButton("song","song")'));
- const songLaneLabel=editor.split("\n").find(line=>line.includes('className="mv-label mv-audio-label"'));
+ const songLaneLabel=editor.split("\n").find(line=>line.includes('className="mv-label mv-audio-label mv-track-origin"'));
  assert.ok(songLaneLabel&&!songLaneLabel.includes("Scissors"));
 });
 
@@ -620,8 +620,8 @@ test("the timeline and export stop at the last retained song part, not the sourc
  const editor=read("components/music-video-editor.tsx"),renderer=read("lib/music-video/export.ts");
  assert.ok(editor.includes("const timelineEnd=project?songPartsEnd(songRange,songParts):0"));
  assert.ok(editor.includes("const timelineLimit=timelineEnd"));
- assert.ok(editor.includes("Math.max(rulerViewport.width,project?Math.max(1,timelineLimit/1000*zoom):640)"));
- assert.ok(editor.includes("timelineFitZoom(timelineLimit,rulerViewport.width)"));
+ assert.ok(editor.includes("Math.max(usableTimelineWidth,project?Math.max(1,timelineLimit/1000*zoom):640)"));
+ assert.ok(editor.includes("timelineFitZoom(timelineLimit,usableTimelineWidth)"));
  assert.ok(!editor.includes('className="mv-song-wave-title"'));
  assert.ok(editor.includes("c.track===track&&c.timelineStartMs<timelineLimit"));
  assert.ok(editor.includes("Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs"));
@@ -1187,4 +1187,14 @@ test("Re-Sync resets only the selected clip to its exact original source start",
  const core=read("lib/music-video/core.ts"),editor=read("components/music-video-editor.tsx");
  assert.ok(core.includes("song_restore_json"));assert.ok(core.includes("JSON.stringify(snapshot)"));
  assert.ok(!editor.includes("Restore all"));assert.ok(editor.includes("?selectedAsset.sourceStartMs:null"));
+});
+
+ test("track controls scroll with the media lanes and reserve only compact origin space on mobile",()=>{
+ const editor=read("components/music-video-editor.tsx"),css=read("components/music-video.css");
+ assert.ok(!editor.includes('className="mv-track-labels"'));
+ assert.ok(editor.includes('mv-label mv-track-origin'));
+ assert.ok(editor.includes('scrollLeft=scroller.scrollLeft-gutter'));
+ assert.ok(editor.includes('viewportX-trackGutter.current'));
+ assert.ok(css.includes('--mv-track-origin-width:36px'));
+ assert.ok(css.includes('margin-left:var(--mv-track-origin-width)'));
 });
