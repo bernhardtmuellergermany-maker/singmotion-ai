@@ -121,7 +121,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
   }
   function appendInstruction(s:PerformanceSection,text:string,patch:Partial<PerformanceSection>){
     const next=[s.instructions.trim(),text].filter(Boolean).join("\n");
-    if(next.length>500){setNotice("Section instructions cannot exceed 500 characters.");return;}
+    if(next.length>1000){setNotice("Section instructions cannot exceed 1,000 characters.");return;}
     setNotice("");update(s.id,{...patch,instructions:next});
   }
   function onCardDown(e:ReactPointerEvent<HTMLButtonElement>,s:PerformanceSection){
@@ -251,7 +251,7 @@ export function PerformanceTimeline({duration,sections,onChange,audioUrl,audioSt
           <div className="flow-camera-options" role="group" aria-label="Emotions and expressions">{emotions.map(option=><button key={option} type="button" onClick={e=>{appendInstruction(s,`Emotion / Expression: ${option}. ${emotionHelp[option]}`,{emotion:option});e.currentTarget.closest("details")!.open=false;}} title={emotionHelp[option]}><strong>{option}</strong><small>{emotionHelp[option]}</small></button>)}</div>
         </details>
       </div>
-      <label>Custom Instructions<textarea maxLength={500} rows={2} value={s.instructions} placeholder="Describe what the singer or speaker should do..." onChange={e=>update(s.id,{instructions:e.target.value})}/><small className="sm-timeline-counter">{s.instructions.length}/500</small></label>
+      <label>Custom Instructions<textarea maxLength={1000} rows={2} value={s.instructions} placeholder="Describe what the singer or speaker should do..." onChange={e=>update(s.id,{instructions:e.target.value})}/><small className="sm-timeline-counter">{s.instructions.length}/1000</small></label>
     </article>)}</div>}
     {!!sections.length&&<button type="button" className="sm-timeline-add" onClick={add}><Plus size={17}/> Add Section</button>}
     {ghost&&ghostSection&&<div className={"sm-section-drag-ghost sm-section-drag-ghost-"+ghost.kind} style={{left:ghost.x,top:ghost.y,borderColor:colorFor(ghostSection.id),backgroundColor:"#15213a"}} aria-hidden="true"><span className="sm-timeline-dot" style={{background:colorFor(ghostSection.id)}}/><GripHorizontal size={16}/><strong>{ghostSection.start.toFixed(1)}–{ghostSection.end.toFixed(1)}s</strong><span>{ghostSection.camera}</span></div>}
