@@ -115,7 +115,9 @@ try{
   assert.equal(await page.locator(".mv-song-wave-title").count(),0,"song waveform has no visible title");
   await page.waitForFunction(()=>{
    const viewport=document.querySelector(".mv-scroll"),area=document.querySelector(".mv-track-area"),song=document.querySelector(".mv-song-block");
-   return !!viewport&&!!area&&!!song&&Math.abs(area.getBoundingClientRect().width-viewport.clientWidth)<=1&&Math.abs(song.getBoundingClientRect().width-viewport.clientWidth)<=2;
+   if(!viewport||!area||!song)return false;
+   const gutter=area.getBoundingClientRect().left-viewport.getBoundingClientRect().left+viewport.scrollLeft;
+   return Math.abs(area.getBoundingClientRect().width+gutter-viewport.clientWidth)<=2&&Math.abs(song.getBoundingClientRect().width+gutter-viewport.clientWidth)<=2;
   },{},{timeout:10000});
   assert.equal(await page.getByRole("button",{name:"Zoom out timeline"}).isDisabled(),true,"minimum zoom fills viewport");
   const library=page.locator(".mv-library-heading");await library.click();
@@ -198,11 +200,11 @@ try{
   const initialSnap=await magnet.getAttribute("aria-pressed");
   await magnet.click();assert.notEqual(await magnet.getAttribute("aria-pressed"),initialSnap);
   await magnet.click();assert.equal(await magnet.getAttribute("aria-pressed"),initialSnap);
-  assert.equal(await page.locator(".mv-timeline-toolbar input[type=checkbox],.mv-zoom-buttons output,.mv-timeline-toolbar .mv-marker-time button").count(),0);
+  assert.equal(await page.locator(".mv-timeline-toolbar input[type=checkbox],.mv-zoom-buttons output").count(),0);
   const exactTime=page.getByRole("textbox",{name:"Playhead timeline time"});
   assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time input").count(),1);
-  assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time label svg,.mv-timeline-toolbar .mv-marker-time").count(),0);
-  assert.ok(await exactTime.evaluate(el=>{const a=el.getBoundingClientRect(),b=el.closest(".mv-track-labels")!.getBoundingClientRect();return a.left>=b.left&&a.right<=b.right&&el.scrollWidth<=el.clientWidth+1;}),"time field must fit in the pinned track column");
+  assert.equal(await page.locator(".mv-ruler-spacer .mv-marker-time label svg,.mv-track-labels").count(),0);
+  assert.ok(await exactTime.evaluate(el=>{const a=el.getBoundingClientRect(),b=el.closest(".mv-marker-toolbar")!.getBoundingClientRect();return a.left>=b.left&&a.right<=b.right&&el.scrollWidth<=el.clientWidth+1;}),"time field must fit in the compact toolbar");
 
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el.parentElement!).backgroundColor),"rgb(0, 0, 0)");
   assert.equal(await exactTime.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");
@@ -217,6 +219,19 @@ try{
   assert.ok((await page.locator(".mv-ruler .mv-tick-major").allTextContents()).some(label=>label.startsWith("00:02")),"fitted ruler still shows the exact two-second position");
   assert.ok(await page.locator(".mv-ruler .mv-tick-minor").count()>0);
   if(mobile){
+   const origin=page.locator(".mv-main-lane>.mv-track-origin");
+   assert.equal(await origin.count(),1);
+   const originWidth=await origin.evaluate(el=>el.getBoundingClientRect().width);
+   assert.ok(originWidth<=38,"mobile controls occupy only a compact lane origin");
+   const startX=await origin.evaluate(el=>el.getBoundingClientRect().left);
+   await page.getByRole("button",{name:"Zoom in timeline",exact:true}).click();
+   await timeline.evaluate(el=>{el.scrollLeft=0;});
+   const atStart=await origin.evaluate(el=>el.getBoundingClientRect().left);
+   await timeline.evaluate(el=>{el.scrollLeft=80;});
+   await page.waitForFunction(x=>document.querySelector(".mv-main-lane>.mv-track-origin")!.getBoundingClientRect().left<x-36,atStart);
+   await timeline.evaluate(el=>{el.scrollLeft=0;});
+   await page.getByRole("button",{name:"Zoom out timeline",exact:true}).click();
+   assert.ok(Math.abs(await origin.evaluate(el=>el.getBoundingClientRect().left)-startX)<2,"controls return to the same origin");
    // Real Chromium touch input: pinch on the song, not on the playhead.
    const client=await page.context().newCDPSession(page);
    const songBlock=page.locator(".mv-song-block").first();await songBlock.scrollIntoViewIfNeeded();
