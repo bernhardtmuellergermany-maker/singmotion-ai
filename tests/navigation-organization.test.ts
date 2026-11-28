@@ -492,6 +492,8 @@ test("video inspector groups source start/end before timeline start/end",()=>{
  assert.deepEqual(labels,["Timeline start","Timeline end"]);
  assert.ok(editor.includes("Original song time"));
  assert.ok(editor.includes("Fixed source times from generation · read-only"));
+ assert.ok(editor.includes("Manual source time · independent of timeline position"));
+ assert.ok(editor.includes("Save source time"));
  assert.ok(editor.includes('readOnly value={selectedAsset.sourceStartMs===null?"Unavailable":time(selectedAsset.sourceStartMs,true)}'));
  assert.ok(editor.includes('readOnly value={selectedAsset.sourceEndMs===null?"Unavailable":time(selectedAsset.sourceEndMs,true)}'));
  assert.ok(editor.includes("Position in this music video project"));
@@ -1199,4 +1201,18 @@ test("Re-Sync resets only the selected clip to its exact original source start",
  assert.ok(editor.includes('viewportX-trackGutter.current'));
  assert.ok(css.includes('--mv-track-origin-width:36px'));
  assert.ok(css.includes('margin-left:var(--mv-track-origin-width)'));
+});
+
+ test("manual source time is owner-scoped, revision checked, and only editable on uploaded assets",()=>{
+ const core=read("lib/music-video/core.ts"),api=read("app/(site)/api/music-video/[[...parts]]/route.ts"),editor=read("components/music-video-editor.tsx");
+ const setter=core.slice(core.indexOf("export function setUploadedAssetSourceTime"),core.indexOf("export function renameMusicAsset"));
+ assert.ok(setter.includes('asset.sourceKind!=="uploaded"'));
+ assert.ok(setter.includes("requireMusicProject(id,owner)"));
+ assert.ok(setter.includes("revision!==project.revision"));
+ assert.ok(setter.includes("validSongRange(start,end,MAX_TIMELINE_MS)"));
+ assert.ok(setter.includes("UPDATE music_assets SET source_start_ms=?,source_end_ms=?"));
+ assert.ok(setter.includes("UPDATE music_clips SET sync_locked=0 WHERE project_id=? AND asset_id=?"));
+ assert.ok(!setter.includes("SET timeline_start_ms"));
+ assert.ok(api.includes("setUploadedAssetSourceTime(id,owner,assetId,body.sourceStartMs,body.sourceEndMs,body.revision)"));
+ assert.ok(editor.includes("sourceStartMs:start,sourceEndMs:end,revision:revision.current"));
 });
