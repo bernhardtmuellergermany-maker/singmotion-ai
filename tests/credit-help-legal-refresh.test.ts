@@ -104,7 +104,7 @@ test("camera guide uses SingMotion dark design and actual Studio prompt controls
  assert.doesNotMatch(help,/margin: "3rem auto"|BytePlus OmniHuman 1\.5/);
  const guide=read("components/help-faq.tsx");
  assert.doesNotMatch(guide,/github\.com|https:\/\//);
- assert.match(guide,/up to 500 characters/);
+ assert.match(guide,/up to 1,000 characters/);
  assert.doesNotMatch(guide,/1,500 characters/);
 });
 
