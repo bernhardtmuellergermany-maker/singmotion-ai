@@ -432,8 +432,17 @@ try{
   const protectedStart=lockClips[1].timelineStartMs;await dragSecond(15);await page.waitForTimeout(800);
   assert.equal(lockClips[1].timelineStartMs,protectedStart,"locked video must not move");
   console.log("PASS: unlocked clip moves with "+(width<500?"touch hold":"mouse drag")+"; locked clip stays fixed");
-  await select(first);const resync=page.getByRole("button",{name:"Re-Sync",exact:true});assert.equal(await resync.isEnabled(),true);assert.equal(await resync.locator("svg").count(),1);await page.mouse.move(0,0);assert.equal(await resync.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");if(width>=500){await resync.hover();const hover=await resync.evaluate(el=>getComputedStyle(el).backgroundColor);await page.getByRole("button",{name:"Delete selection",exact:true}).hover();assert.equal(hover,await page.getByRole("button",{name:"Delete selection",exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor));}assert.ok(await resync.evaluate(el=>{const a=el.querySelector("svg")!.getBoundingClientRect(),b=el.querySelector("span")!.getBoundingClientRect(),c=el.getBoundingClientRect();return Math.abs(a.y+a.height/2-b.y-b.height/2)<1&&Math.abs(a.y+a.height/2-c.y-c.height/2)<1;}),"waveform and text must be vertically centered");const restored=save();await resync.click();await restored;
+  await select(first);
+  const originalStart=page.getByRole("textbox",{name:"Video start time in original song",exact:true}),originalEnd=page.getByRole("textbox",{name:"Video end time in original song",exact:true});
+  assert.equal(await originalStart.inputValue(),"00:00.500");assert.equal(await originalEnd.inputValue(),"00:03.500");
+  assert.equal(await originalStart.isEditable(),false);assert.equal(await originalEnd.isEditable(),false);
+  const timelineStart=page.getByRole("textbox",{name:"Video start time on timeline",exact:true});
+  const movedFirst=save();await timelineStart.fill("00:01.000");await timelineStart.press("Enter");await movedFirst;
+  assert.equal(lockClips[0].timelineStartMs,1000);
+  assert.equal(await originalStart.inputValue(),"00:00.500");assert.equal(await originalEnd.inputValue(),"00:03.500");
+  const resync=page.getByRole("button",{name:"Re-Sync",exact:true});assert.equal(await resync.isEnabled(),true);assert.equal(await resync.locator("svg").count(),1);await page.mouse.move(0,0);assert.equal(await resync.evaluate(el=>getComputedStyle(el).backgroundColor),"rgba(0, 0, 0, 0)");if(width>=500){await resync.hover();const hover=await resync.evaluate(el=>getComputedStyle(el).backgroundColor);await page.getByRole("button",{name:"Delete selection",exact:true}).hover();assert.equal(hover,await page.getByRole("button",{name:"Delete selection",exact:true}).evaluate(el=>getComputedStyle(el).backgroundColor));}assert.ok(await resync.evaluate(el=>{const a=el.querySelector("svg")!.getBoundingClientRect(),b=el.querySelector("span")!.getBoundingClientRect(),c=el.getBoundingClientRect();return Math.abs(a.y+a.height/2-b.y-b.height/2)<1&&Math.abs(a.y+a.height/2-c.y-c.height/2)<1;}),"waveform and text must be vertically centered");const restored=save();await resync.click();await restored;
   assert.equal(lockClips[0].timelineStartMs,500);assert.equal(lockClips[0].sourceInMs,0);assert.equal(lockClips[0].sourceOutMs,1500);assert.equal(lockClips[0].syncLocked,true);
+  assert.equal(await originalStart.inputValue(),"00:00.500");assert.equal(await originalEnd.inputValue(),"00:03.500");
   // Restoring source timing must show a closed padlock, not an open one.
   await first.getByRole("button",{name:"Unlock clip position: first"}).waitFor();
   let unlockDialogs=0;
