@@ -450,6 +450,7 @@ try{
    assert.deepEqual(lockClips,unchanged,"setting reference times never moves clips");
    assert.equal(lockAssets[0].sourceStartMs,500);assert.equal(lockAssets[0].sourceEndMs,3500);
    await page.reload();await first.waitFor();await select(first);
+    await page.waitForFunction(()=>{const start=document.querySelector<HTMLInputElement>('[aria-label="Video start time in original song"]'),end=document.querySelector<HTMLInputElement>('[aria-label="Video end time in original song"]');return start?.value==="00:00.500"&&end?.value==="00:03.500";});
   }else{
    assert.equal(await originalStart.isEditable(),false);assert.equal(await originalEnd.isEditable(),false);
   }
