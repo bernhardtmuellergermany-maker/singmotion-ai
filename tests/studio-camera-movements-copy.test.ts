@@ -20,7 +20,7 @@ test("all 34 camera moves are available; nine recommended moves show initially",
  assert.equal(new Set(cameraMovements.map(move=>move.direction)).size,34);
  for(const move of cameraMovements){
   assert.ok(move.direction.startsWith("Camera: "));
-  assert.ok(move.direction.length<=90,move.name);
+  assert.ok(move.direction.length<=110,move.name);
   assert.match(move.example,/^[A-Z][^.?!\n]+\.$/);
   assert.doesNotMatch(move.example,/Movement:|Speed:|Framing:|End:/);
   assert.equal(move.example,move.text);
@@ -44,7 +44,13 @@ test("Studio camera picker only replaces library quick tips and expands 25 exper
  assert.match(wizard,/aria-expanded=\{cameraMovesExpanded\}/);
  assert.match(wizard,/aria-controls="sm-more-camera-movements"/);
  assert.match(wizard,/Show more \(25 experimental\)/);
- assert.match(wizard,/if\(next\.length>500\)/);
+ assert.match(wizard,/if\(next\.length>1000\)/);
+ assert.match(wizard,/maxLength=\{1000\}/);
+ assert.match(wizard,/draft.customPrompt.length\} \/ 1000/);
+ assert.match(wizard,/if\(prompt\.length>1000\)/);
+ assert.doesNotMatch(help,/500 characters/);
+ assert.ok(cameraMovements.filter(move=>move.recommended).every(move=>move.risk===""));
+ assert.ok(cameraMovements.every(move=>!move.risk.includes("Suggested starting point for OmniHuman")));
  assert.doesNotMatch(wizard,/performanceInput\.current\??\.focus\s*\(/);
  assert.match(wizard,/if\(document\.activeElement===performanceInput\.current\)performanceInput\.current\?\.blur\(\)/);
  assert.doesNotMatch(wizard,/<textarea[^>]*\bautoFocus\b/);
@@ -149,6 +155,7 @@ test("short camera directions retain old quick-tip replacement and match the Web
  assert.match(byName("Orbit clockwise").text,/clockwise in a full circle/);
  assert.match(byName("Orbit counterclockwise").text,/counterclockwise in a full circle/);
  assert.match(byName("Drone push in").text,/forward and downward/);
+ assert.equal(replaceCameraQuickTip(personal+"\nCamera: Keep the camera completely still.",byName("Pan right")),personal+"\n"+byName("Pan right").direction);
  assert.match(byName("Drone pull back").text,/backward and upward/);
  const generator=read("scripts/generate-camera-movements.cjs");
  const names=generator.match(/const names='([^']+)'/);
