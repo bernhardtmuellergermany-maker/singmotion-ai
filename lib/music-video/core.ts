@@ -192,6 +192,25 @@ export function setMusicAssetRole(id:string,owner:string,assetId:string,role:unk
   }catch(e){connection.exec("ROLLBACK");throw e;}
   return musicDetail(id,owner);
 }
+/** User-supplied reference times for uploaded media only. No generation data is overwritten.
+ * Invalidate old synchronization locks atomically, without moving any timeline clip. */
+export function setUploadedAssetSourceTime(id:string,owner:string,assetId:string,start:unknown,end:unknown,revision:unknown){
+  const project=requireMusicProject(id,owner),asset=musicAsset(id,owner,assetId),connection=database();
+  if(asset.sourceKind!=="uploaded")throw new MusicError("Original generation source times cannot be changed.",409);
+  if(!Number.isSafeInteger(revision)||revision!==project.revision)throw new MusicError("Project changed on another device. Reload to continue.",409);
+  if(!validSongRange(start,end,MAX_TIMELINE_MS)||typeof end!=="number")throw new MusicError("Enter a valid source start and end at least 100 ms apart.");
+  if(asset.sourceStartMs===start&&asset.sourceEndMs===end)return musicDetail(id,owner);
+  connection.exec("BEGIN IMMEDIATE");
+  try{
+    const changed=connection.prepare("UPDATE music_projects SET revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?").run(Date.now(),id,owner,revision);
+    if(changed.changes!==1)throw new MusicError("Project changed on another device. Reload to continue.",409);
+    const saved=connection.prepare("UPDATE music_assets SET source_start_ms=?,source_end_ms=? WHERE id=? AND project_id=? AND source_kind='uploaded'").run(start,end,assetId,id);
+    if(saved.changes!==1)throw new MusicError("Uploaded video unavailable.",404);
+    connection.prepare("UPDATE music_clips SET sync_locked=0 WHERE project_id=? AND asset_id=?").run(id,assetId);
+    connection.exec("COMMIT");
+  }catch(e){connection.exec("ROLLBACK");throw e;}
+  return musicDetail(id,owner);
+}
 /** A project alias only: never touch the originating video, its file, or other projects. */
 export function renameMusicAsset(id:string,owner:string,assetId:string,name:unknown,revision:unknown){
   const title=validatedName(name),project=requireMusicProject(id,owner),asset=musicAsset(id,owner,assetId),connection=database();
