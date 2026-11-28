@@ -974,3 +974,9 @@ main.mv-root.mv-editor{box-sizing:border-box;width:100%;min-width:0;overflow-x:c
 /* Original generation timestamps are reference metadata, not edit controls. */
 .mv-root.mv-editor .mv-clip-position .mv-source-readonly{display:flex;flex-direction:column;gap:4px;min-width:0;color:#c1b2cf}
 .mv-root.mv-editor .mv-clip-position .mv-source-readonly input[readonly]{min-height:38px;padding:6px 8px!important;cursor:default;color:#c1b2cf;background:#181326;border-color:#44354f;box-shadow:none;font-variant-numeric:tabular-nums}
+
+/* Manual source reference on uploads; distinct from editable timeline placement. */
+.mv-root.mv-editor .mv-clip-position .mv-source-manual{display:flex;flex-direction:column;gap:4px;min-width:0}
+.mv-root.mv-editor .mv-clip-position .mv-source-manual input{min-height:38px;padding:6px 8px!important;font-variant-numeric:tabular-nums}
+.mv-root.mv-editor .mv-save-source-time{grid-column:1/-1;justify-self:start;display:inline-flex;align-items:center;gap:5px;min-height:34px}
+.mv-root.mv-editor .mv-source-hint{grid-column:1/-1;color:#c1b2cf;font-size:11px;line-height:1.35}
