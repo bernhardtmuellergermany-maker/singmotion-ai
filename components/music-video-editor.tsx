@@ -1184,7 +1184,7 @@ export function MusicVideoEditor({id}:{id:string}){
               <div className={"mv-label mv-track-origin"+(track===1?" mv-main-label":"")} title={track===1?"Lip-Sync · Main video track":"B-Roll · Overlay"}>
                 {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"B-Roll"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"B-Roll audio")}
               </div>
-              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit)}.sort((a,b)=>a.timelineStartMs-b.timelineStartMs||a.id.localeCompare(b.id)).map((c,i)=>{
+              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).sort((a,b)=>a.timelineStartMs-b.timelineStartMs||a.id.localeCompare(b.id)).map((c,i)=>{
                 const a=byId.get(c.assetId);if(!a)return null;
                 const clipWidth=(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom;
                 const movementLocked=!!(c.positionLocked||c.syncLocked);
