@@ -317,7 +317,7 @@ export function StudioWizard({
                     x.end<=saved.selection.end-saved.selection.start+0.00001&&x.end-x.start>=0.5&&
                     typeof x.camera==="string"&&x.camera.length<=120&&
                     typeof x.emotion==="string"&&x.emotion.length<=80&&
-                    typeof x.instructions==="string"&&x.instructions.length<=500)&&
+                    typeof x.instructions==="string"&&x.instructions.length<=1000)&&
                  timelinePrompt(parts)===saved.selection.customPrompt)
                 setTimeline(parts);
             }catch{/* The saved server-side prompt is still authoritative. */}
@@ -511,8 +511,10 @@ export function StudioWizard({
       setError("Sections must not overlap and must stay within the selected audio duration.");
       return;
     }
+    const prompt=timelinePrompt(next);
+    if(prompt.length>1000){setError("The combined performance prompt can contain up to 1,000 characters.");return;}
     setTimeline(next);
-    update({customPrompt:timelinePrompt(next),performance:next.length?"Custom":"Natural"});
+    update({customPrompt:prompt,performance:next.length?"Custom":"Natural"});
     if(projectKey && !owner.startsWith("customer-") && !owner.startsWith("cms-staff-"))
       localStorage.setItem(`singmotion-timeline:${projectKey}`,JSON.stringify(next));
   }
@@ -526,8 +528,8 @@ export function StudioWizard({
     if(document.activeElement===performanceInput.current)performanceInput.current?.blur();
     setCameraPreview(move);
     const next=replaceCameraQuickTip(draft.customPrompt,move);
-    if(next.length>500){
-      setError("Your prompt can contain up to 500 characters.");
+    if(next.length>1000){
+      setError("Your prompt can contain up to 1,000 characters.");
       return;
     }
     update({customPrompt:next,performance:"Custom"});
@@ -1083,13 +1085,13 @@ export function StudioWizard({
         {step===2&&<section className="sm-performance-prompt-step sm-performance-redesign" aria-label="Performance prompt">
           <div className="sm-performance-editor">
             <label className="sr-only" htmlFor="flow-performance-prompt">Describe your artist's movement, emotion, and camera style</label>
-            <textarea ref={performanceInput} id="flow-performance-prompt" className="sm-performance-textarea" maxLength={500} rows={4}
+            <textarea ref={performanceInput} id="flow-performance-prompt" className="sm-performance-textarea" maxLength={1000} rows={4}
               placeholder="Enter your performance prompt..."
               value={draft.customPrompt}
               onChange={e=>update({customPrompt:e.target.value,performance:e.target.value.trim()?"Custom":"Natural"})}/>
             <div className="sm-performance-editor-footer">
               <span><Sparkles size={17}/> AI Prompt</span>
-              <span className="sm-performance-counter" aria-live="polite">{draft.customPrompt.length} / 500</span>
+              <span className="sm-performance-counter" aria-live="polite">{draft.customPrompt.length} / 1000</span>
             </div>
           </div>
           <div className="sm-prompt-writing-guide" aria-label="Guide to writing better movement prompts">
