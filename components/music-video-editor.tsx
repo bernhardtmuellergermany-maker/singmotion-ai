@@ -87,7 +87,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const viewportRef=useRef({zoom:44,left:0,width:0,scrollLeft:0});
   const trackArea=useRef<HTMLDivElement>(null);
   const tracksRef=useRef<HTMLDivElement>(null);
-  const [rulerViewport,setRulerViewport]=useState({left:0,width:0,scrollLeft:0});
+  const [rulerViewport,setRulerViewport]=useState({left:0,width:0,scrollLeft:0,gutter:0});
+  const trackGutter=useRef(0);
   useEffect(()=>{if(!playingRef.current)setMarkerText(time(playhead,true));},[playhead]);
   const [dragTrack,setDragTrack]=useState<Track|null>(null),[dragBlocked,setDragBlocked]=useState(false);
   const videoLanes=useRef<Partial<Record<Track,HTMLDivElement|null>>>({});
@@ -118,7 +119,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   const applyZoom=useCallback((value:number,anchorMs:number,viewportX:number)=>{
     const el=scroll.current;if(!el)return;
-    const next=Math.max(minimumZoomRef.current,clampTimelineZoom(value)),left=anchoredScroll(anchorMs,next,viewportX);
+    const next=Math.max(minimumZoomRef.current,clampTimelineZoom(value)),left=anchoredScroll(anchorMs,next,viewportX-trackGutter.current);
     stopInertia();
     if(next===zoomRef.current&&pendingZoomScroll.current===null){el.scrollLeft=left;return;}
     zoomRef.current=next;pendingZoomScroll.current=left;setZoom(next);
@@ -126,7 +127,7 @@ export function MusicVideoEditor({id}:{id:string}){
   useLayoutEffect(()=>{if(pendingZoomScroll.current!==null&&scroll.current){scroll.current.scrollLeft=pendingZoomScroll.current;pendingZoomScroll.current=null;}},[zoom]);
   function zoomBy(factor:number){
     const el=scroll.current;if(!el)return;
-    const x=el.clientWidth/2;applyZoom(zoomRef.current*factor,(el.scrollLeft+x)*1000/zoomRef.current,x);
+    const x=el.clientWidth/2;applyZoom(zoomRef.current*factor,Math.max(0,el.scrollLeft+x-trackGutter.current)*1000/zoomRef.current,x);
   }
   const [libraryOpen,setLibraryOpen]=useState(false),[filter,setFilter]=useState<"All"|"Lip Sync"|"B-Roll"|"AI Video"|"Uploads">("All");
   const [search,setSearch]=useState("");
@@ -335,7 +336,7 @@ export function MusicVideoEditor({id}:{id:string}){
   }
   function muteButton(track:AudioTrack,name:string){
     const muted=trackMutes[track],label=(muted?"Unmute ":"Mute ")+name;
-    return <button type="button" className={"mv-track-mute"+(muted?" is-muted":"")} aria-label={label} title={label} aria-pressed={muted} disabled={importing} onClick={()=>toggleTrackMute(track)}>{muted?<VolumeX size={15}/>:<Volume2 size={15}/>}</button>;
+    return <button type="button" className={"mv-track-mute"+(muted?" is-muted":"")} aria-label={label} title={label} aria-pressed={muted} disabled={importing} onPointerDown={e=>e.stopPropagation()} onClick={()=>toggleTrackMute(track)}>{muted?<VolumeX size={15}/>:<Volume2 size={15}/>}</button>;
   }
   function playerVolumeButton(){
     return <button type="button" className={"mv-player-volume"+(previewVolume===0?" is-muted":"")} aria-label="Preview volume" title="Preview volume" aria-expanded={!!volumePopup} aria-controls={volumePopup?"mv-preview-volume-panel":undefined} data-volume-anchor="player" disabled={importing} onClick={e=>{
@@ -479,7 +480,7 @@ export function MusicVideoEditor({id}:{id:string}){
         first[1].target.dispatchEvent(new PointerEvent("pointercancel",{bubbles:true,pointerId:first[0],pointerType:"touch",isPrimary:true}));
         cancelling=false;gestureCleanup.current?.();
         const g=geometry();
-        pinch={distance:g.distance,zoom:zoomRef.current,anchorMs:(el.scrollLeft+g.x)*1000/zoomRef.current};
+        pinch={distance:g.distance,zoom:zoomRef.current,anchorMs:Math.max(0,el.scrollLeft+g.x-trackGutter.current)*1000/zoomRef.current};
       }
       if(blocking){consume(event);try{el.setPointerCapture(event.pointerId);}catch{}}
     };
@@ -507,8 +508,11 @@ export function MusicVideoEditor({id}:{id:string}){
     if(!tracks||!scroller||!area)return;
     const update=()=>{
       const left=scroller.getBoundingClientRect().left-tracks.getBoundingClientRect().left+scroller.clientLeft;
-      const width=scroller.clientWidth,scrollLeft=scroller.scrollLeft;
-      setRulerViewport(previous=>previous.left===left&&previous.width===width&&previous.scrollLeft===scrollLeft?previous:{left,width,scrollLeft});
+      const width=scroller.clientWidth;
+      const gutter=Math.max(0,area.getBoundingClientRect().left-scroller.getBoundingClientRect().left-scroller.clientLeft+scroller.scrollLeft);
+      trackGutter.current=gutter;
+      const scrollLeft=scroller.scrollLeft-gutter;
+      setRulerViewport(previous=>previous.left===left&&previous.width===width&&previous.scrollLeft===scrollLeft&&previous.gutter===gutter?previous:{left,width,scrollLeft,gutter});
     };
     update();
     scroller.addEventListener("scroll",update,{passive:true});
@@ -519,7 +523,8 @@ export function MusicVideoEditor({id}:{id:string}){
   const byId=useMemo(()=>new Map(assets.map(a=>[a.id,a])),[assets]);
   const timelineEnd=project?songPartsEnd(songRange,songParts):0;
   const timelineLimit=timelineEnd;
-  const minimumZoom=timelineFitZoom(timelineLimit,rulerViewport.width);
+  const usableTimelineWidth=Math.max(0,rulerViewport.width-rulerViewport.gutter);
+  const minimumZoom=timelineFitZoom(timelineLimit,usableTimelineWidth);
   // Follow the viewport while fitted, but preserve intentional closer zoom.
   // Only display scale changes; editable duration and media times stay exact.
   useLayoutEffect(()=>{
@@ -652,7 +657,7 @@ export function MusicVideoEditor({id}:{id:string}){
     setError("");stopPlayback();setAt(Math.min(position,timelineLimit));
     requestAnimationFrame(()=>{
       const el=scroll.current;if(!el)return;
-      const x=position/1000*zoom;
+      const x=trackGutter.current+position/1000*zoom;
       if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);
     });
   }
@@ -677,7 +682,7 @@ export function MusicVideoEditor({id}:{id:string}){
     if(candidate.sourceOutMs-candidate.sourceInMs<current.sourceOutMs-current.sourceInMs)setPlacementNotice("Re-Sync restored the original start; the clip was shortened to the available recorded source.");
     else if(candidate.sourceInMs!==current.sourceInMs)setPlacementNotice("Re-Sync restored the original video start and kept the clip duration.");
     else setPlacementNotice("");
-    requestAnimationFrame(()=>{const el=scroll.current;if(el){const x=position/1000*zoom;if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);}});
+    requestAnimationFrame(()=>{const el=scroll.current;if(el){const x=trackGutter.current+position/1000*zoom;if(x<el.scrollLeft||x>el.scrollLeft+el.clientWidth-30)el.scrollLeft=Math.max(0,x-30);}});
   }
   const firstAssetId=useMemo(()=>firstVisibleVideo(clips.filter(c=>c.timelineStartMs<timelineEnd))?.assetId,[clips,timelineEnd]);
   useEffect(()=>{
@@ -739,7 +744,7 @@ export function MusicVideoEditor({id}:{id:string}){
   const markerVisible=rulerViewport.width>0&&markerViewportX>=-0.5&&markerViewportX<=rulerViewport.width+0.5;
   useLayoutEffect(()=>{viewportRef.current={zoom,...rulerViewport};},[zoom,rulerViewport]);
   // The last audible song part is the only end of the editable project.
-  const pixels=Math.max(rulerViewport.width,project?Math.max(1,timelineLimit/1000*zoom):640);
+  const pixels=Math.max(usableTimelineWidth,project?Math.max(1,timelineLimit/1000*zoom):640);
   const msFromX=(x:number)=>Math.max(0,Math.round(x/zoom*1000));
   function getDropTime(e:React.DragEvent){
     const rect=e.currentTarget.getBoundingClientRect();
@@ -1170,25 +1175,16 @@ export function MusicVideoEditor({id}:{id:string}){
     </div>}
     <section className="mv-timeline" aria-label="Timeline editor">
       <div className="mv-tracks" ref={tracksRef}>
-        <div className="mv-track-labels">
-          <div className="mv-label mv-ruler-spacer">
-          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
-            <label title="Playhead time · Enter or checkmark to apply"><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
-            <button type="submit" className="mv-marker-confirm" aria-label="Confirm playhead time" title="Confirm playhead time"><Check size={15} aria-hidden="true"/></button>
-          </form>
-          </div>
-          {([2,1] as Track[]).map(track=><div className={"mv-label"+(track===1?" mv-main-label":"")} key={track} title={track===1?"Lip-Sync · Main video track":"B-Roll · Overlay"}>
-            {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"B-Roll"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"B-Roll audio")}
-          </div>)}
-          <div className="mv-label mv-audio-label" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
-        </div>
         <div className="mv-scroll" ref={scroll} onPointerDown={e=>{if(e.target instanceof HTMLElement&&e.target.closest(".mv-lane,.mv-song-lane"))beginMediaGesture(e,"viewport",()=>{},clearSelection,false);}}>
           <div className="mv-track-area" ref={trackArea} style={{width:pixels}}>
             <div className="mv-ruler" style={{overflow:"hidden"}} onPointerDown={e=>scrubMarker(e)} onPointerMove={updateMarker} onPointerUp={e=>releaseMarker(e)} onPointerCancel={e=>releaseMarker(e,true)} onLostPointerCapture={e=>releaseMarker(e,true)}>
               {ticks.map(t=><span key={t.ms} className={t.major?"mv-tick-major":"mv-tick-minor"} aria-hidden={!t.major} style={{left:t.ms/1000*zoom}}>{t.major?<span className="mv-tick-label">{tickStep<1000?time(t.ms,true):time(t.ms)}</span>:null}</span>)}
             </div>
             {([2,1] as Track[]).map(track=><div className={"mv-lane"+(track===1?" mv-main-lane":"")+(trackMutes[track]?" is-audio-muted":"")+(dragTrack===track?(dragBlocked?" is-drop-blocked":" is-drop-target"):"")} key={track} ref={el=>{videoLanes.current[track]=el;}} onDragOver={e=>e.preventDefault()} onDrop={e=>onDrop(e,track)}>
-              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit).sort((a,b)=>a.timelineStartMs-b.timelineStartMs||a.id.localeCompare(b.id)).map((c,i)=>{
+              <div className={"mv-label mv-track-origin"+(track===1?" mv-main-label":"")} title={track===1?"Lip-Sync · Main video track":"B-Roll · Overlay"}>
+                {track===1?<Mic size={18}/>:<Video size={18}/>}<strong>{track===1?"Lip-Sync":"B-Roll"}</strong>{muteButton(track,track===1?"Lip-Sync audio":"B-Roll audio")}
+              </div>
+              {clips.filter(c=>c.track===track&&c.timelineStartMs<timelineLimit)}.sort((a,b)=>a.timelineStartMs-b.timelineStartMs||a.id.localeCompare(b.id)).map((c,i)=>{
                 const a=byId.get(c.assetId);if(!a)return null;
                 const clipWidth=(Math.min(clipEnd(c),timelineLimit)-c.timelineStartMs)/1000*zoom;
                 const movementLocked=!!(c.positionLocked||c.syncLocked);
@@ -1222,7 +1218,8 @@ export function MusicVideoEditor({id}:{id:string}){
               })}
             </div>)}
             <div className={"mv-song-lane"+(trackMutes.song?" is-audio-muted":"")} onPointerDown={e=>{if(e.target===e.currentTarget){const at=msFromX(e.clientX-e.currentTarget.getBoundingClientRect().left);beginMediaGesture(e,"viewport",()=>{},()=>{clearSelection();seek(at);},false);}}}>
-              {project?.songRemoved?<button type="button" className="mv-add-song" style={rulerViewport.width?{left:rulerViewport.scrollLeft+rulerViewport.width/2}:undefined} disabled={importing} onPointerDown={e=>e.stopPropagation()} onClick={()=>songInput.current?.click()}><Plus size={17}/><Music2 size={17}/> {importing?"Adding song…":"Add Song"}</button>:songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
+              <div className="mv-label mv-audio-label mv-track-origin" title="Song audio"><Music2 size={18}/><strong>Song</strong>{muteButton("song","song")}</div>
+              {project?.songRemoved?<button type="button" className="mv-add-song" style={rulerViewport.width?{left:Math.max(0,rulerViewport.scrollLeft)+Math.min(pixels-Math.max(0,rulerViewport.scrollLeft),rulerViewport.width+Math.min(0,rulerViewport.scrollLeft))/2}:undefined} disabled={importing} onPointerDown={e=>e.stopPropagation()} onClick={()=>songInput.current?.click()}><Plus size={17}/><Music2 size={17}/> {importing?"Adding song…":"Add Song"}</button>:songParts===null?<><div className={"mv-song-block"+(songSelected?" is-selected":"")+(armedMedia==="song"?" is-armed":"")} role="button" tabIndex={0} aria-label="Select song" aria-pressed={songSelected} title="Click or tap to select; drag with mouse; on touch, hold to move or swipe to scroll"
                 style={{left:songRange.positionMs/1000*zoom,width:(songRange.endMs-songRange.startMs)/1000*zoom}}
                 onContextMenu={e=>e.preventDefault()} onPointerDown={e=>beginMediaGesture(e,"song",()=>dragSong(e),selectSong)} onKeyDown={e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();selectSong();return;}if(e.key!=="ArrowLeft"&&e.key!=="ArrowRight")return;e.preventDefault();selectSong();const r=rangeRef.current;
                   commitSongRange(r,Math.max(0,r.positionMs+(e.key==="ArrowLeft"?-1:1)*(e.shiftKey?100:1)));}}>
@@ -1261,6 +1258,12 @@ export function MusicVideoEditor({id}:{id:string}){
             <button type="button" aria-label="Zoom out timeline" title="Zoom out timeline" disabled={zoom<=minimumZoom} onClick={()=>zoomBy(1/1.35)}><ZoomOut size={18}/></button>
             <button type="button" aria-label="Zoom in timeline" title="Zoom in timeline" disabled={zoom>=Math.max(MAX_TIMELINE_ZOOM,minimumZoom)} onClick={()=>zoomBy(1.35)}><ZoomIn size={18}/></button>
           </div></div>
+        <div className="mv-ruler-spacer mv-marker-toolbar">
+          <form className="mv-marker-time" onSubmit={e=>{e.preventDefault();submitMarker();}}>
+            <label title="Playhead time · Enter or checkmark to apply"><input aria-label="Playhead timeline time" enterKeyHint="go" autoComplete="off" spellCheck={false} value={markerText} onFocus={stopPlayback} onChange={e=>setMarkerText(e.target.value)} onKeyDown={e=>{if(e.key==="Escape"){e.preventDefault();setMarkerText(time(playheadRef.current,true));e.currentTarget.blur();}}}/></label>
+            <button type="submit" className="mv-marker-confirm" aria-label="Confirm playhead time" title="Confirm playhead time"><Check size={15} aria-hidden="true"/></button>
+          </form>
+        </div>
       </div>
       {hasSelection&&<><button type="button" className="mv-inspector-toggle" aria-expanded={inspectorOpen} onClick={()=>setInspectorOpen(v=>!v)}>{songSelected?<Music2 size={16}/>:<Film size={16}/>}<span>{songSelected?((project!.songName||"Unnamed song")+(songParts&&currentParts.length>1?" · Part "+(Math.min(partIndex,currentParts.length-1)+1)+" / "+currentParts.length:"")):(selectedAsset?.name||"Video")}</span>{inspectorOpen?<ChevronDown size={16}/>:<ChevronRight size={16}/>}</button>
       <div className="mv-inspector-body" hidden={!inspectorOpen}>
