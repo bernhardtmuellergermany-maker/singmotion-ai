@@ -100,7 +100,7 @@ const steps=[
  ["Give movements an order","Write 'first', 'then' and 'finally' to choreograph continuous actions. Say whether the gesture comes before, during or after the line."],
  ["Describe the final framing","Specify speed and where the camera should finish: for example, 'slowly move forward and settle on a medium close-up of the face'."],
  ["Keep the first attempt simple","Prefer one main camera move per short clip; rapidly stacking zoom, pan, orbit and walking can reduce identity and background stability."],
- ["Review the exact instructions","The Studio prompt field accepts up to 500 characters. Copy a complete example, adjust it to your photo and audio, then check what Studio will submit."],
+ ["Review the exact instructions","The Studio prompt field accepts up to 1,000 characters. Copy a complete example, adjust it to your photo and audio, then check what Studio will submit."],
  ["Watch and refine","Results are generative and never guaranteed. Review lips, face, hands, background, audio and framing, and change one instruction at a time."]
 ];
 const issues=[
@@ -139,7 +139,7 @@ export default function CameraMovementsHelp(){
     <p>In <Link href="/studio">Studio</Link>, choose your own music or spoken audio and a reference image. Then use the <strong>Performance prompt</strong> field. The <strong>Camera Movements</strong> buttons insert editable camera directions, and the Advanced camera menu offers presets. For the most reliable interpretation, spell out the movement in your prompt rather than relying only on a preset label.</p>
     <p>Write who is performing and whether they are <strong>singing, rapping or speaking</strong>. Describe a couple of visible actions using <strong>first → then → finally</strong>. Keep camera instructions short and direct. Avoid contradicting the source image or asking for several unrelated scenes at once.</p>
     <div className="sm-camera-copy-example"><div><strong>Complete example to copy</strong><p>{readyToCopy}</p></div><PromptCopyButton text={readyToCopy} label="Copy complete performance example"/></div>
-    <p className="sm-camera-fineprint">The Studio field currently accepts up to <strong>500 characters</strong>. The voice track determines the words; camera and gesture prompts direct the visual performance. They do not generate a new spoken script.</p>
+    <p className="sm-camera-fineprint">The Studio field currently accepts up to <strong>1,000 characters</strong>. The voice track determines the words; camera and gesture prompts direct the visual performance. They do not generate a new spoken script.</p>
    </section>
    <section className="sm-legal-panel" id="continuous-actions">
     <span className="sm-legal-num">02 / CONTINUOUS ACTIONS</span>
@@ -153,14 +153,14 @@ export default function CameraMovementsHelp(){
    </section>
    <section className="sm-camera-section" id="camera-movements">
     <div className="sm-camera-section-title"><span className="sm-legal-num">03 / CAMERA MOVEMENTS</span><h2>Camera moves and copy-ready instructions</h2>
-     <p>Explore 34 camera movements, each with one short English prompt matching its illustrative preview. Recommended and experimental labels are guidance, not guarantees. Choose one move that suits your reference image.</p>
+     <p>Explore 34 camera movements, each with one short English prompt matching its illustrative preview. Recommended and experimental labels are guidance, not guarantees. For singing, choose a move that keeps the face and mouth visible. Use full orbits, rear follow shots and whip pans mainly for cutaways or transitions.</p>
     </div>
     {movementGroups.map(group=><section key={group.label} className="sm-camera-rating-group"><h3 className="sm-camera-rating-heading">{group.label} <span>({techniques.filter(t=>t.recommended===group.recommended).length})</span></h3><p>{group.description}</p><div className="sm-camera-techniques">{techniques.filter(t=>t.recommended===group.recommended).map(t=><article key={t.name} className={`sm-camera-technique ${t.recommended?"sm-camera-recommended":"sm-camera-experimental"}`}>
      <div className="sm-camera-technique-top"><span className="sm-camera-number">{t.id}</span><div><h3>{t.name}</h3><small>{t.category}</small><span className={`sm-camera-rating ${t.recommended?"is-recommended":"is-experimental"}`}>{t.recommended?"Recommended":"Experimental"}</span></div></div>
      <CameraMovementPreview move={t}/>
      <div className="sm-camera-prompt-top"><strong>Copy this prompt</strong><PromptCopyButton text={t.example} label={"Copy "+t.name+" prompt"}/></div>
      <blockquote>{t.example}</blockquote>
-     <p className="sm-camera-risk"><TriangleAlert size={16} aria-hidden="true"/>{t.risk}</p>
+     {t.risk&&<p className="sm-camera-risk"><TriangleAlert size={16} aria-hidden="true"/>{t.risk}</p>}
     </article>)}</div></section>)}
    </section>
    <section className="sm-legal-panel">
