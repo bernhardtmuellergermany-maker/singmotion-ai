@@ -159,3 +159,9 @@ test("saved photo determines format while prompt retains artist motion verbatim"
   assert.ok(!result.includes("16:9 composition"));
   assert.ok(!result.includes("9:16 composition"));
 });
+
+ test("1,000 character performance prompt is forwarded literally without truncation",()=>{
+ const prompt="Sing naturally with a clear view of the face. ".repeat(24).slice(0,1000);
+ assert.equal(prompt.length,1000);
+ assert.equal(composePrompt("Custom","Static Close-Up",prompt),prompt);
+});
