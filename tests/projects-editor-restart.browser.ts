@@ -44,6 +44,9 @@ const server=createServer((req,res)=>{
  if(p==="/editor.css")return send(css,"text/css");
  if(p==="/api/music-video/fixture-project")return json({project,assets,clips});
  if(p==="/api/music-video/lock-project")return json({project:lockProject,assets:lockAssets,clips:lockClips});
+ if(p==="/api/music-video/lock-project/assets/first"&&req.method==="PATCH"){
+  let raw="";req.on("data",chunk=>raw+=chunk);req.on("end",()=>{const body=JSON.parse(raw);lockAssets[0]={...lockAssets[0],sourceStartMs:body.sourceStartMs,sourceEndMs:body.sourceEndMs};lockClips=lockClips.map(c=>c.assetId==="first"?{...c,syncLocked:false}:c);lockProject={...lockProject,revision:lockProject.revision+1};json({project:lockProject,assets:lockAssets,clips:lockClips});});return;
+ }
  if(p==="/api/music-video/lock-project/clips"&&req.method==="PATCH"){
   let raw="";req.on("data",chunk=>raw+=chunk);req.on("end",()=>{lockClips=JSON.parse(raw).clips;lockProject={...lockProject,revision:lockProject.revision+1};json({project:lockProject,assets:lockAssets,clips:lockClips});});return;
  }
@@ -308,6 +311,7 @@ try{
  // Verify direct clip controls, durable settings, exact source time and empty selection.
  for(const width of [390,1280]){
   lockClips=initialLockClips();lockProject={...project,id:"lock-project",songRemoved:false,songVersion:null};
+  lockAssets[0]={...lockAssets[0],sourceKind:width<500?"uploaded":"live",sourceStartMs:width<500?null:500,sourceEndMs:width<500?null:3500};
   const page=await browser.newPage({viewport:{width,height:844},isMobile:width<500,hasTouch:width<500});
   await page.goto(origin+"/lock-test");
   const second=page.getByLabel("Select video second",{exact:true}),first=page.getByLabel("Select video first",{exact:true});
@@ -434,8 +438,22 @@ try{
   console.log("PASS: unlocked clip moves with "+(width<500?"touch hold":"mouse drag")+"; locked clip stays fixed");
   await select(first);
   const originalStart=page.getByRole("textbox",{name:"Video start time in original song",exact:true}),originalEnd=page.getByRole("textbox",{name:"Video end time in original song",exact:true});
+  if(width<500){
+   assert.equal(await originalStart.inputValue(),"");assert.equal(await originalEnd.inputValue(),"");
+   assert.equal(await originalStart.isEditable(),true);assert.equal(await originalEnd.isEditable(),true);
+   assert.equal(await page.getByRole("button",{name:"Re-Sync",exact:true}).isDisabled(),true);
+   const unchanged=lockClips.map(c=>({...c}));
+   await originalStart.fill("00:00.500");await originalEnd.fill("00:03.500");
+   const stored=page.waitForResponse(r=>r.url().endsWith("/lock-project/assets/first")&&r.request().method()==="PATCH");
+   await page.getByRole("button",{name:"Save source time",exact:true}).click();await stored;
+   await page.waitForFunction(()=>document.querySelector<HTMLInputElement>('[aria-label="Video start time in original song"]')?.disabled===false);
+   assert.deepEqual(lockClips,unchanged,"setting reference times never moves clips");
+   assert.equal(lockAssets[0].sourceStartMs,500);assert.equal(lockAssets[0].sourceEndMs,3500);
+   await page.reload();await first.waitFor();await select(first);
+  }else{
+   assert.equal(await originalStart.isEditable(),false);assert.equal(await originalEnd.isEditable(),false);
+  }
   assert.equal(await originalStart.inputValue(),"00:00.500");assert.equal(await originalEnd.inputValue(),"00:03.500");
-  assert.equal(await originalStart.isEditable(),false);assert.equal(await originalEnd.isEditable(),false);
   const timelineStart=page.getByRole("textbox",{name:"Video start time on timeline",exact:true});
   const movedFirst=save();await timelineStart.fill("00:01.000");await timelineStart.press("Enter");await movedFirst;
   assert.equal(lockClips[0].timelineStartMs,1000);
