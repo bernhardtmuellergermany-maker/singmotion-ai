@@ -160,9 +160,9 @@ test("video start time supports exact song-relative placement and collision prot
  assert.equal(positionVideoClip([clip],{...clip,syncLocked:true},8918).status,"locked");
  assert.equal(positionVideoClip([clip],{...clip,syncLocked:true},0).status,"ok");
  const editor=read("components/music-video-editor.tsx");
- assert.ok(editor.includes('onConfirm={()=>submitClipTime("song")}'));
+ assert.ok(!editor.includes('submitClipTime("song")'));
  assert.ok(editor.includes("positionVideoClip(latest.current,current,position)"));
- assert.ok(editor.includes("songTimeToTimeline(ms,rangeRef.current)"));
+ assert.ok(editor.includes("moveSelectedClip(ms)"));
  assert.ok(editor.includes("Restore Lip Sync"));
  assert.ok(editor.includes("resetClipToSourceStart(latest.current,current"));
  assert.ok(editor.includes("apply(latest.current.map(c=>c.id===current.id?candidate:c))"));
@@ -489,12 +489,14 @@ test("video inspector groups source start/end before timeline start/end",()=>{
  const end=editor.indexOf('<span className="mv-inspector-duration">',start);
  assert.ok(start>=0&&end>start);
  const labels=[...editor.slice(start,end).matchAll(/<InlineTimeField label="([^"]+)"/g)].map(m=>m[1]);
- assert.deepEqual(labels,["Video start time","Video end time","Timeline start","Timeline end"]);
+ assert.deepEqual(labels,["Timeline start","Timeline end"]);
  assert.ok(editor.includes("Original song time"));
- assert.ok(editor.includes("Position in the full, untrimmed song"));
+ assert.ok(editor.includes("Fixed source times from generation · read-only"));
+ assert.ok(editor.includes('readOnly value={selectedAsset.sourceStartMs===null?"Unavailable":time(selectedAsset.sourceStartMs,true)}'));
+ assert.ok(editor.includes('readOnly value={selectedAsset.sourceEndMs===null?"Unavailable":time(selectedAsset.sourceEndMs,true)}'));
  assert.ok(editor.includes("Position in this music video project"));
- assert.ok(editor.includes('onConfirm={()=>submitClipTime("timeline")}'));
- assert.ok(editor.includes('onConfirm={()=>submitClipEnd("timeline")}'));
+ assert.ok(editor.includes('onConfirm={submitClipTime}'));
+ assert.ok(editor.includes('onConfirm={submitClipEnd}'));
 });
 
 test("library uses small authenticated cached still thumbnails instead of loading video elements",()=>{
